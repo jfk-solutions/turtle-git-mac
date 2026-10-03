@@ -58,7 +58,10 @@ A linked worktree can refer to a Git directory outside the selected folder.
 Submodules, local clone sources and external object stores can also need additional
 folder grants. Clone now requests separate destination/source/key grants, holds
 their leases and persists a key bookmark for the cloned repository. Signed Clone
-grant inheritance and key renewal remain unverified. General multiple-directory
+grant inheritance and key renewal remain unverified. Init retains its destination
+lease; normal and bare repositories save the resolved root to recents. Bare opening
+is verified in a development preview, but signed Init grants, adoption and recent
+bookmark renewal remain unverified. General multiple-directory
 workflows for worktrees, out-of-scope submodules and object stores are still pending;
 basic bookmark tests do not prove those cases work inside the sandbox.
 

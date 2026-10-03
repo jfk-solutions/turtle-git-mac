@@ -78,6 +78,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         }
     }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

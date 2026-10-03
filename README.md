@@ -61,7 +61,11 @@ bundle structure; it is not a signed distribution.
 - Native Clone window with depth, recursion, bare/no-checkout, branch/origin,
   OpenSSH-key and SVN option groups, Retry and Log/Finder post-actions. Real Git and
   native shallow-branch clone checks pass; [Clone parity](docs/CLONE-PARITY.md)
-  records remaining work. Repository creation still uses a generic confirmation.
+  records remaining work.
+- Native Create Repository window with the upstream Bare option, destination warnings
+  and preserved existing contents. Bare repositories open in the workspace and Log;
+  worktree-only actions are disabled. [Create Repository parity](docs/INIT-PARITY.md)
+  records picker, signed integration and remaining native verification.
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery

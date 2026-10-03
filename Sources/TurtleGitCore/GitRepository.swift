@@ -37,12 +37,18 @@ public actor GitRepository {
         return result
     }
     public func discoverRoot() throws -> URL {
-        let result = try run(["rev-parse", "--show-toplevel"])
+        let result: GitResult
+        do { result = try run(["rev-parse", "--show-toplevel"]) }
+        catch let original as GitFailure {
+            guard (try? isBare()) == true else { throw original }
+            result = try run(["rev-parse", "--absolute-git-dir"])
+        }
         // Only remove Git's final LF: spaces and embedded newlines can be part of a path.
         var bytes = result.stdout
         if bytes.last == 10 { bytes.removeLast() }
         return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true)
     }
+    public func isBare() throws -> Bool { try run(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) == "true" }
     public func status() throws -> [StatusEntry] { StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"]).stdout) }
     public func trackedPaths() throws -> [String] {
         try run(["ls-files", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }

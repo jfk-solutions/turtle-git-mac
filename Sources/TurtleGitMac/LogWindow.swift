@@ -77,6 +77,7 @@ struct LogCommandRequest: Identifiable {
     @Published var to = Date()
     @Published var useDates = false
     @Published var busy = false
+    @Published var bare = true
     @Published var error: String?
     @Published var patch: String?
     @Published var commandRequest: LogCommandRequest?
@@ -115,8 +116,10 @@ struct LogCommandRequest: Identifiable {
         busy = true
         Task {
             do {
+                let bare = try await repository.isBare()
                 let result = try await repository.history(options: options)
                 guard request == generation else { return }
+                self.bare = bare
                 entries = result; graph = CommitGraph.layout(result)
                 selected.formIntersection(Set(result.map(\.hash)))
                 if selected.isEmpty, let first = result.first { selected = [first.hash] }
@@ -138,12 +141,16 @@ struct LogCommandRequest: Identifiable {
     }
     func request(_ command: LogRevisionCommand) {
         guard !busy, let revision else { return }
+        guard !bare || ![LogRevisionCommand.checkout, .cherryPick, .revert].contains(command) else { return }
         if command == .branch || command == .tag { onCreateReference(command == .tag, revision.hash); return }
         if command == .push { onPush(revision.hash); return }
         if command == .checkout { onCheckout(revision.hash); return }
         commandRequest = LogCommandRequest(command: command, revision: revision)
     }
     func execute(_ request: LogCommandRequest, value: String, resetMode: String) {
+        if bare && ([LogRevisionCommand.checkout, .cherryPick, .revert].contains(request.command) || (request.command == .reset && resetMode != "soft")) {
+            error = "This operation requires a working tree. A bare repository supports only Soft reset."; return
+        }
         let hash = request.revision.hash
         var args: [String]
         switch request.command {
@@ -163,6 +170,7 @@ struct LogCommandRequest: Identifiable {
     }
     func copy(_ text: String) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
     func diff(workingTree: Bool = false, path: String? = nil) {
+        guard !workingTree || !bare else { return }
         let revisions = self.revisions
         guard !revisions.isEmpty else { return }
         Task {
@@ -204,7 +212,7 @@ struct LogDialog: View {
                 .contextMenu {
                     Button { fileDiff() } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(model.selectedFiles.count != 1)
                     Button { fileDiff() } label: { CommandLabel(title: "Show changes as unified diff", icon: .compare) }.disabled(model.selectedFiles.count != 1)
-                    Button { fileDiff(workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(model.selectedFiles.count != 1)
+                    Button { fileDiff(workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(model.selectedFiles.count != 1 || model.bare)
                     Divider()
                     Button { model.copy(model.files.filter { model.selectedFiles.contains($0.id) }.map(\.path).joined(separator: "\n")) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(model.selectedFiles.isEmpty)
                 }
@@ -332,18 +340,18 @@ struct RevisionTable: NSViewRepresentable {
             }
             menu.autoenablesItems = false
             let one = model.revision != nil, two = model.revisions.count == 2
-            item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one)
+            item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one && !model.bare)
             item(two ? "Compare revisions" : "Compare with previous revision", #selector(showDiff), icon: .compare, enabled: one || two)
             item("Show changes as unified diff", #selector(showDiff), icon: .compare, enabled: one || two)
             menu.addItem(.separator())
             item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
-            item("Switch/Checkout to this…", #selector(checkout), icon: .checkout, enabled: one && !model.busy)
+            item("Switch/Checkout to this…", #selector(checkout), icon: .checkout, enabled: one && !model.busy && !model.bare)
             item("Create branch at this version…", #selector(branch), icon: .branch, enabled: one && !model.busy)
             item("Create tag at this version…", #selector(tag), icon: .tag, enabled: one && !model.busy)
             item("Push…", #selector(push), icon: .push, enabled: one && !model.busy)
             menu.addItem(.separator())
-            item("Revert changes by this commit…", #selector(revert), icon: .revert, enabled: one && !model.busy && model.revision?.parents.count == 1)
-            item("Cherry Pick this commit…", #selector(cherryPick), icon: .cherryPick, enabled: one && !model.busy && model.revision?.parents.count == 1)
+            item("Revert changes by this commit…", #selector(revert), icon: .revert, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
+            item("Cherry Pick this commit…", #selector(cherryPick), icon: .cherryPick, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
             menu.addItem(.separator())
             let clipboard = NSMenu(title: "Copy to clipboard")
             clipboard.autoenablesItems = false
@@ -425,9 +433,11 @@ struct LogRevisionDialog: View {
             }
             if request.command == .reset {
                 Picker("Reset type:", selection: $resetMode) {
-                    Text("Soft — keep index and working tree").tag("soft")
-                    Text("Mixed — reset index, keep working tree").tag("mixed")
-                    Text("Hard — reset index and working tree").tag("hard")
+                    Text(model.bare ? "Soft — move branch only" : "Soft — keep index and working tree").tag("soft")
+                    if !model.bare {
+                        Text("Mixed — reset index, keep working tree").tag("mixed")
+                        Text("Hard — reset index and working tree").tag("hard")
+                    }
                 }.pickerStyle(.radioGroup)
                 Text(resetMode == "hard" ? "Hard reset discards tracked changes in the working tree and index." : "Move the current branch to the selected revision.").foregroundStyle(.secondary)
 
@@ -442,6 +452,6 @@ struct LogRevisionDialog: View {
                 Button("OK") { model.execute(request, value: value, resetMode: resetMode) }.keyboardShortcut(.defaultAction)
                     .disabled((request.command == .branch || request.command == .tag) && value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-        }.padding(20).frame(width: 550)
+        }.padding(20).frame(width: 550).onAppear { if model.bare { resetMode = "soft" } }
     }
 }

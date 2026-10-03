@@ -24,6 +24,7 @@
 		407EFF50D7678E3D7BB3F032 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
 		4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */; };
 		4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0657423D5C68D66703C2BB5C /* GitPatch.swift */; };
+		5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */; };
 		5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4B370EB64932B2909A8228 /* CloneWindow.swift */; };
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
 		7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC73279697B4174BE7ED4D66 /* StashWindow.swift */; };
@@ -51,6 +52,7 @@
 		D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A48D22D1E6D22153CBA3744 /* Push.swift */; };
 		D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */; };
 		D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16F443B326FDAB1414D334B /* Appearance.swift */; };
+		DB59BAE5F3CCA439B5A6C388 /* CreateRepositoryWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */; };
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
 		E046B347B367E63019422195 /* WorkingTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20E461B2D9629D0293A80EB /* WorkingTree.swift */; };
 		E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */; };
@@ -112,6 +114,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRepositoryWindow.swift; sourceTree = "<group>"; };
 		0657423D5C68D66703C2BB5C /* GitPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitPatch.swift; sourceTree = "<group>"; };
 		08425BF4A91945D52E0F6D99 /* Clone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clone.swift; sourceTree = "<group>"; };
 		0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rebase.swift; sourceTree = "<group>"; };
@@ -133,6 +136,7 @@
 		4E11987C6F9546E908AD60BA /* FinderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSync.swift; sourceTree = "<group>"; };
 		4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitWindow.swift; sourceTree = "<group>"; };
 		515FF59B2CF163D9481D39B5 /* CommitSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitSelection.swift; sourceTree = "<group>"; };
+		593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryInitialization.swift; sourceTree = "<group>"; };
 		593DF9B126BBA7E5D206ABE5 /* Checkout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Checkout.swift; sourceTree = "<group>"; };
 		5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageHistory.swift; sourceTree = "<group>"; };
 		5E600ADAA231E0E7D95C9827 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = Sources/TurtleGitCore/Resources/Icons; sourceTree = SOURCE_ROOT; };
@@ -195,6 +199,7 @@
 				0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */,
 				4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */,
 				4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */,
+				022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */,
 				798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */,
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
@@ -263,6 +268,7 @@
 				244AD68D8412684F520E64AC /* ReferenceCreation.swift */,
 				62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */,
 				B0144901E0020C531A5D86FB /* RepositoryAccess.swift */,
+				593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */,
 				83395323FFA0860A52795F9F /* Stash.swift */,
 				B20E461B2D9629D0293A80EB /* WorkingTree.swift */,
 			);
@@ -430,6 +436,7 @@
 				1EE5D062EF745705C82D9271 /* ReferenceCreation.swift in Sources */,
 				0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */,
 				199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */,
+				5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				E046B347B367E63019422195 /* WorkingTree.swift in Sources */,
 			);
@@ -445,6 +452,7 @@
 				A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */,
 				E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */,
 				F5EE3ED18BC448DB2B9E658A /* CommitWindow.swift in Sources */,
+				DB59BAE5F3CCA439B5A6C388 /* CreateRepositoryWindow.swift in Sources */,
 				B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */,
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,

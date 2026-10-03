@@ -5,6 +5,7 @@ import pathlib
 import plistlib
 import shutil
 import subprocess
+import urllib.parse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('source', type=pathlib.Path)
@@ -15,11 +16,17 @@ parser.add_argument('--bundle-identifier', default='org.turtlegit.macos.document
 parser.add_argument('--name', default='TurtleGit Documentation Preview')
 parser.add_argument('--screenshot', type=pathlib.Path, help='Debug-only destination for the Save Window Screenshot command.')
 parser.add_argument('--appearance', choices=['system', 'light', 'dark'], help='Debug-only initial appearance.')
+parser.add_argument('--finder-request', help='Debug-only Finder request dispatched after the demo repository opens.')
 args = parser.parse_args()
 if args.destination.exists():
     raise SystemExit('Preview destination already exists. Choose another path.')
-if not (args.repository / '.git').exists():
+if not (args.repository / '.git').exists() and not all((args.repository / name).exists() for name in ('HEAD', 'objects', 'config')):
     raise SystemExit('Use a disposable demo repository created with create-demo-repository.py.')
+if args.finder_request:
+    request = urllib.parse.urlparse(args.finder_request)
+    fields = urllib.parse.parse_qs(request.query, keep_blank_values=True)
+    if request.scheme != 'turtlegit' or request.netloc != 'action' or len(fields.get('command', [])) != 1 or not fields.get('path') or not all(path.startswith('/') and '\0' not in path for path in fields['path']):
+        raise SystemExit('Use a valid turtlegit://action Finder request with absolute paths.')
 if args.screenshot and args.screenshot.exists():
     raise SystemExit('Screenshot destination already exists. Choose another path.')
 shutil.copytree(args.source, args.destination, symlinks=True)
@@ -30,6 +37,10 @@ data['CFBundleIdentifier'] = args.bundle_identifier
 data['CFBundleName'] = args.name
 data['CFBundleDisplayName'] = args.name
 data['TurtleGitDocumentationRepository'] = str(args.repository.resolve())
+if args.finder_request:
+    data['TurtleGitDocumentationRequest'] = args.finder_request
+else:
+    data.pop('TurtleGitDocumentationRequest', None)
 data.pop('CFBundleURLTypes', None)
 if args.appearance:
     data['TurtleGitDocumentationAppearance'] = args.appearance

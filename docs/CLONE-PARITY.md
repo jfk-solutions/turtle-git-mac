@@ -31,9 +31,10 @@ Option combinations, depth/revision, NULs, branch and origin names are validated
 Execution uses an existing destination or its closest existing ancestor; failed
 destinations are not deleted. Errors retain the entered controls and offer Retry.
 Success shows captured output plus Show Log, Show in Finder and Close. Normal
-clones become the active repository when the workspace is idle. Bare clones use
-their own Log/Finder actions; opening bare repositories in the workspace remains
-pending and bare clones are not added to its recent-working-tree list.
+and bare clones are adopted when the workspace is idle and their resolved roots
+are saved to recents. Bare repositories now open in the workspace and Log with
+worktree actions disabled; see [Create Repository parity](INIT-PARITY.md). Native
+bare-clone adoption and signed recent-permission renewal remain unverified.
 
 The Windows Pageant/Putty key row is adapted to an OpenSSH private key. Git uses
 `GIT_SSH_COMMAND` during clone and stores a shell-quoted `core.sshCommand` for later

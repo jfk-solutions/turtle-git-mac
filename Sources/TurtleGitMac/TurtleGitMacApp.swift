@@ -17,7 +17,12 @@ import TurtleGitCore
                 .onAppear {
                     if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
                        let path = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRepository") as? String {
-                        model.open(URL(fileURLWithPath: path, isDirectory: true))
+                        model.open(URL(fileURLWithPath: path, isDirectory: true)) {
+                            if let request = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRequest") as? String,
+                               let url = URL(string: request), FinderRequest(url: url) != nil {
+                                model.handle(url)
+                            }
+                        }
                     }
                 }
                 #endif
@@ -32,11 +37,11 @@ import TurtleGitCore
                 }.disabled(model.busy || model.recentRepositories.isEmpty)
                 Button("Close Repository") { model.closeRepository() }.disabled(model.busy || model.root == nil)
                 Button("Clone…") { model.activate(.clone) }.keyboardShortcut("c", modifiers: [.command, .shift])
-                Button("Create Repository…") { model.activate(.initialize) }
+                Button("Create Repository…") { model.activate(.initialize) }.keyboardShortcut("r", modifiers: [.command, .shift])
             }
             CommandMenu("TurtleGit") {
                 ForEach(RepositoryAction.allCases.filter { $0 != .clone && $0 != .initialize }) { action in
-                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy)
+                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree))
                 }
             }
             CommandMenu("Appearance") {
@@ -75,26 +80,37 @@ struct RepositoryWindow: View {
                                 Text(action.title).frame(maxWidth: .infinity, alignment: .leading).padding(6)
                                     .background(model.section == action ? Color.accentColor.opacity(0.14) : .clear)
                                     .cornerRadius(4)
-                            }.buttonStyle(.plain)
+                            }.buttonStyle(.plain).disabled(model.bare && action.requiresWorkingTree)
                         }
                         Divider()
                         ForEach([RepositoryAction.pull, .push, .fetch, .branch, .tag, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .reflog]) { action in
-                            Button(action.title) { model.activate(action) }.buttonStyle(.plain).padding(6)
+                            Button(action.title) { model.activate(action) }.buttonStyle(.plain).padding(6).disabled(model.bare && action.requiresWorkingTree)
                         }
                         Spacer()
                         Text("Native macOS port • In development").font(.caption).foregroundStyle(.secondary)
                     }.padding(12).frame(minWidth: 185, idealWidth: 205, maxWidth: 260).disabled(model.busy)
                     VSplitView {
                         VStack(alignment: .leading, spacing: 8) {
-                            Text(model.section.title.replacingOccurrences(of: "…", with: "")).font(.title2).padding(.horizontal, 12)
-                            status
+                            Text(model.bare ? "Bare repository" : model.section.title.replacingOccurrences(of: "…", with: "")).font(.title2).padding(.horizontal, 12)
+                            if model.bare {
+                                VStack(spacing: 12) {
+                                    Text("This repository stores Git history without a working tree.").foregroundStyle(.secondary)
+                                    HStack {
+                                        Button { model.activate(.log) } label: { CommandLabel(title: "Show Log", icon: .log) }
+                                        Button { model.activate(.fetch) } label: { CommandLabel(title: "Fetch…", icon: .fetch) }
+                                        Button { model.activate(.push) } label: { CommandLabel(title: "Push…", icon: .push) }
+                                    }.disabled(model.busy)
+                                }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else { status }
                         }.padding(.vertical, 12).frame(minHeight: 260)
                         VStack(alignment: .leading, spacing: 0) {
                             HStack {
-                                Text("Diff / Operation output").font(.headline)
+                                Text(model.bare ? "Operation output" : "Diff / Operation output").font(.headline)
                                 Spacer()
-                                Toggle("Staged diff", isOn: $model.stagedDiff).toggleStyle(.checkbox)
-                                Button("Show diff") { model.showDiff() }.disabled(model.busy)
+                                if !model.bare {
+                                    Toggle("Staged diff", isOn: $model.stagedDiff).toggleStyle(.checkbox)
+                                    Button("Show diff") { model.showDiff() }.disabled(model.busy)
+                                }
                             }.padding(10).background(.bar)
                             OutputView(text: model.output).frame(minHeight: 120)
                         }
@@ -103,7 +119,7 @@ struct RepositoryWindow: View {
             }
             Divider()
             HStack {
-                Text("\(model.visibleEntries.count) changed • \(model.entries.filter(\.staged).count) staged")
+                Text(model.bare ? "Bare repository • no working tree" : "\(model.visibleEntries.count) changed • \(model.entries.filter(\.staged).count) staged")
                 Spacer()
                 Text(model.finderStatus).lineLimit(1).help(model.finderStatus)
                 Text(model.busy ? "Working…" : "Ready")
@@ -114,7 +130,7 @@ struct RepositoryWindow: View {
         .toolbar {
             Button { model.chooseRepository() } label: { Label("Open", systemImage: "folder") }.disabled(model.busy)
             Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.disabled(model.root == nil || model.busy)
-            Button { model.activate(.commit) } label: { Label("Commit", systemImage: "checkmark.circle") }.disabled(model.root == nil || model.busy)
+            Button { model.activate(.commit) } label: { Label("Commit", systemImage: "checkmark.circle") }.disabled(model.root == nil || model.busy || model.bare)
             Button { model.activate(.log) } label: { Label("Show log", systemImage: "clock") }.disabled(model.root == nil || model.busy)
         }
         .sheet(item: $model.dialog) { action in OperationDialog(model: model, action: action) }

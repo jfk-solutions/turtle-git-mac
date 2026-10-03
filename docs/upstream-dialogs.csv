@@ -90,7 +90,7 @@ src/Resources/TortoiseProcENG.rc,IDD_CLEAN,Clean,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_PATCH_VIEW,View Patch,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SVNIGNORE,Import SVN Ignore,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSEXTMENU,Context Menu 2,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_CREATEREPO,Git Init,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_CREATEREPO,Git Init,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSALTERNATIVEEDITOR,Alternative editor,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_BISECTSTART,Bisect start,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_STASH,Stash,partial

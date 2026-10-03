@@ -6,6 +6,7 @@ import TurtleGitCore
     weak var workspaceWindow: NSWindow?
     @Published var root: URL?
     @Published var branch = ""
+    @Published var bare = false
     @Published var entries: [StatusEntry] = []
     @Published var selection = Set<String>()
     @Published var output = "Open a repository to get started."
@@ -34,6 +35,8 @@ import TurtleGitCore
     private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
     private var stashWindows: [String: StashWindowController] = [:]
     private var cloneWindow: CloneWindowController?
+    private var createWindows: [String: CreateRepositoryWindowController] = [:]
+    private var adoptionGeneration = 0
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
@@ -66,7 +69,7 @@ import TurtleGitCore
         panel.directoryURL = preferred
         if panel.runModal() == .OK, let url = panel.url { open(url) }
     }
-    func open(_ url: URL) { openSession(RepositoryAccessLease(url: url)) }
+    func open(_ url: URL, onOpened: (() -> Void)? = nil) { openSession(RepositoryAccessLease(url: url), onOpened: onOpened) }
     func openRecent(_ saved: SavedRepository) {
         guard !busy else { return }
         do {
@@ -84,15 +87,17 @@ import TurtleGitCore
     }
     func closeRepository() {
         guard !busy else { return }
+        adoptionGeneration += 1; bare = false
         repository = nil; activeAccess = nil; root = nil; entries = []; selection = []
         branch = ""; message = ""; output = "Open a repository to get started."
     }
-    private func rememberAccess(_ lease: RepositoryAccessLease) {
-        do { try accessStore?.remember(lease.url); recentRepositories = accessStore?.repositories ?? [] }
+    private func rememberAccess(_ lease: RepositoryAccessLease, repositoryRoot: URL? = nil) {
+        do { try accessStore?.remember(repositoryRoot ?? lease.url); recentRepositories = accessStore?.repositories ?? [] }
         catch { self.error = "The repository is open, but its permission could not be saved: " + error.localizedDescription }
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil) {
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, onOpened: (() -> Void)? = nil) {
         guard !busy else { return }
+        adoptionGeneration += 1
         busy = true
         Task {
             do {
@@ -125,14 +130,16 @@ import TurtleGitCore
                 section = .status
                 output = "Repository: \(resolved.path)"
                 try await reload()
+                if bare { section = .log }
                 if let selected { selection = selected.selectedStatusPaths(root: resolved, entries: entries) }
-                rememberAccess(lease)
+                rememberAccess(lease, repositoryRoot: resolved)
                 busy = false
                 if let action {
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
                     if action == .diff { showDiff(paths: paths) } else { activate(action, paths: paths) }
                     if ![RepositoryAction.status, .commit, .log, .diff].contains(action) { workspaceWindow?.makeKeyAndOrderFront(nil) }
                 }
+                onOpened?()
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
@@ -144,10 +151,11 @@ import TurtleGitCore
     }
     private func reload() async throws {
         guard let repository, let root else { return }
-        entries = try await repository.status()
+        bare = try await repository.isBare()
+        entries = bare ? [] : try await repository.status()
         selection.formIntersection(Set(entries.map(\.id)))
         branch = try await repository.branch()
-        let tracked = try await repository.trackedPaths()
+        let tracked = bare ? [] : try await repository.trackedPaths()
         let snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
         cacheStates = cacheStates.filter { $0.key != root.path && !$0.key.hasPrefix(root.path + "/") }
         cacheStates.merge(snapshot.states) { _, new in new }
@@ -184,8 +192,10 @@ import TurtleGitCore
         perform { repo in let result = try await repo.commit(message: text); await MainActor.run { self.message = "" }; return result }
     }
     func activate(_ action: RepositoryAction, paths: [String] = []) {
+        guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
         case .clone: showClone()
+        case .initialize: showCreateRepository()
         case .status:
             guard let repository else { return }
             showStatus(repository: repository, access: activeAccess, paths: paths)
@@ -245,7 +255,6 @@ import TurtleGitCore
         case .stash:
             guard let repository else { return }
             showStash(repository: repository, access: activeAccess)
-        default: dialog = action
         }
     }
     private func restoreCloneKeyAccess(root: URL) {
@@ -270,18 +279,52 @@ import TurtleGitCore
                 do { UserDefaults.standard.set(try SystemRepositoryBookmarkProvider().create(for: keyAccess.url), forKey: "Clone.KeyBookmark." + repo.root.path) }
                 catch { self.error = "The clone completed, but its SSH-key permission could not be saved.\n" + error.localizedDescription }
             }
-            // The workspace currently requires a working tree; bare clones use
-            // their own Log/Finder post-actions until bare workspace support lands.
-            guard !bare else { return }
-            do { try self.accessStore?.remember(repo.root); self.recentRepositories = self.accessStore?.repositories ?? [] }
-            catch { self.error = "The clone completed, but its folder permission could not be saved.\n" + error.localizedDescription }
-            guard !self.busy else { return }
-            self.repository = repo; self.activeAccess = access; self.root = repo.root; self.selection = []; self.output = result
-            Task { await self.refresh() }
+            self.adoptRepository(repo, access: access, bare: bare, output: result)
         }
         cloneWindow = controller
         if let source { controller.model.source = source }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, bare: Bool, output: String) {
+        rememberAccess(access, repositoryRoot: repo.root)
+        adoptionGeneration += 1; let generation = adoptionGeneration
+        Task {
+            // Let an operation on the previous repository finish before switching
+            // workspace state. An explicit Open/Close supersedes this handoff.
+            while busy && generation == adoptionGeneration { try? await Task.sleep(nanoseconds: 50_000_000) }
+            guard generation == adoptionGeneration else { return }
+            repository = repo; activeAccess = access; root = repo.root; self.bare = bare
+            entries = []; selection = []; branch = ""; section = bare ? .log : .status; self.output = output
+            await refresh()
+        }
+    }
+    private func showCreateRepository(folder preferred: URL? = nil) {
+        let folder = preferred
+        var lease: RepositoryAccessLease?
+        if let folder, let activeAccess, activeAccess.contains(folder) { lease = activeAccess }
+        else if let folder, !GitRuntime.isAppStoreBuild { lease = RepositoryAccessLease(url: folder) }
+        if lease == nil {
+            let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
+            panel.prompt = "Create repository here"; panel.directoryURL = folder ?? root?.deletingLastPathComponent()
+            panel.message = "Choose the folder that will contain the new repository."
+            panel.begin { [weak self] response in
+                guard response == .OK, let selected = panel.url else { return }
+                self?.presentCreateRepository(folder: selected, lease: RepositoryAccessLease(url: selected))
+            }
+            return
+        }
+        guard let folder, let lease else { return }
+        presentCreateRepository(folder: folder, lease: lease)
+    }
+    private func presentCreateRepository(folder: URL, lease: RepositoryAccessLease) {
+        guard lease.contains(folder), !GitRuntime.isAppStoreBuild || lease.hasSecurityScope else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+        let controller = createWindows[folder.path] ?? CreateRepositoryWindowController(folder: folder, access: lease)
+        let fresh = createWindows[folder.path] == nil
+        controller.onClosed = { [weak self] in self?.createWindows.removeValue(forKey: folder.path) }
+        controller.model.onInitialized = { [weak self] repo, access, bare, output in self?.adoptRepository(repo, access: access, bare: bare, output: output) }
+        createWindows[folder.path] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        if fresh { controller.model.prepare() }
     }
     private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
         let root = repository.root
@@ -454,29 +497,16 @@ import TurtleGitCore
     func execute(_ action: RepositoryAction, value: String) {
         dialog = nil
         if action == .clone { showClone(source: value); return }
+        if action == .initialize { showCreateRepository(); return }
         guard let args = action.arguments(value: value) else { return }
-        if action == .initialize {
-            let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
-            panel.prompt = "Choose destination"
-            guard panel.runModal() == .OK, let destination = panel.url else { return }
-            guard !busy else { return }; busy = true
-            Task {
-                do {
-                    let lease = RepositoryAccessLease(url: destination)
-                    let repo = try makeRepository(destination)
-                    output = try await repo.run(args).text
-                    repository = repo; activeAccess = lease; root = destination; selection = []
-                    try await reload(); rememberAccess(lease)
-                } catch { self.error = error.localizedDescription }
-                busy = false
-            }
-        } else { perform { try await $0.run(args).text } }
+        guard !bare || !action.requiresWorkingTree else { error = "This operation requires a working tree."; return }
+        perform { try await $0.run(args).text }
     }
     func handle(_ url: URL) {
         guard !busy, let request = FinderRequest(url: url) else { return }
         let action = request.action
         if action == .clone { showClone(directory: request.paths.first); return }
-        if action == .initialize { activate(action); return }
+        if action == .initialize { showCreateRepository(folder: request.paths.first); return }
         let candidate = request.paths[0]
         // A URL from Finder or another app is a request, not a sandbox permission grant.
         if let activeAccess, request.paths.allSatisfy({ activeAccess.contains($0) }) {
