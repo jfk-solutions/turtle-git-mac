@@ -2272,8 +2272,8 @@ src/TortoiseProc/Commands/DropMoveCommand.cpp,TortoiseProc,blob,1cd9a7c8fc931d1c
 src/TortoiseProc/Commands/DropMoveCommand.h,TortoiseProc,blob,d964a26ad306c4db50b9a41f3936321b7f6605db,pending-review,,
 src/TortoiseProc/Commands/ExportCommand.cpp,TortoiseProc,blob,4043fbc5e2fca46dd13c86cfff062dbc94064539,pending-review,,
 src/TortoiseProc/Commands/ExportCommand.h,TortoiseProc,blob,96b9edeb9d2da0aaaa3c5b56730a79094a21cfa7,pending-review,,
-src/TortoiseProc/Commands/FetchCommand.cpp,TortoiseProc,blob,f4c60bae0c5c297c249146430e3b7004ee091e0a,partial,Sources/TurtleGitMac/RepositoryModel.swift; Sources/TurtleGitCore/GitRepository.swift,Initial native command workflow only; upstream options and error/recovery dialogs still require parity audit.
-src/TortoiseProc/Commands/FetchCommand.h,TortoiseProc,blob,49d248173f9f6df1d04ee9f7155fe7bdf5c5dedd,partial,Sources/TurtleGitMac/RepositoryModel.swift; Sources/TurtleGitCore/GitRepository.swift,Initial native command workflow only; upstream options and error/recovery dialogs still require parity audit.
+src/TortoiseProc/Commands/FetchCommand.cpp,TortoiseProc,blob,f4c60bae0c5c297c249146430e3b7004ee091e0a,partial-native,Sources/TurtleGitMac/FetchWindow.swift; Sources/TurtleGitCore/Fetch.swift; Sources/TurtleGitMac/RepositoryModel.swift,"Native Fetch layout and narrow workflows verified; Pull mode, rebase launch, progress/settings parity pending; see FETCH-PARITY.md."
+src/TortoiseProc/Commands/FetchCommand.h,TortoiseProc,blob,49d248173f9f6df1d04ee9f7155fe7bdf5c5dedd,partial-native,Sources/TurtleGitMac/FetchWindow.swift; Sources/TurtleGitCore/Fetch.swift; Sources/TurtleGitMac/RepositoryModel.swift,"Native Fetch layout and narrow workflows verified; Pull mode, rebase launch, progress/settings parity pending; see FETCH-PARITY.md."
 src/TortoiseProc/Commands/FirstStartWizardCommand.cpp,TortoiseProc,blob,fe9a488b26eb83d9e95dc2fd248805e4b353e484,pending-review,,
 src/TortoiseProc/Commands/FirstStartWizardCommand.h,TortoiseProc,blob,cf012fbc7758d8f6ff8b464ebfa05d42474da6e4,pending-review,,
 src/TortoiseProc/Commands/FormatPatchCommand.cpp,TortoiseProc,blob,0e05626d7c64c484276c45d5a004d2d9f3d668d3,pending-review,,
@@ -2483,8 +2483,8 @@ src/TortoiseProc/ProjectProperties.cpp,TortoiseProc,blob,116ee4436d5a6df8e3cfaec
 src/TortoiseProc/ProjectProperties.h,TortoiseProc,blob,883ebd4189b716775b89327e924e407a7343fdba,pending-review,,
 src/TortoiseProc/PromptDlg.cpp,TortoiseProc,blob,f458d3e078f00a0ea7d027237e783d9a23475008,pending-review,,
 src/TortoiseProc/PromptDlg.h,TortoiseProc,blob,0aad1a00befa0c408fc388269b013ba281ed98fb,pending-review,,
-src/TortoiseProc/PullFetchDlg.cpp,TortoiseProc,blob,261e75446acd8f6c3a14ed29dd57dd56d92a449a,pending-review,,
-src/TortoiseProc/PullFetchDlg.h,TortoiseProc,blob,ecddac7ebe6ae0976f3a011206311559c9bb9a89,pending-review,,
+src/TortoiseProc/PullFetchDlg.cpp,TortoiseProc,blob,261e75446acd8f6c3a14ed29dd57dd56d92a449a,partial-native,Sources/TurtleGitMac/FetchWindow.swift; Sources/TurtleGitCore/Fetch.swift; Sources/TurtleGitMac/RepositoryModel.swift,"Native Fetch layout and narrow workflows verified; Pull mode, rebase launch, progress/settings parity pending; see FETCH-PARITY.md."
+src/TortoiseProc/PullFetchDlg.h,TortoiseProc,blob,ecddac7ebe6ae0976f3a011206311559c9bb9a89,partial-native,Sources/TurtleGitMac/FetchWindow.swift; Sources/TurtleGitCore/Fetch.swift; Sources/TurtleGitMac/RepositoryModel.swift,"Native Fetch layout and narrow workflows verified; Pull mode, rebase launch, progress/settings parity pending; see FETCH-PARITY.md."
 src/TortoiseProc/PushDlg.cpp,TortoiseProc,blob,9fc65e54a987e17aece767b750732f723d97becc,partial-native,Sources/TurtleGitMac/PushWindow.swift; Sources/TurtleGitCore/Push.swift; Sources/TurtleGitMac/RepositoryModel.swift,Native options and branch/tag pushes verified; full chooser/settings/progress/authentication parity pending; see PUSH-PARITY.md.
 src/TortoiseProc/PushDlg.h,TortoiseProc,blob,2c8b37386d7b7c90dd2b0c7077c2b7c501dc5096,partial-native,Sources/TurtleGitMac/PushWindow.swift; Sources/TurtleGitCore/Push.swift; Sources/TurtleGitMac/RepositoryModel.swift,Native options and branch/tag pushes verified; full chooser/settings/progress/authentication parity pending; see PUSH-PARITY.md.
 src/TortoiseProc/RebaseDlg.cpp,TortoiseProc,blob,92f8f3d666bcc43a83b311e6e35d84feb895be05,pending-review,,

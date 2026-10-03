@@ -49,8 +49,8 @@ Force-with-lease enablement was checked in the running window. Actual captures a
   hooks, and failure recovery across network transports.
 - Full Browse References tree and selection-mode Log/RefLog source pickers.
 - Full Remote Settings: multiple URLs, refspecs, proxy and advanced settings;
-  partial configuration failures need recovery. The basic Manage sheet has not
-  completed native interaction QA.
+  partial configuration failures need recovery. Native Fetch QA opened the shared Manage sheet, read a selected remote
+  and closed it; mutation/recovery interaction checks remain pending.
 - URL/reference/server-option histories, complete preference and size persistence.
 - Native all-remotes/all-branches/deletion, submodule and server-option QA,
   keyboard, resize, light appearance and accessibility checks.

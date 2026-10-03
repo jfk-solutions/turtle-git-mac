@@ -22,6 +22,7 @@
 		7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */; };
 		8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB86EFEBCB6909C206458540 /* LogWindow.swift */; };
 		8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1491F4A59F19B27A3FCCF966 /* PushWindow.swift */; };
+		96858E5400FE448CEE799A09 /* Fetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181B9FE19CD19EA7DAB1E824 /* Fetch.swift */; };
 		A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FF59B2CF163D9481D39B5 /* CommitSelection.swift */; };
 		A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977DAB97DBBB903654C73A78 /* SwitchWindow.swift */; };
 		A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */; };
@@ -32,6 +33,7 @@
 		B9AFF3F19CAB2A9F7313754D /* TurtleGitCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
 		D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A48D22D1E6D22153CBA3744 /* Push.swift */; };
+		D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */; };
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
 		E046B347B367E63019422195 /* WorkingTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20E461B2D9629D0293A80EB /* WorkingTree.swift */; };
 		E33A35FBF3211D26C2EE5F72 /* FinderSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E11987C6F9546E908AD60BA /* FinderSync.swift */; };
@@ -98,6 +100,7 @@
 		136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchTagWindow.swift; sourceTree = "<group>"; };
 		1491F4A59F19B27A3FCCF966 /* PushWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushWindow.swift; sourceTree = "<group>"; };
 		152D20910797F40A39CBF1A8 /* LICENSE */ = {isa = PBXFileReference; path = LICENSE; sourceTree = "<group>"; };
+		181B9FE19CD19EA7DAB1E824 /* Fetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fetch.swift; sourceTree = "<group>"; };
 		1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitMacApp.swift; sourceTree = "<group>"; };
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		244AD68D8412684F520E64AC /* ReferenceCreation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCreation.swift; sourceTree = "<group>"; };
@@ -117,6 +120,7 @@
 		AB86EFEBCB6909C206458540 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
 		B0144901E0020C531A5D86FB /* RepositoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccess.swift; sourceTree = "<group>"; };
 		B20E461B2D9629D0293A80EB /* WorkingTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTree.swift; sourceTree = "<group>"; };
+		BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetchWindow.swift; sourceTree = "<group>"; };
 		BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
 		D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitModels.swift; sourceTree = "<group>"; };
 		DF6352B22FB03878FC59F470 /* CommitHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitHistory.swift; sourceTree = "<group>"; };
@@ -153,6 +157,7 @@
 				0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */,
 				4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */,
 				798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */,
+				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
 				DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */,
 				1491F4A59F19B27A3FCCF966 /* PushWindow.swift */,
@@ -194,6 +199,7 @@
 				593DF9B126BBA7E5D206ABE5 /* Checkout.swift */,
 				DF6352B22FB03878FC59F470 /* CommitHistory.swift */,
 				515FF59B2CF163D9481D39B5 /* CommitSelection.swift */,
+				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				F01FB406B12CA9FED59A3121 /* FinderCache.swift */,
 				BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */,
 				D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */,
@@ -350,6 +356,7 @@
 				0195C6B3141B1AE8A2DD732B /* Checkout.swift in Sources */,
 				FB06077C7097755667D83917 /* CommitHistory.swift in Sources */,
 				A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */,
+				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */,
 				AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */,
 				A9FF0A885E44AF8F4261B5DA /* GitModels.swift in Sources */,
@@ -372,6 +379,7 @@
 				A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */,
 				F5EE3ED18BC448DB2B9E658A /* CommitWindow.swift in Sources */,
 				B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */,
+				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,
 				241DD127E807673880A95899 /* PatchWindow.swift in Sources */,
 				8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */,

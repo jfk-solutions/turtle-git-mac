@@ -32,5 +32,5 @@ if args.swift_executable:
     resources = executable.parent / 'TurtleGitMac_TurtleGitCore.bundle'
     if not resources.is_dir():
         raise SystemExit('Swift Package icon resource bundle is missing. Run swift build first.')
-    shutil.copytree(resources, args.destination / resources.name, symlinks=True)
+    shutil.copytree(resources, args.destination / resources.name, symlinks=True, dirs_exist_ok=True)
 print(args.destination.resolve())

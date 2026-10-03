@@ -167,7 +167,7 @@ private struct PushReferenceChooser: View {
             Button("OK") { if let reference = references.first(where: { $0.name == selection }) { model.pick(reference, destination: destination) } }.keyboardShortcut(.defaultAction).disabled(selection == nil) }
     }.padding(16).frame(width: 650, height: 430) }
 }
-private struct PushDestinationRadio: NSViewRepresentable {
+struct PushDestinationRadio: NSViewRepresentable {
     let title: String; let selected: Bool; let select: () -> Void
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -176,7 +176,8 @@ private struct PushDestinationRadio: NSViewRepresentable {
     final class Coordinator: NSObject { var select: () -> Void = {}; @objc func clicked(_ sender: NSButton) { select() } }
 }
 
-private struct PushRemoteSettings: View {
+struct PushRemoteSettings: View {
+    var onClose: (() -> Void)? = nil
     @ObservedObject var model: PushWindowModel
     @State private var selection: String?
     @State private var name = ""
@@ -219,7 +220,7 @@ private struct PushRemoteSettings: View {
                     Button("Remove") { confirmRemove = true }.disabled(selection == nil) }
             }
         }
-        HStack { if busy { ProgressView().controlSize(.small) }; Spacer(); Button("Close") { model.managingRemotes = false }.keyboardShortcut(.cancelAction) }
+        HStack { if busy { ProgressView().controlSize(.small) }; Spacer(); Button("Close") { if let onClose { onClose() } else { model.managingRemotes = false } }.keyboardShortcut(.cancelAction) }
     }.padding(16).frame(width: 700, height: 320).disabled(busy)
         .onChange(of: selection) { load($0) }
         .alert("Remote settings failed", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) { Button("OK") { error = nil } } message: { Text(error ?? "") }
@@ -227,7 +228,7 @@ private struct PushRemoteSettings: View {
     }
 }
 
-private struct PushRefCombo: NSViewRepresentable {
+struct PushRefCombo: NSViewRepresentable {
     @Binding var value: String
     let choices: [String]
     let local: Bool
@@ -260,7 +261,7 @@ private struct PushRefCombo: NSViewRepresentable {
         }
     }
 }
-private struct PushRemotePopup: NSViewRepresentable {
+struct PushRemotePopup: NSViewRepresentable {
     let values: [String]
     @Binding var selection: String
     @Environment(\.isEnabled) private var enabled
