@@ -13,6 +13,46 @@ final class CommitSelectionTests: XCTestCase {
         return (root, repo)
     }
     func write(_ root: URL, _ path: String, _ text: String) throws { try Data(text.utf8).write(to: root.appendingPathComponent(path)) }
+    func testMessageOnlyCommitsAndDatesPreserveUncheckedIndex() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try write(root, "file.txt", "base\n"); try await repo.stage(["file.txt"]); _ = try await repo.commit(message: "base")
+        let beforeTree = try await repo.run(["rev-parse", "HEAD^{tree}"]).text
+        try write(root, "file.txt", "staged\n"); try await repo.stage(["file.txt"])
+        try write(root, "file.txt", "worktree\n")
+        let index = try await repo.diff(staged: true), working = try await repo.diff()
+        var options = CommitOptions(); options.messageOnly = true; options.authorDate = Date(timeIntervalSince1970: 1234567890)
+        _ = try await repo.commitSelected(message: "empty with date", paths: ["file.txt"], options: options)
+        let tree = try await repo.run(["rev-parse", "HEAD^{tree}"]).text
+        let date = try await repo.run(["show", "-s", "--format=%at", "HEAD"]).text
+        let afterIndex = try await repo.diff(staged: true), afterWorking = try await repo.diff()
+        XCTAssertEqual(beforeTree, tree); XCTAssertEqual(date, "1234567890\n"); XCTAssertEqual(index, afterIndex); XCTAssertEqual(working, afterWorking)
+        options.amend = true; options.resetAuthorDate = true
+        _ = try await repo.commitSelected(message: "reset author date", paths: [], options: options)
+        let reset = try await repo.run(["show", "-s", "--format=%at", "HEAD"]).text
+        XCTAssertGreaterThan(Int(reset.trimmingCharacters(in: .newlines)) ?? 0, 1234567890)
+        options.amend = false; options.resetAuthorDate = false
+        _ = try await repo.commitIndex(message: "staging message only includes index", options: options)
+        let contents = try await repo.run(["show", "HEAD:file.txt"]).text
+        let staged = try await repo.diff(staged: true), remaining = try await repo.diff()
+        XCTAssertEqual(contents, "staged\n"); XCTAssertEqual(staged, ""); XCTAssertEqual(working, remaining)
+    }
+    func testNewBranchCommitAndSubmoduleIndexMetadata() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try write(root, "file.txt", "base\n"); try await repo.stage(["file.txt"]); _ = try await repo.commit(message: "base")
+        let original = try await repo.run(["rev-parse", "HEAD"]).text
+        try write(root, "file.txt", "topic\n")
+        var options = CommitOptions(); options.newBranch = "topic/雪"
+        _ = try await repo.commitSelected(message: "on new branch", paths: ["file.txt"], options: options)
+        let branch = try await repo.branch(), main = try await repo.run(["rev-parse", "main"]).text
+        XCTAssertEqual(branch, "topic/雪"); XCTAssertEqual(main, original)
+        let hash = original.trimmingCharacters(in: .newlines), path = "module\t雪"
+        _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + hash + "," + path])
+        let submodules = try await repo.submodulePaths(); XCTAssertEqual(submodules, [path])
+        let before = try await repo.diff(staged: true)
+        options.newBranch = "invalid:branch"
+        do { _ = try await repo.commitIndex(message: "invalid", options: options); XCTFail("Invalid branch") } catch {}
+        let after = try await repo.diff(staged: true); XCTAssertEqual(before, after)
+    }
     func testCheckedWorkingTreeContentsExcludeAndPreserveUnrelatedStagedChanges() async throws {
         let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         for file in ["checked.txt", "unchecked.txt"] { try write(root, file, "base\n") }

@@ -4,6 +4,10 @@ public struct CommitOptions: Sendable {
     public var amend = false
     public var signOff = false
     public var author: String?
+    public var authorDate: Date?
+    public var resetAuthorDate = false
+    public var messageOnly = false
+    public var newBranch: String?
     public init() {}
 }
 
@@ -13,7 +17,8 @@ extension GitRepository {
     public func commitSelected(message: String, paths: Set<String>, options: CommitOptions = CommitOptions()) throws -> String {
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
-        guard !paths.isEmpty || options.amend else { throw failure("Check at least one file to commit.") }
+        let paths = options.messageOnly ? Set<String>() : paths
+        guard !paths.isEmpty || options.amend || options.messageOnly else { throw failure("Check at least one file to commit.") }
         let changes = try status()
         guard !changes.contains(where: { $0.state == .conflicted }) else { throw failure("Resolve the conflicted files before committing.") }
         let checked = changes.filter { paths.contains($0.path) }
@@ -35,9 +40,13 @@ extension GitRepository {
                 if tracked.contains(source) { stagePaths.append(source) }
             }
         }
+        try prepareCommitBranch(options.newBranch)
         try stage(stagePaths)
         var args = ["commit", "--only", "-m", message]
         if options.amend { args.append("--amend") }
+        if options.messageOnly { args.append("--allow-empty") }
+        if options.resetAuthorDate { args.append("--date=now") }
+        else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         if commitPaths.isEmpty { return try run(args).text }
@@ -56,11 +65,28 @@ extension GitRepository {
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Enter a commit message.")
         }
+        try prepareCommitBranch(options.newBranch)
         var args = ["commit", "-m", message]
         if options.amend { args.append("--amend") }
+        if options.messageOnly { args.append("--allow-empty") }
+        if options.resetAuthorDate { args.append("--date=now") }
+        else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         return try run(args).text
+    }
+    private func prepareCommitBranch(_ name: String?) throws {
+        guard let name else { return }
+        guard !name.isEmpty, !name.contains("\0"), !name.hasPrefix("-") else { throw GitFailure(arguments: ["branch"], code: 1, message: "Enter a valid new branch name.") }
+        _ = try run(["check-ref-format", "refs/heads/" + name])
+        _ = try run(["checkout", "-b", name])
+    }
+    public func submodulePaths() throws -> Set<String> {
+        Set(try run(["ls-files", "--stage", "-z"]).stdout.split(separator: 0).compactMap { record in
+            let fields = record.split(separator: 9, maxSplits: 1)
+            guard fields.count == 2, fields[0].starts(with: Array("160000 ".utf8)) else { return nil }
+            return String(decoding: fields[1], as: UTF8.self)
+        })
     }
     public func stagingFiles(staged: Bool) throws -> [CommitFile] {
         let args = ["diff", "--no-ext-diff", "--no-color", "-M"] + (staged ? ["--cached"] : [])

@@ -5,7 +5,13 @@ source, resource layout and behavior. Native macOS controls replace Windows APIs
 the port must retain the arrangement, command hierarchy, selection semantics,
 information density and interaction order. Generic dialogs remain temporary.
 
-The complete resource inventory is `upstream-dialogs.csv` (129 dialogs). A native
+The complete resource inventory is `upstream-dialogs.csv` (129 dialogs).
+`upstream-controls.csv` now inventories 1,648 static controls at that same pinned
+commit, including hidden controls, IDs, labels and full resource declarations.
+Regenerate it with `python3 scripts/inventory-dialog-controls.py`. Pending controls
+require native mapping, enablement/layout comparison and operational evidence;
+this inventory does not prove those checks have passed. Dynamic menus, histories,
+plugin controls and state transitions also require source review. A native
 replacement remains partial until its controls, enablement, context actions,
 keyboard behavior, resizing and Git effects have been verified. The file audit in
 `upstream-files.csv` records the source implementation separately from artwork.

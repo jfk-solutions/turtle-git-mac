@@ -69,8 +69,16 @@ import TurtleGitCore
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
     @Published var branch = ""
+    @Published var createBranch = false
+    @Published var newBranch = ""
     @Published var message = ""
     @Published var amend = false
+    @Published var setAuthorDate = false
+    @Published var authorDate = Date()
+    @Published var resetAuthorDate = false
+    @Published var messageOnly = false
+    @Published var doNotAutoselectSubmodules = UserDefaults.standard.bool(forKey: "Commit.DoNotAutoselectSubmodules")
+    @Published var submodules = Set<String>()
     @Published var setAuthor = false
     @Published var author = ""
     @Published var showUnversioned = true
@@ -84,6 +92,8 @@ import TurtleGitCore
     var closePartial: () -> Void = {}
     var close: () -> Void = {}
     var onCommitted: (String) -> Void = { _ in }
+    var onPush: () -> Void = {}
+    enum CompletionAction: String, CaseIterable { case commit = "Commit", recommit = "ReCommit", push = "Commit & Push" }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
     var visibleEntries: [StatusEntry] {
         entries.filter { entry in
@@ -103,7 +113,7 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
-    var canCommit: Bool { !busy && (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || amend) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { !busy && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || amend)) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func reload(paths: [String]? = nil) {
         guard !busy else { return }; busy = true
         let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
@@ -111,17 +121,22 @@ import TurtleGitCore
         Task {
             defer { busy = false }
             do {
-                entries = try await repository.status(); branch = try await repository.branch()
+                entries = try await repository.status(); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
                 statistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 stagedStatistics = Dictionary(try await repository.stagingFiles(staged: true).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 unstagedStatistics = Dictionary(try await repository.stagingFiles(staged: false).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 if resetChecks {
                     checked = Set(visibleEntries.filter { entry in
                         let inScope = scopePaths.isEmpty || scopePaths.contains { $0 == entry.path || entry.path.hasPrefix($0 + "/") }
-                        return inScope && entry.state != .conflicted && (entry.state != .untracked || !scopePaths.isEmpty)
+                        return inScope && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted && (entry.state != .untracked || !scopePaths.isEmpty)
                     }.map(\.id))
                 } else { checked.formIntersection(Set(entries.map(\.id))) }
                 selection.formIntersection(Set(entries.map(\.id)))
+                if !hasLoaded && author.isEmpty {
+                    let name = (try? await repository.run(["config", "user.name"]).text.trimmingCharacters(in: .newlines)) ?? ""
+                    let email = (try? await repository.run(["config", "user.email"]).text.trimmingCharacters(in: .newlines)) ?? ""
+                    author = name.isEmpty ? "" : "\(name) <\(email)>"
+                }
                 hasLoaded = true; refreshPartial()
             } catch { self.error = error.localizedDescription }
         }
@@ -170,17 +185,22 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription }
         }
     }
-    func commit() {
+    func commit(_ action: CompletionAction = .commit) {
         guard canCommit else { return }
         let text = message, paths = checked, staging = stagingEnabled
         var options = CommitOptions(); options.amend = amend; options.author = setAuthor ? author : nil
+        options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
         busy = true
         Task {
             do {
                 let output: String
                 if staging { output = try await repository.commitIndex(message: text, options: options) }
                 else { output = try await repository.commitSelected(message: text, paths: paths, options: options) }
-                busy = false; onCommitted(output); close()
+                busy = false; onCommitted(output)
+                if action == .recommit {
+                    message = ""; createBranch = false; newBranch = ""; amend = false; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
+                    checked = []; selection = []; reload()
+                } else { close(); if action == .push { onPush() } }
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
@@ -190,61 +210,41 @@ struct CommitDialog: View {
     @ObservedObject var model: CommitWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Text("Commit to:"); Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue); Spacer(); if model.busy { ProgressView().controlSize(.small) } }
-            GroupBox("Message:") {
-                VStack(alignment: .leading, spacing: 8) {
-                    TextEditor(text: $model.message).font(.system(.body, design: .monospaced)).frame(minHeight: 100, idealHeight: 140, maxHeight: 200).border(Color.secondary.opacity(0.3))
-                    HStack {
-                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).onChange(of: model.amend) { _ in model.amendChanged() }
-                        Spacer(); Text("\(model.message.count) characters").font(.caption).foregroundStyle(.secondary)
-                    }
-                    HStack {
-                        Toggle("Set author", isOn: $model.setAuthor).toggleStyle(.checkbox)
-                        TextField("Name <email>", text: $model.author).textFieldStyle(.roundedBorder).disabled(!model.setAuthor)
-                        Button("Add Signed-off-by") { model.addSignOff() }
-                    }
-                }.padding(4)
-            }
-                GroupBox("Changes made (double-click on file for diff):") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 10) {
-                            Text("Check:")
-                            checkButton("All") { model.check { _ in true } }
-                            checkButton("None") { model.uncheckAll() }
-                            checkButton("Unversioned") { model.check { $0.state == .untracked } }
-                            checkButton("Versioned") { model.check { $0.state != .untracked } }
-                            checkButton("Added") { model.check { $0.state == .added } }
-                            checkButton("Deleted") { model.check { $0.state == .deleted } }
-                            checkButton("Modified") { model.check { $0.state == .modified } }
-                        }.font(.system(size: 12))
-                        fileTable(model.visibleEntries, selection: $model.selection, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 200)
-                    }.padding(4)
-                }
             HStack {
-                Toggle("Enable staging area", isOn: $model.stagingEnabled).toggleStyle(.checkbox)
-                Toggle("Show Unversioned Files", isOn: $model.showUnversioned).toggleStyle(.checkbox)
-                if !model.scopePaths.isEmpty { Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox) }
-                Spacer(); Text(model.stagingEnabled ? "\(model.stagedEntries.count) staged, \(model.unstagedEntries.count) unstaged files shown" : "\(model.checked.count) files checked, \(model.visibleEntries.count) files shown").font(.caption)
+                Text("Commit to:")
+                if model.createBranch { TextField("New branch name", text: $model.newBranch).frame(width: 250) }
+                else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
+                Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox)
+                Spacer(); if model.busy { ProgressView().controlSize(.small) }
             }
-            if model.stagingEnabled {
-                HStack {
-                    Button("Stage selected") { model.moveToStage(model.selection, staged: true) }.disabled(model.selection.isEmpty)
-                    Button("Unstage selected") { model.moveToStage(model.selection, staged: false) }.disabled(model.selection.isEmpty)
-                    Button(model.partialMode == false ? "Hide Staging «" : "Partial Staging »") { model.showPartial(false) }
-                    Button(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »") { model.showPartial(true) }
-                    Toggle("Staged diff", isOn: $model.stagedDiff).toggleStyle(.checkbox)
-                    Spacer(); Text("A mixed checkbox means the file has both staged and unstaged changes.").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            Text(model.stagingEnabled ? "Commit includes all staged changes, including files outside the current view. Unstaged contents remain in the working tree." : "Checked files commit their current whole-file contents. Unchecked staged changes remain staged.").font(.caption).foregroundStyle(.secondary)
+            messageSection
+            changesSection
             HStack {
+                VStack(alignment: .leading, spacing: 6) {
+                    Toggle("Show Whole Project", isOn: $model.showWholeProject).disabled(model.scopePaths.isEmpty)
+                    Toggle("Message only", isOn: $model.messageOnly)
+                }.toggleStyle(.checkbox)
                 Button("Refresh") { model.reload() }
                 Spacer()
-                Button("Commit") { model.commit() }.keyboardShortcut(.return, modifiers: [.command]).disabled(!model.canCommit)
+                HStack(spacing: 0) {
+                    Button("Commit") { model.commit() }.keyboardShortcut(.return, modifiers: [.command])
+                    Menu {
+                        ForEach(CommitWindowModel.CompletionAction.allCases, id: \.self) { action in
+                            Button { model.commit(action) } label: { CommandLabel(title: action.rawValue, icon: action == .push ? .push : .commit) }
+                        }
+                    } label: { Image(systemName: "chevron.down") }.menuIndicator(.hidden).fixedSize().accessibilityLabel("Commit actions")
+                }.disabled(!model.canCommit)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
             }
         }.padding(12).disabled(model.busy)
+        .onChange(of: model.doNotAutoselectSubmodules) { disabled in
+            UserDefaults.standard.set(disabled, forKey: "Commit.DoNotAutoselectSubmodules")
+            if !model.stagingEnabled {
+                if disabled { model.checked.subtract(model.submodules) }
+                else { model.check { model.submodules.contains($0.path) } }
+            }
+        }
         .onChange(of: model.selection) { _ in model.refreshPartial() }
         .onChange(of: model.stagingEnabled) { enabled in if !enabled { model.closePartial() } }
         .alert("Commit failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
@@ -253,6 +253,64 @@ struct CommitDialog: View {
         .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) {
             VStack { Text("Unified Diff").font(.headline); OutputView(text: model.patch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }.padding(12)
         }
+    }
+    private var messageSection: some View {
+GroupBox("Message:") {
+                VStack(alignment: .leading, spacing: 8) {
+                    TextEditor(text: $model.message).font(.system(.body, design: .monospaced)).frame(minHeight: 100, idealHeight: 140, maxHeight: 200).border(Color.secondary.opacity(0.3))
+                    HStack {
+                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).onChange(of: model.amend) { _ in model.amendChanged() }
+                        Spacer(); Text("\(model.message.count) characters").font(.caption).foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Toggle("Set author date", isOn: $model.setAuthorDate).toggleStyle(.checkbox).frame(width: 170, alignment: .leading)
+                        if model.setAuthorDate {
+                            DatePicker("", selection: $model.authorDate, displayedComponents: [.date, .hourAndMinute]).labelsHidden().disabled(model.amend && model.resetAuthorDate)
+                            if model.amend { Toggle("Reset", isOn: $model.resetAuthorDate).toggleStyle(.checkbox) }
+                        }
+                        Spacer()
+                    }
+                    HStack {
+                        Toggle("Set author", isOn: $model.setAuthor).toggleStyle(.checkbox).frame(width: 170, alignment: .leading)
+                        TextField("Name <email>", text: $model.author).textFieldStyle(.roundedBorder).disabled(!model.setAuthor)
+                        Button("Add Signed-off-by") { model.addSignOff() }
+                    }
+                }.padding(4)
+            }
+    }
+    private var changesSection: some View {
+GroupBox("Changes made (double-click on file for diff):") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 10) {
+                            Text("Check:")
+                            checkButton("All") { model.check { _ in true } }
+                            checkButton("None") { model.uncheckAll() }
+                            checkButton("Unversioned", enabled: model.visibleEntries.contains { $0.state == .untracked }) { model.check { $0.state == .untracked } }
+                            checkButton("Versioned", enabled: model.visibleEntries.contains { $0.state != .untracked }) { model.check { $0.state != .untracked } }
+                            checkButton("Added", enabled: model.visibleEntries.contains { $0.state == .added }) { model.check { $0.state == .added } }
+                            checkButton("Deleted", enabled: model.visibleEntries.contains { $0.state == .deleted }) { model.check { $0.state == .deleted } }
+                            checkButton("Modified", enabled: model.visibleEntries.contains { $0.state == .modified }) { model.check { $0.state == .modified } }
+                            checkButton("Files", enabled: model.visibleEntries.contains { !model.submodules.contains($0.path) }) { model.check { !model.submodules.contains($0.path) } }
+                            checkButton("Submodules", enabled: model.visibleEntries.contains { model.submodules.contains($0.path) }) { model.check { model.submodules.contains($0.path) } }
+                        }.font(.system(size: 12)).disabled(model.messageOnly)
+                        fileTable(model.visibleEntries, selection: $model.selection, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 180).disabled(model.messageOnly)
+                        HStack {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Toggle("Staging support (EXPERIMENTAL)", isOn: $model.stagingEnabled)
+                                Toggle("Show Unversioned Files", isOn: $model.showUnversioned)
+                                Toggle("Do not autoselect submodules", isOn: $model.doNotAutoselectSubmodules).disabled(model.stagingEnabled)
+                            }.toggleStyle(.checkbox)
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 6) {
+                                if model.stagingEnabled {
+                                    Button(model.partialMode == false ? "Hide Staging «" : "Partial Staging »") { model.showPartial(false) }
+                                    Button(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »") { model.showPartial(true) }
+                                }
+                                Text(model.stagingEnabled ? "\(model.stagedEntries.count) staged, \(model.unstagedEntries.count) unstaged files shown" : "\(model.checked.count) files checked, \(model.visibleEntries.count) files shown").font(.caption)
+                            }
+                        }
+                    }.padding(4)
+                }
     }
     func fileTable(_ entries: [StatusEntry], selection: Binding<Set<String>>, staged: Bool?) -> some View {
         let statistics = staged.map { $0 ? model.stagedStatistics : model.unstagedStatistics } ?? model.statistics
@@ -283,7 +341,7 @@ struct CommitDialog: View {
             }
         } primaryAction: { ids in selection.wrappedValue = ids; model.diff(paths: ids, staged: staged) }
     }
-    func checkButton(_ title: String, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(.blue) }
+    func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }
 }
 
 /// Preserve TortoiseGit's three-state staging checkbox in the same file list.

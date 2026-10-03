@@ -42,7 +42,7 @@ bypasses checked-file index preparation. These are distinct commit modes.
 
 ## Verification
 
-The Swift suite has 76 tests, including real Git commits exercising both modes,
+The Swift suite has 82 tests, including real Git commits exercising both modes,
 unchecked staged changes, unusual literal filenames, unborn HEAD, staged renames
 and deletions, amend, author and sign-off, later unstaged edits, and hook rejection.
 
@@ -86,10 +86,11 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   broader mixed-stage QA and multi-display placement. Native Find follows macOS
   search conventions (including wraparound); upstream flashes at a search boundary.
   Added/deleted file partial changes would extend the pinned upstream behavior.
-- Author date and committer date controls, new branch, amend diff to previous
-  commit, explicit message-only checkbox, commit/push/recommit split button.
+- Amend diff to previous commit, complete reset/date initialization on amend,
+  issue controls and full message-history/template behavior. Native new branch,
+  submodule toggle, date Reset, ReCommit and Commit & Push execution QA remains.
 - Message history, templates, completion, spelling, issue IDs and tracker plugins.
-- Groups/changelists, submodule auto-selection options, unversioned file preview,
+- Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
 - Remaining file context commands: revert, skip-worktree, assume-unchanged,
   restore after commit, file log, blame, export, external editor/open/reveal.
@@ -102,3 +103,34 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
 
 These entries remain partial in the file/dialog inventory. Passing tests establish
 these workflows, not full TortoiseGit parity or App Store readiness.
+
+## Control audit correction
+
+The user-supplied Commit and action-menu screenshots exposed missing controls.
+The native window now groups Amend / Set author date / Set author under Message;
+Staging support, Show Unversioned Files and Do not autoselect submodules sit below
+the file list inside Changes made. Show Whole Project and Message only sit below
+that group. Extra Stage/Unstage/Staged diff controls have been removed from the
+footer; staging commands remain in the file context menu and attached patch links.
+Files/Submodules category links and conditional category enablement were added.
+
+Set author date uses Git --date. Amend exposes Reset (--date=now); no separate
+committer-date checkbox exists in the pinned upstream resource. New branch creates
+and checks out the named branch before committing; a hook failure may leave the
+new branch selected, as the branch creation precedes the commit.
+
+Message only disables the file list. Checkbox mode creates an empty/message-only
+commit while preserving staged and working-tree content. Staging mode follows
+upstream's --allow-empty index commit, so existing staged content is included.
+ReCommit keeps the window and clears commit-specific message/options; Commit &
+Push opens the existing native Push window after a successful commit, without
+sending a push automatically. The native action menu exposes those three actions.
+
+Real tests verify message-only tree/index/worktree preservation, author timestamps,
+amend date reset, staging-mode message-only index behavior, new-branch history,
+invalid branch rejection and Gitlink metadata including tab/Unicode paths.
+Native layout, configured author text, date-control visibility and enabled action
+menu were observed. Two menu-opening automation interruptions prevented native
+ReCommit/Commit & Push execution QA. `site/assets/commit-controls.png` is an actual
+window capture; older screenshots describe earlier layouts. Full Commit parity
+is still incomplete, including amend comparison and hidden/conditional workflows.

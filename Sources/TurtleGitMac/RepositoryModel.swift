@@ -206,6 +206,8 @@ import TurtleGitCore
                 self.output = output
                 Task { await self.refresh() }
             }
+            let access = controller.model.access
+            controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
             commitWindows[root.path] = controller
             controller.model.reload(paths: paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
