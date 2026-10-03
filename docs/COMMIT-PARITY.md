@@ -88,7 +88,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   Added/deleted file partial changes would extend the pinned upstream behavior.
 - Full issue controls and message-history/template behavior; native root/merge/
   rename amend QA and broader date/author combinations. Native new branch,
-  submodule toggle, ReCommit and Commit & Push execution QA remains.
+  submodule toggle and broader Commit action combinations remain.
 - Message history, templates, completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
@@ -130,8 +130,8 @@ Real tests verify message-only tree/index/worktree preservation, author timestam
 amend date reset, staging-mode message-only index behavior, new-branch history,
 invalid branch rejection and Gitlink metadata including tab/Unicode paths.
 Native layout, configured author text, date-control visibility and enabled action
-menu were observed. Two menu-opening automation interruptions prevented native
-ReCommit/Commit & Push execution QA. `site/assets/commit-controls.png` is an actual
+menu were observed. Initial menu-opening interruptions prevented execution QA;
+the native checks recorded below subsequently exercised both actions. `site/assets/commit-controls.png` is an actual
 window capture; older screenshots describe earlier layouts. Full Commit parity
 is still incomplete, including amend comparison and hidden/conditional workflows.
 
@@ -169,8 +169,8 @@ amendment. The final checkbox-mode comparison control was checked as enabled for
 a revision with a parent; both views were exercised after that enablement fix.
 Git verified its parent hash, committed file contents and preserved mixed edits.
 `site/assets/commit-amend.png` captures that actual checked plan before committing.
-Native root/merge/rename and action-menu execution remain unverified; this is still
-a partial Commit port. Specific date/override checks are recorded below.
+Native root/merge/rename and broader action combinations remain unverified; this is
+still a partial Commit port. Specific date/override checks are recorded below.
 
 ## View Patch and repository mode preferences
 
@@ -217,3 +217,16 @@ The existing real Git date/message-only/reset integration test also passes.
 
 Broader locale, time-zone/DST and date-component editing checks remain pending;
 these two native workflows do not establish every date/author combination.
+
+## Native completion actions
+
+The action-menu verification gap is now closed for a disposable amendment workflow.
+Selecting ReCommit completed a real Git amendment, kept the Commit window open,
+cleared its message, reset Amend/options, reloaded status and disabled Commit until
+another valid message/selection was supplied. Git reflog records the amendment.
+Selecting Commit & Push on a subsequent amendment completed the Git operation and
+opened the native Push window for the same repository with local main and origin
+selected. The disposable bare destination remained empty before Push's OK button.
+Broader action combinations (ordinary/staging/failed commits, scoped Finder entry
+and remote errors) remain pending; these checks do not establish all completion
+paths or the full upstream progress/post-action workflow.
