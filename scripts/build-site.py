@@ -19,7 +19,7 @@ if not re.fullmatch(r'[\w.-]+/[\w.-]+', repository):
     raise SystemExit('Invalid GITHUB_REPOSITORY.')
 source = root / 'docs/site'
 destination = root / 'build/site'
-for screenshot in ['log-messages.png', 'status.png', 'commit.png', 'staging.png', 'partial-staging.png']:
+for screenshot in ['log-messages.png', 'status.png', 'commit.png', 'staging.png', 'partial-staging.png', 'switch-checkout.png']:
     path = source / 'assets' / screenshot
     if not path.is_file() or path.read_bytes()[:8] != b'\x89PNG\r\n\x1a\n':
         raise SystemExit(f'Missing native screenshot: {path}')

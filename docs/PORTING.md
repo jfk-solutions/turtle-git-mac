@@ -47,7 +47,8 @@ require review; a dialog count is not a count of all upstream UI.
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
 | Clone / init | Destination picker and Git operation | Branch, recursive submodules, bare repos, advanced options and progress |
 | Fetch / pull / push | Git defaults; pull fast-forward only | Remote/ref pickers, tags, force-with-lease, progress, cancellation, authentication |
-| Branch / tag / switch | Name or revision entry | Annotated/signed tags, tracking, orphan branches, force choices, ref browsing |
+| Switch/Checkout | Native branch/tag/commit rows, create/force/merge/tracking/override options, real Git checkout tests | Complete choosers, progress and broader native QA; see SWITCH-PARITY.md |
+| Branch / tag | Name entry | Annotated/signed tags, tracking, orphan branches, force choices, ref browsing |
 | Merge / rebase | Start operation | Conflict editor, continuation, abort, interactive rebase and commit editing |
 | Stash | Save message and pop latest | List, inspect, apply selected, drop, include untracked, branch from stash |
 | Finder | Original icons, cache badges, complete selection dispatch, scoped Diff/Log | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
@@ -101,7 +102,7 @@ for that configuration. See `DISTRIBUTION.md` for the unresolved runtime, signin
 worktree permissions and license gates. These changes do not narrow the full-port
 objective or establish App Store readiness.
 
-The current Swift package builds and 42 tests pass, including topological graph
+The current Swift package builds and 49 tests pass, including topological graph
 continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 32 original upstream icons. Finder source type-checks
 with application-extension restrictions. The local Xcode bundle build is currently blocked

@@ -64,6 +64,7 @@ struct LogCommandRequest: Identifiable {
     private var generation = 0
     private var detailGeneration = 0
     private var limit = 200
+    var onCheckout: (String) -> Void = { _ in }
     var close: () -> Void = {}
     var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
     var revision: LogEntry? { revisions.count == 1 ? revisions.first : nil }
@@ -111,6 +112,7 @@ struct LogCommandRequest: Identifiable {
     }
     func request(_ command: LogRevisionCommand) {
         guard !busy, let revision else { return }
+        if command == .checkout { onCheckout(revision.hash); return }
         commandRequest = LogCommandRequest(command: command, revision: revision)
     }
     func execute(_ request: LogCommandRequest, value: String, resetMode: String) {
@@ -119,7 +121,7 @@ struct LogCommandRequest: Identifiable {
         switch request.command {
         case .branch: args = ["branch", "--", value, hash]
         case .tag: args = ["tag", "--", value, hash]
-        case .checkout: args = ["switch", "--detach", hash]
+        case .checkout: commandRequest = nil; onCheckout(hash); return
         case .reset: args = ["reset", "--" + resetMode, hash, "--"]
         case .cherryPick: args = ["cherry-pick", hash]
         case .revert: args = ["revert", "--no-commit", hash]
@@ -396,8 +398,7 @@ struct LogRevisionDialog: View {
                     Text("Hard — reset index and working tree").tag("hard")
                 }.pickerStyle(.radioGroup)
                 Text(resetMode == "hard" ? "Hard reset discards tracked changes in the working tree and index." : "Move the current branch to the selected revision.").foregroundStyle(.secondary)
-            } else if request.command == .checkout {
-                Text("Check out the selected revision with a detached HEAD. Create a branch to keep new commits.").foregroundStyle(.secondary)
+
             } else if request.command == .revert {
                 Text("Apply the reverse changes to the index and working tree without committing. Review and commit them from the Commit dialog.").foregroundStyle(.secondary)
             } else if request.command == .cherryPick {

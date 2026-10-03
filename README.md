@@ -45,11 +45,14 @@ bundle structure; it is not a signed distribution.
   all-branches and loading older commits; revision and working-tree comparisons.
 - Original TortoiseGit command icons in app context menus and the Finder submenu;
   original XPStyle status artwork for Finder badges and app file status.
-- Log revision actions for branch/tag, detached checkout, reset, revert without commit,
+- Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Working-tree and index diffs, with selectable, monospaced operation output.
 - Native confirmation dialogs for fetch, pull (fast-forward only), push, branch,
-  tag, switch, merge, rebase, stash save/pop, clone, and repository creation.
+  tag, merge, rebase, stash save/pop, clone, and repository creation.
+- Separate native Switch/Checkout dialog with branch/tag/commit selectors and
+  create-branch, force, merge, three-state remote tracking and branch override.
+  [Switch parity details](docs/SWITCH-PARITY.md) document pending chooser and UI work.
 - Finder extension target with status badges, directory status aggregation,
   TurtleGit context submenu, and complete multi-selection URL dispatch. File/folder
   selections scope Diff and Log; Show Whole Project restores unfiltered history.
