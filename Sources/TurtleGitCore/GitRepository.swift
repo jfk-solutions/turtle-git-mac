@@ -7,7 +7,7 @@ public actor GitRepository {
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git")) {
         self.root = root.standardizedFileURL; self.executable = executable
     }
-    public func run(_ arguments: [String]) throws -> GitResult {
+    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:]) throws -> GitResult {
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
@@ -24,6 +24,7 @@ public actor GitRepository {
         environment["GIT_PAGER"] = "cat"
         environment["LC_ALL"] = "C"
         environment.merge(GitRuntime.environment(executable: executable)) { _, runtime in runtime }
+        environment.merge(environmentOverrides) { _, override in override }
         process.environment = environment
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = output; process.standardError = error

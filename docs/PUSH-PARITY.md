@@ -32,7 +32,7 @@ Six real Git integration tests cover named destinations/upstream configuration,
 selected and renamed tags, commit hashes to new branches, all branches plus tags,
 non-fast-forward rejection, stale and valid force-with-lease, partial all-remotes
 failure, arbitrary paths, saved defaults, remote deletion, invalid input and a
-literal server option containing spaces and punctuation. The full suite has 68
+literal server option containing spaces and punctuation. The full suite has 76
 passing tests. Mixed staged/unstaged contents are preserved by push.
 
 Native QA used only a disposable documentation repository and local bare remote.

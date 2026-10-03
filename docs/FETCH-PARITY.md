@@ -30,7 +30,7 @@ Four real Git integration tests cover configured tracking-ref updates without
 changing HEAD/index/worktree, three-state tags/prune overrides versus Git defaults,
 remote branch browsing with Unicode names, URL fetch to FETCH_HEAD, shallow depth
 1 then 2, all-remotes updates and invalid destination/depth/refspec requests.
-The complete suite has 68 passing tests.
+The complete suite has 76 passing tests.
 
 Native QA on the disposable documentation repository browsed preview-main from
 its local bare remote and fetched it via URL. Tags cycled mixed → checked → unchecked.

@@ -4,6 +4,9 @@ import TurtleGitCore
 
 @main struct TurtleGitMacApp: App {
     @StateObject private var model = RepositoryModel()
+    init() {
+        if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
+    }
     var body: some Scene {
         WindowGroup("TurtleGit for Mac") {
             RepositoryWindow(model: model)

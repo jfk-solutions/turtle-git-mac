@@ -36,7 +36,7 @@ staged/unstaged changes, forced merge commits, No Commit and subsequent completi
 squash staging without a merge parent, diverged ff-only rejection, a true merge
 conflict and Git abort, URL branch selection, configuration precedence, configured
 rebase rejection without mutation and invalid flags/refspec input. The full suite
-has 68 passing tests.
+has 76 passing tests.
 
 Native QA pulled a real new commit from the disposable documentation remote with
 Fast Forward Only selected. HEAD advanced, the remote file appeared, and original
