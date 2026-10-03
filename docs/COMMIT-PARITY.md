@@ -94,7 +94,8 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
 - Remaining file context commands: revert, skip-worktree, assume-unchanged,
-  restore after commit, file log, blame, export, external editor/open/reveal.
+  restore after commit, blame, export and alternate editor. File log/open/reveal
+  are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
 - Checkbox mode completion of merges/cherry-picks. It rejects active merges
@@ -382,3 +383,42 @@ The documentation capture helper now includes attached-sheet frames when sizing
 images, including sheets wider than their parent. A fresh capture attempt failed
 with macOS ScreenCaptureKit's audio/video stream-start error; bounds output is
 therefore not yet visually verified and no new picker image was published.
+
+## File access and clipboard context commands
+
+Audited `GitStatusListCtrl.cpp` menu construction and command handling for
+`IDGITLC_LOG`, `LOGOLDNAME`, `OPEN`, `OPENWITH`, `EXPLORE` and the clipboard submenu.
+Commit's native menu now offers Show log for one versioned file, including deleted
+files, and Show log of old name for a rename. These requests retain the originating
+repository and security-scoped lease and open Log scoped to the selected path.
+The shared root/Finder Log dispatch uses the same helper. Submodule-specific Log
+semantics and rename-following history remain separate outstanding requirements.
+
+For one existing non-deleted file, Open uses the macOS association and Open With
+opens an application-bundle chooser. Submodules omit file-opening commands.
+Reveal in Finder replaces upstream Explore to. Original `open.ico` and
+`explorer.ico` artwork is copied byte-for-byte from the pinned source, with
+SHA-256 provenance. Errors from application launch are surfaced in Commit.
+
+Copy to Clipboard preserves the submenu and offers full paths, relative paths,
+file/folder names and all displayed information. It operates on context selection
+in displayed order, independently of Commit checkboxes. All-information output
+has the visible column headings and tab-separated statistics; path outputs have
+one selected path per line and the upstream trailing newline, using macOS LF.
+Copy-current-column behavior still needs an AppKit table hit-column mapping.
+
+Native QA on the disposable six-revision fixture verified tracked/untracked menu
+conditions, absence of single-file actions for multiple selection, relative-path
+clipboard output and the two-row information table with correct columns/counts.
+Open With displayed the native application chooser; successful external launch,
+its cancellation/error variants, Reveal in Finder, deleted/renamed-file variants,
+scoped Log handoff and sandboxed runtime remain unverified. Repeated Log menu
+automation returned invalidated targets without opening a verified Log window.
+No success is inferred from these attempts.
+
+Visual QA found status-colored path/count text unreadable on selected blue rows.
+Selected rows now use native primary text color, while unselected rows retain
+status colors. Actual native pixels verified readable white path/count text for
+two selected modified files and one selected untracked file.
+`site/assets/commit-file-selection.png` captures this fix. Dark and inactive
+selection checks remain pending. The existing icon test passes for all 39 assets.

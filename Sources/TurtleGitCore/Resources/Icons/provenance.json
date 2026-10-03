@@ -187,6 +187,16 @@
       "asset": "switch.ico",
       "source": "src/Resources/switch.ico",
       "sha256": "0d130ca9d607379cff62daf542fac21e2ff9a48fdde3dbd45dcc8c008e4017fc"
+    },
+    {
+      "asset": "open.ico",
+      "source": "src/Resources/open.ico",
+      "sha256": "675e4a4ac92f2b0f2f05335bc6fecfbcfb8956437805d2ab81ca94413f54f258"
+    },
+    {
+      "asset": "explorer.ico",
+      "source": "src/Resources/explorer.ico",
+      "sha256": "c8207f528fe28e87d2a2c23ee5a4e53ac4475d4c865faa68c2c6a0c0b86b77c2"
     }
   ]
 }

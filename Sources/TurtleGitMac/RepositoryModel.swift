@@ -208,6 +208,7 @@ import TurtleGitCore
             }
             let access = controller.model.access
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
+            controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
             controller.model.configureLogPicker = { [weak self] log in
                 log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
                 log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
@@ -217,16 +218,8 @@ import TurtleGitCore
             controller.model.reload(paths: paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         case .log:
-            guard let repository, let root else { return }
-            let controller = logWindows[root.path] ?? LogWindowController(repository: repository, access: activeAccess)
-            controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: root.path) }
-            let access = activeAccess
-            controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
-            controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
-            controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
-            logWindows[root.path] = controller
-            controller.model.setPathScope(paths)
-            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+            guard let repository else { return }
+            showLog(repository: repository, access: activeAccess, paths: paths)
 
         case .rebase:
             guard let repository else { return }
@@ -250,6 +243,18 @@ import TurtleGitCore
         default: dialog = action
         }
     }
+    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        let root = repository.root
+        let controller = logWindows[root.path] ?? LogWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: root.path) }
+        controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
+        controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+        logWindows[root.path] = controller
+        controller.model.setPathScope(paths)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+
     private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false) {
         let root = repository.root
         let existing = rebaseWindows[root.path]

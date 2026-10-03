@@ -11,6 +11,7 @@ public enum MenuIcon: String, CaseIterable {
     case stash = "menushelve", stashPop = "menuunshelve", clone = "menucheckout", initialize = "menucreaterepos"
     case add = "menuadd", revert = "menurevert", reset = "reset", cherryPick = "cherry-pick", copy = "copy"
     case help = "menuhelp", settings = "menusettings"
+    case open = "open", explore = "explorer"
     case normal = "status-normal", modified = "status-modified", added = "status-added", deleted = "status-deleted"
     case conflicted = "status-conflict", ignored = "status-ignored", untracked = "status-unversioned"
     public func image(size: CGFloat = 16) -> NSImage? {

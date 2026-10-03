@@ -1105,7 +1105,7 @@ src/Git/GitRevRefBrowser.cpp,Git,blob,9f52554f338a85531703cfffe20899888f7093ae,p
 src/Git/GitRevRefBrowser.h,Git,blob,ffb10ff4a736fefc3823a4c5466a6cadec4d9c5f,pending-review,,
 src/Git/GitStatus.cpp,Git,blob,a5b88525b5bae85c985922f9306bcfaeb7e879df,pending-review,,
 src/Git/GitStatus.h,Git,blob,6c510b4306d177685bb4bc25fb20a081659e6d6f,pending-review,,
-src/Git/GitStatusListCtrl.cpp,Git,blob,bb3424966659715269d38fca610c8d46810b0b15,pending-review,,
+src/Git/GitStatusListCtrl.cpp,Git,blob,bb3424966659715269d38fca610c8d46810b0b15,pending-review,," Commit file access/clipboard menu commands and original Open/Explorer icons ported; native clipboard/chooser and selection contrast verified, external handoff QA pending. See docs/COMMIT-PARITY.md."
 src/Git/GitStatusListCtrl.h,Git,blob,e5d280386a15ae91f66869525dd5eb0ef55c18d4,pending-review,,
 src/Git/MassiveGitTaskBase.cpp,Git,blob,68350603eac0a04f3df40577fb844b6b6ae40a9f,pending-review,,
 src/Git/MassiveGitTaskBase.h,Git,blob,7d5c8aa473f6c3cd865f22eb178498bbb9c605c2,pending-review,,
@@ -1370,7 +1370,7 @@ src/Resources/copy.ico,Resources,blob,2fec2dcc38e80340162edecc7f42d70200b77259,p
 src/Resources/dialogs.ico,Resources,blob,e3945e2570bc27f9ca9b3cd0527b00f86dafa63e,pending-review,,
 src/Resources/download.avi,Resources,blob,1e3b16f2a0bf315dc70be4d4b66cd084ccb7083c,pending-review,,
 src/Resources/executableovl.ico,Resources,blob,34415527b09b63c8a2279d8c60f28c262db11ae6,pending-review,,
-src/Resources/explorer.ico,Resources,blob,655cc8d1ff9a949eca397b87c6d3a4307ba44fda,pending-review,,
+src/Resources/explorer.ico,Resources,blob,655cc8d1ff9a949eca397b87c6d3a4307ba44fda,ported-resource,Sources/TurtleGitCore/Resources/Icons/explorer.ico,Original command artwork copied unchanged; SHA-256 provenance and native AppKit decoding verified.
 src/Resources/externalovl.ico,Resources,blob,f2f20548eaef98610b7eef69edb3d55c3cdba829,pending-review,,
 src/Resources/file.ico,Resources,blob,3edf0618ee2e4dff89d1b3056072ed696ff96782,pending-review,,
 src/Resources/filteredit.ico,Resources,blob,ab079b4b97a4c1ce4cae16f3fd923fb3b0051164,pending-review,,
@@ -1449,7 +1449,7 @@ src/Resources/menuupdate.ico,Resources,blob,52b55f0d1ac2e626985df48ced6d849abb45
 src/Resources/misc.ico,Resources,blob,0af564cf3a0d1fbeda5a500a8abf32d642e7ebb7,pending-review,,
 src/Resources/moved.ico,Resources,blob,3cff529c34b89c482646539472cb7c02f7eac2a6,pending-review,,
 src/Resources/notepad.ico,Resources,blob,1ab2ac7af8ce9104ef1d309f6e05f1ef73d1a3dc,pending-review,,
-src/Resources/open.ico,Resources,blob,fb121df437f7e459c6074521bbf9ce88dd9e5534,pending-review,,
+src/Resources/open.ico,Resources,blob,fb121df437f7e459c6074521bbf9ce88dd9e5534,ported-resource,Sources/TurtleGitCore/Resources/Icons/open.ico,Original command artwork copied unchanged; SHA-256 provenance and native AppKit decoding verified.
 src/Resources/pan.cur,Resources,blob,f1ef3f447dd7e0e736be00ff30d1fa835554b1cc,pending-review,,
 src/Resources/pandown.cur,Resources,blob,200ec6ce6452e7814066a1e6c958e5d000547a8f,pending-review,,
 src/Resources/parts/actionempty.ico,Resources,blob,85c3c0f9010cfdde4b85824c1d6b7b0d41d2214d,pending-review,,

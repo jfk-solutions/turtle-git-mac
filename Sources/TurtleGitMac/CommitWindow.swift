@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import TurtleGitCore
+import UniformTypeIdentifiers
 
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
@@ -24,6 +25,18 @@ import TurtleGitCore
         model.closePartial = { [weak self] in self?.partial?.close() }
         model.showMessageHistory = { [weak self] insert in self?.showHistory(insert: insert) }
         model.pickRevision = { [weak self] message, insert in self?.showRevisionPicker(message: message, insert: insert) }
+        model.chooseApplication = { [weak self] path in
+            guard let self, let window = self.window else { return }
+            let panel = NSOpenPanel()
+            panel.title = "Open With"; panel.prompt = "Open"
+            panel.allowedContentTypes = [.applicationBundle]
+            panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+            panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+            panel.beginSheetModal(for: window) { [weak self] response in
+                guard response == .OK, let app = panel.url else { return }
+                self?.model.openFile(path, application: app)
+            }
+        }
         model.confirmCancel = { [weak window] proceed in
             guard let window else { return }
             let alert = NSAlert(); alert.messageText = "Do you really want to cancel?"
@@ -151,6 +164,8 @@ import TurtleGitCore
     var showMessageHistory: (@escaping (String) -> Void) -> Void = { _ in }
     var pickRevision: (Bool, @escaping (String) -> Void) -> Void = { _, _ in }
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
+    var onFileLog: (String) -> Void = { _ in }
+    var chooseApplication: (String) -> Void = { _ in }
     var confirmCancel: (@escaping () -> Void) -> Void = { _ in }
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping () -> Void) -> Void = { _ in }
@@ -192,6 +207,34 @@ import TurtleGitCore
     }
     var stagedEntries: [StatusEntry] { visibleEntries.filter(\.staged) }
     var unstagedEntries: [StatusEntry] { visibleEntries.filter { $0.worktree != " " && $0.worktree != "!" } }
+    func openFile(_ path: String, application: URL? = nil) {
+        guard !busy else { return }
+        let url = repository.root.appendingPathComponent(path)
+        if let application {
+            NSWorkspace.shared.open([url], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { [weak self] _, failure in
+                if let failure { Task { @MainActor in self?.error = failure.localizedDescription } }
+            }
+        } else if !NSWorkspace.shared.open(url) { error = "Could not open \(path)." }
+    }
+    enum CopyFileInformation: String, CaseIterable {
+        case fullPaths = "Full paths", relativePaths = "Relative paths", names = "File/folder names", all = "Copy all information to clipboard"
+    }
+    func copyFiles(_ selected: [StatusEntry], information: CopyFileInformation, staged: Bool?) {
+        let stats = staged.map { $0 ? stagedStatistics : unstagedStatistics } ?? statistics
+        let header = information == .all ? "Path\tExtension\tStatus\tLines added\tLines removed\n" : ""
+        let text = header + selected.map { entry in
+            switch information {
+            case .fullPaths: return repository.root.appendingPathComponent(entry.path).path
+            case .relativePaths: return entry.path
+            case .names: return (entry.path as NSString).lastPathComponent
+            case .all:
+                let count = stats[entry.path]
+                return [entry.path, (entry.path as NSString).pathExtension, count?.status ?? entry.state.rawValue.capitalized,
+                        count?.added.map(String.init) ?? "–", count?.removed.map(String.init) ?? "–"].joined(separator: "\t")
+            }
+        }.joined(separator: "\n") + (selected.isEmpty ? "" : "\n")
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+    }
     func moveToStage(_ paths: Set<String>, staged: Bool) {
         guard !busy, !paths.isEmpty else { return }; busy = true
         let valid = entries.filter { paths.contains($0.id) && $0.state != .conflicted }.map(\.path)
@@ -544,14 +587,15 @@ GroupBox("Changes made (double-click on file for diff):") {
                         .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
                 }
             }.width(24)
-            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.path).foregroundStyle(entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
+            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.path).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
             TableColumn("Extension") { entry in Text((entry.path as NSString).pathExtension) }.width(75)
             TableColumn("Status") { entry in Text(statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }.width(90)
-            TableColumn("Lines added") { entry in Text(statistics[entry.path]?.added.map(String.init) ?? "–").foregroundStyle(.blue) }.width(80)
-            TableColumn("Lines removed") { entry in Text(statistics[entry.path]?.removed.map(String.init) ?? "–").foregroundStyle(.blue) }.width(95)
+            TableColumn("Lines added") { entry in Text(statistics[entry.path]?.added.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(80)
+            TableColumn("Lines removed") { entry in Text(statistics[entry.path]?.removed.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(95)
         }.contextMenu(forSelectionType: String.self) { ids in
+            let selected = entries.filter { ids.contains($0.id) }
             Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
-            Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .compare) }.disabled(ids.isEmpty)
+            Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
             Divider()
             if staged != nil {
                 Button { model.moveToStage(ids, staged: true) } label: { CommandLabel(title: "Stage selected files", icon: .add) }.disabled(ids.isEmpty)
@@ -559,6 +603,30 @@ GroupBox("Changes made (double-click on file for diff):") {
             } else {
                 Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
                 Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
+            }
+            if selected.count == 1, let entry = selected.first {
+                Divider()
+                if entry.state != .untracked && entry.state != .ignored {
+                    Button { model.onFileLog(entry.path) } label: { CommandLabel(title: "Show log", icon: .log) }
+                    if let oldPath = entry.originalPath {
+                        Button { model.onFileLog(oldPath) } label: { CommandLabel(title: "Show log of old name", icon: .log) }
+                    }
+                }
+                if entry.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent(entry.path).path) {
+                    if !model.submodules.contains(entry.path) {
+                        Button { model.openFile(entry.path) } label: { CommandLabel(title: "Open", icon: .open) }
+                        Button { model.chooseApplication(entry.path) } label: { CommandLabel(title: "Open With…", icon: .open) }
+                    }
+                    Button { NSWorkspace.shared.activateFileViewerSelecting([model.repository.root.appendingPathComponent(entry.path)]) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
+                }
+            }
+            if !selected.isEmpty {
+                Divider()
+                Menu {
+                    ForEach(CommitWindowModel.CopyFileInformation.allCases, id: \.self) { information in
+                        Button { model.copyFiles(selected, information: information, staged: staged) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
+                    }
+                } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
             }
         } primaryAction: { ids in selection.wrappedValue = ids; model.diff(paths: ids, staged: staged) }
     }

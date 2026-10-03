@@ -20,7 +20,7 @@ multiple colors; the patch view distinguishes additions, removals and hunk heade
 
 The Rebase port adds five byte-exact original assets for Pick, Skip, Edit, Squash
 and branch/upstream reversal, with provenance hashes. The icon suite renders all
-37 resources through AppKit. The upstream license notice remains in the bundle.
+39 resources through AppKit. The upstream license notice remains in the bundle.
 
 Actual light/dark Commit and Rebase captures use disposable repositories. Initial
 light/dark rendering and live Settings switching Light → Dark → Light → Follow
