@@ -50,7 +50,10 @@ bundle structure; it is not a signed distribution.
 - Working-tree and index diffs, with selectable, monospaced operation output.
 - Native Merge window with branch/tag/commit selection, squash, fast-forward, No Commit,
   message summaries, strategy controls and custom messages. See [Merge parity](docs/MERGE-PARITY.md).
-- Native confirmation dialogs for stash save/pop, clone, and repository creation.
+- Native Stash Save window with an optional message, mutually exclusive include-untracked
+  and --all options, and the upstream Abort/Continue warning workflow.
+  [Stash parity](docs/STASH-PARITY.md) records remaining work.
+- Native confirmation dialogs for stash pop, clone, and repository creation.
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery

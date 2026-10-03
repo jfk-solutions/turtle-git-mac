@@ -7,7 +7,7 @@ public actor GitRepository {
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git")) {
         self.root = root.standardizedFileURL; self.executable = executable
     }
-    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:]) throws -> GitResult {
+    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true) throws -> GitResult {
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
@@ -18,7 +18,7 @@ public actor GitRepository {
         defer { try? output.close(); try? error.close() }
         let process = Process()
         process.executableURL = executable
-        process.arguments = ["--literal-pathspecs", "-C", root.path] + arguments
+        process.arguments = (literalPathspecs ? ["--literal-pathspecs"] : ["--no-literal-pathspecs"]) + ["-C", root.path] + arguments
         var environment = ProcessInfo.processInfo.environment
         environment["GIT_TERMINAL_PROMPT"] = "0"
         environment["GIT_PAGER"] = "cat"

@@ -30,6 +30,7 @@ import TurtleGitCore
     private var switchWindows: [String: SwitchWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
     private var mergeWindows: [String: MergeWindowController] = [:]
+    private var stashWindows: [String: StashWindowController] = [:]
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
     private var monitoredRoots: [String] = []
@@ -244,6 +245,9 @@ import TurtleGitCore
             guard let repository else { return }
             showSwitch(repository: repository, access: activeAccess)
         case .diff: showDiff()
+        case .stash:
+            guard let repository else { return }
+            showStash(repository: repository, access: activeAccess)
         default: dialog = action
         }
     }
@@ -275,6 +279,21 @@ import TurtleGitCore
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         }
         mergeWindows[root.path] = controller; controller.model.load()
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showStash(repository: GitRepository, access: RepositoryAccessLease?) {
+        let root = repository.root
+        let controller = stashWindows[root.path] ?? StashWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.stashWindows.removeValue(forKey: root.path) }
+        let changed: (String) -> Void = { [weak self] output in
+            self?.statusWindows[root.path]?.model.reload(); self?.logWindows[root.path]?.model.reload()
+            self?.commitWindows[root.path]?.model.reload()
+            guard let self, self.root == root else { return }
+            self.output = output; Task { await self.refresh() }
+        }
+        controller.model.onSaved = { result in changed(result.output) }
+        controller.model.onFailed = changed
+        stashWindows[root.path] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false) {

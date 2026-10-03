@@ -93,7 +93,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSEXTMENU,Context Menu 2,pending-revi
 src/Resources/TortoiseProcENG.rc,IDD_CREATEREPO,Git Init,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSALTERNATIVEEDITOR,Alternative editor,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_BISECTSTART,Bisect start,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_STASH,Stash,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_STASH,Stash,partial
 src/Resources/TortoiseProcENG.rc,IDD_REVGRAPHFILTER,Revision Graph Filter,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_DIFFSUBMODULE,Submodule Diff,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_IGNORE,Ignore,pending-review
