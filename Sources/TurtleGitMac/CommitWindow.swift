@@ -20,6 +20,21 @@ import TurtleGitCore
         model.showViewPatch = { [weak self] in self?.showPartial(staged: false, readOnly: true) }
         model.refreshPartial = { [weak self] in self?.reloadPartial() }
         model.closePartial = { [weak self] in self?.partial?.close() }
+        model.confirmUneditedTemplate = { [weak window] proceed in
+            guard let window else { return }
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "The commit message template has not been edited."
+            alert.informativeText = "Do you want to proceed with this commit anyway?"
+            alert.addButton(withTitle: "Proceed anyway"); alert.addButton(withTitle: "No")
+            alert.showsSuppressionButton = true
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertFirstButtonReturn {
+                    if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "Commit.TemplateNotEdited.Proceed") }
+                    proceed()
+                }
+            }
+        }
     }
     func windowWillClose(_ notification: Notification) { closingCommit = true; partial?.close(); partial = nil; onClosed() }
     private func showPartial(staged: Bool, readOnly: Bool = false) {
@@ -92,6 +107,9 @@ import TurtleGitCore
     @Published var createBranch = false
     @Published var newBranch = ""
     @Published var message = ""
+    private var loadedMessage = false
+    private var messageTemplate = ""
+    var confirmUneditedTemplate: (@escaping () -> Void) -> Void = { _ in }
     @Published var hasHead = false
     @Published var hasParent = false
     @Published var amend = false
@@ -174,6 +192,13 @@ import TurtleGitCore
                     author = name.isEmpty ? "" : "\(name) <\(email)>"
                 }
                 hasLoaded = true; refreshPartial()
+                if !loadedMessage {
+                    let seed = try await repository.commitMessageSeed()
+                    messageTemplate = seed.template
+                    if message.isEmpty && !amend { message = seed.message }
+                    loadedMessage = true
+                    if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
+                }
                 if restorePatch { if stagingEnabled { showPartial(false) } else { showViewPatch() } }
             } catch { self.error = error.localizedDescription }
         }
@@ -269,8 +294,12 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription }
         }
     }
-    func commit(_ action: CompletionAction = .commit) {
+    func commit(_ action: CompletionAction = .commit, templateConfirmed: Bool = false) {
         guard canCommit else { return }
+        if !templateConfirmed && !messageTemplate.isEmpty && message == messageTemplate && !UserDefaults.standard.bool(forKey: "Commit.TemplateNotEdited.Proceed") {
+            confirmUneditedTemplate { [weak self] in self?.commit(action, templateConfirmed: true) }
+            return
+        }
         let text = message, paths = checked, staging = stagingEnabled
         var options = CommitOptions(); options.amend = amend; options.amendDiffToLastCommit = amendDiffToLastCommit; options.author = setAuthor ? author : nil
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
@@ -280,12 +309,18 @@ import TurtleGitCore
                 let output: String
                 if staging { output = try await repository.commitIndex(message: text, options: options) }
                 else { output = try await repository.commitSelected(message: text, paths: paths, options: options) }
-                busy = false; onCommitted(output)
+                onCommitted(output)
                 if action == .recommit {
-                    message = ""; createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
+                    do {
+                        let seed = try await repository.commitMessageSeed(includeOperationMessages: false)
+                        messageTemplate = seed.template; message = seed.template
+                        if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
+                    } catch { messageTemplate = ""; message = ""; self.error = error.localizedDescription }
+                    createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
                     checked = []; selection = []; hasLoaded = false
+                    busy = false
                     reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
-                } else { close(); if action == .push { onPush() } }
+                } else { busy = false; close(); if action == .push { onPush() } }
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }

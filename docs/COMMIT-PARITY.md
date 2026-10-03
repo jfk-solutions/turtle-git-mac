@@ -42,7 +42,7 @@ bypasses checked-file index preparation. These are distinct commit modes.
 
 ## Verification
 
-The Swift suite has 90 tests, including real Git commits exercising both modes,
+The Swift suite has 93 tests, including real Git commits exercising both modes,
 unchecked staged changes, unusual literal filenames, unborn HEAD, staged renames
 and deletions, amend, author and sign-off, later unstaged edits, and hook rejection.
 
@@ -86,10 +86,11 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   broader mixed-stage QA and multi-display placement. Native Find follows macOS
   search conventions (including wraparound); upstream flashes at a search boundary.
   Added/deleted file partial changes would extend the pinned upstream behavior.
-- Full issue controls and message-history/template behavior; native root/merge/
+- Full issue controls and message-history behavior; native root/merge/
   rename amend QA and broader date/author combinations. Native new branch,
   submodule toggle and broader Commit action combinations remain.
-- Message history, templates, completion, spelling, issue IDs and tracker plugins.
+- Message history, template native workflow QA and other text encodings,
+  completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
 - Remaining file context commands: revert, skip-worktree, assume-unchanged,
@@ -250,3 +251,31 @@ outer window clamped it to 260 points and retained usable controls; enlarging re
 working-tree diffs matched their original values. site/assets/commit-resize.png
 captures that actual adjusted window. Full VoiceOver, dark-mode resizing,
 conditional controls at the bounds and multi-display checks remain pending.
+
+## Commit templates and pending operation messages
+
+The native Commit model now reads `commit.template` once when the dialog opens,
+without replacing a draft on Refresh or when changing comparison options. Git
+resolves the configured path, including `~/`; relative paths resolve against the
+repository root. UTF-8 text (with optional BOM) is normalized to LF with one final
+newline, matching the upstream loader's newline treatment. Missing, unreadable or
+invalid UTF-8 templates report the path and error while leaving the dialog usable.
+Sandbox access remains subject to the repository lease and macOS permissions;
+external-template authorization UI and alternate encodings are still pending.
+
+Upstream `CGit::LoadTextFile` appends to the message buffer. The port therefore
+appends `SQUASH_MSG` and then `MERGE_MSG` to the template, rather than replacing
+it. `git rev-parse --git-path` resolves each worktree's own administrative files.
+ReCommit reloads only the template after a successful commit. An unchanged
+nonempty template invokes a native warning with Proceed anyway, No and a
+suppression checkbox; suppression is remembered only after proceeding.
+
+Three real Git integration tests cover relative Unicode and absolute newline
+paths, UTF-8 BOM/CRLF normalization, absent/missing/invalid templates, operation
+message append order, ReCommit's template-only seed, linked-worktree separation,
+and unchanged index/working-tree diffs. These are backend checks, not native UI
+parity evidence. Native warning execution, suppression, draft-preserving Refresh
+and ReCommit template restoration remain unverified: the QA app ran, but the
+computer-use service returned stale menu IDs and did not reliably deliver input.
+No new native screenshot is claimed for this change. Recent-message history,
+editor insertion commands and its history selection dialog remain pending.

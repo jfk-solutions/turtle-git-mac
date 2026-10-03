@@ -22,6 +22,7 @@
 		4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0657423D5C68D66703C2BB5C /* GitPatch.swift */; };
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
 		7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */; };
+		7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1559DC3926805ADF57166DCE /* CommitMessage.swift */; };
 		8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB86EFEBCB6909C206458540 /* LogWindow.swift */; };
 		8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1491F4A59F19B27A3FCCF966 /* PushWindow.swift */; };
 		9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */; };
@@ -107,6 +108,7 @@
 		136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchTagWindow.swift; sourceTree = "<group>"; };
 		1491F4A59F19B27A3FCCF966 /* PushWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushWindow.swift; sourceTree = "<group>"; };
 		152D20910797F40A39CBF1A8 /* LICENSE */ = {isa = PBXFileReference; path = LICENSE; sourceTree = "<group>"; };
+		1559DC3926805ADF57166DCE /* CommitMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessage.swift; sourceTree = "<group>"; };
 		181B9FE19CD19EA7DAB1E824 /* Fetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fetch.swift; sourceTree = "<group>"; };
 		1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitMacApp.swift; sourceTree = "<group>"; };
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -213,6 +215,7 @@
 				593DF9B126BBA7E5D206ABE5 /* Checkout.swift */,
 				A2D91605384F213DBC8C3C9F /* CommitAmend.swift */,
 				DF6352B22FB03878FC59F470 /* CommitHistory.swift */,
+				1559DC3926805ADF57166DCE /* CommitMessage.swift */,
 				FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */,
 				515FF59B2CF163D9481D39B5 /* CommitSelection.swift */,
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
@@ -374,6 +377,7 @@
 				0195C6B3141B1AE8A2DD732B /* Checkout.swift in Sources */,
 				B172FF1DD6076D00FCEB58D7 /* CommitAmend.swift in Sources */,
 				FB06077C7097755667D83917 /* CommitHistory.swift in Sources */,
+				7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */,
 				4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */,
 				A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */,
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
