@@ -30,7 +30,32 @@ public enum FetchFailure: LocalizedError {
         }
     }
 }
+public struct FetchRebaseResult: Sendable {
+    public let output: String
+    /// Immutable target from this fetch, independent of later FETCH_HEAD updates.
+    public let upstream: String
+}
+public enum FetchRebaseFailure: LocalizedError {
+    case destination, active
+    public var errorDescription: String? {
+        switch self {
+        case .destination: return "Choose one remote and a branch before fetching for Rebase."
+        case .active: return "Finish or abort the active Rebase before fetching for another Rebase."
+        }
+    }
+}
 extension GitRepository {
+    public func fetchForRebase(_ options: FetchOptions) throws -> FetchRebaseResult {
+        guard !(try rebaseState()).active else { throw FetchRebaseFailure.active }
+        guard !options.allRemotes, !options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FetchRebaseFailure.destination }
+        // Fetch exactly the selected branch even when ordinary Fetch uses all
+        // configured refspecs. FETCH_HEAD then identifies that branch, including
+        // remotes whose refspecs do not map to refs/remotes/<name>/<branch>.
+        var selected = options; selected.namedRemoteFetchAll = false
+        let output = try fetch(selected)
+        let upstream = try run(["rev-parse", "--verify", "FETCH_HEAD^{commit}"]).text.trimmingCharacters(in: .newlines)
+        return FetchRebaseResult(output: output, upstream: upstream)
+    }
     private func fetchConfig(_ key: String) -> String { ((try? run(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
     public func fetchDefaults(remote selected: String? = nil) throws -> FetchDefaults {
         let names = try remoteNames(), current = try branch()

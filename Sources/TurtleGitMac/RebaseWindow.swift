@@ -42,6 +42,12 @@ import TurtleGitCore
     private var planGeneration = 0
     private var detailGeneration = 0
     private var completion = "Rebase finished"
+    private var pendingLoad: (upstream: String, autoStart: Bool, preserveMerges: Bool)?
+    private func loadPendingHandoff() {
+        guard !busy, let pending = pendingLoad else { return }
+        pendingLoad = nil
+        load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges)
+    }
     var active: Bool { state?.active == true }
     var editable: Bool { !busy && !active && !finished }
     // Upstream displays newest first, while replay proceeds from the oldest commit.
@@ -62,18 +68,24 @@ import TurtleGitCore
         }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    func load(upstream: String? = nil) {
-        guard !busy else { return }; busy = true; planGeneration += 1; detailGeneration += 1
+    func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false) {
+        guard !busy else {
+            if let upstream { pendingLoad = (upstream, autoStart, preserveMerges) }
+            return
+        }; busy = true; planGeneration += 1; detailGeneration += 1
         Task {
-            defer { busy = false }
+            var started = false
+            defer { if !started { busy = false; loadPendingHandoff() } }
             do {
                 references = try await repository.checkoutReferences(); state = try await repository.rebaseState()
                 if active { options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
-                finished = false; plan = nil; recovered = []; selection = []; files = []; message = ""; options = RebaseOptions(); ontoEnabled = false
+                finished = false; plan = nil; recovered = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
                 let branch = try await repository.branch(); options.branch = branch.isEmpty ? "HEAD" : "refs/heads/" + branch
                 let defaults = try await repository.pullDefaults()
                 options.upstream = upstream ?? (defaults.trackedRemote.isEmpty || defaults.trackedBranch.isEmpty ? "" : "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch)
                 if !options.upstream.isEmpty { plan = try await repository.rebasePlan(options); selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit() }
+                busy = false
+                if autoStart && canStart { started = true; execute("start") }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -111,7 +123,7 @@ import TurtleGitCore
     func refreshState() {
         guard !busy else { return }; busy = true
         Task {
-            defer { busy = false }
+            defer { busy = false; loadPendingHandoff() }
             do { let wasActive = active; state = try await repository.rebaseState(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.message ?? ""; selectCommit() } else if wasActive { finished = true; completion = "Rebase session ended" }; onChanged() }
             catch { self.error = error.localizedDescription }
         }
@@ -126,7 +138,7 @@ import TurtleGitCore
         guard !busy else { return }
         let snapshot = plan; busy = true; tab = 2
         Task {
-            defer { busy = false }
+            defer { busy = false; loadPendingHandoff() }
             do {
                 let result: RebaseExecution
                 switch action {
@@ -144,7 +156,7 @@ import TurtleGitCore
     }
     func amend() {
         guard active, !busy else { return }; busy = true; let text = amendMessage
-        Task { defer { busy = false }; do { output += try await repository.amendRebaseCommit(message: text); onChanged() } catch { self.error = error.localizedDescription } }
+        Task { defer { busy = false; loadPendingHandoff() }; do { output += try await repository.amendRebaseCommit(message: text); onChanged() } catch { self.error = error.localizedDescription } }
     }
 
 }

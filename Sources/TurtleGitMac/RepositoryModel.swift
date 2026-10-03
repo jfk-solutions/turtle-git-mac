@@ -243,7 +243,7 @@ import TurtleGitCore
         default: dialog = action
         }
     }
-    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil) {
+    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false) {
         let root = repository.root
         let existing = rebaseWindows[root.path]
         let controller = existing ?? RebaseWindowController(repository: repository, access: access)
@@ -258,7 +258,7 @@ import TurtleGitCore
             else if let access { self.openSession(access, action: .status) }
         }
         rebaseWindows[root.path] = controller
-        if existing == nil || controller.model.finished || upstream != nil { controller.model.load(upstream: upstream) }
+        if existing == nil || controller.model.finished || upstream != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges) }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false) {
@@ -274,6 +274,9 @@ import TurtleGitCore
             self?.logWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in
+            self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges)
         }
         fetchWindows[key] = controller; controller.model.load()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

@@ -27,6 +27,7 @@ import TurtleGitCore
     @Published var noFastForward = false
     @Published var fastForwardOnly = false
     @Published var rebaseRequired = false
+    private var preserveMerges = false
     @Published var remotes: [String] = []
     @Published var branches: [String] = []
     @Published var url = ""
@@ -44,9 +45,11 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onShowStatus: () -> Void = {}
     var onFetched: (String) -> Void = { _ in }
+    var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
     private var generation = 0
     private var key: String { (isPull ? "Pull." : "Fetch.") + repository.root.path }
-    var canChooseBranch: Bool { isPull || options.arbitraryURL || (!options.namedRemoteFetchAll && !options.allRemotes) }
+    var configuredRebase: Bool { isPull && rebaseRequired && !options.arbitraryURL }
+    var canChooseBranch: Bool { launchRebase || isPull || options.arbitraryURL || (!options.namedRemoteFetchAll && !options.allRemotes) }
     init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool) {
         self.isPull = isPull; self.repository = repository; self.access = access; remoteSettings = PushWindowModel(repository: repository, access: access)
     }
@@ -63,8 +66,10 @@ import TurtleGitCore
                 if let saved = UserDefaults.standard.string(forKey: key + ".remote"), remotes.contains(saved), defaults.remote.isEmpty { options.remote = saved; options.allRemotes = false }
                 shallow = defaults.shallow; bare = defaults.bare; depthEnabled = shallow
                 tagsDefault = defaults.tags; pruneDefault = defaults.prune
-                rebaseRequired = isPull ? try await repository.pullDefaults().rebase : false
-                launchRebase = rebaseRequired
+                let pullDefaults = try await repository.pullDefaults()
+                rebaseRequired = isPull && pullDefaults.rebase
+                preserveMerges = isPull && pullDefaults.preserveMerges
+                launchRebase = !bare && !options.allRemotes && (rebaseRequired || UserDefaults.standard.bool(forKey: key + ".rebase"))
                 fastForwardOnly = isPull && UserDefaults.standard.bool(forKey: key + ".ffonly")
                 squash = false; noCommit = false; noFastForward = false
                 remoteSettings.remotes = remotes
@@ -94,7 +99,10 @@ import TurtleGitCore
     }
     func fetch() {
         guard !busy else { return }
-        if isPull && rebaseRequired && !options.arbitraryURL { error = PullFailure.rebaseWorkflow.localizedDescription; return }
+        let wantsRebase = launchRebase && !bare
+        let autoStart = configuredRebase
+        let keepMerges = preserveMerges
+        if wantsRebase && (options.allRemotes || options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { error = FetchRebaseFailure.destination.localizedDescription; return }
         var snapshot = options
         if options.arbitraryURL { snapshot.remote = url; snapshot.allRemotes = false }
         if shallow && depthEnabled {
@@ -102,13 +110,19 @@ import TurtleGitCore
         }
         var pullOptions = PullOptions(); pullOptions.fetch = snapshot; pullOptions.squash = squash; pullOptions.noCommit = noCommit; pullOptions.noFastForward = noFastForward; pullOptions.fastForwardOnly = fastForwardOnly
         busy = true
+        UserDefaults.standard.set(wantsRebase, forKey: key + ".rebase")
         if isPull { UserDefaults.standard.set(fastForwardOnly, forKey: key + ".ffonly") }
         if !options.arbitraryURL && !options.allRemotes { UserDefaults.standard.set(options.remote, forKey: key + ".remote") }
         Task {
             defer { busy = false }
             do {
-                let output = isPull ? try await repository.pull(pullOptions) : try await repository.fetch(snapshot)
-                close(); onFetched(output)
+                if wantsRebase {
+                    let result = try await repository.fetchForRebase(snapshot)
+                    close(); onFetched(result.output); onRebase(result.upstream, autoStart, keepMerges)
+                } else {
+                    let output = isPull ? try await repository.pull(pullOptions) : try await repository.fetch(snapshot)
+                    close(); onFetched(output)
+                }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -119,7 +133,7 @@ private struct FetchDialog: View {
         VStack(spacing: 14) {
             GroupBox("Remote") { VStack(spacing: 10) {
                 HStack { PushDestinationRadio(title: "Remote:", selected: !model.options.arbitraryURL) { model.options.arbitraryURL = false; model.launchRebase = model.rebaseRequired }.frame(width: 140)
-                    PushRemotePopup(values: (!model.isPull && model.remotes.count > 1 ? ["*"] : []) + (model.remotes.isEmpty ? [""] : model.remotes), selection: Binding(get: { model.options.allRemotes ? "*" : model.options.remote }, set: { model.options.allRemotes = $0 == "*"; if $0 != "*" { model.options.remote = $0 }; model.remoteChanged() })).disabled(model.options.arbitraryURL)
+                    PushRemotePopup(values: (!model.isPull && model.remotes.count > 1 ? ["*"] : []) + (model.remotes.isEmpty ? [""] : model.remotes), selection: Binding(get: { model.options.allRemotes ? "*" : model.options.remote }, set: { model.options.allRemotes = $0 == "*"; if model.options.allRemotes { model.launchRebase = false }; if $0 != "*" { model.options.remote = $0 }; model.remoteChanged() })).disabled(model.options.arbitraryURL)
                 }
                 HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.options.arbitraryURL = true; model.options.allRemotes = false; model.launchRebase = false }.frame(width: 140)
                     TextField("Remote URL or path", text: $model.url).disabled(!model.options.arbitraryURL)
@@ -129,18 +143,18 @@ private struct FetchDialog: View {
                 }.disabled(!model.canChooseBranch)
             }.padding(8) }
             GroupBox("Options") { VStack(alignment: .leading, spacing: 10) {
-                HStack { Toggle("Squash", isOn: $model.squash).disabled(!model.isPull); Spacer(); Toggle("No Commit", isOn: $model.noCommit).disabled(!model.isPull); Spacer()
+                HStack { Toggle("Squash", isOn: $model.squash).disabled(!model.isPull || model.launchRebase); Spacer(); Toggle("No Commit", isOn: $model.noCommit).disabled(!model.isPull || model.launchRebase); Spacer()
                     if model.shallow { Toggle("Depth", isOn: $model.depthEnabled); TextField("Depth", text: $model.depth).frame(width: 65).disabled(!model.depthEnabled) }
                 }
-                HStack { Toggle("No Fast Forward", isOn: $model.noFastForward).disabled(model.fastForwardOnly); Spacer(); Toggle("Fast Forward Only", isOn: $model.fastForwardOnly).disabled(model.noFastForward); Spacer() }.disabled(!model.isPull)
+                HStack { Toggle("No Fast Forward", isOn: $model.noFastForward).disabled(model.fastForwardOnly); Spacer(); Toggle("Fast Forward Only", isOn: $model.fastForwardOnly).disabled(model.noFastForward); Spacer() }.disabled(!model.isPull || model.launchRebase)
                 HStack { FetchOverrideCheckbox(title: "Tags", value: $model.options.tags).frame(width: 140, alignment: .leading); Text(model.options.allRemotes || model.options.arbitraryURL ? "Use each destination's configured default" : "Default: " + model.tagsDefault).foregroundStyle(.secondary) }
                 HStack { FetchOverrideCheckbox(title: "Prune", value: $model.options.prune).frame(width: 140, alignment: .leading); Text(model.options.allRemotes || model.options.arbitraryURL ? "Use each destination's configured default" : model.pruneDefault.isEmpty ? "" : "Default: " + model.pruneDefault).foregroundStyle(.secondary) }
             }.padding(8) }
             HStack { Text("SSH uses configured Git credential helpers and SSH agent.").font(.caption).foregroundStyle(.secondary); Spacer(); Button("Manage Remotes") { model.managing = true } }
-            Toggle("Launch Rebase After Fetch", isOn: $model.launchRebase).disabled(true).help("Interactive Rebase after Fetch requires the native Rebase dialog port.")
-            if model.rebaseRequired && !model.options.arbitraryURL { Text(PullFailure.rebaseWorkflow.localizedDescription).font(.caption).foregroundStyle(.secondary) }
+            Toggle("Launch Rebase After Fetch", isOn: $model.launchRebase).disabled(model.bare || model.options.allRemotes || model.configuredRebase).help("Fetch the selected branch and open its native Rebase plan.")
+            if model.rebaseRequired && !model.options.arbitraryURL { Text("Git configuration requires Rebase. Fetch will open and start its native Rebase plan.").font(.caption).foregroundStyle(.secondary) }
             Spacer(minLength: 0)
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction).disabled(model.rebaseRequired && !model.options.arbitraryURL); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-\(model.isPull ? "pull" : "fetch").html")!) } }
+            HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-pull.html")!) } }
         }.padding(16).disabled(model.busy)
         .onChange(of: model.options.remote) { _ in model.remoteChanged() }
         .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }

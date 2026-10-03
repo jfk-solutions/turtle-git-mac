@@ -11,6 +11,60 @@ final class FetchTests: XCTestCase {
         _ = try await consumer.run(["clone", "--branch", "main", "--", remote.root.path, "."])
         return (root, publisher, remote, consumer, path)
     }
+    func testFetchRebasePinsSelectedBranchAndPreservesDirtyWorktree() async throws {
+        let (root, publisher, _, consumer, path) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let beforeHead = try await consumer.run(["rev-parse", "HEAD"]).text
+        try Data("index\n".utf8).write(to: consumer.root.appendingPathComponent(path)); try await consumer.stage([path])
+        try Data("worktree\n".utf8).write(to: consumer.root.appendingPathComponent(path))
+        let beforeIndex = try await consumer.diff(staged: true), beforeWorking = try await consumer.diff()
+        try Data("remote\n".utf8).write(to: root.appendingPathComponent(path)); try await publisher.stage([path]); _ = try await publisher.commit(message: "remote advancement")
+        _ = try await publisher.run(["branch", "topic/雪"]); _ = try await publisher.run(["push", "origin", "main", "topic/雪"])
+        // A custom refspec must not accidentally select a stale conventional ref.
+        _ = try await consumer.run(["config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/custom/*"])
+        var options = FetchOptions(); options.remote = "origin"; options.branch = "topic/雪"
+        let result = try await consumer.fetchForRebase(options)
+        let expected = try await publisher.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(result.upstream, expected)
+        _ = try await publisher.run(["checkout", "-b", "later"])
+        try Data("later\n".utf8).write(to: root.appendingPathComponent(path)); try await publisher.stage([path]); _ = try await publisher.commit(message: "later target")
+        _ = try await publisher.run(["push", "origin", "later"])
+        options.branch = "later"; let later = try await consumer.fetchForRebase(options)
+        XCTAssertNotEqual(result.upstream, later.upstream)
+        let afterHead = try await consumer.run(["rev-parse", "HEAD"]).text
+        let afterIndex = try await consumer.diff(staged: true), afterWorking = try await consumer.diff()
+        XCTAssertEqual(beforeHead, afterHead); XCTAssertEqual(beforeIndex, afterIndex); XCTAssertEqual(beforeWorking, afterWorking)
+        options.allRemotes = true
+        do { _ = try await consumer.fetchForRebase(options); XCTFail("Ambiguous destination") } catch FetchRebaseFailure.destination {}
+        options.allRemotes = false; options.branch = ""
+        do { _ = try await consumer.fetchForRebase(options); XCTFail("Missing branch") } catch FetchRebaseFailure.destination {}
+        options.branch = "missing"
+        do { _ = try await consumer.fetchForRebase(options); XCTFail("Must not reuse stale FETCH_HEAD on failed fetch") } catch {}
+    }
+    func testFetchRebasePlanReplaysOntoFetchedCommitAndRejectsActiveSession() async throws {
+        let (root, publisher, remote, consumer, _) = try await PullTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try Data("local\n".utf8).write(to: consumer.root.appendingPathComponent("local.txt")); try await consumer.stage(["local.txt"]); _ = try await consumer.commit(message: "local topic")
+        try Data("remote\n".utf8).write(to: root.appendingPathComponent("remote.txt")); try await publisher.stage(["remote.txt"]); _ = try await publisher.commit(message: "remote topic")
+        _ = try await publisher.run(["push", "origin", "main"])
+        _ = try await consumer.run(["config", "pull.rebase", "merges"])
+        var defaults = try await consumer.pullDefaults(); XCTAssertTrue(defaults.rebase); XCTAssertTrue(defaults.preserveMerges)
+        _ = try await consumer.run(["config", "branch.main.rebase", "false"])
+        defaults = try await consumer.pullDefaults(); XCTAssertFalse(defaults.rebase); XCTAssertFalse(defaults.preserveMerges)
+        var fetch = FetchOptions(); fetch.remote = "origin"; fetch.branch = "main"
+        let fetched = try await consumer.fetchForRebase(fetch)
+        var options = RebaseOptions(); options.branch = "main"; options.upstream = fetched.upstream
+        var plan = try await consumer.rebasePlan(options); plan.entries[0].action = .edit
+        let result = try await consumer.startRebase(plan, editorExecutable: RebaseTests().editor)
+        XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertTrue(result.state.active)
+        let before = try await consumer.run(["rev-parse", "FETCH_HEAD"]).text
+        fetch.remote = remote.root.path; fetch.arbitraryURL = true
+        do { _ = try await consumer.fetchForRebase(fetch); XCTFail("Active session must prevent another fetch") } catch FetchRebaseFailure.active {}
+        let after = try await consumer.run(["rev-parse", "FETCH_HEAD"]).text; XCTAssertEqual(before, after)
+        let completed = try await consumer.continueRebase(); XCTAssertEqual(completed.exitCode, 0, completed.output)
+        let parent = try await consumer.run(["rev-parse", "HEAD^"]).text.trimmingCharacters(in: .newlines)
+        let branch = try await consumer.branch(); XCTAssertEqual(branch, "main"); XCTAssertEqual(parent, fetched.upstream)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: consumer.root.appendingPathComponent("local.txt").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: consumer.root.appendingPathComponent("remote.txt").path))
+    }
     func testConfiguredFetchUpdatesTrackingRefsWithoutChangingHeadIndexOrWorktree() async throws {
         let (root, publisher, _, consumer, path) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let originalHead = try await consumer.run(["rev-parse", "HEAD"]).text

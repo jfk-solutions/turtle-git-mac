@@ -36,7 +36,7 @@ staged/unstaged changes, forced merge commits, No Commit and subsequent completi
 squash staging without a merge parent, diverged ff-only rejection, a true merge
 conflict and Git abort, URL branch selection, configuration precedence, configured
 rebase rejection without mutation and invalid flags/refspec input. The full suite
-has 76 passing tests.
+has 80 passing tests.
 
 Native QA pulled a real new commit from the disposable documentation remote with
 Fast Forward Only selected. HEAD advanced, the remote file appeared, and original
@@ -48,8 +48,9 @@ A missing URL produced an error; Open Working Tree opened the correct status win
 
 ## Remaining comparison work
 
-- Full Fetch → interactive Rebase, preserve-merges/configured modes, fast-forward
-  choices and continue/abort recovery. User-selected Rebase launch is disabled.
+- Full fast-forward choices, post-operation actions and continue/abort recovery.
+  Fetch → Rebase routing and configured auto-start are implemented; native
+  preserve-merges/configured-mode combinations still need broader QA.
 - Progress/cancellation and full post-operation actions: compare old/new revisions,
   filtered Log, Push, submodule update, stash, reset and unrelated-history retry.
 - Native squash/No Commit/divergence/conflict completion and abort QA; the tests
@@ -60,3 +61,11 @@ A missing URL produced an error; Open Working Tree opened the correct status win
 
 The shared resource and command sources remain partial. This is not full Pull
 parity or an App Store-ready release.
+
+Configured rebase is now routed through an explicit branch Fetch and native Rebase,
+with its locked checkbox and merge-only options disabled. `merges`/`preserve`
+configuration enables Preserve Merges. Native configured Pull on a disposable
+repository reached Rebase finished; Git verified the local commit's parent was
+the selected fetched commit, branch identity was unchanged and the worktree clean.
+The prior disabled-OK check above and screenshot describe the earlier build.
+See REBASE-PARITY.md for the exact handoff and remaining workflow differences.

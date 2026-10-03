@@ -155,3 +155,7 @@ Screenshots use only disposable sample data. The static GitHub Pages source is i
 `docs/site`; `python3 scripts/build-site.py` builds `build/site`. The deployment
 workflow uses the current repository name for source links, including after a rename.
 See [website and screenshot maintenance](docs/WEBSITE.md).
+
+Fetch can now open a native Rebase plan for its selected branch. A rebase-configured
+Pull follows Fetch → Rebase and starts automatically; see
+[Rebase parity](docs/REBASE-PARITY.md) for verified behavior and remaining differences.

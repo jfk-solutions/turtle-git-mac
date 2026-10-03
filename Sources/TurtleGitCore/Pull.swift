@@ -12,13 +12,14 @@ public struct PullDefaults: Sendable {
     public let trackedRemote: String
     public let trackedBranch: String
     public let rebase: Bool
+    public let preserveMerges: Bool
 }
 public enum PullFailure: LocalizedError {
     case combination, rebaseWorkflow
     public var errorDescription: String? {
         switch self {
         case .combination: return "No Fast Forward and Fast Forward Only cannot be combined."
-        case .rebaseWorkflow: return "This branch is configured to rebase on pull. The interactive Fetch and Rebase workflow is still being ported."
+        case .rebaseWorkflow: return "This branch is configured to rebase on pull. Use Fetch followed by the interactive Rebase window."
         }
     }
 }
@@ -31,7 +32,7 @@ extension GitRepository {
         let branchRebase = current.isEmpty ? "" : config("branch." + current + ".rebase")
         let rebase = current.isEmpty ? "false" : (branchRebase.isEmpty ? config("pull.rebase") : branchRebase).lowercased()
         return PullDefaults(trackedRemote: remote, trackedBranch: merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : merge,
-                            rebase: ["true", "yes", "on", "1", "merges", "interactive", "preserve"].contains(rebase))
+                            rebase: ["true", "yes", "on", "1", "merges", "interactive", "preserve"].contains(rebase), preserveMerges: ["merges", "preserve"].contains(rebase))
     }
     public func pull(_ options: PullOptions) throws -> String {
         guard !(options.noFastForward && options.fastForwardOnly) else { throw PullFailure.combination }

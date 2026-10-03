@@ -3,7 +3,7 @@
 References: `RebaseDlg.cpp`, `IDD_REBASE`, RebaseCommand and GitLogListBase at
 `upstream.json`'s pinned commit; [official Rebase manual and screenshot](https://tortoisegit.org/docs/tortoisegit/tgit-dug-rebase.html).
 The app's Rebase command now opens a separate native window. This is a partial
-port; Fetch/Pull → Rebase handoffs remain disconnected.
+port; Fetch/Pull now hand off their selected fetched commit to this window.
 
 ## Native layout and controls
 
@@ -76,3 +76,30 @@ These establish the pictured layout, not full behavior or accessibility parity.
 - Broader native light/dark/contrast, keyboard, resizing and accessibility QA.
 
 Inventory statuses remain partial native; no completed Rebase parity claim is made.
+
+## Fetch/Pull handoff
+
+Fetch's Launch Rebase After Fetch control is enabled for a non-bare repository
+and one selected remote. It enables branch selection and fetches that branch
+explicitly, then opens the Rebase plan. A configured rebase Pull locks this control
+on and starts the plan automatically, matching upstream AppUtils routing.
+Merge-only options are unavailable on this route. `merges`/`preserve` configuration
+also selects Preserve Merges. URL destinations can explicitly launch Rebase;
+all-remotes destinations cannot select one Rebase target.
+
+The actor fetches and resolves the selected branch's FETCH_HEAD commit before
+returning its immutable hash. This supports custom fetch refspecs and prevents a
+subsequent Fetch from changing the already opened target. Fetch errors do not
+open Rebase. An active Git Rebase rejects this route before fetching.
+
+Real integration tests cover custom refspecs, Unicode branches, immutable targets,
+failed fetches, dirty index/worktree preservation, configuration precedence, active
+session rejection and replay/Continue. Native QA on an isolated sample repository
+verified Fetch → unstarted plan without changing HEAD, Cancel, then configured
+Pull → auto-start → Rebase finished. Git verified local history replayed onto the
+expected fetched commit, unchanged branch identity and a clean worktree.
+
+Upstream up-to-date/unchanged prompts, explicit fast-forward Merge/Rebase/Abort
+choices, post-operation Log/Push/mail actions, comprehensive conflict UI and
+native preserve-merges/URL/failure/recovery QA still remain. Pinning the target
+currently displays its hash rather than a named remote-tracking ref.

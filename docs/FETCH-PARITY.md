@@ -42,8 +42,8 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
 
 ## Remaining parity
 
-- Launch Rebase After Fetch is present but disabled until the upstream interactive
-  Rebase dialog, fast-forward choices and conflict recovery are ported.
+- Launch Rebase After Fetch now opens the selected branch's native plan. Upstream
+  fast-forward choices, post-operation actions and full conflict recovery remain.
 - Full remote reference chooser hierarchy, tag selection and histories; the current
   chooser lists heads only. Full remote settings and their mutation/recovery QA.
 - Submodule-specific default branch lookup, URL/branch histories, complete settings
@@ -52,8 +52,12 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
   sandbox runtime checks. Cancel is disabled while Git runs.
 - Native shallow/depth, all-remotes, broader error recovery, keyboard, resize, light appearance
   and accessibility QA; integration tests alone do not establish those UI behaviors.
-- Pull merge options are now native; interactive rebase and full recovery remain
+- Pull merge options are now native; full interactive rebase recovery remains
   pending. See PULL-PARITY.md.
 
 This shared source/resource remains partial; Fetch compilation and narrow verified
 workflows do not establish full Pull/Fetch or App Store parity.
+
+Native Fetch → Rebase plan handoff was verified without changing HEAD; its target
+is the immutable selected fetched commit. See REBASE-PARITY.md for evidence and
+remaining upstream differences. The existing Fetch screenshot predates this enabled control.
