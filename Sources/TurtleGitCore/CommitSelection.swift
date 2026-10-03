@@ -2,6 +2,7 @@ import Foundation
 
 public struct CommitOptions: Sendable {
     public var amend = false
+    public var amendDiffToLastCommit = true
     public var signOff = false
     public var author: String?
     public var authorDate: Date?
@@ -13,13 +14,15 @@ public struct CommitOptions: Sendable {
 
 extension GitRepository {
     /// TortoiseGit's default checkbox mode commits the current whole-file contents
-    /// of checked paths. Git --only preserves unrelated staged changes in the index.
+    /// of checked paths. HEAD-based commits use --only; parent-based amendments
+    /// use a separate index so unrelated staged changes remain intact.
     public func commitSelected(message: String, paths: Set<String>, options: CommitOptions = CommitOptions()) throws -> String {
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
         let paths = options.messageOnly ? Set<String>() : paths
         guard !paths.isEmpty || options.amend || options.messageOnly else { throw failure("Check at least one file to commit.") }
-        let changes = try status()
+        let parentMode = options.amend && !options.amendDiffToLastCommit
+        let changes = try commitDialogStatus(amendToParent: parentMode)
         guard !changes.contains(where: { $0.state == .conflicted }) else { throw failure("Resolve the conflicted files before committing.") }
         let checked = changes.filter { paths.contains($0.path) }
         guard checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored }) else {
@@ -31,6 +34,7 @@ extension GitRepository {
             throw failure("A merge is in progress. Committing a merge requires the complete resolved index; the checked-file commit dialog does not support that yet.")
         }
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"]) }
+        if parentMode { return try commitParentSelection(message: message, checked: checked, options: options) }
         let tracked = Set(try trackedPaths())
         var stagePaths = checked.filter { $0.state != .deleted || tracked.contains($0.path) }.map(\.path)
         var commitPaths = checked.map(\.path)
@@ -75,7 +79,7 @@ extension GitRepository {
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         return try run(args).text
     }
-    private func prepareCommitBranch(_ name: String?) throws {
+    func prepareCommitBranch(_ name: String?) throws {
         guard let name else { return }
         guard !name.isEmpty, !name.contains("\0"), !name.hasPrefix("-") else { throw GitFailure(arguments: ["branch"], code: 1, message: "Enter a valid new branch name.") }
         _ = try run(["check-ref-format", "refs/heads/" + name])
@@ -88,15 +92,15 @@ extension GitRepository {
             return String(decoding: fields[1], as: UTF8.self)
         })
     }
-    public func stagingFiles(staged: Bool) throws -> [CommitFile] {
-        let args = ["diff", "--no-ext-diff", "--no-color", "-M"] + (staged ? ["--cached"] : [])
+    public func stagingFiles(staged: Bool, base: String? = nil) throws -> [CommitFile] {
+        let args = ["diff", "--no-ext-diff", "--no-color", "-M"] + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : [])
         return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]).stdout,
                                 statistics: try run(args + ["--numstat", "-z", "--"]).stdout)
     }
 
-    public func workingTreeFiles() throws -> [CommitFile] {
+    public func workingTreeFiles(amendToParent: Bool = false) throws -> [CommitFile] {
         let head = (try? run(["rev-parse", "--verify", "HEAD"])) != nil
-        let base = head ? ["HEAD"] : ["--cached"]
+        let base = amendToParent ? [try commitComparisonBase(amendToParent: true)] : head ? ["HEAD"] : ["--cached"]
         let args = ["diff", "--no-ext-diff", "--no-color", "-M"] + base
         return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]).stdout,
                                 statistics: try run(args + ["--numstat", "-z", "--"]).stdout)

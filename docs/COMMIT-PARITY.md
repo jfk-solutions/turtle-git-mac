@@ -42,7 +42,7 @@ bypasses checked-file index preparation. These are distinct commit modes.
 
 ## Verification
 
-The Swift suite has 82 tests, including real Git commits exercising both modes,
+The Swift suite has 87 tests, including real Git commits exercising both modes,
 unchecked staged changes, unusual literal filenames, unborn HEAD, staged renames
 and deletions, amend, author and sign-off, later unstaged edits, and hook rejection.
 
@@ -86,8 +86,8 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   broader mixed-stage QA and multi-display placement. Native Find follows macOS
   search conventions (including wraparound); upstream flashes at a search boundary.
   Added/deleted file partial changes would extend the pinned upstream behavior.
-- Amend diff to previous commit, complete reset/date initialization on amend,
-  issue controls and full message-history/template behavior. Native new branch,
+- Full issue controls and message-history/template behavior; native root/merge/
+  rename amend QA, date Reset and author override combinations. Native new branch,
   submodule toggle, date Reset, ReCommit and Commit & Push execution QA remains.
 - Message history, templates, completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
@@ -134,3 +134,40 @@ menu were observed. Two menu-opening automation interruptions prevented native
 ReCommit/Commit & Push execution QA. `site/assets/commit-controls.png` is an actual
 window capture; older screenshots describe earlier layouts. Full Commit parity
 is still incomplete, including amend comparison and hidden/conditional workflows.
+
+## Amend comparison and selection
+
+Amend now displays changes against the previous commit's first parent by default.
+Show diff to last commit is visible while amending and enabled when HEAD has a
+parent. CommitDlg temporarily disables it while refreshing, then enables it for
+non-root revisions. It switches the comparison to HEAD. Root revisions select
+HEAD comparison in the native window, as upstream does. The backend also supports
+explicit parent-mode root amendments against the empty tree in its object format.
+Statistics, three-state checkbox status, whole-file unstaging and partial unstaging
+use the same comparison base. The patch window labels Parent → Index in that mode.
+
+Checkbox-mode parent-based amendment builds a temporary index from that parent and
+includes only checked whole-file contents. Unchecked changes from the prior commit
+are omitted from its replacement and remain in the real index; unrelated staged and
+working-tree edits are preserved. Git --amend preserves the original commit parents,
+including both parents of a merge. The existing programmatic CommitOptions default
+continues to use HEAD unless amendDiffToLastCommit is explicitly false; the native
+window selects the upstream parent-based mode.
+
+Amend exchanges the draft and amendment messages on toggle rather than discarding
+the draft. Set author date initializes from HEAD's author timestamp during amend;
+Reset requests the current author date. Author override initializes from HEAD's
+identity in amend mode. The native date picker currently exposes minute precision;
+matching the upstream seconds field remains open. The Amend checkbox is disabled
+for unborn HEAD, and an empty checked parent-based selection needs Message only.
+
+Five real tests cover selective amendment, unchecked index/worktree preservation,
+root/rename baselines, parent-based unstage/partial patches, hook failure and merge
+parents. All 87 tests pass. Native QA verified draft restoration, parent/HEAD list
+switching in both modes, staging enablement without index mutation and a selective
+amendment. The final checkbox-mode comparison control was checked as enabled for
+a revision with a parent; both views were exercised after that enablement fix.
+Git verified its parent hash, committed file contents and preserved mixed edits.
+`site/assets/commit-amend.png` captures that actual checked plan before committing.
+Native root/merge/rename, reset/override combinations and action-menu execution
+remain unverified; this is still a partial Commit port.

@@ -58,6 +58,7 @@ import UniformTypeIdentifiers
     @Published var document = GitPatch(text: "")
     @Published var selectedLines = Set<Int>()
     @Published var staged = false
+    var base: String?
     @Published var busy = false
     @Published var error: String?
     @Published var paths: [String] = []
@@ -75,10 +76,11 @@ import UniformTypeIdentifiers
     }
     func reload(paths: [String], staged: Bool) {
         generation += 1; let request = generation
+        let base = self.base
         self.paths = paths; self.staged = staged; selectedLines = []; document = GitPatch(text: ""); busy = true
         Task {
             do {
-                let result = paths.isEmpty ? GitPatch(text: "") : try await repository.patch(paths: paths, staged: staged)
+                let result = paths.isEmpty ? GitPatch(text: "") : try await repository.patch(paths: paths, staged: staged, base: base)
                 guard request == generation else { return }
                 document = result; busy = false
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
@@ -86,11 +88,11 @@ import UniformTypeIdentifiers
     }
     func apply(entireHunks: Bool) {
         guard entireHunks ? canApplyHunks : canApplyLines else { return }
-        let document = self.document, paths = self.paths, staged = self.staged, lines = selectedLines
+        let document = self.document, paths = self.paths, staged = self.staged, lines = selectedLines, base = self.base
         busy = true; onApplying(true)
         Task {
             do {
-                try await repository.applyPatchSelection(document, paths: paths, staged: staged, lines: lines, entireHunks: entireHunks)
+                try await repository.applyPatchSelection(document, paths: paths, staged: staged, lines: lines, entireHunks: entireHunks, base: base)
                 busy = false; onApplying(false); onApplied(); reload(paths: paths, staged: staged)
             } catch { self.error = error.localizedDescription; busy = false; onApplying(false) }
         }
@@ -102,7 +104,7 @@ struct PatchDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(model.staged ? "HEAD → Index" : "Index → Working tree").font(.headline)
+                Text(model.staged ? (model.base == nil ? "HEAD → Index" : "Parent → Index") : "Index → Working tree").font(.headline)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
                 Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy)
             }

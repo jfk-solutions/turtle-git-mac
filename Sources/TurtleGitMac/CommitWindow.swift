@@ -29,6 +29,7 @@ import TurtleGitCore
         controller.model.onApplying = { [weak model] busy in model?.busy = busy }
         controller.model.onApplied = { [weak model] in model?.reload() }
         controller.model.staged = staged
+        controller.model.base = model.comparisonBase
         model.partialMode = staged
         controller.window?.title = staged ? "Partial Unstaging – HEAD → Index" : "Partial Staging – Index → Working tree"
         if let patchWindow = controller.window, patchWindow.parent == nil { window.addChildWindow(patchWindow, ordered: .above) }
@@ -41,6 +42,7 @@ import TurtleGitCore
     }
     private func reloadPartial() {
         guard let partial else { return }
+        partial.model.base = model.comparisonBase
         partial.model.reload(paths: model.entries.filter { model.selection.contains($0.id) }.map(\.path), staged: partial.model.staged)
     }
     private func alignPartial() {
@@ -59,6 +61,7 @@ import TurtleGitCore
     let repository: GitRepository
     let access: RepositoryAccessLease?
     @Published var entries: [StatusEntry] = []
+    @Published var comparisonBase: String?
     @Published var stagedStatistics: [String: CommitFile] = [:]
     @Published var unstagedStatistics: [String: CommitFile] = [:]
     @Published var stagingEnabled = false
@@ -72,7 +75,13 @@ import TurtleGitCore
     @Published var createBranch = false
     @Published var newBranch = ""
     @Published var message = ""
+    @Published var hasHead = false
+    @Published var hasParent = false
     @Published var amend = false
+    @Published var amendDiffToLastCommit = false
+    private var nonAmendMessage = ""
+    private var amendMessage = ""
+    var amendToParent: Bool { amend && !amendDiffToLastCommit }
     @Published var setAuthorDate = false
     @Published var authorDate = Date()
     @Published var resetAuthorDate = false
@@ -108,12 +117,12 @@ import TurtleGitCore
         let valid = entries.filter { paths.contains($0.id) && $0.state != .conflicted }.map(\.path)
         Task {
             do {
-                if staged { try await repository.stage(valid) } else { try await repository.unstage(valid) }
+                if staged { try await repository.stage(valid) } else { try await repository.unstageCommitPaths(valid, amendToParent: amendToParent) }
                 busy = false; reload()
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
-    var canCommit: Bool { !busy && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || amend)) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { !busy && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func reload(paths: [String]? = nil) {
         guard !busy else { return }; busy = true
         let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
@@ -121,9 +130,13 @@ import TurtleGitCore
         Task {
             defer { busy = false }
             do {
-                entries = try await repository.status(); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
-                statistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
-                stagedStatistics = Dictionary(try await repository.stagingFiles(staged: true).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                hasHead = (try? await repository.run(["rev-parse", "--verify", "HEAD"])) != nil
+                hasParent = (try? await repository.run(["rev-parse", "--verify", "HEAD^1"])) != nil
+                if amend && !hasParent { amendDiffToLastCommit = true }
+                comparisonBase = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : nil
+                entries = try await repository.commitDialogStatus(amendToParent: amendToParent); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
+                statistics = Dictionary(try await repository.workingTreeFiles(amendToParent: amendToParent).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
+                stagedStatistics = Dictionary(try await repository.stagingFiles(staged: true, base: comparisonBase).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 unstagedStatistics = Dictionary(try await repository.stagingFiles(staged: false).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 if resetChecks {
                     checked = Set(visibleEntries.filter { entry in
@@ -150,12 +163,49 @@ import TurtleGitCore
         else { checked.subtract(visibleEntries.map(\.id)) }
     }
     func amendChanged() {
-        guard amend, message.isEmpty else { return }
+        if amend {
+            nonAmendMessage = message
+            Task {
+                do {
+                    var options = HistoryOptions(); options.limit = 1
+                    let previous = try await repository.history(options: options).first
+                    guard amend else { return }
+                    message = amendMessage.isEmpty ? previous?.message ?? "" : amendMessage
+                    if setAuthorDate { dateChanged() }
+                    authorChanged()
+                    comparisonChanged()
+                } catch { self.error = error.localizedDescription }
+            }
+        } else {
+            amendMessage = message; message = nonAmendMessage; resetAuthorDate = false; authorChanged(); comparisonChanged()
+        }
+    }
+    func comparisonChanged() {
+        closePartial(); hasLoaded = false
+        reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
+    }
+    func authorChanged() {
         Task {
             do {
-                var options = HistoryOptions(); options.limit = 1
-                let previous = try await repository.history(options: options).first?.message ?? ""
-                if amend, message.isEmpty { message = previous }
+                if amend {
+                    var options = HistoryOptions(); options.limit = 1
+                    if let previous = try await repository.history(options: options).first, amend { author = "\(previous.author) <\(previous.email)>" }
+                } else {
+                    let name = try await repository.run(["config", "user.name"]).text.trimmingCharacters(in: .newlines)
+                    let email = try await repository.run(["config", "user.email"]).text.trimmingCharacters(in: .newlines)
+                    if !amend { author = "\(name) <\(email)>" }
+                }
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    func dateChanged() {
+        resetAuthorDate = false
+        guard setAuthorDate else { return }
+        if !amend { authorDate = Date(); return }
+        Task {
+            do {
+                let value = try await repository.run(["show", "-s", "--format=%at", "HEAD"]).text.trimmingCharacters(in: .newlines)
+                if amend, setAuthorDate, let timestamp = TimeInterval(value) { authorDate = Date(timeIntervalSince1970: timestamp) }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -175,10 +225,11 @@ import TurtleGitCore
         Task {
             do {
                 let text: String
-                if let staged { text = try await repository.diff(paths: paths, staged: staged) }
+                if let staged { text = try await repository.patch(paths: paths, staged: staged, base: amendToParent && staged ? try await repository.commitComparisonBase(amendToParent: true) : nil).text }
                 else {
                     let head = try? await repository.run(["rev-parse", "--verify", "HEAD"])
-                    let args = ["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : ["HEAD"]) + ["--"] + paths
+                    let base = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : "HEAD"
+                    let args = ["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : [base]) + ["--"] + paths
                     text = try await repository.run(args).text
                 }
                 patch = text.isEmpty ? "No diff is available. Unversioned files have no Git base revision." : text
@@ -188,7 +239,7 @@ import TurtleGitCore
     func commit(_ action: CompletionAction = .commit) {
         guard canCommit else { return }
         let text = message, paths = checked, staging = stagingEnabled
-        var options = CommitOptions(); options.amend = amend; options.author = setAuthor ? author : nil
+        var options = CommitOptions(); options.amend = amend; options.amendDiffToLastCommit = amendDiffToLastCommit; options.author = setAuthor ? author : nil
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
         busy = true
         Task {
@@ -198,7 +249,7 @@ import TurtleGitCore
                 else { output = try await repository.commitSelected(message: text, paths: paths, options: options) }
                 busy = false; onCommitted(output)
                 if action == .recommit {
-                    message = ""; createBranch = false; newBranch = ""; amend = false; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
+                    message = ""; createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
                     checked = []; selection = []; hasLoaded = false
                     reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
                 } else { close(); if action == .push { onPush() } }
@@ -239,6 +290,9 @@ struct CommitDialog: View {
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
             }
         }.padding(12).disabled(model.busy)
+        .onChange(of: model.amendDiffToLastCommit) { _ in model.comparisonChanged() }
+        .onChange(of: model.setAuthor) { _ in model.authorChanged() }
+        .onChange(of: model.setAuthorDate) { _ in model.dateChanged() }
         .onChange(of: model.doNotAutoselectSubmodules) { disabled in
             UserDefaults.standard.set(disabled, forKey: "Commit.DoNotAutoselectSubmodules")
             if !model.stagingEnabled {
@@ -260,7 +314,8 @@ GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
                     TextEditor(text: $model.message).font(.system(.body, design: .monospaced)).frame(minHeight: 100, idealHeight: 140, maxHeight: 200).border(Color.secondary.opacity(0.3))
                     HStack {
-                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).onChange(of: model.amend) { _ in model.amendChanged() }
+                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead).onChange(of: model.amend) { _ in model.amendChanged() }
+                        if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent) }
                         Spacer(); Text("\(model.message.count) characters").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack {
