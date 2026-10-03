@@ -1,0 +1,167 @@
+{
+  "upstream": "https://github.com/TortoiseGit/TortoiseGit",
+  "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "license_choice": "GNU General Public License v2 (the upstream resource notice offers GPL as an alternative)",
+  "assets": [
+    {
+      "asset": "TortoiseSmall.ico",
+      "source": "src/Resources/TortoiseSmall.ico",
+      "sha256": "e427caf09c0dd411e88210a001b85843d49d82c15782ad543b550cd6ceae145f"
+    },
+    {
+      "asset": "menushowchanged.ico",
+      "source": "src/Resources/menushowchanged.ico",
+      "sha256": "4928f31c38a3a22cbc153823f5795b98dcbde5375bc284ac8da722ed4cd6da67"
+    },
+    {
+      "asset": "menucommit.ico",
+      "source": "src/Resources/menucommit.ico",
+      "sha256": "3f5cc32eaa233f48212e10c03763f309314939e1a8fb7169fafdbc8fb5e6207b"
+    },
+    {
+      "asset": "menulog.ico",
+      "source": "src/Resources/menulog.ico",
+      "sha256": "f38504b3484d8d0259e1e0349387edc1a1e4b635e4f679fab35078cbdb8d0987"
+    },
+    {
+      "asset": "menucompare.ico",
+      "source": "src/Resources/menucompare.ico",
+      "sha256": "db429522cfd28fcaea4e13a2f3db13e46bd4cfd244248e55bd050e464f20578f"
+    },
+    {
+      "asset": "menudiff.ico",
+      "source": "src/Resources/menudiff.ico",
+      "sha256": "70472d3a4ad9e3a1afe4679647efff940ea54c960d3c62cca7e1bc66fcb8c8f0"
+    },
+    {
+      "asset": "pull1.ico",
+      "source": "src/Resources/pull1.ico",
+      "sha256": "c5d755af4f681d7963f11985c0542b67ca82fb44aa1fbd7af296182b307a460f"
+    },
+    {
+      "asset": "Push.ico",
+      "source": "src/Resources/Push.ico",
+      "sha256": "25a27d35f44e9356e216079aff420e7ae61b2f2d92043bef4ecd2301954ba97a"
+    },
+    {
+      "asset": "menuupdate.ico",
+      "source": "src/Resources/menuupdate.ico",
+      "sha256": "a6c04bebb2b45ec911327acc1a3a97af62d7cea879ceeffe6260e5b02ff534c8"
+    },
+    {
+      "asset": "menucopy.ico",
+      "source": "src/Resources/menucopy.ico",
+      "sha256": "ddc215e83c4faffccedd1039356f8b835f3361f817119c58ea5897536083e0d9"
+    },
+    {
+      "asset": "tag.ico",
+      "source": "src/Resources/tag.ico",
+      "sha256": "7b33890c4863c2da1c164179d7b6a89b4a5bfba4cee421a4fa696a8e1e8245a9"
+    },
+    {
+      "asset": "menuswitch.ico",
+      "source": "src/Resources/menuswitch.ico",
+      "sha256": "35fc349843af0d131d2cdd99f3c941052a64cd3e764e3922eb941dac3a3dc28a"
+    },
+    {
+      "asset": "menumerge.ico",
+      "source": "src/Resources/menumerge.ico",
+      "sha256": "c11aa1f5479d113ce2e2e1e97c862ee82bcc9759749fb60d0c29cb95d4c01347"
+    },
+    {
+      "asset": "menurebase.ico",
+      "source": "src/Resources/menurebase.ico",
+      "sha256": "84915d447855fb2a407cb551d45fda0d9a64e7aa51d43d508dce711c1e6b2c40"
+    },
+    {
+      "asset": "menushelve.ico",
+      "source": "src/Resources/menushelve.ico",
+      "sha256": "8114a4089d4834b70776b175f988028d54c07ebbd3e5bf7735cf4ef8688df73c"
+    },
+    {
+      "asset": "menuunshelve.ico",
+      "source": "src/Resources/menuunshelve.ico",
+      "sha256": "7cafc2aa798348c61b30ee4500f96a389e7ae076ea97dd176029086023d49098"
+    },
+    {
+      "asset": "menucheckout.ico",
+      "source": "src/Resources/menucheckout.ico",
+      "sha256": "547d5e038e7c6605f491f679d8900648d8546089c4e0f6733136272c1a194a98"
+    },
+    {
+      "asset": "menucreaterepos.ico",
+      "source": "src/Resources/menucreaterepos.ico",
+      "sha256": "9d699ae16d76a4436707a6bc3589e8ca3659a9e60b728b70c5f985072b45489a"
+    },
+    {
+      "asset": "menuadd.ico",
+      "source": "src/Resources/menuadd.ico",
+      "sha256": "c1b04ef56293f0f7d99535f6791034624585733818ddcf1899e90c1a9b605755"
+    },
+    {
+      "asset": "menurevert.ico",
+      "source": "src/Resources/menurevert.ico",
+      "sha256": "733f281aca48708ac74eece537f834d548fdddb23a370f02bf29fd0db10e5d41"
+    },
+    {
+      "asset": "reset.ico",
+      "source": "src/Resources/reset.ico",
+      "sha256": "6e380fe88e1af3b15328aa6278ea69b29e04b0c612d6d0d35983e43ad00bfb80"
+    },
+    {
+      "asset": "cherry-pick.ico",
+      "source": "src/Resources/cherry-pick.ico",
+      "sha256": "4b5560741a13402d1c21258a1c184ca8a4116c352f01ca7c44ef4b76b63782c8"
+    },
+    {
+      "asset": "copy.ico",
+      "source": "src/Resources/copy.ico",
+      "sha256": "d34b4cdcbbed10c76a76e51392420b3adb38e5d88c86bb6963cc866b3eee1441"
+    },
+    {
+      "asset": "menuhelp.ico",
+      "source": "src/Resources/menuhelp.ico",
+      "sha256": "6b9b8a8deb7f50376b4db4f27dbf606156de1ff985ba198e29fdf05d727d11e8"
+    },
+    {
+      "asset": "menusettings.ico",
+      "source": "src/Resources/menusettings.ico",
+      "sha256": "d761cbe06e1150591b779fb500831afe8b790f62428fbff19c602d2aa5e2f6c4"
+    },
+    {
+      "asset": "status-normal.ico",
+      "source": "src/Resources/Icons/XPStyle/NormalIcon.ico",
+      "sha256": "f47eae6d68287963fb88af762397c3287524f8a8f354ca979e3dd3e24bb3e988"
+    },
+    {
+      "asset": "status-modified.ico",
+      "source": "src/Resources/Icons/XPStyle/ModifiedIcon.ico",
+      "sha256": "80a9a56235604d001d27df2ae126b89f29a177f68431903576632597855fb4f5"
+    },
+    {
+      "asset": "status-added.ico",
+      "source": "src/Resources/Icons/XPStyle/AddedIcon.ico",
+      "sha256": "43f20e3270ef1898993d7761d8f8220aa43fa0a28f2af7f5e000e46fdb1204bb"
+    },
+    {
+      "asset": "status-deleted.ico",
+      "source": "src/Resources/Icons/XPStyle/DeletedIcon.ico",
+      "sha256": "2cbc83e56fbce10af5f4fc6385b66c27bc3c64ece086c7d887c796107b1761a7"
+    },
+    {
+      "asset": "status-conflict.ico",
+      "source": "src/Resources/Icons/XPStyle/ConflictIcon.ico",
+      "sha256": "f5857d9523639a840d8133521a590bd7f8abd50f4e1eb237c9f6e16c9e6ad999"
+    },
+    {
+      "asset": "status-ignored.ico",
+      "source": "src/Resources/Icons/XPStyle/IgnoredIcon.ico",
+      "sha256": "8e8c74fb8ed84184c0671df1d6a17f538a5926981e2d0f05603d87f7a3100f5b"
+    },
+    {
+      "asset": "status-unversioned.ico",
+      "source": "src/Resources/Icons/XPStyle/UnversionedIcon.ico",
+      "sha256": "a1119e99ab54899b5889a5ffc92405d21d847c2bb4837b9256e3e431bfa3b97e"
+    }
+  ]
+}

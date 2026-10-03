@@ -1,0 +1,2 @@
+# Keep the upstream icon license byte-for-byte, including its original CRLF.
+Sources/TurtleGitCore/Resources/Icons/UPSTREAM-ICON-LICENSE.txt -text -whitespace

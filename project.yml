@@ -1,0 +1,106 @@
+name: TurtleGitMac
+configs:
+  Debug: debug
+  Release: release
+  AppStore: release
+options:
+  bundleIdPrefix: org.turtlegit.macos
+  deploymentTarget:
+    macOS: '13.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MACOSX_DEPLOYMENT_TARGET: '13.0'
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+  configs:
+    AppStore:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: '$(inherited) TURTLEGIT_APP_STORE'
+targets:
+  TurtleGitCore:
+    type: framework
+    platform: macOS
+    sources:
+      - path: Sources/TurtleGitCore
+        excludes: [Resources]
+      - path: Sources/TurtleGitCore/Resources/Icons
+        type: folder
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.core
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+  TurtleGitMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: Sources/TurtleGitMac
+      - path: LICENSE
+        buildPhase: resources
+      - path: NOTICE
+        buildPhase: resources
+    dependencies:
+      - target: TurtleGitCore
+        embed: true
+      - target: TurtleGitFinder
+        embed: true
+    info:
+      path: Configuration/App-Info.plist
+      properties:
+        CFBundleName: TurtleGit
+        CFBundleDisplayName: TurtleGit for Mac
+        CFBundleShortVersionString: '0.1.0'
+        CFBundleVersion: '1'
+        LSMinimumSystemVersion: '13.0'
+        NSHighResolutionCapable: true
+        LSApplicationCategoryType: public.app-category.developer-tools
+        CFBundleURLTypes:
+          - CFBundleURLName: org.turtlegit.macos.action
+            CFBundleURLSchemes: [turtlegit]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos
+        CODE_SIGN_ENTITLEMENTS: Configuration/App.entitlements
+      configs:
+        AppStore:
+          CODE_SIGN_ENTITLEMENTS: Configuration/AppStore.entitlements
+  TurtleGitFinder:
+    type: app-extension
+    platform: macOS
+    sources: [FinderSync]
+    dependencies:
+      - target: TurtleGitCore
+        embed: false
+    info:
+      path: Configuration/Finder-Info.plist
+      properties:
+        CFBundleDisplayName: TurtleGit Finder
+        CFBundleShortVersionString: '0.1.0'
+        CFBundleVersion: '1'
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.FinderSync
+          NSExtensionPrincipalClass: '$(PRODUCT_MODULE_NAME).FinderSync'
+    entitlements:
+      path: Configuration/Finder.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.application-groups: [group.org.turtlegit.macos]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.finder
+        APPLICATION_EXTENSION_API_ONLY: YES
+        LD_RUNPATH_SEARCH_PATHS: '$(inherited) @executable_path/../../../../Frameworks'
+schemes:
+  TurtleGitMac:
+    build:
+      targets:
+        TurtleGitMac: all
+  TurtleGitAppStore:
+    build:
+      targets:
+        TurtleGitMac: all
+    run:
+      config: AppStore
+    archive:
+      config: AppStore

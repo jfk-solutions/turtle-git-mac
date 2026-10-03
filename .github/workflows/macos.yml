@@ -1,0 +1,16 @@
+name: macOS
+on:
+  push:
+  pull_request:
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Git integration tests
+        run: swift test
+      - name: Application and embedded Finder extension
+        run: >-
+          xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac
+          -configuration Debug -destination 'platform=macOS'
+          -derivedDataPath build CODE_SIGNING_ALLOWED=NO build

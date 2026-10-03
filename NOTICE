@@ -1,0 +1,17 @@
+TurtleGit for Mac is an independent, unofficial port project.
+Upstream TortoiseGit: https://github.com/TortoiseGit/TortoiseGit
+Official upstream project: https://tortoisegit.org/
+Upstream source and license are copyright their respective contributors.
+The LICENSE file is retained from upstream TortoiseGit (GPL version 2).
+No affiliation or endorsement by the upstream project is claimed.
+New Swift implementation in this repository is licensed under GPL version 2.
+The upstream audit baseline is documented in docs/upstream.json.
+Apple frameworks and separately installed Git retain their own licenses.
+
+Command and status icon artwork is copied unchanged from TortoiseGit resources.
+Those icons were derived from the TortoiseSVN project: https://tortoisesvn.net/
+The upstream notice also names https://tortoisesvn.tigris.org/ (historical site).
+We use the GNU GPL alternative offered by the upstream resource license.
+The original resource license, source paths and SHA-256 hashes are retained in
+Sources/TurtleGitCore/Resources/Icons/ and bundled with the shared framework.
+Copyright (c) 2006-2007 The TortoiseSVN Project. All rights reserved.

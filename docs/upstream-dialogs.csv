@@ -1,0 +1,130 @@
+resource,id,caption,status
+contrib/issue-tracker-plugins/ExampleAtlPlugin/ExampleAtlPlugin.rc,IDD_WAITDIALOG,Please Wait,pending-review
+ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SENDREPORTDLG,@Title,pending-review
+ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SENDFULLDUMPDLG,@Title,pending-review
+ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_ASKSENDFULLDUMPDLG,@Title,pending-review
+ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SOLUTIONDLG,@Title,pending-review
+ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc,IDD_SENDASSERTREPORTDLG,@Title,pending-review
+src/Resources/TortoiseGitBlameENG.rc,IDD_ABOUTBOX,About TortoiseGitBlame,pending-review
+src/Resources/TortoiseGitBlameENG.rc,IDD_GOTODLG,Go to line,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_ABOUT,About TortoiseGitMerge,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_DIFFLOCATOR,,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_LINEDIFF,,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_FILEPATCHES,File patches,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_OPENDLG,TortoiseGitMerge,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_SETMAINPAGE,General,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_SETCOLORPAGE,Colors,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_FIND,Find,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_ENCODING,Encoding,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_GOTO,Go To Line,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_REGEXFILTERS,Regex Filters,pending-review
+src/Resources/TortoiseMergeENG.rc,IDD_REGEXFILTER,Regex Filter,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_ABOUT,About TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_ADD,Add,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CHANGEDFILES,Working Tree,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_LOGMESSAGE,Log Messages,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_COMMITDLG,Commit,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_PROMPT,Authentication,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_RENAME,Rename - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REPOSITORY_BROWSER,Repository Browser,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMAIN,General,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAY,Icon Overlays,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAYHANDLERS,Overlay Handlers,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROXY,Network,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMTP,Email,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SVNPROGRESS,Progress,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SIMPLEPROMPT,Authentication,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_INPUTDLG,Input,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSADV,Advanced Diff/Merge Settings,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_URL,URL,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_TOOLASSOC,Add/Edit Extension Specific Diff/Merge Program,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CHECKFORUPDATES,Check For Updates - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REVERT,Revert,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_LFS_LOCKS,LFS Locks,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_STATGRAPH,Statistics,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETOVERLAYICONS,Icon Set,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSDIFF,Diff Viewer,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSMERGE,Merge Tool,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSLOOKANDFEEL,Context Menu,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS,Dialogs 1,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS2,Dialogs 2,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_RESOLVE,Resolve,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_DIFFFILES,Changed Files,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCOLORS_2,Colors 2,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSSAVEDDATA,Saved Data,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_HISTORYDLG,Log History,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSHOOKS,Hook Scripts,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSHOOKCONFIG,Configure Hook Scripts,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_EXPORT,Export,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSTBLAME,TortoiseGitBlame,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CREATECHANGELIST,Create Changelist,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQ,Issue Tracker Integration,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQ_CONFIG,Issue Tracker Config,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQADV,Configure Issue Tracker Integration,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_AUTOTEXTTESTDLG,Autotext Tester,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGS_CONFIG,Advanced,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CLONE,Git clone - TortoiseGit,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_GITPROGRESS,Git Command Progress,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_PULLFETCH,Pull/Fetch,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_PUSH,Push,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_SVNDCOMMITTYPE,SVN Commit Type,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REQUESTPULL,Request pull,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_GITSWITCH,Switch/Checkout,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_NEW_BRANCH_TAG,New Branch/Tag,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_APPLY_PATCH_LIST,Apply Patches,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_FORMAT_PATCH,Format Patch,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_MERGE,Merge,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_START,First Start Wizard - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCOLORS_1,Colors 1,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCOLORS_3,Colors 3,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_RESET,Reset,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REBASE,Rebase,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_RESOLVE_CONFLICT,Conflict,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REFLOG,RefLog,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SUBMODULE_ADD,Submodule Add,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGIT_CONFIG,Git,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINREMOTE,Remote,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SENDMAIL,Send Patch,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SYNC,Git Synchronization,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CLEAN,Clean,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_PATCH_VIEW,View Patch,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SVNIGNORE,Import SVN Ignore,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSEXTMENU,Context Menu 2,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CREATEREPO,Git Init,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSALTERNATIVEEDITOR,Alternative editor,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_BISECTSTART,Bisect start,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_STASH,Stash,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REVGRAPHFILTER,Revision Graph Filter,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_DIFFSUBMODULE,Submodule Diff,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_IGNORE,Ignore,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SUBMODULE_UPDATE,Submodule Update,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_BROWSE_REFS,Browse references,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_ADD_REMOTE,Add Remote,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_DELETEREMOTETAG,Delete remote tag - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REVISIONGRAPH,Revision Graph,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_USER_PASSWD,Password,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_LOGORDERING,Log commit ordering,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCREDENTIAL,Credential,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_MERGEABORT,Abort Merge,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS3,Dialogs 3,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_BUGTRAQREGEXTESTER,Bugtraq Regex Tester - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CERTCHECK,TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSUDIFF,TortoiseGitUDiff,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_RESOLVESUBMODULECONFLICT,Resolve Submodule Conflict,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_FINDBAR,,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_COMMITISONREFS,References commit is on,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_USER,First Start Wizard - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_GIT,First Start Wizard - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_AUTHENTICATION,First Start Wizard - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_LANGUAGE,First Start Wizard - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SELECTREMOTEREF,Select remote ref - TortoiseGit,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSWIN11CONTEXTMENU,Windows 11 Context Menu,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_CREATE,New Worktree,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_LIST,Worktree List,pending-review
+src/SshAskPass/SshAskPass.rc,IDD_ASK_PASSWORD,TortoiseGit -  git CLI stdin wrapper,pending-review
+src/TortoiseIDiff/TortoiseIDiff.rc,IDD_OPEN,Load Images,pending-review
+src/TortoiseIDiff/TortoiseIDiff.rc,IDD_ABOUT,TortoiseGitIDiff,pending-review
+src/TortoisePlink/Windows/TortoisePlink.rc,IDD_LOGIN,TortoiseGitPlink,pending-review
+src/TortoiseShell/resourceshell.rc,IDD_PROPPAGE,Property Page,pending-review
+src/TortoiseUDiff/TortoiseUDiff.rc,IDD_FINDBAR,,pending-review
+test/Cache/Cache.rc,IDD_CACHE_DIALOG,Cache,pending-review

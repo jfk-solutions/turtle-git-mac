@@ -1,0 +1,102 @@
+import Foundation
+import Security
+
+public enum FinderIntegration {
+    public static let group = "group.org.turtlegit.macos"
+    public static let notification = "org.turtlegit.macos.statusChanged"
+    public static var container: URL? {
+        // Unsigned development builds cannot access the signed app's shared cache.
+        // Merely constructing a group-container path can otherwise trigger protected
+        // data access and stall startup on recent macOS versions.
+        guard let task = SecTaskCreateFromSelf(nil),
+              let groups = SecTaskCopyValueForEntitlement(task, "com.apple.security.application-groups" as CFString, nil) as? [String],
+              groups.contains(group) else { return nil }
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+    }
+    public static var snapshotURL: URL? { container?.appendingPathComponent("status.json") }
+}
+public struct FinderSnapshot: Codable, Sendable {
+    public var roots: [String]
+    public var states: [String: FileState]
+    public var updated: Date
+    public init(roots: [String], states: [String: FileState], updated: Date = Date()) {
+        self.roots = roots; self.states = states; self.updated = updated
+    }
+    @discardableResult public func write() throws -> Bool {
+        guard let url = FinderIntegration.snapshotURL else { return false }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(self).write(to: url, options: .atomic)
+        return true
+    }
+    public static func read() -> FinderSnapshot? {
+        guard let url = FinderIntegration.snapshotURL, let data = try? Data(contentsOf: url) else { return nil }
+        return try? JSONDecoder().decode(Self.self, from: data)
+    }
+    public static func build(root: URL, tracked: [String], changes: [StatusEntry]) -> FinderSnapshot {
+        var states: [String: FileState] = [:]
+        for path in tracked { states[root.appendingPathComponent(path).path] = .normal }
+        let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
+        for change in changes { states[root.appendingPathComponent(change.path).path] = change.state }
+        let files = states
+        for (path, state) in files {
+            var parent = URL(fileURLWithPath: path).deletingLastPathComponent()
+            while parent.path == root.path || parent.path.hasPrefix(root.path + "/") {
+                if priority[state, default: 0] >= priority[states[parent.path] ?? .normal, default: 0] { states[parent.path] = state }
+                if parent.path == root.path { break }
+                parent.deleteLastPathComponent()
+            }
+        }
+        states[root.path] = states[root.path] ?? .normal
+        return FinderSnapshot(roots: [root.path], states: states)
+    }
+}
+
+public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
+    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashPop, clone, initialize
+    public var id: String { rawValue }
+    public var title: String {
+        switch self {
+        case .status: return "Check for modifications"
+        case .commit: return "Commit…"
+        case .log: return "Show log"
+        case .diff: return "Diff"
+        case .pull: return "Pull…"
+        case .push: return "Push…"
+        case .fetch: return "Fetch…"
+        case .branch: return "Create branch…"
+        case .tag: return "Create tag…"
+        case .switchBranch: return "Switch/Checkout…"
+        case .merge: return "Merge…"
+        case .rebase: return "Rebase…"
+        case .stash: return "Stash save…"
+        case .stashPop: return "Stash pop…"
+        case .clone: return "Clone…"
+        case .initialize: return "Create repository here…"
+        }
+    }
+    public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
+    public var prompt: String {
+        switch self {
+        case .clone: return "Repository URL"
+        case .stash: return "Stash message"
+        default: return "Branch, tag, or revision"
+        }
+    }
+    public func arguments(value: String) -> [String]? {
+        switch self {
+        case .pull: return ["pull", "--ff-only"]
+        case .push: return ["push"]
+        case .fetch: return ["fetch", "--all"]
+        case .branch: return ["branch", "--", value]
+        case .tag: return ["tag", "--", value]
+        case .switchBranch: return ["switch", "--", value]
+        case .merge: return ["merge", "--", value]
+        case .rebase: return ["rebase", "--", value]
+        case .stash: return ["stash", "push", "-m", value]
+        case .stashPop: return ["stash", "pop"]
+        case .clone: return ["clone", "--", value, "."]
+        case .initialize: return ["init"]
+        default: return nil
+        }
+    }
+}

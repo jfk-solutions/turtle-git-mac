@@ -1,0 +1,54 @@
+import AppKit
+import FinderSync
+import TurtleGitCore
+
+/// Finder never launches Git. Only the containing application scans repositories.
+@objc(FinderSync) final class FinderSync: FIFinderSync {
+    private var snapshot: FinderSnapshot?
+    override init() {
+        super.init()
+        let controller = FIFinderSyncController.default()
+        for state in FileState.allCases {
+            guard let image = state.icon.image() else { continue }
+            controller.setBadgeImage(image, label: state.rawValue.capitalized, forBadgeIdentifier: state.rawValue)
+        }
+        reload()
+        DistributedNotificationCenter.default().addObserver(self, selector: #selector(reload), name: NSNotification.Name(FinderIntegration.notification), object: nil)
+    }
+    deinit { DistributedNotificationCenter.default().removeObserver(self) }
+    @objc private func reload() {
+        let old = snapshot
+        snapshot = FinderSnapshot.read()
+        let controller = FIFinderSyncController.default()
+        controller.directoryURLs = Set((snapshot?.roots ?? []).map { URL(fileURLWithPath: $0, isDirectory: true) })
+        let paths = Set(old?.states.keys.map { $0 } ?? []).union(snapshot?.states.keys.map { $0 } ?? [])
+        for path in paths where old?.states[path] != snapshot?.states[path] {
+            controller.setBadgeIdentifier(snapshot?.states[path]?.rawValue ?? "", for: URL(fileURLWithPath: path))
+        }
+    }
+    override func requestBadgeIdentifier(for url: URL) {
+        FIFinderSyncController.default().setBadgeIdentifier(snapshot?.states[url.path]?.rawValue ?? "", for: url)
+    }
+    override func menu(for menuKind: FIMenuKind) -> NSMenu? {
+        let menu = NSMenu(title: "TurtleGit")
+        let submenu = NSMenu(title: "TurtleGit")
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize }) {
+            let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
+            item.image = action.icon.image()
+            item.target = self; item.representedObject = action.rawValue; submenu.addItem(item)
+        }
+        let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
+        parent.image = MenuIcon.turtle.image()
+        parent.submenu = submenu; menu.addItem(parent)
+        return menu
+    }
+    @objc private func openAction(_ sender: NSMenuItem) {
+        let controller = FIFinderSyncController.default()
+        guard let path = (controller.selectedItemURLs()?.first ?? controller.targetedURL())?.path,
+              let command = sender.representedObject as? String else { return }
+        var components = URLComponents()
+        components.scheme = "turtlegit"; components.host = "action"
+        components.queryItems = [URLQueryItem(name: "command", value: command), URLQueryItem(name: "path", value: path)]
+        if let url = components.url { NSWorkspace.shared.open(url) }
+    }
+}

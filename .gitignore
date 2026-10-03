@@ -1,0 +1,9 @@
+.build/
+build/
+build-store/
+.upstream/
+.DS_Store
+*.xcuserstate
+xcuserdata/
+__pycache__/
+*.pyc
