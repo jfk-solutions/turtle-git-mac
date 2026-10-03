@@ -58,6 +58,8 @@ import UniformTypeIdentifiers
     @Published var document = GitPatch(text: "")
     @Published var selectedLines = Set<Int>()
     @Published var staged = false
+    @Published var readOnly = false
+    @Published var comparisonTitle = "HEAD → Working tree"
     var base: String?
     @Published var busy = false
     @Published var error: String?
@@ -66,28 +68,32 @@ import UniformTypeIdentifiers
     var onApplying: (Bool) -> Void = { _ in }
     var onApplied: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    var canApplyLines: Bool { !busy && selectedLines.contains(where: { document.changedLine($0) }) }
-    var canApplyHunks: Bool { !busy && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
+    var canApplyLines: Bool { !readOnly && !busy && selectedLines.contains(where: { document.changedLine($0) }) }
+    var canApplyHunks: Bool { !readOnly && !busy && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
     var information: String {
         if paths.isEmpty { return "Select files in the Commit window to see their patch." }
+        if readOnly { return document.text.isEmpty ? "No patch for the selected files." : "Select files in the Commit window to compare their contents." }
         if document.text.isEmpty { return "No changes in this view. New files must be staged as a whole file first." }
         if document.files.contains(where: { !$0.supportsPartialChanges }) { return "Some files require whole-file staging: new/deleted, renamed, binary or mode changes." }
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
     func reload(paths: [String], staged: Bool) {
         generation += 1; let request = generation
-        let base = self.base
+        let base = self.base, readOnly = self.readOnly
         self.paths = paths; self.staged = staged; selectedLines = []; document = GitPatch(text: ""); busy = true
         Task {
             do {
-                let result = paths.isEmpty ? GitPatch(text: "") : try await repository.patch(paths: paths, staged: staged, base: base)
+                let result: GitPatch
+                if paths.isEmpty { result = GitPatch(text: "") }
+                else if readOnly { result = try await repository.workingTreePatch(paths: paths, base: base) }
+                else { result = try await repository.patch(paths: paths, staged: staged, base: base) }
                 guard request == generation else { return }
                 document = result; busy = false
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
         }
     }
     func apply(entireHunks: Bool) {
-        guard entireHunks ? canApplyHunks : canApplyLines else { return }
+        guard !readOnly, entireHunks ? canApplyHunks : canApplyLines else { return }
         let document = self.document, paths = self.paths, staged = self.staged, lines = selectedLines, base = self.base
         busy = true; onApplying(true)
         Task {
@@ -104,18 +110,20 @@ struct PatchDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(model.staged ? (model.base == nil ? "HEAD → Index" : "Parent → Index") : "Index → Working tree").font(.headline)
+                Text(model.readOnly ? model.comparisonTitle : model.staged ? (model.base == nil ? "HEAD → Index" : "Parent → Index") : "Index → Working tree").font(.headline)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
                 Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy)
             }
             PatchTextView(model: model).frame(minWidth: 430, minHeight: 360)
             Text(model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            HStack {
-                Button(model.staged ? "Unstage selected hunks" : "Stage selected hunks") { model.apply(entireHunks: true) }.disabled(!model.canApplyHunks)
-                Button(model.staged ? "Unstage selected lines" : "Stage selected lines") { model.apply(entireHunks: false) }.disabled(!model.canApplyLines)
+            if !model.readOnly {
+                HStack {
+                    Button(model.staged ? "Unstage selected hunks" : "Stage selected hunks") { model.apply(entireHunks: true) }.disabled(!model.canApplyHunks)
+                    Button(model.staged ? "Unstage selected lines" : "Stage selected lines") { model.apply(entireHunks: false) }.disabled(!model.canApplyLines)
+                }
             }
         }.padding(12)
-        .alert("Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+        .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
     }
@@ -197,11 +205,13 @@ struct PatchTextView: NSViewRepresentable {
             let save = NSMenuItem(title: "Save As…", action: #selector(savePatch(_:)), keyEquivalent: "")
             save.target = self; save.image = MenuIcon.unifiedDiff.image(); menu.addItem(save)
             menu.addItem(.separator())
-            for (title, selector, enabled) in [("selected hunks", #selector(Coordinator.hunks(_:)), coordinator.model.canApplyHunks), ("selected lines", #selector(Coordinator.lines(_:)), coordinator.model.canApplyLines)] {
-                let item = NSMenuItem(title: (coordinator.model.staged ? "Unstage " : "Stage ") + title, action: selector, keyEquivalent: "")
-                item.target = coordinator; item.image = (coordinator.model.staged ? MenuIcon.revert : .add).image(); item.isEnabled = enabled; menu.addItem(item)
+            if !coordinator.model.readOnly {
+                for (title, selector, enabled) in [("selected hunks", #selector(Coordinator.hunks(_:)), coordinator.model.canApplyHunks), ("selected lines", #selector(Coordinator.lines(_:)), coordinator.model.canApplyLines)] {
+                    let item = NSMenuItem(title: (coordinator.model.staged ? "Unstage " : "Stage ") + title, action: selector, keyEquivalent: "")
+                    item.target = coordinator; item.image = (coordinator.model.staged ? MenuIcon.revert : .add).image(); item.isEnabled = enabled; menu.addItem(item)
+                }
+                menu.addItem(.separator())
             }
-            menu.addItem(.separator())
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.image(); menu.addItem(copy)
             menu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: ""))

@@ -6,6 +6,7 @@ import TurtleGitCore
     let model: CommitWindowModel
     var onClosed: () -> Void = {}
     private var partial: PatchWindowController?
+    private var closingCommit = false
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = CommitWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
@@ -16,22 +17,31 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.close = { [weak window] in window?.close() }
         model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
+        model.showViewPatch = { [weak self] in self?.showPartial(staged: false, readOnly: true) }
         model.refreshPartial = { [weak self] in self?.reloadPartial() }
         model.closePartial = { [weak self] in self?.partial?.close() }
     }
-    func windowWillClose(_ notification: Notification) { partial?.close(); partial = nil; onClosed() }
-    private func showPartial(staged: Bool) {
+    func windowWillClose(_ notification: Notification) { closingCommit = true; partial?.close(); partial = nil; onClosed() }
+    private func showPartial(staged: Bool, readOnly: Bool = false) {
         guard let window else { return }
-        if partial != nil, model.partialMode == staged { partial?.close(); return }
+        if let partial, partial.model.readOnly == readOnly, partial.model.staged == staged { partial.close(); return }
         let controller = partial ?? PatchWindowController(repository: model.repository, access: model.access)
         partial = controller
-        controller.onClosed = { [weak self] in self?.partial = nil; self?.model.partialMode = nil }
+        controller.onClosed = { [weak self] in
+            guard let self else { return }
+            self.partial = nil; self.model.partialMode = nil; self.model.viewingPatch = false
+            if !self.closingCommit { self.model.savePatchPreference(false) }
+        }
         controller.model.onApplying = { [weak model] busy in model?.busy = busy }
         controller.model.onApplied = { [weak model] in model?.reload() }
+        controller.model.readOnly = readOnly
         controller.model.staged = staged
         controller.model.base = model.comparisonBase
-        model.partialMode = staged
-        controller.window?.title = staged ? "Partial Unstaging – HEAD → Index" : "Partial Staging – Index → Working tree"
+        model.partialMode = readOnly ? nil : staged
+        model.viewingPatch = readOnly
+        model.savePatchPreference(true)
+        controller.model.comparisonTitle = model.comparisonBase != nil ? "Parent → Working tree" : model.hasHead ? "HEAD → Working tree" : "Initial commit"
+        controller.window?.title = readOnly ? "View Patch – " + controller.model.comparisonTitle : staged ? "Partial Unstaging – HEAD → Index" : "Partial Staging – Index → Working tree"
         if let patchWindow = controller.window, patchWindow.parent == nil { window.addChildWindow(patchWindow, ordered: .above) }
         if let child = controller.window, let visible = window.screen?.visibleFrame,
            window.frame.width + child.frame.width <= visible.width {
@@ -43,7 +53,11 @@ import TurtleGitCore
     private func reloadPartial() {
         guard let partial else { return }
         partial.model.base = model.comparisonBase
-        partial.model.reload(paths: model.entries.filter { model.selection.contains($0.id) }.map(\.path), staged: partial.model.staged)
+        partial.model.comparisonTitle = model.comparisonBase != nil ? "Parent → Working tree" : model.hasHead ? "HEAD → Working tree" : "Initial commit"
+        partial.window?.title = partial.model.readOnly ? "View Patch – " + partial.model.comparisonTitle : partial.model.staged ? (model.comparisonBase == nil ? "Partial Unstaging – HEAD → Index" : "Partial Unstaging – Parent → Index") : "Partial Staging – Index → Working tree"
+        let selected = model.entries.filter { model.selection.contains($0.id) && $0.state != .untracked && $0.state != .ignored }
+        let paths = selected.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) }
+        partial.model.reload(paths: Array(Set(paths)).sorted(), staged: partial.model.staged)
     }
     private func alignPartial() {
         guard let window, let child = partial?.window else { return }
@@ -65,6 +79,9 @@ import TurtleGitCore
     @Published var stagedStatistics: [String: CommitFile] = [:]
     @Published var unstagedStatistics: [String: CommitFile] = [:]
     @Published var stagingEnabled = false
+    @Published var viewingPatch = false
+    private var loadedPreferences = false
+    private var persistedStaging: Bool?
     @Published var partialMode: Bool?
     @Published var stagedDiff = true
     private var hasLoaded = false
@@ -96,6 +113,7 @@ import TurtleGitCore
     @Published var busy = false
     @Published var error: String?
     @Published var patch: String?
+    var showViewPatch: () -> Void = {}
     var showPartial: (Bool) -> Void = { _ in }
     var refreshPartial: () -> Void = {}
     var closePartial: () -> Void = {}
@@ -130,6 +148,11 @@ import TurtleGitCore
         Task {
             defer { busy = false }
             do {
+                var restorePatch = false
+                if !loadedPreferences {
+                    let preferences = try await repository.commitPreferences()
+                    persistedStaging = preferences.staging; stagingEnabled = preferences.staging; restorePatch = preferences.showPatch; loadedPreferences = true
+                }
                 hasHead = (try? await repository.run(["rev-parse", "--verify", "HEAD"])) != nil
                 hasParent = (try? await repository.run(["rev-parse", "--verify", "HEAD^1"])) != nil
                 if amend && !hasParent { amendDiffToLastCommit = true }
@@ -151,8 +174,18 @@ import TurtleGitCore
                     author = name.isEmpty ? "" : "\(name) <\(email)>"
                 }
                 hasLoaded = true; refreshPartial()
+                if restorePatch { if stagingEnabled { showPartial(false) } else { showViewPatch() } }
             } catch { self.error = error.localizedDescription }
         }
+    }
+    func savePatchPreference(_ visible: Bool) {
+        Task { do { try await repository.saveCommitPreferences(showPatch: visible) } catch { self.error = error.localizedDescription } }
+    }
+    func stagingChanged() {
+        guard loadedPreferences, persistedStaging != stagingEnabled else { return }
+        closePartial()
+        let enabled = stagingEnabled; persistedStaging = enabled
+        Task { do { try await repository.saveCommitPreferences(staging: enabled) } catch { self.error = error.localizedDescription } }
     }
     func check(_ predicate: (StatusEntry) -> Bool) {
         let paths = Set(visibleEntries.filter { $0.state != .conflicted && predicate($0) }.map(\.id))
@@ -181,7 +214,7 @@ import TurtleGitCore
         }
     }
     func comparisonChanged() {
-        closePartial(); hasLoaded = false
+        hasLoaded = false
         reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
     }
     func authorChanged() {
@@ -301,7 +334,7 @@ struct CommitDialog: View {
             }
         }
         .onChange(of: model.selection) { _ in model.refreshPartial() }
-        .onChange(of: model.stagingEnabled) { enabled in if !enabled { model.closePartial() } }
+        .onChange(of: model.stagingEnabled) { _ in model.stagingChanged() }
         .alert("Commit failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
@@ -361,6 +394,8 @@ GroupBox("Changes made (double-click on file for diff):") {
                                 if model.stagingEnabled {
                                     Button(model.partialMode == false ? "Hide Staging «" : "Partial Staging »") { model.showPartial(false) }
                                     Button(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »") { model.showPartial(true) }
+                                } else {
+                                    Button(model.viewingPatch ? "Hide Patch «" : "View Patch »") { model.showViewPatch() }
                                 }
                                 Text(model.stagingEnabled ? "\(model.stagedEntries.count) staged, \(model.unstagedEntries.count) unstaged files shown" : "\(model.checked.count) files checked, \(model.visibleEntries.count) files shown").font(.caption)
                             }

@@ -42,7 +42,7 @@ bypasses checked-file index preparation. These are distinct commit modes.
 
 ## Verification
 
-The Swift suite has 87 tests, including real Git commits exercising both modes,
+The Swift suite has 90 tests, including real Git commits exercising both modes,
 unchecked staged changes, unusual literal filenames, unborn HEAD, staged renames
 and deletions, amend, author and sign-off, later unstaged edits, and hook rejection.
 
@@ -95,7 +95,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
 - Remaining file context commands: revert, skip-worktree, assume-unchanged,
   restore after commit, file log, blame, export, external editor/open/reveal.
 - Progress window with cancellation, interactive hooks/editors/signing and
-  authentication prompts; persistent dialog preferences and mode setting.
+  authentication prompts; remaining persistent dialog preferences.
 - Checkbox mode completion of merges/cherry-picks. It rejects active merges
   before changing the index; staging mode uses normal Git index commit behavior.
 - A failed checkbox commit can leave checked files staged, as index preparation
@@ -171,3 +171,29 @@ Git verified its parent hash, committed file contents and preserved mixed edits.
 `site/assets/commit-amend.png` captures that actual checked plan before committing.
 Native root/merge/rename, reset/override combinations and action-menu execution
 remain unverified; this is still a partial Commit port.
+
+## View Patch and repository mode preferences
+
+The normal checkbox mode now exposes View Patch / Hide Patch in the Changes made
+section. Like CommitDlg::FillPatchView, its attached right-hand window follows
+highlighted file rows independently of checked commit paths, compares complete
+working-tree contents with HEAD (or the amend parent), and includes both rename
+paths. Unversioned/ignored rows are excluded. The read-only view has colored unified
+patches and Save As, Copy, Select All and Find; no staging actions are exposed.
+Staging mode retains the separate partial staging/unstaging links and comparisons.
+
+The original local Git settings tgit.commitstagingsupport and tgit.commitshowpatch
+now restore the mode and patch visibility on opening Commit. Hiding/closing the
+patch clears its visibility preference; closing the parent preserves it. Changing
+staging mode closes the existing patch and stores the new mode. Native verification
+covered staging restoration after Cancel/reopen and restoring an explicitly saved
+show-patch preference after relaunch. Parent-close/reopen with the patch still open,
+rapid mode changes, and external config changes still need native lifecycle QA.
+
+Three real Git tests cover combined staged/unstaged previews, explicit parent and
+rename comparison, unborn-index fallback, preference persistence and preservation
+of HEAD/index/worktree. All 90 tests pass. Native QA displayed both staged and later
+working-tree edits against HEAD, confirmed the read-only context menu, and switched
+staging without modifying the index. The actual attached window is captured in
+site/assets/commit-view-patch.png. Highlight changes, amend switching while open,
+non-UTF-8/binary preview and multi-display behavior remain to be verified natively.
