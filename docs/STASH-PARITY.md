@@ -56,7 +56,7 @@ remains pending.
 Apply retains the stash. Pop delegates removal to Git so a conflicted or failed
 application retains it. Neither defaults to `--index`, matching upstream.
 Selected Apply's core API resolves a commit before invoking Git and normalizes
-upstream `refs/stash@{n}` and `stash{n}` forms. Its native selection UI is pending.
+upstream `refs/stash@{n}` and `stash{n}` forms. Its native RefLog selection UI is now implemented and exercised; see REFLOG-PARITY.md.
 Conflict classification requires Git exit 1, conflict output and actual unmerged
 entries; other nonzero exits remain errors. Pop's remembered Yes/No answers use
 separate success/conflict preferences; Apply always presents its prompt.
@@ -84,7 +84,9 @@ were verified; no conflict prompt image is published.
 ## Remaining
 
 - Full progress/cancellation and upstream conditional Pull/Merge/Pop/Apply post-actions.
-- Native stash list, selected Apply/Pop/Drop, inspection and branch-from-stash workflows.
+- RefLog now provides native list, selected Apply, inspection and guarded Drop/Clear.
+  Selected Pop, branch-from-stash and broader deletion/recovery QA remain pending.
+  See REFLOG-PARITY.md.
 - Explicit user-data guard matching the upstream pre-dialog flow.
 - Native Continue suppression persistence/relaunch and window-close invariants,
   horizontal resizing and dark appearance QA.

@@ -165,6 +165,7 @@ struct StatusDialog: View {
                     Button { model.onAction(.stash, []) } label: { CommandLabel(title: "Stash save…", icon: .stash) }
                     Button { model.onAction(.stashApply, []) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }
                     Button { model.onAction(.stashPop, []) } label: { CommandLabel(title: "Stash pop", icon: .stashPop) }
+                    Button { model.onAction(.stashList, []) } label: { CommandLabel(title: "Stash list", icon: .log) }
                 }
                 Button("Commit") { model.onAction(.commit, model.commitPaths()) }
                 Button("Refresh") { model.reload() }.keyboardShortcut("r")

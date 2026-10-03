@@ -30,6 +30,7 @@ import TurtleGitCore
     private var switchWindows: [String: SwitchWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
     private var mergeWindows: [String: MergeWindowController] = [:]
+    private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
     private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
     private var stashWindows: [String: StashWindowController] = [:]
     private var timer: Timer?
@@ -231,6 +232,9 @@ import TurtleGitCore
             guard let repository else { return }
             showSwitch(repository: repository, access: activeAccess)
         case .diff: showDiff()
+        case .stashList, .reflog:
+            guard let repository else { return }
+            showReferenceLog(repository: repository, access: activeAccess, reference: action == .stashList ? "refs/stash" : "HEAD")
         case .stashApply, .stashPop:
             guard let repository else { return }
             showStashRestore(repository: repository, access: activeAccess, pop: action == .stashPop)
@@ -251,19 +255,33 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller
         controller.model.setScope(paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool) {
-        let root = repository.root, key = repository.root.path + (pop ? ":pop" : ":apply")
+    private func showReferenceLog(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
+        let root = repository.root
+        let controller = referenceLogWindows[root.path] ?? ReferenceLogWindowController(repository: repository, access: access, reference: reference)
+        controller.onClosed = { [weak self] in self?.referenceLogWindows.removeValue(forKey: root.path) }
+        controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
+        controller.model.onChanged = { [weak self] output in
+            self?.logWindows[root.path]?.model.reload()
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        referenceLogWindows[root.path] = controller
+        controller.model.reference = reference; controller.model.reload()
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil) {
+        let root = repository.root, key = repository.root.path + (pop ? ":pop" : ":apply:" + (reference ?? "latest"))
         if let existing = stashRestoreWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = StashRestoreWindowController(repository: repository, access: access, pop: pop)
+        let controller = StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference)
         controller.onClosed = { [weak self] in self?.stashRestoreWindows.removeValue(forKey: key) }
         controller.onChanged = { [weak self] output in
+            self?.referenceLogWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload(); self?.logWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
@@ -289,6 +307,7 @@ import TurtleGitCore
         let controller = mergeWindows[root.path] ?? MergeWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] output in
+            self?.referenceLogWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload(); self?.logWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }
@@ -307,6 +326,7 @@ import TurtleGitCore
         let controller = stashWindows[root.path] ?? StashWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.stashWindows.removeValue(forKey: root.path) }
         let changed: (String) -> Void = { [weak self] output in
+            self?.referenceLogWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload(); self?.logWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }

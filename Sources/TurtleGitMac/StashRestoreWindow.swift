@@ -6,6 +6,7 @@ import TurtleGitCore
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     let pop: Bool
+    private let reference: String?
     var onChanged: (String) -> Void = { _ in }
     var onViewChanges: () -> Void = {}
     var onClosed: () -> Void = {}
@@ -13,8 +14,8 @@ import TurtleGitCore
     private let spinner = NSProgressIndicator()
     private let running = NSTextField(labelWithString: "Stash operation running…")
     private let waiting = NSTextField(labelWithString: "Please wait…")
-    init(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool) {
-        self.repository = repository; self.access = access; self.pop = pop
+    init(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil) {
+        self.repository = repository; self.access = access; self.pop = pop; self.reference = reference
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 440, height: 120), styleMask: [.titled], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Stash \(pop ? "Pop" : "Apply") – TurtleGit"
         window.isReleasedWhenClosed = false
@@ -32,7 +33,7 @@ import TurtleGitCore
         guard !started else { return }; started = true
         Task {
             do {
-                let result = try await repository.restoreStash(pop: pop)
+                let result = try await repository.restoreStash(pop: pop, reference: reference)
                 onChanged(result.output); present(result)
             } catch {
                 spinner.stopAnimation(nil); running.stringValue = "Stash operation failed"; waiting.stringValue = ""

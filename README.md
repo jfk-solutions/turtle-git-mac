@@ -55,11 +55,14 @@ bundle structure; it is not a signed distribution.
   [Stash parity](docs/STASH-PARITY.md) records remaining work.
 - Stash Apply/Pop run directly with native progress and success/conflict prompts.
   Yes opens Working Tree; failed Pop retains its stash for recovery.
+- Native RefLog and Stash List window with upstream columns, reference selection,
+  Find Next, selected Apply, inspection and guarded stash deletion/clear.
+  [RefLog parity](docs/REFLOG-PARITY.md) records remaining work.
 - Native confirmation dialogs for clone and repository creation.
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
-  UI and Pull/Fetch handoffs remain pending. [Rebase parity](docs/REBASE-PARITY.md).
+  UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Follow System, Light and Dark appearance choices, with upstream file-status colors
   and original colored artwork. [Appearance audit](docs/APPEARANCE.md).
 - Native New Branch/Tag windows with HEAD/branch/tag/commit selectors, descriptions,

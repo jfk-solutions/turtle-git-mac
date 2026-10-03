@@ -17,7 +17,9 @@ final class MenuIconTests: XCTestCase {
         }
         // Upstream Apply and Pop share the unshelve artwork.
         XCTAssertEqual(RepositoryAction.stashApply.icon, RepositoryAction.stashPop.icon)
-        let distinctActions = RepositoryAction.allCases.filter { $0 != .stashApply }
+        XCTAssertEqual(RepositoryAction.stashList.icon, RepositoryAction.log.icon)
+        XCTAssertEqual(RepositoryAction.reflog.icon, RepositoryAction.log.icon)
+        let distinctActions = RepositoryAction.allCases.filter { ![.stashApply, .stashList, .reflog].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }
