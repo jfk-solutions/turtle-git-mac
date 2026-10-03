@@ -50,7 +50,10 @@ import TurtleGitCore
                 branchRevision = branches.first { $0.name == "refs/heads/" + current }?.name ?? branches.first?.name ?? ""
                 tagRevision = tags.first?.name ?? ""
                 commitRevision = revision ?? "HEAD"; options = CheckoutOptions()
-                options.target = revision == nil ? .branch : .commit
+                if let revision, references.contains(where: { $0.name == revision }) {
+                    if revision.hasPrefix("refs/tags/") { options.target = .tag; tagRevision = revision }
+                    else { options.target = .branch; branchRevision = revision }
+                } else { options.target = revision == nil ? .branch : .commit }
                 defaults()
             } catch { self.error = error.localizedDescription }
         }
@@ -159,7 +162,7 @@ private struct SwitchDialog: View {
     }
 }
 
-private struct SwitchReferenceChooser: View {
+struct SwitchReferenceChooser: View {
     @ObservedObject var model: SwitchWindowModel
     let target: CheckoutTarget
     @State private var search = ""
@@ -184,7 +187,7 @@ private struct SwitchReferenceChooser: View {
     }
 }
 
-private struct TrackingCheckbox: NSViewRepresentable {
+struct TrackingCheckbox: NSViewRepresentable {
     @Binding var value: CheckoutTracking
     let enabled: Bool
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -202,7 +205,7 @@ private struct TrackingCheckbox: NSViewRepresentable {
     }
 }
 
-private struct SwitchRadio: NSViewRepresentable {
+struct SwitchRadio: NSViewRepresentable {
     let title: String
     let target: CheckoutTarget
     @Binding var selection: CheckoutTarget
@@ -221,7 +224,7 @@ private struct SwitchRadio: NSViewRepresentable {
     }
 }
 
-private struct ReferencePopup: NSViewRepresentable {
+struct ReferencePopup: NSViewRepresentable {
     let references: [CheckoutReference]
     @Binding var selection: String
     @Environment(\.isEnabled) private var enabled

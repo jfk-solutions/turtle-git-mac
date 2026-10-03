@@ -40,7 +40,7 @@ mixed index/worktree edits, annotated tags, detached commits, branch creation,
 automatic/explicit/no remote tracking, hierarchical remote names, existing branch
 and tag conflicts, invalid names/revisions, dirty checkout rejection, explicit
 force, and merge checkout leaving conflict stages and markers. The complete suite
-has 49 passing tests.
+has 53 passing tests.
 
 Native QA created `native-switch-qa` on a disposable repository, chose `main` in
 the reference browse sheet, and switched back. Index and worktree patches matched

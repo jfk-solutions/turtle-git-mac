@@ -64,6 +64,7 @@ struct LogCommandRequest: Identifiable {
     private var generation = 0
     private var detailGeneration = 0
     private var limit = 200
+    var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onCheckout: (String) -> Void = { _ in }
     var close: () -> Void = {}
     var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
@@ -112,6 +113,7 @@ struct LogCommandRequest: Identifiable {
     }
     func request(_ command: LogRevisionCommand) {
         guard !busy, let revision else { return }
+        if command == .branch || command == .tag { onCreateReference(command == .tag, revision.hash); return }
         if command == .checkout { onCheckout(revision.hash); return }
         commandRequest = LogCommandRequest(command: command, revision: revision)
     }
@@ -119,8 +121,8 @@ struct LogCommandRequest: Identifiable {
         let hash = request.revision.hash
         var args: [String]
         switch request.command {
-        case .branch: args = ["branch", "--", value, hash]
-        case .tag: args = ["tag", "--", value, hash]
+        case .branch: commandRequest = nil; onCreateReference(false, hash); return
+        case .tag: commandRequest = nil; onCreateReference(true, hash); return
         case .checkout: commandRequest = nil; onCheckout(hash); return
         case .reset: args = ["reset", "--" + resetMode, hash, "--"]
         case .cherryPick: args = ["cherry-pick", hash]

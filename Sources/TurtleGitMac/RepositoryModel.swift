@@ -23,6 +23,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private var referenceWindows: [String: BranchTagWindowController] = [:]
     private var switchWindows: [String: SwitchWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
     private var timer: Timer?
@@ -186,7 +187,7 @@ import TurtleGitCore
                     self.openSession(access, action: action, actionPaths: paths); return
                 }
                 self.activate(action, paths: paths)
-                if action != .commit && action != .log && action != .switchBranch { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+                if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
             }
             controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
             statusWindows[root.path] = controller
@@ -210,17 +211,33 @@ import TurtleGitCore
             let controller = logWindows[root.path] ?? LogWindowController(repository: repository, access: activeAccess)
             controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: root.path) }
             let access = activeAccess
+            controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
             logWindows[root.path] = controller
             controller.model.setPathScope(paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
 
+        case .branch, .tag:
+            guard let repository else { return }
+            showReference(repository: repository, access: activeAccess, isTag: action == .tag)
         case .switchBranch:
             guard let repository else { return }
             showSwitch(repository: repository, access: activeAccess)
         case .diff: showDiff()
         default: dialog = action
         }
+    }
+    private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil) {
+        let root = repository.root, key = repository.root.path + (isTag ? ":tag" : ":branch")
+        let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag)
+        controller.onClosed = { [weak self] in self?.referenceWindows.removeValue(forKey: key) }
+        controller.model.onCreated = { [weak self] output in
+            self?.logWindows[root.path]?.model.reload()
+            self?.statusWindows[root.path]?.model.reload()
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        referenceWindows[key] = controller; controller.model.load(revision: revision)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
         let root = repository.root

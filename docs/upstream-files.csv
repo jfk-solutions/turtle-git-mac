@@ -2241,8 +2241,8 @@ src/TortoiseProc/Commands/BisectCommand.cpp,TortoiseProc,blob,f6fb51387dc08c17e6
 src/TortoiseProc/Commands/BisectCommand.h,TortoiseProc,blob,eed9be6e5d7262f88e6ef4ef87590139a79b8195,pending-review,,
 src/TortoiseProc/Commands/BlameCommand.cpp,TortoiseProc,blob,50de8c1255078dd6567af991994940edaf499ff5,pending-review,,
 src/TortoiseProc/Commands/BlameCommand.h,TortoiseProc,blob,a44e159181c916c486bc118b39b4a046f539ddaa,pending-review,,
-src/TortoiseProc/Commands/BranchCommand.cpp,TortoiseProc,blob,2c500f9877e3dbc151661bc09802e219f01c3066,partial,Sources/TurtleGitMac/RepositoryModel.swift; Sources/TurtleGitCore/GitRepository.swift,Initial native command workflow only; upstream options and error/recovery dialogs still require parity audit.
-src/TortoiseProc/Commands/BranchCommand.h,TortoiseProc,blob,dda430ee7dd63328aa8ac5085e3fd45361acab7c,partial,Sources/TurtleGitMac/RepositoryModel.swift; Sources/TurtleGitCore/GitRepository.swift,Initial native command workflow only; upstream options and error/recovery dialogs still require parity audit.
+src/TortoiseProc/Commands/BranchCommand.cpp,TortoiseProc,blob,2c500f9877e3dbc151661bc09802e219f01c3066,partial-native,Sources/TurtleGitMac/BranchTagWindow.swift; Sources/TurtleGitCore/ReferenceCreation.swift,"Native revision/options/message layout; branch descriptions, annotated tags and optional checkout verified. Full choosers, push, signing UI and progress pending; see BRANCH-TAG-PARITY.md."
+src/TortoiseProc/Commands/BranchCommand.h,TortoiseProc,blob,dda430ee7dd63328aa8ac5085e3fd45361acab7c,partial-native,Sources/TurtleGitMac/BranchTagWindow.swift; Sources/TurtleGitCore/ReferenceCreation.swift,"Native revision/options/message layout; branch descriptions, annotated tags and optional checkout verified. Full choosers, push, signing UI and progress pending; see BRANCH-TAG-PARITY.md."
 src/TortoiseProc/Commands/CatCommand.cpp,TortoiseProc,blob,1b524532a28d1c396d206efb225daec2a8069f11,pending-review,,
 src/TortoiseProc/Commands/CatCommand.h,TortoiseProc,blob,43967cd8856296dc7165e87831ce909a777e18e2,pending-review,,
 src/TortoiseProc/Commands/CleanupCommand.cpp,TortoiseProc,blob,e7f9c4c1bbdf36fdf08d007c177e8614ec90c122,pending-review,,
@@ -2349,8 +2349,8 @@ src/TortoiseProc/Commands/SwitchCommand.cpp,TortoiseProc,blob,e8b327a2425268fc2d
 src/TortoiseProc/Commands/SwitchCommand.h,TortoiseProc,blob,1886a2f97efe77785809a8552889ef96e18cf2f7,partial-native,Sources/TurtleGitMac/SwitchWindow.swift; Sources/TurtleGitCore/Checkout.swift; Sources/TurtleGitMac/RepositoryModel.swift,"Native selector/options layout and checkout backend; native branch creation/return with index preservation verified. Full choosers, progress and broader UI QA pending; see SWITCH-PARITY.md."
 src/TortoiseProc/Commands/SyncCommand.cpp,TortoiseProc,blob,96115b57e9c4e189899c6b781068cd5c9c28cc2f,pending-review,,
 src/TortoiseProc/Commands/SyncCommand.h,TortoiseProc,blob,403bebf6d9cf729e09490c8af64e10a6d72e27e6,pending-review,,
-src/TortoiseProc/Commands/TagCommand.cpp,TortoiseProc,blob,5fcdd664afc4f79128ca994b74a7cd1374b954e4,partial,Sources/TurtleGitMac/RepositoryModel.swift; Sources/TurtleGitCore/GitRepository.swift,Initial native command workflow only; upstream options and error/recovery dialogs still require parity audit.
-src/TortoiseProc/Commands/TagCommand.h,TortoiseProc,blob,885eba0613477a46644e20172689375d75522a94,partial,Sources/TurtleGitMac/RepositoryModel.swift; Sources/TurtleGitCore/GitRepository.swift,Initial native command workflow only; upstream options and error/recovery dialogs still require parity audit.
+src/TortoiseProc/Commands/TagCommand.cpp,TortoiseProc,blob,5fcdd664afc4f79128ca994b74a7cd1374b954e4,partial-native,Sources/TurtleGitMac/BranchTagWindow.swift; Sources/TurtleGitCore/ReferenceCreation.swift,"Native revision/options/message layout; branch descriptions, annotated tags and optional checkout verified. Full choosers, push, signing UI and progress pending; see BRANCH-TAG-PARITY.md."
+src/TortoiseProc/Commands/TagCommand.h,TortoiseProc,blob,885eba0613477a46644e20172689375d75522a94,partial-native,Sources/TurtleGitMac/BranchTagWindow.swift; Sources/TurtleGitCore/ReferenceCreation.swift,"Native revision/options/message layout; branch descriptions, annotated tags and optional checkout verified. Full choosers, push, signing UI and progress pending; see BRANCH-TAG-PARITY.md."
 src/TortoiseProc/Commands/UnIgnoreCommand.cpp,TortoiseProc,blob,cf226f2896d7b0a2874d756e99a8df7a9ae3264e,pending-review,,
 src/TortoiseProc/Commands/UnIgnoreCommand.h,TortoiseProc,blob,08af00455a72e1ae20e0b72a0f8b0551c9de8f17,pending-review,,
 src/TortoiseProc/Commands/UpdateCheckCommand.cpp,TortoiseProc,blob,053cc43b0c83d642d7238a83df8d6e3b87f3df41,pending-review,,
@@ -2362,8 +2362,8 @@ src/TortoiseProc/CommitDlg.h,TortoiseProc,blob,74c2f3700d7667480bfdf7221ac643e5e
 src/TortoiseProc/CommitIsOnRefsDlg.cpp,TortoiseProc,blob,11368b95c9a5475ce26e045d0cf2e2063dacf9eb,pending-review,,
 src/TortoiseProc/CommitIsOnRefsDlg.h,TortoiseProc,blob,dfaa66a7f77b98ffb3dc38ab1fcb74f6443f75e2,pending-review,,
 src/TortoiseProc/ConfigureGitExe.h,TortoiseProc,blob,1bfaf3bafe5695598579d8b9b0dafd18864bca3e,pending-review,,
-src/TortoiseProc/CreateBranchTagDlg.cpp,TortoiseProc,blob,023120d49dfb8d93fc308a8da59db12b56eb4f5e,pending-review,,
-src/TortoiseProc/CreateBranchTagDlg.h,TortoiseProc,blob,624da59a30922c07313cb738a6a78b1f2915ea29,pending-review,,
+src/TortoiseProc/CreateBranchTagDlg.cpp,TortoiseProc,blob,023120d49dfb8d93fc308a8da59db12b56eb4f5e,partial-native,Sources/TurtleGitMac/BranchTagWindow.swift; Sources/TurtleGitCore/ReferenceCreation.swift,"Native revision/options/message layout; branch descriptions, annotated tags and optional checkout verified. Full choosers, push, signing UI and progress pending; see BRANCH-TAG-PARITY.md."
+src/TortoiseProc/CreateBranchTagDlg.h,TortoiseProc,blob,624da59a30922c07313cb738a6a78b1f2915ea29,partial-native,Sources/TurtleGitMac/BranchTagWindow.swift; Sources/TurtleGitCore/ReferenceCreation.swift,"Native revision/options/message layout; branch descriptions, annotated tags and optional checkout verified. Full choosers, push, signing UI and progress pending; see BRANCH-TAG-PARITY.md."
 src/TortoiseProc/CreateChangelistDlg.cpp,TortoiseProc,blob,ee9d1efc33f0b6428228c8828534c619a7dfcd25,pending-review,,
 src/TortoiseProc/CreateChangelistDlg.h,TortoiseProc,blob,de768166ee6d2007d551bbe5fdb7677cbbf439fd,pending-review,,
 src/TortoiseProc/CreateRepoDlg.cpp,TortoiseProc,blob,79e78604a4e41a2425e72cd20cf121ab0eb27a84,pending-review,,
