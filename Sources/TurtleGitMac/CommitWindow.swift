@@ -7,6 +7,7 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var partial: PatchWindowController?
     private var closingCommit = false
+    private var historyWindow: NSWindow?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = CommitWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
@@ -20,6 +21,18 @@ import TurtleGitCore
         model.showViewPatch = { [weak self] in self?.showPartial(staged: false, readOnly: true) }
         model.refreshPartial = { [weak self] in self?.reloadPartial() }
         model.closePartial = { [weak self] in self?.partial?.close() }
+        model.showMessageHistory = { [weak self] insert in self?.showHistory(insert: insert) }
+        model.confirmCancel = { [weak window] proceed in
+            guard let window else { return }
+            let alert = NSAlert(); alert.messageText = "Do you really want to cancel?"
+            alert.informativeText = "Your commit message is saved in Recent messages."
+            alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+            alert.showsSuppressionButton = true
+            alert.beginSheetModal(for: window) { response in
+                if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "Commit.SkipCancelConfirmation") }
+                if response == .alertSecondButtonReturn { proceed() }
+            }
+        }
         model.confirmUneditedTemplate = { [weak window] proceed in
             guard let window else { return }
             let alert = NSAlert()
@@ -37,6 +50,17 @@ import TurtleGitCore
         }
     }
     func windowWillClose(_ notification: Notification) { closingCommit = true; partial?.close(); partial = nil; onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { model.cancel(); return false }
+    private func showHistory(insert: @escaping (String) -> Void) {
+        guard let window, let history = model.messageHistory, historyWindow == nil else { return }
+        let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        child.title = "Log History – TurtleGit"; child.minSize = NSSize(width: 400, height: 260)
+        child.contentViewController = NSHostingController(rootView: CommitMessageHistoryDialog(history: history) { [weak self, weak window, weak child] text in
+            guard let child else { return }; window?.endSheet(child); child.orderOut(nil); self?.historyWindow = nil
+            if let text { insert(text) }
+        })
+        historyWindow = child; window.beginSheet(child)
+    }
     private func showPartial(staged: Bool, readOnly: Bool = false) {
         guard let window else { return }
         if let partial, partial.model.readOnly == readOnly, partial.model.staged == staged { partial.close(); return }
@@ -108,7 +132,11 @@ import TurtleGitCore
     @Published var newBranch = ""
     @Published var message = ""
     private var loadedMessage = false
-    private var messageTemplate = ""
+    private(set) var messageTemplate = ""
+    private(set) var messageHistory: CommitMessageHistory?
+    var showMessageHistory: (@escaping (String) -> Void) -> Void = { _ in }
+    var confirmCancel: (@escaping () -> Void) -> Void = { _ in }
+    private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping () -> Void) -> Void = { _ in }
     @Published var hasHead = false
     @Published var hasParent = false
@@ -193,6 +221,9 @@ import TurtleGitCore
                 }
                 hasLoaded = true; refreshPartial()
                 if !loadedMessage {
+                    let identity = try await repository.commitMessageHistoryIdentity()
+                    let storedLimit = UserDefaults.standard.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
+                    messageHistory = CommitMessageHistory(repositoryIdentity: identity, limit: storedLimit)
                     let seed = try await repository.commitMessageSeed()
                     messageTemplate = seed.template
                     if message.isEmpty && !amend { message = seed.message }
@@ -229,6 +260,7 @@ import TurtleGitCore
                     let previous = try await repository.history(options: options).first
                     guard amend else { return }
                     message = amendMessage.isEmpty ? previous?.message ?? "" : amendMessage
+                    originalAmendMessage = message
                     if setAuthorDate { dateChanged() }
                     authorChanged()
                     comparisonChanged()
@@ -309,6 +341,8 @@ import TurtleGitCore
                 let output: String
                 if staging { output = try await repository.commitIndex(message: text, options: options) }
                 else { output = try await repository.commitSelected(message: text, paths: paths, options: options) }
+                messageHistory?.add(text)
+                if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 onCommitted(output)
                 if action == .recommit {
                     do {
@@ -323,6 +357,24 @@ import TurtleGitCore
                 } else { busy = false; close(); if action == .push { onPush() } }
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
+    }
+    var checkedFileList: String {
+        visibleEntries.filter { stagingEnabled ? $0.staged : checked.contains($0.id) }.map { entry in
+            let label = entry.state == .untracked ? "Added" : entry.state.rawValue.capitalized
+            return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
+        }.joined()
+    }
+    func cancel() {
+        guard !busy else { return }
+        let changed = !message.isEmpty && message != (amend ? originalAmendMessage : messageTemplate)
+        let finish = { [weak self] in
+            guard let self else { return }
+            if changed { self.messageHistory?.add(self.message) }
+            if self.amend && !self.nonAmendMessage.isEmpty && self.nonAmendMessage != self.messageTemplate { self.messageHistory?.add(self.nonAmendMessage) }
+            self.close()
+        }
+        if (changed || !entries.isEmpty) && !UserDefaults.standard.bool(forKey: "Commit.SkipCancelConfirmation") { confirmCancel(finish) }
+        else { finish() }
     }
 }
 
@@ -380,7 +432,7 @@ struct CommitDialog: View {
                         }
                     } label: { Image(systemName: "chevron.down") }.menuIndicator(.hidden).fixedSize().accessibilityLabel("Commit actions")
                 }.disabled(!model.canCommit)
-                Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
             }
         }.padding(12).disabled(model.busy)
@@ -406,7 +458,7 @@ struct CommitDialog: View {
     private var messageSection: some View {
 GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
-                    TextEditor(text: $model.message).font(.system(.body, design: .monospaced)).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
+                    CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack {
                         Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead).onChange(of: model.amend) { _ in model.amendChanged() }
                         if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent) }

@@ -49,6 +49,8 @@ final class CommitMessageTests: XCTestCase {
         try helper.write(root, ".git/MERGE_MSG", "Main tree message\n")
         _ = try await repo.run(["worktree", "add", "-b", "linked", worktree.path])
         let linked = GitRepository(root: worktree)
+        let mainIdentity = try await repo.commitMessageHistoryIdentity(), linkedIdentity = try await linked.commitMessageHistoryIdentity()
+        XCTAssertEqual(mainIdentity, linkedIdentity)
         let admin = try await linked.run(["rev-parse", "--path-format=absolute", "--git-path", "MERGE_MSG"]).text
         try Data("Linked tree message\n".utf8).write(to: URL(fileURLWithPath: String(admin.dropLast())))
         let seed = try await linked.commitMessageSeed()

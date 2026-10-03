@@ -42,7 +42,7 @@ bypasses checked-file index preparation. These are distinct commit modes.
 
 ## Verification
 
-The Swift suite has 93 tests, including real Git commits exercising both modes,
+The Swift suite has 95 tests, including real Git commits exercising both modes,
 unchecked staged changes, unusual literal filenames, unborn HEAD, staged renames
 and deletions, amend, author and sign-off, later unstaged edits, and hook rejection.
 
@@ -89,7 +89,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
 - Full issue controls and message-history behavior; native root/merge/
   rename amend QA and broader date/author combinations. Native new branch,
   submodule toggle and broader Commit action combinations remain.
-- Message history, template native workflow QA and other text encodings,
+- Message-history native workflow QA, template native workflow QA and other text encodings,
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
@@ -277,5 +277,44 @@ and unchanged index/working-tree diffs. These are backend checks, not native UI
 parity evidence. Native warning execution, suppression, draft-preserving Refresh
 and ReCommit template restoration remain unverified: the QA app ran, but the
 computer-use service returned stale menu IDs and did not reliably deliver input.
-No new native screenshot is claimed for this change. Recent-message history,
-editor insertion commands and its history selection dialog remain pending.
+No new native screenshot is claimed for this change. Recent-message history and its selection dialog are now implemented as described below;
+revision-picker insertion commands remain pending.
+
+## Recent-message history and editor commands
+
+The message editor now uses a native plain-text `NSTextView`, with undo and
+selection-aware insertion. Its context menu adds Paste file list, plus Paste last
+message and Recent messages when history exists. Original upstream Copy and Log
+icons accompany these commands. Paste file list uses the displayed checked paths
+(or staged paths in staging mode), maps unversioned status to Added, and pads
+status labels to ten columns. Pick commit hash and Pick commit message still
+require the upstream revision-selection workflow and are not exposed as stubs.
+
+Log History is a resizable native sheet with a horizontal/vertical scrolling
+`NSTableView`, flattened one-line messages, multiple selection, OK and Cancel. OK
+joins selected messages in displayed order with a blank line; double-click accepts
+one message. Delete removes one selected entry immediately from persisted history
+and selects an adjacent row. Recent-message insertion replaces an untouched
+template, otherwise inserts at the current selection with the upstream trailing
+newline behavior, and avoids inserting a message already at the start of the draft.
+Paste last message always inserts at the selection.
+
+History lives in user defaults, keyed by the canonical Git common administrative
+directory; linked worktrees share it. The default limit is 25, with an internal
+`Commit.MaxHistoryItems` preference (settings UI still pending). Empty entries are
+ignored and exact duplicates move to the front. Each mutation reloads the current
+store so other open dialogs' newer entries are retained. Successful commits save
+the submitted message, and amendments also retain the pre-amend draft. Failed
+commits do not save a success entry. Cancel and the window close button use the
+upstream-style confirmation, save a changed draft and any pre-amend draft, and
+leave Git untouched; the suppression checkbox follows upstream's cancel prompt
+behavior, including suppressing future prompts when No is selected.
+
+Two persistence tests cover reopen, deduplication, limits, Unicode identity,
+repository isolation, removal and interleaved dialog mutations. The linked-worktree
+Git test now checks shared history identity. The running native Commit window
+was observed with the new editor and loaded template in its original pane.
+Native insertion, selection, deletion, successful/failed commit history, Cancel
+confirmation/suppression, keyboard focus, undo, dark appearance and resize checks
+remain pending: subsequent native input was interrupted by app-focus changes.
+The sheet layout is implemented but not claimed as visually verified.

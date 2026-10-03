@@ -52,7 +52,7 @@ src/Resources/TortoiseProcENG.rc,IDD_RESOLVE,Resolve,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_DIFFFILES,Changed Files,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCOLORS_2,Colors 2,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSSAVEDDATA,Saved Data,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_HISTORYDLG,Log History,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_HISTORYDLG,Log History,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSHOOKS,Hook Scripts,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSHOOKCONFIG,Configure Hook Scripts,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_EXPORT,Export,pending-review
