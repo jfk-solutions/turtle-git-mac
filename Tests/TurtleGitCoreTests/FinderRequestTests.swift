@@ -43,5 +43,10 @@ final class FinderRequestTests: XCTestCase {
         try Data("changed\n".utf8).write(to: root.appendingPathComponent("other.txt"))
         let cleanSelectionDiff = try await repository.diff(path: "*.txt")
         XCTAssertTrue(cleanSelectionDiff.isEmpty)
+        try Data("selected change\n".utf8).write(to: root.appendingPathComponent("*.txt"))
+        let scopedDiff = try await repository.diff(paths: ["*.txt", "雪\n.txt", "*.txt"])
+        XCTAssertTrue(scopedDiff.contains("+selected change"))
+        XCTAssertFalse(scopedDiff.contains("other.txt"))
+        XCTAssertEqual(scopedDiff.components(separatedBy: "diff --git").count - 1, 1)
     }
 }

@@ -156,9 +156,7 @@ import TurtleGitCore
     func showDiff(paths requested: [String]? = nil) {
         let paths = requested ?? selectedPaths, staged = stagedDiff
         perform { repo in
-            if paths.isEmpty { return try await repo.diff(staged: staged) }
-            var text = ""
-            for path in paths { text += try await repo.diff(path: path, staged: staged) }
+            let text = try await repo.diff(paths: paths, staged: staged)
             return text.isEmpty ? "No diff in this view. Untracked files must be staged before Git can show their diff." : text
         }
     }

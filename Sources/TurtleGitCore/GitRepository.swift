@@ -52,10 +52,13 @@ public actor GitRepository {
     }
 
     public func diff(path: String? = nil, staged: Bool = false) throws -> String {
+        try diff(paths: path.map { [$0] } ?? [], staged: staged)
+    }
+    public func diff(paths: [String], staged: Bool = false) throws -> String {
         var args = ["diff", "--no-ext-diff", "--no-color"]
         if staged { args.append("--cached") }
         args.append("--")
-        if let path { args.append(path) }
+        args += paths
         return try run(args).text
     }
     public func stage(_ paths: [String]) throws { if !paths.isEmpty { _ = try run(["add", "--"] + paths) } }
