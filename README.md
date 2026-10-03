@@ -36,6 +36,8 @@ bundle structure; it is not a signed distribution.
 - Separate native Commit window with checked-file selection, message, amend, author,
   sign-off, file statistics and icon context menus. Enable staging area switches to
   three-state staging checkboxes and commits the index, preserving unstaged edits.
+  An attached right-hand patch window stages/unstages selected lines or hunks in
+  ordinary tracked UTF-8 text files.
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.

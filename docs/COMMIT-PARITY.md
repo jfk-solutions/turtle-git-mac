@@ -22,6 +22,10 @@ bypasses checked-file index preparation. These are distinct commit modes.
   them from the index. Switching modes itself does not modify the index.
 - Staged diff selects index versus HEAD; unstaged diff selects working tree versus
   index. Stage / Unstage buttons and context commands act on highlighted rows.
+- Attached right-hand partial staging/unstaging patch window, colored unified diff,
+  selection of individual lines or hunks, and original icons in its context menu.
+  Applying a selection changes the index and preserves working-tree contents.
+  A stale patch is rejected before applying; disabling staging closes the patch window.
 - Staging mode commits the entire index, including changes outside the displayed
   scope. Later unstaged edits remain on disk; partial staging prepared by another
   tool is preserved.
@@ -33,7 +37,7 @@ bypasses checked-file index preparation. These are distinct commit modes.
 
 ## Verification
 
-The Swift suite has 34 tests, including real Git commits exercising both modes,
+The Swift suite has 39 tests, including real Git commits exercising both modes,
 unchecked staged changes, unusual literal filenames, unborn HEAD, staged renames
 and deletions, amend, author and sign-off, later unstaged edits, and hook rejection.
 
@@ -50,15 +54,24 @@ left the later working-tree edit, README changes and unversioned file on disk.
 `site/assets/staging.png` records the actual mixed-state window.
 
 `PatchViewDlg::ShowAndAlignToParent` places the upstream partial-staging patch
-window to the right of Commit. That right-hand patch window, including hunk/line
-staging, remains to be ported. Enabling staging support itself retains the same
-file list and switches its checkbox semantics. Staged files always remain visible,
-even outside a Finder-requested file/folder scope.
+window to the right of Commit. The native attached window now follows that layout
+and tracks the parent's movement and height. Native UI checks staged one added
+line, staged a separate hunk, and unstaged the first line while retaining the
+second hunk and an unrelated staged file. Working-tree edits remained unchanged.
+`site/assets/partial-staging.png` captures both actual native windows.
+
+Integration tests cover line and hunk staging/unstaging, adjusting offsets across
+multiple hunks, unusual filenames, and rejection of stale diffs. Partial operations
+currently support ordinary tracked UTF-8 text files. Unsupported new, deleted,
+renamed, binary, mode-changing and non-UTF-8 files require whole-file staging.
+Enabling staging support itself retains the same file list and switches its
+checkbox semantics. Staged files remain visible outside Finder-requested scope.
 
 ## Remaining upstream behavior
 
-- Right-hand partial staging/unstaging patch window; hunk/line operations and
-  broader mixed-stage interaction QA.
+- Partial changes for new/deleted/renamed/binary/mode-changing files and other
+  encodings; broader mixed-stage QA, patch search, keyboard shortcuts and saved
+  patch width, upstream show/hide button labels, and multi-display placement.
 - Author date and committer date controls, new branch, amend diff to previous
   commit, explicit message-only checkbox, commit/push/recommit split button.
 - Message history, templates, completion, spelling, issue IDs and tracker plugins.

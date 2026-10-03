@@ -5,6 +5,7 @@ import TurtleGitCore
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
     var onClosed: () -> Void = {}
+    private var partial: PatchWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = CommitWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
@@ -14,14 +15,47 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.close = { [weak window] in window?.close() }
+        model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
+        model.refreshPartial = { [weak self] in self?.reloadPartial() }
+        model.closePartial = { [weak self] in self?.partial?.close() }
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { partial?.close(); partial = nil; onClosed() }
+    private func showPartial(staged: Bool) {
+        guard let window else { return }
+        let controller = partial ?? PatchWindowController(repository: model.repository, access: model.access)
+        partial = controller
+        controller.onClosed = { [weak self] in self?.partial = nil }
+        controller.model.onApplying = { [weak model] busy in model?.busy = busy }
+        controller.model.onApplied = { [weak model] in model?.reload() }
+        controller.model.staged = staged
+        controller.window?.title = staged ? "Partial Unstaging – HEAD → Index" : "Partial Staging – Index → Working tree"
+        if let patchWindow = controller.window, patchWindow.parent == nil { window.addChildWindow(patchWindow, ordered: .above) }
+        if let child = controller.window, let visible = window.screen?.visibleFrame,
+           window.frame.width + child.frame.width <= visible.width {
+            let x = min(max(window.frame.minX, visible.minX), visible.maxX - window.frame.width - child.frame.width)
+            window.setFrameOrigin(NSPoint(x: x, y: window.frame.minY))
+        }
+        alignPartial(); controller.showWindow(nil); reloadPartial()
+    }
+    private func reloadPartial() {
+        guard let partial else { return }
+        partial.model.reload(paths: model.entries.filter { model.selection.contains($0.id) }.map(\.path), staged: partial.model.staged)
+    }
+    private func alignPartial() {
+        guard let window, let child = partial?.window else { return }
+        var frame = child.frame
+        frame.origin = NSPoint(x: window.frame.maxX, y: window.frame.minY)
+        frame.size.height = window.frame.height
+        child.setFrame(frame, display: true)
+    }
+    func windowDidMove(_ notification: Notification) { alignPartial() }
+    func windowDidResize(_ notification: Notification) { alignPartial() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class CommitWindowModel: ObservableObject {
     let repository: GitRepository
-    private let access: RepositoryAccessLease?
+    let access: RepositoryAccessLease?
     @Published var entries: [StatusEntry] = []
     @Published var stagedStatistics: [String: CommitFile] = [:]
     @Published var unstagedStatistics: [String: CommitFile] = [:]
@@ -42,6 +76,9 @@ import TurtleGitCore
     @Published var busy = false
     @Published var error: String?
     @Published var patch: String?
+    var showPartial: (Bool) -> Void = { _ in }
+    var refreshPartial: () -> Void = {}
+    var closePartial: () -> Void = {}
     var close: () -> Void = {}
     var onCommitted: (String) -> Void = { _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
@@ -82,7 +119,7 @@ import TurtleGitCore
                     }.map(\.id))
                 } else { checked.formIntersection(Set(entries.map(\.id))) }
                 selection.formIntersection(Set(entries.map(\.id)))
-                hasLoaded = true
+                hasLoaded = true; refreshPartial()
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -190,6 +227,8 @@ struct CommitDialog: View {
                 HStack {
                     Button("Stage selected") { model.moveToStage(model.selection, staged: true) }.disabled(model.selection.isEmpty)
                     Button("Unstage selected") { model.moveToStage(model.selection, staged: false) }.disabled(model.selection.isEmpty)
+                    Button("Partial Staging »") { model.showPartial(false) }
+                    Button("Partial Unstaging »") { model.showPartial(true) }
                     Toggle("Staged diff", isOn: $model.stagedDiff).toggleStyle(.checkbox)
                     Spacer(); Text("A mixed checkbox means the file has both staged and unstaged changes.").font(.caption).foregroundStyle(.secondary)
                 }
@@ -203,6 +242,8 @@ struct CommitDialog: View {
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
             }
         }.padding(12).disabled(model.busy)
+        .onChange(of: model.selection) { _ in model.refreshPartial() }
+        .onChange(of: model.stagingEnabled) { enabled in if !enabled { model.closePartial() } }
         .alert("Commit failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }

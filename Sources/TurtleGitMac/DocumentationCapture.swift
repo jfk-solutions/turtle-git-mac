@@ -5,7 +5,8 @@ import UniformTypeIdentifiers
 
 @MainActor enum DocumentationCapture {
     static func saveWindow() {
-        guard let window = NSApp.keyWindow ?? NSApp.mainWindow else { return }
+        guard let selected = NSApp.keyWindow ?? NSApp.mainWindow else { return }
+        let window = selected.parent ?? selected
         Task {
             do {
                 guard #available(macOS 14.4, *) else {
@@ -19,8 +20,10 @@ import UniformTypeIdentifiers
                 }
                 let filter = SCContentFilter(desktopIndependentWindow: ownWindow)
                 let config = SCStreamConfiguration()
-                config.width = Int(window.frame.width * window.backingScaleFactor)
-                config.height = Int(window.frame.height * window.backingScaleFactor)
+                // ScreenCaptureKit includes attached child windows in the image.
+                let bounds = (window.childWindows ?? []).reduce(window.frame) { $0.union($1.frame) }
+                config.width = Int(bounds.width * window.backingScaleFactor)
+                config.height = Int(bounds.height * window.backingScaleFactor)
                 config.showsCursor = false
                 config.ignoreShadowsSingleWindow = true
                 let rendered = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
