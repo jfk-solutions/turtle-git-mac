@@ -293,6 +293,8 @@ import TurtleGitCore
 
 struct CommitDialog: View {
     @ObservedObject var model: CommitWindowModel
+    @AppStorage("Commit.MessagePaneHeight") private var messagePaneHeight = 300.0
+    @State private var dividerStart: Double?
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -302,8 +304,32 @@ struct CommitDialog: View {
                 Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
             }
-            messageSection
-            changesSection
+            GeometryReader { geometry in
+                let maximum = max(245.0, geometry.size.height - 288)
+                let height = min(max(messagePaneHeight, 245), maximum)
+                VStack(spacing: 0) {
+                    messageSection.frame(height: height)
+                    Divider().frame(height: 8).contentShape(Rectangle())
+                        .background(CommitDividerCursor().accessibilityHidden(true))
+                        .gesture(DragGesture(minimumDistance: 0).onChanged { drag in
+                            guard !model.busy else { return }
+                            if dividerStart == nil { dividerStart = height }
+                            messagePaneHeight = min(max((dividerStart ?? height) + drag.translation.height, 245), maximum)
+                        }.onEnded { _ in dividerStart = nil })
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Message and changes divider")
+                        .accessibilityValue("\(Int(height)) points")
+                        .accessibilityAdjustableAction { direction in
+                            guard !model.busy else { return }
+                            switch direction {
+                            case .increment: messagePaneHeight = min(height + 20, maximum)
+                            case .decrement: messagePaneHeight = max(height - 20, 245)
+                            @unknown default: break
+                            }
+                        }
+                    changesSection.frame(maxHeight: .infinity)
+                }
+            }
             HStack {
                 VStack(alignment: .leading, spacing: 6) {
                     Toggle("Show Whole Project", isOn: $model.showWholeProject).disabled(model.scopePaths.isEmpty)
@@ -345,7 +371,7 @@ struct CommitDialog: View {
     private var messageSection: some View {
 GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
-                    TextEditor(text: $model.message).font(.system(.body, design: .monospaced)).frame(minHeight: 100, idealHeight: 140, maxHeight: 200).border(Color.secondary.opacity(0.3))
+                    TextEditor(text: $model.message).font(.system(.body, design: .monospaced)).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack {
                         Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead).onChange(of: model.amend) { _ in model.amendChanged() }
                         if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent) }
@@ -383,7 +409,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                             checkButton("Files", enabled: model.visibleEntries.contains { !model.submodules.contains($0.path) }) { model.check { !model.submodules.contains($0.path) } }
                             checkButton("Submodules", enabled: model.visibleEntries.contains { model.submodules.contains($0.path) }) { model.check { model.submodules.contains($0.path) } }
                         }.font(.system(size: 12)).disabled(model.messageOnly)
-                        fileTable(model.visibleEntries, selection: $model.selection, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 180).disabled(model.messageOnly)
+                        fileTable(model.visibleEntries, selection: $model.selection, staged: model.stagingEnabled ? model.stagedDiff : nil).frame(minHeight: 120).disabled(model.messageOnly)
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Staging support (EXPERIMENTAL)", isOn: $model.stagingEnabled)
@@ -434,6 +460,16 @@ GroupBox("Changes made (double-click on file for diff):") {
         } primaryAction: { ids in selection.wrappedValue = ids; model.diff(paths: ids, staged: staged) }
     }
     func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }
+}
+
+/// The divider uses the system cursor; SwiftUI handles dragging and accessibility.
+private struct CommitDividerCursor: NSViewRepresentable {
+    func makeNSView(context: Context) -> CursorView { CursorView() }
+    func updateNSView(_ view: CursorView, context: Context) {}
+    final class CursorView: NSView {
+        override func resetCursorRects() { addCursorRect(bounds, cursor: .resizeUpDown) }
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    }
 }
 
 /// Upstream has separate date and time fields, including seconds.

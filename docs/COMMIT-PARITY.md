@@ -230,3 +230,23 @@ selected. The disposable bare destination remained empty before Push's OK button
 Broader action combinations (ordinary/staging/failed commits, scoped Finder entry
 and remote errors) remain pending; these checks do not establish all completion
 paths or the full upstream progress/post-action workflow.
+
+## Message/file divider
+
+Commit now has a draggable divider between the Message and Changes made groups,
+following IDC_SPLITTER, CommitDlg::DoSize and SaveSplitterPos. Moving it changes the
+editor height and moves Amend/date/author controls with their group; the remaining
+height goes to the file group. The chosen message-group height is saved in macOS
+preferences as Commit.MessagePaneHeight. Smaller windows clamp the visible height
+without discarding that preference. Both panes retain minimum usable heights.
+
+The divider is implemented in the native SwiftUI layout with an AppKit resize
+cursor and accessibility Increment/Decrement actions. It does not modify the file
+selection or draft. Native QA dragged from 300 to 340 points, checked upper/lower
+limits (372 and 245 points in the default window), exercised adjustment actions,
+and reopened Commit at the saved 325-point position. A minimum 900-by-680-point
+outer window clamped it to 260 points and retained usable controls; enlarging restored
+325 points. The draft and unchecked second file survived dragging. HEAD, index and
+working-tree diffs matched their original values. site/assets/commit-resize.png
+captures that actual adjusted window. Full VoiceOver, dark-mode resizing,
+conditional controls at the bounds and multi-display checks remain pending.
