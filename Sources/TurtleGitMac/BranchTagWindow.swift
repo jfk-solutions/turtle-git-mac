@@ -135,7 +135,7 @@ private struct BranchTagDialog: View {
         .onChange(of: chooser.branchRevision) { _ in model.changedBase() }
         .onChange(of: model.useHead) { _ in model.changedBase() }
         .onChange(of: model.options.name) { name in if model.remote, let reference = chooser.references.first(where: { $0.name == chooser.branchRevision }), name != reference.suggestedBranch { model.options.tracking = .noTrack } }
-        .alert("Create reference failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+        .alert("Create reference failed", isPresented: Binding(get: { model.error != nil || chooser.error != nil }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
         .alert("Branch and tag share a name", isPresented: $model.nameConflict) { Button("Continue") { model.create(allowNameConflict: true) }; Button("Abort", role: .cancel) {} } message: { Text(ReferenceCreationFailure.nameConflict.localizedDescription) }
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }
     }
