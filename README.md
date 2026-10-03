@@ -58,7 +58,10 @@ bundle structure; it is not a signed distribution.
 - Native RefLog and Stash List window with upstream columns, reference selection,
   Find Next, selected Apply, inspection and guarded stash deletion/clear.
   [RefLog parity](docs/REFLOG-PARITY.md) records remaining work.
-- Native confirmation dialogs for clone and repository creation.
+- Native Clone window with depth, recursion, bare/no-checkout, branch/origin,
+  OpenSSH-key and SVN option groups, Retry and Log/Finder post-actions. Real Git and
+  native shallow-branch clone checks pass; [Clone parity](docs/CLONE-PARITY.md)
+  records remaining work. Repository creation still uses a generic confirmation.
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery

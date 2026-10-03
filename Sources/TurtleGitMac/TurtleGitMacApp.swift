@@ -31,7 +31,7 @@ import TurtleGitCore
                     }
                 }.disabled(model.busy || model.recentRepositories.isEmpty)
                 Button("Close Repository") { model.closeRepository() }.disabled(model.busy || model.root == nil)
-                Button("Clone…") { model.activate(.clone) }
+                Button("Clone…") { model.activate(.clone) }.keyboardShortcut("c", modifiers: [.command, .shift])
                 Button("Create Repository…") { model.activate(.initialize) }
             }
             CommandMenu("TurtleGit") {

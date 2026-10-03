@@ -33,6 +33,8 @@ import TurtleGitCore
     private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
     private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
     private var stashWindows: [String: StashWindowController] = [:]
+    private var cloneWindow: CloneWindowController?
+    private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
     private var monitoredRoots: [String] = []
@@ -118,6 +120,7 @@ import TurtleGitCore
                     }
                 }
                 repository = try makeRepository(resolved); activeAccess = lease; root = resolved
+                restoreCloneKeyAccess(root: resolved)
                 selection = []; entries = []; branch = ""
                 section = .status
                 output = "Repository: \(resolved.path)"
@@ -182,6 +185,7 @@ import TurtleGitCore
     }
     func activate(_ action: RepositoryAction, paths: [String] = []) {
         switch action {
+        case .clone: showClone()
         case .status:
             guard let repository else { return }
             showStatus(repository: repository, access: activeAccess, paths: paths)
@@ -243,6 +247,41 @@ import TurtleGitCore
             showStash(repository: repository, access: activeAccess)
         default: dialog = action
         }
+    }
+    private func restoreCloneKeyAccess(root: URL) {
+        guard cloneKeyAccess[root.path] == nil, let data = UserDefaults.standard.data(forKey: "Clone.KeyBookmark." + root.path) else { return }
+        do {
+            let provider = SystemRepositoryBookmarkProvider()
+            let resolved = try provider.resolve(data)
+            let lease = RepositoryAccessLease(url: resolved.url)
+            if GitRuntime.isAppStoreBuild && !lease.hasSecurityScope { throw RepositoryAccessFailure.securityScopeUnavailable }
+            cloneKeyAccess[root.path] = lease
+            if resolved.stale { UserDefaults.standard.set(try provider.create(for: resolved.url), forKey: "Clone.KeyBookmark." + root.path) }
+        } catch { self.error = "The clone’s SSH-key permission could not be renewed.\n" + error.localizedDescription }
+    }
+    private func showClone(directory: URL? = nil, source: String? = nil) {
+        let controller = cloneWindow ?? CloneWindowController(directory: directory ?? root, access: activeAccess)
+        controller.onClosed = { [weak self] in self?.cloneWindow = nil }
+        controller.model.onLog = { [weak self] repository, access in self?.showLog(repository: repository, access: access, paths: []) }
+        controller.model.onCloned = { [weak self] repo, access, keyAccess, bare, result in
+            guard let self else { return }
+            if let keyAccess {
+                self.cloneKeyAccess[repo.root.path] = keyAccess
+                do { UserDefaults.standard.set(try SystemRepositoryBookmarkProvider().create(for: keyAccess.url), forKey: "Clone.KeyBookmark." + repo.root.path) }
+                catch { self.error = "The clone completed, but its SSH-key permission could not be saved.\n" + error.localizedDescription }
+            }
+            // The workspace currently requires a working tree; bare clones use
+            // their own Log/Finder post-actions until bare workspace support lands.
+            guard !bare else { return }
+            do { try self.accessStore?.remember(repo.root); self.recentRepositories = self.accessStore?.repositories ?? [] }
+            catch { self.error = "The clone completed, but its folder permission could not be saved.\n" + error.localizedDescription }
+            guard !self.busy else { return }
+            self.repository = repo; self.activeAccess = access; self.root = repo.root; self.selection = []; self.output = result
+            Task { await self.refresh() }
+        }
+        cloneWindow = controller
+        if let source { controller.model.source = source }
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
         let root = repository.root
@@ -414,8 +453,9 @@ import TurtleGitCore
     }
     func execute(_ action: RepositoryAction, value: String) {
         dialog = nil
+        if action == .clone { showClone(source: value); return }
         guard let args = action.arguments(value: value) else { return }
-        if action == .clone || action == .initialize {
+        if action == .initialize {
             let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
             panel.prompt = "Choose destination"
             guard panel.runModal() == .OK, let destination = panel.url else { return }
@@ -435,7 +475,8 @@ import TurtleGitCore
     func handle(_ url: URL) {
         guard !busy, let request = FinderRequest(url: url) else { return }
         let action = request.action
-        if action == .initialize || action == .clone { activate(action); return }
+        if action == .clone { showClone(directory: request.paths.first); return }
+        if action == .initialize { activate(action); return }
         let candidate = request.paths[0]
         // A URL from Finder or another app is a request, not a sandbox permission grant.
         if let activeAccess, request.paths.allSatisfy({ activeAccess.contains($0) }) {

@@ -63,7 +63,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQ_CONFIG,Issue Tracker Config
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQADV,Configure Issue Tracker Integration,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_AUTOTEXTTESTDLG,Autotext Tester,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGS_CONFIG,Advanced,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_CLONE,Git clone - TortoiseGit,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_CLONE,Git clone - TortoiseGit,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_GITPROGRESS,Git Command Progress,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_PULLFETCH,Pull/Fetch,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_PUSH,Push,partial-native-replacement
