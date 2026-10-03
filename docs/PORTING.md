@@ -106,5 +106,8 @@ continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 32 original upstream icons. Finder source type-checks
 with application-extension restrictions. The local Xcode bundle build is currently blocked
 by a missing CoreSimulator.framework in the Xcode installation. GitHub's macOS CI
-successfully compiled the app and embedded Finder extension at `c97f030`.
-Signed Finder appearance remains unverified.
+successfully compiled the app and embedded Finder extension in both Debug and
+sandboxed AppStore configurations at `1b66080`. Bundle validation confirmed all
+32 original icons, their hashes and license, the shared framework, and the embedded
+Finder extension in both configurations. The [CI run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/37120088567)
+also passed the 24 Swift tests. Signed Finder appearance remains unverified.
