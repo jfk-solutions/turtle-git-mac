@@ -31,7 +31,9 @@ bundle structure; it is not a signed distribution.
 - Open normal repositories and linked worktrees; show branch and status.
 - Remember recent repositories with security-scoped bookmarks; renew stale permissions
   and hold access for the session. Finder requests require an existing grant or a picker.
-- File status icons, staged state, multi-selection, ignored-file filtering.
+- Standalone Working Tree status window with upstream column/filter/action layout,
+  original status icons, staged state, file statistics, dates, sorting and context menus.
+  Scope, ignored/unversioned and index-flag filters; unified diff export.
 - Stage / unstage selected paths, including before the first commit.
 - Separate native Commit window with checked-file selection, message, amend, author,
   sign-off, file statistics and icon context menus. Enable staging area switches to

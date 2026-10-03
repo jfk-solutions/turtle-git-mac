@@ -41,7 +41,7 @@ require review; a dialog count is not a count of all upstream UI.
 
 | Workflow | First-pass implementation | Remaining upstream behavior |
 | --- | --- | --- |
-| Check for modifications | NUL-safe porcelain parsing; conflicts, renames, ignored files | Remote status, changelists, locks, filters, stats, detailed actions |
+| Check for modifications | Native standalone Working Tree dialog; columns, scope/filters, statistics, dates, sorting, diff export and basic menus | Full menus, remote checks, progress/cancellation and persistent preferences; see STATUS-PARITY.md |
 | Commit | Native checked-file dialog; optional three-state staging; amend, author, sign-off, statistics | Unsupported partial-stage file types, author date, message history/completion, hooks UI, issue trackers, full action menu |
 | Log | Separate native three-pane window; graph, refs, message/files/line counts, search/date filters, load more, comparisons and revision actions | Working-tree row, actions column, branch/ref chooser, author search, walk/view controls, statistics, multi-revision file union, remaining context commands; see LOG-PARITY.md |
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
@@ -101,7 +101,7 @@ for that configuration. See `DISTRIBUTION.md` for the unresolved runtime, signin
 worktree permissions and license gates. These changes do not narrow the full-port
 objective or establish App Store readiness.
 
-The current Swift package builds and 39 tests pass, including topological graph
+The current Swift package builds and 42 tests pass, including topological graph
 continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 32 original upstream icons. Finder source type-checks
 with application-extension restrictions. The local Xcode bundle build is currently blocked

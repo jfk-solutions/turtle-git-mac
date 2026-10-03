@@ -99,6 +99,7 @@ struct RepositoryWindow: View {
             }.font(.caption).foregroundStyle(.secondary).padding(8)
         }
         .frame(minWidth: 920, minHeight: 650)
+        .background(RepositoryWindowCapture(model: model).frame(width: 0, height: 0))
         .toolbar {
             Button { model.chooseRepository() } label: { Label("Open", systemImage: "folder") }.disabled(model.busy)
             Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.disabled(model.root == nil || model.busy)
@@ -172,6 +173,18 @@ struct RepositoryWindow: View {
         case .deleted, .conflicted: return .red
         case .ignored, .untracked: return .secondary
         }
+    }
+}
+
+private struct RepositoryWindowCapture: NSViewRepresentable {
+    let model: RepositoryModel
+    func makeNSView(context: Context) -> NSView { CaptureView(model: model) }
+    func updateNSView(_ nsView: NSView, context: Context) {}
+    final class CaptureView: NSView {
+        weak var model: RepositoryModel?
+        init(model: RepositoryModel) { self.model = model; super.init(frame: .zero) }
+        required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+        override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); model?.workspaceWindow = window }
     }
 }
 

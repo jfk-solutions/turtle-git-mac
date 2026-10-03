@@ -21,7 +21,7 @@ src/Resources/TortoiseMergeENG.rc,IDD_REGEXFILTERS,Regex Filters,pending-review
 src/Resources/TortoiseMergeENG.rc,IDD_REGEXFILTER,Regex Filter,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_ABOUT,About TortoiseGit,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_ADD,Add,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_CHANGEDFILES,Working Tree,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_CHANGEDFILES,Working Tree,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_LOGMESSAGE,Log Messages,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_COMMITDLG,Commit,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_PROMPT,Authentication,pending-review

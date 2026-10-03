@@ -12,6 +12,7 @@
 		140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */; };
 		199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0144901E0020C531A5D86FB /* RepositoryAccess.swift */; };
 		241DD127E807673880A95899 /* PatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */; };
+		2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */; };
 		37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */; };
 		3E19A6945479711E0CDE3542 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = 5E600ADAA231E0E7D95C9827 /* Icons */; };
 		407EFF50D7678E3D7BB3F032 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
@@ -26,6 +27,7 @@
 		B9AFF3F19CAB2A9F7313754D /* TurtleGitCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
+		E046B347B367E63019422195 /* WorkingTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20E461B2D9629D0293A80EB /* WorkingTree.swift */; };
 		E33A35FBF3211D26C2EE5F72 /* FinderSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E11987C6F9546E908AD60BA /* FinderSync.swift */; };
 		E74BFF39C0F1EA738EDCD80F /* TurtleGitFinder.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 79C5573349C11EE01ECA2C1E /* TurtleGitFinder.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E92971BFB0588C2287D36944 /* GitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E43773297420C7FDAE9748 /* GitRepository.swift */; };
@@ -97,10 +99,12 @@
 		5E600ADAA231E0E7D95C9827 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = Sources/TurtleGitCore/Resources/Icons; sourceTree = SOURCE_ROOT; };
 		6A72CBF70DA62980294AB41A /* TurtleGitMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TurtleGitMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryModel.swift; sourceTree = "<group>"; };
+		70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusWindow.swift; sourceTree = "<group>"; };
 		798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentationCapture.swift; sourceTree = "<group>"; };
 		79C5573349C11EE01ECA2C1E /* TurtleGitFinder.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TurtleGitFinder.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AB86EFEBCB6909C206458540 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
 		B0144901E0020C531A5D86FB /* RepositoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccess.swift; sourceTree = "<group>"; };
+		B20E461B2D9629D0293A80EB /* WorkingTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTree.swift; sourceTree = "<group>"; };
 		BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
 		D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitModels.swift; sourceTree = "<group>"; };
 		DF6352B22FB03878FC59F470 /* CommitHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitHistory.swift; sourceTree = "<group>"; };
@@ -139,6 +143,7 @@
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
 				DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */,
 				6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */,
+				70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */,
 				1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */,
 			);
 			name = TurtleGitMac;
@@ -181,6 +186,7 @@
 				E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */,
 				3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */,
 				B0144901E0020C531A5D86FB /* RepositoryAccess.swift */,
+				B20E461B2D9629D0293A80EB /* WorkingTree.swift */,
 			);
 			name = TurtleGitCore;
 			path = Sources/TurtleGitCore;
@@ -333,6 +339,7 @@
 				BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */,
 				00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */,
 				199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */,
+				E046B347B367E63019422195 /* WorkingTree.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -346,6 +353,7 @@
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,
 				241DD127E807673880A95899 /* PatchWindow.swift in Sources */,
 				37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */,
+				2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */,
 				140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

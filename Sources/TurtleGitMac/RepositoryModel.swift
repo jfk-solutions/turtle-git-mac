@@ -3,6 +3,7 @@ import SwiftUI
 import TurtleGitCore
 
 @MainActor final class RepositoryModel: ObservableObject {
+    weak var workspaceWindow: NSWindow?
     @Published var root: URL?
     @Published var branch = ""
     @Published var entries: [StatusEntry] = []
@@ -22,6 +23,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private var statusWindows: [String: StatusWindowController] = [:]
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
     private var monitoredRoots: [String] = []
@@ -39,7 +41,7 @@ import TurtleGitCore
             }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-            Task { @MainActor in if let self, !self.busy, self.root != nil { await self.refresh() } }
+            Task { @MainActor in if let self, !self.busy, self.root != nil { await self.refresh(refreshStatus: false) } }
         }
     }
     private func makeRepository(_ url: URL) throws -> GitRepository {
@@ -78,7 +80,7 @@ import TurtleGitCore
         do { try accessStore?.remember(lease.url); recentRepositories = accessStore?.repositories ?? [] }
         catch { self.error = "The repository is open, but its permission could not be saved: " + error.localizedDescription }
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil) {
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil) {
         guard !busy else { return }
         busy = true
         Task {
@@ -115,16 +117,18 @@ import TurtleGitCore
                 rememberAccess(lease)
                 busy = false
                 if let action {
-                    let paths = selected?.relativePaths(root: resolved) ?? []
+                    let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
                     if action == .diff { showDiff(paths: paths) } else { activate(action, paths: paths) }
+                    if ![RepositoryAction.status, .commit, .log, .diff].contains(action) { workspaceWindow?.makeKeyAndOrderFront(nil) }
                 }
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
-    func refresh() async {
+    func refresh(refreshStatus: Bool = true) async {
         guard !busy else { return }
         busy = true; defer { busy = false }
         do { try await reload() } catch { self.error = error.localizedDescription }
+        if refreshStatus, let root { statusWindows[root.path]?.model.reload() }
     }
     private func reload() async throws {
         guard let repository, let root else { return }
@@ -150,6 +154,7 @@ import TurtleGitCore
             defer { busy = false }
             do { output = try await operation(repository); try await reload() }
             catch { self.error = error.localizedDescription; try? await reload() }
+            if let root { statusWindows[root.path]?.model.reload() }
         }
     }
     func stage() { let paths = selectedPaths; perform { try await $0.stage(paths); return "Staged \(paths.count) file(s)." } }
@@ -168,12 +173,30 @@ import TurtleGitCore
     }
     func activate(_ action: RepositoryAction, paths: [String] = []) {
         switch action {
-        case .status: section = action
+        case .status:
+            guard let repository, let root else { return }
+            section = action
+            let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: activeAccess)
+            let access = activeAccess
+            controller.onClosed = { [weak self] in self?.statusWindows.removeValue(forKey: root.path) }
+            controller.model.onAction = { [weak self] action, paths in
+                guard let self else { return }
+                if self.root != root, let access {
+                    self.openSession(access, action: action, actionPaths: paths); return
+                }
+                self.activate(action, paths: paths)
+                if action != .commit && action != .log { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            }
+            controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
+            statusWindows[root.path] = controller
+            controller.model.setScope(paths)
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         case .commit:
             guard let repository, let root else { return }
             let controller = commitWindows[root.path] ?? CommitWindowController(repository: repository, access: activeAccess)
             controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
             controller.model.onCommitted = { [weak self] output in
+                self?.statusWindows[root.path]?.model.reload()
                 guard let self, self.root == root else { return }
                 self.output = output
                 Task { await self.refresh() }

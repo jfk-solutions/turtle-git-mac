@@ -2217,8 +2217,8 @@ src/TortoiseProc/BrowseRefsDlgFilter.h,TortoiseProc,blob,92d56b471d786c0bd50359f
 src/TortoiseProc/BstrSafeVector.h,TortoiseProc,blob,ef645fc1152f7221e196db3d0e196e92b5cc889a,pending-review,,
 src/TortoiseProc/BugtraqRegexTestDlg.cpp,TortoiseProc,blob,afcd5f711a82b9b4c8b654fbb27cf6842290d59a,pending-review,,
 src/TortoiseProc/BugtraqRegexTestDlg.h,TortoiseProc,blob,88e3ffea29f98a5a1fe3595c76c1a1b9081f202d,pending-review,,
-src/TortoiseProc/ChangedDlg.cpp,TortoiseProc,blob,6090253d98f92572eb957f9b8d484f378d4db1be,pending-review,,
-src/TortoiseProc/ChangedDlg.h,TortoiseProc,blob,24d2fda2077cc41c8513118cf98ad1d03bc43c59,pending-review,,
+src/TortoiseProc/ChangedDlg.cpp,TortoiseProc,blob,6090253d98f92572eb957f9b8d484f378d4db1be,partial-native-replacement,Sources/TurtleGitMac/StatusWindow.swift; Sources/TurtleGitCore/WorkingTree.swift,"Standalone Working Tree window; scope/filter semantics, columns, basic menus and diff export. Full menus/options and signed Finder QA pending; see STATUS-PARITY.md."
+src/TortoiseProc/ChangedDlg.h,TortoiseProc,blob,24d2fda2077cc41c8513118cf98ad1d03bc43c59,partial-native-replacement,Sources/TurtleGitMac/StatusWindow.swift; Sources/TurtleGitCore/WorkingTree.swift,"Standalone Working Tree window; scope/filter semantics, columns, basic menus and diff export. Full menus/options and signed Finder QA pending; see STATUS-PARITY.md."
 src/TortoiseProc/CheckCertificateDlg.cpp,TortoiseProc,blob,1c13653c63456849323c6a8f1e8e4271575110d4,pending-review,,
 src/TortoiseProc/CheckCertificateDlg.h,TortoiseProc,blob,9aa692cfb45478808eae1f7637587d11354a18dd,pending-review,,
 src/TortoiseProc/CheckForUpdatesDlg.cpp,TortoiseProc,blob,e1c328f4c992fc1a20d356a30f28941607206894,pending-review,,
@@ -2315,8 +2315,8 @@ src/TortoiseProc/Commands/RemoveCommand.cpp,TortoiseProc,blob,29c83fabeb2e67e011
 src/TortoiseProc/Commands/RemoveCommand.h,TortoiseProc,blob,e7f86b5f7592e5cbf38d282fa1d6128c80761da8,pending-review,,
 src/TortoiseProc/Commands/RenameCommand.cpp,TortoiseProc,blob,d8fd8229df62dd4886804fd6c76e0528d8c936c2,pending-review,,
 src/TortoiseProc/Commands/RenameCommand.h,TortoiseProc,blob,aac54a4b32e00ab71b202c4e5f21f10794c7fb92,pending-review,,
-src/TortoiseProc/Commands/RepoStatusCommand.cpp,TortoiseProc,blob,d7329a6a2058101c6065efa2ce58a46b4556c384,partial,Sources/TurtleGitMac/RepositoryModel.swift; Sources/TurtleGitCore/GitRepository.swift,Initial native command workflow only; upstream options and error/recovery dialogs still require parity audit.
-src/TortoiseProc/Commands/RepoStatusCommand.h,TortoiseProc,blob,54e0cdcab0aa10dc747d8d31b9db30403bc03087,partial,Sources/TurtleGitMac/RepositoryModel.swift; Sources/TurtleGitCore/GitRepository.swift,Initial native command workflow only; upstream options and error/recovery dialogs still require parity audit.
+src/TortoiseProc/Commands/RepoStatusCommand.cpp,TortoiseProc,blob,d7329a6a2058101c6065efa2ce58a46b4556c384,partial-native-replacement,Sources/TurtleGitMac/StatusWindow.swift; Sources/TurtleGitCore/WorkingTree.swift,"Standalone Working Tree window; scope/filter semantics, columns, basic menus and diff export. Full menus/options and signed Finder QA pending; see STATUS-PARITY.md."
+src/TortoiseProc/Commands/RepoStatusCommand.h,TortoiseProc,blob,54e0cdcab0aa10dc747d8d31b9db30403bc03087,partial-native-replacement,Sources/TurtleGitMac/StatusWindow.swift; Sources/TurtleGitCore/WorkingTree.swift,"Standalone Working Tree window; scope/filter semantics, columns, basic menus and diff export. Full menus/options and signed Finder QA pending; see STATUS-PARITY.md."
 src/TortoiseProc/Commands/RepositoryBrowserCommand.cpp,TortoiseProc,blob,bba0566a3673b25916b9edfcadd8a6ecb7377710,pending-review,,
 src/TortoiseProc/Commands/RepositoryBrowserCommand.h,TortoiseProc,blob,6bc4baecacb22d418706bacea7024531ab73ee44,pending-review,,
 src/TortoiseProc/Commands/RequestPullCommand.cpp,TortoiseProc,blob,1bb21319d50bd398234359b5f74cd0f0479e4b09,pending-review,,
