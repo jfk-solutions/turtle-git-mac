@@ -42,7 +42,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Workflow | First-pass implementation | Remaining upstream behavior |
 | --- | --- | --- |
 | Check for modifications | NUL-safe porcelain parsing; conflicts, renames, ignored files | Remote status, changelists, locks, filters, stats, detailed actions |
-| Commit | Stage/unstage, commit message, entire staged index | Amend, selection-aware commits, hooks UI, completion, issue trackers, history |
+| Commit | Native checked-file dialog; optional three-state staging; amend, author, sign-off, statistics | Hunk staging, author date, message history/completion, hooks UI, issue trackers, full action menu |
 | Log | Separate native three-pane window; graph, refs, message/files/line counts, search/date filters, load more, comparisons and revision actions | Working-tree row, actions column, branch/ref chooser, author search, walk/view controls, statistics, multi-revision file union, remaining context commands; see LOG-PARITY.md |
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax colors, hunk staging, binary/image handling, external tools |
 | Clone / init | Destination picker and Git operation | Branch, recursive submodules, bare repos, advanced options and progress |
@@ -101,7 +101,7 @@ for that configuration. See `DISTRIBUTION.md` for the unresolved runtime, signin
 worktree permissions and license gates. These changes do not narrow the full-port
 objective or establish App Store readiness.
 
-The current Swift package builds and 28 tests pass, including topological graph
+The current Swift package builds and 34 tests pass, including topological graph
 continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 32 original upstream icons. Finder source type-checks
 with application-extension restrictions. The local Xcode bundle build is currently blocked
@@ -118,7 +118,19 @@ item's containing repository is checked before replacing the current session or
 running a command. Mixed and nested repository selections are rejected. Selected
 folders expand to changed rows using path component boundaries. Finder Diff uses
 the requested paths even when no status rows exist, and Log accepts multiple path
-filters with a Show Whole Project checkbox. Native commit selection behavior and
-other upstream shell commands remain pending; committing still includes all staged
-changes. New tests cover URL parsing, legacy requests, malformed input, directory
+filters with a Show Whole Project checkbox. The commit dialog now keeps checked files separate from highlighted rows.
+Checkbox mode commits selected working-tree files; staging mode commits the index.
+Other upstream shell commands remain pending. New tests cover URL parsing, legacy requests, malformed input, directory
 selection, literal multi-path history, and clean-file diff isolation.
+
+The Commit window now follows the upstream message-above-file-list arrangement,
+with category check links, original status icons, line counts, amend, author and
+sign-off controls. Its optional staging support uses native three-state checkboxes
+in the same file list. Git integration tests cover unchecked index preservation,
+unborn commits, staged rename/deletion, amend with no checked files, custom author,
+sign-off, partial index contents, and rejection by a pre-commit hook. A native UI
+commit on disposable sample data committed only README.md and left the unchecked
+Sources/Repository.swift change staged. Native staging checkboxes, mixed-state rendering, stage/unstage of an unversioned
+file and an index commit preserving later working-tree edits were also exercised
+on disposable sample data. The right-hand partial-staging patch window remains
+pending. See COMMIT-PARITY.md for remaining parity.

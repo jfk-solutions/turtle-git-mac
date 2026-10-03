@@ -33,7 +33,9 @@ bundle structure; it is not a signed distribution.
   and hold access for the session. Finder requests require an existing grant or a picker.
 - File status icons, staged state, multi-selection, ignored-file filtering.
 - Stage / unstage selected paths, including before the first commit.
-- Commit staged changes with a multiline message.
+- Separate native Commit window with checked-file selection, message, amend, author,
+  sign-off, file statistics and icon context menus. Enable staging area switches to
+  three-state staging checkboxes and commits the index, preserving unstaged edits.
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.
@@ -51,8 +53,10 @@ bundle structure; it is not a signed distribution.
 
 These are initial workflows, not full upstream parity. The operation dialogs expose
 only the options shown. [Log parity details](docs/LOG-PARITY.md) track the upstream
-controls and context commands still missing. Commit includes **all** staged changes, not just highlighted
-rows. Authentication uses existing credential helpers / SSH configuration; there is
+controls and context commands still missing. Checkbox mode commits the current
+whole-file contents of checked paths; staging mode commits **all** staged changes,
+including files outside the current view. Highlighted rows do not select commit
+contents. [Commit parity details](docs/COMMIT-PARITY.md) track remaining options. Authentication uses existing credential helpers / SSH configuration; there is
 no native credential prompt yet. Interactive hooks, Git editors, signing prompts,
 cancellation and live streaming progress are not implemented. Conflicts remain
 visible in the status list, but must currently be resolved with another tool.
@@ -86,6 +90,9 @@ The independent background cache, FSEvents invalidation, repository management a
 with other Finder extensions still need implementation and testing.
 
 ## Complete port tracking
+
+[`docs/UI-PARITY.md`](docs/UI-PARITY.md) records the required source, layout and
+behavior comparisons for every native replacement.
 
 [`docs/PORTING.md`](docs/PORTING.md) describes component replacements and remaining
 work. [`docs/upstream-files.csv`](docs/upstream-files.csv) includes every tracked

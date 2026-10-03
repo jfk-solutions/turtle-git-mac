@@ -14,7 +14,7 @@ python3 -m http.server 8768 --bind 127.0.0.1 --directory build/site
 
 The build reads `GITHUB_REPOSITORY` in Actions and derives it from `origin` locally.
 Repository links therefore follow a later rename. No analytics, third-party scripts
-or remote fonts are included. Both screenshots use a disposable sample repository.
+or remote fonts are included. All screenshots use a disposable sample repository.
 The page must describe the current development state without claiming full parity.
 
 `.github/workflows/pages.yml` builds on changes to the site/docs and supports
@@ -46,7 +46,7 @@ macOS 14.4 or later. It uses ScreenCaptureKit's current-process content API to
 capture the selected app window, without requesting access to other applications
 or displays. Save into `docs/site/assets`. Verify native controls, graph edges,
 column layout and sample-only content before publishing. The current public images
-are `log-messages.png` and `status.png`.
+are `log-messages.png`, `status.png`, `commit.png`, and `staging.png`.
 
 The preview has its own bundle identity and temporary recent-repository store; it
 does not reuse the real app's saved permissions or URL handler.

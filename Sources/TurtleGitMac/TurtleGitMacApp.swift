@@ -10,7 +10,7 @@ import TurtleGitCore
                 .onOpenURL { model.handle($0) }
                 #if DEBUG
                 .onAppear {
-                    if Bundle.main.bundleIdentifier == "org.turtlegit.macos.documentation-preview", model.root == nil,
+                    if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
                        let path = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationRepository") as? String {
                         model.open(URL(fileURLWithPath: path, isDirectory: true))
                     }
@@ -77,8 +77,7 @@ struct RepositoryWindow: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text(model.section.title.replacingOccurrences(of: "…", with: "")).font(.title2).padding(.horizontal, 12)
                             status
-                            if model.section == .commit { commit }
-                        }.padding(.vertical, 12).frame(minHeight: model.section == .commit ? 420 : 260)
+                        }.padding(.vertical, 12).frame(minHeight: 260)
                         VStack(alignment: .leading, spacing: 0) {
                             HStack {
                                 Text("Diff / Operation output").font(.headline)
@@ -99,7 +98,7 @@ struct RepositoryWindow: View {
                 Text(model.busy ? "Working…" : "Ready")
             }.font(.caption).foregroundStyle(.secondary).padding(8)
         }
-        .frame(minWidth: 920, minHeight: model.section == .commit ? 760 : 650)
+        .frame(minWidth: 920, minHeight: 650)
         .toolbar {
             Button { model.chooseRepository() } label: { Label("Open", systemImage: "folder") }.disabled(model.busy)
             Button { Task { await model.refresh() } } label: { Label("Refresh", systemImage: "arrow.clockwise") }.disabled(model.root == nil || model.busy)
@@ -165,18 +164,6 @@ struct RepositoryWindow: View {
                 Toggle("Show ignored files", isOn: $model.showIgnored).toggleStyle(.checkbox)
             }.padding(.horizontal, 12)
         }
-    }
-    var commit: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Message").font(.headline)
-            TextEditor(text: $model.message).font(.system(.body, design: .monospaced)).frame(height: 90).border(Color.secondary.opacity(0.3))
-            HStack {
-                Text("Commits every staged change in this repository.").font(.caption).foregroundStyle(.secondary)
-                Spacer()
-                Button("Commit") { model.commit() }.keyboardShortcut(.return, modifiers: [.command])
-                    .disabled(model.busy || model.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !model.entries.contains(where: \.staged))
-            }
-        }.padding(.horizontal, 12)
     }
     func color(_ state: FileState) -> Color {
         switch state {

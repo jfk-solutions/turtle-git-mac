@@ -98,8 +98,8 @@ public final class RepositoryAccessStore {
     }
     public static var defaultStorageURL: URL {
         #if DEBUG
-        if Bundle.main.bundleIdentifier == "org.turtlegit.macos.documentation-preview" {
-            return FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitDocumentationPreview/repositories.json")
+        if let identifier = Bundle.main.bundleIdentifier, identifier.hasPrefix("org.turtlegit.macos.documentation-preview") {
+            return FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitDocumentationPreview/" + identifier + "/repositories.json")
         }
         #endif
         return FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]

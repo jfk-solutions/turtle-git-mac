@@ -20,6 +20,7 @@ import TurtleGitCore
     private var accessStore: RepositoryAccessStore?
     private var activeAccess: RepositoryAccessLease?
     private var repository: GitRepository?
+    private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
@@ -107,7 +108,7 @@ import TurtleGitCore
                 }
                 repository = try makeRepository(resolved); activeAccess = lease; root = resolved
                 selection = []; entries = []; branch = ""
-                section = action == .commit ? .commit : .status
+                section = .status
                 output = "Repository: \(resolved.path)"
                 try await reload()
                 if let selected { selection = selected.selectedStatusPaths(root: resolved, entries: entries) }
@@ -167,7 +168,19 @@ import TurtleGitCore
     }
     func activate(_ action: RepositoryAction, paths: [String] = []) {
         switch action {
-        case .status, .commit: section = action
+        case .status: section = action
+        case .commit:
+            guard let repository, let root else { return }
+            let controller = commitWindows[root.path] ?? CommitWindowController(repository: repository, access: activeAccess)
+            controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
+            controller.model.onCommitted = { [weak self] output in
+                guard let self, self.root == root else { return }
+                self.output = output
+                Task { await self.refresh() }
+            }
+            commitWindows[root.path] = controller
+            controller.model.reload(paths: paths)
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         case .log:
             guard let repository, let root else { return }
             let controller = logWindows[root.path] ?? LogWindowController(repository: repository, access: activeAccess)
