@@ -46,7 +46,7 @@ import TurtleGitCore
             }
             #if DEBUG
             CommandMenu("Development") {
-                Button("Save Window Screenshot…") { DocumentationCapture.saveWindow() }.keyboardShortcut("7", modifiers: [.command, .shift])
+                Button("Save Window Screenshot…") { DocumentationCapture.saveWindow() }.keyboardShortcut("s", modifiers: [.command, .option, .shift])
             }
             #endif
         }

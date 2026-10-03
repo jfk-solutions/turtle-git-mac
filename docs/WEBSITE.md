@@ -44,7 +44,7 @@ previews, and `--appearance light` or `--appearance dark` for comparisons.
 This is for documentation QA only; it does not build or validate the Finder extension.
 
 Open the preview app, select the relevant native window and use **Development →
-Save Window Screenshot…** (Command-Shift-7). The helper is Debug-only and requires
+Save Window Screenshot…** (Command-Option-Shift-S). The helper is Debug-only and requires
 macOS 14.4 or later. It uses ScreenCaptureKit's current-process content API to
 capture the selected app window, without requesting access to other applications
 or displays. Save into `docs/site/assets`. Verify native controls, graph edges,
@@ -53,7 +53,7 @@ Commit and Rebase examples. Older captures document the pictured earlier UI.
 
 If the native Save panel is unavailable, configure a new output file with
 `--screenshot /tmp/turtlegit-capture.png` when creating the Debug preview. The same
-Command-Shift-7 action captures its own selected window directly to that file.
+Command-Option-Shift-S action captures its own selected window directly to that file.
 Verify the image exists before quitting the preview, then copy the actual capture
 into the website assets. This does not synthesize or alter the window image.
 

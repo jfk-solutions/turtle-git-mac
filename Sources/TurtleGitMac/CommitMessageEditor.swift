@@ -113,7 +113,12 @@ private struct CommitHistoryList: NSViewRepresentable {
         coordinator.parent = self; coordinator.updating = true
         if coordinator.entries != entries { coordinator.entries = entries; table.reloadData() }
         let width = entries.map { ($0.replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: " ") as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]).width }.max() ?? 0
-        table.tableColumns.first?.width = max(380, width + 15); table.sizeToFit()
+        let columnWidth = max(380, width + 15)
+        table.tableColumns.first?.maxWidth = CGFloat.greatestFiniteMagnitude
+        table.tableColumns.first?.width = columnWidth
+        // sizeToFit() fits columns to the table's initial zero-width frame and collapses
+        // the message column. Keep the document width large enough for the full text.
+        table.setFrameSize(NSSize(width: columnWidth, height: max(22, CGFloat(entries.count) * table.rowHeight)))
         table.selectRowIndexes(IndexSet(entries.indices.filter { selection.contains(entries[$0]) }), byExtendingSelection: false)
         table.deleteRow = delete; coordinator.updating = false
     }

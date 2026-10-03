@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 @MainActor enum DocumentationCapture {
     static func saveWindow() {
         guard let selected = NSApp.keyWindow ?? NSApp.mainWindow else { return }
-        let window = selected.parent ?? selected
+        let window = selected.sheetParent ?? selected.parent ?? selected
         Task {
             do {
                 guard #available(macOS 14.4, *) else {

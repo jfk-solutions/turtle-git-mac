@@ -274,10 +274,10 @@ Three real Git integration tests cover relative Unicode and absolute newline
 paths, UTF-8 BOM/CRLF normalization, absent/missing/invalid templates, operation
 message append order, ReCommit's template-only seed, linked-worktree separation,
 and unchanged index/working-tree diffs. These are backend checks, not native UI
-parity evidence. Native warning execution, suppression, draft-preserving Refresh
-and ReCommit template restoration remain unverified: the QA app ran, but the
-computer-use service returned stale menu IDs and did not reliably deliver input.
-No new native screenshot is claimed for this change. Recent-message history and its selection dialog are now implemented as described below;
+parity evidence. Native unchanged-template warning and No were subsequently exercised, and native
+ReCommit template restoration was verified. Proceed-anyway/suppression and
+draft-preserving Refresh remain pending. Initial automation failures are recorded
+in the later native verification notes; they do not establish failed app behavior. Recent-message history and its selection dialog are now implemented as described below;
 revision-picker insertion commands remain pending.
 
 ## Recent-message history and editor commands
@@ -314,7 +314,40 @@ Two persistence tests cover reopen, deduplication, limits, Unicode identity,
 repository isolation, removal and interleaved dialog mutations. The linked-worktree
 Git test now checks shared history identity. The running native Commit window
 was observed with the new editor and loaded template in its original pane.
-Native insertion, selection, deletion, successful/failed commit history, Cancel
-confirmation/suppression, keyboard focus, undo, dark appearance and resize checks
-remain pending: subsequent native input was interrupted by app-focus changes.
-The sheet layout is implemented but not claimed as visually verified.
+Native insertion, selection, deletion, successful commit history, Cancel Yes/No,
+keyboard selection, Undo and readable light-mode layout were subsequently verified.
+Cancel/window-close suppression, failed-commit history, pre-amend draft combinations,
+dark appearance, saved sheet geometry and broader resize checks remain pending.
+
+### Native history and template verification
+
+A cancelled multiline draft in `/private/tmp/TurtleGitTemplateQA` was retained
+after choosing No, saved after Yes, and recovered from Recent messages over the
+untouched template. Paste last message replaced the native context-menu-selected
+word; the editor value and model character count agreed. HEAD, index diff and
+working-tree diff remained byte-identical during cancellation and history checks.
+The unchanged-template warning appeared; choosing No returned without committing.
+
+A two-entry isolated history fixture exposed a real rendering defect: calling
+`NSTableView.sizeToFit()` against its initial zero-width frame collapsed the
+message column to one character. The port now gives the table an explicit full
+message document width and retains horizontal scrolling. Running native pixels
+verified the correction. Shift-Down selected both messages; OK inserted them in
+displayed order with a blank line and native Undo restored the template. Delete
+removed one entry, selected the adjacent row and persisted removal; cancelling
+Log History left the editor unchanged. Double-click also accepted one message.
+
+Paste file list inserted only the checked `file.txt`, with the padded Modified
+label. Native ReCommit committed that disposable change, retained the window,
+restored the configured template, cleared the completed checked file and saved
+the submitted message to history. Git verified the new parent, file contents and
+clean tracked index/worktree; the unchecked unversioned template remained outside
+the commit. `site/assets/commit-history.png` is an actual captured sheet using
+copies of the natively committed and cancelled messages in an isolated screenshot
+app preference domain. No user repository was modified.
+
+Automation's physical Y/Z key positions are reversed on the German keyboard;
+using its Y-position shortcut invoked native Undo. Main Edit-menu automation
+returned stale IDs, so no main-menu Undo execution is claimed. The Debug-only
+capture helper now uses Command-Option-Shift-S and resolves `sheetParent` before
+capturing, producing the verified parent-and-sheet PNG without screen permission.
