@@ -47,7 +47,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
 | Clone / init | Destination picker and Git operation | Branch, recursive submodules, bare repos, advanced options and progress |
 | Fetch | Native remote/URL and three-state tags/prune, remote branch browser, shallow depth; real Git and native fetch checks | Rebase launch, full settings/history, progress, authentication and broader UI QA; see FETCH-PARITY.md |
-| Pull | Git defaults; pull fast-forward only | Native upstream dialog, merge/rebase options, progress, cancellation, authentication |
+| Pull | Native shared options window, squash/no commit and fast-forward choices; Git integration and native fast-forward/error checks | Interactive rebase, progress, full recovery and broader native QA; see PULL-PARITY.md |
 | Push | Native upstream control order, branch/tag scope, remote/URL, force/lease, tags, upstream, recursion, server option; local Git tests and native branch/tag pushes | Full choosers/settings, progress, cancellation, authentication and broader UI QA; see PUSH-PARITY.md |
 | Switch/Checkout | Native branch/tag/commit rows, create/force/merge/tracking/override options, real Git checkout tests | Complete choosers, progress and broader native QA; see SWITCH-PARITY.md |
 | Branch / tag | Native name/revision/options/message controls; descriptions, annotated tags, optional checkout, force and tracking | Full choosers, signing prompts and broader native QA; see BRANCH-TAG-PARITY.md |
@@ -104,7 +104,7 @@ for that configuration. See `DISTRIBUTION.md` for the unresolved runtime, signin
 worktree permissions and license gates. These changes do not narrow the full-port
 objective or establish App Store readiness.
 
-The current Swift package builds and 63 tests pass, including topological graph
+The current Swift package builds and 68 tests pass, including topological graph
 continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 32 original upstream icons. Finder source type-checks
 with application-extension restrictions. The local Xcode bundle build is currently blocked

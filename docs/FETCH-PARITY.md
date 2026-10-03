@@ -1,8 +1,8 @@
 # Fetch dialog parity
 
 Reference: `PullFetchDlg.cpp`, `IDD_PULLFETCH`, FetchCommand and `CAppUtils::Fetch/DoFetch`
-at the pinned commit in `upstream.json`. Pull shares this upstream resource but
-still uses the temporary generic dialog in TurtleGit.
+at the pinned commit in `upstream.json`. Native Pull shares this implementation; see PULL-PARITY.md for its merge options
+and remaining workflows.
 
 ## Implemented
 
@@ -30,7 +30,7 @@ Four real Git integration tests cover configured tracking-ref updates without
 changing HEAD/index/worktree, three-state tags/prune overrides versus Git defaults,
 remote branch browsing with Unicode names, URL fetch to FETCH_HEAD, shallow depth
 1 then 2, all-remotes updates and invalid destination/depth/refspec requests.
-The complete suite has 63 passing tests.
+The complete suite has 68 passing tests.
 
 Native QA on the disposable documentation repository browsed preview-main from
 its local bare remote and fetched it via URL. Tags cycled mixed → checked → unchecked.
@@ -52,7 +52,8 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
   sandbox runtime checks. Cancel is disabled while Git runs.
 - Native shallow/depth, all-remotes, broader error recovery, keyboard, resize, light appearance
   and accessibility QA; integration tests alone do not establish those UI behaviors.
-- Pull mode's merge/rebase options and resulting workflow remain unported.
+- Pull merge options are now native; interactive rebase and full recovery remain
+  pending. See PULL-PARITY.md.
 
 This shared source/resource remains partial; Fetch compilation and narrow verified
 workflows do not establish full Pull/Fetch or App Store parity.

@@ -65,7 +65,7 @@ src/Resources/TortoiseProcENG.rc,IDD_AUTOTEXTTESTDLG,Autotext Tester,pending-rev
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGS_CONFIG,Advanced,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_CLONE,Git clone - TortoiseGit,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_GITPROGRESS,Git Command Progress,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_PULLFETCH,Pull/Fetch,partial-native-fetch-replacement
+src/Resources/TortoiseProcENG.rc,IDD_PULLFETCH,Pull/Fetch,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_PUSH,Push,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SVNDCOMMITTYPE,SVN Commit Type,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_REQUESTPULL,Request pull,pending-review

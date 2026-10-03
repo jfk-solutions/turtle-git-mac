@@ -32,7 +32,7 @@ Four real Git integration tests cover branch descriptions with mixed staged/late
 unstaged changes, lightweight and annotated tags, forced tag replacement,
 unchecked signing configuration, signing-message validation, remote tracking,
 shared branch/tag names, invalid names/revisions and checked-out branch protection.
-The complete Swift suite has 63 passing tests.
+The complete Swift suite has 68 passing tests.
 
 Native QA on the disposable documentation repository created a branch with a
 multiline description, an annotated tag with a multiline message, and a second

@@ -189,7 +189,7 @@ import TurtleGitCore
                     self.openSession(access, action: action, actionPaths: paths); return
                 }
                 self.activate(action, paths: paths)
-                if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+                if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
             }
             controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
             statusWindows[root.path] = controller
@@ -220,6 +220,9 @@ import TurtleGitCore
             controller.model.setPathScope(paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
 
+        case .pull:
+            guard let repository else { return }
+            showFetch(repository: repository, access: activeAccess, isPull: true)
         case .fetch:
             guard let repository else { return }
             showFetch(repository: repository, access: activeAccess)
@@ -236,16 +239,21 @@ import TurtleGitCore
         default: dialog = action
         }
     }
-    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?) {
-        let root = repository.root
-        let controller = fetchWindows[root.path] ?? FetchWindowController(repository: repository, access: access)
-        controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: root.path) }
+    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false) {
+        let root = repository.root, key = repository.root.path + (isPull ? ":pull" : ":fetch")
+        let controller = fetchWindows[key] ?? FetchWindowController(repository: repository, access: access, isPull: isPull)
+        controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
+        controller.model.onShowStatus = { [weak self] in
+            guard let self else { return }
+            if self.root == root { self.activate(.status) }
+            else if let access { self.openSession(access, action: .status) }
+        }
         controller.model.onFetched = { [weak self] output in
             self?.logWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        fetchWindows[root.path] = controller; controller.model.load()
+        fetchWindows[key] = controller; controller.model.load()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil) {

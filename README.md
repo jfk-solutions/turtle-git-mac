@@ -48,11 +48,14 @@ bundle structure; it is not a signed distribution.
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Working-tree and index diffs, with selectable, monospaced operation output.
-- Native confirmation dialogs for pull (fast-forward only), merge, rebase, stash save/pop, clone, and repository creation.
+- Native confirmation dialogs for merge, rebase, stash save/pop, clone, and repository creation.
 - Native New Branch/Tag windows with HEAD/branch/tag/commit selectors, descriptions,
   annotated tag messages, force, remote tracking and optional branch checkout.
   Tag Push opens native Push options scoped to the new tag.
   [Branch/tag parity](docs/BRANCH-TAG-PARITY.md) tracks remaining options.
+- Separate native Pull dialog with remote/branch selectors, squash, no commit,
+  fast-forward controls, Tags/Prune and shallow depth.
+  [Pull parity](docs/PULL-PARITY.md) records pending rebase and recovery workflows.
 - Separate native Fetch dialog with named remote/all remotes or URL, remote branch
   browsing, three-state Tags/Prune overrides and shallow depth.
   [Fetch parity](docs/FETCH-PARITY.md) records remaining work.
