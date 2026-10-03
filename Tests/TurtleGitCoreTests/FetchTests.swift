@@ -71,8 +71,10 @@ final class FetchTests: XCTestCase {
         let deeper = try await consumer.run(["rev-list", "--count", "FETCH_HEAD"]).text; XCTAssertEqual(deeper, "2\n")
     }
     func testAllRemotesAndInvalidRequests() async throws {
-        let (root, _, remote, consumer, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let (root, publisher, remote, consumer, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         try await consumer.saveRemote(name: "second", fetchURL: remote.root.path, pushURL: "", existing: false)
+        try await publisher.saveRemote(name: "second", fetchURL: remote.root.path, pushURL: "", existing: false)
+        let untrackedDefaults = try await publisher.fetchDefaults(); XCTAssertEqual(untrackedDefaults.remote, "")
         var options = FetchOptions(); options.allRemotes = true
         _ = try await consumer.fetch(options)
         let refs = try await consumer.checkoutReferences(); XCTAssertTrue(refs.contains { $0.name == "refs/remotes/second/main" })

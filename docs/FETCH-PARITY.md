@@ -15,7 +15,8 @@ is read, defaulting to true; its settings UI remains pending.
 
 Tags and Prune use native three-state checkboxes: mixed omits the flag and honors
 Git configuration, checked explicitly enables it, unchecked explicitly disables it.
-Labels report configured named-remote defaults. Depth is available only for a
+Labels report configured named-remote defaults. An untracked branch with multiple
+remotes defaults to All unless a remembered remote is available. Depth is available only for a
 shallow repository, initially checked with depth 1, and requires a positive integer.
 Git receives literal argument arrays, preserving branch names and URL punctuation.
 Browse retrieves actual remote heads through `ls-remote` and offers a searchable
@@ -46,7 +47,7 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
 - Full remote reference chooser hierarchy, tag selection and histories; the current
   chooser lists heads only. Full remote settings and their mutation/recovery QA.
 - Submodule-specific default branch lookup, URL/branch histories, complete settings
-  and window-size persistence. Saved remote preference ordering needs comparison.
+  and window-size persistence.
 - Streaming progress/cancellation, interactive credentials, network/SSH and signed
   sandbox runtime checks. Cancel is disabled while Git runs.
 - Native shallow/depth, all-remotes, broader error recovery, keyboard, resize, light appearance

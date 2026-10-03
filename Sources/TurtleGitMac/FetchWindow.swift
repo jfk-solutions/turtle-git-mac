@@ -50,8 +50,9 @@ import TurtleGitCore
             do {
                 remotes = try await repository.remoteNames(); let defaults = try await repository.fetchDefaults()
                 options = FetchOptions(); options.remote = defaults.remote; options.branch = defaults.branch
+                options.allRemotes = defaults.remote.isEmpty && remotes.count > 1
                 options.namedRemoteFetchAll = UserDefaults.standard.object(forKey: "NamedRemoteFetchAll") as? Bool ?? true
-                if let saved = UserDefaults.standard.string(forKey: key + ".remote"), remotes.contains(saved), defaults.remote.isEmpty { options.remote = saved }
+                if let saved = UserDefaults.standard.string(forKey: key + ".remote"), remotes.contains(saved), defaults.remote.isEmpty { options.remote = saved; options.allRemotes = false }
                 shallow = defaults.shallow; bare = defaults.bare; depthEnabled = shallow
                 tagsDefault = defaults.tags; pruneDefault = defaults.prune
                 launchRebase = false

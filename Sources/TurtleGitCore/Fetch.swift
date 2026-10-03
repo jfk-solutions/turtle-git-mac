@@ -35,7 +35,7 @@ extension GitRepository {
     public func fetchDefaults(remote selected: String? = nil) throws -> FetchDefaults {
         let names = try remoteNames(), current = try branch()
         let tracked = current.isEmpty ? "" : fetchConfig("branch." + current + ".remote")
-        let remote = selected ?? (names.contains(tracked) ? tracked : (names.first ?? ""))
+        let remote = selected ?? (names.contains(tracked) ? tracked : (names.count == 1 ? names[0] : ""))
         let merge = current.isEmpty ? "" : fetchConfig("branch." + current + ".merge")
         let branchName = merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : (merge.isEmpty ? current : merge)
         let tagopt = fetchConfig("remote." + remote + ".tagopt")
