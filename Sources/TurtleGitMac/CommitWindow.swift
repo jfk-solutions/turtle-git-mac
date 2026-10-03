@@ -8,6 +8,7 @@ import TurtleGitCore
     private var partial: PatchWindowController?
     private var closingCommit = false
     private var historyWindow: NSWindow?
+    private var logPicker: LogWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = CommitWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
@@ -22,6 +23,7 @@ import TurtleGitCore
         model.refreshPartial = { [weak self] in self?.reloadPartial() }
         model.closePartial = { [weak self] in self?.partial?.close() }
         model.showMessageHistory = { [weak self] insert in self?.showHistory(insert: insert) }
+        model.pickRevision = { [weak self] message, insert in self?.showRevisionPicker(message: message, insert: insert) }
         model.confirmCancel = { [weak window] proceed in
             guard let window else { return }
             let alert = NSAlert(); alert.messageText = "Do you really want to cancel?"
@@ -49,7 +51,7 @@ import TurtleGitCore
             }
         }
     }
-    func windowWillClose(_ notification: Notification) { closingCommit = true; partial?.close(); partial = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { closingCommit = true; logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { model.cancel(); return false }
     private func showHistory(insert: @escaping (String) -> Void) {
         guard let window, let history = model.messageHistory, historyWindow == nil else { return }
@@ -60,6 +62,18 @@ import TurtleGitCore
             if let text { insert(text) }
         })
         historyWindow = child; window.beginSheet(child)
+    }
+    private func showRevisionPicker(message: Bool, insert: @escaping (String) -> Void) {
+        guard let window, logPicker == nil else { return }
+        let picker = LogWindowController(repository: model.repository, access: model.access) { [weak self] revision in
+            if let revision { insert(message ? revision.message : revision.hash) }
+            if let self, !self.closingCommit { self.model.reload() }
+        }
+        logPicker = picker
+        picker.onClosed = { [weak self] in self?.logPicker = nil }
+        model.configureLogPicker(picker.model)
+        guard let child = picker.window else { logPicker = nil; return }
+        window.beginSheet(child)
     }
     private func showPartial(staged: Bool, readOnly: Bool = false) {
         guard let window else { return }
@@ -135,6 +149,8 @@ import TurtleGitCore
     private(set) var messageTemplate = ""
     private(set) var messageHistory: CommitMessageHistory?
     var showMessageHistory: (@escaping (String) -> Void) -> Void = { _ in }
+    var pickRevision: (Bool, @escaping (String) -> Void) -> Void = { _, _ in }
+    var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var confirmCancel: (@escaping () -> Void) -> Void = { _ in }
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping () -> Void) -> Void = { _ in }

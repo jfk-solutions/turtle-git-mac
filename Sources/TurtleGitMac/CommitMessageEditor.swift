@@ -43,6 +43,10 @@ private final class MessageTextView: NSTextView {
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let menu = super.menu(for: event), isEditable else { return super.menu(for: event) }
         menu.addItem(.separator())
+        for (title, action) in [("Pick commit hash…", #selector(pickHash)), ("Pick commit message…", #selector(pickMessage))] {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self; item.image = MenuIcon.log.image(); menu.addItem(item)
+        }
         let fileList = NSMenuItem(title: "Paste file list", action: #selector(pasteFileList), keyEquivalent: "")
         fileList.target = self; fileList.image = MenuIcon.copy.image(); menu.addItem(fileList)
         if model?.messageHistory?.entries.isEmpty == false {
@@ -53,6 +57,15 @@ private final class MessageTextView: NSTextView {
         }
         return menu
     }
+    private func pick(_ message: Bool) {
+        model?.pickRevision(message) { [weak self] text in
+            guard let self else { return }
+            self.insertText(text, replacementRange: self.selectedRange())
+            self.window?.makeFirstResponder(self)
+        }
+    }
+    @objc private func pickHash() { pick(false) }
+    @objc private func pickMessage() { pick(true) }
     @objc private func pasteFileList() { if let model { insertText(model.checkedFileList, replacementRange: selectedRange()) } }
     @objc private func pasteLastMessage() {
         if let text = model?.messageHistory?.entries.first { insertText(text, replacementRange: selectedRange()) }

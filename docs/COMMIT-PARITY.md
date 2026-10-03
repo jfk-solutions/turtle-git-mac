@@ -278,7 +278,7 @@ parity evidence. Native unchanged-template warning and No were subsequently exer
 ReCommit template restoration was verified. Proceed-anyway/suppression and
 draft-preserving Refresh remain pending. Initial automation failures are recorded
 in the later native verification notes; they do not establish failed app behavior. Recent-message history and its selection dialog are now implemented as described below;
-revision-picker insertion commands remain pending.
+revision-picker insertion commands are now implemented and checked as described below.
 
 ## Recent-message history and editor commands
 
@@ -287,8 +287,8 @@ selection-aware insertion. Its context menu adds Paste file list, plus Paste las
 message and Recent messages when history exists. Original upstream Copy and Log
 icons accompany these commands. Paste file list uses the displayed checked paths
 (or staged paths in staging mode), maps unversioned status to Added, and pads
-status labels to ten columns. Pick commit hash and Pick commit message still
-require the upstream revision-selection workflow and are not exposed as stubs.
+status labels to ten columns. Pick commit hash and Pick commit message open the
+native Log window in revision-selection mode, as described below.
 
 Log History is a resizable native sheet with a horizontal/vertical scrolling
 `NSTableView`, flattened one-line messages, multiple selection, OK and Cancel. OK
@@ -351,3 +351,34 @@ using its Y-position shortcut invoked native Undo. Main Edit-menu automation
 returned stale IDs, so no main-menu Undo execution is claimed. The Debug-only
 capture helper now uses Command-Option-Shift-S and resolves `sheetParent` before
 capturing, producing the verified parent-and-sheet PNG without screen permission.
+
+## Pick commit hash and message
+
+The editor context commands follow `CommitDlg.cpp::HandleMenuItemClick`: open
+Log in selection mode, omit the working-tree pseudo revision and accept exactly
+one commit. `LogDlg.cpp::EnableOKButton` disables OK for zero or multiple selected
+rows; native selection can still span rows, with acceptance disabled. Normal Log
+continues to close on OK. The chooser retains its graph, reference colors, full
+message, changed files, filters and revision menus. Reference creation, checkout
+and Push route to the existing native dialogs. Double-click retains Log's diff
+behavior rather than silently accepting a commit.
+
+OK inserts the full hash or complete subject/body at the message editor's selected
+range and restores editor focus. Cancel inserts nothing. Only one chooser can
+be attached to a Commit window, and completion is cleared before closing to avoid
+duplicate insertion. Commit refreshes status after dismissal so changes initiated
+from Log can be reflected without replacing the existing message.
+
+Native QA in `/private/tmp/TurtleGitRevisionPickerQA` verified the six-revision
+merge history, single-selection OK, multiple-selection disabled OK, complete
+145-character merge-message insertion, full 40-character hash replacement, Cancel
+preserving the draft and checked files, and native Undo restoring the message.
+A no-match search cleared the selection and disabled OK. HEAD, cached diff and
+working-tree diff remained byte-identical to the fixture baseline. Picker mutation
+flows, empty repositories, dark appearance, broader keyboard/resize behavior and
+full Log parity remain pending.
+
+The documentation capture helper now includes attached-sheet frames when sizing
+images, including sheets wider than their parent. A fresh capture attempt failed
+with macOS ScreenCaptureKit's audio/video stream-start error; bounds output is
+therefore not yet visually verified and no new picker image was published.

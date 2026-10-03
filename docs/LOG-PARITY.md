@@ -79,3 +79,14 @@ remain pending.
 Push from a single log revision now opens the separate native Push options window
 with that exact hash and the original Push icon. The window builds successfully;
 this specific Log handoff still needs native interaction QA. See PUSH-PARITY.md.
+
+## Commit revision chooser
+
+Commit's Pick commit hash/message commands reuse this window as a native sheet.
+Selection mode adds Cancel and enables OK only for one revision when loading has
+finished, following upstream `EnableOKButton`. Normal Log's OK still closes the
+window. Working-tree pseudo revisions are excluded; the current implementation
+has no such row in either mode. Native Commit QA verified single acceptance,
+multiple-selection rejection, no-match search rejection and cancellation.
+See COMMIT-PARITY.md for insertion and Git-state evidence. This mode does not
+establish completeness of the shared Log controls or mutation menus.

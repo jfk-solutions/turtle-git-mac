@@ -20,8 +20,10 @@ import UniformTypeIdentifiers
                 }
                 let filter = SCContentFilter(desktopIndependentWindow: ownWindow)
                 let config = SCStreamConfiguration()
-                // ScreenCaptureKit includes attached child windows in the image.
-                let bounds = (window.childWindows ?? []).reduce(window.frame) { $0.union($1.frame) }
+                // Sheets can be wider than their parent and are not necessarily
+                // listed in childWindows. Include both when sizing the capture.
+                let attached = (window.childWindows ?? []) + (window.attachedSheet.map { [$0] } ?? [])
+                let bounds = attached.reduce(window.frame) { $0.union($1.frame) }
                 config.width = Int(bounds.width * window.backingScaleFactor)
                 config.height = Int(bounds.height * window.backingScaleFactor)
                 config.showsCursor = false

@@ -208,6 +208,11 @@ import TurtleGitCore
             }
             let access = controller.model.access
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
+            controller.model.configureLogPicker = { [weak self] log in
+                log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+                log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
+                log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            }
             commitWindows[root.path] = controller
             controller.model.reload(paths: paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

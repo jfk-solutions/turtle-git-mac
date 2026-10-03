@@ -5,8 +5,10 @@ import TurtleGitCore
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
     let model: LogWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = LogWindowModel(repository: repository, access: access)
+    private var selectionCompletion: ((LogEntry?) -> Void)?
+    init(repository: GitRepository, access: RepositoryAccessLease?, onChoose: ((LogEntry?) -> Void)? = nil) {
+        model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil)
+        selectionCompletion = onChoose
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Log Messages – TurtleGit"
@@ -17,10 +19,25 @@ import TurtleGitCore
         window.delegate = self
         window.setContentSize(NSSize(width: 1120, height: 780))
         window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak self] in
+            guard let self else { return }
+            if self.model.selecting { self.finishSelection(nil) } else { self.window?.close() }
+        }
+        model.finishSelection = { [weak self] revision in self?.finishSelection(revision) }
         model.reload()
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    private func finishSelection(_ revision: LogEntry?) {
+        guard let completion = selectionCompletion else { return }; selectionCompletion = nil
+        if let window { window.sheetParent?.endSheet(window); window.close() }
+        completion(revision)
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.selecting { finishSelection(nil); return false }; return true
+    }
+    func windowWillClose(_ notification: Notification) {
+        let completion = selectionCompletion; selectionCompletion = nil
+        completion?(nil); onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -43,6 +60,7 @@ struct LogCommandRequest: Identifiable {
 
 @MainActor final class LogWindowModel: ObservableObject {
     let repository: GitRepository
+    let selecting: Bool
     // Keep the security-scoped grant alive if the main repository window changes.
     private let access: RepositoryAccessLease?
     @Published var entries: [LogEntry] = []
@@ -69,6 +87,7 @@ struct LogCommandRequest: Identifiable {
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
     var close: () -> Void = {}
+    var finishSelection: (LogEntry?) -> Void = { _ in }
     var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
     var revision: LogEntry? { revisions.count == 1 ? revisions.first : nil }
     var visibleFiles: [CommitFile] { files.filter { filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths) } }
@@ -77,7 +96,11 @@ struct LogCommandRequest: Identifiable {
         return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(revision.date)\n" +
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false) { self.repository = repository; self.access = access; self.selecting = selecting }
+    func accept() {
+        if selecting { guard !busy, let revision else { return }; finishSelection(revision) }
+        else { close() }
+    }
     func setPathScope(_ paths: [String]) {
         let scope = paths.contains(".") ? [] : paths
         guard historyPaths != scope || showWholeProject != scope.isEmpty else { return }
@@ -203,7 +226,8 @@ struct LogDialog: View {
                 if model.busy { ProgressView().controlSize(.small) }
                 Spacer()
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html")!) }
-                Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
+                Button("OK") { model.accept() }.disabled(model.selecting && (model.busy || model.revision == nil)).keyboardShortcut(.defaultAction)
+                if model.selecting { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }
             }
         }.padding(12).frame(minWidth: 1040, minHeight: 650)
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
