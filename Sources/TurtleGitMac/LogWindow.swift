@@ -28,6 +28,7 @@ enum LogRevisionCommand: String, Identifiable {
     case branch = "Create branch at this version…"
     case tag = "Create tag at this version…"
     case checkout = "Switch/Checkout to this…"
+    case push = "Push…"
     case reset = "Reset current branch to this…"
     case cherryPick = "Cherry Pick this commit…"
     case revert = "Revert changes by this commit…"
@@ -65,6 +66,7 @@ struct LogCommandRequest: Identifiable {
     private var detailGeneration = 0
     private var limit = 200
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
+    var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
     var close: () -> Void = {}
     var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
@@ -114,6 +116,7 @@ struct LogCommandRequest: Identifiable {
     func request(_ command: LogRevisionCommand) {
         guard !busy, let revision else { return }
         if command == .branch || command == .tag { onCreateReference(command == .tag, revision.hash); return }
+        if command == .push { onPush(revision.hash); return }
         if command == .checkout { onCheckout(revision.hash); return }
         commandRequest = LogCommandRequest(command: command, revision: revision)
     }
@@ -123,6 +126,7 @@ struct LogCommandRequest: Identifiable {
         switch request.command {
         case .branch: commandRequest = nil; onCreateReference(false, hash); return
         case .tag: commandRequest = nil; onCreateReference(true, hash); return
+        case .push: commandRequest = nil; onPush(hash); return
         case .checkout: commandRequest = nil; onCheckout(hash); return
         case .reset: args = ["reset", "--" + resetMode, hash, "--"]
         case .cherryPick: args = ["cherry-pick", hash]
@@ -312,6 +316,7 @@ struct RevisionTable: NSViewRepresentable {
             item("Switch/Checkout to this…", #selector(checkout), icon: .checkout, enabled: one && !model.busy)
             item("Create branch at this version…", #selector(branch), icon: .branch, enabled: one && !model.busy)
             item("Create tag at this version…", #selector(tag), icon: .tag, enabled: one && !model.busy)
+            item("Push…", #selector(push), icon: .push, enabled: one && !model.busy)
             menu.addItem(.separator())
             item("Revert changes by this commit…", #selector(revert), icon: .revert, enabled: one && !model.busy && model.revision?.parents.count == 1)
             item("Cherry Pick this commit…", #selector(cherryPick), icon: .cherryPick, enabled: one && !model.busy && model.revision?.parents.count == 1)
@@ -329,6 +334,7 @@ struct RevisionTable: NSViewRepresentable {
             parent.image = MenuIcon.copy.image(); parent.submenu = clipboard; menu.addItem(parent)
         }
         @objc func reset() { model.request(.reset) }
+        @objc func push() { model.request(.push) }
         @objc func checkout() { model.request(.checkout) }
         @objc func branch() { model.request(.branch) }
         @objc func tag() { model.request(.tag) }

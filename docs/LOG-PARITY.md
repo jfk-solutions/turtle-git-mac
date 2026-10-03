@@ -75,3 +75,7 @@ Show Whole Project checkbox removes that scope; reopening Show Log from Finder
 restores the requested selection. Requests for the repository root show its full
 history. The full upstream folder-history controls and rename-following history
 remain pending.
+
+Push from a single log revision now opens the separate native Push options window
+with that exact hash and the original Push icon. The window builds successfully;
+this specific Log handoff still needs native interaction QA. See PUSH-PARITY.md.

@@ -29,12 +29,14 @@ import TurtleGitCore
     @Published var switchAfterCreation = false
     @Published var canSwitch = true
     @Published var canSign = false
+    @Published var pushAfterCreation = false
     @Published var busy = false
     @Published var error: String?
     @Published var nameConflict = false
     @Published var createdBranch: String?
     var close: () -> Void = {}
     var onCreated: (String) -> Void = { _ in }
+    var onPushTag: (String) -> Void = { _ in }
     var remote: Bool { !isTag && !useHead && chooser.remote }
     private var previousSuggestion = ""
     init(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool) {
@@ -45,6 +47,7 @@ import TurtleGitCore
         createdBranch = nil; previousSuggestion = ""
         useHead = revision == nil
         switchAfterCreation = UserDefaults.standard.bool(forKey: "NewBranchSwitchTo")
+        pushAfterCreation = UserDefaults.standard.bool(forKey: "PushTag")
         busy = true
         Task {
             defer { busy = false }
@@ -66,6 +69,7 @@ import TurtleGitCore
         snapshot.name = snapshot.name.trimmingCharacters(in: .whitespacesAndNewlines)
         let shouldSwitch = !isTag && canSwitch && switchAfterCreation
         if !isTag { UserDefaults.standard.set(switchAfterCreation, forKey: "NewBranchSwitchTo") }
+        else { UserDefaults.standard.set(pushAfterCreation, forKey: "PushTag") }
         busy = true
         Task {
             defer { busy = false }
@@ -81,6 +85,7 @@ import TurtleGitCore
                     catch { self.error = "Branch \(createdBranch) was created, but checkout failed. Resolve the working-tree changes and retry checkout, or close this dialog.\n\n" + error.localizedDescription; return }
                 }
                 close(); onCreated(output)
+                if isTag && pushAfterCreation { onPushTag("refs/tags/" + snapshot.name) }
             } catch ReferenceCreationFailure.nameConflict { nameConflict = true }
             catch { self.error = error.localizedDescription }
         }
@@ -121,7 +126,7 @@ private struct BranchTagDialog: View {
                 Toggle("Force", isOn: $model.options.force)
                 if model.isTag {
                     Toggle("Sign", isOn: $model.options.sign).disabled(!model.canSign)
-                    Toggle("Push", isOn: .constant(false)).disabled(true).help("Tag push options will be available with the native Push dialog port.")
+                    Toggle("Push", isOn: $model.pushAfterCreation)
                 } else if model.canSwitch { Toggle("Switch to new branch", isOn: $model.switchAfterCreation) }
                 Spacer()
             }.padding(8) }.disabled(model.createdBranch != nil)

@@ -23,6 +23,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private var pushWindows: [String: PushWindowController] = [:]
     private var referenceWindows: [String: BranchTagWindowController] = [:]
     private var switchWindows: [String: SwitchWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
@@ -187,7 +188,7 @@ import TurtleGitCore
                     self.openSession(access, action: action, actionPaths: paths); return
                 }
                 self.activate(action, paths: paths)
-                if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+                if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
             }
             controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
             statusWindows[root.path] = controller
@@ -211,12 +212,16 @@ import TurtleGitCore
             let controller = logWindows[root.path] ?? LogWindowController(repository: repository, access: activeAccess)
             controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: root.path) }
             let access = activeAccess
+            controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
             logWindows[root.path] = controller
             controller.model.setPathScope(paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
 
+        case .push:
+            guard let repository else { return }
+            showPush(repository: repository, access: activeAccess)
         case .branch, .tag:
             guard let repository else { return }
             showReference(repository: repository, access: activeAccess, isTag: action == .tag)
@@ -227,6 +232,17 @@ import TurtleGitCore
         default: dialog = action
         }
     }
+    private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil) {
+        let root = repository.root
+        let controller = pushWindows[root.path] ?? PushWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: root.path) }
+        controller.model.onPushed = { [weak self] output in
+            self?.logWindows[root.path]?.model.reload()
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        pushWindows[root.path] = controller; controller.model.load(source: source)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil) {
         let root = repository.root, key = repository.root.path + (isTag ? ":tag" : ":branch")
         let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag)
@@ -236,6 +252,7 @@ import TurtleGitCore
             self?.statusWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
+        controller.model.onPushTag = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         referenceWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

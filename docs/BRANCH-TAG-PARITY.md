@@ -23,7 +23,8 @@ nonempty creates an annotated tag. Sign requires a configured signing key and a
 message. The unchecked Sign option overrides Git's automatic tag signing setting.
 Force permits updating an existing reference, subject to Git's checked-out branch
 protection. Cross-type name collisions ask Continue/Abort before mutation.
-Tag Push is currently disabled, pending the full native Push dialog and tag scope.
+Tag Push opens the native Push window scoped to the newly created full tag ref.
+See PUSH-PARITY.md for its options and remaining differences.
 
 ## Evidence
 
@@ -31,20 +32,21 @@ Four real Git integration tests cover branch descriptions with mixed staged/late
 unstaged changes, lightweight and annotated tags, forced tag replacement,
 unchecked signing configuration, signing-message validation, remote tracking,
 shared branch/tag names, invalid names/revisions and checked-out branch protection.
-The complete Swift suite has 53 passing tests.
+The complete Swift suite has 59 passing tests.
 
 Native QA on the disposable documentation repository created a branch with a
 multiline description, an annotated tag with a multiline message, and a second
 branch with Switch to new branch checked. Git verified each reference and its
 metadata and confirmed HEAD switched to the second branch. Index/worktree patches
 matched byte-for-byte after all three operations. The fixture was returned to main.
-The actual native captures are `site/assets/create-branch.png` and
+A further native check created an annotated tag with Push checked, opened the
+ref-scoped Push dialog, and sent only that tag to a disposable bare remote without
+changing index/worktree patches. The actual native captures are `site/assets/create-branch.png` and
 `site/assets/create-tag.png`.
 
 ## Remaining comparison work
 
 - Full Browse References tree and selection-mode Log, revision history/completion.
-- Tag Push with ref-scoped native Push options and failure recovery.
 - Interactive signing/key prompts and native signing verification.
 - Native remote tracking/force/cross-name warning checks, failed-checkout retry,
   bare repositories, light appearance, keyboard, resizing and accessibility QA.

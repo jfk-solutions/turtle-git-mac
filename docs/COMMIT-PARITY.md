@@ -42,7 +42,7 @@ bypasses checked-file index preparation. These are distinct commit modes.
 
 ## Verification
 
-The Swift suite has 53 tests, including real Git commits exercising both modes,
+The Swift suite has 59 tests, including real Git commits exercising both modes,
 unchecked staged changes, unusual literal filenames, unborn HEAD, staged renames
 and deletions, amend, author and sign-off, later unstaged edits, and hook rejection.
 

@@ -66,7 +66,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGS_CONFIG,Advanced,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_CLONE,Git clone - TortoiseGit,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_GITPROGRESS,Git Command Progress,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_PULLFETCH,Pull/Fetch,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_PUSH,Push,partial-workflow-replacement
+src/Resources/TortoiseProcENG.rc,IDD_PUSH,Push,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SVNDCOMMITTYPE,SVN Commit Type,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_REQUESTPULL,Request pull,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_GITSWITCH,Switch/Checkout,partial-native-replacement

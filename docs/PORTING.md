@@ -46,9 +46,10 @@ require review; a dialog count is not a count of all upstream UI.
 | Log | Separate native three-pane window; graph, refs, message/files/line counts, search/date filters, load more, comparisons and revision actions | Working-tree row, actions column, branch/ref chooser, author search, walk/view controls, statistics, multi-revision file union, remaining context commands; see LOG-PARITY.md |
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
 | Clone / init | Destination picker and Git operation | Branch, recursive submodules, bare repos, advanced options and progress |
-| Fetch / pull / push | Git defaults; pull fast-forward only | Remote/ref pickers, tags, force-with-lease, progress, cancellation, authentication |
+| Fetch / pull | Git defaults; pull fast-forward only | Native upstream dialogs, remote/ref pickers, progress, cancellation, authentication |
+| Push | Native upstream control order, branch/tag scope, remote/URL, force/lease, tags, upstream, recursion, server option; local Git tests and native branch/tag pushes | Full choosers/settings, progress, cancellation, authentication and broader UI QA; see PUSH-PARITY.md |
 | Switch/Checkout | Native branch/tag/commit rows, create/force/merge/tracking/override options, real Git checkout tests | Complete choosers, progress and broader native QA; see SWITCH-PARITY.md |
-| Branch / tag | Native name/revision/options/message controls; descriptions, annotated tags, optional checkout, force and tracking | Full choosers, push, signing prompts and broader native QA; see BRANCH-TAG-PARITY.md |
+| Branch / tag | Native name/revision/options/message controls; descriptions, annotated tags, optional checkout, force and tracking | Full choosers, signing prompts and broader native QA; see BRANCH-TAG-PARITY.md |
 | Merge / rebase | Start operation | Conflict editor, continuation, abort, interactive rebase and commit editing |
 | Stash | Save message and pop latest | List, inspect, apply selected, drop, include untracked, branch from stash |
 | Finder | Original icons, cache badges, complete selection dispatch, scoped Diff/Log | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
@@ -102,7 +103,7 @@ for that configuration. See `DISTRIBUTION.md` for the unresolved runtime, signin
 worktree permissions and license gates. These changes do not narrow the full-port
 objective or establish App Store readiness.
 
-The current Swift package builds and 53 tests pass, including topological graph
+The current Swift package builds and 59 tests pass, including topological graph
 continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 32 original upstream icons. Finder source type-checks
 with application-extension restrictions. The local Xcode bundle build is currently blocked
