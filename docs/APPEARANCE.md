@@ -13,14 +13,14 @@ layout. A single accent color is not a substitute for those distinctions.
 The initial file-status palette follows the [upstream status roles](https://tortoisegit.org/docs/tortoisegit/tgit-dug-wcstatus.html):
 modified blue, added purple, deleted dark red (brighter red in dark mode), conflicts
 red, unchanged/unversioned normal label text, and ignored secondary text. Commit
-paths and Working Tree paths/status use these roles. Icons and status words remain
+paths, Working Tree paths/status and workspace status labels use these roles. Icons and status words remain
 visible, so color is not the only signal. Remote-status-specific colors remain
 pending along with remote checks. Graph lanes and branch/tag labels already use
 multiple colors; the patch view distinguishes additions, removals and hunk headers.
 
 The Rebase port adds five byte-exact original assets for Pick, Skip, Edit, Squash
 and branch/upstream reversal, with provenance hashes. The icon suite renders all
-39 resources through AppKit. The upstream license notice remains in the bundle.
+all recorded resources through AppKit. Rename adds the original menurename artwork. The upstream license notice remains in the bundle.
 
 Actual light/dark Commit and Rebase captures use disposable repositories. Initial
 light/dark rendering and live Settings switching Light → Dark → Light → Follow

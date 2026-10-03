@@ -48,8 +48,11 @@ public final class RepositoryAccessLease {
     }
     deinit { if hasSecurityScope { provider.stopAccessing(url) } }
     public func contains(_ candidate: URL) -> Bool {
-        guard candidate.isFileURL, url.isFileURL else { return false }
-        guard let root = Self.canonicalPath(url), let path = Self.canonicalPath(candidate) else { return false }
+        Self.pathIsContained(candidate, by: url)
+    }
+    static func pathIsContained(_ candidate: URL, by folder: URL) -> Bool {
+        guard candidate.isFileURL, folder.isFileURL else { return false }
+        guard let root = Self.canonicalPath(folder), let path = Self.canonicalPath(candidate) else { return false }
         return path == root || path.hasPrefix(root == "/" ? "/" : root + "/")
     }
     // Foundation's resolvingSymlinksInPath can leave an entire path unchanged when

@@ -36,6 +36,7 @@ import TurtleGitCore
     private var stashWindows: [String: StashWindowController] = [:]
     private var cloneWindow: CloneWindowController?
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
+    private var renameWindows: [String: RenameWindowController] = [:]
     private var adoptionGeneration = 0
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private var timer: Timer?
@@ -43,6 +44,10 @@ import TurtleGitCore
     private var monitoredRoots: [String] = []
     var visibleEntries: [StatusEntry] { entries.filter { showIgnored || $0.state != .ignored } }
     var selectedPaths: [String] { entries.filter { selection.contains($0.id) }.map(\.path) }
+    var canRenameSelection: Bool {
+        let selected = entries.filter { selection.contains($0.id) }
+        return !bare && !busy && selected.count == 1 && ![FileState.untracked, .ignored, .deleted].contains(selected[0].state)
+    }
 
     init() {
         do {
@@ -137,7 +142,9 @@ import TurtleGitCore
                 if let action {
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
                     if action == .diff { showDiff(paths: paths) } else { activate(action, paths: paths) }
-                    if ![RepositoryAction.status, .commit, .log, .diff].contains(action) { workspaceWindow?.makeKeyAndOrderFront(nil) }
+                    // Dedicated dialogs raise their own windows. Only Diff uses
+                    // the workspace output; do not cover a Finder-launched dialog.
+                    if action == .diff { workspaceWindow?.makeKeyAndOrderFront(nil) }
                 }
                 onOpened?()
             } catch { self.error = error.localizedDescription; busy = false }
@@ -196,6 +203,11 @@ import TurtleGitCore
         switch action {
         case .clone: showClone()
         case .initialize: showCreateRepository()
+        case .rename:
+            guard let repository else { return }
+            let selected = paths.isEmpty ? selectedPaths : paths
+            guard selected.count == 1, selected[0] != "." else { error = RenameFailure.source.localizedDescription; return }
+            showRename(repository: repository, access: activeAccess, source: selected[0])
         case .status:
             guard let repository else { return }
             showStatus(repository: repository, access: activeAccess, paths: paths)
@@ -212,6 +224,7 @@ import TurtleGitCore
             let access = controller.model.access
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
             controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+            controller.model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
             controller.model.configureLogPicker = { [weak self] log in
                 log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
                 log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
@@ -326,6 +339,22 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         if fresh { controller.model.prepare() }
     }
+    private func showRename(repository: GitRepository, access: RepositoryAccessLease?, source: String) {
+        let root = repository.root, key = root.path + "/" + source
+        let controller = renameWindows[key] ?? RenameWindowController(repository: repository, access: access, source: source)
+        controller.onClosed = { [weak self] in self?.renameWindows.removeValue(forKey: key) }
+        controller.model.onRenamed = { [weak self] old, new, output in
+            guard let self else { return }
+            self.statusWindows[root.path]?.model.didRename(old, to: new)
+            self.commitWindows[root.path]?.model.didRename(old, to: new)
+            if self.root == root {
+                self.selection = Set(self.selection.map { $0 == old ? new : $0.hasPrefix(old + "/") ? new + $0.dropFirst(old.count) : $0 })
+                self.output = output.isEmpty ? "Renamed \(old) to \(new)." : output; Task { await self.refresh() }
+            }
+        }
+        renameWindows[key] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
         let root = repository.root
         section = .status
@@ -337,7 +366,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller

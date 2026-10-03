@@ -8,7 +8,19 @@ public struct FinderRequest: Sendable {
     public init(action: RepositoryAction, paths: [URL]) {
         self.action = action
         var seen = Set<String>()
-        self.paths = paths.map(\.standardizedFileURL).filter { seen.insert($0.path).inserted }
+        self.paths = paths.map(Self.normalizedSelectionURL).filter { seen.insert($0.path).inserted }
+    }
+    private static func normalizedSelectionURL(_ url: URL) -> URL {
+        guard url.isFileURL, url.path != "/" else { return url.standardizedFileURL }
+        // Foundation may keep /private/tmp for a missing leaf while normalizing
+        // its existing repository root to /tmp. Normalize the existing ancestor
+        // and append missing components. Keep the selected leaf itself literal:
+        // a tracked symlink is a Git path, not a request for its external target.
+        var parent = url.deletingLastPathComponent(), components = [url.lastPathComponent]
+        while parent.path != "/", (try? FileManager.default.attributesOfItem(atPath: parent.path)) == nil {
+            components.append(parent.lastPathComponent); parent.deleteLastPathComponent()
+        }
+        return components.reversed().reduce(parent.standardizedFileURL) { $0.appendingPathComponent($1) }
     }
     public init?(url: URL) {
         guard url.scheme == "turtlegit", url.host == "action",

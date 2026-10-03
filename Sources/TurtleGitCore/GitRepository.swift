@@ -46,7 +46,9 @@ public actor GitRepository {
         // Only remove Git's final LF: spaces and embedded newlines can be part of a path.
         var bytes = result.stdout
         if bytes.last == 10 { bytes.removeLast() }
-        return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true)
+        // FinderRequest and GitRepository normalize file URLs. Git can report
+        // /private/tmp while Foundation spells that same root /tmp on macOS.
+        return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL
     }
     public func isBare() throws -> Bool { try run(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) == "true" }
     public func status() throws -> [StatusEntry] { StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"]).stdout) }

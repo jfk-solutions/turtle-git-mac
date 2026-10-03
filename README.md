@@ -91,6 +91,9 @@ bundle structure; it is not a signed distribution.
 - Finder extension target with status badges, directory status aggregation,
   TurtleGit context submenu, and complete multi-selection URL dispatch. File/folder
   selections scope Diff and Log; Show Whole Project restores unfiltered history.
+- Native Rename dialog with original context-menu artwork, versioned-file menus
+  in Commit/Working Tree and Finder dispatch. Real Git tests preserve mixed changes
+  and reject occupied/outside destinations. [Rename parity](docs/RENAME-PARITY.md).
 - Upstream file and dialog inventories pinned to an exact commit.
 
 These are initial workflows, not full upstream parity. The operation dialogs expose

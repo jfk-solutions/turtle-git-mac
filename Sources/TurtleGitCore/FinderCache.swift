@@ -49,10 +49,19 @@ public struct FinderSnapshot: Codable, Sendable {
         states[root.path] = states[root.path] ?? .normal
         return FinderSnapshot(roots: [root.path], states: states)
     }
+    /// Cached eligibility only. The containing app revalidates tracked paths and
+    /// the working tree before Git mutates anything.
+    public func canRename(_ selection: [URL]) -> Bool {
+        guard selection.count == 1, let path = selection.first?.standardizedFileURL.path,
+              roots.contains(where: { path.hasPrefix($0 + "/") }) else { return false }
+        let versioned: Set<FileState> = [.normal, .modified, .added, .conflicted]
+        if let state = states[path], versioned.contains(state) { return true }
+        return states.contains { $0.key.hasPrefix(path + "/") && versioned.contains($0.value) }
+    }
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize
+    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -75,10 +84,11 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .stashPop: return "Stash pop"
         case .clone: return "Clone…"
         case .initialize: return "Create repository here…"
+        case .rename: return "Rename…"
         }
     }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

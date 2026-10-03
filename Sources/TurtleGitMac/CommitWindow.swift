@@ -165,6 +165,7 @@ import UniformTypeIdentifiers
     var pickRevision: (Bool, @escaping (String) -> Void) -> Void = { _, _ in }
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var onFileLog: (String) -> Void = { _ in }
+    var onRename: (String) -> Void = { _ in }
     var chooseApplication: (String) -> Void = { _ in }
     var confirmCancel: (@escaping () -> Void) -> Void = { _ in }
     private var originalAmendMessage = ""
@@ -246,6 +247,10 @@ import UniformTypeIdentifiers
         }
     }
     var canCommit: Bool { !busy && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    func didRename(_ source: String, to destination: String) {
+        func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
+        checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
+    }
     func reload(paths: [String]? = nil) {
         guard !busy else { return }; busy = true
         let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
@@ -589,7 +594,7 @@ GroupBox("Changes made (double-click on file for diff):") {
             }.width(24)
             TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.path).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
             TableColumn("Extension") { entry in Text((entry.path as NSString).pathExtension) }.width(75)
-            TableColumn("Status") { entry in Text(statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }.width(90)
+            TableColumn("Status") { entry in Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }.width(90)
             TableColumn("Lines added") { entry in Text(statistics[entry.path]?.added.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(80)
             TableColumn("Lines removed") { entry in Text(statistics[entry.path]?.removed.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(95)
         }.contextMenu(forSelectionType: String.self) { ids in
@@ -608,6 +613,9 @@ GroupBox("Changes made (double-click on file for diff):") {
                 Divider()
                 if entry.state != .untracked && entry.state != .ignored {
                     Button { model.onFileLog(entry.path) } label: { CommandLabel(title: "Show log", icon: .log) }
+                    if entry.state != .deleted {
+                        Button { model.onRename(entry.path) } label: { CommandLabel(title: "Rename…", icon: .rename) }
+                    }
                     if let oldPath = entry.originalPath {
                         Button { model.onFileLog(oldPath) } label: { CommandLabel(title: "Show log of old name", icon: .log) }
                     }

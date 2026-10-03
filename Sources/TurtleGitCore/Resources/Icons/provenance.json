@@ -197,6 +197,11 @@
       "asset": "explorer.ico",
       "source": "src/Resources/explorer.ico",
       "sha256": "c8207f528fe28e87d2a2c23ee5a4e53ac4475d4c865faa68c2c6a0c0b86b77c2"
+    },
+    {
+      "asset": "menurename.ico",
+      "source": "src/Resources/menurename.ico",
+      "sha256": "610d64cbfd8b11ea1ccde2f95763cbb3a89c4a65eba9ec01656777f37c1fa97e"
     }
   ]
 }

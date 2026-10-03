@@ -14,12 +14,14 @@ file, and `RepoStatusCommand`, pinned by `upstream.json`.
   supports clean files, although upstream's unmodified checkbox is hidden.
 - Finder file/folder scope and Show Whole Project. Show all staged files includes
   staged files outside that scope; switching it off keeps staged files inside scope.
-- Context commands for Diff, Stage, Unstage, path-filtered Log, Reveal and Copy paths.
+- Context commands for Diff, Stage, Unstage, Rename, path-filtered Log, Reveal and Copy paths.
+  Rename opens the native source/name/browse window; see RENAME-PARITY.md.
   Enter/double-click opens selected-file HEAD-to-working-tree unified comparison.
 - Unified diff export uses the requested scope, independently of out-of-scope staged
   rows and row highlighting. Staged and later unstaged changes are included.
-- Commit forwards the dialog's project/file scope. Stash save/pop and branch Switch
-  currently open the existing operation confirmations; their full dialog ports remain pending.
+- Commit forwards the dialog's project/file scope. Stash save/apply/pop/list and branch Switch
+  open dedicated native windows. Their remaining parity is recorded in STASH-PARITY.md,
+  REFLOG-PARITY.md and SWITCH-PARITY.md.
 - Explicit refresh and completed operations update the file list. Background Finder
   cache polling does not disable status controls or replace the current selection.
 
@@ -41,8 +43,8 @@ cancelled without changing the repository. `site/assets/status.png` shows the ru
 
 - Full GitStatusListCtrl menus: revert, conflict editor, blame, index-flag changes,
   file export/editor/open, submodules, groups/changelists and associated enablement.
-- Full Stash save/apply/pop/list dialogs and conditional menu visibility. Current
-  Stash menu exposes only save/pop. Switch still uses the generic operation dialog.
+- Full conditional Stash/Switch menus and post-operation behavior; the dedicated
+  dialog ports remain partial.
 - Remote status checking, refresh cancellation/progress, F5 shortcut, persisted
   filters/window geometry/column widths, empty-state text and selection restoration.
 - File/folder-specific filter enablement, alternative diff tools and broader

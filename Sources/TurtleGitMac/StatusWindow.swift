@@ -108,6 +108,10 @@ struct StatusRow: Identifiable {
         }
     }
     func commitPaths() -> [String] { filter.wholeProject ? [] : filter.paths }
+    func didRename(_ source: String, to destination: String) {
+        func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
+        selection = Set(selection.map(moved)); filter.paths = filter.paths.map(moved); reload()
+    }
     func reveal(_ ids: Set<String>) { NSWorkspace.shared.activateFileViewerSelecting(files.filter { ids.contains($0.id) }.map { repository.root.appendingPathComponent($0.id) }) }
     func copy(_ ids: Set<String>) {
         let text = files.filter { ids.contains($0.id) }.map(\.id).joined(separator: "\n")
@@ -141,6 +145,9 @@ struct StatusDialog: View {
                 Button { model.diff(ids) } label: { CommandLabel(title: "Diff", icon: .compare) }.disabled(ids.isEmpty)
                 Button { model.stage(ids, staged: true) } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(ids.isEmpty)
                 Button { model.stage(ids, staged: false) } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(ids.isEmpty)
+                if ids.count == 1, let path = ids.first, let row = model.files.first(where: { $0.id == path }), ![FileState.untracked, .ignored, .deleted].contains(row.state) {
+                    Button { model.onAction(.rename, [path]) } label: { CommandLabel(title: "Rename…", icon: .rename) }
+                }
                 Divider()
                 Button { model.onAction(.log, Array(ids)) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
                 Button { model.reveal(ids) } label: { Label("Show in Finder", systemImage: "folder") }.disabled(ids.isEmpty)

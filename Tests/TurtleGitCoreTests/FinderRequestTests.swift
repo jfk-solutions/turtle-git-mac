@@ -24,6 +24,21 @@ final class FinderRequestTests: XCTestCase {
         XCTAssertEqual(request.relativePaths(root: root), ["dir", "other"])
         XCTAssertEqual(FinderRequest(action: .status, paths: [root]).selectedStatusPaths(root: root, entries: entries), Set(entries.map(\.path)))
     }
+    func testDiscoveredRootUsesTheSameMacOSAliasSpellingAsFinderSelection() async throws {
+        let root = URL(fileURLWithPath: "/private/tmp").appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        let discovered = try await repo.discoverRoot()
+        let path = root.appendingPathComponent("file 雪\n.txt")
+        let request = FinderRequest(action: .rename, paths: [path])
+        XCTAssertEqual(discovered.path, root.standardizedFileURL.path)
+        XCTAssertEqual(request.relativePaths(root: discovered), ["file 雪\n.txt"])
+        XCTAssertEqual(request.selectedStatusPaths(root: discovered, entries: [StatusEntry(path: "file 雪\n.txt", originalPath: nil, index: " ", worktree: "M")]), ["file 雪\n.txt"])
+        XCTAssertTrue(RepositoryAccessLease(url: root).contains(request.paths[0]))
+        XCTAssertEqual(FinderRequest(action: .status, paths: [root.appendingPathComponent("deleted/sub/file")]).relativePaths(root: discovered), ["deleted/sub/file"])
+    }
     func testMultiPathHistoryAndDiffStayScoped() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -422,3 +422,11 @@ status colors. Actual native pixels verified readable white path/count text for
 two selected modified files and one selected untracked file.
 `site/assets/commit-file-selection.png` captures this fix. Dark and inactive
 selection checks remain pending. The existing icon test passes for all 39 assets.
+
+## Rename entry point
+
+A single existing versioned row offers Rename with the original upstream artwork.
+The native window and collision → retry workflow were exercised, including a rename
+from Commit that preserved separate staged/worktree contents. Check/selection/scope
+remapping is implemented; its post-close native observation still needs verification.
+See [Rename parity](RENAME-PARITY.md).

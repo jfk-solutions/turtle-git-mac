@@ -41,7 +41,7 @@ import TurtleGitCore
             }
             CommandMenu("TurtleGit") {
                 ForEach(RepositoryAction.allCases.filter { $0 != .clone && $0 != .initialize }) { action in
-                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree))
+                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .rename && !model.canRenameSelection))
                 }
             }
             CommandMenu("Appearance") {
@@ -174,7 +174,7 @@ struct RepositoryWindow: View {
         VStack(spacing: 8) {
             Table(model.visibleEntries, selection: $model.selection) {
                 TableColumn("Status") { entry in
-                    CommandLabel(title: entry.state.rawValue.capitalized, icon: entry.state.icon).foregroundStyle(color(entry.state))
+                    CommandLabel(title: entry.state.rawValue.capitalized, icon: entry.state.icon).foregroundStyle(entry.state.textColor)
                 }.width(min: 120, ideal: 145, max: 180)
                 TableColumn("Staged") { entry in Text(entry.staged ? "✓" : "") }.width(55)
                 TableColumn("File") { entry in Text(entry.path).help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }
@@ -184,6 +184,7 @@ struct RepositoryWindow: View {
                 Button { model.showDiff() } label: { CommandLabel(title: "Diff", icon: .compare) }
                 Button { model.stage() } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(model.selection.isEmpty)
                 Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
+                Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
             }
             HStack {
                 Button("Add / Stage selected") { model.stage() }.disabled(model.selection.isEmpty || model.busy)
@@ -191,14 +192,6 @@ struct RepositoryWindow: View {
                 Spacer()
                 Toggle("Show ignored files", isOn: $model.showIgnored).toggleStyle(.checkbox)
             }.padding(.horizontal, 12)
-        }
-    }
-    func color(_ state: FileState) -> Color {
-        switch state {
-        case .normal, .added: return .green
-        case .modified: return .orange
-        case .deleted, .conflicted: return .red
-        case .ignored, .untracked: return .secondary
         }
     }
 }

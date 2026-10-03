@@ -32,9 +32,14 @@ import TurtleGitCore
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
         let menu = NSMenu(title: "TurtleGit")
         let submenu = NSMenu(title: "TurtleGit")
+        let controller = FIFinderSyncController.default()
+        let selection = controller.selectedItemURLs() ?? []
+        let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
+        submenu.autoenablesItems = false
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize }) {
             let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
             item.image = action.icon.image()
+            if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
             item.target = self; item.representedObject = action.rawValue; submenu.addItem(item)
         }
         let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")

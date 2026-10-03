@@ -58,7 +58,8 @@ require review; a dialog count is not a count of all upstream UI.
 | Stash | Native Save options/warning plus direct Apply/Pop result prompts and Working Tree handoff; Git effects verified | RefLog list/inspection/selected Apply and guarded Drop/Clear now implemented; branch from stash, full progress/post-actions and broader native QA pending; see STASH-PARITY.md |
 | Finder | Original icons, cache badges, complete selection dispatch, scoped Diff/Log | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
 | Settings | Not yet implemented | Git identity, tools, overlays, dialogs, hooks, credentials, networking, localization |
-| Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, remove, rename, ignore, resolve, bisect, clean, export |
+| Rename | Native source/name/browse/OK/Cancel, original artwork, versioned-file menus and guarded Git mv; mixed-file effects verified | Native browse, post-close restoration, submodules, shared-dialog consumers and signed Finder QA; see RENAME-PARITY.md |
+| Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, remove, ignore, resolve, bisect, clean, export |
 | Patch workflows | Not yet implemented | Format/apply patches, am continuation/abort, review, email integration |
 | Advanced repositories | Linked-worktree discovery | Submodule, worktree management, git-svn, LFS, repository browser, reflog |
 | Helper apps | Not yet implemented | Blame, image diff, merge, revision graph, askpass, revision/template tools |
