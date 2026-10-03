@@ -199,7 +199,8 @@ import TurtleGitCore
                 busy = false; onCommitted(output)
                 if action == .recommit {
                     message = ""; createBranch = false; newBranch = ""; amend = false; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
-                    checked = []; selection = []; reload()
+                    checked = []; selection = []; hasLoaded = false
+                    reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
                 } else { close(); if action == .push { onPush() } }
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
