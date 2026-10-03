@@ -126,11 +126,11 @@ struct StatusDialog: View {
             }
             Table(model.visibleFiles.map { StatusRow(file: $0, statistics: model.statistics[$0.id]) }.sorted(using: sortOrder), selection: $model.selection, sortOrder: $sortOrder) {
                 TableColumn("Path", value: \.path) { row in
-                    HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(row.path).lineLimit(1) }
+                    HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(row.path).foregroundStyle(row.file.state.textColor).lineLimit(1) }
                         .help(row.file.entry.originalPath.map { "Renamed from \($0)" } ?? row.path)
                 }.width(min: 250, ideal: 380)
                 TableColumn("Extension", value: \.fileExtension).width(65)
-                TableColumn("Status", value: \.status).width(min: 110, ideal: 155)
+                TableColumn("Status", value: \.status) { row in Text(row.status).foregroundStyle(row.file.state.textColor) }.width(min: 110, ideal: 155)
                 TableColumn("Lines added", value: \.sortAdded) { Text($0.addedText) }.width(80)
                 TableColumn("Lines removed", value: \.sortRemoved) { Text($0.removedText) }.width(90)
                 TableColumn("Modification date", value: \.sortDate) { row in

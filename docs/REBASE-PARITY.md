@@ -1,62 +1,78 @@
 # Rebase parity
 
-Reference: `RebaseDlg.cpp`, `IDD_REBASE` and RebaseCommand at the pinned commit in
-`upstream.json`. This is a backend-first port. The existing generic Rebase prompt
-still runs its old command; the native plan window and Pull/Fetch handoffs have
-not yet been connected to this backend.
+References: `RebaseDlg.cpp`, `IDD_REBASE`, RebaseCommand and GitLogListBase at
+`upstream.json`'s pinned commit; [official Rebase manual and screenshot](https://tortoisegit.org/docs/tortoisegit/tgit-dug-rebase.html).
+The app's Rebase command now opens a separate native window. This is a partial
+port; Fetch/Pull → Rebase handoffs remain disconnected.
+
+## Native layout and controls
+
+The branch/reverse/upstream/browse/onto row sits above the commit action list.
+Commits display newest first and replay oldest first, as upstream documents.
+Pick, Skip, Edit and Squash use the original upstream artwork in action rows and
+context menus. Up/Down reorder one selected commit. The all/unselected action
+menu, Force Rebase and Preserve Merges sit below the list. Add is visibly disabled.
+Changed Files, Commit Message and Progress tabs occupy the resizable lower pane,
+followed by progress, status and Start/Continue, Abort/Cancel and Help controls.
+
+Active sessions recover the stopped and pending commits from Git's persistent
+metadata. They expose Working Tree, Refresh State, Skip, an amend-message field,
+Amend, Continue and Abort. Resolution edits and staging take place in Working Tree
+or an external editor. Start, Skip and Abort have confirmations. Selecting commits
+loads their files/message without invalidating a concurrently loading plan.
+
+Branch/upstream fields are currently editable native combo boxes rather than
+upstream's dropdown-only controls. Browse is a filtered reference list, not the
+complete reference/log browser. The amend field is single-line. Full row menus,
+keyboard action shortcuts, completed-row display, conflict tabs, Edit/Split and
+post-operation controls still need porting and comparison.
 
 ## Backend foundation
 
-A captured plan records the selected branch, upstream and optional onto hashes,
-plus the ordered commits. Pick, Skip (Git drop), Edit and Squash actions can be
-set per commit, and entries can be reordered. Patch-equivalent upstream changes
-are initially skipped unless Force Rebase is selected. Invalid/missing/duplicate
-entries and a first retained Squash are rejected. Start rejects references that
-changed since the plan was loaded. Preserve Merges uses Git's structural rebase
-plan and rejects custom actions/order for now.
+A captured plan records branch, upstream and optional onto hashes and ordered
+commits. Patch-equivalent changes default to Skip unless Force is selected.
+Invalid/missing/duplicate entries, a first retained Squash and stale references
+are rejected. Equal/up-to-date/fast-forward dispositions drive Start enablement;
+Force allows replaying commits on an already current branch. Preserve Merges uses
+Git's structural plan and currently disallows custom actions/order.
 
-Git's sequence editor invokes TurtleGit's own executable with a dedicated
-headless argument. It copies the generated plan into Git's todo file and exits
-before creating windows. The executable path is quoted for Git's editor command;
-commit data is written as data, not executable shell text. Per-command environment
-overrides are isolated to that Git child process. The temporary source plan is
-removed after Git consumes it; Git's own persistent todo remains for recovery.
-
-Start/Continue/Skip/Abort return output, exit status and the current Git rebase
-state. State is read through `rev-parse --git-path`, so linked-worktree metadata
-is isolated from the main worktree. It includes branch/original head/onto,
-current step, pending commands, stopped commit/message and unresolved paths.
-A new repository object can read an existing session and continue it. Edit
-supports amending the current commit with an explicit message. Git's default
-combined squash message is currently accepted without an interactive message UI.
-Autostash is disabled for this engine; a dirty start returns Git's error without
-creating a rebase session or altering staged contents.
+Git invokes TurtleGit's own executable as a headless sequence editor. The temporary
+plan contains data, not executable commit text; the executable path is quoted and
+child environment overrides are isolated. Git retains its persistent todo after
+the temporary source plan is removed. Continue/Skip/Abort return output, exit status
+and state through `rev-parse --git-path`, including linked-worktree isolation.
+The engine supports amending an Edit stop. Squash currently accepts Git's combined
+message without a native message prompt. Autostash is disabled; dirty starts leave
+staged contents intact and report Git's error.
 
 ## Evidence
 
-Eight tests cover the editor entry point, actual rebases through the built app's
-headless editor, pick/skip/reorder, squash messages, edit/amend/continue, true
-conflict state and resolution after reopening, abort restoration, skip after
-conflict, onto, stale references/invalid plans, preserved merge parents, linked
-worktree isolation and dirty-index rejection. The complete Swift suite has 76
-passing tests. These prove the tested backend operations, not native dialog parity.
+Ten Rebase tests cover the headless editor, pick/skip/reorder, squash, Edit/amend/
+Continue, true conflict recovery after reopening, Abort, Skip, onto/stale/invalid
+plans, preserved merge parents, linked worktrees, dirty rejection, disposition/
+fast-forward branch identity and stopped/pending commit metadata. The full suite
+has 78 passing tests.
 
-## Native window and workflow work remaining
+Native QA verified commit detail selection, Skip and Up/Down, and a real Start
+operation: the skipped file was absent, retained commits stayed on the chosen
+branch, upstream was an ancestor, and the worktree was clean. A fresh app recovered
+an existing Edit pause and native Amend changed the real commit message. Computer
+use was interrupted before native Continue could be verified; backend Continue
+completed the disposable session. Native Continue/Skip/Abort and full close/reopen
+interaction remain QA work. Automation also lost window access after closing an
+operation window; a process sample showed the app waiting normally for events.
 
-- Branch/reverse/upstream/browse/onto controls, action commit list, select-all action
-  menu, Up/Down/Add, Force/Preserve options and resizable lower panes.
-- Changed Files, Commit Message and progress/output panes, current commit selection,
-  editable squash/reword messages, Edit/Split commit and row menus/icons.
-- Start/Continue/Skip/Abort confirmations and native conflict-resolution/staging
-  actions; reopen/resume QA and complete post-operation commands.
-- Fetch → Rebase and configured Pull → Fetch/Rebase, fast-forward choices,
-  original upstream tracking/old-upstream detection and preserve-merges behavior.
-- Add commits, split commits, custom structural merge plans, cherry-pick mode,
-  empty commits and patch-equivalence/Force interactions, submodule behavior.
-- Up-to-date/fast-forward/equal reference enablement, stash restoration, hooks,
-  signing/editor prompts, streaming progress/cancellation and recovery failures.
-- Native screenshots, keyboard/resize/light/dark/accessibility comparison, broader
-  Git-version coverage and signed sandbox runtime/editor validation.
+Actual light/dark screenshots are `site/assets/rebase.png` and `rebase-dark.png`.
+These establish the pictured layout, not full behavior or accessibility parity.
 
-The upstream inventory is marked partial backend. No new native Rebase screenshot
-or completed UI claim is made until the actual window has been ported and exercised.
+## Remaining workflows
+
+- Fetch/Pull handoffs, old-upstream detection, fast-forward choices and config defaults.
+- Add/Split, cherry-pick mode, empty commits and custom structural merge plans.
+- Native squash/reword message editing, complete conflict/resolution menus and tabs.
+- Full row targeting/shortcuts, ID/customizable columns, dates and persisted layout.
+- Hooks, signing/editor/authentication prompts, stash restoration, streaming progress,
+  cancellation, failures and signed sandbox/editor validation.
+- Broader native light/dark/contrast, keyboard, resizing and accessibility QA.
+
+Inventory statuses remain partial native; no completed Rebase parity claim is made.

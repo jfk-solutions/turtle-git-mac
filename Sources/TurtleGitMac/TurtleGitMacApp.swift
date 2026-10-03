@@ -4,6 +4,7 @@ import TurtleGitCore
 
 @main struct TurtleGitMacApp: App {
     @StateObject private var model = RepositoryModel()
+    @StateObject private var appearance = AppAppearance()
     init() {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
     }
@@ -11,6 +12,7 @@ import TurtleGitCore
         WindowGroup("TurtleGit for Mac") {
             RepositoryWindow(model: model)
                 .onOpenURL { model.handle($0) }
+                .onAppear { appearance.apply() }
                 #if DEBUG
                 .onAppear {
                     if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
@@ -37,12 +39,18 @@ import TurtleGitCore
                     Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy)
                 }
             }
+            CommandMenu("Appearance") {
+                Picker("Appearance", selection: $appearance.choice) {
+                    ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) }
+                }
+            }
             #if DEBUG
             CommandMenu("Development") {
                 Button("Save Window Screenshot…") { DocumentationCapture.saveWindow() }.keyboardShortcut("7", modifiers: [.command, .shift])
             }
             #endif
         }
+        Settings { AppearanceSettings(appearance: appearance) }
     }
 }
 
@@ -217,7 +225,7 @@ struct OperationDialog: View {
         switch action {
         case .pull: return "Fetch and fast-forward the current branch from its configured upstream. Diverged branches require a separate merge or rebase."
         case .push: return "Push using this repository’s configured remote and refspec. Authentication uses your existing Git and SSH configuration."
-        case .rebase: return "Rebase the current branch onto this revision. This rewrites local commits; conflict continuation and abort dialogs are not available yet."
+        case .rebase: return "Review the branch, upstream and ordered commits in the Rebase window before rewriting history."
         case .merge: return "Merge this revision into the current branch. Git may create a merge commit or leave conflicts for resolution."
         case .clone: return "Choose an empty destination directory. Git will clone the repository into that directory."
         case .stashPop: return "Apply the latest stash and remove it if application succeeds. Conflicts may require manual resolution."

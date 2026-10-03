@@ -28,4 +28,4 @@ with (extension / 'Contents/Info.plist').open('rb') as stream:
     finder = plistlib.load(stream)
 assert finder['NSExtension']['NSExtensionPointIdentifier'] == 'com.apple.FinderSync'
 assert (extension / 'Contents/MacOS' / finder['CFBundleExecutable']).is_file()
-print('App, embedded Finder extension, licenses and all 32 upstream icon resources verified.')
+print(f'App, embedded Finder extension, licenses and all {len(manifest["assets"])} upstream icon resources verified.')

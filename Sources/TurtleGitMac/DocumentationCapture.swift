@@ -28,12 +28,19 @@ import UniformTypeIdentifiers
                 config.ignoreShadowsSingleWindow = true
                 let rendered = try await SCScreenshotManager.captureImage(contentFilter: filter, configuration: config)
                 guard let png = NSBitmapImageRep(cgImage: rendered).representation(using: .png, properties: [:]) else { return }
+                if let path = Bundle.main.object(forInfoDictionaryKey: "TurtleGitDocumentationCapturePath") as? String {
+                    try png.write(to: URL(fileURLWithPath: path), options: .atomic)
+                    return
+                }
                 let panel = NSSavePanel()
                 panel.allowedContentTypes = [.png]
                 panel.nameFieldStringValue = "turtlegit-window.png"
                 panel.prompt = "Save screenshot"
-                guard panel.runModal() == .OK, let url = panel.url else { return }
-                try png.write(to: url, options: .atomic)
+                panel.begin { response in
+                    guard response == .OK, let url = panel.url else { return }
+                    do { try png.write(to: url, options: .atomic) }
+                    catch { NSAlert(error: error).runModal() }
+                }
             } catch { NSAlert(error: error).runModal() }
         }
     }

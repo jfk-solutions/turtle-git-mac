@@ -22,7 +22,8 @@ keyboard behavior, resizing and Git effects have been verified. The file audit i
 | Push | PushDlg, IDD_PUSH, PushCommand and CAppUtils | Native reference/destination/options arrangement; branch/upstream and tag-scoped handoff verified with unchanged index/worktree patches. Basic Manage and cached ref browsers; full choosers/settings, progress, cancellation and authentication pending. See PUSH-PARITY.md. |
 | Fetch | PullFetchDlg, IDD_PULLFETCH, FetchCommand and CAppUtils | Native control arrangement and three-state Tags/Prune; URL branch browse/fetch and configured named-remote fetch verified with unchanged HEAD/index/worktree. Rebase launch, full settings, progress and broader QA pending. See FETCH-PARITY.md. |
 | Pull | PullFetchDlg, IDD_PULLFETCH, PullCommand and CAppUtils | Shared native remote/options window; fast-forward pull preserves unrelated mixed changes, flag enablement and error → Working Tree verified. Interactive rebase, progress and full recovery pending. See PULL-PARITY.md. |
-| Operation confirmation | Per-command dialog sources/resources | Rebase has a tested plan/recovery backend (REBASE-PARITY.md), but its current generic one-field dialog differs from upstream Merge, Rebase, Stash and Clone dialogs. Each needs its own native replacement and workflow/options audit. |
+| Rebase | RebaseDlg, IDD_REBASE, RebaseCommand, GitLogListBase and official manual | Native branch/action/list/lower-tabs arrangement, original icons and light/dark captures. Real Start/Skip and recovered Edit/Amend verified; full recovery QA, advanced controls and Pull/Fetch handoffs pending. See REBASE-PARITY.md. |
+| Operation confirmation | Per-command dialog sources/resources | Current generic prompts differ from upstream Merge, Stash and Clone dialogs. Each needs its own native replacement and workflow/options audit. |
 | Diff | TortoiseMerge and TortoiseUDiff | Monospaced unified patches are available. Side-by-side editor, navigation, syntax/line rendering, binary handling and full editor behavior remain pending. Partial staging is available in the Commit patch window. |
 | Finder menu | ShellExt.cpp, resource shell menu, cache states | Original icons and full path selection dispatch implemented. Menu conditions, command coverage, separators, configuration and signed native appearance still need comparison/QA. Finder placement follows macOS extension rules. |
 
@@ -42,3 +43,13 @@ keyboard behavior, resizing and Git effects have been verified. The file audit i
 
 Screenshots must use disposable repositories. A native UI interaction failure must
 be diagnosed or recorded as unverified, never replaced with an invented mockup.
+
+## Color and documentation references
+
+Compare with the [official manual’s dialog screenshots](https://tortoisegit.org/docs/)
+and pinned resources in both light and dark appearances. Preserve semantic status
+colors, colored command artwork, graph lanes and reference labels; see
+[APPEARANCE.md](APPEARANCE.md). The future user-facing guide follows the upstream
+manual’s organization with Mac-specific screenshots/instructions; see
+[MANUAL-PLAN.md](MANUAL-PLAN.md). These references are part of each dialog audit,
+not a claim that all existing dialogs have passed visual QA.

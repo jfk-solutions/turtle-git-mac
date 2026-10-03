@@ -23,6 +23,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private var rebaseWindows: [String: RebaseWindowController] = [:]
     private var fetchWindows: [String: FetchWindowController] = [:]
     private var pushWindows: [String: PushWindowController] = [:]
     private var referenceWindows: [String: BranchTagWindowController] = [:]
@@ -189,7 +190,7 @@ import TurtleGitCore
                     self.openSession(access, action: action, actionPaths: paths); return
                 }
                 self.activate(action, paths: paths)
-                if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+                if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
             }
             controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
             statusWindows[root.path] = controller
@@ -220,6 +221,9 @@ import TurtleGitCore
             controller.model.setPathScope(paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
 
+        case .rebase:
+            guard let repository else { return }
+            showRebase(repository: repository, access: activeAccess)
         case .pull:
             guard let repository else { return }
             showFetch(repository: repository, access: activeAccess, isPull: true)
@@ -238,6 +242,24 @@ import TurtleGitCore
         case .diff: showDiff()
         default: dialog = action
         }
+    }
+    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil) {
+        let root = repository.root
+        let existing = rebaseWindows[root.path]
+        let controller = existing ?? RebaseWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.rebaseWindows.removeValue(forKey: root.path) }
+        controller.model.onChanged = { [weak self] in
+            self?.logWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
+            if self?.root == root { Task { await self?.refresh() } }
+        }
+        controller.model.onShowStatus = { [weak self] in
+            guard let self else { return }
+            if self.root == root { self.activate(.status) }
+            else if let access { self.openSession(access, action: .status) }
+        }
+        rebaseWindows[root.path] = controller
+        if existing == nil || controller.model.finished || upstream != nil { controller.model.load(upstream: upstream) }
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false) {
         let root = repository.root, key = repository.root.path + (isPull ? ":pull" : ":fetch")

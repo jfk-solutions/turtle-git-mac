@@ -14,7 +14,9 @@ public struct RebaseOptions: Sendable {
     public var preserveMerges = false
     public init() {}
 }
+public enum RebaseDisposition: Sendable { case ready, fastForward, upToDate, equal }
 public struct RebasePlan: Sendable {
+    public let disposition: RebaseDisposition
     public let options: RebaseOptions
     public let branchHash: String
     public let upstreamHash: String
@@ -108,9 +110,32 @@ extension GitRepository {
         let redundant = Set(cherry.split(separator: "\n").compactMap { line -> String? in
             let parts = line.split(separator: " "); return parts.count == 2 && parts[0] == "-" ? String(parts[1]) : nil
         })
-        return RebasePlan(options: options, branchHash: branchHash, upstreamHash: upstreamHash, ontoHash: ontoHash,
+        let disposition: RebaseDisposition
+        if branchHash == ontoHash && branchHash == upstreamHash { disposition = .equal }
+        else if options.onto.isEmpty && !options.force && (try? run(["merge-base", "--is-ancestor", branchHash, upstreamHash])) != nil { disposition = .fastForward }
+        else if options.onto.isEmpty && !options.force && (try? run(["merge-base", "--is-ancestor", upstreamHash, branchHash])) != nil { disposition = .upToDate }
+        else { disposition = .ready }
+        return RebasePlan(disposition: disposition, options: options, branchHash: branchHash, upstreamHash: upstreamHash, ontoHash: ontoHash,
                           branchReference: branchReference, originalCommits: commits.map(\.hash),
                           entries: commits.map { RebaseEntry(commit: $0, action: redundant.contains($0.hash) && !options.force && !options.preserveMerges ? .skip : .pick) })
+    }
+    public func rebaseCommit(_ revision: String) throws -> LogEntry {
+        let hash = try rebaseRevision(revision)
+        let result = try run(["show", "-s", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"])
+        guard let entry = LogEntry.parseHistory(result.stdout).first else { throw RebaseFailure.revision }
+        return entry
+    }
+    public func remainingRebaseEntries() throws -> [RebaseEntry] {
+        let state = try rebaseState()
+        guard state.active else { return [] }
+        var result: [RebaseEntry] = []
+        if !state.stoppedCommit.isEmpty { result.append(RebaseEntry(commit: try rebaseCommit(state.stoppedCommit), action: .edit)) }
+        for line in state.remainingCommands {
+            let fields = line.split(separator: " ", maxSplits: 2)
+            guard fields.count >= 2, let action = RebaseAction(rawValue: String(fields[0])) else { continue }
+            result.append(RebaseEntry(commit: try rebaseCommit(String(fields[1])), action: action))
+        }
+        return result
     }
     public func rebaseTodo(_ plan: RebasePlan) throws -> String {
         let ids = plan.entries.map(\.id)

@@ -162,6 +162,31 @@
       "asset": "status-unversioned.ico",
       "source": "src/Resources/Icons/XPStyle/UnversionedIcon.ico",
       "sha256": "a1119e99ab54899b5889a5ffc92405d21d847c2bb4837b9256e3e431bfa3b97e"
+    },
+    {
+      "asset": "menupick.ico",
+      "source": "src/Resources/menupick.ico",
+      "sha256": "ce3e029bd9374030f7522318adff5ecae8a852d98e93b7537a2b4ffa38697644"
+    },
+    {
+      "asset": "menuskip.ico",
+      "source": "src/Resources/menuskip.ico",
+      "sha256": "457bdc17ba40a2c6e7fdfcf2f184dbd46b0df3b631bd4a6c49783199a490f987"
+    },
+    {
+      "asset": "menuedit.ico",
+      "source": "src/Resources/menuedit.ico",
+      "sha256": "e0a8dd9d0b78074aa1ad761bc5cb68cb8c29fb0b73476de504d55c6df1284c61"
+    },
+    {
+      "asset": "menusquash.ico",
+      "source": "src/Resources/menusquash.ico",
+      "sha256": "4ddd618515e19a64387083dc5a795ee7fb78a1dd6a0823aea9bb810ce1702f30"
+    },
+    {
+      "asset": "switch.ico",
+      "source": "src/Resources/switch.ico",
+      "sha256": "0d130ca9d607379cff62daf542fac21e2ff9a48fdde3dbd45dcc8c008e4017fc"
     }
   ]
 }

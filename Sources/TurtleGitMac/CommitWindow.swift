@@ -265,7 +265,7 @@ struct CommitDialog: View {
                         .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
                 }
             }.width(24)
-            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.path).foregroundStyle(.blue) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
+            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.path).foregroundStyle(entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
             TableColumn("Extension") { entry in Text((entry.path as NSString).pathExtension) }.width(75)
             TableColumn("Status") { entry in Text(statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }.width(90)
             TableColumn("Lines added") { entry in Text(statistics[entry.path]?.added.map(String.init) ?? "–").foregroundStyle(.blue) }.width(80)

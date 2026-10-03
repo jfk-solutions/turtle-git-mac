@@ -112,4 +112,32 @@ final class RebaseTests: XCTestCase {
         let index = try await linked.run(["show", ":" + path]).text; XCTAssertEqual(index, "dirty\n")
     }
 
+    func testDispositionAndFastForwardPreserveBranchIdentity() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var o = options()
+        let divergent = try await repo.rebasePlan(o); XCTAssertEqual(divergent.disposition, .ready)
+        o.upstream = "topic"
+        let equal = try await repo.rebasePlan(o); XCTAssertEqual(equal.disposition, .equal)
+        o.upstream = "main"
+        let current = try await repo.rebasePlan(o); XCTAssertEqual(current.disposition, .upToDate)
+        o.force = true
+        let forced = try await repo.rebasePlan(o); XCTAssertEqual(forced.disposition, .ready)
+        o.force = false; o.branch = "main"; o.upstream = "upstream"
+        let forward = try await repo.rebasePlan(o); XCTAssertEqual(forward.disposition, .fastForward); XCTAssertTrue(forward.entries.isEmpty)
+        let result = try await repo.startRebase(forward, editorExecutable: editor); XCTAssertEqual(result.exitCode, 0, result.output)
+        let branch = try await repo.branch(); XCTAssertEqual(branch, "main")
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, forward.upstreamHash)
+    }
+    func testRecoveredEntriesContainStoppedAndPendingCommitMetadata() async throws {
+        let (root, repo, _) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        let plan = try await repo.rebasePlan(options()); _ = try await repo.startRebase(plan, editorExecutable: editor)
+        let reopened = GitRepository(root: root)
+        let entries = try await reopened.remainingRebaseEntries()
+        XCTAssertEqual(entries.map { $0.commit.subject }, ["first", "second"])
+        XCTAssertEqual(entries.map(\.id), plan.entries.map(\.id))
+        XCTAssertEqual(entries.map(\.action), [.edit, .pick])
+        _ = try await reopened.abortRebase()
+        let empty = try await reopened.remainingRebaseEntries(); XCTAssertTrue(empty.isEmpty)
+    }
+
 }

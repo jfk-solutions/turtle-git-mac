@@ -38,6 +38,9 @@ python3 scripts/create-preview-app.py \
 If a local Xcode installation cannot build bundles, run `swift build` and add
 `--swift-executable .build/debug/TurtleGitMac` to the preview-copy command. It copies
 the Swift Package executable and its icon resource bundle into the temporary app.
+It places resources inside Contents/Resources and signs the temporary app ad hoc
+so its copied signature is valid. Use `--bundle-identifier` and `--name` for isolated
+previews, and `--appearance light` or `--appearance dark` for comparisons.
 This is for documentation QA only; it does not build or validate the Finder extension.
 
 Open the preview app, select the relevant native window and use **Development →
@@ -45,8 +48,14 @@ Save Window Screenshot…** (Command-Shift-7). The helper is Debug-only and requ
 macOS 14.4 or later. It uses ScreenCaptureKit's current-process content API to
 capture the selected app window, without requesting access to other applications
 or displays. Save into `docs/site/assets`. Verify native controls, graph edges,
-column layout and sample-only content before publishing. The current public images
-are `log-messages.png`, `status.png`, `commit.png`, and `staging.png`.
+column layout and sample-only content before publishing. The screenshot build validates the current asset list, including light/dark
+Commit and Rebase examples. Older captures document the pictured earlier UI.
+
+If the native Save panel is unavailable, configure a new output file with
+`--screenshot /tmp/turtlegit-capture.png` when creating the Debug preview. The same
+Command-Shift-7 action captures its own selected window directly to that file.
+Verify the image exists before quitting the preview, then copy the actual capture
+into the website assets. This does not synthesize or alter the window image.
 
 The preview has its own bundle identity and temporary recent-repository store; it
 does not reuse the real app's saved permissions or URL handler.

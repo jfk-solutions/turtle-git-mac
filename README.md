@@ -48,7 +48,13 @@ bundle structure; it is not a signed distribution.
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Working-tree and index diffs, with selectable, monospaced operation output.
-- Native confirmation dialogs for merge, rebase, stash save/pop, clone, and repository creation.
+- Native confirmation dialogs for merge, stash save/pop, clone, and repository creation.
+- Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
+  action icons, branch/upstream/onto controls and lower file/message/progress tabs.
+  Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
+  UI and Pull/Fetch handoffs remain pending. [Rebase parity](docs/REBASE-PARITY.md).
+- Follow System, Light and Dark appearance choices, with upstream file-status colors
+  and original colored artwork. [Appearance audit](docs/APPEARANCE.md).
 - Native New Branch/Tag windows with HEAD/branch/tag/commit selectors, descriptions,
   annotated tag messages, force, remote tracking and optional branch checkout.
   Tag Push opens native Push options scoped to the new tag.
@@ -79,6 +85,9 @@ contents. [Commit parity details](docs/COMMIT-PARITY.md) track remaining options
 no native credential prompt yet. Interactive hooks, Git editors, signing prompts,
 cancellation and live streaming progress are not implemented. Conflicts remain
 visible in the status list, but must currently be resolved with another tool.
+
+The future [user manual](docs/MANUAL-PLAN.md) follows TortoiseGit’s structure and
+terminology with macOS-specific instructions and real TurtleGit screenshots.
 
 ## App Store target
 

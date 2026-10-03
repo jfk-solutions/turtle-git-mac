@@ -7,6 +7,7 @@ public enum MenuIcon: String, CaseIterable {
     case turtle = "TortoiseSmall", status = "menushowchanged", commit = "menucommit", log = "menulog"
     case compare = "menucompare", unifiedDiff = "menudiff", pull = "pull1", push = "Push", fetch = "menuupdate"
     case branch = "menucopy", tag = "tag", checkout = "menuswitch", merge = "menumerge", rebase = "menurebase"
+    case rebasePick = "menupick", rebaseSkip = "menuskip", rebaseEdit = "menuedit", rebaseSquash = "menusquash", reverse = "switch"
     case stash = "menushelve", stashPop = "menuunshelve", clone = "menucheckout", initialize = "menucreaterepos"
     case add = "menuadd", revert = "menurevert", reset = "reset", cherryPick = "cherry-pick", copy = "copy"
     case help = "menuhelp", settings = "menusettings"
@@ -14,7 +15,7 @@ public enum MenuIcon: String, CaseIterable {
     case conflicted = "status-conflict", ignored = "status-ignored", untracked = "status-unversioned"
     public func image(size: CGFloat = 16) -> NSImage? {
         #if SWIFT_PACKAGE
-        let bundle = Bundle.module
+        let bundle = Bundle.main.resourceURL.flatMap { Bundle(url: $0.appendingPathComponent("TurtleGitMac_TurtleGitCore.bundle")) } ?? Bundle.module
         #else
         let bundle = Bundle(for: IconResourceBundle.self)
         #endif
