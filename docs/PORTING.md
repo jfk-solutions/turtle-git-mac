@@ -53,7 +53,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Switch/Checkout | Native branch/tag/commit rows, create/force/merge/tracking/override options, real Git checkout tests | Complete choosers, progress and broader native QA; see SWITCH-PARITY.md |
 | Branch / tag | Native name/revision/options/message controls; descriptions, annotated tags, optional checkout, force and tracking | Full choosers, signing prompts and broader native QA; see BRANCH-TAG-PARITY.md |
 | Merge | Native revision/options/message window; real Git option/conflict tests and native No Commit → staging Commit verified | Message history, full choosers, progress/post-actions and native conflict recovery; see MERGE-PARITY.md |
-| Stash | Native Save message/untracked/all options and warning; separate index/worktree and ignored/untracked cleanup verified | List, inspect, apply selected, drop, branch from stash, progress/post-actions and full native QA; see STASH-PARITY.md |
+| Stash | Native Save options/warning plus direct Apply/Pop result prompts and Working Tree handoff; Git effects verified | List, inspect, selected restoration, drop, branch from stash, full progress/post-actions and broader native QA; see STASH-PARITY.md |
 | Finder | Original icons, cache badges, complete selection dispatch, scoped Diff/Log | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
 | Settings | Not yet implemented | Git identity, tools, overlays, dialogs, hooks, credentials, networking, localization |
 | Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, remove, rename, ignore, resolve, bisect, clean, export |

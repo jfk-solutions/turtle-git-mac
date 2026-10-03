@@ -44,7 +44,7 @@ extension RepositoryAction {
         case .merge: return .merge
         case .rebase: return .rebase
         case .stash: return .stash
-        case .stashPop: return .stashPop
+        case .stashApply, .stashPop: return .stashPop
         case .clone: return .clone
         case .initialize: return .initialize
         }

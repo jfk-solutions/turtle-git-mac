@@ -53,7 +53,9 @@ bundle structure; it is not a signed distribution.
 - Native Stash Save window with an optional message, mutually exclusive include-untracked
   and --all options, and the upstream Abort/Continue warning workflow.
   [Stash parity](docs/STASH-PARITY.md) records remaining work.
-- Native confirmation dialogs for stash pop, clone, and repository creation.
+- Stash Apply/Pop run directly with native progress and success/conflict prompts.
+  Yes opens Working Tree; failed Pop retains its stash for recovery.
+- Native confirmation dialogs for clone and repository creation.
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery

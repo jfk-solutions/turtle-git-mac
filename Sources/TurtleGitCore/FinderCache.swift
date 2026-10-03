@@ -52,7 +52,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashPop, clone, initialize
+    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, clone, initialize
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -69,7 +69,8 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .merge: return "Merge…"
         case .rebase: return "Rebase…"
         case .stash: return "Stash save…"
-        case .stashPop: return "Stash pop…"
+        case .stashApply: return "Stash apply"
+        case .stashPop: return "Stash pop"
         case .clone: return "Clone…"
         case .initialize: return "Create repository here…"
         }
@@ -93,6 +94,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .merge: return ["merge", "--", value]
         case .rebase: return ["rebase", "--", value]
         case .stash: return ["stash", "push", "-m", value]
+        case .stashApply: return ["stash", "apply"]
         case .stashPop: return ["stash", "pop"]
         case .clone: return ["clone", "--", value, "."]
         case .initialize: return ["init"]

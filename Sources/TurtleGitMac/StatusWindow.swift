@@ -163,7 +163,8 @@ struct StatusDialog: View {
                 Button("Save unified diff") { model.diff([], saving: true) }.disabled(model.visibleFiles.isEmpty)
                 Menu("Stash") {
                     Button { model.onAction(.stash, []) } label: { CommandLabel(title: "Stash save…", icon: .stash) }
-                    Button { model.onAction(.stashPop, []) } label: { CommandLabel(title: "Stash pop…", icon: .stashPop) }
+                    Button { model.onAction(.stashApply, []) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }
+                    Button { model.onAction(.stashPop, []) } label: { CommandLabel(title: "Stash pop", icon: .stashPop) }
                 }
                 Button("Commit") { model.onAction(.commit, model.commitPaths()) }
                 Button("Refresh") { model.reload() }.keyboardShortcut("r")

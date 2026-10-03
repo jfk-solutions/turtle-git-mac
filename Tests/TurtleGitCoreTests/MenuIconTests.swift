@@ -15,6 +15,9 @@ final class MenuIconTests: XCTestCase {
             var proposed = rect
             XCTAssertNotNil(image.cgImage(forProposedRect: &proposed, context: nil, hints: nil), icon.rawValue)
         }
-        XCTAssertEqual(Set(RepositoryAction.allCases.map { $0.icon.rawValue }).count, RepositoryAction.allCases.count)
+        // Upstream Apply and Pop share the unshelve artwork.
+        XCTAssertEqual(RepositoryAction.stashApply.icon, RepositoryAction.stashPop.icon)
+        let distinctActions = RepositoryAction.allCases.filter { $0 != .stashApply }
+        XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

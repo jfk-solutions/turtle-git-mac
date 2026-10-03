@@ -78,7 +78,7 @@ struct RepositoryWindow: View {
                             }.buttonStyle(.plain)
                         }
                         Divider()
-                        ForEach([RepositoryAction.pull, .push, .fetch, .branch, .tag, .switchBranch, .merge, .rebase, .stash, .stashPop]) { action in
+                        ForEach([RepositoryAction.pull, .push, .fetch, .branch, .tag, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop]) { action in
                             Button(action.title) { model.activate(action) }.buttonStyle(.plain).padding(6)
                         }
                         Spacer()
