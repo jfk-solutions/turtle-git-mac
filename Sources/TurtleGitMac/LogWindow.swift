@@ -263,7 +263,7 @@ struct RevisionTable: NSViewRepresentable {
             default:
                 let label = NSMutableAttributedString()
                 for reference in entry.references {
-                    let color: NSColor = reference.name.hasPrefix("refs/tags/") ? .systemYellow : reference.name.hasPrefix("refs/remotes/") ? .systemOrange : .systemGreen
+                    let color: NSColor = reference.isCurrent ? .systemRed : reference.name.hasPrefix("refs/tags/") ? .systemYellow : reference.name.hasPrefix("refs/remotes/") ? .systemOrange : .systemGreen
                     label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color.withAlphaComponent(0.3), .font: NSFont.systemFont(ofSize: 11, weight: .medium)]))
                     label.append(NSAttributedString(string: " "))
                 }

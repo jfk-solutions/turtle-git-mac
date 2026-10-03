@@ -2,6 +2,7 @@ import Foundation
 
 public struct RevisionReference: Hashable, Sendable {
     public let name: String
+    public var isCurrent = false
     public var label: String {
         for prefix in ["refs/heads/", "refs/remotes/", "refs/tags/"] where name.hasPrefix(prefix) {
             return String(name.dropFirst(prefix.count))
@@ -151,8 +152,11 @@ extension GitRepository {
             references[hash, default: []].append(RevisionReference(name: fields[i + 2])); i += 3
         }
         let head = try? run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentRef = try? run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
         for index in entries.indices {
-            entries[index].references = references[entries[index].hash] ?? []
+            entries[index].references = (references[entries[index].hash] ?? []).map { value in
+                var reference = value; reference.isCurrent = value.name == currentRef; return reference
+            }
             entries[index].isHead = entries[index].hash == head
         }
         return entries

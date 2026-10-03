@@ -21,7 +21,8 @@ Audited baseline: `7338078f8ddd924b8cddee35f512f2286072136d`.
 - Compact graph before SHA-1/message/author/date; continuous lanes based on real
   parent hashes. Circles mark ordinary commits, squares mark merges/branch points.
   Topological order avoids sorting rows into a misleading graph.
-- HEAD in bold; local branch, remote branch and annotated/lightweight tag labels.
+- HEAD in bold; active branch red, other local branches green, remote branches
+  orange and annotated/lightweight tags yellow.
 - Full selected commit message, hash, author/email, date and parents.
 - Changed paths, extension, action, added/removed counts; binary counts are `–`.
   Root commits and merge first-parent changes are handled explicitly. NUL parsing
@@ -47,7 +48,7 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 | --- | --- |
 | Columns | Actions icons, column chooser/persistence, optional email/committer/bug/SVN columns |
 | Graph | Working-tree pseudo revision, collapse/expand, hidden refs and all merge parent choices |
-| References | Active branch dark-red label, branch/ref chooser, remote ref deletion and tracking menus |
+| References | Branch/ref chooser, remote ref deletion and tracking menus |
 | Search/filter | Author/email/hash/path search modes, jump next/previous, whole-project/folder history, regex and highlighting |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
 | Revision menus | Repository browser, rebase onto selection, edit notes, export, format patch, bisect, squash, ref containment/search |

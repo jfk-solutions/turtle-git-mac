@@ -104,6 +104,7 @@ objective or establish App Store readiness.
 The current Swift package builds and 24 tests pass, including topological graph
 continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 32 original upstream icons. Finder source type-checks
-with application-extension restrictions. The latest Xcode bundle build is blocked
-by a missing CoreSimulator.framework in the local Xcode installation; earlier
-unsigned builds succeeded. Signed Finder appearance remains unverified.
+with application-extension restrictions. The local Xcode bundle build is currently blocked
+by a missing CoreSimulator.framework in the Xcode installation. GitHub's macOS CI
+successfully compiled the app and embedded Finder extension at `c97f030`.
+Signed Finder appearance remains unverified.

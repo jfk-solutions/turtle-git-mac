@@ -54,6 +54,7 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertEqual(initial.email, "history@example.invalid")
         XCTAssertTrue(initial.message.contains("Multiline body\nAnother line"))
         XCTAssertTrue(initial.isHead)
+        XCTAssertEqual(initial.references.filter(\.isCurrent).map(\.name), ["refs/heads/main"])
         let initialFiles = try await repo.files(in: initial)
         XCTAssertEqual(initialFiles.first?.path, weird)
         XCTAssertEqual(initialFiles.first?.added, 2)

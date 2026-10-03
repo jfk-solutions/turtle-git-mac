@@ -112,6 +112,8 @@ upstream binaries or bundled third-party libraries.
 
 ## Screenshots and project website
 
+[Visit the project website](https://jfk-solutions.github.io/turtle-git-mac/).
+
 ![Native Log Messages window with revision graph](docs/site/assets/log-messages.png)
 
 Screenshots use only disposable sample data. The static GitHub Pages source is in

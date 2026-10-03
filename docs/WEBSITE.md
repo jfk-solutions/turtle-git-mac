@@ -1,5 +1,10 @@
 # Project website and screenshots
 
+Published site: https://jfk-solutions.github.io/turtle-git-mac/
+
+The first deployment succeeded on 2026-10-03 after enabling the repository’s
+GitHub Actions publishing source. Repository name: `jfk-solutions/turtle-git-mac`.
+
 The GitHub Pages site is a static page at `docs/site`. Build it with:
 
 ```sh
