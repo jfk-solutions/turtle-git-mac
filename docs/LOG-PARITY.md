@@ -69,3 +69,9 @@ Swift Package resources carry the artwork. AppKit reads the multi-resolution ICO
 and renders 16-point colored menu icons, without template tinting for colored artwork. The monochrome cherry-pick glyph
 uses native template tinting for light/dark contrast. Finder uses
 upstream XPStyle status artwork; signed Finder visual QA remains pending.
+
+Finder file/folder requests now scope history to all selected paths. The native
+Show Whole Project checkbox removes that scope; reopening Show Log from Finder
+restores the requested selection. Requests for the repository root show its full
+history. The full upstream folder-history controls and rename-following history
+remain pending.

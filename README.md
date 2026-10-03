@@ -45,7 +45,8 @@ bundle structure; it is not a signed distribution.
 - Native confirmation dialogs for fetch, pull (fast-forward only), push, branch,
   tag, switch, merge, rebase, stash save/pop, clone, and repository creation.
 - Finder extension target with status badges, directory status aggregation,
-  TurtleGit context submenu, and URL action dispatch.
+  TurtleGit context submenu, and complete multi-selection URL dispatch. File/folder
+  selections scope Diff and Log; Show Whole Project restores unfiltered history.
 - Upstream file and dialog inventories pinned to an exact commit.
 
 These are initial workflows, not full upstream parity. The operation dialogs expose
@@ -80,9 +81,8 @@ Finder Sync controls badge placement and menu insertion; it cannot reproduce
 Explorer's shell extension APIs directly. Badges apply to registered repository
 folders rather than the entire disk. Repositories are cached when opened, and only
 the current repository refreshes every five seconds while the app is running.
-Cached inactive/closed repository statuses can be stale. Multiple selected Finder
-items currently dispatch only the first item. The independent background cache,
-FSEvents invalidation, multi-selection payloads, repository management and conflict
+Cached inactive/closed repository statuses can be stale. Selections spanning repositories are rejected before an operation runs.
+The independent background cache, FSEvents invalidation, repository management and conflict
 with other Finder extensions still need implementation and testing.
 
 ## Complete port tracking

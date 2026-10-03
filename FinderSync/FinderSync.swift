@@ -44,11 +44,11 @@ import TurtleGitCore
     }
     @objc private func openAction(_ sender: NSMenuItem) {
         let controller = FIFinderSyncController.default()
-        guard let path = (controller.selectedItemURLs()?.first ?? controller.targetedURL())?.path,
-              let command = sender.representedObject as? String else { return }
-        var components = URLComponents()
-        components.scheme = "turtlegit"; components.host = "action"
-        components.queryItems = [URLQueryItem(name: "command", value: command), URLQueryItem(name: "path", value: path)]
-        if let url = components.url { NSWorkspace.shared.open(url) }
+        let selection = controller.selectedItemURLs() ?? []
+        let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
+        guard let command = sender.representedObject as? String,
+              let action = RepositoryAction(rawValue: command),
+              let url = FinderRequest(action: action, paths: paths).url else { return }
+        NSWorkspace.shared.open(url)
     }
 }

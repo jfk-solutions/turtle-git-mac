@@ -50,6 +50,8 @@ struct LogCommandRequest: Identifiable {
     @Published var files: [CommitFile] = []
     @Published var selectedFiles = Set<String>()
     @Published var allBranches = false
+    @Published var historyPaths: [String] = []
+    @Published var showWholeProject = true
     @Published var search = ""
     @Published var filterPaths = ""
     @Published var from = Date(timeIntervalSince1970: 0)
@@ -72,10 +74,16 @@ struct LogCommandRequest: Identifiable {
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message
     }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    func setPathScope(_ paths: [String]) {
+        let scope = paths.contains(".") ? [] : paths
+        guard historyPaths != scope || showWholeProject != scope.isEmpty else { return }
+        historyPaths = scope; showWholeProject = scope.isEmpty; reload()
+    }
     func reload(more: Bool = false) {
         if more { limit += 200 } else { limit = 200 }
         generation += 1; let request = generation
         var options = HistoryOptions(); options.allBranches = allBranches; options.search = search; options.limit = limit
+        if !showWholeProject { options.paths = historyPaths }
         if useDates { options.since = Calendar.current.startOfDay(for: from); options.until = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) }
         busy = true
         Task {
@@ -174,6 +182,10 @@ struct LogDialog: View {
                 .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             HStack {
                 Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).onChange(of: model.allBranches) { _ in model.reload() }
+                if !model.historyPaths.isEmpty {
+                    Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).onChange(of: model.showWholeProject) { _ in model.reload() }
+                        .help(model.historyPaths.joined(separator: "\n"))
+                }
                 Spacer()
                 TextField("Filter paths", text: $model.filterPaths).textFieldStyle(.roundedBorder).frame(maxWidth: 430)
             }

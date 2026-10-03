@@ -50,7 +50,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Branch / tag / switch | Name or revision entry | Annotated/signed tags, tracking, orphan branches, force choices, ref browsing |
 | Merge / rebase | Start operation | Conflict editor, continuation, abort, interactive rebase and commit editing |
 | Stash | Save message and pop latest | List, inspect, apply selected, drop, include untracked, branch from stash |
-| Finder | Monitored-root submenu and cache badge source | Signed QA, multi-selection, watched-root management, cache daemon/FSEvents |
+| Finder | Original icons, cache badges, complete selection dispatch, scoped Diff/Log | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
 | Settings | Not yet implemented | Git identity, tools, overlays, dialogs, hooks, credentials, networking, localization |
 | Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, remove, rename, ignore, resolve, bisect, clean, export |
 | Patch workflows | Not yet implemented | Format/apply patches, am continuation/abort, review, email integration |
@@ -101,7 +101,7 @@ for that configuration. See `DISTRIBUTION.md` for the unresolved runtime, signin
 worktree permissions and license gates. These changes do not narrow the full-port
 objective or establish App Store readiness.
 
-The current Swift package builds and 24 tests pass, including topological graph
+The current Swift package builds and 28 tests pass, including topological graph
 continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 32 original upstream icons. Finder source type-checks
 with application-extension restrictions. The local Xcode bundle build is currently blocked
@@ -111,3 +111,14 @@ sandboxed AppStore configurations at `1b66080`. Bundle validation confirmed all
 32 original icons, their hashes and license, the shared framework, and the embedded
 Finder extension in both configurations. The [CI run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/37120088567)
 also passed the 24 Swift tests. Signed Finder appearance remains unverified.
+
+Finder requests now carry all selected paths as repeated URL fields, preserving
+literal filename characters. One security grant must contain every item; each
+item's containing repository is checked before replacing the current session or
+running a command. Mixed and nested repository selections are rejected. Selected
+folders expand to changed rows using path component boundaries. Finder Diff uses
+the requested paths even when no status rows exist, and Log accepts multiple path
+filters with a Show Whole Project checkbox. Native commit selection behavior and
+other upstream shell commands remain pending; committing still includes all staged
+changes. New tests cover URL parsing, legacy requests, malformed input, directory
+selection, literal multi-path history, and clean-file diff isolation.

@@ -16,6 +16,7 @@ public struct HistoryOptions: Sendable {
     public var limit = 200
     public var search = ""
     public var path: String?
+    public var paths: [String] = []
     public var since: Date?
     public var until: Date?
     public init() {}
@@ -142,6 +143,7 @@ extension GitRepository {
         if let until = options.until { args.append("--until=@\(Int(until.timeIntervalSince1970))") }
         args.append("--")
         if let path = options.path, !path.isEmpty { args.append(path) }
+        args += options.paths
         var entries = LogEntry.parseHistory(try run(args).stdout)
         let refs = try run(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).stdout
         let fields = String(decoding: refs, as: UTF8.self).components(separatedBy: "\0")

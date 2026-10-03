@@ -77,27 +77,46 @@ import TurtleGitCore
         do { try accessStore?.remember(lease.url); recentRepositories = accessStore?.repositories ?? [] }
         catch { self.error = "The repository is open, but its permission could not be saved: " + error.localizedDescription }
     }
-    private func openSession(_ lease: RepositoryAccessLease, selected: URL? = nil, action: RepositoryAction? = nil) {
+    private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil) {
         guard !busy else { return }
         busy = true
         Task {
             do {
-                let candidate = try makeRepository(lease.url)
+                let first = selected?.paths.first ?? lease.url
+                var location = first
+                var directory: ObjCBool = false
+                if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
+                    location.deleteLastPathComponent()
+                }
+                let candidate = try makeRepository(location)
                 let resolved = try await candidate.discoverRoot()
                 if GitRuntime.isAppStoreBuild && !lease.contains(resolved) {
                     throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path)
+                }
+                if let selected {
+                    for item in selected.paths {
+                        guard lease.contains(item), item.path == resolved.path || item.path.hasPrefix(resolved.path + "/") else {
+                            throw FinderSelectionFailure.multipleRepositories
+                        }
+                        var location = item
+                        var directory: ObjCBool = false
+                        if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue { location.deleteLastPathComponent() }
+                        let itemRoot = try await makeRepository(location).discoverRoot()
+                        guard itemRoot.standardizedFileURL == resolved.standardizedFileURL else { throw FinderSelectionFailure.multipleRepositories }
+                    }
                 }
                 repository = try makeRepository(resolved); activeAccess = lease; root = resolved
                 selection = []; entries = []; branch = ""
                 section = action == .commit ? .commit : .status
                 output = "Repository: \(resolved.path)"
                 try await reload()
-                if let selected, selected.path.hasPrefix(resolved.path + "/") {
-                    selection = [String(selected.path.dropFirst(resolved.path.count + 1))]
-                }
+                if let selected { selection = selected.selectedStatusPaths(root: resolved, entries: entries) }
                 rememberAccess(lease)
                 busy = false
-                if let action { activate(action) }
+                if let action {
+                    let paths = selected?.relativePaths(root: resolved) ?? []
+                    if action == .diff { showDiff(paths: paths) } else { activate(action, paths: paths) }
+                }
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
@@ -134,8 +153,8 @@ import TurtleGitCore
     }
     func stage() { let paths = selectedPaths; perform { try await $0.stage(paths); return "Staged \(paths.count) file(s)." } }
     func unstage() { let paths = selectedPaths; perform { try await $0.unstage(paths); return "Unstaged \(paths.count) file(s)." } }
-    func showDiff() {
-        let paths = selectedPaths, staged = stagedDiff
+    func showDiff(paths requested: [String]? = nil) {
+        let paths = requested ?? selectedPaths, staged = stagedDiff
         perform { repo in
             if paths.isEmpty { return try await repo.diff(staged: staged) }
             var text = ""
@@ -148,7 +167,7 @@ import TurtleGitCore
         let text = message
         perform { repo in let result = try await repo.commit(message: text); await MainActor.run { self.message = "" }; return result }
     }
-    func activate(_ action: RepositoryAction) {
+    func activate(_ action: RepositoryAction, paths: [String] = []) {
         switch action {
         case .status, .commit: section = action
         case .log:
@@ -156,6 +175,7 @@ import TurtleGitCore
             let controller = logWindows[root.path] ?? LogWindowController(repository: repository, access: activeAccess)
             controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: root.path) }
             logWindows[root.path] = controller
+            controller.model.setPathScope(paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
 
         case .diff: showDiff()
@@ -183,24 +203,21 @@ import TurtleGitCore
         } else { perform { try await $0.run(args).text } }
     }
     func handle(_ url: URL) {
-        guard !busy, url.scheme == "turtlegit", url.host == "action",
-              let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let path = parts.queryItems?.first(where: { $0.name == "path" })?.value,
-              let name = parts.queryItems?.first(where: { $0.name == "command" })?.value,
-              let action = RepositoryAction(rawValue: name) else { return }
+        guard !busy, let request = FinderRequest(url: url) else { return }
+        let action = request.action
         if action == .initialize || action == .clone { activate(action); return }
-        let candidate = URL(fileURLWithPath: path).standardizedFileURL
+        let candidate = request.paths[0]
         // A URL from Finder or another app is a request, not a sandbox permission grant.
-        if let activeAccess, activeAccess.contains(candidate) {
-            openSession(activeAccess, selected: candidate, action: action)
+        if let activeAccess, request.paths.allSatisfy({ activeAccess.contains($0) }) {
+            openSession(activeAccess, selected: request, action: action)
             return
         }
         if let store = accessStore {
             for saved in store.repositories {
                 guard let lease = try? store.acquire(saved.id, requireSecurityScope: GitRuntime.isAppStoreBuild),
-                      lease.contains(candidate) else { continue }
+                      request.paths.allSatisfy({ lease.contains($0) }) else { continue }
                 recentRepositories = store.repositories
-                openSession(lease, selected: candidate, action: action)
+                openSession(lease, selected: request, action: action)
                 return
             }
         }
@@ -210,9 +227,14 @@ import TurtleGitCore
         panel.directoryURL = candidate.hasDirectoryPath ? candidate : candidate.deletingLastPathComponent()
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let lease = RepositoryAccessLease(url: url)
-        guard lease.contains(candidate) else {
-            error = "The selected folder does not contain the requested Finder item."; return
+        guard request.paths.allSatisfy({ lease.contains($0) }) else {
+            error = "The selected folder does not contain every requested Finder item."; return
         }
-        openSession(lease, selected: candidate, action: action)
+        openSession(lease, selected: request, action: action)
     }
+}
+
+private enum FinderSelectionFailure: LocalizedError {
+    case multipleRepositories
+    var errorDescription: String? { "Select files from one repository at a time. The Finder selection spans different repositories." }
 }
