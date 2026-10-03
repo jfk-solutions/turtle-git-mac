@@ -87,8 +87,8 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   search conventions (including wraparound); upstream flashes at a search boundary.
   Added/deleted file partial changes would extend the pinned upstream behavior.
 - Full issue controls and message-history/template behavior; native root/merge/
-  rename amend QA, date Reset and author override combinations. Native new branch,
-  submodule toggle, date Reset, ReCommit and Commit & Push execution QA remains.
+  rename amend QA and broader date/author combinations. Native new branch,
+  submodule toggle, ReCommit and Commit & Push execution QA remains.
 - Message history, templates, completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
@@ -157,8 +157,8 @@ window selects the upstream parent-based mode.
 Amend exchanges the draft and amendment messages on toggle rather than discarding
 the draft. Set author date initializes from HEAD's author timestamp during amend;
 Reset requests the current author date. Author override initializes from HEAD's
-identity in amend mode. The native date picker currently exposes minute precision;
-matching the upstream seconds field remains open. The Amend checkbox is disabled
+identity in amend mode. Separate native date/time fields now expose seconds.
+The Amend checkbox is disabled
 for unborn HEAD, and an empty checked parent-based selection needs Message only.
 
 Five real tests cover selective amendment, unchecked index/worktree preservation,
@@ -169,8 +169,8 @@ amendment. The final checkbox-mode comparison control was checked as enabled for
 a revision with a parent; both views were exercised after that enablement fix.
 Git verified its parent hash, committed file contents and preserved mixed edits.
 `site/assets/commit-amend.png` captures that actual checked plan before committing.
-Native root/merge/rename, reset/override combinations and action-menu execution
-remain unverified; this is still a partial Commit port.
+Native root/merge/rename and action-menu execution remain unverified; this is still
+a partial Commit port. Specific date/override checks are recorded below.
 
 ## View Patch and repository mode preferences
 
@@ -197,3 +197,23 @@ working-tree edits against HEAD, confirmed the read-only context menu, and switc
 staging without modifying the index. The actual attached window is captured in
 site/assets/commit-view-patch.png. Highlight changes, amend switching while open,
 non-UTF-8/binary preview and multi-display behavior remain to be verified natively.
+
+## Native author date/time controls
+
+Commit now uses separate AppKit text-and-stepper date and time fields, matching
+IDC_COMMIT_DATEPICKER and IDC_COMMIT_TIMEPICKER. The time field includes seconds;
+labels identify both controls for accessibility. Reset appears only with Amend
+and Set author date, and disables both fields while requesting Git --date=now.
+The controls also honor the Commit window's disabled state during operations.
+
+Native QA used a disposable repository with an author timestamp of
+2021-02-03T04:05:37+01:00. Amend loaded that exact local time. Editing its seconds
+from 37 to 38 and entering an override identity produced an actual commit with
+Git timestamp 1612321538 and the specified author. Date components and the original
+parent were preserved. A second native amendment with Reset selected stored the
+current author timestamp, preserved the author and parent, and left a clean index
+and worktree. site/assets/commit-author-date.png is the actual pre-commit window.
+The existing real Git date/message-only/reset integration test also passes.
+
+Broader locale, time-zone/DST and date-component editing checks remain pending;
+these two native workflows do not establish every date/author combination.

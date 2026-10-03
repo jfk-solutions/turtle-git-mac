@@ -354,7 +354,8 @@ GroupBox("Message:") {
                     HStack {
                         Toggle("Set author date", isOn: $model.setAuthorDate).toggleStyle(.checkbox).frame(width: 170, alignment: .leading)
                         if model.setAuthorDate {
-                            DatePicker("", selection: $model.authorDate, displayedComponents: [.date, .hourAndMinute]).labelsHidden().disabled(model.amend && model.resetAuthorDate)
+                            CommitDatePicker(selection: $model.authorDate, time: false, enabled: !(model.amend && model.resetAuthorDate)).frame(width: 130, height: 24)
+                            CommitDatePicker(selection: $model.authorDate, time: true, enabled: !(model.amend && model.resetAuthorDate)).frame(width: 115, height: 24)
                             if model.amend { Toggle("Reset", isOn: $model.resetAuthorDate).toggleStyle(.checkbox) }
                         }
                         Spacer()
@@ -433,6 +434,35 @@ GroupBox("Changes made (double-click on file for diff):") {
         } primaryAction: { ids in selection.wrappedValue = ids; model.diff(paths: ids, staged: staged) }
     }
     func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }
+}
+
+/// Upstream has separate date and time fields, including seconds.
+private struct CommitDatePicker: NSViewRepresentable {
+    @Binding var selection: Date
+    @Environment(\.isEnabled) private var environmentEnabled
+    let time: Bool
+    let enabled: Bool
+    func makeCoordinator() -> Coordinator { Coordinator(selection: $selection) }
+    func makeNSView(context: Context) -> NSDatePicker {
+        let picker = NSDatePicker()
+        picker.datePickerStyle = .textFieldAndStepper
+        picker.datePickerMode = .single
+        picker.datePickerElements = time ? .hourMinuteSecond : .yearMonthDay
+        picker.target = context.coordinator
+        picker.action = #selector(Coordinator.changed(_:))
+        picker.setAccessibilityLabel(time ? "Author time" : "Author date")
+        return picker
+    }
+    func updateNSView(_ picker: NSDatePicker, context: Context) {
+        context.coordinator.selection = $selection
+        if picker.dateValue != selection { picker.dateValue = selection }
+        picker.isEnabled = enabled && environmentEnabled
+    }
+    final class Coordinator: NSObject {
+        var selection: Binding<Date>
+        init(selection: Binding<Date>) { self.selection = selection }
+        @objc func changed(_ sender: NSDatePicker) { selection.wrappedValue = sender.dateValue }
+    }
 }
 
 /// Preserve TortoiseGit's three-state staging checkbox in the same file list.
