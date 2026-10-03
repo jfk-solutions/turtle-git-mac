@@ -48,7 +48,9 @@ bundle structure; it is not a signed distribution.
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Working-tree and index diffs, with selectable, monospaced operation output.
-- Native confirmation dialogs for merge, stash save/pop, clone, and repository creation.
+- Native Merge window with branch/tag/commit selection, squash, fast-forward, No Commit,
+  message summaries, strategy controls and custom messages. See [Merge parity](docs/MERGE-PARITY.md).
+- Native confirmation dialogs for stash save/pop, clone, and repository creation.
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery

@@ -52,7 +52,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Push | Native upstream control order, branch/tag scope, remote/URL, force/lease, tags, upstream, recursion, server option; local Git tests and native branch/tag pushes | Full choosers/settings, progress, cancellation, authentication and broader UI QA; see PUSH-PARITY.md |
 | Switch/Checkout | Native branch/tag/commit rows, create/force/merge/tracking/override options, real Git checkout tests | Complete choosers, progress and broader native QA; see SWITCH-PARITY.md |
 | Branch / tag | Native name/revision/options/message controls; descriptions, annotated tags, optional checkout, force and tracking | Full choosers, signing prompts and broader native QA; see BRANCH-TAG-PARITY.md |
-| Merge / rebase | Start operation | Conflict editor, continuation, abort, interactive rebase and commit editing |
+| Merge | Native revision/options/message window; real Git option/conflict tests and native No Commit → staging Commit verified | Message history, full choosers, progress/post-actions and native conflict recovery; see MERGE-PARITY.md |
 | Stash | Save message and pop latest | List, inspect, apply selected, drop, include untracked, branch from stash |
 | Finder | Original icons, cache badges, complete selection dispatch, scoped Diff/Log | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
 | Settings | Not yet implemented | Git identity, tools, overlays, dialogs, hooks, credentials, networking, localization |

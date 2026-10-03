@@ -29,6 +29,7 @@ import TurtleGitCore
     private var referenceWindows: [String: BranchTagWindowController] = [:]
     private var switchWindows: [String: SwitchWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
+    private var mergeWindows: [String: MergeWindowController] = [:]
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
     private var monitoredRoots: [String] = []
@@ -221,6 +222,9 @@ import TurtleGitCore
             guard let repository else { return }
             showLog(repository: repository, access: activeAccess, paths: paths)
 
+        case .merge:
+            guard let repository else { return }
+            showMerge(repository: repository, access: activeAccess)
         case .rebase:
             guard let repository else { return }
             showRebase(repository: repository, access: activeAccess)
@@ -255,6 +259,24 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
+    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?) {
+        let root = repository.root
+        let controller = mergeWindows[root.path] ?? MergeWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: root.path) }
+        controller.model.onChanged = { [weak self] output in
+            self?.statusWindows[root.path]?.model.reload(); self?.logWindows[root.path]?.model.reload()
+            self?.commitWindows[root.path]?.model.reload()
+            guard let self, self.root == root else { return }
+            self.output = output; Task { await self.refresh() }
+        }
+        controller.model.configureLogPicker = { [weak self] log in
+            log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+            log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
+            log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+        }
+        mergeWindows[root.path] = controller; controller.model.load()
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false) {
         let root = repository.root
         let existing = rebaseWindows[root.path]
