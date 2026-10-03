@@ -1,20 +1,54 @@
 import AppKit
 import SwiftUI
 import TurtleGitCore
+import UniformTypeIdentifiers
+
+@MainActor private final class PatchNSWindow: NSWindow {
+    weak var patchText: NSTextView?
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        if modifiers == .command, event.charactersIgnoringModifiers == "f" {
+            find(.showFindInterface); return true
+        }
+        if modifiers == .command || modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "g" {
+            find(modifiers.contains(.shift) ? .previousMatch : .nextMatch); return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+    func find(_ action: NSTextFinder.Action) {
+        guard let patchText else { return }
+        if action == .showFindInterface, patchText.selectedRange().length > 0 {
+            let selection = NSMenuItem(); selection.tag = NSTextFinder.Action.setSearchString.rawValue
+            patchText.performTextFinderAction(selection)
+        }
+        let sender = NSMenuItem(); sender.tag = action.rawValue
+        patchText.performTextFinderAction(sender)
+    }
+    override func cancelOperation(_ sender: Any?) {
+        if patchText?.enclosingScrollView?.isFindBarVisible == true {
+            find(.hideFindInterface); makeFirstResponder(patchText)
+        } else { close() }
+    }
+}
 
 @MainActor final class PatchWindowController: NSWindowController, NSWindowDelegate {
     let model: PatchWindowModel
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = PatchWindowModel(repository: repository, access: access)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 760),
+        let savedWidth = UserDefaults.standard.double(forKey: "PartialPatchWindowWidth")
+        let width = savedWidth >= 460 && savedWidth <= 4000 ? savedWidth : 600
+        let window = PatchNSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 760),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.minSize = NSSize(width: 460, height: 500); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: PatchDialog(model: model))
         super.init(window: window); window.delegate = self
-        window.setContentSize(NSSize(width: 600, height: 760))
+        window.setContentSize(NSSize(width: width, height: 760))
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        if let window { UserDefaults.standard.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
+        onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -93,11 +127,13 @@ struct PatchTextView: NSViewRepresentable {
         text.isEditable = false; text.isSelectable = true; text.delegate = context.coordinator
         text.coordinator = context.coordinator
         text.isRichText = false; text.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        text.usesFindBar = true; text.isIncrementalSearchingEnabled = true
         text.isHorizontallyResizable = true; text.isVerticallyResizable = true
         text.autoresizingMask = [.width]
         text.textContainer?.widthTracksTextView = false
         text.textContainer?.containerSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
+        scroll.findBarPosition = .belowContent
         scroll.autohidesScrollers = true; scroll.borderType = .bezelBorder; scroll.documentView = text
         return scroll
     }
@@ -133,6 +169,22 @@ struct PatchTextView: NSViewRepresentable {
     }
     final class PatchText: NSTextView {
         weak var coordinator: Coordinator?
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow(); (window as? PatchNSWindow)?.patchText = self
+        }
+        override func cancelOperation(_ sender: Any?) { window?.cancelOperation(sender) }
+        @objc func savePatch(_ sender: Any?) {
+            guard let window, let model = coordinator?.model else { return }
+            let snapshot = model.document.text
+            let panel = NSSavePanel(); panel.nameFieldStringValue = "changes.patch"
+            panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText]
+            panel.beginSheetModal(for: window) { response in
+                guard response == .OK, let url = panel.url else { return }
+                do { try Data(snapshot.utf8).write(to: url, options: .atomic) }
+                catch { model.error = error.localizedDescription }
+            }
+        }
+        @objc func showFind(_ sender: Any?) { (window as? PatchNSWindow)?.find(.showFindInterface) }
         override func menu(for event: NSEvent) -> NSMenu? {
             guard let coordinator else { return super.menu(for: event) }
             if selectedRange().length == 0 {
@@ -140,6 +192,9 @@ struct PatchTextView: NSViewRepresentable {
                 setSelectedRange(NSRange(location: location, length: 0))
             }
             let menu = NSMenu()
+            let save = NSMenuItem(title: "Save As…", action: #selector(savePatch(_:)), keyEquivalent: "")
+            save.target = self; save.image = MenuIcon.unifiedDiff.image(); menu.addItem(save)
+            menu.addItem(.separator())
             for (title, selector, enabled) in [("selected hunks", #selector(Coordinator.hunks(_:)), coordinator.model.canApplyHunks), ("selected lines", #selector(Coordinator.lines(_:)), coordinator.model.canApplyLines)] {
                 let item = NSMenuItem(title: (coordinator.model.staged ? "Unstage " : "Stage ") + title, action: selector, keyEquivalent: "")
                 item.target = coordinator; item.image = (coordinator.model.staged ? MenuIcon.revert : .add).image(); item.isEnabled = enabled; menu.addItem(item)
@@ -148,6 +203,8 @@ struct PatchTextView: NSViewRepresentable {
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
             copy.target = self; copy.image = MenuIcon.copy.image(); menu.addItem(copy)
             menu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: ""))
+            let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
+            find.target = self; menu.addItem(find)
             return menu
         }
     }

@@ -26,6 +26,11 @@ bypasses checked-file index preparation. These are distinct commit modes.
   selection of individual lines or hunks, and original icons in its context menu.
   Applying a selection changes the index and preserves working-tree contents.
   A stale patch is rejected before applying; disabling staging closes the patch window.
+- Bottom Find bar with selection-seeded search, next/previous and native search
+  options; Command-F and Command-G / Shift-Command-G shortcuts. Escape hides Find
+  first, then closes the patch. Save As exports the displayed patch through the
+  native save panel. Patch width is saved; buttons switch to Hide Staging/Unstaging
+  while the corresponding patch window is open.
 - Staging mode commits the entire index, including changes outside the displayed
   scope. Later unstaged edits remain on disk; partial staging prepared by another
   tool is preserved.
@@ -58,20 +63,29 @@ window to the right of Commit. The native attached window now follows that layou
 and tracks the parent's movement and height. Native UI checks staged one added
 line, staged a separate hunk, and unstaged the first line while retaining the
 second hunk and an unrelated staged file. Working-tree edits remained unchanged.
-`site/assets/partial-staging.png` captures both actual native windows.
+`site/assets/partial-staging.png` captures both actual native windows and Find.
+The native Find bar was seeded from selected text, returned five matches for
+Preview, and was dismissed with Escape without closing the patch. Next/Previous
+shortcuts were exercised. A second Escape closed the patch and restored the button
+labels. Native Save As output matched the current Git diff byte-for-byte. The
+closed window wrote its width preference, which is read on reopening.
 
 Integration tests cover line and hunk staging/unstaging, adjusting offsets across
 multiple hunks, unusual filenames, and rejection of stale diffs. Partial operations
-currently support ordinary tracked UTF-8 text files. Unsupported new, deleted,
-renamed, binary, mode-changing and non-UTF-8 files require whole-file staging.
+currently support ordinary modified UTF-8 text files. The pinned upstream
+`StagingOperations::FindHunkEndGivenHunkStartAndCounts` explicitly limits partial
+staging to modified files and excludes added/deleted files. Those files use
+whole-file staging in this port too. Renamed, binary, mode-changing and non-UTF-8
+files also currently require whole-file staging; their behavior still needs audit.
 Enabling staging support itself retains the same file list and switches its
 checkbox semantics. Staged files remain visible outside Finder-requested scope.
 
 ## Remaining upstream behavior
 
-- Partial changes for new/deleted/renamed/binary/mode-changing files and other
-  encodings; broader mixed-stage QA, patch search, keyboard shortcuts and saved
-  patch width, upstream show/hide button labels, and multi-display placement.
+- Audit partial changes for renamed/binary/mode-changing files and other encodings;
+  broader mixed-stage QA and multi-display placement. Native Find follows macOS
+  search conventions (including wraparound); upstream flashes at a search boundary.
+  Added/deleted file partial changes would extend the pinned upstream behavior.
 - Author date and committer date controls, new branch, amend diff to previous
   commit, explicit message-only checkbox, commit/push/recommit split button.
 - Message history, templates, completion, spelling, issue IDs and tracker plugins.

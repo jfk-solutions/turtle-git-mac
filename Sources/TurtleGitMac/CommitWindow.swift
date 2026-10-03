@@ -22,12 +22,14 @@ import TurtleGitCore
     func windowWillClose(_ notification: Notification) { partial?.close(); partial = nil; onClosed() }
     private func showPartial(staged: Bool) {
         guard let window else { return }
+        if partial != nil, model.partialMode == staged { partial?.close(); return }
         let controller = partial ?? PatchWindowController(repository: model.repository, access: model.access)
         partial = controller
-        controller.onClosed = { [weak self] in self?.partial = nil }
+        controller.onClosed = { [weak self] in self?.partial = nil; self?.model.partialMode = nil }
         controller.model.onApplying = { [weak model] busy in model?.busy = busy }
         controller.model.onApplied = { [weak model] in model?.reload() }
         controller.model.staged = staged
+        model.partialMode = staged
         controller.window?.title = staged ? "Partial Unstaging – HEAD → Index" : "Partial Staging – Index → Working tree"
         if let patchWindow = controller.window, patchWindow.parent == nil { window.addChildWindow(patchWindow, ordered: .above) }
         if let child = controller.window, let visible = window.screen?.visibleFrame,
@@ -60,6 +62,7 @@ import TurtleGitCore
     @Published var stagedStatistics: [String: CommitFile] = [:]
     @Published var unstagedStatistics: [String: CommitFile] = [:]
     @Published var stagingEnabled = false
+    @Published var partialMode: Bool?
     @Published var stagedDiff = true
     private var hasLoaded = false
     @Published var statistics: [String: CommitFile] = [:]
@@ -227,8 +230,8 @@ struct CommitDialog: View {
                 HStack {
                     Button("Stage selected") { model.moveToStage(model.selection, staged: true) }.disabled(model.selection.isEmpty)
                     Button("Unstage selected") { model.moveToStage(model.selection, staged: false) }.disabled(model.selection.isEmpty)
-                    Button("Partial Staging »") { model.showPartial(false) }
-                    Button("Partial Unstaging »") { model.showPartial(true) }
+                    Button(model.partialMode == false ? "Hide Staging «" : "Partial Staging »") { model.showPartial(false) }
+                    Button(model.partialMode == true ? "Hide Unstaging «" : "Partial Unstaging »") { model.showPartial(true) }
                     Toggle("Staged diff", isOn: $model.stagedDiff).toggleStyle(.checkbox)
                     Spacer(); Text("A mixed checkbox means the file has both staged and unstaged changes.").font(.caption).foregroundStyle(.secondary)
                 }
