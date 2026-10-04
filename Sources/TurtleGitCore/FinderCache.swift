@@ -86,7 +86,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs
+    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -116,6 +116,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .ignoreMask: return "Ignore by extension"
         case .ignoreDelete: return "Delete and add to ignore list"
         case .ignoreDeleteMask: return "Delete and ignore by extension"
+        case .reset: return "Reset…"
         case .resolve: return "Resolve…"
         case .resolveCurrent: return "Resolved"
         case .resolveMine: return "Resolve conflict using ‘mine’"

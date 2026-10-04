@@ -55,6 +55,7 @@ extension RepositoryAction {
         case .remove, .removeKeep: return .remove
         case .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask: return .ignore
         case .resolve, .resolveCurrent, .resolveMine, .resolveTheirs: return .resolve
+        case .reset: return .reset
         }
     }
 }

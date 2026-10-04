@@ -35,6 +35,8 @@ Audited baseline: `7338078f8ddd924b8cddee35f512f2286072136d`.
 - Branch and lightweight tag creation at a selected hash, detached checkout,
   soft/mixed/hard reset, revert without committing, and single-parent cherry-pick.
   Each operation opens a native dialog capturing the exact selected revision.
+  Reset now uses the full revision/type window; see [Reset parity](RESET-PARITY.md)
+  for Git effects, native Mixed checks and remaining chooser/progress work.
 - Original upstream colored command icons in revision and changed-file menus.
 
 Tests cover graph continuity at merges and branch points, octopus/disconnected

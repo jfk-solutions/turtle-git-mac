@@ -77,7 +77,7 @@ src/Resources/TortoiseProcENG.rc,IDD_MERGE,Merge,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_START,First Start Wizard - TortoiseGit,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCOLORS_1,Colors 1,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCOLORS_3,Colors 3,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_RESET,Reset,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_RESET,Reset,partial
 src/Resources/TortoiseProcENG.rc,IDD_REBASE,Rebase,partial-native
 src/Resources/TortoiseProcENG.rc,IDD_RESOLVE_CONFLICT,Conflict,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_REFLOG,RefLog,partial

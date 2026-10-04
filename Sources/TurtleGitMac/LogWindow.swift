@@ -87,6 +87,7 @@ struct LogCommandRequest: Identifiable {
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
+    var onReset: (String) -> Void = { _ in }
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
     var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
@@ -145,11 +146,12 @@ struct LogCommandRequest: Identifiable {
         if command == .branch || command == .tag { onCreateReference(command == .tag, revision.hash); return }
         if command == .push { onPush(revision.hash); return }
         if command == .checkout { onCheckout(revision.hash); return }
+        if command == .reset { onReset(revision.hash); return }
         commandRequest = LogCommandRequest(command: command, revision: revision)
     }
-    func execute(_ request: LogCommandRequest, value: String, resetMode: String) {
-        if bare && ([LogRevisionCommand.checkout, .cherryPick, .revert].contains(request.command) || (request.command == .reset && resetMode != "soft")) {
-            error = "This operation requires a working tree. A bare repository supports only Soft reset."; return
+    func execute(_ request: LogCommandRequest, value: String) {
+        if bare && [LogRevisionCommand.checkout, .cherryPick, .revert].contains(request.command) {
+            error = "This operation requires a working tree."; return
         }
         let hash = request.revision.hash
         var args: [String]
@@ -158,7 +160,7 @@ struct LogCommandRequest: Identifiable {
         case .tag: commandRequest = nil; onCreateReference(true, hash); return
         case .push: commandRequest = nil; onPush(hash); return
         case .checkout: commandRequest = nil; onCheckout(hash); return
-        case .reset: args = ["reset", "--" + resetMode, hash, "--"]
+        case .reset: commandRequest = nil; onReset(hash); return
         case .cherryPick: args = ["cherry-pick", hash]
         case .revert: args = ["revert", "--no-commit", hash]
         }
@@ -421,7 +423,6 @@ struct LogRevisionDialog: View {
     @ObservedObject var model: LogWindowModel
     let request: LogCommandRequest
     @State private var value = ""
-    @State private var resetMode = "mixed"
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(request.command.rawValue.replacingOccurrences(of: "…", with: "")).font(.title2)
@@ -431,17 +432,7 @@ struct LogRevisionDialog: View {
             if request.command == .branch || request.command == .tag {
                 TextField(request.command == .branch ? "Branch name" : "Tag name", text: $value).textFieldStyle(.roundedBorder)
             }
-            if request.command == .reset {
-                Picker("Reset type:", selection: $resetMode) {
-                    Text(model.bare ? "Soft — move branch only" : "Soft — keep index and working tree").tag("soft")
-                    if !model.bare {
-                        Text("Mixed — reset index, keep working tree").tag("mixed")
-                        Text("Hard — reset index and working tree").tag("hard")
-                    }
-                }.pickerStyle(.radioGroup)
-                Text(resetMode == "hard" ? "Hard reset discards tracked changes in the working tree and index." : "Move the current branch to the selected revision.").foregroundStyle(.secondary)
-
-            } else if request.command == .revert {
+            if request.command == .revert {
                 Text("Apply the reverse changes to the index and working tree without committing. Review and commit them from the Commit dialog.").foregroundStyle(.secondary)
             } else if request.command == .cherryPick {
                 Text("Apply this commit to the current branch. Conflicts may require resolution before continuing.").foregroundStyle(.secondary)
@@ -449,9 +440,9 @@ struct LogRevisionDialog: View {
             HStack {
                 Spacer()
                 Button("Cancel") { model.commandRequest = nil }.keyboardShortcut(.cancelAction)
-                Button("OK") { model.execute(request, value: value, resetMode: resetMode) }.keyboardShortcut(.defaultAction)
+                Button("OK") { model.execute(request, value: value) }.keyboardShortcut(.defaultAction)
                     .disabled((request.command == .branch || request.command == .tag) && value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-        }.padding(20).frame(width: 550).onAppear { if model.bare { resetMode = "soft" } }
+        }.padding(20).frame(width: 550)
     }
 }

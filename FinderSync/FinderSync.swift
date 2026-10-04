@@ -36,7 +36,7 @@ import TurtleGitCore
         let selection = controller.selectedItemURLs() ?? []
         let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
         submenu.autoenablesItems = false
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && !$0.isIgnore && $0.resolveChoice == nil }) {
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .reset && !$0.isIgnore && $0.resolveChoice == nil }) {
             let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
             item.image = action.icon.image()
             if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }

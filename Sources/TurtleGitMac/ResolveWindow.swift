@@ -69,6 +69,7 @@ import TurtleGitCore
     var confirm: (ResolveChoice, [ConflictEntry]) -> Void = { _, _ in }
     var onChanged: (String) -> Void = { _ in }
     var onFinished: (Int) -> Void = { _ in }
+    var onSubmoduleReset: (GitRepository, String, @escaping () -> Void) -> Void = { _, _, _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?) {
         self.repository = repository; self.access = access; self.paths = paths; self.quick = quick
     }
@@ -105,6 +106,13 @@ import TurtleGitCore
                 do {
                     let output = try await repository.resolveConflicts(selected, using: choice)
                     onChanged(output); onFinished(selected.count)
+                } catch ResolveFailure.submoduleCheckout(let path) {
+                    do {
+                        guard let entry = selected.first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+                        let (root, revision) = try await repository.submoduleResetTarget(entry, using: choice)
+                        busy = false
+                        onSubmoduleReset(GitRepository(root: root, executable: repository.executable), revision) { [weak self] in self?.apply(selected, using: choice) }
+                    } catch { self.error = error.localizedDescription }
                 } catch { self.error = error.localizedDescription; onChanged(error.localizedDescription) }
             }
         } catch { self.error = error.localizedDescription }

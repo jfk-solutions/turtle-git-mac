@@ -30,8 +30,11 @@ transactional. Errors refresh parent models and retain the normal dialog.
 
 Gitlink sides can update the index when their existing checkout matches the chosen
 commit, or the submodule is uninitialized. A differing initialized checkout is
-rejected with an explanation. This path still requires dedicated testing and the
-full upstream submodule chooser/reset workflow remains unported.
+handled through the native Reset window, after which resolution revalidates and
+resumes. Exact side pointers and mismatch rejection have dedicated tests; a native
+Soft-reset/resolution handoff preserved child index/workfiles and unrelated parent
+changes. The full upstream Base/Mine/Theirs submodule chooser remains unported.
+See RESET-PARITY.md.
 
 Finder exposes normal Resolve when cached conflicts fall within the selection.
 Commit, Working Tree and workspace conflict menus dispatch the side choices.
@@ -39,9 +42,10 @@ Signed Finder activation and full selection/menu conditions remain unverified.
 
 ## Verification
 
-The full suite passed 147 tests. Seven conflict tests cover current, mine/theirs,
+The full suite passed 153 tests. Ten conflict tests cover current, mine/theirs,
 binary, modify/delete, scoped selections, stale snapshots, rebase stage mapping,
-symlinks and Finder scope boundaries. Original icon decoding also passed. The
+symlinks, executable modes, initialized/uninitialized gitlinks and Finder scope
+boundaries including conflicted submodule ownership. Original icon decoding also passed. The
 final native layout and checkbox changes compile successfully.
 
 Native QA in /private/tmp/TurtleGitResolveQA verified two initial checked rows,
@@ -60,7 +64,7 @@ claimed. The actual native capture is site/assets/resolve.png (1560 × 964).
 Full Edit Conflict/three-way merge integration, delete/modify and submodule chooser
 dialogs, upstream status-list menu coverage, drag/drop, temporary merge artifact
 ownership and cleanup, progress cancellation/error continuation, branch identity
-labels, executable modes and gitlink tests, native side-choice execution, stale
+labels, broader native side-choice execution, stale
 refresh/retry, Commit handoff, dark-mode/keyboard/Help QA, parent restoration,
 signed Finder and sandbox runtime remain pending. Double-click currently opens
 Compare with base rather than the full upstream conflict editor. All Resolve

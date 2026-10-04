@@ -103,6 +103,9 @@ bundle structure; it is not a signed distribution.
 - Native Resolve checked list and current/mine/theirs actions with original artwork,
   scoped conflicts and rebase-aware labels. [Resolve parity](docs/RESOLVE-PARITY.md)
   records verification and the remaining conflict editor/submodule work.
+- Dedicated native Reset dialog with Branch/Tag/Commit, Soft/Mixed/Hard and
+  submodule resolution handoff. [Reset parity](docs/RESET-PARITY.md) records the
+  verified Git effects and remaining native/progress work.
 - Upstream file and dialog inventories pinned to an exact commit.
 
 These are initial workflows, not full upstream parity. The operation dialogs expose

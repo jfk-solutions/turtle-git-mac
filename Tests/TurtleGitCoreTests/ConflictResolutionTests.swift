@@ -118,4 +118,92 @@ final class ConflictResolutionTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), expected)
         _ = try await repo.run(["rebase", "--abort"])
     }
+    func testExecutableSideRestoresBlobAndModeWithFileModeEnabled() async throws {
+        for choice in [ResolveChoice.mine, .theirs] {
+            let (root, repo) = try await CommitSelectionTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            _ = try await repo.run(["config", "core.filemode", "true"])
+            let file = root.appendingPathComponent("run.sh")
+            try Data("base\n".utf8).write(to: file); try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+            try await repo.stage(["run.sh"]); _ = try await repo.commit(message: "base")
+            _ = try await repo.run(["checkout", "-b", "side"])
+            try Data("theirs\n".utf8).write(to: file); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
+            try await repo.stage(["run.sh"]); _ = try await repo.commit(message: "theirs executable")
+            _ = try await repo.run(["checkout", "main"])
+            try Data("mine\n".utf8).write(to: file); try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: file.path)
+            try await repo.stage(["run.sh"]); _ = try await repo.commit(message: "mine nonexecutable")
+            do { _ = try await repo.run(["merge", "side"]); XCTFail("Expected conflict") } catch is GitFailure {}
+            let checked = try await repo.conflicts(), stage = checked[0].stages.first { $0.number == choice.rawValue }!
+            XCTAssertEqual(stage.mode, choice == .mine ? "100644" : "100755")
+            _ = try await repo.resolveConflicts(checked, using: choice)
+            let indexed = try await repo.run(["ls-files", "--stage", "--", "run.sh"]).text
+            XCTAssertTrue(indexed.hasPrefix(stage.mode + " " + stage.object + " 0\t"))
+            let mode = try FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as! NSNumber
+            XCTAssertEqual(mode.intValue & 0o111, choice == .mine ? 0 : 0o111)
+            XCTAssertEqual(try String(contentsOf: file), choice == .mine ? "mine\n" : "theirs\n")
+        }
+    }
+    func submoduleFixture(initialized: Bool) async throws -> (URL, URL, GitRepository, GitRepository?, String) {
+        let (root, repo) = try await CommitSelectionTests().fixture()
+        let (source, child) = try await CommitSelectionTests().fixture()
+        let path = "module, 雪"
+        let file = source.appendingPathComponent("file.txt")
+        try Data("base\n".utf8).write(to: file); try await child.stage(["file.txt"]); _ = try await child.commit(message: "base")
+        let base = try await child.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await child.run(["checkout", "-b", "side"])
+        try Data("theirs\n".utf8).write(to: file); try await child.stage(["file.txt"]); _ = try await child.commit(message: "theirs")
+        let theirs = try await child.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await child.run(["checkout", "main"])
+        try Data("mine\n".utf8).write(to: file); try await child.stage(["file.txt"]); _ = try await child.commit(message: "mine")
+        let mine = try await child.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        if initialized { _ = try await repo.run(["clone", "--no-local", "--", source.path, path]) }
+        else { try FileManager.default.createDirectory(at: root.appendingPathComponent(path), withIntermediateDirectories: true) }
+        _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + base + "," + path]); _ = try await repo.commit(message: "base module")
+        _ = try await repo.run(["checkout", "-b", "side"])
+        _ = try await repo.run(["update-index", "--cacheinfo", "160000," + theirs + "," + path]); _ = try await repo.commit(message: "theirs module")
+        _ = try await repo.run(["checkout", "main"])
+        _ = try await repo.run(["update-index", "--cacheinfo", "160000," + mine + "," + path]); _ = try await repo.commit(message: "mine module")
+        do { _ = try await repo.run(["merge", "side"]); XCTFail("Expected submodule conflict") } catch is GitFailure {}
+        return (root, source, repo, initialized ? GitRepository(root: root.appendingPathComponent(path)) : nil, path)
+    }
+    func testUninitializedSubmoduleSidesResolveExactGitlinkWithoutCreatingCheckout() async throws {
+        for choice in [ResolveChoice.mine, .theirs] {
+            let (root, source, repo, _, path) = try await submoduleFixture(initialized: false)
+            defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: source) }
+            let checked = try await repo.conflicts(), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+            XCTAssertEqual(checked.count, 1); XCTAssertTrue(checked[0].isSubmodule)
+            let target = checked[0].stages.first { $0.number == choice.rawValue }!
+            _ = try await repo.resolveConflicts(checked, using: choice)
+            let indexed = try await repo.run(["ls-files", "--stage", "-z", "--", path]).text
+            XCTAssertEqual(indexed, "160000 " + target.object + " 0\t" + path + "\0")
+            let remaining = try await repo.conflicts(), after = try await repo.run(["rev-parse", "HEAD"]).stdout
+            XCTAssertTrue(remaining.isEmpty); XCTAssertEqual(head, after)
+            XCTAssertTrue(try FileManager.default.contentsOfDirectory(atPath: root.appendingPathComponent(path).path).isEmpty)
+        }
+    }
+    func testInitializedSubmoduleRejectsDifferentCheckoutThenResolvesMatchingSide() async throws {
+        let (root, source, repo, optionalChild, path) = try await submoduleFixture(initialized: true)
+        defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: source) }
+        let child = try XCTUnwrap(optionalChild), checked = try await repo.conflicts()
+        let owner = try await child.discoverSelectionRoot(for: .resolveTheirs, selected: child.root)
+        let childOwner = try await child.discoverSelectionRoot(for: .status, selected: child.root)
+        let fileOwner = try await child.discoverSelectionRoot(for: .resolve, selected: child.root.appendingPathComponent("file.txt"))
+        XCTAssertEqual(owner, root.standardizedFileURL); XCTAssertEqual(childOwner, child.root); XCTAssertEqual(fileOwner, child.root)
+        let resetTarget = try await repo.submoduleResetTarget(checked[0], using: .theirs)
+        XCTAssertEqual(resetTarget.0.standardizedFileURL, child.root)
+        XCTAssertEqual(resetTarget.1, checked[0].stages.first { $0.number == 3 }?.object)
+        let before = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let childHead = try await child.run(["rev-parse", "HEAD"]).stdout
+        let contents = try Data(contentsOf: child.root.appendingPathComponent("file.txt"))
+        do { _ = try await repo.resolveConflicts(checked, using: .theirs); XCTFail("Accepted different submodule checkout") }
+        catch ResolveFailure.submoduleCheckout(let failedPath) { XCTAssertEqual(failedPath, path) }
+        let after = try await repo.run(["ls-files", "--stage", "-z"]).stdout, afterHead = try await child.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(before, after); XCTAssertEqual(childHead, afterHead); XCTAssertEqual(contents, try Data(contentsOf: child.root.appendingPathComponent("file.txt")))
+        let target = checked[0].stages.first { $0.number == 3 }!
+        _ = try await child.run(["checkout", "--detach", target.object])
+        _ = try await repo.resolveConflicts(checked, using: .theirs)
+        let indexed = try await repo.run(["ls-files", "--stage", "-z", "--", path]).text
+        XCTAssertEqual(indexed, "160000 " + target.object + " 0\t" + path + "\0")
+        XCTAssertEqual(try String(contentsOf: child.root.appendingPathComponent("file.txt")), "theirs\n")
+    }
+
 }

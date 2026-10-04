@@ -38,6 +38,7 @@ import TurtleGitCore
     private var cloneWindow: CloneWindowController?
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
+    private var resetWindows: [String: ResetWindowController] = [:]
     private var resolveWindows: [String: ResolveWindowController] = [:]
     private var ignoreWindows: [String: IgnoreWindowController] = [:]
     private var removeWindows: [String: RemoveWindowController] = [:]
@@ -129,7 +130,7 @@ import TurtleGitCore
                     location.deleteLastPathComponent()
                 }
                 let candidate = try makeRepository(location)
-                let resolved = try await candidate.discoverRoot()
+                let resolved = try await candidate.discoverSelectionRoot(for: action ?? .status, selected: first)
                 if GitRuntime.isAppStoreBuild && !lease.contains(resolved) {
                     throw RepositoryAccessFailure.repositoryRootOutsidePermission(resolved.path)
                 }
@@ -141,7 +142,7 @@ import TurtleGitCore
                         var location = item
                         var directory: ObjCBool = false
                         if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue { location.deleteLastPathComponent() }
-                        let itemRoot = try await makeRepository(location).discoverRoot()
+                        let itemRoot = try await makeRepository(location).discoverSelectionRoot(for: action ?? .status, selected: item)
                         guard itemRoot.standardizedFileURL == resolved.standardizedFileURL else { throw FinderSelectionFailure.multipleRepositories }
                     }
                 }
@@ -257,6 +258,7 @@ import TurtleGitCore
                 log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
                 log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
                 log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
             }
             commitWindows[root.path] = controller
             controller.model.reload(paths: paths)
@@ -283,6 +285,9 @@ import TurtleGitCore
         case .branch, .tag:
             guard let repository else { return }
             showReference(repository: repository, access: activeAccess, isTag: action == .tag)
+        case .reset:
+            guard let repository else { return }
+            showReset(repository: repository, access: activeAccess)
         case .switchBranch:
             guard let repository else { return }
             showSwitch(repository: repository, access: activeAccess)
@@ -383,6 +388,23 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, completion: (() -> Void)? = nil) {
+        let root = repository.root, key = root.path + "\0" + (revision ?? "")
+        if let existing = resetWindows[key] {
+            if let completion { let previous = existing.model.onReset; existing.model.onReset = { output in previous(output); completion() } }
+            existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
+        }
+        let controller = ResetWindowController(repository: repository, access: access, revision: revision)
+        controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
+        controller.model.onStatus = { [weak self] in self?.showStatus(repository: repository, access: access, paths: []) }
+        controller.model.onReset = { [weak self] output in
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
+            self?.logWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            if let self, self.root == root { self.output = output; Task { await self.refresh() } }
+            completion?()
+        }
+        resetWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?) {
         let root = repository.root, key = root.path + "\0" + String(quick?.rawValue ?? -1) + "\0" + paths.joined(separator: "\0")
         let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick)
@@ -391,6 +413,9 @@ import TurtleGitCore
             self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
+        }
+        controller.model.onSubmoduleReset = { [weak self] child, revision, done in
+            self?.showReset(repository: child, access: access, revision: revision, completion: done)
         }
         controller.onCommit = { [weak self] in
             guard let self else { return }
@@ -440,7 +465,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller
@@ -482,6 +507,7 @@ import TurtleGitCore
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+        controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         logWindows[root.path] = controller
         controller.model.setPathScope(paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -502,6 +528,7 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
         mergeWindows[root.path] = controller; controller.model.load()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

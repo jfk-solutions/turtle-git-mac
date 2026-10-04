@@ -2471,8 +2471,8 @@ src/TortoiseProc/ProgressCommands/RemoteProgressCommand.cpp,TortoiseProc,blob,ba
 src/TortoiseProc/ProgressCommands/RemoteProgressCommand.h,TortoiseProc,blob,8943df8438887898f7ec3a10de06ed1707f11bc5,pending-review,,
 src/TortoiseProc/ProgressCommands/ResetProgressCommand.cpp,TortoiseProc,blob,2efcd0a0b42180c957168f1f5423a6071bbf5e5c,pending-review,,
 src/TortoiseProc/ProgressCommands/ResetProgressCommand.h,TortoiseProc,blob,3febea393c76829f43f112604659079dc8e63669,pending-review,,
-src/TortoiseProc/ProgressCommands/ResolveProgressCommand.cpp,TortoiseProc,blob,0060d89286069ddceb6cec22d1a1524823667e39,pending-review,,
-src/TortoiseProc/ProgressCommands/ResolveProgressCommand.h,TortoiseProc,blob,28c3db8ebd0b1339d35b1fd420c8d1756292e5d0,pending-review,,
+src/TortoiseProc/ProgressCommands/ResolveProgressCommand.cpp,TortoiseProc,blob,0060d89286069ddceb6cec22d1a1524823667e39,partial,Sources/TurtleGitCore/ConflictResolution.swift; Sources/TurtleGitMac/ResolveWindow.swift,"Current/mine/theirs with exact index stages and submodule Reset/resume; full progress, cancellation and temp cleanup pending."
+src/TortoiseProc/ProgressCommands/ResolveProgressCommand.h,TortoiseProc,blob,28c3db8ebd0b1339d35b1fd420c8d1756292e5d0,partial,Sources/TurtleGitCore/ConflictResolution.swift; Sources/TurtleGitMac/ResolveWindow.swift,"Current/mine/theirs with exact index stages and submodule Reset/resume; full progress, cancellation and temp cleanup pending."
 src/TortoiseProc/ProgressCommands/RevertProgressCommand.cpp,TortoiseProc,blob,8efbc404abacc78e8a1ff0b92d7bbc724e91356e,pending-review,,
 src/TortoiseProc/ProgressCommands/RevertProgressCommand.h,TortoiseProc,blob,00b43007ac0bd0dcfef91f371409469bb50167a4,pending-review,,
 src/TortoiseProc/ProgressCommands/SendMailProgressCommand.cpp,TortoiseProc,blob,93cf562fb85ca4819b81709a186c90b0b4ec54eb,pending-review,,
@@ -2497,8 +2497,8 @@ src/TortoiseProc/RepositoryBrowser.cpp,TortoiseProc,blob,ced08d910b48b8c261fe7d1
 src/TortoiseProc/RepositoryBrowser.h,TortoiseProc,blob,7d315c6c04315e5251f5bceb1e6725f545bb67bf,pending-review,,
 src/TortoiseProc/RequestPullDlg.cpp,TortoiseProc,blob,02d288f1a6e7cf4fdb15eccab2d2bce41a2a3d4e,pending-review,,
 src/TortoiseProc/RequestPullDlg.h,TortoiseProc,blob,c51eff667dd9dd8375f1858a86e484021d5514ea,pending-review,,
-src/TortoiseProc/ResetDlg.cpp,TortoiseProc,blob,b4bb451612a87b300c9439c39b644335b24c92e1,pending-review,,
-src/TortoiseProc/ResetDlg.h,TortoiseProc,blob,914cb7fa98c39503a9fe469d9739735b0ae77c27,pending-review,,
+src/TortoiseProc/ResetDlg.cpp,TortoiseProc,blob,b4bb451612a87b300c9439c39b644335b24c92e1,partial,Sources/TurtleGitMac/ResetWindow.swift; Sources/TurtleGitCore/Reset.swift,"Native revision/type control arrangement, reset modes and submodule reset/resume. Full gaps in RESET-PARITY.md."
+src/TortoiseProc/ResetDlg.h,TortoiseProc,blob,914cb7fa98c39503a9fe469d9739735b0ae77c27,partial,Sources/TurtleGitMac/ResetWindow.swift; Sources/TurtleGitCore/Reset.swift,"Native revision/type control arrangement, reset modes and submodule reset/resume. Full gaps in RESET-PARITY.md."
 src/TortoiseProc/ResizableColumnsListCtrl.h,TortoiseProc,blob,84350420f3d5dfd6eb685f21415559487dd59611,pending-review,,
 src/TortoiseProc/ResolveDlg.cpp,TortoiseProc,blob,c6a3a357abc01caac3827ee20a38343933c560f5,partial,Sources/TurtleGitMac/ResolveWindow.swift; Sources/TurtleGitCore/ConflictResolution.swift,Original artwork retained; native checked Resolve and side actions tested. Full workflow gaps tracked in RESOLVE-PARITY.md.
 src/TortoiseProc/ResolveDlg.h,TortoiseProc,blob,3bc6aecd7187b703a7f102a5f675710a52f3cdc0,partial,Sources/TurtleGitMac/ResolveWindow.swift; Sources/TurtleGitCore/ConflictResolution.swift,Original artwork retained; native checked Resolve and side actions tested. Full workflow gaps tracked in RESOLVE-PARITY.md.
