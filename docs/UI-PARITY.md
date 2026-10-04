@@ -100,3 +100,9 @@ EOF source metadata now preserves missing final newlines for the unchanged final
 conflict, including a separator for combined choices. Native combined choice
 and Save bytes were verified; CRLF/resolution/Undo native combinations remain
 pending. Full upstream EOL/encoding parity is still incomplete.
+
+The text merge result now offers the upstream nine-style line-ending submenu
+with reversible conversion. A shared UTF-16 scanner fixes CRLF marker detection
+and caret line numbers. Native CRLF → LF, Undo/Redo and unresolved Save warning
+were verified; complete EOL/encoding metadata and exotic native combinations
+remain partial. See TEXT-MERGE-PARITY.md.

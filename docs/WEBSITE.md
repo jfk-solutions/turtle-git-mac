@@ -66,3 +66,8 @@ logical `z`; `super+y` and `super+shift+y` therefore exercise Command-Z and
 Shift-Command-Z. This was verified by inserting a visible `z`, undoing it and
 redoing it in the merge editor. Do not change application shortcuts to compensate
 for physical automation key names.
+
+Close each disposable QA application immediately after its checks, including
+failed observation attempts once the scenario has ended. Verify it is absent
+from the running-app inventory without reacquiring its handle, which can launch
+it again. Do not accumulate independent preview instances across goal turns.

@@ -124,7 +124,10 @@ including files outside the current view. Highlighted rows do not select commit
 contents. [Commit parity details](docs/COMMIT-PARITY.md) track remaining options. Authentication uses existing credential helpers / SSH configuration; there is
 no native credential prompt yet. Interactive hooks, Git editors, signing prompts,
 cancellation and live streaming progress are not implemented. Conflicts remain
-visible in the status list, but must currently be resolved with another tool.
+visible in the status list. Regular UTF-8 text conflicts can be resolved in the
+native three-pane editor; unsupported formats still require another tool. The
+merged result offers the upstream nine-style line-ending conversion submenu
+with Undo/Redo. Full encoding and diff/merge parity remain in progress.
 
 The future [user manual](docs/MANUAL-PLAN.md) follows TortoiseGit’s structure and
 terminology with macOS-specific instructions and real TurtleGit screenshots.

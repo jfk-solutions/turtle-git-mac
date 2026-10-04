@@ -1726,7 +1726,7 @@ src/TortoiseMerge/AboutDlg.cpp,TortoiseMerge,blob,6aefb0e9bf67ffcef1a8be319a4a86
 src/TortoiseMerge/AboutDlg.h,TortoiseMerge,blob,014f3ad547e5cf5e2464b0a321d530cc461572e3,pending-review,,
 src/TortoiseMerge/AppUtils.cpp,TortoiseMerge,blob,7e67a7ee01c3b25b41b30f1d8142ca265fbd6f46,pending-review,,
 src/TortoiseMerge/AppUtils.h,TortoiseMerge,blob,ad0ee78a1baaeb2b3ebb65e5c033dffd2e78b6eb,pending-review,,
-src/TortoiseMerge/BaseView.cpp,TortoiseMerge,blob,366693a9d1d37033f6c99222fe616e6c1dc394c5,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed inline-diff gating and line-length limits; source rendering partially replaced; inline/folding/locator/editing and full view behavior pending. Reviewed three-pane whole-file command dispatch; native source menu routes exact original stage text. Full EOL normalization and selection mapping pending.
+src/TortoiseMerge/BaseView.cpp,TortoiseMerge,blob,366693a9d1d37033f6c99222fe616e6c1dc394c5,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,"Reviewed inline-diff gating and line-length limits; source rendering partially replaced; inline/folding/locator/editing and full view behavior pending. Reviewed three-pane whole-file command dispatch; native source menu routes exact original stage text. Full EOL normalization and selection mapping pending. Reviewed EOL submenu and ReplaceLineEndings; native merged-result nine-style conversion with single Undo step. Source editing, default style for inserted lines and complete EOL/encoding UI remain pending."
 src/TortoiseMerge/BaseView.h,TortoiseMerge,blob,b6df00936593fedcc7f6375125d2fdc08a86e138,pending-review,,
 src/TortoiseMerge/BottomView.cpp,TortoiseMerge,blob,604c2311ee3b040f233c696debe708a444b4d754,partial,Sources/TurtleGitMac/TextConflictWindow.swift; Sources/TurtleGitCore/TextConflict.swift,Partial text-conflict save/block-choice review and native three-pane editor; full diff/merge view and menus remain pending. See TEXT-MERGE-PARITY.md. Reviewed UseViewFile/UseBlock/UseBothBlocks and NoEnding handling; whole-file replacement and undo added; source-aware unchanged EOF choices added with CRLF/literal-CR tests; full upstream EOL normalization and aligned selection behavior pending.
 src/TortoiseMerge/BottomView.h,TortoiseMerge,blob,a7b905538aadc4b90550edbddd8e1812c115b1f7,pending-review,,
@@ -1736,15 +1736,15 @@ src/TortoiseMerge/DiffColors.h,TortoiseMerge,blob,1e1070aa738a175c5cb9827f61ede7
 src/TortoiseMerge/DiffData.cpp,TortoiseMerge,blob,929b1992ef8c8216d08d5a7673895979079f0eb5,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed three-way common/identical/one-side/conflict row construction; exact-byte Swift source alignment added; full libsvn diff3 segmentation and options pending.
 src/TortoiseMerge/DiffData.h,TortoiseMerge,blob,0f4d49b6a917466180d46d53c28ce8c0e8a9df9d,pending-review,,
 src/TortoiseMerge/DiffStates.h,TortoiseMerge,blob,640cb75ab4d1ca1f08f4488a8fa1c92cc032b8ae,pending-review,,
-src/TortoiseMerge/EOL.cpp,TortoiseMerge,blob,9ca871dd472240cc62578c622e7b49b219d13350,pending-review,,
-src/TortoiseMerge/EOL.h,TortoiseMerge,blob,6c0cb1571cbf1a79d8eafba0f31e944824c90ac0,pending-review,,
+src/TortoiseMerge/EOL.cpp,TortoiseMerge,blob,9ca871dd472240cc62578c622e7b49b219d13350,partial,Sources/TurtleGitCore/MergeLineEndings.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed full GetEolName switch; nine native conversion submenu labels mapped. AEOL remains internal/upstream default-style handling pending.
+src/TortoiseMerge/EOL.h,TortoiseMerge,blob,6c0cb1571cbf1a79d8eafba0f31e944824c90ac0,partial,Sources/TurtleGitCore/MergeLineEndings.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed full enum; nine concrete endings mapped to UTF-16 scanner and conversion. AutoLine and NoEnding default metadata semantics remain partial.
 src/TortoiseMerge/EditorConfigWrapper.cpp,TortoiseMerge,blob,361b7365d56986b0894880eb7a66ae8d1ff79dc3,pending-review,,
 src/TortoiseMerge/EditorConfigWrapper.h,TortoiseMerge,blob,3c392dfd8bcc6229b27712668ced4ab52828366b,pending-review,,
 src/TortoiseMerge/EncodingDlg.cpp,TortoiseMerge,blob,ea08023ca12b6f62ada444bc113ec6cfe51fb92b,pending-review,,
 src/TortoiseMerge/EncodingDlg.h,TortoiseMerge,blob,6abd40f0fbd34e763cf6601af730eb12ad3f8269,pending-review,,
 src/TortoiseMerge/FilePatchesDlg.cpp,TortoiseMerge,blob,c882cf833e103f16750f1a9cd04d6a5b6db0402a,pending-review,,
 src/TortoiseMerge/FilePatchesDlg.h,TortoiseMerge,blob,ba5e804f0ff26d5f9bff0b5c9d5882456aaf55a9,pending-review,,
-src/TortoiseMerge/FileTextLines.cpp,TortoiseMerge,blob,e9ac66ef889687750921f09d4ccafce7f843e996,pending-review,,
+src/TortoiseMerge/FileTextLines.cpp,TortoiseMerge,blob,e9ac66ef889687750921f09d4ccafce7f843e996,partial,Sources/TurtleGitCore/MergeLineEndings.swift; Sources/TurtleGitMac/TextConflictWindow.swift,"Reviewed line-ending scanner and LFCR heuristic; mapped nine endings for conflict parsing, marker guard and explicit conversion. Full encoding, loading and writing behavior remains pending."
 src/TortoiseMerge/FileTextLines.h,TortoiseMerge,blob,ec857cb501cd1331aeb0b4e9d5dcf6ef6f405f6a,pending-review,,
 src/TortoiseMerge/FindDlg.cpp,TortoiseMerge,blob,f744962b17020ebcbd71efd5711191af94b1c318,pending-review,,
 src/TortoiseMerge/FindDlg.h,TortoiseMerge,blob,8f5931cb46cd370f0b1a16a1539e3132c40c889d,pending-review,,

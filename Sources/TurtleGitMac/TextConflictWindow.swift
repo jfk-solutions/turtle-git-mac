@@ -13,6 +13,21 @@ private extension MergeBlockChoice {
         }
     }
 }
+private extension MergeLineEnding {
+    var menuTitle: String {
+        switch self {
+        case .crlf: return "CRLF"
+        case .lf: return "LF"
+        case .cr: return "CR"
+        case .lfcr: return "LFCR"
+        case .verticalTab: return "VT"
+        case .formFeed: return "FF"
+        case .nextLine: return "NEL"
+        case .lineSeparator: return "LS"
+        case .paragraphSeparator: return "PS"
+        }
+    }
+}
 private enum MergeSourceSide {
     case mine, theirs
     var icon: MenuIcon { self == .mine ? .mergeUseMine : .mergeUseTheirs }
@@ -266,7 +281,7 @@ private struct TextConflictDialog: View {
                     Menu("Use text block") {
                         ForEach(MergeBlockChoice.allCases, id: \.self) { choice in Button { model.choose(choice) } label: { CommandLabel(title: choice.rawValue, icon: choice.icon) } }
                     }.disabled(model.blocks.isEmpty)
-                    Text("Line \((model.result as NSString).substring(to: min(model.caret.location, (model.result as NSString).length)).filter { $0 == "\n" }.count + 1)").font(.caption).foregroundStyle(.secondary)
+                    Text("Line \(MergeLineEndings.lineNumber(in: model.result, utf16Offset: model.caret.location))").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.disabled(model.busy).onAppear { model.load() }
@@ -416,6 +431,17 @@ private final class MergeTextView: NSTextView {
             item.isEnabled = !model.busy && model.blocks.contains { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }
             menu.addItem(item)
         }
+        menu.addItem(.separator())
+        let endingsItem = NSMenuItem(title: "Line endings", action: nil, keyEquivalent: "")
+        let endingsMenu = NSMenu(title: "Line endings")
+        let styles = MergeLineEndings.styles(in: string)
+        for (index, ending) in MergeLineEnding.allCases.enumerated() {
+            let item = NSMenuItem(title: ending.menuTitle, action: #selector(convertLineEndings(_:)), keyEquivalent: "")
+            item.target = self; item.tag = index
+            item.state = styles == [ending] ? .on : .off
+            endingsMenu.addItem(item)
+        }
+        endingsItem.submenu = endingsMenu; menu.addItem(endingsItem)
         return menu
     }
     @objc private func showFind(_ sender: Any?) {
@@ -423,6 +449,9 @@ private final class MergeTextView: NSTextView {
         (window as? TextConflictNSWindow)?.find(.showFindInterface)
     }
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(convertLineEndings(_:)) {
+            return mergeEditable && isEditable && model?.busy == false && MergeLineEnding.allCases.indices.contains(menuItem.tag)
+        }
         if menuItem.action == #selector(useSourceFile(_:)) { return sourceSide != nil && model?.document != nil && model?.busy == false }
         if menuItem.action == #selector(useBlock(_:)) {
             guard mergeEditable, isEditable, let model, !model.busy,
@@ -435,6 +464,14 @@ private final class MergeTextView: NSTextView {
     @objc private func useSourceFile(_ sender: NSMenuItem) {
         guard let sourceSide else { return }
         model?.useFile(sourceSide)
+    }
+    @objc private func convertLineEndings(_ sender: NSMenuItem) {
+        guard mergeEditable, isEditable, model?.busy == false, MergeLineEnding.allCases.indices.contains(sender.tag) else { return }
+        let ending = MergeLineEnding.allCases[sender.tag]
+        let converted = MergeLineEndings.converting(string, to: ending)
+        guard !converted.utf8.elementsEqual(string.utf8) else { return }
+        window?.makeFirstResponder(self)
+        replaceMergeBlock(NSRange(location: 0, length: (string as NSString).length), with: converted, actionName: "Change line endings")
     }
     @objc private func useBlock(_ sender: NSMenuItem) {
         guard mergeEditable, isEditable, MergeBlockChoice.allCases.indices.contains(sender.tag), let model, !model.busy, let block = model.blocks.first(where: { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }

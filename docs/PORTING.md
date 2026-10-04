@@ -178,3 +178,9 @@ EOF conflict choices now retain original missing-final-newline metadata across
 saves, with five real-Git ending combinations and native combined-choice Save
 verification. Upstream EOL normalization and native CRLF/Undo/resolve coverage
 remain partial.
+
+The text merge result now offers the upstream nine-style line-ending submenu
+with reversible conversion. A shared UTF-16 scanner fixes CRLF marker detection
+and caret line numbers. Native CRLF → LF, Undo/Redo and unresolved Save warning
+were verified; complete EOL/encoding metadata and exotic native combinations
+remain partial. See TEXT-MERGE-PARITY.md.

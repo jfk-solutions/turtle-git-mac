@@ -243,3 +243,41 @@ and native CRLF acceptance remain unverified.
 
 The 182-test suite passed; after the generated-result metadata retention change,
 all 10 TextConflict tests passed again and the app compiled successfully.
+
+## Line-ending submenu and CRLF marker guard
+
+The merged result context menu now has Line endings → CRLF, LF, CR, LFCR, VT,
+FF, NEL, LS and PS, in the order and with labels reviewed in EOL.h/EOL.cpp and
+BaseView.cpp. A uniform current style is checked; mixed text has no checked item.
+Conversion changes existing terminators only, preserving Unicode spelling, BOM
+and missing final newline. It is disabled while busy and records one Undo step.
+Source panes remain read-only. Default endings for newly typed lines, encoding
+controls and full upstream view metadata remain pending.
+
+Conflict parsing, unresolved-marker detection and the caret caption share a
+UTF-16 scanner for all nine endings. This fixes a CRLF safety defect: Swift treats
+CRLF as one Character, so the previous character split could miss a conflict
+marker after ordinary introductory text. Incomplete opening/base/closing markers
+still block resolution; a standalone equals heading does not. FileTextLines.cpp's
+LF-before-CRLF heuristic is retained to avoid consuming the next line's CR.
+
+Four scanner tests cover 162 conversions, mixed endings, Unicode/BOM/EOF, all
+nine prefixed conflict forms and UTF-16 caret positions. Ten real-Git conflict
+tests also reject unresolved EOF results before staging. All 14 targeted tests
+passed, and the app compiled. The full suite passed 186 tests with zero
+failures before the final combined-choice correction. Combined choices now
+retain existing terminators for all nine styles, including mixed-style blocks;
+a separator is inserted only when original EOF metadata removed one. The final
+targeted regression result is recorded below.
+
+Native QA in /private/tmp/TurtleGitMergeCRLFMarkerQA verified the nine menu
+choices, initial CRLF state, CRLF → LF, one-step Undo/Redo, restored clean state,
+line 2 after the CRLF introduction, disabled Mark as resolved, and Save warning
+followed by Cancel. HEAD, refs, unresolved index and working-file bytes matched
+the baseline exactly. Exotic ending native conversion/save combinations and
+mixed-style native menu checks remain pending. The QA instance was closed
+after verification.
+
+After the combined-choice correction, all 14 targeted tests passed again.
+After adding all 81 mixed-style pairs in both orders, the four scanner tests
+passed again. The full-suite run preceding that correction passed 186 tests.

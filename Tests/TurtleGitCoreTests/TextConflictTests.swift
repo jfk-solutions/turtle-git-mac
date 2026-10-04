@@ -17,6 +17,9 @@ final class TextConflictTests: XCTestCase {
             let document = try await repo.textConflictDocument(path: path)
             let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
             let working = try Data(contentsOf: root.appendingPathComponent(path))
+            XCTAssertTrue(MergeText.hasMarkers(document.initialResult))
+            do { _ = try await repo.saveTextConflict(document, result: document.initialResult, markResolved: true); XCTFail("Allowed unresolved EOF markers") }
+            catch TextConflictFailure.markers {}
             func joined(_ first: String, _ last: String) -> String { first + (first.utf8.last == 10 ? "" : ending) + last }
             for (choice, expected) in [(MergeBlockChoice.mine, mine), (.theirs, theirs), (.mineThenTheirs, joined(mine, theirs)), (.theirsThenMine, joined(theirs, mine))] {
                 let result = try MergeText.applying(choice, block: 0, to: document.initialResult, document: document)

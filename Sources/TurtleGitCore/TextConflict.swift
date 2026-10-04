@@ -11,19 +11,22 @@ public struct MergeConflictBlock: Identifiable, Sendable {
     public let base: String
     public let theirs: String
     private let joiningLineEnding: String
-    init(id: Int, range: NSRange, mine: String, base: String, theirs: String, joiningLineEnding: String = "\n") {
+    private let mineNeedsSeparator: Bool
+    private let theirsNeedsSeparator: Bool
+    init(id: Int, range: NSRange, mine: String, base: String, theirs: String, joiningLineEnding: String = "\n", mineNeedsSeparator: Bool = false, theirsNeedsSeparator: Bool = false) {
         self.id = id; self.range = range; self.mine = mine; self.base = base; self.theirs = theirs; self.joiningLineEnding = joiningLineEnding
+        self.mineNeedsSeparator = mineNeedsSeparator; self.theirsNeedsSeparator = theirsNeedsSeparator
     }
     public func replacement(_ choice: MergeBlockChoice) -> String {
-        func joined(_ first: String, _ second: String) -> String {
-            if first.isEmpty || second.isEmpty || first.utf8.last == 10 { return first + second }
+        func joined(_ first: String, _ second: String, needsSeparator: Bool) -> String {
+            if first.isEmpty || second.isEmpty || !needsSeparator { return first + second }
             return first + joiningLineEnding + second
         }
         switch choice {
         case .mine: return mine
         case .theirs: return theirs
-        case .mineThenTheirs: return joined(mine, theirs)
-        case .theirsThenMine: return joined(theirs, mine)
+        case .mineThenTheirs: return joined(mine, theirs, needsSeparator: mineNeedsSeparator)
+        case .theirsThenMine: return joined(theirs, mine, needsSeparator: theirsNeedsSeparator)
         }
     }
 }
@@ -32,10 +35,10 @@ public enum MergeText {
     /// original line ending and avoiding Unicode scalar/character index mismatch.
     public static func conflicts(in text: String, document: TextConflictDocument? = nil) -> [MergeConflictBlock] {
         let source = text as NSString
-        var offset = 0, start: Int?, mineStart = 0, baseStart: Int?, separator: NSRange?
+        var start: Int?, mineStart = 0, baseStart: Int?, separator: NSRange?
         var mineEnd: Int?, blocks: [MergeConflictBlock] = []
-        while offset < source.length {
-            let range = source.lineRange(for: NSRange(location: offset, length: 0))
+        let lines = MergeLineEndings.lineRanges(in: text)
+        for range in lines {
             let line = source.substring(with: range).trimmingCharacters(in: .newlines)
             if line == "<<<<<<<" || line.hasPrefix("<<<<<<< ") {
                 start = range.location; mineStart = NSMaxRange(range); baseStart = nil; separator = nil; mineEnd = nil
@@ -50,7 +53,6 @@ public enum MergeText {
                 blocks.append(MergeConflictBlock(id: blocks.count, range: NSRange(location: startOffset, length: NSMaxRange(range) - startOffset), mine: mine, base: base, theirs: theirs))
                 start = nil; baseStart = nil; mineEnd = nil
             }
-            offset = NSMaxRange(range)
         }
         // merge-file inserts a line ending before markers even when the original
         // final source line had none. Restore it only for the unchanged original
@@ -71,15 +73,18 @@ public enum MergeText {
             }
             return chunk
         }
-        let marker = source.substring(with: source.lineRange(for: NSRange(location: last.range.location, length: 0)))
+        let marker = source.substring(with: lines.first { $0.location == last.range.location } ?? NSRange(location: last.range.location, length: 0))
+        let mine = originalEnding(last.mine, document.mine), theirs = originalEnding(last.theirs, document.theirs)
         blocks[blocks.count - 1] = MergeConflictBlock(id: last.id, range: last.range,
-            mine: originalEnding(last.mine, document.mine), base: last.base,
-            theirs: originalEnding(last.theirs, document.theirs), joiningLineEnding: marker.hasSuffix("\r\n") ? "\r\n" : "\n")
+            mine: mine, base: last.base, theirs: theirs, joiningLineEnding: marker.hasSuffix("\r\n") ? "\r\n" : "\n",
+            mineNeedsSeparator: !mine.utf8.elementsEqual(last.mine.utf8), theirsNeedsSeparator: !theirs.utf8.elementsEqual(last.theirs.utf8))
         return blocks
     }
     public static func hasMarkers(_ text: String) -> Bool {
-        text.split(whereSeparator: { $0 == "\n" || $0 == "\r" }).contains {
-            $0 == "<<<<<<<" || $0.hasPrefix("<<<<<<< ") || $0 == ">>>>>>>" || $0.hasPrefix(">>>>>>> ") || $0 == "|||||||" || $0.hasPrefix("||||||| ")
+        let source = text as NSString
+        return MergeLineEndings.lineRanges(in: text).contains { range in
+            let line = source.substring(with: range).trimmingCharacters(in: .newlines)
+            return line == "<<<<<<<" || line.hasPrefix("<<<<<<< ") || line == ">>>>>>>" || line.hasPrefix(">>>>>>> ") || line == "|||||||" || line.hasPrefix("||||||| ")
         }
     }
     public static func applying(_ choice: MergeBlockChoice, block: Int, to text: String, document: TextConflictDocument? = nil) throws -> String {
