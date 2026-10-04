@@ -46,6 +46,7 @@
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
 		61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */; };
 		68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */; };
+		697C21F466069759F260EF25 /* WorkingFileDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */; };
 		6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F6087799A5783306A27CEE /* RenameWindow.swift */; };
 		6B9238091F271707632595BC /* SubmoduleUpdateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */; };
 		70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */; };
@@ -212,6 +213,7 @@
 		63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorSettings.swift; sourceTree = "<group>"; };
 		6A72CBF70DA62980294AB41A /* TurtleGitMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TurtleGitMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6CFEE049A0098A0212AD01DA /* ResetWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetWindow.swift; sourceTree = "<group>"; };
+		6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileDelete.swift; sourceTree = "<group>"; };
 		6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryModel.swift; sourceTree = "<group>"; };
 		70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusWindow.swift; sourceTree = "<group>"; };
 		7428B46131B5378475891E94 /* FileComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparison.swift; sourceTree = "<group>"; };
@@ -414,6 +416,7 @@
 				C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */,
 				8927431F95C0127D9B66489A /* TextConflict.swift */,
 				C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */,
+				6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */,
 				9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */,
 				3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */,
 				331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */,
@@ -634,6 +637,7 @@
 				61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */,
 				7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */,
 				9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */,
+				697C21F466069759F260EF25 /* WorkingFileDelete.swift in Sources */,
 				05736B77F7D781FD78B2665B /* WorkingFileExport.swift in Sources */,
 				EB7A90B9B17592BFD2605C3C /* WorkingFileRestore.swift in Sources */,
 				114EB220A33E2848C99E7466 /* WorkingFileRevert.swift in Sources */,

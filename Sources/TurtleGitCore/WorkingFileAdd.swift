@@ -22,7 +22,8 @@ extension GitRepository {
         let lock = URL(fileURLWithPath: index.path + ".lock")
         let descriptor = open(lock.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
         guard descriptor >= 0 else { throw GitFailure(arguments: ["add"], code: 1, message: "Could not lock the Git index: " + String(cString: strerror(errno))) }
-        defer { try? FileManager.default.removeItem(at: lock) }
+        var ownsLock = true
+        defer { if ownsLock { try? FileManager.default.removeItem(at: lock) } }
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         defer { try? handle.close() }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitAdd-" + UUID().uuidString)
@@ -54,5 +55,6 @@ extension GitRepository {
             try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: lock.path)
         }
         guard Darwin.rename(lock.path, index.path) == 0 else { throw GitFailure(arguments: ["add"], code: 1, message: "Could not replace the Git index: " + String(cString: strerror(errno))) }
+        ownsLock = false
     }
 }

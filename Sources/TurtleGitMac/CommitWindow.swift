@@ -388,6 +388,23 @@ import UniformTypeIdentifiers
             busy = false; reload()
         }
     }
+    func deleteFiles(_ selected: [StatusEntry], permanently: Bool) {
+        guard !busy, !confirmingQuit, !selected.isEmpty else { return }
+        let alert = NSAlert()
+        alert.messageText = permanently ? "Permanently delete the selected paths?" : "Move the selected paths to Trash?"
+        alert.informativeText = "\(selected.count) selected item(s). Their index entries will also be removed." + (permanently ? " This cannot be undone." : " Files moved to Trash can be recovered in Finder.")
+        alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        busy = true
+        Task {
+            do {
+                try validateRestoreAccess()
+                _ = try await repository.deleteWorkingFiles(selected, permanently: permanently)
+                checked.subtract(selected.map(\.path)); selection.subtract(selected.map(\.path))
+            } catch { self.error = error.localizedDescription }
+            busy = false; reload()
+        }
+    }
     var canCommit: Bool { !busy && !confirmingQuit && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
@@ -813,10 +830,6 @@ GroupBox("Changes made (double-click on file for diff):") {
                 Divider()
                 ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onResolve)
             }
-            if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
-                Divider()
-                IgnoreSelectionMenu(paths: selected.map(\.path), action: model.onIgnore)
-            }
             if selected.count == 1, let entry = selected.first {
                 Divider()
                 if entry.state != .untracked && entry.state != .ignored {
@@ -844,6 +857,13 @@ GroupBox("Changes made (double-click on file for diff):") {
                     }
                     Button { NSWorkspace.shared.activateFileViewerSelecting([model.repository.root.appendingPathComponent(entry.path)]) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
                 }
+            }
+            if !selected.isEmpty && selected.allSatisfy(\.canDeleteFromStatusList) {
+                Button { model.deleteFiles(selected, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(model.busy || model.confirmingQuit)
+            }
+            if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
+                Divider()
+                IgnoreSelectionMenu(paths: selected.map(\.path), action: model.onIgnore)
             }
             if !selected.isEmpty {
                 Divider()

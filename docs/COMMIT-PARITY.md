@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context command audit, including Delete, extension/column clipboard and changelists. File Blame/log/open/reveal
+- Remaining file context command audit, including Delete focus/keyboard behavior, extension/column clipboard and changelists. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -736,3 +736,45 @@ Later unstaged disk type/permission changes after a successful commit still foll
 Git's macOS behavior; broader subsequent-commit virtual-link and executable-file
 usability remains under audit. Passing these cases does not establish full dialog
 parity or distribution readiness.
+
+
+## Delete from the Commit file list
+
+Upstream `GitStatusListCtrl::OnContextMenuList` offers Delete when the selection
+mark is unversioned, ignored or missing. `DeleteSelectedFiles` removes selected
+exact index entries and sends existing paths through the shell’s Recycle Bin;
+Shift requests permanent deletion. The command appears after Open/Explore and
+before Ignore. This differs from the separate Delete/keep-local dialog.
+
+Commit now offers Delete with the original delete icon for selections whose
+entries are all unversioned, ignored or missing. Its native confirmation defaults
+to No. Normal deletion uses macOS Trash; Shift at invocation selects a separately
+worded permanent-delete confirmation. Missing paths only lose their index entries.
+No commits or HEAD changes are made. The list refreshes after success or error;
+success clears selected paths’ commit checks. A staged deletion remains visible.
+
+The repository operation rechecks the status snapshot, validates paths and holds
+the real index lock while preparing exact removals in a private index. It publishes
+the prepared index only after file operations succeed. Trash failure never falls
+back to permanent deletion. If a later operation fails, the error lists any files
+already moved to Trash so they can be recovered. After publishing, Add and Delete
+no longer attempt to remove a lock path that a subsequent writer might acquire.
+
+Six integration tests passed: recoverable binary/Unicode/literal-path contents,
+raw-index preservation for untracked-only deletion, missing tracked entries with
+a split index, mixed tracked/untracked selections, stale snapshots, cancellation,
+existing locks, a trashed symlink with an unchanged outside target, and a broken
+symlink in a linked worktree. Permanent deletion is exercised only on a test-created
+fixture. Native light-mode QA verified No leaves
+the exact file/index unchanged, Yes removes an untracked binary from the list,
+and Delete of a missing tracked file removes its index entry. HEAD and an unrelated
+staged entry were verified unchanged. The single QA app quit normally, with no
+remaining TurtleGit processes. The 14 focused Add/Delete/Commit-mode tests, both
+unsigned Xcode builds, both bundle audits and the site build passed.
+
+Upstream uses the focused selection mark to gate mixed selections; the current
+native menu still requires all selected entries to qualify. The core operation
+supports mixed selections, but native focus-sensitive gates and Delete/Shift-Delete
+keyboard handling remain pending, along with ignored-directory, staging/dark-mode,
+partial filesystem failures and signed sandbox QA. This is a partial status-list
+port, not full Commit parity.

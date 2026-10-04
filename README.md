@@ -62,7 +62,10 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   ordinary tracked UTF-8 text files. Restore after commit saves working contents and
   restores them after a successful commit, retaining the committed index/HEAD.
   Revert resets selected files and index entries, retaining replaced contents in
-  macOS Trash and leaving added files unversioned.
+  macOS Trash and leaving added files unversioned. Commit’s Delete context command
+  moves unversioned files to Trash and stages removal of missing tracked paths;
+  a separate Shift confirmation supports permanent deletion. Focus-sensitive mixed
+  selections and keyboard parity remain under audit.
 - Dedicated Revert window with scoped file checks, Select/deselect all, counts,
   F5 refresh and light/dark appearance; Finder and app-menu routing.
   [Revert parity details](docs/REVERT-PARITY.md) record the remaining workflows.
