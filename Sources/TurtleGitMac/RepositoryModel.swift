@@ -283,6 +283,7 @@ import TurtleGitCore
                 self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent)
             }
             controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+            controller.model.onFileBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
             controller.model.onResolve = { [weak self] action, paths in
                 if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
                 else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }

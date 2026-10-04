@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context commands: blame, export and alternate editor. File log/open/reveal
+- Remaining file context commands: export and alternate editor. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -428,6 +428,32 @@ A single existing versioned row offers Rename with the original upstream artwork
 The native window and collision → retry workflow were exercised, including a rename
 from Commit that preserved separate staged/worktree contents. Check/selection/scope
 remapping is implemented; its post-close native observation still needs verification.
+
+## File Blame entry point
+
+Commit's single-file context menu now includes Blame with the original artwork.
+The pinned `GitStatusListCtrl.cpp` excludes unversioned, ignored, added, deleted
+and directory rows. The native menu applies those state gates and excludes
+submodules. The request retains Commit's repository and permission lease and uses
+the shared native viewer. `CAppUtils::LaunchTortoiseBlame` omits an empty revision,
+and `TortoiseGitBlameDoc.cpp::OnOpenDocument` defaults it to HEAD and invokes blame
+with that revision. The port likewise annotates committed HEAD contents, preserving
+independent staged and working-tree edits. This entry point does not add a
+working-copy annotation mode.
+
+Native QA opened Blame from a modified file with different committed, staged and
+working-tree text. The viewer showed the committed UTF-8 source, including its
+turtle emoji, origin hash and two annotation rows. HEAD, exact index bytes, all
+files and porcelain status matched the pre-test baseline. Closing the child window
+timed out in the UI tool, and normal Quit did not stop the process; the isolated QA
+process was terminated and process absence verified. No second instance was
+launched. Added/deleted/untracked and submodule menu gates, renamed/conflicted files,
+dark appearance and signed sandbox handoff still need native checks.
+
+Swift and unsigned Debug/AppStore builds passed without compiler warnings. Both
+bundle audits passed with 62 icons, including the packaged Git 2.55.0 runtime's
+architecture and local-operation checks. The static documentation build passed.
+The core reader is unchanged; its preceding 274-test run remains the baseline.
 See [Rename parity](RENAME-PARITY.md).
 
 The file menu now offers upstream Ignore name/extension and containing-folder actions

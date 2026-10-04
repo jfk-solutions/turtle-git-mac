@@ -183,6 +183,7 @@ import UniformTypeIdentifiers
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var onCompare: ([String], Bool) -> Void = { _, _ in }
     var onFileLog: (String) -> Void = { _ in }
+    var onFileBlame: (String) -> Void = { _ in }
     var onResolve: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onIgnore: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onRename: (String) -> Void = { _ in }
@@ -769,6 +770,9 @@ GroupBox("Changes made (double-click on file for diff):") {
                     }
                     if let oldPath = entry.originalPath {
                         Button { model.onFileLog(oldPath) } label: { CommandLabel(title: "Show log of old name", icon: .log) }
+                    }
+                    if entry.state != .added && entry.state != .deleted && !model.submodules.contains(entry.path) {
+                        Button { model.onFileBlame(entry.path) } label: { CommandLabel(title: "Blame", icon: .blame) }
                     }
                 }
                 if entry.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent(entry.path).path) {
