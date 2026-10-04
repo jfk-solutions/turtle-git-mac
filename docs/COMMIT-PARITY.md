@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context commands: revert, blame, export and alternate editor. File log/open/reveal
+- Remaining file context commands: blame, export and alternate editor. File log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -529,3 +529,14 @@ The unsigned Xcode Debug app build passed after this addition. Its bundle audit
 verified the embedded Finder extension, licenses and all 59 upstream icon assets,
 including both restoration icons. This proves packaging, not signed Finder
 activation or App Store approval.
+
+## Revert selected files
+
+The file menu now includes Revert with the original icon. It resets the selected
+index and working files, leaves added file contents unversioned and unchecked,
+and restores renamed files to their old names. Existing replaced file contents
+go to macOS Trash. The native No/Yes prompt and selected-file acceptance, added
+file handling and unrelated-content preservation were exercised on a disposable
+repository. Revert during amend targets the parent even when the list shows HEAD,
+as in the pinned source. See [Revert parity](REVERT-PARITY.md) for backend coverage,
+recovery behavior and remaining dedicated-dialog/Finder/progress work.

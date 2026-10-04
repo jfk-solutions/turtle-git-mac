@@ -259,6 +259,26 @@ import UniformTypeIdentifiers
     private func validateRestoreAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
+    func revertFiles(_ selected: [StatusEntry]) {
+        guard !busy, !confirmingQuit, !selected.isEmpty else { return }
+        if selected.contains(where: { [.modified, .conflicted].contains($0.state) }) {
+            let alert = NSAlert()
+            alert.messageText = "Are you sure you want to revert \(selected.count) item(s)?"
+            alert.informativeText = "You will lose ALL changes since the last update! Existing replaced file contents are moved to Trash. Added files remain on disk as unversioned files."
+            alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+            guard alert.runModal() == .alertSecondButtonReturn else { return }
+        }
+        busy = true
+        let amendment = amend, againstHead = amendDiffToLastCommit
+        Task {
+            do {
+                try validateRestoreAccess()
+                _ = try await repository.revertWorkingFiles(selected, amend: amendment, amendDiffToLastCommit: againstHead)
+                checked.subtract(selected.map(\.path)); selection.subtract(selected.map(\.path))
+            } catch { self.error = error.localizedDescription }
+            busy = false; reload(); refreshPartial()
+        }
+    }
     func markForRestore(_ paths: Set<String>) {
         guard !busy, !paths.isEmpty else { return }
         busy = true
@@ -717,6 +737,9 @@ GroupBox("Changes made (double-click on file for diff):") {
             } else {
                 Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
                 Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
+            }
+            if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) {
+                Button { model.revertFiles(selected) } label: { CommandLabel(title: "Revert", icon: .revert) }
             }
             if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) && !model.submodules.contains($0.path) }) {
                 if let first = selected.first, model.restoreCopies[first.path] != nil {

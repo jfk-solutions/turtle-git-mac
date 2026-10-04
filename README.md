@@ -41,6 +41,8 @@ bundle structure; it is not a signed distribution.
   An attached right-hand patch window stages/unstages selected lines or hunks in
   ordinary tracked UTF-8 text files. Restore after commit saves working contents and
   restores them after a successful commit, retaining the committed index/HEAD.
+  Revert resets selected files and index entries, retaining replaced contents in
+  macOS Trash and leaving added files unversioned.
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.

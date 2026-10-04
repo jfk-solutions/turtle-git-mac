@@ -12,6 +12,7 @@
 		0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */; };
 		0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FB406B12CA9FED59A3121 /* FinderCache.swift */; };
 		10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = 966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */; };
+		114EB220A33E2848C99E7466 /* WorkingFileRevert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */; };
 		140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */; };
 		174E45FA66A5BAED1EAEF918 /* IgnoreWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */; };
 		1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */; };
@@ -158,6 +159,7 @@
 		2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeLineEndings.swift; sourceTree = "<group>"; };
 		2FD299C13A57D2632BB2467B /* Pull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pull.swift; sourceTree = "<group>"; };
 		326985003F83908822D7B91E /* MergeWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWindow.swift; sourceTree = "<group>"; };
+		331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRevert.swift; sourceTree = "<group>"; };
 		35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorPreferences.swift; sourceTree = "<group>"; };
 		3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRestore.swift; sourceTree = "<group>"; };
 		396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflictWindow.swift; sourceTree = "<group>"; };
@@ -342,6 +344,7 @@
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
 				8927431F95C0127D9B66489A /* TextConflict.swift */,
 				3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */,
+				331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */,
 				B20E461B2D9629D0293A80EB /* WorkingTree.swift */,
 			);
 			name = TurtleGitCore;
@@ -546,6 +549,7 @@
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
 				7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */,
 				EB7A90B9B17592BFD2605C3C /* WorkingFileRestore.swift in Sources */,
+				114EB220A33E2848C99E7466 /* WorkingFileRevert.swift in Sources */,
 				E046B347B367E63019422195 /* WorkingTree.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

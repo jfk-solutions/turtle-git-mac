@@ -69,7 +69,7 @@ extension GitRepository {
             throw GitFailure(arguments: ["restore working copy"], code: 1, message: String(cString: strerror(errno)))
         }
     }
-    private func restoreLocation(_ path: String) throws -> URL {
+    func restoreLocation(_ path: String) throws -> URL {
         guard !path.isEmpty, !path.hasPrefix("/"), !path.contains("\0"),
               !path.components(separatedBy: "/").contains(where: { $0 == ".." || $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw WorkingFileRestoreFailure.location }
         let location = root.appendingPathComponent(path).standardizedFileURL
