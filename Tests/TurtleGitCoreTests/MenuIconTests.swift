@@ -17,7 +17,7 @@ final class MenuIconTests: XCTestCase {
         }
         // BI_RGB ribbon bitmaps carry real alpha despite AppKit's default BMP
         // decoder discarding it. Their empty corners must remain transparent.
-        for icon in [MenuIcon.mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine] {
+        for icon in [MenuIcon.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine] {
             guard let image = icon.image(), let bitmap = image.representations.first as? NSBitmapImageRep else { XCTFail("Missing ribbon bitmap: \(icon)"); continue }
             XCTAssertTrue(bitmap.hasAlpha, icon.rawValue)
             XCTAssertLessThan(bitmap.colorAt(x: 0, y: 0)?.alphaComponent ?? 1, 0.01, icon.rawValue)

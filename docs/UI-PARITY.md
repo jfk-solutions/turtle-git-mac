@@ -85,3 +85,8 @@ numbers, and upstream light/dark removed/added/conflicted/empty colors. Both
 actual native captures were inspected. The full suite passes 180 tests. Exact
 libsvn alignment parity and synchronized scrolling acceptance remain pending;
 logical Command-Z and Shift-Command-Z are verified on the QA host; broader keyboard combinations remain pending. See [Text merge parity](TEXT-MERGE-PARITY.md).
+
+Merge source panes now offer Use this whole file. Native Mine, Theirs, Undo/Redo and unsaved-close Cancel were verified; rebase
+native combinations remain pending. Reload is visible with original artwork
+and successful-load history reset. Its dirty prompt and Cancel were verified;
+confirmed reload/reset acceptance remains pending.

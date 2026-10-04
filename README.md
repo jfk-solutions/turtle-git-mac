@@ -49,7 +49,8 @@ bundle structure; it is not a signed distribution.
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Working-tree and index diffs, with selectable, monospaced operation output.
 - Native three-pane UTF-8 text conflict editor with Theirs/Mine/Merged, block choices,
-  line numbers and guarded Save/Mark as resolved. Full editor parity and native QA
+  aligned source rows and colors, original line numbers, undoable whole-source
+  selection, Reload and guarded Save/Mark as resolved. Full editor parity and native QA
   remain in progress; see [Text merge parity](docs/TEXT-MERGE-PARITY.md).
   ![Native three-pane text conflict editor](docs/site/assets/text-merge.png)
 - Native Merge window with branch/tag/commit selection, squash, fast-forward, No Commit,

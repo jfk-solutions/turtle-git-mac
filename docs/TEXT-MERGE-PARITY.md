@@ -17,7 +17,7 @@ monospaced text, original source line numbers and aligned read-only source rows
 support both appearances. Removed base rows use upstream orange, additions yellow,
 conflicts red and alignment gaps gray, with upstream dark variants. Removed rows
 and gaps have no source number and never enter the editable merged result. The original upstream ribbon artwork is reused for Save, Save As, Mark as
-resolved, Undo/Redo, Find, conflict navigation and all four block choices. Twelve
+resolved, Undo/Redo, Find, conflict navigation and all four block choices. Thirteen
 unchanged BMP assets carry source/blob/SHA-256 provenance. The ribbon XML command
 mappings were reviewed. AppKit ignores BI_RGB BMP alpha by default; the native
 renderer reads their original straight BGRA pixels explicitly, preserving
@@ -94,7 +94,7 @@ is implemented, but native attempts encountered inaccessible scroll targets and
 no-window observations; it remains unverified. Character-level differences, syntax coloring, whitespace
 and EOL/encoding controls, folding, locator bar, source editing, complete ribbon
 and menus, standalone two-file comparison, external tools, binary/image merging,
-empty-result Delete/Keep, backup files, general reload/open workflows and selection
+empty-result Delete/Keep, backup files, full save-before-reload/open workflows and selection
 mapping from source-pane block menus remain pending. EOF block-choice fidelity
 needs broader checks. Full native keyboard/Undo/Redo, save/close/export/error/rebase,
 resize and signed Finder/sandbox acceptance remain partial until verified.
@@ -137,3 +137,48 @@ actions retain NSTextView validation. The action handler repeats the busy/editab
 checks. Native context-menu QA verified all four block commands disabled outside
 a conflict. Inside-conflict activation, busy-state UI and multi-block selections
 remain pending.
+
+## Whole-source file and Reload
+
+LeftView.cpp and RightView.cpp offer “Use this whole file” in each source pane
+when a three-pane result exists. BaseView.cpp routes these commands to the bottom
+view; BottomView.cpp replaces the result using the source file's lines. Native
+Mine/Theirs context menus now expose that command with original side artwork.
+They copy the original captured stage text, excluding display-only removed rows
+and gaps, and replace the entire result as one undoable edit. Rebase uses the
+already-reversed Mine/Theirs document roles. Save and resolution remain separate.
+The current implementation retains exact UTF-8/EOL/EOF source contents; upstream
+result-EOL normalization and source-pane state changes are not yet reproduced.
+
+Native QA verified Mine replaced the entire result, including its title and
+ending line 5, excluding the incoming footer and display-only Base rows. Both
+conflicts disappeared and Mark as resolved became available. Logical Command-Z
+restored the full original diff3 result, both conflicts and the clean indicator;
+logical Shift-Command-Z restored Mine and Modified. Escape displayed the unsaved
+close prompt; Cancel retained Mine. Native Theirs in the final dark build also replaced the complete result with
+its Base title, both Theirs values and incoming footer, omitting ending line 5.
+No-final-newline, rebase and Save after whole-source selection still need native
+checks. Existing core tests cover exact
+stage extraction and UTF-8/CRLF/EOF save preservation, but do not prove those UI
+combinations.
+
+Reload is now visible with the unchanged upstream Refresh.bmp ribbon artwork
+and SHA-256 provenance. Dirty results ask Cancel/Reload. A successful reload
+recaptures current stages and working-file guards, regenerates the merge and
+source alignment, and clears old Undo/Redo actions. Failures retain the prior
+result and history. Upstream also offers save-before-reload, which remains pending.
+Native dirty Reload displayed Cancel/Reload in the final dark build; Cancel
+retained Theirs, Modified and enabled Undo. Confirmed Reload/history-reset checks
+encountered missing-window observations and remain unverified.
+
+Opening the Mine context menu moved both source vertical scrollbars from 0 to 1,
+providing native evidence of coupled source positions. Direct wheel/scrollbar
+movement, intermediate positions and resize behavior remain unverified. The
+previous 2240 × 1624 captures predate the new Reload control and source menu.
+The original icon pixel test now includes Refresh.bmp and passes. The full suite
+passed 180 tests with zero failures, followed by a successful final app build.
+
+Dirty detection and text-view refresh compare UTF-8 bytes rather than Swift's
+canonical String equality, so visually equivalent NFC/NFD changes remain
+unsaved edits and can refresh the displayed buffer. Native normalization-only
+edit/close acceptance still needs verification.

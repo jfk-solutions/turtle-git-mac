@@ -162,3 +162,9 @@ full suite passes 180 tests; alignment tests reconstruct exact source contents
 over exhaustive and seeded Unicode/CRLF cases. Actual native captures verify
 the palette and layout. Full libsvn segmentation parity, source scrolling QA
 and broader keyboard acceptance remain incomplete; see TEXT-MERGE-PARITY.md.
+
+The text editor's source context menus now expose Use this whole file with
+undoable original-stage replacement. Native Mine/Theirs, keyboard Undo/Redo and
+unsaved-close Cancel are verified. Reload now exposes existing stage reload
+with original artwork and history reset; its native dirty prompt/Cancel are verified, while confirmed reload remains
+pending. Full source-block selection and upstream EOL handling are still partial.

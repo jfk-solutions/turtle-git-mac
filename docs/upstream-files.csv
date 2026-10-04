@@ -1495,7 +1495,7 @@ src/Resources/ribbon/OrangeDotUp.bmp,Resources,blob,8e46e5c76862c933b94450647660
 src/Resources/ribbon/Paste.bmp,Resources,blob,7e9c6b85a3affdad9dcf9fb9824113628331e655,pending-review,,
 src/Resources/ribbon/Pilcrow.bmp,Resources,blob,db88f50237203a660bcaf956b9173d4856c32685,pending-review,,
 src/Resources/ribbon/Redo.bmp,Resources,blob,d31e8c4111fa5342179208d5033f642136221770,ported-artwork,Sources/TurtleGitCore/Resources/Icons/Redo.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
-src/Resources/ribbon/Refresh.bmp,Resources,blob,0282ff362cee917a5a2035e7e4916127d2b2976b,pending-review,,
+src/Resources/ribbon/Refresh.bmp,Resources,blob,0282ff362cee917a5a2035e7e4916127d2b2976b,ported-artwork,Sources/TurtleGitCore/Resources/Icons/Refresh.bmp,Original ribbon Reload artwork copied unchanged; source Git blob and SHA-256 verified; original alpha decoder and icon pixel test cover it.
 src/Resources/ribbon/RightGreen.bmp,Resources,blob,998b441ffc798a3a08dceebc24ad1ca5e4f6d95e,pending-review,,
 src/Resources/ribbon/RightGreenDots.bmp,Resources,blob,f49e18477267a759c08f9a30ac895e2efab42939,pending-review,,
 src/Resources/ribbon/RightRed.bmp,Resources,blob,95461c1687e4787510f1775c1c90ef7368d79638,pending-review,,
@@ -1726,9 +1726,9 @@ src/TortoiseMerge/AboutDlg.cpp,TortoiseMerge,blob,6aefb0e9bf67ffcef1a8be319a4a86
 src/TortoiseMerge/AboutDlg.h,TortoiseMerge,blob,014f3ad547e5cf5e2464b0a321d530cc461572e3,pending-review,,
 src/TortoiseMerge/AppUtils.cpp,TortoiseMerge,blob,7e67a7ee01c3b25b41b30f1d8142ca265fbd6f46,pending-review,,
 src/TortoiseMerge/AppUtils.h,TortoiseMerge,blob,ad0ee78a1baaeb2b3ebb65e5c033dffd2e78b6eb,pending-review,,
-src/TortoiseMerge/BaseView.cpp,TortoiseMerge,blob,366693a9d1d37033f6c99222fe616e6c1dc394c5,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed inline-diff gating and line-length limits; source rendering partially replaced; inline/folding/locator/editing and full view behavior pending.
+src/TortoiseMerge/BaseView.cpp,TortoiseMerge,blob,366693a9d1d37033f6c99222fe616e6c1dc394c5,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed inline-diff gating and line-length limits; source rendering partially replaced; inline/folding/locator/editing and full view behavior pending. Reviewed three-pane whole-file command dispatch; native source menu routes exact original stage text. Full EOL normalization and selection mapping pending.
 src/TortoiseMerge/BaseView.h,TortoiseMerge,blob,b6df00936593fedcc7f6375125d2fdc08a86e138,pending-review,,
-src/TortoiseMerge/BottomView.cpp,TortoiseMerge,blob,604c2311ee3b040f233c696debe708a444b4d754,partial,Sources/TurtleGitMac/TextConflictWindow.swift; Sources/TurtleGitCore/TextConflict.swift,Partial text-conflict save/block-choice review and native three-pane editor; full diff/merge view and menus remain pending. See TEXT-MERGE-PARITY.md.
+src/TortoiseMerge/BottomView.cpp,TortoiseMerge,blob,604c2311ee3b040f233c696debe708a444b4d754,partial,Sources/TurtleGitMac/TextConflictWindow.swift; Sources/TurtleGitCore/TextConflict.swift,Partial text-conflict save/block-choice review and native three-pane editor; full diff/merge view and menus remain pending. See TEXT-MERGE-PARITY.md. Reviewed UseViewFile/UseBlock/UseBothBlocks and NoEnding handling; whole-file replacement and undo added; upstream EOL normalization and full aligned selection behavior pending.
 src/TortoiseMerge/BottomView.h,TortoiseMerge,blob,a7b905538aadc4b90550edbddd8e1812c115b1f7,pending-review,,
 src/TortoiseMerge/CustomMFCRibbonStatusBar.h,TortoiseMerge,blob,d2653405a4597fc304a9ac14926dba9dccf23eed,pending-review,,
 src/TortoiseMerge/DiffColors.cpp,TortoiseMerge,blob,6da9005c64f9e989f495e0c61805306c3894bc56,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed palette initialization/default use; native removed/added/conflicted/empty colors mapped; complete registry/settings palette pending.
@@ -1750,13 +1750,13 @@ src/TortoiseMerge/FindDlg.cpp,TortoiseMerge,blob,f744962b17020ebcbd71efd5711191a
 src/TortoiseMerge/FindDlg.h,TortoiseMerge,blob,8f5931cb46cd370f0b1a16a1539e3132c40c889d,pending-review,,
 src/TortoiseMerge/GotoLineDlg.cpp,TortoiseMerge,blob,838a31f77395eb56ac59e276b4ef0acde7136c5d,pending-review,,
 src/TortoiseMerge/GotoLineDlg.h,TortoiseMerge,blob,c4d2370e3366d8d537584e507062294f51e58c71,pending-review,,
-src/TortoiseMerge/LeftView.cpp,TortoiseMerge,blob,363de061ad49eefd502b7fcca0f69c9e398324e6,pending-review,,
+src/TortoiseMerge/LeftView.cpp,TortoiseMerge,blob,363de061ad49eefd502b7fcca0f69c9e398324e6,partial,Sources/TurtleGitMac/TextConflictWindow.swift,"Reviewed three-pane AddContextItems: Use this whole file now routes original stage text into merged result with undo; selected source blocks, combined choices, source state changes, two-pane editing and complete behavior remain pending."
 src/TortoiseMerge/LeftView.h,TortoiseMerge,blob,2b2a1121d3e8e06491b21460d696b1dbefc099a6,pending-review,,
 src/TortoiseMerge/LineDiffBar.cpp,TortoiseMerge,blob,67e8985e54aa5984ce6013d9be4cf5020b2ad3f3,pending-review,,
 src/TortoiseMerge/LineDiffBar.h,TortoiseMerge,blob,4c4b27030eae759aba087bdec5a663573ec837b6,pending-review,,
 src/TortoiseMerge/LocatorBar.cpp,TortoiseMerge,blob,40b6397feed330b0c56695ac32aab1c748b88f16,pending-review,,
 src/TortoiseMerge/LocatorBar.h,TortoiseMerge,blob,d4c525ce48eb28a0a46c689ad5c43488c854e71d,pending-review,,
-src/TortoiseMerge/MainFrm.cpp,TortoiseMerge,blob,0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138,partial,Sources/TurtleGitMac/TextConflictWindow.swift; Sources/TurtleGitCore/TextConflict.swift,Partial text-conflict save/block-choice review and native three-pane editor; full diff/merge view and menus remain pending. See TEXT-MERGE-PARITY.md.
+src/TortoiseMerge/MainFrm.cpp,TortoiseMerge,blob,0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138,partial,Sources/TurtleGitMac/TextConflictWindow.swift; Sources/TurtleGitCore/TextConflict.swift,Partial text-conflict save/block-choice review and native three-pane editor; full diff/merge view and menus remain pending. See TEXT-MERGE-PARITY.md. Reviewed OnFileReload; native Reload exposed with discard prompt and history reset after successful reload; upstream Save-before-reload choice remains pending.
 src/TortoiseMerge/MainFrm.h,TortoiseMerge,blob,24f371aeb7550a66ba1b05516a7ff8333837a036,pending-review,,
 src/TortoiseMerge/MovedBlocks.cpp,TortoiseMerge,blob,93b7b68d2fecc84063f355a226d00fb30d5d5348,pending-review,,
 src/TortoiseMerge/MovedBlocks.h,TortoiseMerge,blob,74c3e4db756fc7f3dd4b899443508eb122451921,pending-review,,
@@ -1770,7 +1770,7 @@ src/TortoiseMerge/RegexFilterDlg.cpp,TortoiseMerge,blob,94bd5d7015acc561078ebba5
 src/TortoiseMerge/RegexFilterDlg.h,TortoiseMerge,blob,feb9573050d8ee877eca2cce4253c2d3bcd8e43e,pending-review,,
 src/TortoiseMerge/RegexFiltersDlg.cpp,TortoiseMerge,blob,4841d280c96bf45233624e3d839e6b1589e49d6f,pending-review,,
 src/TortoiseMerge/RegexFiltersDlg.h,TortoiseMerge,blob,fe17101e35e882daf3affe5e224ada051db1c372,pending-review,,
-src/TortoiseMerge/RightView.cpp,TortoiseMerge,blob,4b7e417a5c6ce3f68ad80b582aef80cfc157ed9d,pending-review,,
+src/TortoiseMerge/RightView.cpp,TortoiseMerge,blob,4b7e417a5c6ce3f68ad80b582aef80cfc157ed9d,partial,Sources/TurtleGitMac/TextConflictWindow.swift,"Reviewed three-pane AddContextItems: Use this whole file now routes original stage text into merged result with undo; selected source blocks, combined choices, source state changes, two-pane editing and complete behavior remain pending."
 src/TortoiseMerge/RightView.h,TortoiseMerge,blob,b2952a2e6bb9c13ab91eb177959c658f31efca46,pending-review,,
 src/TortoiseMerge/SetColorPage.cpp,TortoiseMerge,blob,168b70259d0a4ff7af969bce007c7d7f44d025e7,pending-review,,
 src/TortoiseMerge/SetColorPage.h,TortoiseMerge,blob,5f524592dfe8caeb05d11294b0bf2c28ffd566a4,pending-review,,

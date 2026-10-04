@@ -282,6 +282,11 @@
       "asset": "UseTheirsMine.bmp",
       "source": "src/Resources/ribbon/UseTheirsMine.bmp",
       "sha256": "fd8aa7b6a7261189b47eb85a8cb5e4f7f570d7728a4125cf8c3f15f46f275c51"
+    },
+    {
+      "asset": "Refresh.bmp",
+      "source": "src/Resources/ribbon/Refresh.bmp",
+      "sha256": "4d6017e437782f31f43713b6768787fa8df123abda89939696defd98019ab629"
     }
   ]
 }

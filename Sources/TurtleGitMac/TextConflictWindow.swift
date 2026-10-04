@@ -13,6 +13,10 @@ private extension MergeBlockChoice {
         }
     }
 }
+private enum MergeSourceSide {
+    case mine, theirs
+    var icon: MenuIcon { self == .mine ? .mergeUseMine : .mergeUseTheirs }
+}
 
 @MainActor private final class TextConflictNSWindow: NSWindow {
     weak var mergedText: NSTextView?
@@ -101,6 +105,8 @@ private extension MergeBlockChoice {
     @Published var canUndo = false
     @Published var canRedo = false
     var applyBlock: ((NSRange, String) -> Void)?
+    var replaceEntireResult: ((String) -> Void)?
+    var resetHistory: () -> Void = {}
     var undo: () -> Void = {}
     var redo: () -> Void = {}
     var close: () -> Void = {}
@@ -120,7 +126,7 @@ private extension MergeBlockChoice {
         }
     }
     var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result) }
-    var dirty: Bool { document.map { result != $0.initialResult } ?? false }
+    var dirty: Bool { document.map { !result.utf8.elementsEqual($0.initialResult.utf8) } ?? false }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String) { self.repository = repository; self.access = access; self.path = path }
     func load() {
         guard !busy else { return }
@@ -135,6 +141,7 @@ private extension MergeBlockChoice {
             do {
                 let next = try await repository.textConflictDocument(path: path)
                 sourceComparison = await Task.detached { MergeSourceComparison(base: next.base, mine: next.mine, theirs: next.theirs) }.value
+                resetHistory()
                 document = next; result = next.initialResult; selectedConflict = 0; selectConflict(0)
             } catch { self.error = error.localizedDescription }
         }
@@ -152,6 +159,13 @@ private extension MergeBlockChoice {
             selectConflict(index)
         }
         catch { self.error = error.localizedDescription }
+    }
+    fileprivate func useFile(_ side: MergeSourceSide) {
+        guard !busy, let document else { return }
+        let contents = side == .mine ? document.mine : document.theirs
+        if let replaceEntireResult { replaceEntireResult(contents) }
+        else { result = contents }
+        selectedConflict = 0
     }
     func save(markResolved: Bool, closeAfter: Bool = false) {
         guard !busy, let document else { return }
@@ -203,11 +217,11 @@ private enum MergePalette {
 }
 private struct TextConflictDialog: View {
     @ObservedObject var model: TextConflictWindowModel
-    func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil) -> some View {
+    func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
         let displayed = cells.map { $0.map(\.displayText).joined(separator: "\n") + ($0.isEmpty ? "" : "\n") } ?? text
         return VStack(spacing: 0) {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
-            MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells).frame(minWidth: 220, minHeight: 120)
+            MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side).frame(minWidth: 220, minHeight: 120)
         }
     }
     var body: some View {
@@ -220,14 +234,15 @@ private struct TextConflictDialog: View {
                 Button { model.selectConflict(model.selectedConflict - 1) } label: { CommandLabel(title: "Previous conflict", icon: .mergePreviousConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict == 0)
                 Button { model.selectConflict(model.selectedConflict + 1) } label: { CommandLabel(title: "Next conflict", icon: .mergeNextConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict >= model.blocks.count - 1)
                 Toggle("Show Base", isOn: $model.showBase).toggleStyle(.button)
+                Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }.help("Reload the current conflict stages; ask before discarding an unsaved result.")
                 Spacer()
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
             if let document = model.document {
                 VSplitView {
                     HSplitView {
-                        pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs, cells: model.sourceComparison?.rows.map(\.theirs))
-                        pane(document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine", text: document.mine, cells: model.sourceComparison?.rows.map(\.mine))
+                        pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs, cells: model.sourceComparison?.rows.map(\.theirs), side: .theirs)
+                        pane(document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine", text: document.mine, cells: model.sourceComparison?.rows.map(\.mine), side: .mine)
                         if model.showBase { pane("Base", text: document.base) }
                     }
                     pane("Merged · \(model.path)", text: model.result, editable: true)
@@ -253,6 +268,7 @@ private struct MergeEditor: NSViewRepresentable {
     let label: String
     let editable: Bool
     let sourceCells: [MergeSourceCell]?
+    let sourceSide: MergeSourceSide?
     func makeNSView(context: Context) -> NSScrollView {
         let view = MergeTextView(); view.isRichText = false; view.allowsUndo = editable
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
@@ -262,9 +278,16 @@ private struct MergeEditor: NSViewRepresentable {
         view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         view.textContainer?.widthTracksTextView = false; view.textContainer?.containerSize = view.maxSize
         view.setAccessibilityLabel(label); view.delegate = context.coordinator; view.model = model; view.mergeEditable = editable
+        view.sourceSide = sourceSide
         if editable {
             model.undo = { [weak view] in view?.undoMergeEdit() }
             model.redo = { [weak view] in view?.redoMergeEdit() }
+            model.resetHistory = { [weak view] in view?.resetMergeHistory() }
+            model.replaceEntireResult = { [weak view] value in
+                guard let view else { return }
+                view.window?.makeFirstResponder(view)
+                view.replaceMergeBlock(NSRange(location: 0, length: (view.string as NSString).length), with: value, actionName: "Use whole file")
+            }
             model.applyBlock = { [weak view] range, value in
                 guard let view else { return }
                 view.window?.makeFirstResponder(view)
@@ -283,7 +306,7 @@ private struct MergeEditor: NSViewRepresentable {
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
         view.isEditable = editable && !model.busy; view.model = model
         let range = view.selectedRange()
-        if view.string != text { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
+        if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
         let entire = NSRange(location: 0, length: (text as NSString).length)
         view.textStorage?.addAttributes([.foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.textBackgroundColor, .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)], range: entire)
         if editable {
@@ -337,16 +360,18 @@ private struct MergeEditor: NSViewRepresentable {
 private final class MergeTextView: NSTextView {
     weak var model: TextConflictWindowModel?
     var mergeEditable = false
+    var sourceSide: MergeSourceSide?
     private let mergeUndoManager = UndoManager()
     override var undoManager: UndoManager? { mergeEditable ? mergeUndoManager : super.undoManager }
     func updateUndoState() { model?.canUndo = mergeUndoManager.canUndo; model?.canRedo = mergeUndoManager.canRedo }
     func undoMergeEdit() { if mergeUndoManager.canUndo { mergeUndoManager.undo() }; updateUndoState() }
     func redoMergeEdit() { if mergeUndoManager.canRedo { mergeUndoManager.redo() }; updateUndoState() }
-    func replaceMergeBlock(_ range: NSRange, with replacement: String) {
+    func resetMergeHistory() { mergeUndoManager.removeAllActions(); updateUndoState() }
+    func replaceMergeBlock(_ range: NSRange, with replacement: String, actionName: String = "Use text block") {
         guard isEditable, NSMaxRange(range) <= (string as NSString).length else { return }
         let previous = string, selection = selectedRange()
         mergeUndoManager.registerUndo(withTarget: self) { $0.restoreMergeText(previous, selection: selection) }
-        mergeUndoManager.setActionName("Use text block")
+        mergeUndoManager.setActionName(actionName)
         textStorage?.replaceCharacters(in: range, with: replacement)
         setSelectedRange(NSRange(location: range.location, length: (replacement as NSString).length))
         didChangeText()
@@ -366,6 +391,11 @@ private final class MergeTextView: NSTextView {
         menu.addItem(.separator())
         let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
         find.target = self; find.image = MenuIcon.mergeFind.image(); menu.addItem(find)
+        if let sourceSide {
+            menu.addItem(.separator())
+            let useFile = NSMenuItem(title: "Use this whole file", action: #selector(useSourceFile(_:)), keyEquivalent: "")
+            useFile.target = self; useFile.image = sourceSide.icon.image(); menu.addItem(useFile)
+        }
         guard mergeEditable, let model else { return menu }
         if selectedRange().length == 0 { setSelectedRange(NSRange(location: characterIndexForInsertion(at: convert(event.locationInWindow, from: nil)), length: 0)) }
         menu.addItem(.separator())
@@ -382,6 +412,7 @@ private final class MergeTextView: NSTextView {
         (window as? TextConflictNSWindow)?.find(.showFindInterface)
     }
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(useSourceFile(_:)) { return sourceSide != nil && model?.document != nil && model?.busy == false }
         if menuItem.action == #selector(useBlock(_:)) {
             guard mergeEditable, isEditable, let model, !model.busy,
                   MergeBlockChoice.allCases.indices.contains(menuItem.tag) else { return false }
@@ -389,6 +420,10 @@ private final class MergeTextView: NSTextView {
             return model.blocks.contains { NSIntersectionRange($0.range, selection).length > 0 || NSLocationInRange(selection.location, $0.range) }
         }
         return super.validateMenuItem(menuItem)
+    }
+    @objc private func useSourceFile(_ sender: NSMenuItem) {
+        guard let sourceSide else { return }
+        model?.useFile(sourceSide)
     }
     @objc private func useBlock(_ sender: NSMenuItem) {
         guard mergeEditable, isEditable, MergeBlockChoice.allCases.indices.contains(sender.tag), let model, !model.busy, let block = model.blocks.first(where: { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }
