@@ -348,6 +348,43 @@ without compiler warnings; both bundle audits passed with 62 icons. Packaged Git
 fixtures. The static site built with the new verified screenshot. These checks
 do not establish signed sandbox or App Store acceptance.
 
+## Only consider first parents
+
+The native checkbox now matches the upstream View/settings option and reloads
+annotations immediately. The reader uses Git's documented
+[first-parent traversal](https://git-scm.com/docs/git-blame#Documentation/git-blame.txt---first-parent)
+at the resolved historical commit. Side-branch lines become attributed to the
+merge that introduced them into the integration branch. Source/blob validation,
+encoding, whitespace and move/copy options continue to apply. The age-history read
+also restricts traversal to first parents. Previous-revision menu targets retain
+the applied flag, and both new and reconfigured viewers use it when reading.
+
+Upstream builds a `rev-list --first-parent` ancestry file and passes it with `-S`.
+A real Git test reproduces that exact file construction and compares hash, original
+line and filename attribution with the new traversal. The fixture distinguishes
+main-branch, unchanged and side-branch lines; it also checks root and single-parent
+history, combined whitespace/copy options, literal Unicode/newline/pathspec-like
+paths and preservation of HEAD, exact index bytes and independent working edits.
+All 276 core tests passed, including this merge comparison.
+
+Native QA opened a pinned merge from Log. Enabling the checkbox changed the side
+line's hash from the side commit to the integration merge while retaining all source
+text. Blame previous revision → Parent 1 opened the main parent with the checkbox
+still enabled and original line 3 selected. Expanding that submenu and accepting
+with Return exercised native keyboard command dispatch. A subsequent Window-menu
+selection returned stale automation targets; reused-window restoration remains
+unverified. The one QA process quit after the scenario, absence was verified and
+HEAD/index/working source matched the recorded baseline. No new screenshot is
+claimed for this checkbox.
+
+Swift and unsigned Debug/AppStore builds passed without compiler warnings. Both
+bundle audits passed with 62 icons. The packaged universal Git 2.55.0 audit now
+executes a real merge and verifies ordinary versus first-parent attribution,
+unchanged HEAD/index/source, plus its previous encoding/local-operation fixtures.
+Its 11 Mach-O files passed architecture checks. Saved preferences, complete View/
+settings layout, renamed/complex merge histories, full age-color/history behavior,
+dark/VoiceOver and signed sandbox acceptance remain pending.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;
@@ -357,7 +394,7 @@ do not establish signed sandbox or App Store acceptance.
   revision/block navigation.
 - Clipboard presentation/localized dates, export commands and remaining original
   menu icons.
-- Blame options dialog, revision chooser, first-parent filtering,
+- Blame options dialog, revision chooser,
   settings and persistent preferences.
 - Persistent/system encoding defaults, chooser/accessibility parity, unsupported
   codecs and byte-LF within other UTF-16 code units; binary, malformed text and

@@ -2,6 +2,61 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlameTests: XCTestCase {
+    func testFirstParentAttributesSideBranchLinesToIntegrationCommit() async throws {
+        let (root, repo, fixturePath) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = ":(glob)* first parent 雪\n.swift"
+        let base = "main base\nunchanged spacer\nside base\n"
+        try Data(base.utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "annotation base")
+        let origin = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let branch = try await repo.run(["branch", "--show-current"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["checkout", "-b", "annotation-side"])
+        try Data(base.replacingOccurrences(of: "side base", with: "side change").utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "side annotation")
+        let side = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["checkout", branch])
+        try Data(base.replacingOccurrences(of: "main base", with: "main change").utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "main annotation")
+        let main = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["merge", "--no-ff", "annotation-side", "-m", "integrate side annotation"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let contents = try Data(contentsOf: root.appendingPathComponent(path))
+        try Data("staged replacement\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        try Data("working replacement\n".utf8).write(to: root.appendingPathComponent(path))
+        let normal = try await repo.blame(path: path)
+        XCTAssertEqual(normal.lines.map(\.hash), [main, origin, side])
+        var options = GitBlameOptions(); options.onlyFirstParent = true
+        let rootHash = try await repo.run(["rev-list", "--max-parents=0", head]).text.trimmingCharacters(in: .newlines)
+        let rootOnly = try await repo.blame(path: fixturePath, revision: rootHash, options: options)
+        XCTAssertTrue(rootOnly.lines.allSatisfy { $0.hash == rootHash })
+        let singleParent = try await repo.blame(path: path, revision: main, options: options)
+        XCTAssertEqual(singleParent.lines.map(\.hash), [main, origin, origin])
+        let first = try await repo.blame(path: path, options: options)
+        XCTAssertEqual(first.lines.map(\.hash), [main, origin, head])
+        XCTAssertEqual(first.contents, contents); XCTAssertEqual(first.lines.map(\.sourceBytes), normal.lines.map(\.sourceBytes))
+        // Reproduce upstream's rev-list -> ancestry-file construction and compare
+        // its annotations with Git's native first-parent traversal.
+        let ancestors = try await repo.run(["rev-list", "--first-parent", "--end-of-options", head, "--"]).text.split(separator: "\n").map(String.init)
+        let ancestry = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: ancestry) }
+        var previous = "", chain = ""
+        for hash in ancestors { chain += previous + " " + hash + "\n"; previous = hash }
+        try Data(chain.utf8).write(to: ancestry)
+        let raw = try await repo.run(["-c", "blame.blankBoundary=false", "blame", "--line-porcelain", "--no-textconv", "-S", ancestry.path, head, "--", path]).stdout
+        let upstream = try GitBlameParser.parse(raw)
+        XCTAssertEqual(first.lines.map(\.hash), upstream.map(\.hash))
+        XCTAssertEqual(first.lines.map(\.originalLine), upstream.map(\.originalLine))
+        XCTAssertEqual(first.lines.map(\.filename), upstream.map(\.filename))
+        options.detectionMode = .existingFiles; options.ignoreWhitespace = true
+        let combined = try await repo.blame(path: path, options: options)
+        XCTAssertEqual(combined.lines.map(\.hash), first.lines.map(\.hash))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("working replacement\n".utf8))
+        let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(after, head)
+    }
     func testCopyDetectionScopesAndCharacterThresholds() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

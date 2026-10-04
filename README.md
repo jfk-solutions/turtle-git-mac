@@ -35,7 +35,8 @@ clipboard details. UTF-8 and unambiguous UTF-16 LE/BE sources retain exact
 historical bytes. An Encoding popup provides explicit UTF and installed legacy
 code-page choices. Previous-revision Blame retains the applied encoding and
 whitespace/move/copy options. Five upstream detection modes and separate within-file
-and between-file character thresholds are available. Full menus, syntax highlighting and
+and between-file character thresholds are available, along with first-parent
+attribution through merges. Full menus, syntax highlighting and
 encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 
 - Open normal repositories and linked worktrees; show branch and status.

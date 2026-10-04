@@ -36,6 +36,7 @@ private struct BlameParentMenuTarget {
     @Published var busy = false
     @Published var error: String?
     @Published var ignoreWhitespace = false
+    @Published var onlyFirstParent = false
     @Published var detectionMode = GitBlameDetectionMode.disabled
     @Published var withinFileCharacters = "20"
     @Published var betweenFileCharacters = "40"
@@ -88,6 +89,7 @@ private struct BlameParentMenuTarget {
     private var currentOptions: GitBlameOptions {
         var options = GitBlameOptions()
         options.ignoreWhitespace = ignoreWhitespace; options.detectionMode = detectionMode; options.encoding = sourceEncoding
+        options.onlyFirstParent = onlyFirstParent
         options.withinFileCharacters = UInt32(withinFileCharacters) ?? appliedOptions.withinFileCharacters
         options.betweenFileCharacters = UInt32(betweenFileCharacters) ?? appliedOptions.betweenFileCharacters
         return options
@@ -97,6 +99,7 @@ private struct BlameParentMenuTarget {
     }
     private func setControls(_ options: GitBlameOptions) {
         ignoreWhitespace = options.ignoreWhitespace; detectionMode = options.detectionMode; sourceEncoding = options.encoding
+        onlyFirstParent = options.onlyFirstParent
         withinFileCharacters = String(options.withinFileCharacters); betweenFileCharacters = String(options.betweenFileCharacters)
     }
     func configure(options: GitBlameOptions, line: Int?) {
@@ -114,6 +117,10 @@ private struct BlameParentMenuTarget {
     func setDetectionMode(_ mode: GitBlameDetectionMode) {
         guard !busy, detectionMode != mode else { return }
         detectionMode = mode; reload()
+    }
+    func setOnlyFirstParent(_ enabled: Bool) {
+        guard !busy, onlyFirstParent != enabled else { return }
+        onlyFirstParent = enabled; reload()
     }
     func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -150,7 +157,8 @@ private struct BlameParentMenuTarget {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.blame(path: path, revision: revision, options: options)
-                let history = try await repository.run(["log", "--format=%H", "--follow", result.revision, "--", path]).text.split(separator: "\n").map(String.init)
+                let historyArguments = ["log", "--format=%H", "--follow"] + (options.onlyFirstParent ? ["--first-parent"] : [])
+                let history = try await repository.run(historyArguments + [result.revision, "--", path]).text.split(separator: "\n").map(String.init)
                 guard request == generation else { return }
                 ranks = Dictionary(history.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: min)
                 origins = Dictionary(result.lines.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first })
@@ -221,6 +229,7 @@ private struct BlameDialog: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Toggle("Ignore whitespace", isOn: $model.ignoreWhitespace)
+                Toggle("Only consider first parents on blame", isOn: Binding(get: { model.onlyFirstParent }, set: { model.setOnlyFirstParent($0) }))
                 Button("Reload") { model.reload() }
                 Spacer(); Toggle("Colorize by age", isOn: $model.colorAge)
             }.disabled(model.busy)

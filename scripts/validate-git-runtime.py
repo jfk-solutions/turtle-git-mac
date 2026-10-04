@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import pathlib
+import re
 import subprocess
 import tempfile
 
@@ -96,11 +97,32 @@ def main():
         run('clone', '--no-local', str(repository), str(clone))
         assert (clone / path.name).read_bytes() == b'base\n'
         assert b'base' in run('-C', str(clone), 'log', '-1', '--format=%s')
+        merge_repo = pathlib.Path(temporary) / 'first-parent'; merge_repo.mkdir()
+        def merge_run(*arguments): return run('--literal-pathspecs', '-C', str(merge_repo), *arguments)
+        merge_run('init', '-b', 'main'); merge_run('config', 'user.name', 'Runtime QA'); merge_run('config', 'user.email', 'runtime@example.invalid')
+        merge_file = merge_repo / 'source 雪.txt'; base = b'main base\nspacer\nside base\n'
+        def commit_text(text, message):
+            merge_file.write_bytes(text); merge_run('add', '--', merge_file.name)
+            merge_run('-c', 'commit.gpgsign=false', 'commit', '-m', message)
+            return merge_run('rev-parse', 'HEAD').strip()
+        origin = commit_text(base, 'base')
+        merge_run('checkout', '-b', 'side'); side = commit_text(base.replace(b'side base', b'side change'), 'side')
+        merge_run('checkout', 'main'); main_hash = commit_text(base.replace(b'main base', b'main change'), 'main')
+        merge_run('-c', 'commit.gpgsign=false', 'merge', '--no-ff', 'side', '-m', 'integrate side')
+        merge_hash = merge_run('rev-parse', 'HEAD').strip(); merge_index = (merge_repo / '.git/index').read_bytes()
+        merge_file.write_bytes(b'working replacement\n')
+        def hashes(*options):
+            raw = merge_run('blame', '--line-porcelain', '--no-textconv', *options, merge_hash.decode('ascii'), '--', merge_file.name)
+            return [line.split()[0] for line in raw.splitlines() if re.fullmatch(rb'[0-9a-f]{40,64} [0-9]+ [0-9]+(?: [0-9]+)?', line)]
+        assert hashes() == [main_hash, origin, side]
+        assert hashes('--first-parent') == [main_hash, origin, merge_hash]
+        assert (merge_repo / '.git/index').read_bytes() == merge_index and merge_file.read_bytes() == b'working replacement\n'
+        assert merge_run('rev-parse', 'HEAD').strip() == merge_hash
     if args.https:
         with tempfile.TemporaryDirectory(prefix='turtlegit-runtime-https-') as directory:
             result = run('ls-remote', '--exit-code', 'https://github.com/TortoiseGit/TortoiseGit.git', 'HEAD', timeout=60, cwd=directory)
         assert result.rstrip().endswith(b'\tHEAD'), 'Missing HTTPS remote HEAD'
         print('Public HTTPS ls-remote passed with bundled git-remote-https.')
-    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/blame (UTF-8, UTF-16 and legacy code pages) passed.')
+    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/blame (UTF-8, UTF-16, legacy code pages and first-parent merge attribution) passed.')
 
 if __name__ == '__main__': main()

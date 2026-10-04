@@ -17,6 +17,7 @@ public enum GitBlameDetectionMode: Int, CaseIterable, Identifiable, Sendable {
 }
 public struct GitBlameOptions: Equatable, Sendable {
     public var ignoreWhitespace = false
+    public var onlyFirstParent = false
     public var detectionMode = GitBlameDetectionMode.disabled
     public var withinFileCharacters: UInt32 = 20
     public var betweenFileCharacters: UInt32 = 40
@@ -259,6 +260,7 @@ extension GitRepository {
         try encoding.validate(content.bytes)
         var args = ["-c", "blame.blankBoundary=false", "blame", "--line-porcelain", "--no-progress", "--no-textconv"]
         if options.ignoreWhitespace { args.append("-w") }
+        if options.onlyFirstParent { args.append("--first-parent") }
         args += options.detectionArguments
         let lines = try GitBlameParser.parse(run(args + [hash, "--", path]).stdout, encoding: encoding, decodedSources: try encoding.legacyLines(content.bytes))
         // Git appends LF to each porcelain record even when the source has no final LF.
