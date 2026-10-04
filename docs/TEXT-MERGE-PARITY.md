@@ -55,7 +55,7 @@ signed sandbox behavior is still unverified.
 
 ## Evidence
 
-The full suite passed 181 tests with zero failures. Nine TextConflict tests cover
+The full suite passed 182 tests with zero failures. Ten TextConflict tests cover
 all four block choices, multiple CRLF blocks and Unicode UTF-16 selection ranges;
 real merge and add/add stage extraction; real rebase role reversal; exact UTF-8
 BOM/CRLF/no-final-newline saves; executable permissions; stale working/stage/mode
@@ -95,8 +95,8 @@ no-window observations; it remains unverified. Character-level differences, synt
 and EOL/encoding controls, folding, locator bar, source editing, complete ribbon
 and menus, standalone two-file comparison, external tools, binary/image merging,
 empty-result Delete/Keep, backup files, complete reload/open workflows and selection
-mapping from source-pane block menus remain pending. EOF block-choice fidelity
-needs broader checks. Full native keyboard/Undo/Redo, save/close/export/error/rebase,
+mapping from source-pane block menus remain pending. EOF block choices now use original source ending metadata for the unchanged
+final conflict; broader edited-marker and encoding combinations need checks. Full native keyboard/Undo/Redo, save/close/export/error/rebase,
 resize and signed Finder/sandbox acceptance remain partial until verified.
 
 Actual light/dark captures are site/assets/text-merge.png and text-merge-dark.png,
@@ -211,3 +211,35 @@ remain unverified in this build. The earlier Cancel verification used the prior
 two-choice prompt; the new prompt's Cancel still needs native acceptance.
 
 The final full suite passed 181 tests with zero failures, including the new save-before-reload regression.
+
+## End-of-file block choices
+
+Git merge-file inserts a line ending before conflict markers even when a source
+ends without one. The native editor now passes the original document to conflict
+parsing. For an unchanged original final conflict, source byte suffixes determine
+whether that delimiter was artificial. Single-side choices retain original EOF
+behavior; combined choices add a separator between sides and retain the final
+side's EOF. CRLF marker delimiters and a source's literal trailing CR are handled
+separately. Checks use UTF-8 bytes, avoiding Swift's CRLF grapheme behavior and
+canonical Unicode equality. The generated conflict result is retained separately
+from the saved clean baseline, so Save → Undo → reselect keeps the same metadata.
+
+This is conservative: trailing context or modified conflict sections disable
+EOF correction. It does not establish complete upstream result-EOL normalization,
+source-line mapping or arbitrary manually edited-marker parity. BottomView.cpp's
+UseBlock/UseBothBlocks and BaseView.cpp's nonlast-line EOL handling were reviewed.
+
+A real-Git regression covers five source-ending combinations, all four choices,
+Unicode/NFD, CRLF, a literal trailing CR, trailing manual context, edited blocks,
+Save → Undo/reselect and Save/Mark as resolved byte results. Choice calculation
+preserves the working file and index; Save retains unresolved stages; resolution
+keeps HEAD, refs and MERGE_HEAD unchanged.
+
+Native QA in /private/tmp/TurtleGitMergeEOFQA applied Mine before Theirs and Save.
+Disk bytes were exactly `common\nMine é\nTheirs 雪`, with a delimiter between sides
+and no final newline. NFD spelling, HEAD, refs and unresolved index were preserved.
+Further native resolution/Undo observations timed out; those EOF-specific paths
+and native CRLF acceptance remain unverified.
+
+The 182-test suite passed; after the generated-result metadata retention change,
+all 10 TextConflict tests passed again and the app compiled successfully.

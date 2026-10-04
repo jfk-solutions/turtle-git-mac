@@ -125,7 +125,7 @@ private enum MergeSourceSide {
             peer.verticalRulerView?.needsDisplay = true
         }
     }
-    var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result) }
+    var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result, document: document) }
     var dirty: Bool { document.map { !result.utf8.elementsEqual($0.initialResult.utf8) } ?? false }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String) { self.repository = repository; self.access = access; self.path = path }
     func load() {
@@ -165,7 +165,7 @@ private enum MergeSourceSide {
         let index = min(selectedConflict, blocks.count - 1)
         do {
             if let applyBlock { let block = blocks[index]; applyBlock(block.range, block.replacement(choice)) }
-            else { result = try MergeText.applying(choice, block: index, to: result) }
+            else { result = try MergeText.applying(choice, block: index, to: result, document: document) }
             selectConflict(index)
         }
         catch { self.error = error.localizedDescription }

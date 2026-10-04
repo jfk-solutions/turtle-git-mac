@@ -10,19 +10,27 @@ public struct MergeConflictBlock: Identifiable, Sendable {
     public let mine: String
     public let base: String
     public let theirs: String
+    private let joiningLineEnding: String
+    init(id: Int, range: NSRange, mine: String, base: String, theirs: String, joiningLineEnding: String = "\n") {
+        self.id = id; self.range = range; self.mine = mine; self.base = base; self.theirs = theirs; self.joiningLineEnding = joiningLineEnding
+    }
     public func replacement(_ choice: MergeBlockChoice) -> String {
+        func joined(_ first: String, _ second: String) -> String {
+            if first.isEmpty || second.isEmpty || first.utf8.last == 10 { return first + second }
+            return first + joiningLineEnding + second
+        }
         switch choice {
         case .mine: return mine
         case .theirs: return theirs
-        case .mineThenTheirs: return mine + theirs
-        case .theirsThenMine: return theirs + mine
+        case .mineThenTheirs: return joined(mine, theirs)
+        case .theirsThenMine: return joined(theirs, mine)
         }
     }
 }
 public enum MergeText {
     /// Uses UTF-16 ranges for AppKit selection and replacement, retaining every
     /// original line ending and avoiding Unicode scalar/character index mismatch.
-    public static func conflicts(in text: String) -> [MergeConflictBlock] {
+    public static func conflicts(in text: String, document: TextConflictDocument? = nil) -> [MergeConflictBlock] {
         let source = text as NSString
         var offset = 0, start: Int?, mineStart = 0, baseStart: Int?, separator: NSRange?
         var mineEnd: Int?, blocks: [MergeConflictBlock] = []
@@ -44,6 +52,29 @@ public enum MergeText {
             }
             offset = NSMaxRange(range)
         }
+        // merge-file inserts a line ending before markers even when the original
+        // final source line had none. Restore it only for the unchanged original
+        // EOF conflict, never for an edited block or a block followed by context.
+        guard let document, let last = blocks.last, NSMaxRange(last.range) == source.length,
+              let original = conflicts(in: document.generatedResult).last,
+              NSMaxRange(original.range) == (document.generatedResult as NSString).length,
+              last.mine.utf8.elementsEqual(original.mine.utf8),
+              last.base.utf8.elementsEqual(original.base.utf8),
+              last.theirs.utf8.elementsEqual(original.theirs.utf8) else { return blocks }
+        func originalEnding(_ chunk: String, _ side: String) -> String {
+            guard !side.isEmpty, side.utf8.last != 10, chunk.utf8.last == 10 else { return chunk }
+            let value = chunk as NSString
+            // Try LF first: a source's literal trailing CR must not be stripped.
+            for count in [1, 2] where count == 1 || chunk.hasSuffix("\r\n") {
+                let candidate = value.substring(to: value.length - count)
+                if !candidate.isEmpty && side.utf8.suffix(candidate.utf8.count).elementsEqual(candidate.utf8) { return candidate }
+            }
+            return chunk
+        }
+        let marker = source.substring(with: source.lineRange(for: NSRange(location: last.range.location, length: 0)))
+        blocks[blocks.count - 1] = MergeConflictBlock(id: last.id, range: last.range,
+            mine: originalEnding(last.mine, document.mine), base: last.base,
+            theirs: originalEnding(last.theirs, document.theirs), joiningLineEnding: marker.hasSuffix("\r\n") ? "\r\n" : "\n")
         return blocks
     }
     public static func hasMarkers(_ text: String) -> Bool {
@@ -51,8 +82,8 @@ public enum MergeText {
             $0 == "<<<<<<<" || $0.hasPrefix("<<<<<<< ") || $0 == ">>>>>>>" || $0.hasPrefix(">>>>>>> ") || $0 == "|||||||" || $0.hasPrefix("||||||| ")
         }
     }
-    public static func applying(_ choice: MergeBlockChoice, block: Int, to text: String) throws -> String {
-        guard let conflict = conflicts(in: text).first(where: { $0.id == block }) else { throw TextConflictFailure.block }
+    public static func applying(_ choice: MergeBlockChoice, block: Int, to text: String, document: TextConflictDocument? = nil) throws -> String {
+        guard let conflict = conflicts(in: text, document: document).first(where: { $0.id == block }) else { throw TextConflictFailure.block }
         return (text as NSString).replacingCharacters(in: conflict.range, with: conflict.replacement(choice))
     }
 }
@@ -64,6 +95,8 @@ public struct TextConflictDocument: Sendable {
     public let mineStage: Int
     public let theirsStage: Int
     public let initialResult: String
+    /// Original marker-delimited result, retained across saves for source metadata.
+    public let generatedResult: String
     public let workingContents: Data?
     public let permissions: Int
 }
@@ -111,7 +144,7 @@ extension GitRepository {
         for (name, value) in [("mine", mine), ("base", base), ("theirs", theirs)] { try Data(value.utf8).write(to: temporary.appendingPathComponent(name)) }
         let merged = try run(["merge-file", "-p", "--diff3", "--marker-size=7", "-L", "Mine", "-L", "Base", "-L", "Theirs", "--", temporary.appendingPathComponent("mine").path, temporary.appendingPathComponent("base").path, temporary.appendingPathComponent("theirs").path], successfulExitCodes: 0...127)
         let result = try text(merged.stdout)
-        return TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, workingContents: working, permissions: permissions)
+        return TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions)
     }
     public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool) throws -> TextConflictDocument {
         try validateConflicts([document.entry], using: .current)
@@ -126,7 +159,7 @@ extension GitRepository {
         let contents = Data(result.utf8)
         try contents.write(to: location, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: document.permissions], ofItemAtPath: location.path)
-        let saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, workingContents: contents, permissions: document.permissions)
+        let saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: contents, permissions: document.permissions)
         if markResolved {
             do { _ = try run(["add", "-f", "--", document.entry.path]) }
             catch { throw TextConflictSaveFailure(savedDocument: saved, gitError: error.localizedDescription) }

@@ -173,3 +173,8 @@ The merge Reload prompt now includes Save before Reload. A real-Git regression
 test verifies Unicode/CRLF/EOF draft saving followed by conflict regeneration
 without changing unresolved stages or unrelated data. Native Save and Reload
 saved exact Mine contents; final view/history acceptance remains pending.
+
+EOF conflict choices now retain original missing-final-newline metadata across
+saves, with five real-Git ending combinations and native combined-choice Save
+verification. Upstream EOL normalization and native CRLF/Undo/resolve coverage
+remain partial.

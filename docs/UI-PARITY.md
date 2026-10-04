@@ -95,3 +95,8 @@ Reload now offers Save and Reload, Reload Without Saving and Cancel, matching
 the reviewed upstream three-way Save check. Native Save and Reload wrote exact
 Mine bytes and preserved unresolved stages; post-reload rendering/history and
 the new prompt's other choices remain unverified after observer timeouts.
+
+EOF source metadata now preserves missing final newlines for the unchanged final
+conflict, including a separator for combined choices. Native combined choice
+and Save bytes were verified; CRLF/resolution/Undo native combinations remain
+pending. Full upstream EOL/encoding parity is still incomplete.

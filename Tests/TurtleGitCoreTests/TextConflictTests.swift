@@ -2,6 +2,56 @@ import XCTest
 @testable import TurtleGitCore
 
 final class TextConflictTests: XCTestCase {
+    func testEofBlockChoicesRetainSourceEndingsAndSeparateCombinedSides() async throws {
+        for (mine, theirs, ending) in [("Mine 雪", "Theirs e\u{301}", "\n"), ("Mine\n", "Theirs", "\n"), ("Mine", "Theirs\n", "\n"), ("Mine\r\n", "Theirs", "\r\n"), ("Mine\r", "Theirs", "\n")] {
+            let (root, repo) = try await CommitSelectionTests().fixture()
+            defer { try? FileManager.default.removeItem(at: root) }
+            let path = "EOF 雪.txt", prefix = "common" + ending
+            func write(_ text: String) throws { try Data(text.utf8).write(to: root.appendingPathComponent(path)) }
+            try write(prefix + "Base" + ending); try await repo.stage([path]); _ = try await repo.commit(message: "base")
+            _ = try await repo.run(["switch", "-c", "side"])
+            try write(prefix + theirs); try await repo.stage([path]); _ = try await repo.commit(message: "theirs")
+            _ = try await repo.run(["switch", "main"])
+            try write(prefix + mine); try await repo.stage([path]); _ = try await repo.commit(message: "mine")
+            do { _ = try await repo.run(["merge", "side"]); XCTFail("Expected EOF conflict") } catch is GitFailure {}
+            let document = try await repo.textConflictDocument(path: path)
+            let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+            let working = try Data(contentsOf: root.appendingPathComponent(path))
+            func joined(_ first: String, _ last: String) -> String { first + (first.utf8.last == 10 ? "" : ending) + last }
+            for (choice, expected) in [(MergeBlockChoice.mine, mine), (.theirs, theirs), (.mineThenTheirs, joined(mine, theirs)), (.theirsThenMine, joined(theirs, mine))] {
+                let result = try MergeText.applying(choice, block: 0, to: document.initialResult, document: document)
+                XCTAssertEqual(Data(result.utf8), Data((prefix + expected).utf8), "\(choice): \(mine.debugDescription), \(theirs.debugDescription)")
+            }
+            // Trailing manual context keeps the marker-delimited line ending;
+            // the EOF metadata must not merge that context into the chosen line.
+            let appended = document.initialResult + "outside" + ending
+            let selected = try MergeText.applying(.theirs, block: 0, to: appended, document: document)
+            let rawTheirs = try XCTUnwrap(MergeText.conflicts(in: document.initialResult).first).theirs
+            XCTAssertEqual(Data(selected.utf8), Data((prefix + rawTheirs + "outside" + ending).utf8))
+            let afterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+            XCTAssertEqual(afterIndex, index); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), working)
+            let edited = prefix + "<<<<<<< Mine" + ending + "manual" + ending + "||||||| Base" + ending + "Base" + ending + "=======" + ending + rawTheirs + ">>>>>>> Theirs" + ending
+            let editedChoice = try MergeText.applying(.mine, block: 0, to: edited, document: document)
+            XCTAssertEqual(Data(editedChoice.utf8), Data((prefix + "manual" + ending).utf8))
+            let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+            let refs = try await repo.run(["show-ref"]).stdout
+            let mergeHead = try await repo.run(["rev-parse", "MERGE_HEAD"]).stdout
+            let selectedTheirs = try MergeText.applying(.theirs, block: 0, to: document.initialResult, document: document)
+            let saved = try await repo.saveTextConflict(document, result: selectedTheirs, markResolved: false)
+            let afterUndoChoice = try MergeText.applying(.mine, block: 0, to: document.initialResult, document: saved)
+            XCTAssertEqual(Data(afterUndoChoice.utf8), Data((prefix + mine).utf8), "Save must retain EOF metadata for Undo and reselect")
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data((prefix + theirs).utf8))
+            let savedIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+            XCTAssertEqual(savedIndex, index)
+            _ = try await repo.saveTextConflict(saved, result: selectedTheirs, markResolved: true)
+            let staged = try await repo.run(["show", ":" + path]).stdout
+            let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+            let finalRefs = try await repo.run(["show-ref"]).stdout
+            let finalMergeHead = try await repo.run(["rev-parse", "MERGE_HEAD"]).stdout
+            XCTAssertEqual(staged, Data((prefix + theirs).utf8))
+            XCTAssertEqual(finalHead, head); XCTAssertEqual(finalRefs, refs); XCTAssertEqual(finalMergeHead, mergeHead)
+        }
+    }
     func testSaveBeforeReloadRegeneratesConflictsWithoutDiscardingSavedWorkingBytes() async throws {
         let (root, repo, path) = try await ConflictResolutionTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
