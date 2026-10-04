@@ -186,6 +186,12 @@ import UniformTypeIdentifiers
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
     @Published var focusedFiles: [String: String] = [:]
+    @Published var changelists = GitChangelists()
+    @Published var changelistsLoaded = false
+    @Published var keepChangelists = UserDefaults.standard.bool(forKey: "Commit.KeepChangelists")
+    @Published var creatingChangelist = false
+    @Published var changelistName = ""
+    private var changelistPaths: [String] = []
     @Published var branch = ""
     @Published var createBranch = false
     @Published var newBranch = ""
@@ -406,7 +412,43 @@ import UniformTypeIdentifiers
             busy = false; reload()
         }
     }
-    var canCommit: Bool { !busy && !confirmingQuit && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    func newChangelist(_ selected: [StatusEntry]) {
+        guard !busy, !confirmingQuit, !selected.isEmpty else { return }
+        changelistPaths = selected.map(\.path); changelistName = ""; creatingChangelist = true
+    }
+    func createChangelist() {
+        guard !changelistName.isEmpty else { return }
+        let paths = changelistPaths, name = changelistName
+        creatingChangelist = false; changelistPaths = []; changelistName = ""
+        moveToChangelist(paths, name: name)
+    }
+    func cancelChangelist() { creatingChangelist = false; changelistPaths = []; changelistName = "" }
+    func saveKeepChangelists(_ value: Bool) {
+        keepChangelists = value; UserDefaults.standard.set(value, forKey: "Commit.KeepChangelists")
+    }
+    func moveToChangelist(_ paths: [String], name: String?) {
+        guard !busy, !confirmingQuit, !paths.isEmpty else { return }
+        busy = true
+        Task {
+            do {
+                try validateRestoreAccess()
+                changelists = try await repository.assignChangelist(paths: paths, name: name)
+                if name == GitChangelists.ignored {
+                    checked.subtract(paths)
+                    if stagingEnabled {
+                        do { try await repository.unstage(paths) }
+                        catch { self.error = "The changelist was saved, but unstaging its paths failed.\n\n" + error.localizedDescription }
+                    }
+                }
+            } catch { self.error = error.localizedDescription }
+            busy = false; reload()
+        }
+    }
+    func fileHelp(_ entry: StatusEntry) -> String {
+        let origin = entry.originalPath.map { "Renamed from " + $0 } ?? entry.path
+        return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
+    }
+    var canCommit: Bool { !busy && !confirmingQuit && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -428,6 +470,8 @@ import UniformTypeIdentifiers
                 if amend && !hasParent { amendDiffToLastCommit = true }
                 comparisonBase = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : nil
                 entries = try await repository.commitDialogStatus(amendToParent: amendToParent); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
+                changelistsLoaded = false
+                changelists = try await repository.changelists(); changelistsLoaded = true
                 indexFlagFiles = try await repository.workingTreeStatus()
                 conflictRebase = (try await repository.conflictIsRebase())
                 statistics = Dictionary(try await repository.workingTreeFiles(amendToParent: amendToParent).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
@@ -436,7 +480,7 @@ import UniformTypeIdentifiers
                 if resetChecks {
                     checked = Set(visibleEntries.filter { entry in
                         let inScope = scopePaths.isEmpty || scopePaths.contains { $0 == entry.path || entry.path.hasPrefix($0 + "/") }
-                        return inScope && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted && (entry.state != .untracked || !scopePaths.isEmpty)
+                        return inScope && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted && (entry.state != .untracked || !scopePaths.isEmpty)
                     }.map(\.id))
                 } else { checked.formIntersection(Set(entries.map(\.id))) }
                 selection.formIntersection(Set(entries.map(\.id)))
@@ -564,6 +608,10 @@ import UniformTypeIdentifiers
             return
         }
         let text = message, paths = checked, staging = stagingEnabled
+        let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : paths
+        let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
+        let pruningScope = showWholeProject ? [] : scopePaths
+        let preserveChangelists = keepChangelists
         var options = CommitOptions(); options.amend = amend; options.amendDiffToLastCommit = amendDiffToLastCommit; options.author = setAuthor ? author : nil
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
         busy = true
@@ -579,6 +627,13 @@ import UniformTypeIdentifiers
                 catch {
                     self.error = "The commit succeeded, but restoring saved working copies failed. The remaining copies are retained in this dialog.\n\n" + error.localizedDescription
                     busy = false; reload(); return
+                }
+                if !preserveChangelists {
+                    do { changelists = try await repository.pruneChangelists(retaining: retainedChangelists, scope: pruningScope) }
+                    catch {
+                        self.error = "The commit succeeded, but updating changelists failed.\n\n" + error.localizedDescription
+                        busy = false; reload(); return
+                    }
                 }
                 if action == .recommit {
                     do {
@@ -712,6 +767,7 @@ struct CommitDialog: View {
         .alert("TurtleGit", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
+        .sheet(isPresented: $model.creatingChangelist) { CreateChangelistSheet(model: model) }
         .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) {
             VStack { Text("Unified Diff").font(.headline); OutputView(text: model.patch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }.padding(12)
         }
@@ -791,7 +847,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                         .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
                 }
             }.width(24)
-            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay { if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) } }; Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
+            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay { if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) } }; Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(model.fileHelp(entry)) }.width(min: 260, ideal: 420)
             TableColumn("Extension") { entry in Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path))) }.width(75)
             TableColumn("Status") { entry in Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }.width(90)
             TableColumn("Lines added") { entry in Text(statistics[entry.path]?.added.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(80)
@@ -876,6 +932,25 @@ GroupBox("Changes made (double-click on file for diff):") {
                         Button { model.copyFiles(selected, information: information, staged: staged) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
                     }
                 } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
+            }
+            // The pinned upstream gate compares legacy status values to action
+            // bits: only a pure Added action (1) is excluded, not UNVER (0x80000000).
+            if !selected.isEmpty, let mark = selectionMark, !(mark.index == "A" && mark.worktree == " ") {
+                Divider()
+                if selected.contains(where: { model.changelists.assignments[$0.path] != nil }) {
+                    Button("Remove from changelist") { model.moveToChangelist(selected.map(\.path), name: nil) }
+                }
+                Menu("Move to changelist") {
+                    Button("<new changelist>") { model.newChangelist(selected) }
+                    Divider()
+                    Button(GitChangelists.ignored) { model.moveToChangelist(selected.map(\.path), name: GitChangelists.ignored) }
+                    let names = model.changelists.names.filter { $0 != GitChangelists.ignored }
+                    if !names.isEmpty {
+                        Divider()
+                        ForEach(names, id: \.self) { name in Button(name) { model.moveToChangelist(selected.map(\.path), name: name) } }
+                    }
+                }
+                Toggle("Keep changelists", isOn: Binding(get: { model.keepChangelists }, set: { model.saveKeepChangelists($0) }))
             }
         } primaryAction: { ids in
             selection.wrappedValue = ids

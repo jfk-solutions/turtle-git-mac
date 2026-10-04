@@ -68,7 +68,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   the marked row to enable Delete; table-focused Delete keys preserve normal text
   editing. The clipboard submenu copies the clicked column with the original icon;
   Command-C copies relative paths and Shift-Command-C adds status. Renamed paths
-  and leading-dot extensions match the upstream display. Broader selection and
+  and leading-dot extensions match the upstream display. Changelist creation,
+  assignment, ignored-file checks and optional successful-commit cleanup are
+  available; grouped rows and group actions remain pending. Broader selection and
   signed sandbox checks remain under audit.
 - Dedicated Revert window with scoped file checks, Select/deselect all, counts,
   F5 refresh and light/dark appearance; Finder and app-menu routing.

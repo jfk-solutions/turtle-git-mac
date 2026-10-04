@@ -57,7 +57,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSHOOKS,Hook Scripts,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSHOOKCONFIG,Configure Hook Scripts,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_EXPORT,Export,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSTBLAME,TortoiseGitBlame,partial-native-replacement
-src/Resources/TortoiseProcENG.rc,IDD_CREATECHANGELIST,Create Changelist,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_CREATECHANGELIST,Create Changelist,partial
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQ,Issue Tracker Integration,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQ_CONFIG,Issue Tracker Config,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSBUGTRAQADV,Configure Issue Tracker Integration,pending-review

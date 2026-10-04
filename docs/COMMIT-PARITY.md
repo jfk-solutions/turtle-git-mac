@@ -91,9 +91,9 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   submodule toggle and broader Commit action combinations remain.
 - Message-history native workflow QA, template native workflow QA and other text encodings,
   completion, spelling, issue IDs and tracker plugins.
-- Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
+- Changelist group rows, group actions and drag/drop, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context command audit, including changelists and broader clipboard verification, plus broader Delete selection verification. File Blame/log/open/reveal
+- Remaining file context command audit, including changelist groups and broader clipboard verification, plus broader Delete selection verification. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -856,7 +856,60 @@ working bytes stayed exact. QA apps ran sequentially and each quit normally.
 Both unsigned Xcode builds, both bundle audits and the site build passed; the
 App Store bundle audit verified the pinned universal Git runtime and original icons.
 
-Native keyboard navigation of the context submenu, Control-Insert hardware,
+Native keyboard navigation with four Down presses and Return copied the expected
+headerless Status values without changing the two-row selection. Control-Insert hardware,
 checkbox/empty-area menus, column reordering/hiding, optional filename/date/size/LFS
 columns, staging/dark mode and signed sandbox execution remain pending. Full
 status-list, clipboard and Commit parity remain partial.
+
+
+## Changelist commands and successful-commit cleanup
+
+`GitStatusListCtrl.cpp`'s changelist commands and `CreateChangelistDlg` now have
+native Commit counterparts: Remove from changelist, Move to changelist with
+`<new changelist>`, `ignore-on-commit` and existing names, and Keep changelists.
+The Create Changelist sheet has the original prompt, an initially focused name
+field, Cancel and OK. OK stays disabled until the name is nonempty. Names are
+not trimmed. Cancel discards the draft without writing metadata.
+
+Assignments are local to the worktree. An atomic, locked
+`turtlegit-changelists.json` file in Git's worktree administration directory
+retains Unicode and literal newline filenames. A preexisting `tgitchangelist`
+file is imported when no native file exists, accepting UTF-8 and BOM-marked
+UTF-16 LE/BE, without rewriting the original file. Other legacy encodings and
+Windows path conversion remain pending. Mutations reload assignments under the
+lock; invalid paths, symlink metadata, corrupt or unsupported documents and
+existing locks fail without overwriting metadata or touching the index.
+
+Moving a file to `ignore-on-commit` unchecks it; staging mode also unstages the
+selected paths. Removing membership does not automatically check the file.
+Freshly opened checkbox-mode dialogs omit ignored paths from automatic checks;
+users can still check them explicitly. Keep changelists is persisted. After a
+successful commit, with Keep disabled, cleanup retains visible unchecked files,
+restore-after-commit paths and assignments outside the displayed directory scope.
+File-only scopes do not prune, matching upstream. A cleanup failure reports that
+the commit succeeded and keeps the dialog open rather than claiming rollback.
+
+The pinned upstream menu gate compares the action bitfield with the older
+`git_wc_status_unversioned` enum. Both that enum value and the modern ADDED bit
+are 1, so the native gate excludes a pure Added marked row, rather than silently
+changing this observable upstream behavior. Broader combined-action gates still
+need native comparison.
+
+Six real Git tests cover assignment persistence, unusual literal names, reloads
+across repository actors, mutation validation and existing locks, legacy import,
+linked worktrees, scoped cleanup, and corrupt/unknown/symlink metadata. Native QA
+verified initial focus and disabled/enabled OK, Cancel without metadata/index
+changes, exact `Feature 雪` creation, ignored-file unchecking, and membership-only
+removal. A real checkbox commit pruned the committed assignment and retained the
+unchecked ignored file; its HEAD, index and disk contents were checked directly.
+Reopening Commit kept the ignored file unchecked. Explicitly checking it and
+committing with Keep enabled retained its assignment. All QA instances were
+closed after testing. `site/assets/commit-changelist.png` is the inspected actual
+Create Changelist sheet, captured before dismissal.
+
+This is partial changelist parity. The file table currently shows membership in
+path tooltips; upstream group headers, group check/context actions, drag/drop,
+staging-mode native acceptance, dark appearance, ReCommit and broader signed
+sandbox workflows remain pending. The current screenshot does not demonstrate
+those missing group rows.
