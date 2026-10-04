@@ -61,6 +61,9 @@ def main():
                 name = f'{encoding}-{with_bom}.txt'
                 encoded_files[name] = (bom if with_bom else b'') + 'first\r\n雪 turtle\r\n\r\n'.encode(encoding)
                 (repository / name).write_bytes(encoded_files[name])
+        for encoding, text in [('cp1252', 'Preis € – café\r\n'), ('cp850', 'dsöd\n\n'), ('cp932', '日本語\n東京\n')]:
+            name = encoding + '.txt'; encoded_files[name] = text.encode(encoding)
+            (repository / name).write_bytes(encoded_files[name])
         run('-C', str(repository), 'add', '--', path.name, *encoded_files)
         run('-C', str(repository), '-c', 'commit.gpgsign=false', 'commit', '-m', 'base')
         path.write_bytes(b'working\n')
@@ -80,7 +83,7 @@ def main():
             payloads = [record[1:] for record in encoded_annotation.split(b'\n') if record.startswith(b'\t')]
             expected = original.split(b'\n')
             if original.endswith(b'\n'): expected.pop()
-            assert payloads == expected, f'UTF-16 byte framing mismatch: {name}'
+            assert payloads == expected, f'Encoded source byte framing mismatch: {name}'
             assert (repository / name).read_bytes() == original
         assert (repository / '.git/index').read_bytes() == index
         assert run('-C', str(repository), 'rev-parse', 'HEAD').strip() == head
@@ -98,6 +101,6 @@ def main():
             result = run('ls-remote', '--exit-code', 'https://github.com/TortoiseGit/TortoiseGit.git', 'HEAD', timeout=60, cwd=directory)
         assert result.rstrip().endswith(b'\tHEAD'), 'Missing HTTPS remote HEAD'
         print('Public HTTPS ls-remote passed with bundled git-remote-https.')
-    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/blame (UTF-8 and UTF-16) passed.')
+    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/blame (UTF-8, UTF-16 and legacy code pages) passed.')
 
 if __name__ == '__main__': main()

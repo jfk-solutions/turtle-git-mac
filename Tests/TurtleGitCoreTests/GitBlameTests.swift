@@ -229,6 +229,40 @@ final class GitBlameTests: XCTestCase {
             XCTAssertThrowsError(try GitBlameEncoding.detect(bytes))
         }
     }
+    func testExplicitLegacyCodePagesPreserveBytesAndUTF8Metadata() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        for (page, text) in [(UInt32(1252), "Preis € – café\r\nzweite Zeile\r\n"), (850, "dsöd\n\n"), (932, "日本語\n東京\n")] {
+            let encoding = try XCTUnwrap(GitBlameEncoding.available.first { $0.windowsCodePage == page })
+            let bytes = try XCTUnwrap(text.data(using: String.Encoding(rawValue: encoding.id)))
+            let path = "page-\(page).txt"
+            try bytes.write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+            _ = try await repo.run(["commit", "-m", "Legacy encoding"], environmentOverrides: ["GIT_AUTHOR_NAME": "Jörg 雪", "GIT_AUTHOR_EMAIL": "encoding@example.invalid"])
+            let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+            try Data("uncommitted UTF-8 replacement\n".utf8).write(to: root.appendingPathComponent(path))
+            var options = GitBlameOptions(); options.encoding = encoding
+            let snapshot = try await repo.blame(path: path, options: options)
+            XCTAssertEqual(snapshot.contents, bytes); XCTAssertEqual(snapshot.encoding, encoding)
+            XCTAssertEqual(snapshot.lines.map(\.source), Array(text.components(separatedBy: "\n").dropLast()))
+            XCTAssertTrue(snapshot.lines.allSatisfy { $0.author == "Jörg 雪" && $0.email == "encoding@example.invalid" })
+            XCTAssertEqual(snapshot.lines.map(\.sourceBytes), bytes.split(separator: UInt8(10), omittingEmptySubsequences: false).dropLast().map { Data($0) })
+            options.encoding = .utf8
+            do { _ = try await repo.blame(path: path, options: options); XCTFail("Wrong encoding accepted") } catch {}
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("uncommitted UTF-8 replacement\n".utf8))
+            let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, snapshot.revision)
+        }
+    }
+    func testExplicitUTF16OverridesAmbiguousAutomaticDetection() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bytes = try XCTUnwrap("日本語\n".data(using: .utf16LittleEndian)), path = "ambiguous.txt"
+        try bytes.write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "ambiguous UTF-16")
+        do { _ = try await repo.blame(path: path); XCTFail("Should require a choice") } catch {}
+        var options = GitBlameOptions(); options.encoding = .utf16LE
+        let snapshot = try await repo.blame(path: path, options: options)
+        XCTAssertEqual(snapshot.lines.map(\.source), ["日本語", ""]); XCTAssertEqual(snapshot.contents, bytes)
+    }
     func testUnsupportedAndUnsafeFilesFail() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

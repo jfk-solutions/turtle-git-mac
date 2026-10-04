@@ -1,7 +1,9 @@
 import Foundation
+import CoreFoundation
 
 public struct GitBlameOptions: Sendable {
     public var ignoreWhitespace = false, detectMoved = false, detectCopied = false
+    public var encoding: GitBlameEncoding?
     public init() {}
 }
 public struct GitBlameLine: Identifiable, Sendable {
@@ -34,8 +36,47 @@ public struct GitBlameParentComparison: Identifiable, Sendable {
     public let path: String
     public let comparison: RevisionComparisonSnapshot
 }
-public enum GitBlameEncoding: String, Sendable {
-    case utf8 = "UTF-8", utf16LE = "UTF-16 LE", utf16BE = "UTF-16 BE"
+public struct GitBlameEncoding: Hashable, Identifiable, Sendable, CustomStringConvertible {
+    public let id: UInt
+    public let rawValue: String
+    public var description: String { rawValue }
+    public var windowsCodePage: UInt32 { CFStringConvertEncodingToWindowsCodepage(CFStringConvertNSStringEncodingToEncoding(id)) }
+    public static let utf8 = GitBlameEncoding(id: String.Encoding.utf8.rawValue, rawValue: "UTF-8")
+    public static let utf16LE = GitBlameEncoding(id: String.Encoding.utf16LittleEndian.rawValue, rawValue: "UTF-16 LE")
+    public static let utf16BE = GitBlameEncoding(id: String.Encoding.utf16BigEndian.rawValue, rawValue: "UTF-16 BE")
+    /// Offer installed codecs whose line delimiter is Git's byte LF. Decode
+    /// legacy content as a whole so stateful encodings retain their shift state.
+    public static let available: [GitBlameEncoding] = {
+        var values = [utf8, utf16LE, utf16BE], seen = Set(values.map(\.id))
+        guard let pointer = CFStringGetListOfAvailableEncodings() else { return values }
+        var index = 0
+        while pointer[index] != kCFStringEncodingInvalidId {
+            let cf = pointer[index]; index += 1
+            let raw = CFStringConvertEncodingToNSStringEncoding(cf), encoding = String.Encoding(rawValue: raw)
+            guard !seen.contains(raw), "\n".data(using: encoding) == Data([10]),
+                  "ASCII".data(using: encoding) == Data("ASCII".utf8) else { continue }
+            seen.insert(raw)
+            let name = CFStringGetNameOfEncoding(cf).map { $0 as String } ?? String.localizedName(of: encoding)
+            let page = CFStringConvertEncodingToWindowsCodepage(cf)
+            values.append(GitBlameEncoding(id: raw, rawValue: name + (page == kCFStringEncodingInvalidId ? "" : " (CP \(page))")))
+        }
+        return Array(values.prefix(3)) + values.dropFirst(3).sorted { $0.rawValue.localizedStandardCompare($1.rawValue) == .orderedAscending }
+    }()
+    func validate(_ bytes: Data) throws {
+        if self == .utf16LE || self == .utf16BE {
+            let bom: [UInt8] = self == .utf16LE ? [255, 254] : [254, 255]
+            try Self.validateUTF16(bytes.starts(with: bom) ? bytes.dropFirst(2) : bytes, little: self == .utf16LE)
+        } else {
+            guard !bytes.contains(0), String(data: bytes, encoding: String.Encoding(rawValue: id)) != nil else { throw GitBlameFailure.unsupported }
+        }
+    }
+    func legacyLines(_ bytes: Data) throws -> [String]? {
+        guard self != .utf8, self != .utf16LE, self != .utf16BE else { return nil }
+        guard let text = String(data: bytes, encoding: String.Encoding(rawValue: id)) else { throw GitBlameFailure.unsupported }
+        var lines = Data(text.utf8).split(separator: UInt8(10), omittingEmptySubsequences: false).map { String(decoding: $0, as: UTF8.self) }
+        if bytes.isEmpty || bytes.last == 10 { lines.removeLast() }
+        return lines
+    }
     static func detect(_ bytes: Data) throws -> GitBlameEncoding {
         if bytes.starts(with: [0xff, 0xfe]) { try validateUTF16(bytes.dropFirst(2), little: true); return .utf16LE }
         if bytes.starts(with: [0xfe, 0xff]) { try validateUTF16(bytes.dropFirst(2), little: false); return .utf16BE }
@@ -72,6 +113,9 @@ public enum GitBlameEncoding: String, Sendable {
         if self == .utf8 {
             guard !raw.contains(0), String(data: raw, encoding: .utf8) != nil else { throw GitBlameFailure.unsupported }; return String(decoding: raw, as: UTF8.self)
         }
+        if self != .utf16LE, self != .utf16BE {
+            guard !raw.contains(0), let text = String(data: raw, encoding: String.Encoding(rawValue: id)) else { throw GitBlameFailure.unsupported }; return text
+        }
         var bytes = raw
         if line == 1, bytes.starts(with: self == .utf16LE ? [0xff, 0xfe] : [0xfe, 0xff]) { bytes.removeFirst(2) }
         else if self == .utf16LE, line > 1 { guard bytes.first == 0 else { throw GitBlameFailure.format }; bytes.removeFirst() }
@@ -87,7 +131,7 @@ public enum GitBlameEncoding: String, Sendable {
 public enum GitBlameFailure: LocalizedError {
     case format, unsupported
     public var errorDescription: String? {
-        switch self { case .format: return "Git returned incomplete or invalid line annotation data."; case .unsupported: return "Blame supports regular UTF-8 and unambiguous UTF-16 text files." }
+        switch self { case .format: return "Git returned incomplete or invalid line annotation data."; case .unsupported: return "The source is not valid for this encoding. Choose an encoding for a regular text file." }
     }
 }
 public enum GitBlameParser {
@@ -113,6 +157,9 @@ public enum GitBlameParser {
         return result
     }
     public static func parse(_ data: Data, encoding: GitBlameEncoding = .utf8) throws -> [GitBlameLine] {
+        try parse(data, encoding: encoding, decodedSources: nil)
+    }
+    static func parse(_ data: Data, encoding: GitBlameEncoding, decodedSources: [String]?) throws -> [GitBlameLine] {
         guard data.isEmpty || data.last == 10 else { throw GitBlameFailure.format }
         var output: [GitBlameLine] = [], hash: String?, original = 0, final = 0, fields: [String: String] = [:]
         let records = data.split(separator: 10, omittingEmptySubsequences: false)
@@ -122,11 +169,16 @@ public enum GitBlameParser {
                 guard let revisionHash = hash, let author = fields["author"], let mail = fields["author-mail"],
                       let seconds = fields["author-time"].flatMap(Int64.init), let timezone = fields["author-tz"], validTimezone(timezone),
                       let summary = fields["summary"], let path = fields["filename"], final == output.count + 1 else { throw GitBlameFailure.format }
+                let source: String
+                if let decodedSources {
+                    guard decodedSources.indices.contains(final - 1) else { throw GitBlameFailure.format }
+                    source = decodedSources[final - 1]
+                } else { source = try encoding.decode(Data(bytes.dropFirst()), line: final) }
                 output.append(GitBlameLine(hash: revisionHash, originalLine: original, number: final, author: author,
                     email: mail.hasPrefix("<") && mail.hasSuffix(">") ? String(mail.dropFirst().dropLast()) : mail,
                     date: Date(timeIntervalSince1970: TimeInterval(seconds)), timezone: timezone, summary: summary,
                     filename: try filename(path), boundary: fields["boundary"] != nil,
-                    source: try encoding.decode(Data(bytes.dropFirst()), line: final), sourceBytes: Data(bytes.dropFirst())))
+                    source: source, sourceBytes: Data(bytes.dropFirst())))
                 // line-porcelain repeats metadata for every source line.
                 fields = [:]; hash = nil
             } else {
@@ -145,7 +197,7 @@ public enum GitBlameParser {
                 }
             }
         }
-        guard hash == nil else { throw GitBlameFailure.format }; return output
+        guard hash == nil, decodedSources == nil || decodedSources?.count == output.count else { throw GitBlameFailure.format }; return output
     }
     private static func validTimezone(_ value: String) -> Bool {
         let bytes = Array(value.utf8)
@@ -177,12 +229,13 @@ extension GitRepository {
         let content = try historicalFile(revision: revision, path: path)
         guard ["100644", "100755"].contains(content.mode ?? ""),
               case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
-        let encoding = try GitBlameEncoding.detect(content.bytes)
+        let encoding = try options.encoding ?? GitBlameEncoding.detect(content.bytes)
+        try encoding.validate(content.bytes)
         var args = ["-c", "blame.blankBoundary=false", "blame", "--line-porcelain", "--no-progress", "--no-textconv"]
         if options.ignoreWhitespace { args.append("-w") }
         if options.detectMoved { args.append("-M") }
         if options.detectCopied { args.append("-C") }
-        let lines = try GitBlameParser.parse(run(args + [hash, "--", path]).stdout, encoding: encoding)
+        let lines = try GitBlameParser.parse(run(args + [hash, "--", path]).stdout, encoding: encoding, decodedSources: try encoding.legacyLines(content.bytes))
         // Git appends LF to each porcelain record even when the source has no final LF.
         // Compare individual source bytes to the pinned blob, preserving CR, tabs and BOM.
         let records = content.bytes.split(separator: UInt8(10), omittingEmptySubsequences: false)

@@ -38,6 +38,7 @@ private struct BlameParentMenuTarget {
     @Published var detectMoved = false
     @Published var detectCopied = false
     @Published var colorAge = true
+    @Published var sourceEncoding: GitBlameEncoding?
     @Published var selection: Int?
     @Published var parentChoices: [GitBlameParentComparison] = []
     @Published var loadingParents = false
@@ -105,7 +106,7 @@ private struct BlameParentMenuTarget {
         parentGeneration += 1; parentChoices = []; loadingParents = false
         clipboardGeneration += 1; copyingLog = false
         generation += 1; let request = generation
-        var options = GitBlameOptions(); options.ignoreWhitespace = ignoreWhitespace; options.detectMoved = detectMoved; options.detectCopied = detectCopied
+        var options = GitBlameOptions(); options.ignoreWhitespace = ignoreWhitespace; options.detectMoved = detectMoved; options.detectCopied = detectCopied; options.encoding = sourceEncoding
         busy = true; error = nil
         Task {
             do {
@@ -118,7 +119,12 @@ private struct BlameParentMenuTarget {
                 historyCount = history.count; revision = result.revision; snapshot = result
                 if let selection, !result.lines.contains(where: { $0.number == selection }) { self.selection = nil }
                 busy = false; applyPendingLine()
-            } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
+            } catch {
+                if request == generation {
+                    snapshot = nil; selection = nil; highlightedHash = nil; hoveredLine = nil; origins = [:]; ranks = [:]
+                    self.error = error.localizedDescription; busy = false
+                }
+            }
         }
     }
     func selectOriginalLine(_ number: Int) {
@@ -180,6 +186,13 @@ private struct BlameDialog: View {
                 Toggle("Detect copied lines", isOn: $model.detectCopied)
                 Button("Reload") { model.reload() }
                 Spacer(); Toggle("Colorize by age", isOn: $model.colorAge)
+            }.disabled(model.busy)
+            HStack {
+                Picker("Encoding", selection: $model.sourceEncoding) {
+                    Text("Automatic").tag(GitBlameEncoding?.none)
+                    ForEach(GitBlameEncoding.available) { encoding in Text(encoding.rawValue).tag(Optional(encoding)) }
+                }.frame(maxWidth: 450).onChange(of: model.sourceEncoding) { _ in model.reload() }
+                Spacer()
             }.disabled(model.busy)
             HStack {
                 TextField("Find revision, author or source", text: $model.find).onSubmit { model.findLine(previous: false) }

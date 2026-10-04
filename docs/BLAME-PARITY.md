@@ -216,9 +216,9 @@ LF retain Git's extra trailing empty annotation; BE files retain their correspon
 Git line count. BOM-only files produce one empty annotation. CR is retained in the
 data layer and removed for display; raw file bytes are unchanged.
 
-BOM-less detection requires a consistent zero-byte pattern and valid UTF-16 with
-printable text. A future encoding chooser is still needed for ambiguous files and
-legacy code pages. Odd byte lengths, embedded NUL code units, unpaired surrogates
+BOM-less automatic detection requires a consistent zero-byte pattern and valid
+UTF-16 with printable text. Explicit encoding choices now handle ambiguous files
+and legacy code pages as described below. Odd byte lengths, embedded NUL code units, unpaired surrogates
 and byte-LF within another Unicode code unit are rejected instead of silently
 truncating text. The last case needs further upstream parity work because Git's
 byte line boundaries cannot directly represent its Unicode source lines.
@@ -242,6 +242,45 @@ LE/BE BOM/no-BOM porcelain payloads, alongside the existing UTF-8 and local Git
 operations. These runtime checks preserve repository and source state. The static
 documentation build passed; signed sandbox and App Store acceptance remain pending.
 
+## Explicit encoding selection
+
+The native Encoding popup offers Automatic, UTF-8, UTF-16 LE/BE and installed
+macOS codecs compatible with Git's byte-LF delimiter. The list comes from Apple's
+[available encodings API](https://developer.apple.com/documentation/corefoundation/cfstringgetlistofavailableencodings())
+and displays Windows code-page numbers where Core Foundation supplies them.
+It includes Western Windows-1252, OEM850 and Japanese Shift-JIS/CP932 alongside
+other installed codecs; its contents depend on the host's conversion support.
+
+Changing the selection reloads annotations at the pinned commit with the retained
+repository grant. Explicit UTF-16 bypasses the conservative automatic-detection
+heuristic while retaining strict code-unit validation. Legacy source is decoded
+as a whole before assigning text to Git's annotation records, preserving shift
+state for stateful codecs. Commit metadata and filenames remain UTF-8. Both raw
+source payloads and the historical blob are retained and checked unchanged.
+On decoding failure the previous table, selection and highlights are cleared;
+the popup remains available to recover with another encoding. Automatic legacy
+fallback and saved defaults still differ from Windows' system-codepage behavior.
+
+Fourteen focused tests passed. Real Git fixtures cover Windows-1252 euro/dash/
+accented text, OEM850, Shift-JIS Japanese text and a BOM-less Japanese UTF-16 file
+that needs an explicit choice. They check exact source/blob bytes, UTF-8 author
+metadata, unchanged HEAD/index/working source and rejected wrong UTF-8 choices.
+The existing UTF-16/UTF-8 matrix continues to pass.
+
+Native QA verified that Automatic cannot decode a Windows-1252 fixture, selecting
+CP1252 renders euro/dash/accents, selecting UTF-8 clears the table and reports an
+error, and choosing CP1252 again restores it. The one app was quit immediately;
+no TurtleGit app remained and the fixture HEAD/index/source baseline was unchanged.
+Native OEM850, CJK/stateful codecs, dark appearance, accessibility, persistent
+defaults and propagation to previous-revision windows remain pending.
+
+The full suite passed all 274 core tests. Unsigned Debug/AppStore builds passed
+without compiler warnings, and both bundle audits passed with 62 original icons.
+The packaged universal Git 2.55.0 audit verified 11 Mach-O files and annotation
+payload bytes for UTF-8, UTF-16, Windows-1252, OEM850 and CP932, plus existing local
+operations. The static documentation build passed. These checks do not establish
+signed sandbox or App Store acceptance.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;
@@ -253,8 +292,9 @@ documentation build passed; signed sandbox and App Store acceptance remain pendi
   menu icons.
 - Blame options dialog, revision chooser, complete copied-line modes/thresholds,
   settings and persistent preferences.
-- An encoding chooser, ambiguous BOM-less UTF-16, legacy encodings and byte-LF
-  within other UTF-16 code units; binary, malformed text and symlinks remain unsupported.
+- Persistent/system encoding defaults, chooser/accessibility parity, unsupported
+  codecs and byte-LF within other UTF-16 code units; binary, malformed text and
+  symlinks remain unsupported.
 - Working/uncommitted content, Finder routing, cancellation/progress and signed
   sandbox acceptance, including security-scoped access retained by the window.
 - Full light/dark visual comparison and keyboard/VoiceOver acceptance.
