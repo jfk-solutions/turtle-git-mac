@@ -397,3 +397,23 @@ relaunching restored all three captions. Working bytes, HEAD, refs and unresolve
 index matched their pre-test state. The QA app was closed immediately after
 verification. False session overrides, active Undo preservation, upper-bound
 native checks, resize/dark and signed/sandbox acceptance remain unverified.
+
+## Show line numbers
+
+IDD_SETMAINPAGE's Show line numbers control now saves a default-on preference
+and updates the AppKit rulers in Theirs, Mine, Base and Merged. Older saved
+indentation preferences without the new key retain the upstream default. A
+line-number-only Apply preserves per-pane tab overrides and the editable result's
+Undo history; indentation-default changes still reset their relevant overrides.
+
+The isolated preferences test now covers false persistence and missing-key
+migration. All 21 targeted tests passed with zero failures; the app compiled.
+Native QA selected a merged width-eight override, displayed Base, inserted a
+reversible tab, then applied line numbers off. A native screenshot verified no
+rulers in all four panes, width eight retained and Undo available. Undo restored
+the draft, Apply on restored the rulers, and the earlier draft edit could still
+be undone to the original clean result. Working bytes, HEAD, refs and unresolved
+index remained unchanged. The QA app was closed immediately after verification.
+Line-number-specific relaunch, long-file scrolling, dark/resize and signed/sandbox
+acceptance remain unverified. App-wide Quit with dirty merge results also needs
+a dedicated acceptance check; tested window-close prompts alone do not prove it.

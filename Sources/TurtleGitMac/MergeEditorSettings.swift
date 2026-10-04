@@ -16,12 +16,13 @@ struct MergeEditorSettings: View {
     }
     private var changed: Bool {
         guard let width = validWidth else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab) != .load()
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers) != .load()
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             GroupBox("General") {
                 VStack(alignment: .leading, spacing: 12) {
+                    Toggle("Show line numbers", isOn: $draft.showLineNumbers)
                     HStack {
                         Toggle("Use spaces", isOn: $draft.useSpaces)
                         Spacer()

@@ -123,7 +123,7 @@ private enum MergeSourceSide {
     @Published var tabWidths: [String: Int] = [:]
     @Published var spacePanes: [String: Bool] = [:]
     @Published var smartTabPanes: [String: Bool] = [:]
-    @Published var indentationDefaults = MergeEditorPreferences.load()
+    @Published var editorPreferences = MergeEditorPreferences.load()
     private var preferencesSubscription: AnyCancellable?
     var applyBlock: ((NSRange, String) -> Void)?
     var replaceEntireResult: ((String) -> Void)?
@@ -152,7 +152,11 @@ private enum MergeSourceSide {
         self.repository = repository; self.access = access; self.path = path
         preferencesSubscription = NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged).sink { [weak self] _ in
             guard let self else { return }
-            self.indentationDefaults = .load(); self.tabWidths = [:]; self.spacePanes = [:]; self.smartTabPanes = [:]
+            let next = MergeEditorPreferences.load()
+            if next.tabWidth != self.editorPreferences.tabWidth || next.useSpaces != self.editorPreferences.useSpaces || next.smartTab != self.editorPreferences.smartTab {
+                self.tabWidths = [:]; self.spacePanes = [:]; self.smartTabPanes = [:]
+            }
+            self.editorPreferences = next
         }
     }
     func load() {
@@ -257,9 +261,9 @@ private struct TextConflictDialog: View {
     @ObservedObject var model: TextConflictWindowModel
     func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
         let displayed = cells.map { $0.map(\.displayText).joined(separator: "\n") + ($0.isEmpty ? "" : "\n") } ?? text
-        let tabWidth = model.tabWidths[title] ?? model.indentationDefaults.tabWidth
-        let useSpaces = model.spacePanes[title] ?? model.indentationDefaults.useSpaces
-        let smartTab = model.smartTabPanes[title] ?? model.indentationDefaults.smartTab
+        let tabWidth = model.tabWidths[title] ?? model.editorPreferences.tabWidth
+        let useSpaces = model.spacePanes[title] ?? model.editorPreferences.useSpaces
+        let smartTab = model.smartTabPanes[title] ?? model.editorPreferences.smartTab
         return VStack(spacing: 0) {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
@@ -364,11 +368,12 @@ private struct MergeEditor: NSViewRepresentable {
         scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent; view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
         scroll.documentView = view
         if sourceCells != nil { context.coordinator.attachSourceScroll(scroll, label: label) }
-        scroll.hasVerticalRuler = true; scroll.rulersVisible = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
+        scroll.hasVerticalRuler = true; scroll.rulersVisible = model.editorPreferences.showLineNumbers; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? MergeTextView else { return }
+        scroll.rulersVisible = model.editorPreferences.showLineNumbers
         view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
