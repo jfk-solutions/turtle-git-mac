@@ -7,6 +7,7 @@ import TurtleGitCore
     @Published var root: URL?
     @Published var branch = ""
     @Published var bare = false
+    @Published var conflictRebase = false
     @Published var entries: [StatusEntry] = []
     @Published var selection = Set<String>()
     @Published var output = "Open a repository to get started."
@@ -37,6 +38,7 @@ import TurtleGitCore
     private var cloneWindow: CloneWindowController?
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
+    private var resolveWindows: [String: ResolveWindowController] = [:]
     private var ignoreWindows: [String: IgnoreWindowController] = [:]
     private var removeWindows: [String: RemoveWindowController] = [:]
     private var adoptionGeneration = 0
@@ -55,6 +57,7 @@ import TurtleGitCore
         return !bare && !busy && !selected.isEmpty && selected.allSatisfy { $0.index != "A" && $0.index != "D" && ![FileState.untracked, .ignored].contains($0.state) }
     }
 
+    var canResolveSelection: Bool { !bare && !busy && entries.contains { $0.state == .conflicted && (selection.isEmpty || selection.contains($0.id)) } }
     func canIgnoreSelection(_ action: RepositoryAction) -> Bool {
         let selected = entries.filter { selection.contains($0.id) }
         guard !bare, !busy, !selected.isEmpty else { return false }
@@ -173,6 +176,7 @@ import TurtleGitCore
         guard let repository, let root else { return }
         bare = try await repository.isBare()
         entries = bare ? [] : try await repository.status()
+        conflictRebase = bare ? false : try await repository.conflictIsRebase()
         selection.formIntersection(Set(entries.map(\.id)))
         branch = try await repository.branch()
         let tracked = bare ? [] : try await repository.trackedPaths()
@@ -221,6 +225,9 @@ import TurtleGitCore
             let selected = paths.isEmpty ? selectedPaths : paths
             guard selected.count == 1, selected[0] != "." else { error = RenameFailure.source.localizedDescription; return }
             showRename(repository: repository, access: activeAccess, source: selected[0])
+        case .resolve, .resolveCurrent, .resolveMine, .resolveTheirs:
+            guard let repository else { return }
+            showResolve(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, quick: action.resolveChoice)
         case .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask:
             guard let repository else { return }
             showIgnore(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, action: action)
@@ -243,6 +250,7 @@ import TurtleGitCore
             let access = controller.model.access
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
             controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+            controller.model.onResolve = { [weak self] action, paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
             controller.model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
             controller.model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
             controller.model.configureLogPicker = { [weak self] log in
@@ -375,6 +383,23 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?) {
+        let root = repository.root, key = root.path + "\0" + String(quick?.rawValue ?? -1) + "\0" + paths.joined(separator: "\0")
+        let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick)
+        controller.onClosed = { [weak self] in self?.resolveWindows.removeValue(forKey: key) }
+        controller.onChanged = { [weak self] output in
+            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            guard let self, self.root == root else { return }
+            self.output = output; Task { await self.refresh() }
+        }
+        controller.onCommit = { [weak self] in
+            guard let self else { return }
+            if self.root == root { self.activate(.commit) }
+            else if let access { self.openSession(access, action: .commit) }
+        }
+        resolveWindows[key] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showIgnore(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], action: RepositoryAction) {
         do {
             let root = repository.root, key = root.path + "\0" + action.rawValue + "\0" + paths.joined(separator: "\0")
@@ -415,7 +440,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller

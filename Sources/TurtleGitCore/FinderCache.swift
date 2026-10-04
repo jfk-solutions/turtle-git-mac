@@ -68,6 +68,12 @@ public struct FinderSnapshot: Codable, Sendable {
             return states.contains { $0.key.hasPrefix(path + "/") && versioned.contains($0.value) }
         }
     }
+    public func canResolve(_ selection: [URL]) -> Bool {
+        guard !selection.isEmpty else { return false }
+        let paths = selection.map { $0.standardizedFileURL.path }
+        guard roots.contains(where: { root in paths.allSatisfy { $0 == root || $0.hasPrefix(root + "/") } }) else { return false }
+        return paths.contains { path in states.contains { $0.value == .conflicted && ($0.key == path || $0.key.hasPrefix(path + "/")) } }
+    }
     public func canIgnore(_ selection: [URL], deleting: Bool) -> Bool {
         guard !selection.isEmpty else { return false }
         let paths = selection.map { $0.standardizedFileURL.path }
@@ -80,7 +86,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask
+    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -110,13 +116,21 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .ignoreMask: return "Ignore by extension"
         case .ignoreDelete: return "Delete and add to ignore list"
         case .ignoreDeleteMask: return "Delete and ignore by extension"
+        case .resolve: return "Resolve…"
+        case .resolveCurrent: return "Resolved"
+        case .resolveMine: return "Resolve conflict using ‘mine’"
+        case .resolveTheirs: return "Resolve conflict using ‘theirs’"
         }
     }
+    public var resolveChoice: ResolveChoice? {
+        switch self { case .resolveCurrent: return .current; case .resolveMine: return .mine; case .resolveTheirs: return .theirs; default: return nil }
+    }
+    public var isResolve: Bool { self == .resolve || resolveChoice != nil }
     public var isIgnore: Bool { [.ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask].contains(self) }
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

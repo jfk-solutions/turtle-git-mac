@@ -48,7 +48,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSMERGE,Merge Tool,pending-revie
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSLOOKANDFEEL,Context Menu,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS,Dialogs 1,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS2,Dialogs 2,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_RESOLVE,Resolve,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_RESOLVE,Resolve,partial
 src/Resources/TortoiseProcENG.rc,IDD_DIFFFILES,Changed Files,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCOLORS_2,Colors 2,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSSAVEDDATA,Saved Data,pending-review

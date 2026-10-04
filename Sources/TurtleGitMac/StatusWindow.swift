@@ -52,6 +52,7 @@ struct StatusRow: Identifiable {
 @MainActor final class StatusWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    @Published var conflictRebase = false
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: [String: CommitFile] = [:]
     @Published var selection = Set<String>()
@@ -80,6 +81,7 @@ struct StatusRow: Identifiable {
             defer { busy = false }
             do {
                 files = try await repository.workingTreeStatus(); branch = try await repository.branch()
+                conflictRebase = (try await repository.conflictIsRebase())
                 statistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 selection.formIntersection(Set(visibleFiles.map(\.id)))
             } catch { self.error = error.localizedDescription }
@@ -149,6 +151,9 @@ struct StatusDialog: View {
                     Button { model.onAction(.rename, [path]) } label: { CommandLabel(title: "Rename…", icon: .rename) }
                 }
                 let selected = model.files.filter { ids.contains($0.id) }
+                if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
+                    ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, action: model.onAction)
+                }
                 if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
                     IgnoreSelectionMenu(paths: selected.map(\.id), action: model.onAction)
                 }

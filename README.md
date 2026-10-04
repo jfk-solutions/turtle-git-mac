@@ -100,6 +100,9 @@ bundle structure; it is not a signed distribution.
 - Native Ignore dialog with upstream scope/destination radios, name/extension rules,
   per-folder and linked-worktree excludes, original artwork and Delete-and-ignore
   keep-local prompts. [Ignore parity](docs/IGNORE-PARITY.md) records remaining QA.
+- Native Resolve checked list and current/mine/theirs actions with original artwork,
+  scoped conflicts and rebase-aware labels. [Resolve parity](docs/RESOLVE-PARITY.md)
+  records verification and the remaining conflict editor/submodule work.
 - Upstream file and dialog inventories pinned to an exact commit.
 
 These are initial workflows, not full upstream parity. The operation dialogs expose

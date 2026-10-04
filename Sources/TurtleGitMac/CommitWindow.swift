@@ -140,6 +140,7 @@ import UniformTypeIdentifiers
 @MainActor final class CommitWindowModel: ObservableObject {
     let repository: GitRepository
     let access: RepositoryAccessLease?
+    @Published var conflictRebase = false
     @Published var entries: [StatusEntry] = []
     @Published var comparisonBase: String?
     @Published var stagedStatistics: [String: CommitFile] = [:]
@@ -165,6 +166,7 @@ import UniformTypeIdentifiers
     var pickRevision: (Bool, @escaping (String) -> Void) -> Void = { _, _ in }
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var onFileLog: (String) -> Void = { _ in }
+    var onResolve: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onIgnore: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onRename: (String) -> Void = { _ in }
     var chooseApplication: (String) -> Void = { _ in }
@@ -269,6 +271,7 @@ import UniformTypeIdentifiers
                 if amend && !hasParent { amendDiffToLastCommit = true }
                 comparisonBase = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : nil
                 entries = try await repository.commitDialogStatus(amendToParent: amendToParent); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
+                conflictRebase = (try await repository.conflictIsRebase())
                 statistics = Dictionary(try await repository.workingTreeFiles(amendToParent: amendToParent).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 stagedStatistics = Dictionary(try await repository.stagingFiles(staged: true, base: comparisonBase).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 unstagedStatistics = Dictionary(try await repository.stagingFiles(staged: false).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
@@ -609,6 +612,10 @@ GroupBox("Changes made (double-click on file for diff):") {
             } else {
                 Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
                 Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
+            }
+            if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
+                Divider()
+                ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, action: model.onResolve)
             }
             if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
                 Divider()
