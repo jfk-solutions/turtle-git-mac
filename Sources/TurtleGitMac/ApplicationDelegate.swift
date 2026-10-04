@@ -11,11 +11,13 @@ import AppKit
         let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
         let submoduleDiffs = sender.windows.compactMap { $0.delegate as? SubmoduleDiffWindowController }
         let comparisons = sender.windows.compactMap { $0.delegate as? RevisionComparisonWindowController }
+        let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
-        guard !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
+        guard !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
         guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         repositoryModel?.confirmingQuit = true
+        for comparison in fileComparisons { comparison.model.confirmingQuit = true }
         for diff in submoduleDiffs { diff.model.confirmingQuit = true }
         for comparison in comparisons { comparison.model.confirmingQuit = true; comparison.model.patchWindow?.model.confirmingQuit = true }
         for update in updates { update.model.confirmingQuit = true }
@@ -50,6 +52,7 @@ import AppKit
             }
             if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
             for diff in submoduleDiffs { diff.model.confirmingQuit = false }
+            for comparison in fileComparisons { comparison.model.confirmingQuit = false }
             for comparison in comparisons { comparison.model.confirmingQuit = false; comparison.model.patchWindow?.model.confirmingQuit = false }
             for update in updates { update.model.confirmingQuit = false }
             for revert in reverts { revert.model.confirmingQuit = false }

@@ -46,8 +46,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             if let child = picker.window { window.beginSheet(child) }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.busy && model.patchWindow?.model.busy != true }
-    func windowWillClose(_ notification: Notification) { model.patchWindow?.close(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.busy && model.patchWindow?.model.busy != true && !model.comparisonWindows.values.contains { $0.model.busy } }
+    func windowWillClose(_ notification: Notification) { model.patchWindow?.close(); Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RevisionComparisonWindowModel: ObservableObject {
@@ -72,6 +72,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     private var patchGeneration = 0
     var onLog: (String?) -> Void = { _ in }
     var onFileLog: (String, String?) -> Void = { _, _ in }
+    var onSubmoduleCompare: (String, ComparisonRevision, ComparisonRevision) -> Void = { _, _, _ in }
+    var comparisonWindows: [String: FileComparisonWindowController] = [:]
     var visibleFiles: [CommitFile] { snapshot?.files.filter { filter.isEmpty || $0.path.localizedCaseInsensitiveContains(filter) || $0.oldPath?.localizedCaseInsensitiveContains(filter) == true }.sorted(using: sortOrder) ?? [] }
     init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) { self.repository = repository; self.access = access; self.from = from.label; self.to = to.label }
     private func side(_ input: String) -> ComparisonRevision {
@@ -120,6 +122,17 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         guard !busy, !confirmingQuit, let snapshot else { return }
         let revision: String? = { if case .revision(let value) = snapshot.to { return value }; return nil }()
         for file in visibleFiles where ids.contains(file.path) { onFileLog(file.path, revision) }
+    }
+    func compare(_ ids: Set<String>) {
+        guard !busy, !confirmingQuit, let snapshot else { return }
+        for file in visibleFiles where ids.contains(file.path) {
+            if file.isSubmodule { onSubmoduleCompare(file.path, snapshot.from, snapshot.to); continue }
+            let key = file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label
+            let controller = comparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
+            controller.onClosed = { [weak self] in self?.comparisonWindows.removeValue(forKey: key) }
+            comparisonWindows[key] = controller
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        }
     }
     func copyPaths(_ ids: Set<String>, extended: Bool = false) {
         let files = visibleFiles.filter { ids.contains($0.path) }; guard !files.isEmpty else { return }
@@ -217,13 +230,14 @@ private struct RevisionComparisonDialog: View {
                 TableColumn("Lines added", value: \.sortAdded) { file in Text(file.addedText) }.width(85)
                 TableColumn("Lines deleted", value: \.sortRemoved) { file in Text(file.removedText) }.width(95)
             }.contextMenu(forSelectionType: String.self) { ids in
+                Button { model.compare(ids) } label: { CommandLabel(title: "Compare revisions", icon: .compare) }.disabled(ids.isEmpty)
                 Button { model.showPatch(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
                 Button { model.logFiles(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
                 Divider()
                 Button { model.saveList(ids) } label: { CommandLabel(title: "Save list of selected files…", icon: .saveAs) }.disabled(ids.isEmpty)
                 Button { model.copyPaths(ids, extended: true) } label: { CommandLabel(title: "Copy all columns to clipboard", icon: .copy) }.disabled(ids.isEmpty)
                 Button { model.copyPaths(ids) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(ids.isEmpty)
-            } primaryAction: { model.showPatch($0) }
+            } primaryAction: { model.compare($0) }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text("\(model.visibleFiles.count) changed file(s)").font(.caption).foregroundStyle(.secondary); Spacer(); Button(model.showingPatch ? "Hide Patch<<" : "View Patch>>") { model.togglePatch() }.buttonStyle(.link).disabled(model.snapshot == nil) }
         }.padding(12).disabled(model.busy || model.confirmingQuit).onAppear { model.load() }
         .onChange(of: model.options) { _ in model.load() }

@@ -244,7 +244,7 @@ private enum MergeSourceSide {
     weak var view: NSScrollView?
     init(_ view: NSScrollView) { self.view = view }
 }
-private enum MergePalette {
+enum MergePalette {
     static func color(_ state: MergeSourceState) -> NSColor {
         if state == .normal { return .textBackgroundColor }
         return NSColor(name: nil) { appearance in
@@ -574,7 +574,7 @@ private final class MergeTextView: NSTextView {
         replaceMergeBlock(block.range, with: text)
     }
 }
-private final class MergeLineRuler: NSRulerView {
+final class MergeLineRuler: NSRulerView {
     var sourceNumbers: [Int?]?
     override init(scrollView: NSScrollView?, orientation: NSRulerView.Orientation) { super.init(scrollView: scrollView, orientation: orientation); ruleThickness = 45 }
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }

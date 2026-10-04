@@ -214,7 +214,10 @@ The native submodule Conflict chooser now shows checkout-based Base and destinat
 revision/subject/type details, with side history and Use this choices.
 [Submodule Diff and Changed Files parity](docs/SUBMODULE-DIFF-PARITY.md) records
 the native comparison windows, immutable revision comparisons, post-Revert
-submodule handling and remaining comparison actions.
+submodule handling, the native Base/Theirs file viewer and remaining comparison
+actions. File double-click opens colored, aligned panes with Find and difference
+navigation; unified patch is available separately. The two-file viewer is
+currently read-only; full TortoiseMerge parity remains in progress.
 [Submodule Update parity](docs/SUBMODULE-UPDATE-PARITY.md) records the native
 selection/options window, real Git behavior and remaining progress/Finder checks.
 

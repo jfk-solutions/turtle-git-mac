@@ -45,8 +45,9 @@ the working tree. F5 refreshes the metadata in place.
 
 Changed Files has two revision groups, a path filter, five columns (File,
 Extension, Action, Lines added, Lines deleted), whitespace options, Common
-ancestor, Log, Swap and View Patch. Selected files open the existing native
-colored patch viewer in read-only mode. Empty selections clear the patch.
+ancestor, Log, Swap and View Patch. Double-click and Compare revisions open a
+native two-pane file viewer; unified diff remains a separate context action.
+The colored patch viewer operates in read-only mode. Empty selections clear the patch.
 Patch refresh errors remain visible; reloading the comparison invalidates old
 patch requests without leaving the patch window busy. Patch placement is
 constrained to the parent screen's visible frame.
@@ -95,8 +96,8 @@ The gallery contains inspected, unedited actual light-mode captures:
 ## Remaining work
 
 Full reference-browser tree/context behavior, upstream Log range behavior,
-the remaining file context actions need porting. Primary
-file activation currently opens unified diff; native two-file/image comparison,
+the remaining file context actions need porting. Native
+two-pane editing/save workflows, complete image-diff controls,
 alternative diff tools, blame, export and restore integration remain pending.
 Conflicted gitlinks retain the existing conflict workflow and need explicit
 Diff routing acceptance. Shift-alternative comparison is not wired. Dedicated
@@ -104,6 +105,45 @@ native tests for identical/missing/historical states, Log and Update handoffs,
 F5, filter/swap/whitespace controls, multi-monitor placement and busy
 Quit remain. Signed Finder and sandbox security-scope acceptance are pending.
 These source files and dialogs remain partial in the full-port scope.
+
+## Two-file comparison follow-up
+
+`FileComparison.swift` reads exact blob bytes from the snapshot's immutable
+commits. Added/deleted files have an empty opposite side; renamed files use the
+old base path. Literal NUL-delimited tree lookup preserves unusual filenames.
+Working comparisons read the working file rather than the index, and symlinks
+display their target text without following the final link. Binary data is
+retained; UTF-8 (with optional BOM) and BOM-marked UTF-16 are decoded explicitly.
+Line alignment retains original line numbers and detects byte-distinct Unicode,
+line endings and missing final newlines.
+
+The native Base/Theirs split view uses the existing original artwork and
+light/dark merge palette: removed, added and alignment-gap rows. It provides
+synchronized vertical scrolling, previous/next difference, native Find, line
+numbers and F5 Reload. Historical sides remain pinned when reloaded. Recognized
+images have a side-by-side preview; other binary/unsupported text encodings show
+byte counts and a bounded hexadecimal preview. Gitlinks route to Submodule Diff,
+including empty sides and a reversed working-checkout comparison.
+
+Three core tests cover alignment recovery, historical rename/add/delete/binary/
+symlink bytes, pinned commits, working vs staged content, reversed comparisons,
+UTF-16 and unchanged index bytes. A separate submodule test covers empty sides
+and reversed working checkout. One native QA instance verified added/deleted
+file double-click, empty opposite panes, difference navigation, Find (12 hits)
+and line-number toggling. Its actual dark capture is `two-file-diff-dark.png`.
+Normal Quit exited the process; parent/child HEAD, indexes and local text were
+verified unchanged. Long-file scroll synchronization, multiple difference
+navigation, native rename/binary/image cases, light capture and signed sandbox
+acceptance remain unverified. This viewer is read-only; full TortoiseMerge
+editing, encoding selection, word diff, locator, folding and settings remain
+part of the unfinished full port.
+
+Validation for this follow-up: all 243 integration tests passed. Final unsigned
+Xcode Debug and App Store builds passed, followed by both bundle audits. The
+App Store audit exercised the universal Git 2.55.0 runtime's local commands and
+verified its 11 Mach-O files, embedded Finder extension, licenses and 60 original
+icon resources. The static Pages build passed. These checks do not prove signed
+Finder activation, signed sandbox behavior or App Store approval.
 
 ## Revision selection and metadata follow-up
 

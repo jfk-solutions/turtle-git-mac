@@ -35,6 +35,7 @@ extension GitRepository {
     public func submoduleComparison(path: String, from: String = "HEAD", to: String? = nil) throws -> SubmoduleComparison {
         let location = try restoreLocation(path)
         func gitlink(_ revision: String) throws -> String? {
+            if revision.isEmpty { return nil }
             let tree = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{tree}"]).text.trimmingCharacters(in: .newlines)
             let records = try run(["ls-tree", "--full-tree", "-z", tree, "--", path]).stdout.split(separator: 0)
             for record in records {
@@ -45,10 +46,8 @@ extension GitRepository {
             }
             return nil
         }
-        let fromHash = try gitlink(from)
-        var toHash: String?
-        if let to { toHash = try gitlink(to) }
-        else {
+        func workingGitlink() throws -> String? {
+            var hash: String?
             let records = try run(["ls-files", "--stage", "-z", "--", path]).stdout.split(separator: 0)
             for record in records {
                 let parts = record.split(separator: 9, maxSplits: 1)
@@ -56,9 +55,12 @@ extension GitRepository {
                 let header = String(decoding: parts[0], as: UTF8.self).split(separator: " ")
                 guard header.count == 3 else { continue }
                 guard header[2] == "0" else { throw SubmoduleComparisonFailure.conflicted }
-                if header[0] == "160000" { toHash = String(header[1]) }
+                if header[0] == "160000" { hash = String(header[1]) }
             }
+            return hash
         }
+        var fromHash = try from == "Working tree" ? workingGitlink() : gitlink(from)
+        var toHash = try to.map(gitlink) ?? workingGitlink()
         guard fromHash != nil || toHash != nil else { throw SubmoduleComparisonFailure.unsupported }
         var checkout: URL?
         if FileManager.default.fileExists(atPath: location.appendingPathComponent(".git").path) {
@@ -70,6 +72,7 @@ extension GitRepository {
             guard discovered == location.resolvingSymlinksInPath().standardizedFileURL else { throw SubmoduleComparisonFailure.unsafeCheckout }
             checkout = location
             if to == nil, toHash != nil { toHash = try run(["-C", location.path, "rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines) }
+            if from == "Working tree", fromHash != nil { fromHash = try run(["-C", location.path, "rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines) }
         }
         let dirty = try to == nil && checkout != nil && !run(["-C", location.path, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).stdout.isEmpty
         func metadata(_ hash: String?) -> (SubmoduleComparisonSide, Int64) {

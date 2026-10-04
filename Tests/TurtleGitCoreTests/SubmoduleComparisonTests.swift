@@ -51,6 +51,20 @@ final class SubmoduleComparisonTests: XCTestCase {
         let after = try await parent.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, parentHead)
     }
 
+    func testEmptyComparisonSidesAndReverseWorkingCheckout() async throws {
+        let (root, parent, child, path, base) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let added = try await parent.submoduleComparison(path: path, from: "", to: "HEAD")
+        XCTAssertNil(added.from.revision); XCTAssertEqual(added.to.revision, base); XCTAssertEqual(added.change, .newSubmodule)
+        let deleted = try await parent.submoduleComparison(path: path, from: "HEAD", to: "")
+        XCTAssertEqual(deleted.from.revision, base); XCTAssertNil(deleted.to.revision); XCTAssertEqual(deleted.change, .deleteSubmodule)
+        try Data("next\n".utf8).write(to: child.root.appendingPathComponent("file.txt"))
+        try await child.stage(["file.txt"]); _ = try await child.commit(message: "next")
+        let next = try await child.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let reverse = try await parent.submoduleComparison(path: path, from: "Working tree", to: "HEAD")
+        XCTAssertEqual(reverse.from.revision, next); XCTAssertEqual(reverse.to.revision, base); XCTAssertEqual(reverse.change, .rewind)
+    }
+
     func testHistoricalGitlinksAreIndependentOfCheckoutAndCanRewind() async throws {
         let (root, parent, child, path, base) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }

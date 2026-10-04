@@ -563,6 +563,11 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
+        controller.model.onSubmoduleCompare = { [weak self] path, old, new in
+            let from = old == .emptyTree ? "" : old == .workingTree ? "Working tree" : old.label
+            let to = new == .emptyTree ? "" : new == .workingTree ? nil : new.label
+            self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to)
+        }
         revisionComparisonWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
