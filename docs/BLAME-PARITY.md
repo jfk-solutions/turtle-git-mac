@@ -101,6 +101,41 @@ bundle audits and the site build after the native light checks. It leaves the
 annotation reader unchanged. Mouse tracking is confined to the Blame window and
 uses AppKit's [tracking areas](https://developer.apple.com/documentation/appkit/nstrackingarea).
 
+## Show changes from an annotated line
+
+The line context menu now offers Show changes for each relevant parent of the
+line's origin commit. This follows the gates in upstream
+`src/TortoiseGitBlame/TortoiseGitBlameView.cpp`: compare an existing modified or
+renamed file, using the old filename on the parent side of a rename. Root commits,
+newly added files and parents that did not change the origin file have no previous
+comparison. A single relevant parent gives one command; multiple relevant parents
+appear in a submenu with their commit identifiers and actual parent numbers.
+
+The native read-only comparison opens pinned parent/origin versions, independently
+of later working file changes. The menu lookup finishes before AppKit starts menu
+tracking; cached choices avoid repeated Git reads. Closing or reloading Blame
+invalidates pending menu presentation. Right-click and Control-click are routed
+through this lookup; separate native keyboard and Control-click acceptance remain
+pending.
+
+Nine focused Blame tests now cover the reader and parent comparisons, including a
+literal Unicode/newline rename, root and non-root file birth, and a conflict
+resolution attributed to a two-parent merge. Comparison bytes, parent order and
+rename paths are checked; the historical operations preserve HEAD, index and
+working source. The full core suite passed all 269 tests. Swift and unsigned Debug/AppStore
+builds passed without compiler warnings. Both bundle audits passed with all 62
+upstream icons; the packaged universal Git 2.55.0 audit verified its 11 Mach-O files
+and local Git operations including Blame. The documentation site build passed.
+Signed sandbox and App Store acceptance remain pending.
+
+Native QA verified the absence of Show changes on a root-origin line, both choices
+for a merge-origin line, and each parent's source against the merge resolution in
+the read-only viewer. The second-parent check showed Side greeting against Resolved
+greeting with the corresponding pinned hashes. Each QA app was closed after its
+scenario; the final process check found no running TurtleGit app, and fixture HEAD,
+index and working source matched their baseline. Blame Previous, full log-message
+copy and the remaining menu commands still need implementation.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;
@@ -108,7 +143,7 @@ uses AppKit's [tracking areas](https://developer.apple.com/documentation/appkit/
 - Syntax highlighting, source selection and native editor scrolling behavior.
 - Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and
   revision/block navigation.
-- Show Changes, Blame Previous, full commit-message copy/export commands and
+- Blame Previous, full commit-message copy/export commands and
   remaining original menu icons.
 - Blame options dialog, revision chooser, complete copied-line modes/thresholds,
   settings and persistent preferences.

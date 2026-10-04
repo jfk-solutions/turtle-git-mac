@@ -31,6 +31,10 @@ import TurtleGitCore
     @Published var detectCopied = false
     @Published var colorAge = true
     @Published var selection: Int?
+    @Published var parentChoices: [GitBlameParentComparison] = []
+    @Published var loadingParents = false
+    private var parentGeneration = 0
+    private var parentCache: [String: [GitBlameParentComparison]] = [:]
     @Published var highlightedHash: String?
     @Published var hoveredLine: Int?
     @Published var find = ""
@@ -41,6 +45,7 @@ import TurtleGitCore
     private var origins: [String: GitBlameLine] = [:]
     var historyCount = 0
     var onLog: ((String, String) -> Void)?
+    var onChanges: ((RevisionComparisonSnapshot) -> Void)?
     var lines: [GitBlameLine] { snapshot?.lines ?? [] }
     private func line(_ number: Int?) -> GitBlameLine? {
         guard let number, number > 0, lines.indices.contains(number - 1) else { return nil }; return lines[number - 1]
@@ -66,9 +71,29 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision
     }
-    func invalidate() { generation += 1 }
+    func invalidate() { generation += 1; parentGeneration += 1 }
+    func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
+        selection = number; loadParents(completion: completion)
+    }
+    private func loadParents(completion: @escaping () -> Void) {
+        parentGeneration += 1; let request = parentGeneration
+        guard let line = selectedLine else { parentChoices = []; loadingParents = false; return }
+        let key = line.hash + "\0" + line.filename
+        if let cached = parentCache[key] { parentChoices = cached; loadingParents = false; completion(); return }
+        parentChoices = []; loadingParents = true
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let choices = try await repository.blameParentComparisons(revision: line.hash, path: line.filename)
+                guard request == parentGeneration else { return }
+                parentCache[key] = choices; parentChoices = choices; loadingParents = false
+                if selectedLine?.number == line.number, selectedLine?.hash == line.hash, selectedLine?.filename == line.filename { completion() }
+            } catch { if request == parentGeneration { self.error = error.localizedDescription; loadingParents = false } }
+        }
+    }
     func reload() {
         guard !busy else { return }
+        parentGeneration += 1; parentChoices = []; loadingParents = false
         generation += 1; let request = generation
         var options = GitBlameOptions(); options.ignoreWhitespace = ignoreWhitespace; options.detectMoved = detectMoved; options.detectCopied = detectCopied
         busy = true; error = nil
@@ -126,6 +151,7 @@ private struct BlameDialog: View {
                 Button("Go To Line") { model.goToLine() }
             }.disabled(model.busy)
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
+            if model.loadingParents { ProgressView("Reading previous revisions…").controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             BlameTable(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             if let line = model.selectedLine {
@@ -144,6 +170,13 @@ private struct BlameTable: NSViewRepresentable {
     func makeNSView(context: Context) -> NSScrollView {
         let table = BlameTableView(); table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.onMarginClick = { [weak coordinator = context.coordinator] row in coordinator?.model.highlight(row) }
+        table.onContextMenu = { [weak coordinator = context.coordinator] row, event in
+            guard let coordinator, coordinator.table != nil, coordinator.model.lines.indices.contains(row), !coordinator.model.busy else { return }
+            coordinator.model.prepareParentMenu(number: row + 1) { [weak coordinator] in
+                guard let coordinator, let table = coordinator.table, let menu = table.menu, table.window?.isVisible == true else { return }
+                NSMenu.popUpContextMenu(menu, with: event, for: table)
+            }
+        }
         table.onHover = { [weak coordinator = context.coordinator] row in
             guard let model = coordinator?.model else { return }
             let number = row.map { $0 + 1 }
@@ -236,15 +269,32 @@ private struct BlameTable: NSViewRepresentable {
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems()
-            guard let table else { return }
-            if table.clickedRow >= 0 { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
             guard model.selectedLine != nil else { return }
+            if model.loadingParents {
+                let loading = NSMenuItem(title: "Reading previous revisions…", action: nil, keyEquivalent: ""); loading.isEnabled = false; menu.addItem(loading)
+            } else if !model.parentChoices.isEmpty {
+                func item(_ choice: GitBlameParentComparison, title: String) -> NSMenuItem {
+                    let item = NSMenuItem(title: title, action: #selector(showChanges(_:)), keyEquivalent: "")
+                    item.target = self; item.image = MenuIcon.compare.image(); item.representedObject = choice
+                    item.isEnabled = model.onChanges != nil; return item
+                }
+                if model.parentChoices.count == 1 { menu.addItem(item(model.parentChoices[0], title: "Show changes")) }
+                else {
+                    let parent = NSMenuItem(title: "Show changes", action: nil, keyEquivalent: ""); parent.image = MenuIcon.compare.image()
+                    let submenu = NSMenu(); submenu.autoenablesItems = false
+                    for choice in model.parentChoices { submenu.addItem(item(choice, title: "Parent \(choice.parentNumber) (\(choice.revision.prefix(8)))")) }
+                    parent.submenu = submenu; menu.addItem(parent)
+                }
+            }
             for (title, action, icon) in [("Show log", #selector(showLog), MenuIcon.log), ("Copy revision", #selector(copyRevision), .copy), ("Copy source line", #selector(copySource), .copy)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.image()
                 item.isEnabled = action != #selector(showLog) || model.onLog != nil; menu.addItem(item)
             }
         }
         @objc func showLog() { if let line = model.selectedLine { model.showLog(line) } }
+        @objc func showChanges(_ sender: NSMenuItem) {
+            if let choice = sender.representedObject as? GitBlameParentComparison { model.onChanges?(choice.comparison) }
+        }
         @objc func copyRevision() { if let line = model.selectedLine { model.copy(line.hash) } }
         @objc func copySource() { if let line = model.selectedLine { model.copy(line.source) } }
     }
@@ -252,6 +302,7 @@ private struct BlameTable: NSViewRepresentable {
 
 private final class BlameTableView: NSTableView {
     var onMarginClick: (Int) -> Void = { _ in }
+    var onContextMenu: (Int, NSEvent) -> Void = { _, _ in }
     var onHover: (Int?) -> Void = { _ in }
     private var hoverTracking: NSTrackingArea?
     override func updateTrackingAreas() {
@@ -262,8 +313,12 @@ private final class BlameTableView: NSTableView {
     }
     override func mouseDown(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)
+        if event.modifierFlags.contains(.control) { onContextMenu(row, event); return }
         super.mouseDown(with: event)
         if event.clickCount == 1, row >= 0, (0...2).contains(column) { onMarginClick(row) }
+    }
+    override func rightMouseDown(with event: NSEvent) {
+        onContextMenu(row(at: convert(event.locationInWindow, from: nil)), event)
     }
     override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)

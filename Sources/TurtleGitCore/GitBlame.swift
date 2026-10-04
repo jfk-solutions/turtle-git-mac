@@ -24,6 +24,13 @@ public struct GitBlameSnapshot: Sendable {
     public let contents: Data
     public let lines: [GitBlameLine]
 }
+public struct GitBlameParentComparison: Identifiable, Sendable {
+    public var id: String { revision }
+    public let parentNumber: Int
+    public let revision: String
+    public let path: String
+    public let comparison: RevisionComparisonSnapshot
+}
 public enum GitBlameFailure: LocalizedError {
     case format, unsupported
     public var errorDescription: String? {
@@ -92,6 +99,24 @@ public enum GitBlameParser {
     }
 }
 extension GitRepository {
+    /// Only parents that changed an existing origin file are relevant, matching
+    /// TortoiseBlame's menu gates. Preserve each parent's old rename path.
+    public func blameParentComparisons(revision: String, path: String) throws -> [GitBlameParentComparison] {
+        let file = try historicalFile(revision: revision, path: path)
+        guard case .revision(let hash) = file.revision, ["100644", "100755"].contains(file.mode ?? "") else { throw GitBlameFailure.unsupported }
+        let parents = try run(["rev-list", "--parents", "-n", "1", hash]).text.split(whereSeparator: \.isWhitespace).dropFirst().map(String.init)
+        var result: [GitBlameParentComparison] = []
+        for (index, parent) in parents.enumerated() {
+            let range = try revisionComparison(from: .revision(parent), to: .revision(hash))
+            guard let changed = range.files.first(where: { $0.path == path }), !changed.isSubmodule,
+                  ["M", "R", "T"].contains(String(changed.action.prefix(1))) else { continue }
+            let comparison = RevisionComparisonSnapshot(root: root, from: range.from, to: range.to,
+                fromDetails: range.fromDetails, toDetails: range.toDetails, files: [changed], options: range.options)
+            result.append(GitBlameParentComparison(parentNumber: index + 1, revision: parent,
+                path: changed.oldPath ?? changed.path, comparison: comparison))
+        }
+        return result
+    }
     public func blame(path: String, revision: String = "HEAD", options: GitBlameOptions = GitBlameOptions()) throws -> GitBlameSnapshot {
         let content = try historicalFile(revision: revision, path: path)
         guard ["100644", "100755"].contains(content.mode ?? ""), !content.bytes.contains(0), String(data: content.bytes, encoding: .utf8) != nil,

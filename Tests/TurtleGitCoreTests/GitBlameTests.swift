@@ -100,6 +100,62 @@ final class GitBlameTests: XCTestCase {
         let ordinary = try await repo.blame(path: "copy")
         XCTAssertNotEqual(ordinary.lines.first?.hash, first); XCTAssertEqual(ordinary.lines.first?.filename, "copy")
     }
+    func testParentComparisonKeepsRenamePathsPinnedAndSkipsFileBirth() async throws {
+        let (root, repo, original) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let born = try await repo.blameParentComparisons(revision: first, path: original)
+        XCTAssertTrue(born.isEmpty)
+        let old = try Data(contentsOf: root.appendingPathComponent(original)), renamed = ":(glob)* renamed 雪\n.txt"
+        _ = try await repo.run(["mv", "--", original, renamed])
+        let new = Data(String(decoding: old, as: UTF8.self).replacingOccurrences(of: "line 2\n", with: "changed\n").utf8)
+        try new.write(to: root.appendingPathComponent(renamed)); try await repo.stage([renamed]); _ = try await repo.commit(message: "rename and change")
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        try Data("later working\n".utf8).write(to: root.appendingPathComponent(renamed))
+        let parents = try await repo.blameParentComparisons(revision: hash, path: renamed)
+        let parent = try XCTUnwrap(parents.first); XCTAssertEqual(parents.count, 1)
+        XCTAssertEqual(parent.parentNumber, 1); XCTAssertEqual(parent.revision, first); XCTAssertEqual(parent.path, original)
+        XCTAssertEqual(parent.comparison.files.map(\.path), [renamed]); XCTAssertEqual(parent.comparison.files.first?.oldPath, original)
+        let document = try await repo.comparisonFile(parent.comparison, path: renamed)
+        XCTAssertEqual(document.base.bytes, old); XCTAssertEqual(document.destination.bytes, new)
+        XCTAssertEqual(document.base.path, original); XCTAssertEqual(document.destination.path, renamed)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(renamed)), Data("later working\n".utf8))
+        let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(after, hash)
+        do { _ = try await repo.blameParentComparisons(revision: hash, path: "../outside"); XCTFail() } catch {}
+    }
+    func testMergeOriginOffersEachRelevantParent() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8)
+        _ = try await repo.run(["checkout", "-b", "side"])
+        try Data(original.replacingOccurrences(of: "line 2\n", with: "side change\n").utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "side")
+        let side = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["checkout", "main"])
+        try Data(original.replacingOccurrences(of: "line 2\n", with: "main change\n").utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "main")
+        let main = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        do { _ = try await repo.run(["merge", "--no-ff", "side", "-m", "merge"]); XCTFail("Must conflict") } catch {}
+        try Data(original.replacingOccurrences(of: "line 2\n", with: "resolved\n").utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "resolve both parents")
+        let annotations = try await repo.blame(path: path), index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        XCTAssertEqual(annotations.lines[1].hash, annotations.revision)
+        let parents = try await repo.blameParentComparisons(revision: annotations.lines[1].hash, path: annotations.lines[1].filename)
+        XCTAssertEqual(parents.map(\.revision), [main, side]); XCTAssertEqual(parents.map(\.parentNumber), [1, 2])
+        for (choice, expected) in zip(parents, ["main change", "side change"]) {
+            let document = try await repo.comparisonFile(choice.comparison, path: path)
+            XCTAssertTrue(document.base.text?.contains(expected) == true); XCTAssertTrue(document.destination.text?.contains("resolved") == true)
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+    func testAddedFileWithExistingCommitParentHasNoPreviousFile() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("first version\n".utf8).write(to: root.appendingPathComponent("new")); try await repo.stage(["new"]); _ = try await repo.commit(message: "birth")
+        let parents = try await repo.blameParentComparisons(revision: "HEAD", path: "new"); XCTAssertTrue(parents.isEmpty)
+    }
     func testUnsupportedAndUnsafeFilesFail() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

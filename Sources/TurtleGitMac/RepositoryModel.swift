@@ -699,6 +699,7 @@ import TurtleGitCore
         let controller = blameWindows[key] ?? BlameWindowController(repository: repository, access: access, path: path, revision: revision)
         controller.onClosed = { [weak self] in self?.blameWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] origin, hash in self?.showLog(repository: repository, access: access, paths: [origin], endRevision: hash) }
+        controller.model.onChanges = { [weak self] snapshot in self?.showFileComparisons(repository: repository, access: access, snapshot: snapshot) }
         blameWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil) {
