@@ -272,7 +272,7 @@ CP1252 renders euro/dash/accents, selecting UTF-8 clears the table and reports a
 error, and choosing CP1252 again restores it. The one app was quit immediately;
 no TurtleGit app remained and the fixture HEAD/index/source baseline was unchanged.
 Native OEM850, CJK/stateful codecs, dark appearance, accessibility, persistent
-defaults and propagation to previous-revision windows remain pending.
+defaults remain pending. Previous-revision option inheritance is described below.
 
 The full suite passed all 274 core tests. Unsigned Debug/AppStore builds passed
 without compiler warnings, and both bundle audits passed with 62 original icons.
@@ -280,6 +280,31 @@ The packaged universal Git 2.55.0 audit verified 11 Mach-O files and annotation
 payload bytes for UTF-8, UTF-16, Windows-1252, OEM850 and CP932, plus existing local
 operations. The static documentation build passed. These checks do not establish
 signed sandbox or App Store acceptance.
+
+## Previous-revision option inheritance
+
+Blame previous revision carries the encoding, whitespace, moved-line and copied-line
+options used to produce the displayed annotations. Menu targets capture those
+applied options, so edits awaiting Reload do not change the meaning of an existing
+annotation. New parent windows apply the options before loading. Existing parent
+windows reconfigure and reload when necessary, ignoring superseded read results;
+the original line is selected after loading. Reopening an existing viewer from Log
+preserves that viewer's settings.
+
+Native QA used a Windows-1252 history containing euro, dash and accented text.
+The child viewer had CP1252 and all three annotation options enabled. Blame previous
+revision opened the parent with those settings, rendered the original text and
+selected line 1 without another encoding selection. The app was quit, no TurtleGit
+process remained, and HEAD, index and source bytes matched the recorded baseline.
+Native reused-window reconfiguration, merge-parent option inheritance and keyboard
+acceptance remain pending. Failed loads also clear obsolete navigation text and
+age-history counts along with the annotation table.
+
+The core reader is unchanged by this UI change; the preceding full 274-test run
+remains its validation baseline. Swift and unsigned Debug/AppStore builds passed
+without compiler warnings. Both bundle audits passed with 62 icons; the packaged
+Git 2.55.0 runtime passed its architecture and local-operation checks. The static
+documentation build passed. Signed sandbox and App Store acceptance remain pending.
 
 ## Remaining work
 

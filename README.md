@@ -33,7 +33,8 @@ revision/author highlighting, Find/Go To Line, origin-aware Show log and
 Show changes and Blame previous revision with merge-parent choices, plus full log
 clipboard details. UTF-8 and unambiguous UTF-16 LE/BE sources retain exact
 historical bytes. An Encoding popup provides explicit UTF and installed legacy
-code-page choices. Full menus, syntax highlighting and
+code-page choices. Previous-revision Blame retains the applied encoding and
+whitespace/move/copy options. Full menus, syntax highlighting and
 encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 
 - Open normal repositories and linked worktrees; show branch and status.

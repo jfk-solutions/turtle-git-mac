@@ -5,13 +5,14 @@ import TurtleGitCore
 private struct BlameParentMenuTarget {
     let choice: GitBlameParentComparison
     let originalLine: Int
+    let options: GitBlameOptions
 }
 
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     let model: BlameWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String) {
-        model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision)
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions()) {
+        model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options: options)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
@@ -55,7 +56,8 @@ private struct BlameParentMenuTarget {
     var historyCount = 0
     var onLog: ((String, String) -> Void)?
     var onChanges: ((RevisionComparisonSnapshot) -> Void)?
-    var onPrevious: ((String, String, Int) -> Void)?
+    var onPrevious: ((String, String, Int, GitBlameOptions) -> Void)?
+    private(set) var appliedOptions = GitBlameOptions()
     var lines: [GitBlameLine] { snapshot?.lines ?? [] }
     private func line(_ number: Int?) -> GitBlameLine? {
         guard let number, number > 0, lines.indices.contains(number - 1) else { return nil }; return lines[number - 1]
@@ -78,8 +80,30 @@ private struct BlameParentMenuTarget {
         }
         return 0
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions()) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision
+        setControls(options); appliedOptions = options
+    }
+    private var currentOptions: GitBlameOptions {
+        var options = GitBlameOptions()
+        options.ignoreWhitespace = ignoreWhitespace; options.detectMoved = detectMoved; options.detectCopied = detectCopied; options.encoding = sourceEncoding
+        return options
+    }
+    private func sameOptions(_ a: GitBlameOptions, _ b: GitBlameOptions) -> Bool {
+        a.ignoreWhitespace == b.ignoreWhitespace && a.detectMoved == b.detectMoved && a.detectCopied == b.detectCopied && a.encoding == b.encoding
+    }
+    private func setControls(_ options: GitBlameOptions) {
+        ignoreWhitespace = options.ignoreWhitespace; detectMoved = options.detectMoved; detectCopied = options.detectCopied; sourceEncoding = options.encoding
+    }
+    func configure(options: GitBlameOptions, line: Int?) {
+        if !sameOptions(currentOptions, options) || (!busy && (snapshot == nil || !sameOptions(appliedOptions, options))) {
+            invalidate(); busy = false; setControls(options); reload()
+        }
+        if let line { selectOriginalLine(line) }
+    }
+    func setEncoding(_ encoding: GitBlameEncoding?) {
+        guard !busy, sourceEncoding != encoding else { return }
+        sourceEncoding = encoding; reload()
     }
     func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -106,7 +130,7 @@ private struct BlameParentMenuTarget {
         parentGeneration += 1; parentChoices = []; loadingParents = false
         clipboardGeneration += 1; copyingLog = false
         generation += 1; let request = generation
-        var options = GitBlameOptions(); options.ignoreWhitespace = ignoreWhitespace; options.detectMoved = detectMoved; options.detectCopied = detectCopied; options.encoding = sourceEncoding
+        let options = currentOptions
         busy = true; error = nil
         Task {
             do {
@@ -116,12 +140,13 @@ private struct BlameParentMenuTarget {
                 guard request == generation else { return }
                 ranks = Dictionary(history.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: min)
                 origins = Dictionary(result.lines.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first })
-                historyCount = history.count; revision = result.revision; snapshot = result
+                historyCount = history.count; revision = result.revision; appliedOptions = options; snapshot = result
                 if let selection, !result.lines.contains(where: { $0.number == selection }) { self.selection = nil }
                 busy = false; applyPendingLine()
             } catch {
                 if request == generation {
                     snapshot = nil; selection = nil; highlightedHash = nil; hoveredLine = nil; origins = [:]; ranks = [:]
+                    historyCount = 0; navigationMessage = ""
                     self.error = error.localizedDescription; busy = false
                 }
             }
@@ -188,10 +213,10 @@ private struct BlameDialog: View {
                 Spacer(); Toggle("Colorize by age", isOn: $model.colorAge)
             }.disabled(model.busy)
             HStack {
-                Picker("Encoding", selection: $model.sourceEncoding) {
+                Picker("Encoding", selection: Binding(get: { model.sourceEncoding }, set: { model.setEncoding($0) })) {
                     Text("Automatic").tag(GitBlameEncoding?.none)
                     ForEach(GitBlameEncoding.available) { encoding in Text(encoding.rawValue).tag(Optional(encoding)) }
-                }.frame(maxWidth: 450).onChange(of: model.sourceEncoding) { _ in model.reload() }
+                }.frame(maxWidth: 450)
                 Spacer()
             }.disabled(model.busy)
             HStack {
@@ -331,7 +356,7 @@ private struct BlameTable: NSViewRepresentable {
                     func item(_ choice: GitBlameParentComparison, title: String) -> NSMenuItem {
                         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
                         item.target = self; item.image = icon.image()
-                        item.representedObject = BlameParentMenuTarget(choice: choice, originalLine: originalLine)
+                        item.representedObject = BlameParentMenuTarget(choice: choice, originalLine: originalLine, options: model.appliedOptions)
                         item.isEnabled = enabled; return item
                     }
                     if model.parentChoices.count == 1 { menu.addItem(item(model.parentChoices[0], title: title)) }
@@ -359,7 +384,7 @@ private struct BlameTable: NSViewRepresentable {
         }
         @objc func blamePrevious(_ sender: NSMenuItem) {
             if let target = sender.representedObject as? BlameParentMenuTarget {
-                model.onPrevious?(target.choice.path, target.choice.revision, target.originalLine)
+                model.onPrevious?(target.choice.path, target.choice.revision, target.originalLine, target.options)
             }
         }
         @objc func copyLogMessage(_ sender: NSMenuItem) {
