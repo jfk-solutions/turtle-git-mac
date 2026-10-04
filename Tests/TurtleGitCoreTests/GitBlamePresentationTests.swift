@@ -2,6 +2,36 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlamePresentationTests: XCTestCase {
+    func testFindUsesIndependentAuthorSourceFieldsAndBoundedWrap() {
+        let fields = [["Alice", "first 雪"], ["Bob", "Äpfel"], ["ALICE", "last 🐢"]]
+        let first = GitBlameSearch.find(fields: fields, text: "alice", fromRow: nil, previous: false, matchCase: false)
+        XCTAssertEqual(first?.row, 0); XCTAssertEqual(first?.wrapped, false)
+        let next = GitBlameSearch.find(fields: fields, text: "alice", fromRow: 0, previous: false, matchCase: false)
+        XCTAssertEqual(next?.row, 2); XCTAssertEqual(next?.wrapped, false)
+        let wrap = GitBlameSearch.find(fields: fields, text: "Alice", fromRow: 2, previous: false, matchCase: true)
+        XCTAssertEqual(wrap?.row, 0); XCTAssertEqual(wrap?.wrapped, true)
+        let up = GitBlameSearch.find(fields: fields, text: "alice", fromRow: 0, previous: true, matchCase: false)
+        XCTAssertEqual(up?.row, 2); XCTAssertEqual(up?.wrapped, true)
+        XCTAssertEqual(GitBlameSearch.find(fields: fields, text: "äPFEL", fromRow: nil, previous: false, matchCase: false)?.row, 1)
+        XCTAssertNil(GitBlameSearch.find(fields: fields, text: "äPFEL", fromRow: nil, previous: false, matchCase: true))
+        XCTAssertNil(GitBlameSearch.find(fields: fields, text: "Alice first", fromRow: nil, previous: false, matchCase: false))
+        XCTAssertNil(GitBlameSearch.find(fields: fields, text: "missing", fromRow: 1, previous: true, matchCase: false))
+        XCTAssertNil(GitBlameSearch.find(fields: [], text: "x", fromRow: nil, previous: true, matchCase: false))
+        XCTAssertNil(GitBlameSearch.find(fields: fields, text: "", fromRow: nil, previous: false, matchCase: false))
+        XCTAssertEqual(GitBlameSearch.find(fields: [["only"]], text: "only", fromRow: 0, previous: true, matchCase: true)?.row, 0)
+        XCTAssertNil(GitBlameSearch.find(fields: [["ß"]], text: "ss", fromRow: nil, previous: false, matchCase: false))
+    }
+    func testFindPreferencesReopenWithoutChangingAnnotationDefaults() throws {
+        let name = "GitBlameFindPreferencesTests." + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        XCTAssertEqual(GitBlameFindPreferences.load(from: defaults), GitBlameFindPreferences())
+        GitBlamePreferences.update(in: defaults) { $0.onlyFirstParent = true }
+        let search = GitBlameFindPreferences(text: "雪 🐢", matchCase: true)
+        search.save(to: defaults)
+        XCTAssertEqual(GitBlameFindPreferences.load(from: try XCTUnwrap(UserDefaults(suiteName: name))), search)
+        XCTAssertTrue(GitBlamePreferences.load(from: defaults).onlyFirstParent)
+    }
     func testGoToLineAcceptsUpstreamRangeAndClampsFileEnd() {
         for (text, expected) in [("0", 0), (" 123 ", 123), ("0002", 2), ("40000000", 40_000_000)] {
             XCTAssertEqual(GitBlameNavigation.requestedLine(text), expected)

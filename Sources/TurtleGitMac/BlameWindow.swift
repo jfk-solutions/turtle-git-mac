@@ -11,6 +11,7 @@ private struct BlameParentMenuTarget {
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     let model: BlameWindowModel
     var onClosed: () -> Void = {}
+    private var findWindow: BlameFindWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load()) {
         model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options: options)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -18,9 +19,15 @@ private struct BlameParentMenuTarget {
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         window.contentViewController = NSHostingController(rootView: BlameDialog(model: model))
-        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.reload()
+        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onFind = { [weak self] in self?.showFind() }; model.reload()
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    private func showFind() {
+        if let findWindow, findWindow.window?.isVisible == true { findWindow.showWindow(nil); findWindow.window?.makeKeyAndOrderFront(nil); return }
+        findWindow = BlameFindWindowController(model: model)
+        if let window, let panel = findWindow?.window { window.addChildWindow(panel, ordered: .above); panel.center() }
+        findWindow?.showWindow(nil); findWindow?.window?.makeKeyAndOrderFront(nil)
+    }
+    func windowWillClose(_ notification: Notification) { findWindow?.close(); model.onFind = nil; model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -80,6 +87,7 @@ private struct BlameParentMenuTarget {
     var ranks: [String: Int] = [:]
     private var origins: [String: GitBlameLine] = [:]
     var historyCount = 0
+    var onFind: (() -> Void)?
     var onLog: ((String, String) -> Void)?
     var onChanges: ((RevisionComparisonSnapshot) -> Void)?
     var onPrevious: ((String, String, Int, GitBlameOptions) -> Void)?
@@ -118,6 +126,7 @@ private struct BlameParentMenuTarget {
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions()) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision
+        let search = GitBlameFindPreferences.load(); find = search.text; matchCase = search.matchCase
         setControls(options); appliedOptions = options
     }
     private var currentOptions: GitBlameOptions {
@@ -271,16 +280,19 @@ private struct BlameParentMenuTarget {
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     func findLine(previous: Bool) {
-        guard !find.isEmpty, !lines.isEmpty else { return }
-        let start = selection.map { $0 - 1 } ?? (previous ? 0 : -1), count = lines.count
-        for offset in 1...count {
-            let index = ((start + (previous ? -offset : offset)) % count + count) % count
-            let line = lines[index]
-            if [line.hash, line.author, line.source].contains(where: { $0.range(of: find, options: matchCase ? [] : .caseInsensitive) != nil }) {
-                selection = line.number; navigationMessage = "Line \(line.number)"; return
-            }
+        guard !busy, !find.isEmpty, !lines.isEmpty else { return }
+        guard let result = GitBlameSearch.find(fields: lines.map { [$0.author, $0.source] }, text: find,
+            fromRow: selection.map { $0 - 1 }, previous: previous, matchCase: matchCase) else {
+            navigationMessage = "\"\(find)\" was not found."; return
         }
-        navigationMessage = "No match"
+        selection = lines[result.row].number
+        let number = lines[result.row].number
+        navigationMessage = result.wrapped ? "Wrapped to line \(number)." : "Line \(number)"
+    }
+    func applyFind(text: String, matchCase: Bool, previous: Bool) {
+        find = text; self.matchCase = matchCase
+        GitBlameFindPreferences(text: text, matchCase: matchCase).save()
+        findLine(previous: previous)
     }
     func goToLine(_ requested: Int) {
         guard let number = GitBlameNavigation.targetLine(requested, lineCount: lines.count) else { return }
@@ -321,10 +333,10 @@ private struct BlameDialog: View {
                 Spacer()
             }.disabled(model.busy)
             HStack {
-                TextField("Find revision, author or source", text: $model.find).onSubmit { model.findLine(previous: false) }
-                Toggle("Match case", isOn: $model.matchCase)
-                Button("Previous") { model.findLine(previous: true) }
+                Button("Find…") { model.onFind?() }.keyboardShortcut("f", modifiers: .command)
+                Button("Previous") { model.findLine(previous: true) }.keyboardShortcut("g", modifiers: [.command, .shift])
                 Button("Next") { model.findLine(previous: false) }.keyboardShortcut("g", modifiers: .command)
+                Spacer()
                 Button("Go To Line…") { showingGoToLine = true }.keyboardShortcut("l", modifiers: .command)
             }.disabled(model.busy)
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
@@ -359,6 +371,55 @@ private struct BlameDialog: View {
         }.padding(12).sheet(isPresented: $showingGoToLine) {
             BlameGoToLineDialog { requested in model.goToLine(requested) }
         }.onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
+    }
+}
+
+@MainActor private final class BlameFindWindowController: NSWindowController {
+    init(model: BlameWindowModel) {
+        let panel = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 460, height: 180), styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
+        panel.title = "Find – TurtleGit Blame"; panel.isReleasedWhenClosed = false
+        panel.isFloatingPanel = true; panel.hidesOnDeactivate = true
+        super.init(window: panel)
+        panel.contentViewController = NSHostingController(rootView: BlameFindDialog(model: model, close: { [weak self] in self?.close() }))
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+private struct BlameFindDialog: View {
+    @ObservedObject var model: BlameWindowModel
+    let close: () -> Void
+    @State private var text: String
+    @State private var matchCase: Bool
+    @State private var previous = false
+    @FocusState private var focused: Bool
+    init(model: BlameWindowModel, close: @escaping () -> Void) {
+        self.model = model; self.close = close
+        _text = State(initialValue: model.find)
+        _matchCase = State(initialValue: GitBlameFindPreferences.load().matchCase)
+    }
+    private func search() {
+        guard !text.isEmpty, !model.busy else { return }
+        model.applyFind(text: text, matchCase: matchCase, previous: previous)
+    }
+    var body: some View {
+        HStack(alignment: .top, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack { Text("Find what:"); TextField("Search text", text: $text).focused($focused).onSubmit { search() } }
+                HStack {
+                    Toggle("Match case", isOn: $matchCase)
+                    GroupBox("Direction") {
+                        Picker("Direction", selection: $previous) {
+                            Text("Up").tag(true); Text("Down").tag(false)
+                        }.pickerStyle(.radioGroup).labelsHidden()
+                    }
+                }
+                Text(model.navigationMessage).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            VStack(spacing: 10) {
+                Button("Find Next") { search() }.keyboardShortcut(.defaultAction).disabled(text.isEmpty || model.busy)
+                Button("Cancel") { close() }.keyboardShortcut(.cancelAction)
+            }
+        }.padding(16).frame(width: 460).task { await Task.yield(); focused = true }
     }
 }
 

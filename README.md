@@ -29,7 +29,8 @@ bundle structure; it is not a signed distribution.
 ## Implemented first pass
 
 Native historical Blame opens from Log with annotation columns, age colors,
-revision/author highlighting, Find/Go To Line, origin-aware Show log and
+revision/author highlighting, a modeless Find panel (Command-F), a native
+Go To Line sheet (Command-L), origin-aware Show log and
 Show changes and Blame previous revision with merge-parent choices, plus full log
 clipboard details. UTF-8 and unambiguous UTF-16 LE/BE sources retain exact
 historical bytes. An Encoding popup provides explicit UTF and installed legacy

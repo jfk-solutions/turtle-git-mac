@@ -829,12 +829,59 @@ acceptance and full menu integration remain pending. The native input validates
 on acceptance rather than suppressing every nondigit key like Windows ES_NUMBER.
 This is partial file/dialog parity, not a completed Blame viewer.
 
+## Native modeless Find
+
+Reviewed upstream `OnEditFind`, `OnFindDialogMessage`, `DoSearch` and
+`FindFirstLineWrapAround`. Upstream opens the system modeless Find dialog with
+Find what, Match case, Direction Up/Down, Find Next and Cancel, and hides Whole
+word. It saves the query/case only when searching and reuses an open Find window.
+The native implementation now uses an owned floating NSPanel with those controls;
+closing Blame closes its panel. Find/Previous/Next remain window-local controls,
+with Command-F, Command-Shift-G and Command-G respectively. The Go To Line sheet
+continues to use Command-L. Complete Edit menu/accelerator parity is pending.
+
+Search now checks author and source fields independently rather than revision
+hashes. Match case off lowercases literal text, without fuzzy/diacritic matching.
+The bounded forward/backward search reports wrap and leaves selection unchanged
+on failure, avoiding unsafe indexing/infinite iteration on empty/one-line input.
+The table's selected source row is its starting position; full Scintilla
+caret/selection positioning and upstream boundary quirks remain under review.
+Query and Match case persist in separate application defaults. Cancel discards
+unapplied panel edits while leaving previously applied matches intact.
+
+Nine focused presentation tests passed, covering independent fields, Unicode
+lowercase/literal behavior, case sensitivity, wrap in both directions, no match,
+one-line/empty input and preference reopening isolated from annotation defaults.
+The full suite was not rerun for these isolated helpers. The first native light
+check verified source match at 200, repeated wrap to 200, Up to 199 and uppercase
+VALUE absent with Match case on. It exposed initial field-focus timing; changing
+Find's initial focus to a yielded SwiftUI task corrected that in the final check.
+
+Final native light QA verified Command-F focuses the text field, typing without
+an explicit click and Return finds line 200, repeated Find Next wraps to 200,
+case-sensitive author text finds 201, cancelling changed query/case leaves source
+201 selected, and reopening restores the last applied Locator QA query with
+Match case on. The actual composite capture `site/assets/blame-find-light.png`
+(2240 by 1464) was saved and inspected. Both QA instances were used sequentially,
+quit normally before another launch, and no app process remained. Exact HEAD,
+raw index and source bytes were preserved.
+
+Debug and App Store builds passed without compiler warnings. Both bundle audits
+verified the Finder extension, licenses and 62 original icons. Packaged Git 2.55.0
+passed its 11 universal Mach-O and integration audits. Site generation and
+whitespace checks passed. Source-selection prefill, match-substring
+highlighting, original no-match alert/wrap flash, modeless parent interaction and
+close/reuse acceptance, session relaunch, dark/multi-window/accessibility and
+full source-editor parity remain pending. Native no-match/wrap feedback currently
+uses text in the panel and viewer rather than the Windows message/flash behavior.
+This is partial functionality and native dialog fidelity.
+
 ## Remaining work
 
 - Remaining native modifier/multi-revision acceptance, full locator acceptance and complete revision-log layout;
   pointer-hover and dark sticky native acceptance.
 - Syntax highlighting, source selection and native editor scrolling behavior.
-- Upstream Find dialog, remaining Go To Line acceptance, menu shortcuts, match highlighting and
+- Remaining modeless Find/Go To Line acceptance, menu shortcuts, match highlighting and
   revision/block navigation.
 - Clipboard presentation/localized dates, export commands and remaining original
   menu icons.

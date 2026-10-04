@@ -1,5 +1,41 @@
 import Foundation
 
+public struct GitBlameFindPreferences: Equatable, Sendable {
+    public var text: String
+    public var matchCase: Bool
+    public init(text: String = "", matchCase: Bool = false) { self.text = text; self.matchCase = matchCase }
+    public static func load(from defaults: UserDefaults = .standard) -> Self {
+        Self(text: defaults.string(forKey: "TurtleGitBlame.FindString") ?? "", matchCase: defaults.bool(forKey: "TurtleGitBlame.FindMatchCase"))
+    }
+    public func save(to defaults: UserDefaults = .standard) {
+        defaults.set(text, forKey: "TurtleGitBlame.FindString")
+        defaults.set(matchCase, forKey: "TurtleGitBlame.FindMatchCase")
+    }
+}
+
+public enum GitBlameSearch {
+    public struct Match: Equatable, Sendable {
+        public let row: Int
+        public let wrapped: Bool
+    }
+    /// Search each author/source field independently. Match-case off lowercases
+    /// text rather than applying fuzzy or diacritic-insensitive matching.
+    public static func find(fields: [[String]], text: String, fromRow: Int?, previous: Bool, matchCase: Bool) -> Match? {
+        guard !text.isEmpty, !fields.isEmpty else { return nil }
+        let count = fields.count
+        let start = fromRow.flatMap { fields.indices.contains($0) ? $0 : nil } ?? (previous ? 0 : -1)
+        let needle = matchCase ? text : text.lowercased()
+        for offset in 1...count {
+            let raw = start + (previous ? -offset : offset)
+            let row = (raw % count + count) % count
+            if fields[row].contains(where: { (matchCase ? $0 : $0.lowercased()).range(of: needle, options: .literal) != nil }) {
+                return Match(row: row, wrapped: raw < 0 || raw >= count)
+            }
+        }
+        return nil
+    }
+}
+
 public enum GitBlameSelection {
     /// Annotation-margin selection follows upstream OnLButtonDown. The macOS
     /// Command modifier adapts Windows Control-click's independent toggles.
