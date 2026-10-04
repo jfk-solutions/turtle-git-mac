@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context commands: alternate editor. File Blame/log/open/reveal
+- Remaining file context command audit, including prepare-diff and revision Save As. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -624,3 +624,36 @@ disabled after Go to Folder entered an empty destination, then enabled when its
 row was selected from the parent folder. Native overwrite, cancellation, staging,
 dark appearance and signed sandbox permissions remain to be exercised; this
 folder-chooser result does not resolve the separate Log Save As issue.
+
+## Alternative editor
+
+Upstream `IDGITLC_VIEWREV` calls `OpenFile(ALTERNATIVEEDITOR)`, which uses
+`LaunchAlternativeEditor` with Notepad as its fallback. Commit now has the same
+separate editor/Open/Open With commands and original `IDI_NOTEPAD` artwork. Export
+precedes these file-opening commands, matching upstream order. The editor action
+opens current working contents; it does not extract HEAD or stage the file.
+
+Settings → Alternative Editor ports the upstream Notepad/Custom radio choices,
+path field, enabled-state dependency, Browse and Apply. TextEdit replaces Notepad;
+Custom chooses a native .app rather than a Windows executable. Disabling Custom
+retains the chosen app, and blank Custom falls back to TextEdit as upstream's blank
+configuration falls back to Notepad. The native picker records an application
+permission bookmark; editing the path invalidates it only when the path changes.
+Launch resolves the bookmark and retains its temporary scope through completion.
+Unavailable apps/bookmarks report an error; they do not silently choose another
+custom application. Settings Cancel discards the draft.
+
+Two preference tests verify defaults, custom/disabled persistence, path and bookmark
+retention, blank fallback, and invalid paths. The original icon decoding test passes.
+Native QA verified the working Unicode file in default TextEdit and a custom app
+chosen through Browse, closing the QA document without edits each time. Final QA
+verified Apply disables after saving, tab reload keeps Apply disabled, the real
+bookmark persists on disk, and launch succeeds with that bookmark. HEAD, raw index
+and source contents remained exact. Three sequential QA instances were closed;
+none ran concurrently. `site/assets/alternative-editor.png` is an inspected actual
+Settings capture showing the saved Custom choice and disabled Apply.
+
+Other editor applications, missing/moved apps, typing/Cancel combinations, dark
+appearance, signed sandbox file handoff and editor routes outside Commit remain
+pending. This implements the Commit command and Settings page, not all upstream
+external-tool configuration or complete status-list menu parity.

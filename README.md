@@ -75,6 +75,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   original XPStyle status artwork for Finder badges and app file status.
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
+- Commit’s separate editor command uses TextEdit or a saved custom macOS app,
+  configured in Settings → Alternative Editor, with the original editor icon.
 - Commit file Export uses the original icon and a native folder chooser, preserving
   relative paths and exact working contents without staging or committing files.
 - Ordinary file Diff from Finder requests, app menus, Commit and Working Tree routes to the

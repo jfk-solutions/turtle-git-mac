@@ -317,6 +317,11 @@
       "asset": "menuexport.ico",
       "source": "src/Resources/menuexport.ico",
       "sha256": "11fc86d88e6dfbb904a3730f27d728d7d9e850dfdd8dab6a3ac5625d6dbeb19d"
+    },
+    {
+      "asset": "notepad.ico",
+      "source": "src/Resources/notepad.ico",
+      "sha256": "4e54bc9436460800653169912e622c7f90a01abd079f2ea9282f0851812378ee"
     }
   ]
 }

@@ -266,6 +266,13 @@ import UniformTypeIdentifiers
             } catch { self.error = error.localizedDescription }
         }
     }
+    func openInEditor(_ path: String) {
+        guard !busy, !confirmingQuit else { return }
+        do { try validateRestoreAccess() } catch { self.error = error.localizedDescription; return }
+        AlternativeEditor.open(repository.root.appendingPathComponent(path)) { [weak self] failure in
+            if let failure { self?.error = failure }
+        }
+    }
     enum CopyFileInformation: String, CaseIterable {
         case fullPaths = "Full paths", relativePaths = "Relative paths", names = "File/folder names", all = "Copy all information to clipboard"
     }
@@ -802,16 +809,19 @@ GroupBox("Changes made (double-click on file for diff):") {
                         Button { model.onFileBlame(entry.path) } label: { CommandLabel(title: "Blame", icon: .blame) }
                     }
                 }
+            }
+            if !selected.isEmpty && selected.allSatisfy({ $0.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent($0.path).path) }) {
+                Button { model.chooseExportFolder(selected.map(\.path)) } label: { CommandLabel(title: "Export…", icon: .export) }.disabled(model.busy || model.confirmingQuit)
+            }
+            if selected.count == 1, let entry = selected.first {
                 if entry.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent(entry.path).path) {
                     if !model.submodules.contains(entry.path) {
+                        Button { model.openInEditor(entry.path) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy || model.confirmingQuit)
                         Button { model.openFile(entry.path) } label: { CommandLabel(title: "Open", icon: .open) }
                         Button { model.chooseApplication(entry.path) } label: { CommandLabel(title: "Open With…", icon: .open) }
                     }
                     Button { NSWorkspace.shared.activateFileViewerSelecting([model.repository.root.appendingPathComponent(entry.path)]) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
                 }
-            }
-            if !selected.isEmpty && selected.allSatisfy({ $0.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent($0.path).path) }) {
-                Button { model.chooseExportFolder(selected.map(\.path)) } label: { CommandLabel(title: "Export…", icon: .export) }.disabled(model.busy || model.confirmingQuit)
             }
             if !selected.isEmpty {
                 Divider()
