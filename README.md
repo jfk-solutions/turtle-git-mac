@@ -194,3 +194,8 @@ See [website and screenshot maintenance](docs/WEBSITE.md).
 Fetch can now open a native Rebase plan for its selected branch. A rebase-configured
 Pull follows Fetch → Rebase and starts automatically; see
 [Rebase parity](docs/REBASE-PARITY.md) for verified behavior and remaining differences.
+
+The native submodule Conflict chooser now shows checkout-based Base and destination
+revision/subject/type details, with side history and Use this choices.
+[Submodule conflict parity](docs/SUBMODULE-CONFLICT-PARITY.md) records remaining
+edge cases and native QA. The full suite currently passes 162 tests.

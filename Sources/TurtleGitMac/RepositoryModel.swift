@@ -39,6 +39,7 @@ import TurtleGitCore
     private var cloneWindow: CloneWindowController?
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
+    private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
     private var deleteConflictWindows: [String: DeleteConflictWindowController] = [:]
     private var resetWindows: [String: ResetWindowController] = [:]
     private var resolveWindows: [String: ResolveWindowController] = [:]
@@ -232,8 +233,8 @@ import TurtleGitCore
         case .editConflict:
             guard let repository else { return }
             let selected = paths.isEmpty ? selectedPaths : paths
-            guard selected.count == 1, selected[0] != "." else { error = "Select one delete/modify conflict to edit."; return }
-            showDeleteConflict(repository: repository, access: activeAccess, path: selected[0])
+            guard selected.count == 1, selected[0] != "." else { error = "Select one conflict to edit."; return }
+            showConflictEditor(repository: repository, access: activeAccess, path: selected[0])
         case .resolve, .resolveCurrent, .resolveMine, .resolveTheirs:
             guard let repository else { return }
             showResolve(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, quick: action.resolveChoice)
@@ -260,7 +261,7 @@ import TurtleGitCore
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
             controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
             controller.model.onResolve = { [weak self] action, paths in
-                if action == .editConflict, let path = paths.first { self?.showDeleteConflict(repository: repository, access: access, path: path) }
+                if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
                 else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
             }
             controller.model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
@@ -399,6 +400,25 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func showConflictEditor(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
+        Task {
+            do {
+                guard let entry = try await repository.conflicts(paths: [path]).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
+                if !entry.isSubmodule { showDeleteConflict(repository: repository, access: access, path: path); return }
+                let root = repository.root, key = root.path + "\0" + path
+                let controller = submoduleConflictWindows[key] ?? SubmoduleConflictWindowController(repository: repository, access: access, path: path)
+                controller.onClosed = { [weak self] in self?.submoduleConflictWindows.removeValue(forKey: key) }
+                controller.model.onChanged = { [weak self] output in
+                    self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+                    for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
+                    if let self, self.root == root { self.output = output; Task { await self.refresh() } }
+                }
+                controller.model.onLog = { [weak self] child, revision in self?.showLog(repository: child, access: access, paths: [], endRevision: revision) }
+                controller.model.onReset = { [weak self] child, revision, done in self?.showReset(repository: child, access: access, revision: revision, completion: done) }
+                submoduleConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     private func showDeleteConflict(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
         let root = repository.root, key = root.path + "\0" + path
         let controller = deleteConflictWindows[key] ?? DeleteConflictWindowController(repository: repository, access: access, path: path)
@@ -437,7 +457,7 @@ import TurtleGitCore
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.onEdit = { [weak self] path in self?.showDeleteConflict(repository: repository, access: access, path: path) }
+        controller.model.onEdit = { [weak self] path in self?.showConflictEditor(repository: repository, access: access, path: path) }
         controller.model.onSubmoduleReset = { [weak self] child, revision, done in
             self?.showReset(repository: child, access: access, revision: revision, completion: done)
         }

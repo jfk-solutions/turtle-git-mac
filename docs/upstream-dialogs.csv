@@ -110,7 +110,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS3,Dialogs 3,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_BUGTRAQREGEXTESTER,Bugtraq Regex Tester - TortoiseGit,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_CERTCHECK,TortoiseGit,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSUDIFF,TortoiseGitUDiff,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_RESOLVESUBMODULECONFLICT,Resolve Submodule Conflict,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_RESOLVESUBMODULECONFLICT,Resolve Submodule Conflict,partial
 src/Resources/TortoiseProcENG.rc,IDD_FINDBAR,,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_COMMITISONREFS,References commit is on,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_USER,First Start Wizard - TortoiseGit,pending-review

@@ -63,7 +63,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Ignore | Native five-radio upstream layout, original icon, app/Finder name/extension actions and Delete-and-ignore keep-local flow; real Git and native checks | Full menu conditions, native recovery/No/refresh and signed permissions; see IGNORE-PARITY.md |
 | Reset | Native upstream revision/type groups, Log dispatch and initialized submodule reset/resume; real modes and native Mixed/Soft verified | Full chooser/diff-list, progress, native Hard/recovery and signed QA; see RESET-PARITY.md |
 | Delete/modify conflict | Native fourteen-control conflict layout, keep/delete/Abort and side Log; exact Git effects and native keep/comparison/history verified | Full diff editor, Created/rebase/error/native Delete QA, parent restoration and signed scope; see DELETE-CONFLICT-PARITY.md |
-| Resolve | Native checked list, current/mine/theirs, original icon and app/Finder dispatch; real Git and native checked-current/Cancel verified | Full conflict editor, submodule chooser, progress, signed Finder and broader QA pending; see RESOLVE-PARITY.md |
+| Resolve | Native checked list, current/mine/theirs, original icon and app/Finder dispatch; real Git and native checked-current/Cancel verified | Full conflict editor, remaining submodule chooser edge cases, progress, signed Finder and broader QA pending; see RESOLVE-PARITY.md |
 | Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, resolve, bisect, clean, export |
 | Patch workflows | Not yet implemented | Format/apply patches, am continuation/abort, review, email integration |
 | Advanced repositories | Linked-worktree discovery | Submodule, worktree management, git-svn, LFS, repository browser, reflog |
@@ -146,3 +146,7 @@ Sources/Repository.swift change staged. Native staging checkboxes, mixed-state r
 file and an index commit preserving later working-tree edits were also exercised
 on disposable sample data. The right-hand patch window now stages/unstages selected lines and hunks in
 tracked UTF-8 text files, with native UI and real Git integration verification. See COMMIT-PARITY.md for remaining parity.
+
+Submodule conflict chooser now has native Base/destination groups and choice
+actions, with 162 passing tests and actual light/dark captures. See
+SUBMODULE-CONFLICT-PARITY.md for the remaining full-port requirements.

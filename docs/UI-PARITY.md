@@ -70,3 +70,7 @@ colors, colored command artwork, graph lanes and reference labels; see
 manual’s organization with Mac-specific screenshots/instructions; see
 [MANUAL-PLAN.md](MANUAL-PLAN.md). These references are part of each dialog audit,
 not a claim that all existing dialogs have passed visual QA.
+
+Submodule conflict: native 26-control resource mapping, checkout Base, colored
+types, side choices and rebase stage ordering are partial; see
+[SUBMODULE-CONFLICT-PARITY.md](SUBMODULE-CONFLICT-PARITY.md).

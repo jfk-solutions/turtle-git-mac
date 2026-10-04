@@ -2607,8 +2607,8 @@ src/TortoiseProc/SubmoduleAddDlg.cpp,TortoiseProc,blob,8a6d30cb43121b13b928460bc
 src/TortoiseProc/SubmoduleAddDlg.h,TortoiseProc,blob,b4b11ee8204dc18fbe75f8fa9084ce73f756e1c1,pending-review,,
 src/TortoiseProc/SubmoduleDiffDlg.cpp,TortoiseProc,blob,2cf3e4174776d769bfb46a6caa0d44fea23cdca2,pending-review,,
 src/TortoiseProc/SubmoduleDiffDlg.h,TortoiseProc,blob,b77438be20a61c659b5eb8b75c1164e00506b75d,pending-review,,
-src/TortoiseProc/SubmoduleResolveConflictDlg.cpp,TortoiseProc,blob,afcce367380d03a36ac89dad5412afbd64156f79,pending-review,,
-src/TortoiseProc/SubmoduleResolveConflictDlg.h,TortoiseProc,blob,efaa5da2ec9bd6406ec7563a155a0e2581951cd4,pending-review,,
+src/TortoiseProc/SubmoduleResolveConflictDlg.cpp,TortoiseProc,blob,afcce367380d03a36ac89dad5412afbd64156f79,partial,Sources/TurtleGitMac/SubmoduleConflictWindow.swift; Sources/TurtleGitCore/SubmoduleConflict.swift,Native chooser remains partial; see docs/SUBMODULE-CONFLICT-PARITY.md.
+src/TortoiseProc/SubmoduleResolveConflictDlg.h,TortoiseProc,blob,efaa5da2ec9bd6406ec7563a155a0e2581951cd4,partial,Sources/TurtleGitMac/SubmoduleConflictWindow.swift; Sources/TurtleGitCore/SubmoduleConflict.swift,Native chooser remains partial; see docs/SUBMODULE-CONFLICT-PARITY.md.
 src/TortoiseProc/SubmoduleUpdateDlg.cpp,TortoiseProc,blob,6bfca39956f295e061d828c1935ba4600ef87fbe,pending-review,,
 src/TortoiseProc/SubmoduleUpdateDlg.h,TortoiseProc,blob,92f297d17c0ab5a459ec268ca0f05408543804c1,pending-review,,
 src/TortoiseProc/SyncDlg.cpp,TortoiseProc,blob,17bfe829c486fee35345727136bec8d1adbf21f9,pending-review,,

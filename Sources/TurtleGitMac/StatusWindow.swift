@@ -153,7 +153,7 @@ struct StatusDialog: View {
                 }
                 let selected = model.files.filter { ids.contains($0.id) }
                 if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
-                    ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1 && selected[0].entry.isDeleteModifyConflict && !model.submodules.contains(selected[0].id), action: model.onAction)
+                    ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1 && (selected[0].entry.isDeleteModifyConflict || model.submodules.contains(selected[0].id)), action: model.onAction)
                 }
                 if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
                     IgnoreSelectionMenu(paths: selected.map(\.id), action: model.onAction)
@@ -163,7 +163,7 @@ struct StatusDialog: View {
                 Button { model.reveal(ids) } label: { Label("Show in Finder", systemImage: "folder") }.disabled(ids.isEmpty)
                 Button { model.copy(ids) } label: { CommandLabel(title: "Copy paths", icon: .copy) }.disabled(ids.isEmpty)
             } primaryAction: { ids in
-                if ids.count == 1, let entry = model.files.first(where: { ids.contains($0.id) }), entry.entry.isDeleteModifyConflict, !model.submodules.contains(entry.id) { model.onAction(.editConflict, [entry.id]) }
+                if ids.count == 1, let entry = model.files.first(where: { ids.contains($0.id) }), (entry.entry.isDeleteModifyConflict || model.submodules.contains(entry.id)) { model.onAction(.editConflict, [entry.id]) }
                 else { model.diff(ids) }
             }
             .frame(minHeight: 300)
