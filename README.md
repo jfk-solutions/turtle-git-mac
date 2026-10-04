@@ -94,6 +94,9 @@ bundle structure; it is not a signed distribution.
 - Native Rename dialog with original context-menu artwork, versioned-file menus
   in Commit/Working Tree and Finder dispatch. Real Git tests preserve mixed changes
   and reject occupied/outside destinations. [Rename parity](docs/RENAME-PARITY.md).
+- Native Delete / Delete (keep local) confirmation and per-item Ignore/Abort handling,
+  original artwork and Finder dispatch. Retained copies survive selective commits
+  and amendments. [Delete parity](docs/REMOVE-PARITY.md) tracks remaining QA.
 - Upstream file and dialog inventories pinned to an exact commit.
 
 These are initial workflows, not full upstream parity. The operation dialogs expose

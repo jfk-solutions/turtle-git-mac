@@ -23,17 +23,21 @@ extension GitRepository {
             if currentByPath[file.path]?.state == .conflicted { continue }
             let staged = indexedByPath[file.path]
             let old = staged?.oldPath ?? file.oldPath
-            result.append(StatusEntry(path: file.path, originalPath: old,
+            var entry = StatusEntry(path: file.path, originalPath: old,
                                       index: staged?.action.first ?? " ",
-                                      worktree: currentByPath[file.path]?.worktree ?? " "))
+                                      worktree: currentByPath[file.path]?.worktree ?? " ")
+            entry.hasUnversionedCopy = currentByPath[file.path]?.hasUnversionedCopy ?? false
+            result.append(entry)
         }
         // Include an index-only change cancelled out by the working tree, so the
         // staging checkbox can still unstage or retain it.
         let paths = Set(result.map(\.path))
         for file in indexed where !paths.contains(file.path) {
-            result.append(StatusEntry(path: file.path, originalPath: file.oldPath,
+            var entry = StatusEntry(path: file.path, originalPath: file.oldPath,
                                       index: file.action.first ?? "M",
-                                      worktree: currentByPath[file.path]?.worktree ?? " "))
+                                      worktree: currentByPath[file.path]?.worktree ?? " ")
+            entry.hasUnversionedCopy = currentByPath[file.path]?.hasUnversionedCopy ?? false
+            result.append(entry)
         }
         return Dictionary(result.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last }).values.sorted { $0.path < $1.path }
     }
@@ -47,9 +51,13 @@ extension GitRepository {
 
     func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions) throws -> String {
         let base = try commitComparisonBase(amendToParent: true)
+        return try commitSeparateSelection(message: message, checked: checked, options: options, base: base)
+    }
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String) throws -> String {
         let tracked = Set(try trackedPaths())
-        var paths = checked.map(\.path)
-        var realStage = checked.filter { $0.state != .deleted || tracked.contains($0.path) || FileManager.default.fileExists(atPath: root.appendingPathComponent($0.path).path) }.map(\.path)
+        let retainedDeletes = Set(checked.filter { $0.index == "D" && $0.hasUnversionedCopy }.map(\.path))
+        var paths = checked.filter { !retainedDeletes.contains($0.path) }.map(\.path)
+        var realStage = checked.filter { !retainedDeletes.contains($0.path) && ($0.state != .deleted || tracked.contains($0.path) || FileManager.default.fileExists(atPath: root.appendingPathComponent($0.path).path)) }.map(\.path)
         for entry in checked {
             if let old = entry.originalPath, entry.index == "R" || entry.worktree == "R" {
                 paths.append(old)
@@ -64,9 +72,13 @@ extension GitRepository {
         if !paths.isEmpty {
             _ = try run(["add", "--all", "--"] + Array(Set(paths)).sorted(), environmentOverrides: environment)
         }
+        if !retainedDeletes.isEmpty {
+            _ = try run(["update-index", "--force-remove", "--"] + retainedDeletes.sorted(), environmentOverrides: environment)
+        }
         try prepareCommitBranch(options.newBranch)
         try stage(realStage)
-        var args = ["commit", "--amend", "-m", message]
+        var args = ["commit", "-m", message]
+        if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }

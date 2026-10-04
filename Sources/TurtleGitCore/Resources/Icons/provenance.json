@@ -202,6 +202,11 @@
       "asset": "menurename.ico",
       "source": "src/Resources/menurename.ico",
       "sha256": "610d64cbfd8b11ea1ccde2f95763cbb3a89c4a65eba9ec01656777f37c1fa97e"
+    },
+    {
+      "asset": "menudelete.ico",
+      "source": "src/Resources/menudelete.ico",
+      "sha256": "ba261a88201d7b6ad705fa0fabc0c5344c21a38dce7f6e41406415c4493d028a"
     }
   ]
 }

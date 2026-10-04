@@ -40,6 +40,7 @@ import TurtleGitCore
             let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
             item.image = action.icon.image()
             if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
+            if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
             item.target = self; item.representedObject = action.rawValue; submenu.addItem(item)
         }
         let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")

@@ -41,7 +41,7 @@ import TurtleGitCore
             }
             CommandMenu("TurtleGit") {
                 ForEach(RepositoryAction.allCases.filter { $0 != .clone && $0 != .initialize }) { action in
-                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .rename && !model.canRenameSelection))
+                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection))
                 }
             }
             CommandMenu("Appearance") {
@@ -185,6 +185,9 @@ struct RepositoryWindow: View {
                 Button { model.stage() } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(model.selection.isEmpty)
                 Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
                 Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
+                Divider()
+                Button { model.activate(.remove) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(!model.canRemoveSelection)
+                Button { model.activate(.removeKeep) } label: { CommandLabel(title: "Delete (keep local)", icon: .remove) }.disabled(!model.canRemoveSelection)
             }
             HStack {
                 Button("Add / Stage selected") { model.stage() }.disabled(model.selection.isEmpty || model.busy)

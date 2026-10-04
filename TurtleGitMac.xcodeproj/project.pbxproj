@@ -25,6 +25,7 @@
 		4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */; };
 		4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0657423D5C68D66703C2BB5C /* GitPatch.swift */; };
 		5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */; };
+		5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B58726A94B9B4799C06DE /* RemoveWindow.swift */; };
 		5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4B370EB64932B2909A8228 /* CloneWindow.swift */; };
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
 		6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F6087799A5783306A27CEE /* RenameWindow.swift */; };
@@ -39,6 +40,7 @@
 		96858E5400FE448CEE799A09 /* Fetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181B9FE19CD19EA7DAB1E824 /* Fetch.swift */; };
 		A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08425BF4A91945D52E0F6D99 /* Clone.swift */; };
 		A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FF59B2CF163D9481D39B5 /* CommitSelection.swift */; };
+		A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5AD057FE8CA1C91988DA6E /* Removal.swift */; };
 		A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977DAB97DBBB903654C73A78 /* SwitchWindow.swift */; };
 		A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */; };
 		A9FF0A885E44AF8F4261B5DA /* GitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */; };
@@ -153,8 +155,10 @@
 		83395323FFA0860A52795F9F /* Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stash.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
 		A2D91605384F213DBC8C3C9F /* CommitAmend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitAmend.swift; sourceTree = "<group>"; };
+		A35B58726A94B9B4799C06DE /* RemoveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveWindow.swift; sourceTree = "<group>"; };
 		A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashRestoreWindow.swift; sourceTree = "<group>"; };
 		A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseWindow.swift; sourceTree = "<group>"; };
+		AA5AD057FE8CA1C91988DA6E /* Removal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Removal.swift; sourceTree = "<group>"; };
 		AB86EFEBCB6909C206458540 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
 		B0144901E0020C531A5D86FB /* RepositoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccess.swift; sourceTree = "<group>"; };
 		B16F443B326FDAB1414D334B /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
@@ -212,6 +216,7 @@
 				1491F4A59F19B27A3FCCF966 /* PushWindow.swift */,
 				A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */,
 				2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */,
+				A35B58726A94B9B4799C06DE /* RemoveWindow.swift */,
 				D1F6087799A5783306A27CEE /* RenameWindow.swift */,
 				6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
@@ -272,6 +277,7 @@
 				0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */,
 				244AD68D8412684F520E64AC /* ReferenceCreation.swift */,
 				62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */,
+				AA5AD057FE8CA1C91988DA6E /* Removal.swift */,
 				BA121F2E317F86B146016B4E /* Rename.swift */,
 				B0144901E0020C531A5D86FB /* RepositoryAccess.swift */,
 				593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */,
@@ -441,6 +447,7 @@
 				D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */,
 				1EE5D062EF745705C82D9271 /* ReferenceCreation.swift in Sources */,
 				0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */,
+				A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */,
 				B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */,
 				199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */,
 				5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */,
@@ -468,6 +475,7 @@
 				8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */,
 				9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */,
 				8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */,
+				5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */,
 				6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */,
 				37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,

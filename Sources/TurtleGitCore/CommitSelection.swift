@@ -35,6 +35,11 @@ extension GitRepository {
         }
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"]) }
         if parentMode { return try commitParentSelection(message: message, checked: checked, options: options) }
+        if checked.contains(where: { $0.index == "D" && $0.hasUnversionedCopy }) {
+            // --only would read the retained working copy and silently re-add it.
+            // Build the selected tree separately while leaving that copy on disk.
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD")
+        }
         let tracked = Set(try trackedPaths())
         var stagePaths = checked.filter { $0.state != .deleted || tracked.contains($0.path) }.map(\.path)
         var commitPaths = checked.map(\.path)

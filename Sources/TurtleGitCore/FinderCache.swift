@@ -58,10 +58,20 @@ public struct FinderSnapshot: Codable, Sendable {
         if let state = states[path], versioned.contains(state) { return true }
         return states.contains { $0.key.hasPrefix(path + "/") && versioned.contains($0.value) }
     }
+    public func canRemove(_ selection: [URL]) -> Bool {
+        guard !selection.isEmpty else { return false }
+        let paths = selection.map { $0.standardizedFileURL.path }
+        guard roots.contains(where: { root in paths.allSatisfy { $0.hasPrefix(root + "/") } }) else { return false }
+        let versioned: Set<FileState> = [.normal, .modified, .conflicted]
+        return paths.allSatisfy { path in
+            if let state = states[path], versioned.contains(state) { return true }
+            return states.contains { $0.key.hasPrefix(path + "/") && versioned.contains($0.value) }
+        }
+    }
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename
+    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -85,10 +95,12 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .clone: return "Clone…"
         case .initialize: return "Create repository here…"
         case .rename: return "Rename…"
+        case .remove: return "Delete"
+        case .removeKeep: return "Delete (keep local)"
         }
     }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

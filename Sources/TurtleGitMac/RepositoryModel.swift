@@ -37,6 +37,7 @@ import TurtleGitCore
     private var cloneWindow: CloneWindowController?
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
+    private var removeWindows: [String: RemoveWindowController] = [:]
     private var adoptionGeneration = 0
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private var timer: Timer?
@@ -47,6 +48,10 @@ import TurtleGitCore
     var canRenameSelection: Bool {
         let selected = entries.filter { selection.contains($0.id) }
         return !bare && !busy && selected.count == 1 && ![FileState.untracked, .ignored, .deleted].contains(selected[0].state)
+    }
+    var canRemoveSelection: Bool {
+        let selected = entries.filter { selection.contains($0.id) }
+        return !bare && !busy && !selected.isEmpty && selected.allSatisfy { $0.index != "A" && $0.index != "D" && ![FileState.untracked, .ignored].contains($0.state) }
     }
 
     init() {
@@ -208,6 +213,9 @@ import TurtleGitCore
             let selected = paths.isEmpty ? selectedPaths : paths
             guard selected.count == 1, selected[0] != "." else { error = RenameFailure.source.localizedDescription; return }
             showRename(repository: repository, access: activeAccess, source: selected[0])
+        case .remove, .removeKeep:
+            guard let repository else { return }
+            showRemove(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, keepLocal: action == .removeKeep)
         case .status:
             guard let repository else { return }
             showStatus(repository: repository, access: activeAccess, paths: paths)
@@ -354,6 +362,21 @@ import TurtleGitCore
         }
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showRemove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], keepLocal: Bool) {
+        do {
+            let request = try RemovalRequest(paths: paths, keepLocal: keepLocal)
+            let root = repository.root, key = root.path + "\0" + String(keepLocal) + "\0" + request.paths.joined(separator: "\0")
+            let controller = removeWindows[key] ?? RemoveWindowController(repository: repository, access: access, request: request)
+            controller.onClosed = { [weak self] in self?.removeWindows.removeValue(forKey: key) }
+            controller.onChanged = { [weak self] output in
+                self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+                guard let self, self.root == root else { return }
+                self.output = output; Task { await self.refresh() }
+            }
+            removeWindows[key] = controller
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
+        } catch { self.error = error.localizedDescription }
     }
     private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
         let root = repository.root

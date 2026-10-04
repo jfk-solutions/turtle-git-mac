@@ -21,6 +21,9 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
     public let originalPath: String?
     public let index: Character
     public let worktree: Character
+    /// `git rm --cached` can emit D and ??/!! records for the same literal path.
+    /// Keep one list identity while retaining the copy outside the index.
+    public var hasUnversionedCopy = false
     public var staged: Bool { index != " " && index != "?" && index != "!" }
     public var state: FileState {
         let code = String([index, worktree])
@@ -47,7 +50,17 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
             }
             result.append(StatusEntry(path: path, originalPath: source, index: x, worktree: y))
         }
-        return result
+        var combined: [StatusEntry] = [], positions: [String: Int] = [:]
+        for entry in result {
+            guard let position = positions[entry.path] else { positions[entry.path] = combined.count; combined.append(entry); continue }
+            let previous = combined[position]
+            let local = [FileState.untracked, .ignored].contains(entry.state)
+            let previousLocal = [FileState.untracked, .ignored].contains(previous.state)
+            var versioned = previousLocal && !local ? entry : previous
+            if (local || previousLocal) && versioned.index == "D" { versioned.hasUnversionedCopy = true }
+            combined[position] = versioned
+        }
+        return combined
     }
 }
 
