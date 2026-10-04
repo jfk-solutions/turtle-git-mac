@@ -669,6 +669,49 @@ keyboard paging, scrolling, empty-file native accessibility and full Blame edito
 parity remain pending. This evidence covers the observed dark scenario, not every
 viewport configuration.
 
+## Selected-revision block navigation
+
+Reviewed `FindNextLine` and `FindFirstLineInBlock` in upstream Blame Data and
+`OnViewNext`/`OnViewPrev` in the view, plus toolbar/menu command descriptions.
+Native Previous change and Next change actions use the selected revision hashes
+and the first visible source row. They scroll a matching block to the top without
+changing source-line selection, revision selection or Properties. They do not
+wrap. Empty revision selection disables the controls and no target leaves the
+viewport unchanged. The original viewport's horizontal offset is retained.
+
+The Core algorithm preserves upstream's skip when a matching block begins exactly
+two lines below the starting viewport. Previous finds the same-hash block start;
+upstream's boundary result is negative when that block extends to line zero, so
+that case also produces no movement. These reviewed edge cases are explicit in
+the tests. Full original toolbar artwork, menu placement and shortcuts remain
+pending; the current controls are native buttons beside the Log options.
+
+All five focused presentation tests passed, including one/multiple selected
+hashes, separated blocks, near-top skip, beginning/end boundaries, empty selection,
+missing hashes and invalid starting rows. The existing full-suite baseline was
+not rerun for this isolated navigation helper. Debug and App Store builds passed
+without compiler warnings. Both bundle audits verified the Finder extension,
+licenses and 62 original icons. The App Store audit verified packaged Git 2.55.0,
+11 universal Mach-O binaries and its integration scenarios. Site generation and
+whitespace checks passed.
+
+The initial two native checks found a source refresh returning the viewport to
+its selected line. Source reload now preserves its clip origin; the final action
+also follows upstream's scroll-only behavior without a published status-message
+update. One final light check on the 400-line fixture verified Next at lines
+30, 175 and 380, no wrapping after 380, and Previous back to 175. The same Log
+revision and Properties remained selected, and the locator followed each move.
+The actual accepted capture is `site/assets/blame-navigation-light.png`
+(2240 by 1464), saved and inspected before Quit. Three isolated QA instances were
+used sequentially while correcting the refresh, each quit normally before the
+next launch. No process remained; HEAD, raw index and source were unchanged.
+
+Native multi-hash, source-margin routing, dark navigation, resized windows,
+shortcuts and early-block edge cases still require acceptance. The capture also
+shows the Log graph clipped by horizontal scrolling after revision selection;
+retaining its horizontal origin during programmatic selection remains to be
+corrected. This is partial Blame functionality, not full window parity.
+
 ## Remaining work
 
 - Native multi-revision selection acceptance, full locator acceptance and complete revision-log layout;

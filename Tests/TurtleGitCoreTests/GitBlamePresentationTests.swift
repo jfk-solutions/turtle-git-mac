@@ -2,6 +2,23 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlamePresentationTests: XCTestCase {
+    func testSelectedCommitChangeNavigationSkipsBlocksAndDoesNotWrap() {
+        let hashes = ["A", "A", "X", "A", "A", "Y", "B", "B", "X", "A", "A", "Z", "B", "B"]
+        XCTAssertEqual(GitBlameNavigation.change(hashes: hashes, selected: ["A"], start: 0, previous: false), 3)
+        // Upstream skips a matching block exactly two lines below the viewport.
+        XCTAssertEqual(GitBlameNavigation.change(hashes: hashes, selected: ["A"], start: 1, previous: false), 9)
+        XCTAssertEqual(GitBlameNavigation.change(hashes: hashes, selected: ["A"], start: 9, previous: true), 3)
+        XCTAssertEqual(GitBlameNavigation.change(hashes: hashes, selected: ["A", "B"], start: 3, previous: false), 6)
+        XCTAssertEqual(GitBlameNavigation.change(hashes: hashes, selected: ["A", "B"], start: 12, previous: true), 9)
+        XCTAssertNil(GitBlameNavigation.change(hashes: hashes, selected: ["A"], start: 9, previous: false))
+        XCTAssertNil(GitBlameNavigation.change(hashes: hashes, selected: ["A"], start: 3, previous: true))
+        for selected: Set<String> in [[], ["missing"]] {
+            XCTAssertNil(GitBlameNavigation.change(hashes: hashes, selected: selected, start: 0, previous: false))
+        }
+        XCTAssertNil(GitBlameNavigation.change(hashes: [], selected: ["A"], start: 0, previous: false))
+        XCTAssertNil(GitBlameNavigation.change(hashes: hashes, selected: ["A"], start: -1, previous: true))
+        XCTAssertNil(GitBlameNavigation.change(hashes: hashes, selected: ["A"], start: hashes.count, previous: false))
+    }
     func testLocatorUsesAgeOnlyAndIntegerViewportShading() {
         var value = GitBlamePresentation()
         XCTAssertEqual(value.locatorColor(rank: 0, historyCount: 1, dark: false, enabled: true, visible: false), 0xffffa7)

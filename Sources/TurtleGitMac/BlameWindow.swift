@@ -84,6 +84,8 @@ private struct BlameParentMenuTarget {
     var onLog: ((String, String) -> Void)?
     var onChanges: ((RevisionComparisonSnapshot) -> Void)?
     var onPrevious: ((String, String, Int, GitBlameOptions) -> Void)?
+    var firstVisibleSourceRow: (() -> Int?)?
+    var scrollSourceRowToTop: ((Int) -> Void)?
     private(set) var appliedOptions = GitBlameOptions()
     var lines: [GitBlameLine] { snapshot?.lines ?? [] }
     private func line(_ number: Int?) -> GitBlameLine? {
@@ -173,7 +175,7 @@ private struct BlameParentMenuTarget {
         guard !busy, canShowCompleteLog, showCompleteLog, followRenames != enabled else { return }
         followRenames = enabled; GitBlamePreferences.update { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
-    func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false }
+    func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         selection = number; loadParents(completion: completion)
     }
@@ -284,6 +286,11 @@ private struct BlameParentMenuTarget {
         guard let number = Int(goTo), number > 0, number <= lines.count else { navigationMessage = "Enter a line from 1 to \(lines.count)."; return }
         selection = number; navigationMessage = "Line \(number)"
     }
+    func navigateChange(previous: Bool) {
+        guard !busy, let start = firstVisibleSourceRow?(), let scrollSourceRowToTop else { return }
+        guard let target = GitBlameNavigation.change(hashes: lines.map(\.hash), selected: selectedLogHashes, start: start, previous: previous) else { return }
+        scrollSourceRowToTop(target)
+    }
 }
 
 private struct BlameDialog: View {
@@ -327,6 +334,10 @@ private struct BlameDialog: View {
             HStack {
                 Toggle("Show complete log", isOn: Binding(get: { model.canShowCompleteLog && model.showCompleteLog }, set: { model.setShowCompleteLog($0) })).disabled(!model.canShowCompleteLog)
                 Toggle("Follow renames", isOn: Binding(get: { model.canShowCompleteLog && model.showCompleteLog && model.followRenames }, set: { model.setFollowRenames($0) })).disabled(!model.canShowCompleteLog || !model.showCompleteLog)
+                Button("Previous change") { model.navigateChange(previous: true) }
+                    .help("Show previous change of selected commits").disabled(model.selectedLogHashes.isEmpty)
+                Button("Next change") { model.navigateChange(previous: false) }
+                    .help("Show next change of selected commits").disabled(model.selectedLogHashes.isEmpty)
                 Spacer()
                 Toggle("Properties", isOn: $model.showProperties)
             }.disabled(model.busy)
@@ -517,6 +528,18 @@ private struct BlameTable: NSViewRepresentable {
         let scroll = container.scroll
         scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = table
         container.locator.table = table
+        model.firstVisibleSourceRow = { [weak table] in
+            guard let table else { return nil }
+            let rows = table.rows(in: visibleBlameSourceRect(table))
+            return rows.location == NSNotFound || rows.length == 0 ? nil : rows.location
+        }
+        model.scrollSourceRowToTop = { [weak table, weak scroll] row in
+            guard let table, let scroll, row >= 0, row < table.numberOfRows else { return }
+            let obscuredHeight = visibleBlameSourceRect(table).minY - table.visibleRect.minY
+            var origin = scroll.contentView.bounds.origin
+            origin.y = max(0, table.rect(ofRow: row).minY - obscuredHeight)
+            scroll.contentView.scroll(to: origin); scroll.reflectScrolledClipView(scroll.contentView)
+        }
         return container
     }
     func updateNSView(_ container: BlameSourceContainer, context: Context) {
@@ -530,7 +553,10 @@ private struct BlameTable: NSViewRepresentable {
             let width = model.lines.reduce(CGFloat(600)) { max($0, model.displayedSource($1).size().width + 24) }
             table.tableColumns.last?.width = width
         }
+        let viewportOrigin = container.scroll.contentView.bounds.origin
         table.reloadData()
+        container.scroll.contentView.scroll(to: viewportOrigin)
+        container.scroll.reflectScrolledClipView(container.scroll.contentView)
         if let number = model.selection {
             let row = number - 1
             if table.selectedRow != row { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false); table.scrollRowToVisible(row) }
@@ -673,6 +699,20 @@ private final class BlameTableView: NSTableView {
     override func mouseExited(with event: NSEvent) { onHover(nil); super.mouseExited(with: event) }
 }
 
+private func visibleBlameSourceRect(_ table: NSTableView) -> NSRect {
+    var viewport = table.visibleRect
+    if let header = table.headerView {
+        let headerRect = table.convert(header.bounds, from: header)
+        let overlap = viewport.intersection(headerRect)
+        if !overlap.isNull, overlap.height > 0 {
+            let bottom = viewport.maxY
+            viewport.origin.y = max(viewport.minY, headerRect.maxY)
+            viewport.size.height = max(0, bottom - viewport.minY)
+        }
+    }
+    return viewport
+}
+
 private final class BlameSourceScrollView: NSScrollView {
     var onScroll: () -> Void = {}
     override func reflectScrolledClipView(_ clipView: NSClipView) {
@@ -727,19 +767,9 @@ private final class BlameLocatorView: NSView {
         guard !ranks.isEmpty, let table, scroll != nil else {
             setAccessibilityValue("No source lines"); return
         }
-        var viewport = table.visibleRect
         // AppKit can keep table rows behind the floating header in visibleRect.
         // Convert the header into source coordinates before finding visible rows.
-        if let header = table.headerView {
-            let headerRect = table.convert(header.bounds, from: header)
-            let overlap = viewport.intersection(headerRect)
-            if !overlap.isNull, overlap.height > 0 {
-                let bottom = viewport.maxY
-                viewport.origin.y = max(viewport.minY, headerRect.maxY)
-                viewport.size.height = max(0, bottom - viewport.minY)
-            }
-        }
-        let rows = table.rows(in: viewport)
+        let rows = table.rows(in: visibleBlameSourceRect(table))
         guard rows.location != NSNotFound, rows.length > 0 else {
             setAccessibilityValue("No visible source lines"); return
         }

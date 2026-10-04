@@ -1,5 +1,29 @@
 import Foundation
 
+public enum GitBlameNavigation {
+    /// Zero-based source row to place at the top of the viewport. Mirrors
+    /// FindNextLine and OnViewNext/OnViewPrev, including their near-top skip.
+    public static func change(hashes: [String], selected: Set<String>, start: Int, previous: Bool) -> Int? {
+        guard hashes.indices.contains(start), !selected.isEmpty else { return nil }
+        var line = start, foundGap = false
+        while hashes.indices.contains(line) {
+            let matches = selected.contains(hashes[line])
+            if !matches { foundGap = true }
+            if matches && foundGap {
+                if line == start + 2 { foundGap = false }
+                else if previous {
+                    let hash = hashes[line]
+                    while line >= 0 && hashes[line] == hash { line -= 1 }
+                    // Upstream returns -1 for a block reaching the file start.
+                    return line >= 0 ? line + 1 : nil
+                } else { return line }
+            }
+            line += previous ? -1 : 1
+        }
+        return nil
+    }
+}
+
 /// Read-only Properties values, following GitRev's first-newline message split.
 public struct GitBlameRevisionProperties: Sendable {
     public let subject: String
