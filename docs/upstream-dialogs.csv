@@ -97,7 +97,7 @@ src/Resources/TortoiseProcENG.rc,IDD_STASH,Stash,partial
 src/Resources/TortoiseProcENG.rc,IDD_REVGRAPHFILTER,Revision Graph Filter,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_DIFFSUBMODULE,Submodule Diff,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_IGNORE,Ignore,partial
-src/Resources/TortoiseProcENG.rc,IDD_SUBMODULE_UPDATE,Submodule Update,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SUBMODULE_UPDATE,Submodule Update,partial
 src/Resources/TortoiseProcENG.rc,IDD_BROWSE_REFS,Browse references,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_ADD_REMOTE,Add Remote,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_DELETEREMOTETAG,Delete remote tag - TortoiseGit,pending-review

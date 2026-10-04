@@ -78,7 +78,7 @@ extension RepositoryAction {
         case .diff: return .compare
         case .pull: return .pull
         case .push: return .push
-        case .fetch: return .fetch
+        case .fetch, .submoduleUpdate: return .fetch
         case .branch: return .branch
         case .tag: return .tag
         case .switchBranch: return .checkout

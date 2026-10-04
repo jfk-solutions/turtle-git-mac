@@ -43,6 +43,7 @@ import TurtleGitCore
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
     private var textConflictWindows: [String: TextConflictWindowController] = [:]
+    private var submoduleUpdateWindows: [String: SubmoduleUpdateWindowController] = [:]
     private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
     private var deleteConflictWindows: [String: DeleteConflictWindowController] = [:]
     private var resetWindows: [String: ResetWindowController] = [:]
@@ -253,6 +254,9 @@ import TurtleGitCore
         case .remove, .removeKeep:
             guard let repository else { return }
             showRemove(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, keepLocal: action == .removeKeep)
+        case .submoduleUpdate:
+            guard let repository else { return }
+            showSubmoduleUpdate(repository: repository, access: activeAccess, scope: paths.isEmpty ? selectedPaths : paths)
         case .revert:
             guard let repository else { return }
             showRevert(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths)
@@ -533,6 +537,18 @@ import TurtleGitCore
         controller.model.onAccepted = { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
         revertWindows[root.path] = controller
         controller.model.setScope(paths)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], completion: (() -> Void)? = nil) {
+        let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
+        let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected)
+        controller.onClosed = { [weak self] in self?.submoduleUpdateWindows.removeValue(forKey: key) }
+        controller.model.onUpdated = { [weak self] output in
+            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            if let self, self.root == root { self.output = output; Task { await self.refresh() } }
+            completion?()
+        }
+        submoduleUpdateWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) {

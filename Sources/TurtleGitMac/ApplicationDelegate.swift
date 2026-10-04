@@ -8,11 +8,13 @@ import AppKit
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
         let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
+        let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
-        guard !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
+        guard !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
         guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         repositoryModel?.confirmingQuit = true
+        for update in updates { update.model.confirmingQuit = true }
         for revert in reverts { revert.model.confirmingQuit = true }
         for commit in commits { commit.setQuitConfirmation(true) }
         for controller in controllers { controller.model.confirmingQuit = true }
@@ -43,6 +45,7 @@ import AppKit
                 }
             }
             if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
+            for update in updates { update.model.confirmingQuit = false }
             for revert in reverts { revert.model.confirmingQuit = false }
             for commit in commits { commit.setQuitConfirmation(false) }
             repositoryModel?.confirmingQuit = false

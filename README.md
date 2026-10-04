@@ -213,7 +213,9 @@ Pull follows Fetch → Rebase and starts automatically; see
 The native submodule Conflict chooser now shows checkout-based Base and destination
 revision/subject/type details, with side history and Use this choices.
 [Submodule comparison parity](docs/SUBMODULE-DIFF-PARITY.md) records the read-only
-comparison backend; its native comparison and Update windows remain pending.
+comparison backend; its native comparison window remains pending.
+[Submodule Update parity](docs/SUBMODULE-UPDATE-PARITY.md) records the native
+selection/options window, real Git behavior and remaining progress/Finder checks.
 
 [Submodule conflict parity](docs/SUBMODULE-CONFLICT-PARITY.md) records remaining
 edge cases and native QA. The Git integration suite runs in CI. Submodule deletion offers Delete/Abort

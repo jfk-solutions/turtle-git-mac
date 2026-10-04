@@ -87,3 +87,9 @@ actual cooperative cancellation after the running checkout finishes, completed
 rows, the recovery location and terminal controls. It was inspected before being
 copied unchanged. HEAD, indexed contents and the exact Trash copy were checked;
 the preview was closed and its process absence verified.
+
+Submodule Update captures use the disposable two-module fixture. The light plan,
+selective result and idle dark plan were visually inspected before copying.
+Native checks verified scope/selection/Cancel, selective Init/No fetch and saved
+options. A capture during F5 refresh was replaced with the idle dark window.
+Each sequential test process exited before the next opened.

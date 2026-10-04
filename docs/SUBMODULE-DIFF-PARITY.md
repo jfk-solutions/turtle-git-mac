@@ -50,7 +50,8 @@ change.
 The reviewed native dialog must still provide the From and To groups, revision
 and subject rows, original change-type colors, dirty revision indicator, two Log
 buttons, conditional Diff/Compare menu, Update handoff, F5, frame persistence and
-post-Revert multi-submodule dispatch. Update requires the native Submodule Update
-dialog and its option/progress handling. General comparison views, native light/
+post-Revert multi-submodule dispatch. The native Submodule Update
+options window is implemented separately; its full progress handling and the
+comparison window handoff remain pending. See SUBMODULE-UPDATE-PARITY.md. General comparison views, native light/
 dark acceptance and signed sandbox access are unverified. Source and dialog
 coverage remain partial; no completed native port is claimed for this dialog.

@@ -134,7 +134,7 @@ private struct RevertDialog: View {
                 if ids.count == 1, let path = ids.first { Button { model.onFileLog(path) } label: { CommandLabel(title: "Show log", icon: .log) } }
             } primaryAction: { model.diff($0) }
             HStack {
-                RevertAllCheckbox(checked: model.checked.count, total: model.entries.count) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.frame(width: 190, height: 22)
+                SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.frame(width: 190, height: 22)
                 Spacer()
                 if model.hasUnversionedItems && UserDefaults.standard.bool(forKey: "Status.UnversionedAsModified") { Text("Note: the folder contains unversioned items").font(.caption).foregroundStyle(.secondary) }
             }
@@ -152,7 +152,7 @@ private struct RevertDialog: View {
         .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) { VStack { Text("Revert – working changes").font(.headline); OutputView(text: model.patch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }.padding(12) }
     }
 }
-private struct RevertAllCheckbox: NSViewRepresentable {
+struct SelectionAllCheckbox: NSViewRepresentable {
     let checked: Int
     let total: Int
     let change: (Bool) -> Void
