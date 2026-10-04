@@ -75,6 +75,42 @@ final class WorkingFileDeleteTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: file), bytes)
     }
 
+    func testUnselectedMarkEnablesTrackedSelectionAndRejectsStaleMark() async throws {
+        let (root, repository, tracked) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent(tracked), bytes = Data("changed working bytes\n".utf8)
+        try bytes.write(to: file); try Data([7]).write(to: root.appendingPathComponent("mark"))
+        let status = try await repository.status(refreshIndex: false)
+        let selected = status.filter { $0.path == tracked }, mark = try XCTUnwrap(status.first { $0.path == "mark" })
+        let index = root.appendingPathComponent(".git/index"), original = try Data(contentsOf: index)
+        try await repository.stage(["mark"])
+        let stagedIndex = try Data(contentsOf: index)
+        do { _ = try await repository.deleteWorkingFiles(selected, selectionMark: mark); XCTFail("Stale selection mark accepted") } catch {}
+        XCTAssertEqual(try Data(contentsOf: file), bytes); XCTAssertEqual(try Data(contentsOf: index), stagedIndex)
+        _ = try await repository.run(["reset", "--", "mark"])
+        let result = try await repository.deleteWorkingFiles(selected, selectionMark: mark)
+        defer { for url in result.trashedFiles { try? FileManager.default.removeItem(at: url) } }
+        XCTAssertEqual(result.removedPaths, [tracked]); XCTAssertEqual(result.removedIndexPaths, [tracked])
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(result.trashedFiles.first)), bytes)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("mark")), Data([7]))
+        XCTAssertNotEqual(try Data(contentsOf: index), original)
+    }
+
+    func testIndexDeletedPathWithUnversionedCopyCanBeDeleted() async throws {
+        let (root, repository, tracked) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent(tracked), bytes = try Data(contentsOf: file)
+        _ = try await repository.run(["rm", "--cached", "--", tracked])
+        let selected = try await repository.status(refreshIndex: false).filter { $0.path == tracked }
+        let entry = try XCTUnwrap(selected.first)
+        XCTAssertTrue(entry.hasUnversionedCopy); XCTAssertTrue(entry.canDeleteWithKeyboard)
+        let index = root.appendingPathComponent(".git/index"), original = try Data(contentsOf: index)
+        let result = try await repository.deleteWorkingFiles(selected)
+        defer { for url in result.trashedFiles { try? FileManager.default.removeItem(at: url) } }
+        XCTAssertEqual(try Data(contentsOf: XCTUnwrap(result.trashedFiles.first)), bytes)
+        XCTAssertTrue(result.removedIndexPaths.isEmpty); XCTAssertEqual(try Data(contentsOf: index), original)
+    }
+
     func testTrashMovesSymlinkWithoutTouchingOutsideTarget() async throws {
         let (root, repository, _) = try await GitPatchTests().fixture()
         let target = root.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)

@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context command audit, including Delete focus/keyboard behavior, extension/column clipboard and changelists. File Blame/log/open/reveal
+- Remaining file context command audit, including extension/column clipboard and changelists, plus broader Delete selection verification. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -746,8 +746,8 @@ exact index entries and sends existing paths through the shell’s Recycle Bin;
 Shift requests permanent deletion. The command appears after Open/Explore and
 before Ignore. This differs from the separate Delete/keep-local dialog.
 
-Commit now offers Delete with the original delete icon for selections whose
-entries are all unversioned, ignored or missing. Its native confirmation defaults
+Commit now offers Delete with the original delete icon when the selection mark
+is unversioned, ignored or missing, including mixed selections. Its native confirmation defaults
 to No. Normal deletion uses macOS Trash; Shift at invocation selects a separately
 worded permanent-delete confirmation. Missing paths only lose their index entries.
 No commits or HEAD changes are made. The list refreshes after success or error;
@@ -772,9 +772,41 @@ staged entry were verified unchanged. The single QA app quit normally, with no
 remaining TurtleGit processes. The 14 focused Add/Delete/Commit-mode tests, both
 unsigned Xcode builds, both bundle audits and the site build passed.
 
-Upstream uses the focused selection mark to gate mixed selections; the current
-native menu still requires all selected entries to qualify. The core operation
-supports mixed selections, but native focus-sensitive gates and Delete/Shift-Delete
-keyboard handling remain pending, along with ignored-directory, staging/dark-mode,
-partial filesystem failures and signed sandbox QA. This is a partial status-list
-port, not full Commit parity.
+## Delete selection mark and keyboard behavior
+
+The native file list now retains a selection mark separately from selected paths.
+Plain clicks and non-range keyboard moves establish the mark. Shift range
+selection and right-clicking an already selected row preserve it. The menu uses
+that marked entry’s status to enable Delete, matching upstream’s focused-row gate
+rather than requiring every selected path to qualify. A mark can remain outside
+the selected set after Command deselection; the core verifies that marked status
+snapshot before using it to authorize deletion of the selected paths.
+
+An AppKit event observer is scoped to each Commit table and removed when its view
+is detached. Delete/forward Delete and Shift-Delete run only while the table itself
+has keyboard focus. The keyboard gate accepts unversioned/ignored marks, including
+an index-deleted path that retains an unversioned working copy; missing tracked
+paths remain menu-only as in upstream `PreTranslateMessage`. Text editors and
+other controls retain their normal Delete behavior. Shift opens the explicit
+permanent-deletion prompt; plain Delete uses Trash. The three staging/checkbox
+lists keep separate marks.
+
+Native light-mode QA verified both directions of a mixed three-row range:
+untracked anchor exposes Delete and opens a three-item keyboard confirmation;
+tracked modified anchor hides Delete and ignores the key. No preserves all exact
+working bytes and the raw index. The message editor changed `abc` to `ab` without
+a file prompt. A missing tracked row ignored the Delete key. Shift-Delete on the
+untracked row showed the permanent-delete warning; No preserved the file. Ordinary
+keyboard Delete followed by Yes removed that untracked file and refreshed the
+list, preserving HEAD, the raw index and unrelated working edits. The single QA
+app quit normally, and no TurtleGit process remained.
+
+Eight Delete integration tests now include a cached removal with an unversioned
+copy, and a marked unversioned entry outside a tracked selection. A stale marked
+entry is rejected before deleting the tracked file or updating its index entry.
+The 16 focused Add/Delete/Commit-mode tests, both unsigned Xcode builds, both
+bundle audits and the site build passed.
+Native Command deselection, forward-Delete hardware, ignored directories,
+staging/dark mode, partial filesystem failures and signed sandbox checks remain
+pending. Other context-menu gates still need their own focus-sensitive audit;
+full status-list and Commit parity remain partial.

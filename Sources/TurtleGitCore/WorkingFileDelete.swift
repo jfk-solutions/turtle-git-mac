@@ -2,7 +2,8 @@ import Foundation
 import Darwin
 
 extension StatusEntry {
-    public var canDeleteFromStatusList: Bool { state == .untracked || state == .ignored || worktree == "D" }
+    public var canDeleteWithKeyboard: Bool { state == .untracked || state == .ignored || hasUnversionedCopy }
+    public var canDeleteFromStatusList: Bool { canDeleteWithKeyboard || worktree == "D" }
 }
 
 public struct WorkingFileDeleteResult: Sendable {
@@ -24,14 +25,15 @@ public struct WorkingFileDeleteFailure: LocalizedError, Sendable {
 extension GitRepository {
     /// Delete status-list selections, removing their exact index entries only
     /// after file operations succeed. Trash failure never falls back to unlink.
-    public func deleteWorkingFiles(_ selected: [StatusEntry], permanently: Bool = false, cancellation: OperationCancellation? = nil) throws -> WorkingFileDeleteResult {
+    public func deleteWorkingFiles(_ selected: [StatusEntry], selectionMark: StatusEntry? = nil, permanently: Bool = false, cancellation: OperationCancellation? = nil) throws -> WorkingFileDeleteResult {
         try cancellation?.check()
         guard !selected.isEmpty, Set(selected.map(\.path)).count == selected.count,
-              selected.contains(where: \.canDeleteFromStatusList) else {
+              (selectionMark?.canDeleteFromStatusList ?? selected.contains(where: \.canDeleteFromStatusList)) else {
             throw GitFailure(arguments: ["delete"], code: 1, message: "Select unversioned, ignored or missing paths to delete.")
         }
         let current = Dictionary(try status(refreshIndex: false).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
-        guard selected.allSatisfy({ current[$0.path] == $0 }) else {
+        guard selected.allSatisfy({ current[$0.path] == $0 }),
+              selectionMark.map({ current[$0.path] == $0 }) ?? true else {
             throw GitFailure(arguments: ["delete"], code: 1, message: "The selected files changed. Refresh before deleting.")
         }
         let manager = FileManager.default

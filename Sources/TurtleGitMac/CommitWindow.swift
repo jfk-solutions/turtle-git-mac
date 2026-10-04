@@ -185,6 +185,7 @@ import UniformTypeIdentifiers
     @Published var statistics: [String: CommitFile] = [:]
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
+    @Published var focusedFiles: [String: String] = [:]
     @Published var branch = ""
     @Published var createBranch = false
     @Published var newBranch = ""
@@ -388,7 +389,7 @@ import UniformTypeIdentifiers
             busy = false; reload()
         }
     }
-    func deleteFiles(_ selected: [StatusEntry], permanently: Bool) {
+    func deleteFiles(_ selected: [StatusEntry], selectionMark: StatusEntry? = nil, permanently: Bool) {
         guard !busy, !confirmingQuit, !selected.isEmpty else { return }
         let alert = NSAlert()
         alert.messageText = permanently ? "Permanently delete the selected paths?" : "Move the selected paths to Trash?"
@@ -399,7 +400,7 @@ import UniformTypeIdentifiers
         Task {
             do {
                 try validateRestoreAccess()
-                _ = try await repository.deleteWorkingFiles(selected, permanently: permanently)
+                _ = try await repository.deleteWorkingFiles(selected, selectionMark: selectionMark, permanently: permanently)
                 checked.subtract(selected.map(\.path)); selection.subtract(selected.map(\.path))
             } catch { self.error = error.localizedDescription }
             busy = false; reload()
@@ -779,6 +780,8 @@ GroupBox("Changes made (double-click on file for diff):") {
     }
     func fileTable(_ entries: [StatusEntry], selection: Binding<Set<String>>, staged: Bool?) -> some View {
         let statistics = staged.map { $0 ? model.stagedStatistics : model.unstagedStatistics } ?? model.statistics
+        let focusKey = staged.map { $0 ? "staged" : "unstaged" } ?? "checkbox"
+        let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
         return Table(entries, selection: selection) {
             TableColumn("") { entry in
                 if staged != nil {
@@ -796,6 +799,7 @@ GroupBox("Changes made (double-click on file for diff):") {
         }.contextMenu(forSelectionType: String.self) { ids in
             let selected = entries.filter { ids.contains($0.id) }
             let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
+            let selectionMark = entries.first { $0.path == focus.wrappedValue } ?? (selected.count == 1 ? selected.first : nil)
             if !selected.isEmpty && selected.allSatisfy({ [.untracked, .ignored].contains($0.state) }) {
                 Button { model.addFiles(selected, mode: .normal) } label: { CommandLabel(title: WorkingFileAddMode.normal.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
                 if NSEvent.modifierFlags.contains(.shift), selected.allSatisfy({ !model.submodules.contains($0.path) }) {
@@ -858,8 +862,8 @@ GroupBox("Changes made (double-click on file for diff):") {
                     Button { NSWorkspace.shared.activateFileViewerSelecting([model.repository.root.appendingPathComponent(entry.path)]) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
                 }
             }
-            if !selected.isEmpty && selected.allSatisfy(\.canDeleteFromStatusList) {
-                Button { model.deleteFiles(selected, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(model.busy || model.confirmingQuit)
+            if !selected.isEmpty && selectionMark?.canDeleteFromStatusList == true {
+                Button { model.deleteFiles(selected, selectionMark: selectionMark, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(model.busy || model.confirmingQuit)
             }
             if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
                 Divider()
@@ -877,6 +881,10 @@ GroupBox("Changes made (double-click on file for diff):") {
             selection.wrappedValue = ids
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
+        }
+        .background(CommitFileInteraction(entries: entries, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit) { model.deleteFiles($0, selectionMark: $1, permanently: $2) })
+        .onChange(of: selection.wrappedValue) { ids in
+            if ids.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = ids.first }
         }
     }
     func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }
