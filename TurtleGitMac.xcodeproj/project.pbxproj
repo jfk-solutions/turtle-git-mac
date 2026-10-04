@@ -383,6 +383,7 @@
 				F6F8AC92E0CCCF7FF9CECD59 /* Frameworks */,
 				ED03DD8CA52381A434D18935 /* Embed Foundation Extensions */,
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
+				C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */,
 			);
 			buildRules = (
 			);
@@ -476,6 +477,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed pinned Git runtime for App Store";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"$CONFIGURATION\" = \"AppStore\" ]; then\n  /usr/bin/python3 \"$SRCROOT/scripts/embed-git-runtime.py\" \"$SRCROOT/build/git-runtime/Git\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		164C40AA334735FFE5716B63 /* Sources */ = {

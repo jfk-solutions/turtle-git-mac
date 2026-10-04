@@ -58,6 +58,13 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: org.turtlegit.macos.action
             CFBundleURLSchemes: [turtlegit]
+    postBuildScripts:
+      - name: Embed pinned Git runtime for App Store
+        script: |
+          if [ "$CONFIGURATION" = "AppStore" ]; then
+            /usr/bin/python3 "$SRCROOT/scripts/embed-git-runtime.py" "$SRCROOT/build/git-runtime/Git" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
+          fi
+        basedOnDependencyAnalysis: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos

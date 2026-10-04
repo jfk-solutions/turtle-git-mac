@@ -34,7 +34,7 @@ require review; a dialog count is not a count of all upstream UI.
 | TortoiseUDiff | Native syntax-highlighted patch window | Plain patch output only |
 | SshAskPass / TortoisePlink | Git helpers, Keychain and OpenSSH | Existing helper configuration only |
 | GitWCRev / COM | Portable revision/template CLI and macOS automation | Pending; COM must be replaced |
-| TortoiseGitSetup | Signed app, extension registration, notarized distribution | Development and sandboxed AppStore configurations compile; runtime packaging/signing pending |
+| TortoiseGitSetup | Signed app, extension registration, notarized distribution | Pinned universal Git build/embedding added; signed runtime and distribution acceptance pending |
 | Languages / ResText | String catalogs and native localized resources | Pending |
 
 ## Behavioral parity backlog
@@ -109,7 +109,8 @@ Intel compatibility or upstream parity.
 
 Saved security-scoped repository permissions and a separate sandboxed AppStore
 configuration have been added. The runtime selector requires a bundled Git engine
-for that configuration. See `DISTRIBUTION.md` for the unresolved runtime, signing,
+for that configuration. The pinned runtime build includes HTTPS helpers and source
+material. See `DISTRIBUTION.md` for runtime acceptance, signing,
 worktree permissions and license gates. These changes do not narrow the full-port
 objective or establish App Store readiness.
 

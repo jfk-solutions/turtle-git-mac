@@ -8,6 +8,7 @@ import plistlib
 
 parser = argparse.ArgumentParser()
 parser.add_argument('app', type=pathlib.Path)
+parser.add_argument('--require-git', action='store_true', help='Require and audit a packaged App Store Git runtime.')
 args = parser.parse_args()
 app = args.app
 root = pathlib.Path(__file__).resolve().parent.parent
@@ -29,3 +30,7 @@ with (extension / 'Contents/Info.plist').open('rb') as stream:
 assert finder['NSExtension']['NSExtensionPointIdentifier'] == 'com.apple.FinderSync'
 assert (extension / 'Contents/MacOS' / finder['CFBundleExecutable']).is_file()
 print(f'App, embedded Finder extension, licenses and all {len(manifest["assets"])} upstream icon resources verified.')
+
+if args.require_git:
+    import subprocess
+    subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-git-runtime.py'), str(app / 'Contents/Helpers/Git')], check=True)

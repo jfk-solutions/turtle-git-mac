@@ -4,8 +4,8 @@
 
 The Mac App Store is a target distribution channel, not a verified release path.
 The full port, signed runtime tests and licensing clearance remain incomplete.
-The current development app uses the installed Git executable; the App Store
-configuration deliberately refuses to fall back to that executable.
+Development builds can use the installed Git executable. The App Store
+configuration requires a prepared pinned runtime and refuses external fallback.
 
 ## Build channels
 
@@ -15,6 +15,7 @@ configuration deliberately refuses to fall back to that executable.
 | App Store preparation | AppStore / TurtleGitAppStore | Sandbox, user-selected read/write folders, app-scoped bookmarks, network client | Requires `Contents/Helpers/Git/bin/git`; missing runtime is an error |
 
 ```sh
+python3 scripts/build-git-runtime.py
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
   -configuration AppStore -destination 'platform=macOS' \
   -derivedDataPath build-store CODE_SIGNING_ALLOWED=NO build
@@ -22,8 +23,8 @@ xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
 
 This verifies compilation only. An unsigned AppStore configuration does not prove
 sandbox permissions, inherited child-process access or App Review eligibility.
-The engine has not been bundled yet, so this build cannot currently perform Git
-operations. Debug retains installed-Git support for port development.
+The build phase embeds the prepared runtime into AppStore bundles and fails if
+it is missing. Debug retains installed-Git support for port development.
 
 ## Sandbox design
 
@@ -65,29 +66,76 @@ bookmark renewal remain unverified. General multiple-directory
 workflows for worktrees, out-of-scope submodules and object stores are still pending;
 basic bookmark tests do not prove those cases work inside the sandbox.
 
-## Self-contained Git runtime — pending
+## Pinned Git runtime — distribution acceptance pending
 
-Package a reproducible, pinned Git build (or a compatible in-process engine) rather
-than requiring Command Line Tools, Homebrew or another installation. The CLI
-runtime layout reserved by `GitRuntime` is:
+The build script pins Git 2.55.0 from kernel.org, verifies its SHA-256 archive
+checksum against the pinned [publisher checksum](https://www.kernel.org/pub/software/scm/git/sha256sums.asc)
+and builds arm64 and x86_64 with the macOS SDK and minimum target 13.0.
+It uses system libcurl, crypto and compression libraries, avoiding Homebrew,
+MacPorts and Fink search paths. Git’s optional Rust implementation is disabled
+using its documented C build option. It includes the HTTPS transport and macOS
+Keychain credential helper. Perl/Python tools, git-gui/gitk and Git LFS are not
+bundled; those upstream workflows remain port work. The layout is:
 
 ```text
 TurtleGitMac.app/Contents/Helpers/Git/
   bin/git
   libexec/git-core/       # Git subcommands and transport helpers
   share/git-core/templates/
-  # all required non-system libraries and their notices
+  share/licenses/git/    # pinned source archive, licenses and reconstruction scripts
+  runtime-manifest.json
 ```
 
-Audit every Mach-O dependency; avoid Homebrew paths and developer-machine RPATHs.
-Provide the complete corresponding source and build instructions for bundled
-GPL components. Test local and HTTPS operations, credential prompts, hooks,
+The runtime validator checks every Mach-O file for both requested architectures
+and Apple system-library dependencies, and rejects symlinks outside the runtime.
+The package includes the unmodified source archive, COPYING, retained third-party
+notices and reconstruction scripts. This supplies source/build material; complete
+license and distribution-term clearance remains a release gate. Test local and HTTPS operations, credential prompts, hooks,
 filters, Git LFS and SSH independently. Existing external Git helpers and arbitrary
 repository hooks do not automatically become usable in an App Store sandbox.
 A bundled runtime must not execute external helpers to bypass restrictions.
 
 `GitRuntime.environment` supplies the bundled exec path, template path and PATH.
-This is only runtime selection infrastructure, not proof of a usable bundled Git.
+The Xcode AppStore post-build phase validates and copies the runtime before app
+signing. When Xcode signing is enabled it signs each Mach-O helper with the
+configured identity and `GitHelper.entitlements`. Unsigned compilation does not
+verify inherited sandbox access or signed helper behavior.
+
+```sh
+python3 scripts/validate-app-bundle.py \
+  build-store/Build/Products/AppStore/TurtleGitMac.app --require-git
+```
+
+The macOS CI workflow builds this pinned universal runtime and requires its
+presence in the AppStore bundle. Build host tools are required to produce the
+app; they are not an installation requirement for its packaged engine. Tests on
+clean machines and supported OS/architecture combinations remain necessary.
+
+## Runtime build evidence
+
+On 2026-10-04 the pinned C-only Git 2.55.0 runtime built for arm64 and x86_64.
+All 11 Mach-O files passed architecture, macOS minimum-target and system-library
+dependency checks; runtime symlinks stayed inside the package. The assembled
+runtime occupied about 60 MiB, including its source archive and reconstruction
+material. Actual local init, commit, diff, stash push/pop, non-local-protocol
+clone and log checks passed on the arm64 build host after relocation to the
+runtime directory. Public HTTPS ls-remote against TortoiseGit passed with the
+bundled HTTPS transport and user Git configuration disabled.
+
+The unsigned Xcode AppStore build succeeded, its bundle contained the engine,
+and `validate-app-bundle.py --require-git` passed for the app, Finder extension,
+all 57 upstream artwork resources and bundled Git. Missing-runtime embedding was
+rejected before changing a disposable app bundle. Nine repository-access tests
+passed. The application repository constructors were audited: app opening,
+Clone, Init and child repository handoffs select or carry the explicit engine.
+No GUI test instances were launched for these command-line packaging checks.
+
+These results prove unsigned packaging and arm64 local/HTTPS engine execution.
+Intel runtime execution, macOS 13 runtime compatibility, signed helper inheritance,
+Keychain prompts, credential/error paths, SSH, hooks, filters, LFS/SVN and clean-Mac
+acceptance remain unverified. The optional Rust backend and excluded companion
+tools do not establish full upstream Git/TortoiseGit workflow parity. No App Store
+submission or licensing clearance has occurred.
 
 ## GPL and App Store terms — unresolved release gate
 

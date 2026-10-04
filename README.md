@@ -135,8 +135,9 @@ terminology with macOS-specific instructions and real TurtleGit screenshots.
 ## App Store target
 
 The `TurtleGitAppStore` scheme provides a separate sandboxed configuration.
-It requires a bundled Git runtime and never falls back to system Git. Runtime
-packaging, signed sandbox tests and GPL/App Store terms clearance remain open.
+It requires the pinned bundled Git runtime and never falls back to system Git.
+Build it with `python3 scripts/build-git-runtime.py` before the AppStore target.
+Signed sandbox tests and GPL/App Store terms clearance remain open.
 See [distribution engineering](docs/DISTRIBUTION.md) and [privacy](docs/PRIVACY.md).
 This is not an App Store-ready release.
 
