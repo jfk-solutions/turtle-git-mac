@@ -74,11 +74,15 @@ public struct LogEntry: Identifiable, Sendable {
     public var parents: [String] = []
     public var email: String = ""
     public var message: String = ""
+    public var committer: String = ""
+    public var committerEmail: String = ""
+    public var committerDate: String = ""
     public var references: [RevisionReference] = []
     public var isHead = false
-    public init(hash: String, author: String, date: String, subject: String, parents: [String] = [], email: String = "", message: String = "") {
+    public init(hash: String, author: String, date: String, subject: String, parents: [String] = [], email: String = "", message: String = "", committer: String = "", committerEmail: String = "", committerDate: String = "") {
         self.hash = hash; self.author = author; self.date = date; self.subject = subject
         self.parents = parents; self.email = email; self.message = message
+        self.committer = committer; self.committerEmail = committerEmail; self.committerDate = committerDate
     }
     public static func parseHistory(_ data: Data) -> [LogEntry] {
         let fields = String(decoding: data, as: UTF8.self).components(separatedBy: "\0")

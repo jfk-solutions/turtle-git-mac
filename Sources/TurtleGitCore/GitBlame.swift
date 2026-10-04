@@ -246,17 +246,18 @@ public enum GitBlameParser {
 }
 extension GitRepository {
     public func blameHistory(_ snapshot: GitBlameSnapshot, options: GitBlameOptions) throws -> [LogEntry] {
-        let format = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%ct%x00"
+        let format = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%ct%x00%cn%x00%ce%x00%cI%x00"
         func records(_ data: Data) throws -> [(LogEntry, Int64)] {
             let fields = String(decoding: data, as: UTF8.self).components(separatedBy: "\0")
             var result: [(LogEntry, Int64)] = []
             var index = 0
-            while index + 7 < fields.count {
+            while index + 10 < fields.count {
                 let hash = fields[index].trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !hash.isEmpty, let timestamp = Int64(fields[index + 7]) else { throw GitBlameFailure.format }
                 result.append((LogEntry(hash: hash, author: fields[index + 2], date: fields[index + 4], subject: fields[index + 5],
-                    parents: fields[index + 1].split(separator: " ").map(String.init), email: fields[index + 3], message: fields[index + 6]), timestamp))
-                index += 8
+                    parents: fields[index + 1].split(separator: " ").map(String.init), email: fields[index + 3], message: fields[index + 6],
+                    committer: fields[index + 8], committerEmail: fields[index + 9], committerDate: fields[index + 10]), timestamp))
+                index += 11
             }
             return result
         }

@@ -400,7 +400,7 @@ final class GitBlameTests: XCTestCase {
         let text = String(decoding: initial, as: UTF8.self).replacingOccurrences(of: "line 2\n", with: "temporary line 2\n")
         try Data(text.utf8).write(to: root.appendingPathComponent(original)); try await repo.stage([original]); _ = try await repo.commit(message: "temporary change")
         let temporary = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
-        try initial.write(to: root.appendingPathComponent(original)); try await repo.stage([original]); _ = try await repo.commit(message: "restore line\n\nBody 雪 🐢")
+        try initial.write(to: root.appendingPathComponent(original)); try await repo.stage([original]); _ = try await repo.run(["commit", "-m", "restore line\n\nBody 雪 🐢"], environmentOverrides: ["GIT_AUTHOR_NAME": "Author 雪", "GIT_AUTHOR_EMAIL": "author@example.invalid", "GIT_AUTHOR_DATE": "@1000100000 -0500", "GIT_COMMITTER_NAME": "Committer 🐢", "GIT_COMMITTER_EMAIL": "committer@example.invalid", "GIT_COMMITTER_DATE": "@1000200000 +0230"])
         let restored = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         let renamed = ":(glob)* renamed 雪\n.txt"
         _ = try await repo.run(["mv", "--", original, renamed]); _ = try await repo.commit(message: "rename")
@@ -416,6 +416,12 @@ final class GitBlameTests: XCTestCase {
         let full = try await repo.blameHistory(snapshot, options: options)
         XCTAssertEqual(full.map(\.hash), [rename, restored, temporary, base])
         XCTAssertTrue(full.first(where: { $0.hash == restored })?.message.contains("Body 雪 🐢") == true)
+        let details = try XCTUnwrap(full.first(where: { $0.hash == restored }))
+        XCTAssertEqual(details.author, "Author 雪"); XCTAssertEqual(details.email, "author@example.invalid")
+        XCTAssertEqual(details.date, "2001-09-10T00:33:20-05:00")
+        XCTAssertEqual(details.committer, "Committer 🐢"); XCTAssertEqual(details.committerEmail, "committer@example.invalid")
+        XCTAssertEqual(details.committerDate, "2001-09-11T11:50:00+02:30")
+        XCTAssertEqual(details.parents, [temporary]); XCTAssertEqual(details.subject, "restore line")
         options.showCompleteLog = false
         let origins = try await repo.blameHistory(snapshot, options: options)
         XCTAssertEqual(Set(origins.map(\.hash)), Set(snapshot.lines.map(\.hash)))

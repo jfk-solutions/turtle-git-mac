@@ -41,7 +41,8 @@ annotation defaults for future windows. Font, tab width and separate light/dark
 age-color settings are available; native font/tab persistence and alignment are
 verified, while custom color selection and live updates still need acceptance.
 An embedded revision Log provides Show complete log and Follow renames, with
-upstream option dependencies and source-line focus. Full menus, syntax
+upstream option dependencies and source-line focus. A right-hand Properties pane
+shows author/committer metadata, full body and parents. Full menus, syntax
 highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 
 - Open normal repositories and linked worktrees; show branch and status.

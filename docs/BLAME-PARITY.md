@@ -531,6 +531,40 @@ build and whitespace check passed. Native multi-selection, viewer dependency
 changes, context menus/clipboard and dark layout still require
 acceptance. This remains a partial port.
 
+## Right-hand Properties pane
+
+Compared `PropertiesWnd.cpp` and `MainFrm.cpp` with the pinned upstream tree.
+The native pane is right of the annotated source and bottom Log, with a resizable
+split divider and a Properties visibility toggle. Its read-only, selectable fields
+cover hash, author/name/email/date, committer/name/email/date, subject, full body
+and all parent hashes. Parent subjects come from the loaded Log cache, as upstream
+does; a parent absent from that cache has an empty subject. Empty or multiple Log
+selection clears the Properties fields. Content scrolls vertically without the
+previous four-line message limit. Dates currently retain Git's ISO timestamps;
+upstream's local minute precision display, property description area, collapsible
+groups, docking persistence and full context-menu behavior remain pending.
+
+Blame history now loads separate committer identity and timestamp in both complete
+and distinct-origin modes. Existing callers of LogEntry retain their default empty
+committer fields. The history test uses Unicode author/committer identities and
+different explicit dates/time zones to ensure these fields are not conflated;
+parent and subject assertions are included. An initially incorrect expected author
+date was corrected against the epoch conversion; the final focused 18 Blame tests
+passed.
+
+Native light QA verified blank fields before selection, selected restoration
+metadata/body and cached parent subject, alongside line-2 source focus. The first
+layout took excessive source width; the final version uses compact rows and a
+narrower pane. Both isolated QA instances quit normally, one at a time, with no
+process left running. HEAD, raw index and working source were identical to the
+settled fixture baseline. The actual UI screenshot was inspected through CUA;
+the save-to-file attempt lost its window and produced no PNG, so no new screenshot
+is published. All 282 core tests passed after the change. Debug and App Store builds and both
+bundle audits passed, including the 62 original icons and 11 universal Git
+binaries; documentation site and whitespace checks passed. Dark mode,
+multi-selection clearing, long-body/multi-line-subject handling, splitter resizing,
+property text copy and hide/show require native acceptance.
+
 ## Remaining work
 
 - Native multi-revision selection acceptance, full source locator and complete revision-log layout;

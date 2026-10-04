@@ -1612,12 +1612,12 @@ src/TortoiseGitBlame/EditGotoDlg.cpp,TortoiseGitBlame,blob,d7315bb0cc4eb69151ebf
 src/TortoiseGitBlame/EditGotoDlg.h,TortoiseGitBlame,blob,3cca1259e6df50a9722eac909387c7a18a91bc36,pending-review,,
 src/TortoiseGitBlame/GitBlameLogList.h,TortoiseGitBlame,blob,a8147cef7cccfdc3cd9308767ffd5ece057853a2,pending-review,,
 src/TortoiseGitBlame/LogListBlameAction.cpp,TortoiseGitBlame,blob,5261c3abbce64c2d35f9e49829883bd6c93a3483,pending-review,,
-src/TortoiseGitBlame/MainFrm.cpp,TortoiseGitBlame,blob,8a0e3e6013e392240a3a60ddb1d548baf48064b8,pending-review,,
+src/TortoiseGitBlame/MainFrm.cpp,TortoiseGitBlame,blob,8a0e3e6013e392240a3a60ddb1d548baf48064b8,partial,Sources/TurtleGitMac/BlameWindow.swift," Native right Properties pane shows selected Log author/committer metadata, subject/body and parents with cached subjects. Native light selection verified. Full docking, date display, descriptions, context menu and accessibility acceptance pending. See docs/BLAME-PARITY.md."
 src/TortoiseGitBlame/MainFrm.h,TortoiseGitBlame,blob,2d3f54463a03e8fe7f25b4ae14a9b728d1d6146d,pending-review,,
 src/TortoiseGitBlame/MenuEncode.h,TortoiseGitBlame,blob,c6831839abb83736f17d2c16860fcbb42992e552,pending-review,,
 src/TortoiseGitBlame/OutputWnd.cpp,TortoiseGitBlame,blob,a99e16463d8c3f1f6533890a0b2b585261a9fc41,partial,Sources/TurtleGitCore/GitBlame.swift; Sources/TurtleGitMac/BlameWindow.swift," Embedded Blame Log: complete/follow or distinct origin histories, graph gating and rank colors; native Settings dependencies verified. Full source parity remains pending."
 src/TortoiseGitBlame/OutputWnd.h,TortoiseGitBlame,blob,0dc787bf16d9ee95e20af7f17d4c4ccdb60a1ef9,pending-review,,
-src/TortoiseGitBlame/PropertiesWnd.cpp,TortoiseGitBlame,blob,7f6379e171b7923395b8881dc666387b4fd79c93,pending-review,,
+src/TortoiseGitBlame/PropertiesWnd.cpp,TortoiseGitBlame,blob,7f6379e171b7923395b8881dc666387b4fd79c93,partial,Sources/TurtleGitMac/BlameWindow.swift," Native right Properties pane shows selected Log author/committer metadata, subject/body and parents with cached subjects. Native light selection verified. Full docking, date display, descriptions, context menu and accessibility acceptance pending. See docs/BLAME-PARITY.md."
 src/TortoiseGitBlame/PropertiesWnd.h,TortoiseGitBlame,blob,4a02ea31f095de7a752d92e6df61bc4b053222ce,pending-review,,
 src/TortoiseGitBlame/Resource.h,TortoiseGitBlame,blob,0acd66f86106cabce37ef2df6c825083e3f11fb7,pending-review,,
 src/TortoiseGitBlame/TortoiseGitBlame.cpp,TortoiseGitBlame,blob,5fe1b325a2552ce397ca27b55baa39f97f0b7fbb,pending-review,,

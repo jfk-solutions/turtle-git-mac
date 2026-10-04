@@ -41,6 +41,7 @@ private struct BlameParentMenuTarget {
     @Published var followRenames = false
     @Published var historyEntries: [LogEntry] = []
     @Published var selectedLogHashes: Set<String> = []
+    @Published var showProperties = true
     var historyGraph: [CommitGraphRow] { CommitGraph.layout(historyEntries) }
     var showHistoryGraph: Bool { appliedOptions.usesCompleteLog && !appliedOptions.usesFollowRenames }
     var canShowCompleteLog: Bool { !detectionMode.betweenFiles && !onlyFirstParent }
@@ -327,20 +328,67 @@ private struct BlameDialog: View {
                 Toggle("Show complete log", isOn: Binding(get: { model.canShowCompleteLog && model.showCompleteLog }, set: { model.setShowCompleteLog($0) })).disabled(!model.canShowCompleteLog)
                 Toggle("Follow renames", isOn: Binding(get: { model.canShowCompleteLog && model.showCompleteLog && model.followRenames }, set: { model.setFollowRenames($0) })).disabled(!model.canShowCompleteLog || !model.showCompleteLog)
                 Spacer()
+                Toggle("Properties", isOn: $model.showProperties)
             }.disabled(model.busy)
-            VSplitView {
-                BlameTable(model: model).frame(minHeight: 90, maxHeight: .infinity)
-                BlameHistoryTable(model: model).frame(minHeight: 80, idealHeight: 170, maxHeight: 320)
+            HSplitView {
+                VSplitView {
+                    BlameTable(model: model).frame(minHeight: 90, maxHeight: .infinity)
+                    BlameHistoryTable(model: model).frame(minHeight: 80, idealHeight: 170, maxHeight: 320)
+                }.frame(minWidth: 450, maxWidth: .infinity, maxHeight: .infinity)
+                if model.showProperties {
+                    BlamePropertiesPane(entry: model.selectedHistoryEntry, history: model.historyEntries)
+                        .frame(minWidth: 230, idealWidth: 300, maxWidth: 350, maxHeight: .infinity)
+                }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-            if let entry = model.selectedHistoryEntry {
-                Text(entry.message).font(.system(size: 11)).lineLimit(4).textSelection(.enabled)
-            }
             if let line = model.selectedLine {
                 Text("\(line.hash) • \(line.author) <\(line.email)>").font(.system(size: 11)).textSelection(.enabled)
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary)
         }.padding(12).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
+    }
+}
+
+private struct BlamePropertiesPane: View {
+    let entry: LogEntry?
+    let history: [LogEntry]
+    private func property(_ name: String, _ value: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(name).foregroundStyle(.secondary).frame(width: 88, alignment: .leading)
+            Text(value.isEmpty ? " " : value).frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
+        }.accessibilityElement(children: .combine)
+    }
+    private var bodyText: String {
+        guard let entry else { return "" }
+        // Git's %B contains the subject and body. Upstream exposes them separately.
+        return entry.message.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
+            .dropFirst().joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Properties").font(.headline).padding(8)
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Basic information").font(.headline)
+                    property("SHA-1", entry?.hash ?? "")
+                    property("Author", entry?.author ?? "")
+                    property("Author date", entry?.date ?? "")
+                    property("Author email", entry?.email ?? "")
+                    property("Committer", entry?.committer ?? "")
+                    property("Committer email", entry?.committerEmail ?? "")
+                    property("Committer date", entry?.committerDate ?? "")
+                    property("Subject", entry?.subject ?? "")
+                    property("Body", bodyText)
+                    Divider()
+                    Text("Parents").font(.headline)
+                    ForEach(entry?.parents ?? [], id: \.self) { hash in
+                        property(hash, history.first(where: { $0.hash == hash })?.subject ?? "")
+                    }
+                }.font(.system(size: 11)).padding(10).frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }.background(Color(nsColor: .controlBackgroundColor)).accessibilityLabel("Blame Properties")
     }
 }
 
