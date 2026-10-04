@@ -437,8 +437,15 @@ private struct BlameHistoryTable: NSViewRepresentable {
         }
         let selected = IndexSet(model.historyEntries.enumerated().compactMap { model.selectedLogHashes.contains($0.element.hash) ? $0.offset : nil })
         if table.selectedRowIndexes != selected {
+            let horizontalOrigin = view.contentView.bounds.minX
             table.selectRowIndexes(selected, byExtendingSelection: false)
             if let first = selected.first { table.scrollRowToVisible(first) }
+            // AppKit can reveal the full wide row by shifting to its trailing
+            // columns. Revision focus must preserve the user's horizontal view.
+            var origin = view.contentView.bounds.origin
+            origin.x = horizontalOrigin
+            view.contentView.scroll(to: origin)
+            view.reflectScrolledClipView(view.contentView)
         }
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {

@@ -712,6 +712,43 @@ shows the Log graph clipped by horizontal scrolling after revision selection;
 retaining its horizontal origin during programmatic selection remains to be
 corrected. This is partial Blame functionality, not full window parity.
 
+## Log horizontal position during source focus
+
+Upstream source-margin selection updates Log selection and calls `EnsureVisible`
+for the corresponding revision (`TortoiseGitBlameView.cpp`, `OnLButtonDown`). The
+native table now captures its horizontal clip origin before synchronizing this
+selection, reveals the revision vertically, then restores the original horizontal
+origin. It retains the vertical result and permits explicit horizontal scrolling;
+it does not force the graph to the left when the user has scrolled elsewhere.
+
+Native light QA verified clicking a source revision annotation selected the
+original Log revision, populated Properties and kept the horizontal scrollbar at
+zero. Clicking the visible message cell for the middle edit focused source line
+150 and its Properties without shifting the Log. The native scrollbar increment
+arrow moved to one third; another source annotation selected the original revision
+while preserving that offset. Decrement returned to zero and Next change reached
+source lines 175–183 without shifting the graph or Properties. The actual capture
+`site/assets/blame-graph-focus-light.png` (2240 by 1464) was saved before Quit and
+inspected after process absence was verified. HEAD, raw index and source bytes
+matched the original fixture baseline.
+
+Two broader `scrollToVisible` overrides were tried first; neither prevented the
+AX whole-row click from shifting the scrollbar. Those overrides were removed.
+One of those scenarios also changed during observation, so it was not accepted.
+The final correction applies only to programmatic source-to-Log selection, and
+acceptance used visible cells. Whole-row accessibility reveal, off-screen revision
+scrolling, multi-selection, keyboard navigation, dark and resized-window acceptance
+remain pending. Three QA processes were used sequentially and quit normally; no
+process remained at completion. A horizontal secondary-action attempt reported a
+changed-app error without changing the tree; native scrollbar arrows were used
+successfully instead.
+
+Debug and App Store builds passed without compiler warnings. Both resource audits verified the embedded Finder extension, licenses and 62
+original icons. The packaged Git 2.55.0 audit verified 11 universal Mach-O files
+and its integration scenarios. Site generation and whitespace checks passed.
+This native view-only change did not rerun Core tests or add a test mirroring the
+view implementation. Full Blame fidelity remains incomplete.
+
 ## Remaining work
 
 - Native multi-revision selection acceptance, full locator acceptance and complete revision-log layout;
