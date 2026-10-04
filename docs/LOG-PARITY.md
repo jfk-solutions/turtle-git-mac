@@ -189,3 +189,39 @@ Final unsigned Debug and App Store builds, both bundle audits and the Pages
 build passed. The App Store audit verified universal Git 2.55.0 local operations,
 11 Mach-O files, the Finder extension, licenses and 61 original icons. These
 checks do not establish native Save success, signed scope or App Store approval.
+
+## Save-panel control check and clipboard follow-up
+
+Historical Save presentation now belongs to LogWindowController. The model
+reads and captures the pinned content/short hash, then the controller presents
+AppKit UI on the next main-queue turn after context-menu tracking. File types
+use the suggested extension where known and allow other types. This improves
+presentation ownership but is **not** claimed as a fix for disabled Save.
+
+A single subsequent QA process checked both Log historical Save and the
+previously accepted two-pane viewer Save As. Both showed disabled Save/New
+Folder controls in the same process. Both were cancelled, and the app was quit
+with process absence and unchanged fixture HEAD/index/working bytes verified.
+The disposable bundle has no sandbox entitlements restricting writes; system
+Open/Save panel-service errors were observed. The broader reproducible failure
+is not specific to Log's model handler. Its cause remains unproven, and current
+native Save acceptance remains pending for both workflows. Previous successful
+viewer-export acceptance remains a historical result, not proof for this run.
+
+The Log file clipboard submenu now offers full paths, relative paths, file/
+folder names and all displayed file information, with original copy artwork.
+It uses visible selected rows in table order; all information reuses the tested
+ComparisonFileList tab-delimited path/extension/status/line-count payload.
+Gitlinks have blank extensions through shared mode-aware metadata. Path and
+line-count text use native primary color when selected, retaining blue when
+unselected. These clipboard/contrast changes require native acceptance; no
+additional test process was launched for them.
+
+Validation for this UI follow-up: Swift build and all 12 targeted
+ComparisonFileList/RevisionComparison tests passed. The prior full 260-test
+result remains recorded above; the entire suite was not repeated for these
+UI-only changes. Final unsigned Debug/App Store builds, both bundle
+audits and the static Pages build passed. The App Store audit verified the
+universal Git 2.55.0 runtime/local operations, 11 Mach-O files, Finder extension,
+licenses and 61 original icons. Native clipboard and signed
+execution remain pending.

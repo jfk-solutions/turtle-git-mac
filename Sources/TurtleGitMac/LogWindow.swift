@@ -26,7 +26,25 @@ import UniformTypeIdentifiers
             if self.model.selecting { self.finishSelection(nil) } else { self.window?.close() }
         }
         model.finishSelection = { [weak self] revision in self?.finishSelection(revision) }
+        model.presentHistoricalSave = { [weak self] content, short in
+            // Let the originating context-menu tracking finish before presenting AppKit UI.
+            DispatchQueue.main.async { [weak self] in self?.saveHistoricalFile(content, short: short) }
+        }
         model.reload()
+    }
+    private func saveHistoricalFile(_ content: ComparisonFileContent, short: String) {
+        guard let window, window.attachedSheet == nil else { return }
+        let name = (content.path as NSString).lastPathComponent as NSString
+        let ext = name.pathExtension
+        let panel = NSSavePanel(); panel.title = "Save file at revision " + short
+        panel.nameFieldStringValue = name.deletingPathExtension + "-" + short + (ext.isEmpty ? "" : "." + ext)
+        panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .data]; panel.allowsOtherFileTypes = true
+        panel.canCreateDirectories = true
+        panel.directoryURL = model.repository.root.appendingPathComponent(content.path).deletingLastPathComponent()
+        panel.beginSheetModal(for: window) { [weak model] response in
+            guard response == .OK, let url = panel.url else { return }
+            do { try content.bytes.write(to: url, options: .atomic) } catch { model?.error = error.localizedDescription }
+        }
     }
     private func finishSelection(_ revision: LogEntry?) {
         guard let completion = selectionCompletion else { return }; selectionCompletion = nil
@@ -93,6 +111,7 @@ struct LogCommandRequest: Identifiable {
     var onCheckout: (String) -> Void = { _ in }
     var onReset: (String) -> Void = { _ in }
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
+    var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
@@ -193,6 +212,25 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription }
         }
     }
+    enum CopyFileInformation: String, CaseIterable {
+        case fullPaths = "Full paths", relativePaths = "Relative paths", names = "File/folder names", all = "Copy all information to clipboard"
+    }
+    func copyFiles(_ ids: Set<String>, information: CopyFileInformation) {
+        let selected = visibleFiles.filter { ids.contains($0.id) }; guard !selected.isEmpty else { return }
+        let text: String
+        if information == .all { text = ComparisonFileList.clipboard(selected, extended: true) }
+        else {
+            text = selected.map { file in
+                switch information {
+                case .fullPaths: return repository.root.appendingPathComponent(file.path).path
+                case .relativePaths: return file.path
+                case .names: return (file.path as NSString).lastPathComponent
+                case .all: return ""
+                }
+            }.joined(separator: "\n")
+        }
+        copy(text)
+    }
     func fileLog(_ ids: Set<String>, oldName: Bool = false) {
         guard !busy, let onFileLog, let revision, ids.count == 1,
               let file = files.first(where: { ids.contains($0.id) }) else { return }
@@ -210,17 +248,7 @@ struct LogCommandRequest: Identifiable {
                 let content = try await repository.historicalFile(revision: revision.hash, path: file.path)
                 guard case .revision(let hash) = content.revision else { throw RevisionComparisonFailure.range }
                 let short = try await repository.run(["rev-parse", "--short", hash]).text.trimmingCharacters(in: .newlines)
-                let name = (file.path as NSString).lastPathComponent as NSString
-                let ext = name.pathExtension
-                let panel = NSSavePanel(); panel.title = "Save file at revision " + short
-                panel.nameFieldStringValue = name.deletingPathExtension + "-" + short + (ext.isEmpty ? "" : "." + ext)
-                panel.allowedContentTypes = [.data]; panel.allowsOtherFileTypes = true
-                panel.canCreateDirectories = true; panel.directoryURL = repository.root.appendingPathComponent(file.path).deletingLastPathComponent()
-                busy = false
-                panel.beginSheetModal(for: window) { [weak self] response in
-                    guard response == .OK, let url = panel.url else { return }
-                    do { try content.bytes.write(to: url, options: .atomic) } catch { self?.error = error.localizedDescription }
-                }
+                busy = false; presentHistoricalSave(content, short)
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
@@ -259,12 +287,12 @@ struct LogDialog: View {
                 OutputView(text: model.message).frame(minHeight: 110, idealHeight: 150)
                 Table(model.visibleFiles, selection: $model.selectedFiles) {
                     TableColumn("Path") { file in
-                        Text(file.path).foregroundStyle(.blue).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
+                        Text(file.path).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
                     }.width(min: 260, ideal: 460)
-                    TableColumn("Extension") { file in Text((file.path as NSString).pathExtension) }.width(80)
+                    TableColumn("Extension") { file in Text(file.fileExtension) }.width(80)
                     TableColumn("Status", value: \.status).width(95)
-                    TableColumn("Lines added") { file in Text(file.added.map(String.init) ?? "–").foregroundStyle(.blue) }.width(90)
-                    TableColumn("Lines removed") { file in Text(file.removed.map(String.init) ?? "–").foregroundStyle(.blue) }.width(105)
+                    TableColumn("Lines added") { file in Text(file.addedText).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue) }.width(90)
+                    TableColumn("Lines removed") { file in Text(file.removedText).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue) }.width(105)
                 }.frame(minHeight: 130, idealHeight: 180)
                 .contextMenu(forSelectionType: String.self) { ids in
                     Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
@@ -281,7 +309,11 @@ struct LogDialog: View {
                         }
                         Divider()
                     }
-                    Button { model.copy(model.files.filter { ids.contains($0.id) }.map(\.path).joined(separator: "\n")) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(ids.isEmpty)
+                    Menu {
+                        ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
+                            Button { model.copyFiles(ids, information: information) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
+                        }
+                    } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
                 } primaryAction: { ids in
                     model.selectedFiles = ids; model.compareFiles(ids)
                 }
