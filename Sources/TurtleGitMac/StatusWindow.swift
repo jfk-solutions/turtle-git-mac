@@ -111,6 +111,10 @@ struct StatusRow: Identifiable {
         }
     }
     func diff(_ ids: Set<String>, saving: Bool = false) {
+        if !saving {
+            let paths = files.filter { ids.contains($0.id) }.map(\.id)
+            guard !busy, !paths.isEmpty else { return }; onAction(.diff, paths); return
+        }
         guard !busy else { return }; busy = true
         let paths = saving ? (filter.wholeProject ? [] : filter.paths) : files.filter { ids.contains($0.id) }.map(\.id)
         guard saving || !paths.isEmpty else { busy = false; return }

@@ -354,6 +354,41 @@ App Store audit exercised universal Git 2.55.0 local commands and verified
 checks establish compilation/packaging; signed Finder activation, sandbox
 acceptance and App Store release approval remain unverified.
 
+## Ordinary file Diff routing follow-up
+
+Reviewed upstream `Commands/DiffCommand.cpp` at pinned commit
+`7338078f8ddd924b8cddee35f512f2286072136d`: directory Diff opens Changed Files;
+ordinary file Diff compares HEAD with working contents, and unified output is a
+separate mode. The native dispatcher now opens Working Tree for directory
+selections and retains two-pane comparison windows for ordinary changed files.
+Finder-request startup uses this same dispatcher. Working Tree Diff and
+file double-click use the same callback; Save unified diff retains its patch
+export behavior. Gitlinks retain their dedicated Submodule Diff window.
+
+The core pins HEAD before reading the comparison. Selected renamed files use
+the original HEAD path, staged-plus-working edits compare with committed bytes,
+and explicit untracked selections use an empty base without touching the index.
+An unborn branch uses the empty tree after checking its missing branch ref;
+invalid HEAD states propagate errors rather than silently becoming an empty base.
+Clean selected files produce a no-changes message.
+
+Two real-Git tests cover staged-plus-working changes, renames with literal
+pathspec-looking/Unicode/newline names, explicit untracked files, duplicate
+selections, path escape rejection, unborn branches and unchanged selections.
+They verify exact comparison bytes and unchanged index bytes. Native QA verified
+that ordinary file Finder-request startup directly opens the two-pane viewer.
+The process was quit and its absence checked; fixture HEAD, index and working
+bytes remained unchanged. Working Tree double-click, directory and multi-file
+native acceptance remain pending, as do signed Finder activation/security scope,
+external two-file command variants and alternative-tool options. Full upstream
+DiffCommand and TortoiseMerge parity remain partial.
+
+Validation: all 257 Swift tests, unsigned Debug and App Store builds, both
+bundle audits and the static Pages build passed. The App Store audit verified
+universal Git 2.55.0 local commands and 11 Mach-O files, the Finder extension,
+licenses and 61 original icons. Signed execution and App Store acceptance remain
+unverified.
+
 ## Revision selection and metadata follow-up
 
 Both revision buttons now offer Browse References, Log and RefLog, alongside

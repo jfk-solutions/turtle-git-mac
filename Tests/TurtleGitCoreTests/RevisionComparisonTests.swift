@@ -2,6 +2,50 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RevisionComparisonTests: XCTestCase {
+    func testOrdinaryFileDiffIncludesStagedWorkingRenameAndExplicitUntrackedWithoutIndexWrites() async throws {
+        let (root, repo, original) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let before = try Data(contentsOf: root.appendingPathComponent(original))
+        let renamed = ":(glob)* moved 雪\n.txt", new = "new text.txt"
+        _ = try await repo.run(["mv", "--", original, renamed])
+        let staged = String(decoding: before, as: UTF8.self).replacingOccurrences(of: "line 2\n", with: "staged text\n")
+        let working = staged.replacingOccurrences(of: "line 26\n", with: "working text\n")
+        try Data(staged.utf8).write(to: root.appendingPathComponent(renamed)); try await repo.stage([renamed])
+        try Data(working.utf8).write(to: root.appendingPathComponent(renamed))
+        try Data("new working\n".utf8).write(to: root.appendingPathComponent(new))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let snapshot = try await repo.workingFileComparison(paths: [renamed, new, renamed])
+        XCTAssertEqual(snapshot.from, .revision(head)); XCTAssertEqual(snapshot.to, .workingTree)
+        XCTAssertEqual(Set(snapshot.files.map(\.path)), [renamed, new])
+        let fresh = try await repo.comparisonFile(snapshot, path: new)
+        XCTAssertTrue(fresh.base.bytes.isEmpty); XCTAssertEqual(fresh.destination.text, "new working\n")
+        let tracked = try await repo.comparisonFile(snapshot, path: renamed)
+        XCTAssertEqual(snapshot.files.first { $0.path == renamed }?.oldPath, original)
+        XCTAssertEqual(tracked.base.bytes, before)
+        XCTAssertEqual(tracked.destination.text, working)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(after, head)
+        do { _ = try await repo.workingFileComparison(paths: ["../outside"]); XCTFail() } catch {}
+    }
+    func testOrdinaryDiffUnbornAndUnchangedSelection() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        try Data("staged\n".utf8).write(to: root.appendingPathComponent("file")); try await repo.stage(["file"])
+        try Data("later working\n".utf8).write(to: root.appendingPathComponent("file"))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let snapshot = try await repo.workingFileComparison(paths: ["file"])
+        XCTAssertEqual(snapshot.from, .emptyTree)
+        let document = try await repo.comparisonFile(snapshot, path: "file")
+        XCTAssertTrue(document.base.bytes.isEmpty); XCTAssertEqual(document.destination.text, "later working\n")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let (other, otherRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: other) }
+        let clean = try await otherRepo.workingFileComparison(paths: [path]); XCTAssertTrue(clean.files.isEmpty)
+    }
     func testHistoricalRenameBinaryAndLiteralNamesStayPinned() async throws {
         let (root, repo, original) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

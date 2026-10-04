@@ -36,6 +36,29 @@ public enum RevisionComparisonFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    /// Ordinary file Diff uses HEAD-to-working content, including staged edits.
+    /// Explicit untracked selections use an empty base without staging them.
+    public func workingFileComparison(paths: [String]) throws -> RevisionComparisonSnapshot {
+        guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
+        for path in paths { _ = try restoreLocation(path) }
+        let head = try run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1)
+        let from: ComparisonRevision
+        if head.exitCode == 0 { from = .revision(String(decoding: head.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)) }
+        else {
+            let ref = try run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
+            guard try run(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1).exitCode == 1 else { throw RevisionComparisonFailure.range }
+            from = .emptyTree
+        }
+        let snapshot = try revisionComparison(from: from, to: .workingTree)
+        var files = snapshot.files.filter { paths.contains($0.path) || $0.oldPath.map(paths.contains) == true }
+        let changes = try status(refreshIndex: false)
+        for path in Set(paths).sorted() where !files.contains(where: { $0.path == path }) {
+            if changes.contains(where: { $0.path == path && $0.state == .untracked }) {
+                files.append(CommitFile(path: path, oldPath: nil, action: "A", added: nil, removed: nil, hasStatistics: false, isSubmodule: false))
+            }
+        }
+        return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
+    }
     public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions()) throws -> RevisionComparisonSnapshot {
         func resolve(_ side: ComparisonRevision) throws -> ComparisonRevision {
             if case .revision(let name) = side { return .revision(try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"]).text.trimmingCharacters(in: .newlines)) }

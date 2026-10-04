@@ -45,6 +45,7 @@ import TurtleGitCore
     private var textConflictWindows: [String: TextConflictWindowController] = [:]
     private var submoduleDiffWindows: [String: SubmoduleDiffWindowController] = [:]
     private var revisionComparisonWindows: [String: RevisionComparisonWindowController] = [:]
+    private var fileComparisonWindows: [String: FileComparisonWindowController] = [:]
     private var submoduleUpdateWindows: [String: SubmoduleUpdateWindowController] = [:]
     private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
     private var deleteConflictWindows: [String: DeleteConflictWindowController] = [:]
@@ -172,8 +173,7 @@ import TurtleGitCore
                 busy = false
                 if let action {
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
-                    if action == .diff { showDiff(paths: paths) } else { activate(action, paths: paths) }
-                    if action == .diff && !(paths.count == 1 && submodules.contains(paths[0])) { workspaceWindow?.makeKeyAndOrderFront(nil) }
+                    activate(action, paths: paths)
                 }
                 onOpened?()
             } catch { self.error = error.localizedDescription; busy = false }
@@ -328,9 +328,13 @@ import TurtleGitCore
             showSwitch(repository: repository, access: activeAccess)
         case .diff:
             let selected = paths.isEmpty ? selectedPaths : paths
-            if selected.count == 1, submodules.contains(selected[0]), let repository {
-                showSubmoduleDiff(repository: repository, access: activeAccess, path: selected[0])
-            } else { showDiff(paths: selected) }
+            guard let repository else { return }
+            if selected.isEmpty || selected.contains(where: { path in
+                if submodules.contains(path) { return false }
+                var directory: ObjCBool = false
+                return path == "." || FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(path).path, isDirectory: &directory) && directory.boolValue
+            }) { showStatus(repository: repository, access: activeAccess, paths: selected) }
+            else { showWorkingFiles(repository: repository, access: activeAccess, paths: selected) }
         case .stashList, .reflog:
             guard let repository else { return }
             showReferenceLog(repository: repository, access: activeAccess, reference: action == .stashList ? "refs/stash" : "HEAD")
@@ -570,6 +574,29 @@ import TurtleGitCore
         }
         revisionComparisonWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        guard !busy, !confirmingQuit else { return }; busy = true
+        let conflicts = paths.filter { path in entries.contains { $0.path == path && $0.state == .conflicted } }
+        for path in conflicts { showConflictEditor(repository: repository, access: access, path: path) }
+        let ordinary = paths.filter { !conflicts.contains($0) }
+        guard !ordinary.isEmpty else { busy = false; return }
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let snapshot = try await repository.workingFileComparison(paths: ordinary)
+                if snapshot.files.isEmpty { output = "No changes for the selected files."; return }
+                for file in snapshot.files {
+                    if file.isSubmodule { showSubmoduleDiff(repository: repository, access: access, path: file.path); continue }
+                    let key = repository.root.path + "\0" + file.path + "\0" + snapshot.from.label
+                    let controller = fileComparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
+                    controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+                    fileComparisonWindows[key] = controller
+                    controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+                }
+            } catch { self.error = error.localizedDescription }
+        }
     }
     private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], completion: (() -> Void)? = nil) {
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
