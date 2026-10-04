@@ -65,10 +65,16 @@ left the third item indexed and reported one. All local files were preserved. Th
 dark-mode error sheet was inspected directly and its wrapped path/text/buttons were
 readable. Saved screenshot capture remains unresolved.
 
+A separate Commit preview opened on the keep-local fixture. The scoped list showed
+exactly two checked Deleted rows, one per selected path. Entering a message and
+pressing Commit recorded both deletions. CLI inspection verified the exact message,
+both paths absent from HEAD, every working file unchanged, and retained copies now
+untracked. UI observation reported no available window after Commit; restored
+workspace selection remains unverified.
+
 ## Remaining parity and QA
 
-Native normal-delete execution, Commit list rendering/commit handoff, full light/dark
-resize checks, keyboard traversal,
+Native normal-delete execution, full light/dark resize checks, keyboard traversal,
 result closure and parent selection need verification. Full Finder conditions,
 submodules/gitmodules handling, cache invalidation, signed sandbox behavior, external
 URL activation and live progress/cancellation also remain. This is a partial port.
