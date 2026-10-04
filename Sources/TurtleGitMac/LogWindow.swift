@@ -57,7 +57,7 @@ import UniformTypeIdentifiers
     }
     func windowWillClose(_ notification: Notification) {
         let completion = selectionCompletion; selectionCompletion = nil
-        completion?(nil); onClosed()
+        model.invalidate(); completion?(nil); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -105,6 +105,8 @@ struct LogCommandRequest: Identifiable {
     @Published var commandRequest: LogCommandRequest?
     private var generation = 0
     private var detailGeneration = 0
+    private var clipboardGeneration = 0
+    @Published var copyingDetails = false
     private var limit = 200
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onPush: (String) -> Void = { _ in }
@@ -136,8 +138,12 @@ struct LogCommandRequest: Identifiable {
         guard historyPaths != scope || showWholeProject != scope.isEmpty else { return }
         historyPaths = scope; showWholeProject = scope.isEmpty; reload()
     }
+    func invalidate() {
+        generation += 1; detailGeneration += 1; clipboardGeneration += 1; copyingDetails = false
+    }
     func reload(more: Bool = false) {
         if more { limit += 200 } else { limit = 200 }
+        clipboardGeneration += 1; copyingDetails = false
         generation += 1; let request = generation
         var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.limit = limit
         if !showWholeProject { options.paths = historyPaths }
@@ -198,7 +204,10 @@ struct LogCommandRequest: Identifiable {
             catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
-    func copy(_ text: String) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
+    func copy(_ text: String) {
+        clipboardGeneration += 1; copyingDetails = false
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+    }
     func diff(workingTree: Bool = false, path: String? = nil) {
         guard !workingTree || !bare else { return }
         let revisions = self.revisions
@@ -211,6 +220,25 @@ struct LogCommandRequest: Identifiable {
                     patch = try await repository.run(args).text
                 } else { patch = try await repository.revisionDiff(revisions[0], path: path, workingTree: workingTree) }
             } catch { self.error = error.localizedDescription }
+        }
+    }
+    func copyDetails(includePaths: Bool = true) {
+        let hashes = revisions.map(\.hash); guard !hashes.isEmpty else { return }
+        clipboardGeneration += 1; let request = clipboardGeneration
+        copyingDetails = true; error = nil
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                var text = ""
+                for hash in hashes {
+                    guard request == clipboardGeneration else { return }
+                    text += try await repository.commitLogText(revision: hash, includePaths: includePaths)
+                }
+                guard request == clipboardGeneration else { return }
+                copy(text)
+            } catch {
+                if request == clipboardGeneration { self.error = error.localizedDescription; copyingDetails = false }
+            }
         }
     }
     enum CopyFileInformation: String, CaseIterable {
@@ -335,6 +363,7 @@ struct LogDialog: View {
                 Button("Refresh") { model.reload() }.disabled(model.busy)
                 Button("Show next 200") { model.reload(more: true) }.disabled(model.busy)
                 if model.busy { ProgressView().controlSize(.small) }
+                if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
                 Spacer()
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html")!) }
                 Button("OK") { model.accept() }.disabled(model.selecting && (model.busy || model.revision == nil)).keyboardShortcut(.defaultAction)
@@ -458,7 +487,7 @@ struct RevisionTable: NSViewRepresentable {
             menu.addItem(.separator())
             let clipboard = NSMenu(title: "Copy to clipboard")
             clipboard.autoenablesItems = false
-            for (title, selector) in [("Full log details", #selector(copyDetails)), ("Hashes", #selector(copyHashes)),
+            for (title, selector) in [("Full log details", #selector(copyDetails)), ("Full log details without changed paths", #selector(copyDetailsWithoutPaths)), ("Hashes", #selector(copyHashes)),
                 ("Authors", #selector(copyAuthors)), ("Author names", #selector(copyAuthorNames)),
                 ("Author emails", #selector(copyAuthorEmails)), ("Subjects", #selector(copySubjects)), ("Messages", #selector(copyMessages))] {
                 let child = NSMenuItem(title: title, action: selector, keyEquivalent: "")
@@ -484,7 +513,8 @@ struct RevisionTable: NSViewRepresentable {
         @objc func copySubjects() { model.copy(model.revisions.map(\.subject).joined(separator: "\n")) }
         @objc func copyHashes() { model.copy(model.revisions.map(\.hash).joined(separator: "\n")) }
         @objc func copyMessages() { model.copy(model.revisions.map(\.message).joined(separator: "\n\n")) }
-        @objc func copyDetails() { model.copy(model.revisions.map { "\($0.hash)\n\($0.author) <\($0.email)>\n\($0.date)\n\n\($0.message)" }.joined(separator: "\n\n")) }
+        @objc func copyDetails() { model.copyDetails() }
+        @objc func copyDetailsWithoutPaths() { model.copyDetails(includePaths: false) }
     }
 }
 

@@ -181,8 +181,8 @@ repository access lease and ignores the result if Blame closes, reloads or recei
 a newer copy action during the read. A progress indicator shows the pending read;
 errors are shown in the window. Output uses macOS LF line endings, ISO
 author dates and Git's raw annotated-tag representation. Upstream localized date
-preferences and tag presentation still need parity work; Log's own full clipboard
-command has not yet been switched to this reader. Nested annotated tags and
+preferences and tag presentation still need parity work. Log now shares this reader
+for full clipboard details with and without changed paths; see [Log parity](LOG-PARITY.md). Nested annotated tags and
 multi-revision selection remain pending.
 
 Ten focused Blame tests passed, including a multiline subject/body/trailer, note,

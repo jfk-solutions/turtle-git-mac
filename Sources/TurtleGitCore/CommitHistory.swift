@@ -182,7 +182,7 @@ extension GitRepository {
     }
     /// Full log clipboard details for a pinned commit, including every parent's
     /// changed paths, Git notes and annotated tags. Use native LF line endings.
-    public func commitLogText(revision: String) throws -> String {
+    public func commitLogText(revision: String, includePaths: Bool = true) throws -> String {
         let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
         let data = try run(["show", "-s", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"]).stdout
         guard let entry = LogEntry.parseHistory(data).first, entry.hash == hash else { throw RevisionComparisonFailure.range }
@@ -201,6 +201,7 @@ extension GitRepository {
             }
             index += 3
         }
+        guard includePaths else { return text + "\n" }
         text += "----\n"
         // Upstream's full clipboard includes paths against each merge parent.
         for parent in entry.parents.isEmpty ? [nil] : entry.parents.map({ Optional($0) }) {

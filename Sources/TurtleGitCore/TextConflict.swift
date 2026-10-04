@@ -46,7 +46,7 @@ public enum MergeText {
                 mineEnd = range.location; baseStart = NSMaxRange(range)
             } else if start != nil, line == "=======", separator == nil {
                 separator = range; if mineEnd == nil { mineEnd = range.location }
-            } else if let startOffset = start, let separator, let endMine = mineEnd, line == ">>>>>>>" || (start != nil && separator != nil && line.hasPrefix(">>>>>>> ")) {
+            } else if let startOffset = start, let separator, let endMine = mineEnd, line == ">>>>>>>" || line.hasPrefix(">>>>>>> ") {
                 let mine = source.substring(with: NSRange(location: mineStart, length: endMine - mineStart))
                 let base = baseStart.map { source.substring(with: NSRange(location: $0, length: separator.location - $0)) } ?? ""
                 let theirs = source.substring(with: NSRange(location: NSMaxRange(separator), length: range.location - NSMaxRange(separator)))

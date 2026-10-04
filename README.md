@@ -55,6 +55,8 @@ encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.
+  Full revision clipboard details include notes, tags and paths, with an option
+  to omit changed paths and support for multiple selected revisions.
 - Original TortoiseGit command icons in app context menus and the Finder submenu;
   original XPStyle status artwork for Finder badges and app file status.
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,

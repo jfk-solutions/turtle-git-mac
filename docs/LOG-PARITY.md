@@ -232,3 +232,41 @@ The single non-deleted, non-submodule changed-file menu opens the native Blame w
 at the selected revision, with original Blame application artwork. Native root
 and renamed-file history handoffs were checked; full Blame menus, editor layout,
 encodings and Finder routing remain pending. See [Blame parity](BLAME-PARITY.md).
+
+## Full revision clipboard details
+
+Log now uses the shared pinned-commit reader for Full log details. It includes
+revision, author/email/date, full subject/body/trailers, notes, annotated-tag
+contents and changed paths, including old rename names and every merge parent.
+Full log details without changed paths retains the metadata, notes and tags while
+omitting the path section, matching upstream's two full-information choices.
+Multiple selected revisions are captured in visible table order before reading.
+
+The read runs asynchronously with a progress indicator and the retained repository
+access lease. Closing or reloading Log, or choosing a newer clipboard command,
+invalidates the pending copy. No partial multi-revision text is copied on failure.
+The output uses LF, ISO author dates and raw Git annotated-tag text; localized
+upstream date preferences and tag presentation remain pending, as described in
+[Blame parity](BLAME-PARITY.md). Fast paste before the read finishes can still see
+the previous clipboard; the progress indicator identifies the pending operation.
+
+Native QA selected two adjacent revisions and verified their order through paste
+into the Log search field. Full output contained both messages, the note, tag and
+both path sections. The path-free command retained both messages, the note and tag
+and omitted both path sections after its read completed. The one QA app was quit
+immediately afterward; no TurtleGit app process remained, and fixture HEAD, index
+and working source matched their baseline. Overlapping-request cancellation,
+window-close cancellation and signed sandbox acceptance remain pending.
+
+Focused GitBlame/TextConflict tests passed. The existing full 270-test result is
+recorded in Blame parity; the full suite was not repeated for this clipboard
+option/UI change. An existing compiler warning in conflict-end parsing was removed
+by dropping redundant nil comparisons after optional bindings; the existing
+conflict parser tests passed with that cleanup.
+
+Final unsigned Debug/AppStore builds passed without compiler warnings. Both bundle
+audits passed with the Finder extension, licenses and 62 upstream icons; the
+AppStore audit verified universal Git 2.55.0, 11 Mach-O files and local operations.
+The static documentation build passed, and the existing public Pages root returned
+HTTP 200 with the TurtleGit title. This verifies site availability, not deployment
+of this commit or signed App Store acceptance.
