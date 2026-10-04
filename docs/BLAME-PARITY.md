@@ -133,8 +133,36 @@ for a merge-origin line, and each parent's source against the merge resolution i
 the read-only viewer. The second-parent check showed Side greeting against Resolved
 greeting with the corresponding pinned hashes. Each QA app was closed after its
 scenario; the final process check found no running TurtleGit app, and fixture HEAD,
-index and working source matched their baseline. Blame Previous, full log-message
-copy and the remaining menu commands still need implementation.
+index and working source matched their baseline.
+
+## Blame previous revision
+
+The line menu now places Blame previous revision before Show changes, following
+upstream's ordering. It uses the same relevant-parent gates and rename-aware
+parent filenames. One relevant parent is a direct command; multiple parents have
+separate choices with the original Blame artwork. Each menu item captures its
+parent snapshot and the annotated line's original line number when the menu opens.
+
+Choosing a parent opens or reuses a retained native Blame window for that historical
+filename and commit. The window keeps the repository access lease and selects the
+original line after annotations finish loading, scrolling it into view. If that
+number exceeds the previous file's length it selects the last line; an empty
+previous file reports that it has no lines.
+
+Native QA verified selecting the second merge parent: the previous file showed
+Side greeting and selected line 8. A separate disposable fixture inserted three
+header lines after the rename. Selecting its earlier origin (displayed line 8,
+origin `repository.swift:5`) opened `repository.swift` at the root parent commit
+and selected line 5. Both QA app instances were quit immediately after their
+scenarios; no TurtleGit app remained running, and fixture HEAD, index and working
+source matched their recorded baselines. Empty/short previous files, reused-window
+navigation and keyboard/VoiceOver acceptance still need native checks.
+
+This UI milestone leaves the Git data reader unchanged; its previous full 269-test
+run covers the parent choices and historical bytes. Swift and unsigned
+Debug/AppStore builds passed without compiler warnings. Both bundle audits passed
+with 62 icons and the packaged universal Git 2.55.0 runtime; the documentation site
+build passed. Signed sandbox acceptance remains pending.
 
 ## Remaining work
 
@@ -143,7 +171,7 @@ copy and the remaining menu commands still need implementation.
 - Syntax highlighting, source selection and native editor scrolling behavior.
 - Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and
   revision/block navigation.
-- Blame Previous, full commit-message copy/export commands and
+- Full commit-message copy/export commands and
   remaining original menu icons.
 - Blame options dialog, revision chooser, complete copied-line modes/thresholds,
   settings and persistent preferences.

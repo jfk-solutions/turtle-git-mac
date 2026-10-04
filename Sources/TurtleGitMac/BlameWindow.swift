@@ -2,6 +2,11 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+private struct BlameParentMenuTarget {
+    let choice: GitBlameParentComparison
+    let originalLine: Int
+}
+
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     let model: BlameWindowModel
     var onClosed: () -> Void = {}
@@ -23,6 +28,7 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     private var revision: String
     private var generation = 0
+    private var pendingLine: Int?
     @Published var snapshot: GitBlameSnapshot?
     @Published var busy = false
     @Published var error: String?
@@ -46,6 +52,7 @@ import TurtleGitCore
     var historyCount = 0
     var onLog: ((String, String) -> Void)?
     var onChanges: ((RevisionComparisonSnapshot) -> Void)?
+    var onPrevious: ((String, String, Int) -> Void)?
     var lines: [GitBlameLine] { snapshot?.lines ?? [] }
     private func line(_ number: Int?) -> GitBlameLine? {
         guard let number, number > 0, lines.indices.contains(number - 1) else { return nil }; return lines[number - 1]
@@ -107,9 +114,20 @@ import TurtleGitCore
                 origins = Dictionary(result.lines.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first })
                 historyCount = history.count; revision = result.revision; snapshot = result
                 if let selection, !result.lines.contains(where: { $0.number == selection }) { self.selection = nil }
-                busy = false
+                busy = false; applyPendingLine()
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
         }
+    }
+    func selectOriginalLine(_ number: Int) {
+        pendingLine = max(1, number)
+        if !busy, snapshot != nil { applyPendingLine() }
+    }
+    private func applyPendingLine() {
+        guard let number = pendingLine else { return }
+        pendingLine = nil
+        guard !lines.isEmpty else { selection = nil; navigationMessage = "The previous file has no lines."; return }
+        let selected = min(number, lines.count)
+        goTo = String(selected); selection = selected; navigationMessage = "Line \(selected)"
     }
     func showLog(_ line: GitBlameLine) { onLog?(line.filename, line.hash) }
     func copy(_ text: String) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
@@ -269,22 +287,28 @@ private struct BlameTable: NSViewRepresentable {
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems()
-            guard model.selectedLine != nil else { return }
+            guard let selectedLine = model.selectedLine else { return }
             if model.loadingParents {
                 let loading = NSMenuItem(title: "Reading previous revisions…", action: nil, keyEquivalent: ""); loading.isEnabled = false; menu.addItem(loading)
             } else if !model.parentChoices.isEmpty {
-                func item(_ choice: GitBlameParentComparison, title: String) -> NSMenuItem {
-                    let item = NSMenuItem(title: title, action: #selector(showChanges(_:)), keyEquivalent: "")
-                    item.target = self; item.image = MenuIcon.compare.image(); item.representedObject = choice
-                    item.isEnabled = model.onChanges != nil; return item
+                let originalLine = selectedLine.originalLine
+                func addCommand(title: String, action: Selector, icon: MenuIcon, enabled: Bool) {
+                    func item(_ choice: GitBlameParentComparison, title: String) -> NSMenuItem {
+                        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+                        item.target = self; item.image = icon.image()
+                        item.representedObject = BlameParentMenuTarget(choice: choice, originalLine: originalLine)
+                        item.isEnabled = enabled; return item
+                    }
+                    if model.parentChoices.count == 1 { menu.addItem(item(model.parentChoices[0], title: title)) }
+                    else {
+                        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: ""); parent.image = icon.image()
+                        let submenu = NSMenu(); submenu.autoenablesItems = false
+                        for choice in model.parentChoices { submenu.addItem(item(choice, title: "Parent \(choice.parentNumber) (\(choice.revision.prefix(8)))")) }
+                        parent.submenu = submenu; menu.addItem(parent)
+                    }
                 }
-                if model.parentChoices.count == 1 { menu.addItem(item(model.parentChoices[0], title: "Show changes")) }
-                else {
-                    let parent = NSMenuItem(title: "Show changes", action: nil, keyEquivalent: ""); parent.image = MenuIcon.compare.image()
-                    let submenu = NSMenu(); submenu.autoenablesItems = false
-                    for choice in model.parentChoices { submenu.addItem(item(choice, title: "Parent \(choice.parentNumber) (\(choice.revision.prefix(8)))")) }
-                    parent.submenu = submenu; menu.addItem(parent)
-                }
+                addCommand(title: "Blame previous revision", action: #selector(blamePrevious(_:)), icon: .blame, enabled: model.onPrevious != nil)
+                addCommand(title: "Show changes", action: #selector(showChanges(_:)), icon: .compare, enabled: model.onChanges != nil)
             }
             for (title, action, icon) in [("Show log", #selector(showLog), MenuIcon.log), ("Copy revision", #selector(copyRevision), .copy), ("Copy source line", #selector(copySource), .copy)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.image()
@@ -293,7 +317,12 @@ private struct BlameTable: NSViewRepresentable {
         }
         @objc func showLog() { if let line = model.selectedLine { model.showLog(line) } }
         @objc func showChanges(_ sender: NSMenuItem) {
-            if let choice = sender.representedObject as? GitBlameParentComparison { model.onChanges?(choice.comparison) }
+            if let target = sender.representedObject as? BlameParentMenuTarget { model.onChanges?(target.choice.comparison) }
+        }
+        @objc func blamePrevious(_ sender: NSMenuItem) {
+            if let target = sender.representedObject as? BlameParentMenuTarget {
+                model.onPrevious?(target.choice.path, target.choice.revision, target.originalLine)
+            }
         }
         @objc func copyRevision() { if let line = model.selectedLine { model.copy(line.hash) } }
         @objc func copySource() { if let line = model.selectedLine { model.copy(line.source) } }
