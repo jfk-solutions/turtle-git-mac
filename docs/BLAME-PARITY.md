@@ -792,12 +792,49 @@ whitespace checks passed. Full-suite testing was not
 repeated for this isolated transition helper; full Blame and app parity remain
 incomplete.
 
+## Native Go to line dialog
+
+Reviewed upstream `EditGotoDlg.cpp`/`.h`, resource `IDD_GOTODLG` and
+`OnEditGoto`/`GotoLine` in `TortoiseGitBlameView.cpp`. The former inline line field
+is replaced by a native modal sheet: Go to line title, Line label/input, left OK
+and right Cancel. Each invocation begins with the upstream zero default and
+focuses the field. Return accepts; Escape cancels without applying the draft.
+Command-L opens this window-local sheet; Command-G retains the macOS Find Next
+convention. Upstream's Edit menu and Control-G accelerator still need a complete
+native menu adaptation.
+
+The dialog accepts unsigned decimal zero through 40,000,000. Invalid input keeps
+the sheet open with a validation message. Zero accepts without moving selection;
+an empty source is also a no-op. Positive values beyond the source length clamp
+to the last line, following upstream. A new Core helper validates the input and
+projects its target. Seven focused presentation tests passed, including zero,
+whitespace, leading zeros, the maximum, invalid/overflow input, valid targets,
+clamping and empty files. The full suite was not rerun for this isolated helper.
+
+Native light QA verified Command-L, initial focus/zero, Return at 200 with source
+line 200 selected and locator 193–202, reopening at zero, Escape after typing 350
+without changing the source, OK at zero as a no-op, rejection of 40,000,001 and
+recovery to 40,000,000 selecting line 400 with locator 392–400. A clean sheet with
+200 entered was saved and inspected as `site/assets/blame-go-to-line.png`
+(2240 by 1464). Its draft was cancelled before normal Quit. Only one isolated QA
+process was used and no app process remained; exact HEAD, raw index and source
+bytes were preserved.
+
+Debug and App Store builds passed without compiler warnings. Both bundle audits
+verified the Finder extension, licenses and 62 original icons. Packaged Git 2.55.0
+passed its 11 universal Mach-O and integration audits. Site generation and
+whitespace checks passed. Full source-editor selection/caret and
+one-third viewport placement, native dark/empty-file/localization/accessibility
+acceptance and full menu integration remain pending. The native input validates
+on acceptance rather than suppressing every nondigit key like Windows ES_NUMBER.
+This is partial file/dialog parity, not a completed Blame viewer.
+
 ## Remaining work
 
 - Remaining native modifier/multi-revision acceptance, full locator acceptance and complete revision-log layout;
   pointer-hover and dark sticky native acceptance.
 - Syntax highlighting, source selection and native editor scrolling behavior.
-- Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and
+- Upstream Find dialog, remaining Go To Line acceptance, menu shortcuts, match highlighting and
   revision/block navigation.
 - Clipboard presentation/localized dates, export commands and remaining original
   menu icons.

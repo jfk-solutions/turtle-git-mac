@@ -14,6 +14,20 @@ public enum GitBlameSelection {
 }
 
 public enum GitBlameNavigation {
+    public static let maximumGoToLine = 40_000_000
+    /// EditGotoDlg accepts an unsigned decimal from zero through forty million.
+    public static func requestedLine(_ text: String) -> Int? {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value.utf8.allSatisfy({ (48...57).contains($0) }),
+              let number = Int(value), number <= maximumGoToLine else { return nil }
+        return number
+    }
+    /// Upstream GotoLine ignores zero/empty files and clamps past the file end.
+    public static func targetLine(_ requested: Int, lineCount: Int) -> Int? {
+        guard (1...maximumGoToLine).contains(requested), lineCount > 0 else { return nil }
+        return min(requested, lineCount)
+    }
+
     /// Zero-based source row to place at the top of the viewport. Mirrors
     /// FindNextLine and OnViewNext/OnViewPrev, including their near-top skip.
     public static func change(hashes: [String], selected: Set<String>, start: Int, previous: Bool) -> Int? {

@@ -2,6 +2,20 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlamePresentationTests: XCTestCase {
+    func testGoToLineAcceptsUpstreamRangeAndClampsFileEnd() {
+        for (text, expected) in [("0", 0), (" 123 ", 123), ("0002", 2), ("40000000", 40_000_000)] {
+            XCTAssertEqual(GitBlameNavigation.requestedLine(text), expected)
+        }
+        for invalid in ["", " ", "-1", "1.5", "abc", "١", "40000001", "999999999999999999999999"] {
+            XCTAssertNil(GitBlameNavigation.requestedLine(invalid), invalid)
+        }
+        XCTAssertEqual(GitBlameNavigation.targetLine(200, lineCount: 400), 200)
+        XCTAssertEqual(GitBlameNavigation.targetLine(40_000_000, lineCount: 400), 400)
+        XCTAssertNil(GitBlameNavigation.targetLine(0, lineCount: 400))
+        XCTAssertNil(GitBlameNavigation.targetLine(1, lineCount: 0))
+        XCTAssertNil(GitBlameNavigation.targetLine(-1, lineCount: 400))
+        XCTAssertNil(GitBlameNavigation.targetLine(40_000_001, lineCount: 400))
+    }
     func testAnnotationSelectionReplacesAndIndependentlyTogglesRevisions() {
         XCTAssertEqual(GitBlameSelection.selecting("A", in: [], additive: false), ["A"])
         XCTAssertEqual(GitBlameSelection.selecting("A", in: ["A"], additive: false), [])

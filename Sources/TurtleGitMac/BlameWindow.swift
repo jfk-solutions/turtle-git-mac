@@ -76,7 +76,6 @@ private struct BlameParentMenuTarget {
     @Published var hoveredLine: Int?
     @Published var find = ""
     @Published var matchCase = false
-    @Published var goTo = ""
     @Published var navigationMessage = ""
     var ranks: [String: Int] = [:]
     private var origins: [String: GitBlameLine] = [:]
@@ -249,7 +248,7 @@ private struct BlameParentMenuTarget {
         pendingLine = nil
         guard !lines.isEmpty else { selection = nil; navigationMessage = "The previous file has no lines."; return }
         let selected = min(number, lines.count)
-        goTo = String(selected); selection = selected; navigationMessage = "Line \(selected)"
+        selection = selected; navigationMessage = "Line \(selected)"
     }
     func showLog(_ line: GitBlameLine) { onLog?(line.filename, line.hash) }
     func copyLogMessage(_ hash: String) {
@@ -283,8 +282,8 @@ private struct BlameParentMenuTarget {
         }
         navigationMessage = "No match"
     }
-    func goToLine() {
-        guard let number = Int(goTo), number > 0, number <= lines.count else { navigationMessage = "Enter a line from 1 to \(lines.count)."; return }
+    func goToLine(_ requested: Int) {
+        guard let number = GitBlameNavigation.targetLine(requested, lineCount: lines.count) else { return }
         selection = number; navigationMessage = "Line \(number)"
     }
     func navigateChange(previous: Bool) {
@@ -296,6 +295,7 @@ private struct BlameParentMenuTarget {
 
 private struct BlameDialog: View {
     @ObservedObject var model: BlameWindowModel
+    @State private var showingGoToLine = false
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -325,8 +325,7 @@ private struct BlameDialog: View {
                 Toggle("Match case", isOn: $model.matchCase)
                 Button("Previous") { model.findLine(previous: true) }
                 Button("Next") { model.findLine(previous: false) }.keyboardShortcut("g", modifiers: .command)
-                TextField("Line", text: $model.goTo).frame(width: 70).onSubmit { model.goToLine() }
-                Button("Go To Line") { model.goToLine() }
+                Button("Go To Line…") { showingGoToLine = true }.keyboardShortcut("l", modifiers: .command)
             }.disabled(model.busy)
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
             if model.loadingParents { ProgressView("Reading previous revisions…").controlSize(.small) }
@@ -357,7 +356,39 @@ private struct BlameDialog: View {
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary)
-        }.padding(12).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
+        }.padding(12).sheet(isPresented: $showingGoToLine) {
+            BlameGoToLineDialog { requested in model.goToLine(requested) }
+        }.onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
+    }
+}
+
+private struct BlameGoToLineDialog: View {
+    let apply: (Int) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var line = "0"
+    @State private var error: String?
+    @FocusState private var focused: Bool
+    private func accept() {
+        guard let requested = GitBlameNavigation.requestedLine(line) else {
+            error = "Enter a whole number from 0 to \(GitBlameNavigation.maximumGoToLine)."
+            focused = true; return
+        }
+        apply(requested); dismiss()
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Go to line").font(.headline)
+            HStack {
+                Text("Line:")
+                TextField("Line number", text: $line).focused($focused).onSubmit { accept() }
+            }
+            if let error { Text(error).foregroundStyle(.red).font(.callout).fixedSize(horizontal: false, vertical: true) }
+            HStack {
+                Button("OK") { accept() }.keyboardShortcut(.defaultAction)
+                Spacer()
+                Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
+            }
+        }.padding(20).frame(width: 300).onAppear { focused = true }
     }
 }
 
