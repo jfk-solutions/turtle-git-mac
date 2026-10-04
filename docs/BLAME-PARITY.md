@@ -749,9 +749,52 @@ and its integration scenarios. Site generation and whitespace checks passed.
 This native view-only change did not rerun Core tests or add a test mirroring the
 view implementation. Full Blame fidelity remains incomplete.
 
+## Shared annotation revision selection
+
+Reviewed upstream `OnLButtonDown` and `FocusOn` in `TortoiseGitBlameView.cpp`.
+Annotation clicks use the existing selected-revision set, including selection
+originating from Log. A plain click clears the sole matching revision, replaces a
+different selection, or reduces a multiple selection to the clicked revision.
+Windows Control-click independently adds/removes the clicked hash; macOS uses
+Command-click while Control-click continues to open the context menu. The clicked
+source line remains selected even when its revision is removed from the set.
+
+Previously the source margin toggled a separate `highlightedHash`, so a plain
+click after selecting that revision in Log could reselect it rather than clear
+it. `GitBlameSelection` now provides the shared transition rules. One selected
+hash supplies the existing same-author fallback; multiple/empty selection clears
+that fallback. Existing source color, Log selection, Properties and block
+navigation use the resulting hash set.
+
+Six focused presentation tests passed. Selection cases cover empty-to-single,
+single clearing/replacement, multiple-to-single, independent add/remove and
+three selected hashes. Native light QA selected the original revision from a
+visible Log message, clicked its annotation and verified Log deselection, blank
+Properties and disabled Previous/Next change buttons. Native Log Shift-Down
+selected two revisions with blank Properties. A plain annotation click reduced
+those to the clicked revision and repopulated its Properties. Repeating the
+Log multi-selection produced the saved, inspected actual capture
+`site/assets/blame-multiple-selection-light.png` (2240 by 1464).
+
+The first keyboard menu sequence opened a read-only unified diff instead of
+Blame. That sheet was closed; a fresh file menu's observed Blame command opened
+the correct viewer. Only one QA instance was used, quit normally after the capture
+file existed. No process remained; HEAD, raw index and source bytes matched the
+fixture baseline. Direct Command-click, noncontiguous Log selection, dark/resize,
+Control-click menu regression, multi-hash block navigation and accessibility
+acceptance remain pending. The keyboard multi-selection check does not establish
+native modifier-click acceptance.
+
+Debug and App Store builds passed without compiler warnings. Both bundle audits
+verified the Finder extension, licenses and 62 original icons. Packaged Git 2.55.0
+passed its 11 universal Mach-O and integration audits. Site generation and
+whitespace checks passed. Full-suite testing was not
+repeated for this isolated transition helper; full Blame and app parity remain
+incomplete.
+
 ## Remaining work
 
-- Native multi-revision selection acceptance, full locator acceptance and complete revision-log layout;
+- Remaining native modifier/multi-revision acceptance, full locator acceptance and complete revision-log layout;
   pointer-hover and dark sticky native acceptance.
 - Syntax highlighting, source selection and native editor scrolling behavior.
 - Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and

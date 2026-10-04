@@ -2,6 +2,18 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlamePresentationTests: XCTestCase {
+    func testAnnotationSelectionReplacesAndIndependentlyTogglesRevisions() {
+        XCTAssertEqual(GitBlameSelection.selecting("A", in: [], additive: false), ["A"])
+        XCTAssertEqual(GitBlameSelection.selecting("A", in: ["A"], additive: false), [])
+        XCTAssertEqual(GitBlameSelection.selecting("B", in: ["A"], additive: false), ["B"])
+        XCTAssertEqual(GitBlameSelection.selecting("A", in: ["A", "B"], additive: false), ["A"])
+        XCTAssertEqual(GitBlameSelection.selecting("A", in: ["B", "C"], additive: false), ["A"])
+        XCTAssertEqual(GitBlameSelection.selecting("A", in: [], additive: true), ["A"])
+        XCTAssertEqual(GitBlameSelection.selecting("A", in: ["A"], additive: true), [])
+        XCTAssertEqual(GitBlameSelection.selecting("B", in: ["A"], additive: true), ["A", "B"])
+        XCTAssertEqual(GitBlameSelection.selecting("A", in: ["A", "B"], additive: true), ["B"])
+        XCTAssertEqual(GitBlameSelection.selecting("C", in: ["A", "B"], additive: true), ["A", "B", "C"])
+    }
     func testSelectedCommitChangeNavigationSkipsBlocksAndDoesNotWrap() {
         let hashes = ["A", "A", "X", "A", "A", "Y", "B", "B", "X", "A", "A", "Z", "B", "B"]
         XCTAssertEqual(GitBlameNavigation.change(hashes: hashes, selected: ["A"], start: 0, previous: false), 3)

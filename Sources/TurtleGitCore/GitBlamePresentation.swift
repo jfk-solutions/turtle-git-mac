@@ -1,5 +1,18 @@
 import Foundation
 
+public enum GitBlameSelection {
+    /// Annotation-margin selection follows upstream OnLButtonDown. The macOS
+    /// Command modifier adapts Windows Control-click's independent toggles.
+    public static func selecting(_ hash: String, in selected: Set<String>, additive: Bool) -> Set<String> {
+        if additive {
+            var result = selected
+            if !result.insert(hash).inserted { result.remove(hash) }
+            return result
+        }
+        return selected == [hash] ? [] : [hash]
+    }
+}
+
 public enum GitBlameNavigation {
     /// Zero-based source row to place at the top of the viewport. Mirrors
     /// FindNextLine and OnViewNext/OnViewPrev, including their near-top skip.

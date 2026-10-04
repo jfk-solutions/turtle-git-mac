@@ -94,10 +94,11 @@ private struct BlameParentMenuTarget {
     var selectedLine: GitBlameLine? { line(selection) }
     var highlightedLine: GitBlameLine? { highlightedHash.flatMap { origins[$0] } }
     var hoverLine: GitBlameLine? { line(hoveredLine) }
-    func highlight(_ row: Int) {
+    func highlight(_ row: Int, additive: Bool) {
         guard lines.indices.contains(row) else { return }
-        let hash = lines[row].hash; highlightedHash = highlightedHash == hash ? nil : hash
-        selectedLogHashes = highlightedHash.map { [$0] } ?? []
+        selection = lines[row].number
+        selectedLogHashes = GitBlameSelection.selecting(lines[row].hash, in: selectedLogHashes, additive: additive)
+        highlightedHash = selectedLogHashes.count == 1 ? selectedLogHashes.first : nil
     }
     func focusHistory(_ hashes: Set<String>, focus: String?) {
         let old = selectedLogHashes; selectedLogHashes = hashes; highlightedHash = nil
@@ -509,7 +510,7 @@ private struct BlameTable: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> BlameSourceContainer {
         let table = BlameTableView(); table.delegate = context.coordinator; table.dataSource = context.coordinator
-        table.onMarginClick = { [weak coordinator = context.coordinator] row in coordinator?.model.highlight(row) }
+        table.onMarginClick = { [weak coordinator = context.coordinator] row, additive in coordinator?.model.highlight(row, additive: additive) }
         table.onContextMenu = { [weak coordinator = context.coordinator] row, event in
             guard let coordinator, coordinator.table != nil, coordinator.model.lines.indices.contains(row), !coordinator.model.busy else { return }
             coordinator.model.prepareParentMenu(number: row + 1) { [weak coordinator] in
@@ -679,7 +680,7 @@ private struct BlameTable: NSViewRepresentable {
 }
 
 private final class BlameTableView: NSTableView {
-    var onMarginClick: (Int) -> Void = { _ in }
+    var onMarginClick: (Int, Bool) -> Void = { _, _ in }
     var onContextMenu: (Int, NSEvent) -> Void = { _, _ in }
     var onHover: (Int?) -> Void = { _ in }
     private var hoverTracking: NSTrackingArea?
@@ -693,7 +694,7 @@ private final class BlameTableView: NSTableView {
         let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)
         if event.modifierFlags.contains(.control) { onContextMenu(row, event); return }
         super.mouseDown(with: event)
-        if event.clickCount == 1, row >= 0, (0...2).contains(column) { onMarginClick(row) }
+        if event.clickCount == 1, row >= 0, (0...2).contains(column) { onMarginClick(row, event.modifierFlags.contains(.command)) }
     }
     override func rightMouseDown(with event: NSEvent) {
         onContextMenu(row(at: convert(event.locationInWindow, from: nil)), event)
