@@ -33,8 +33,8 @@ commit, or the submodule is uninitialized. A differing initialized checkout is
 handled through the native Reset window, after which resolution revalidates and
 resumes. Exact side pointers and mismatch rejection have dedicated tests; a native
 Soft-reset/resolution handoff preserved child index/workfiles and unrelated parent
-changes. The full upstream Base/Mine/Theirs submodule chooser remains unported.
-See RESET-PARITY.md.
+changes. The native Base/Mine/Theirs chooser is now implemented in part; remaining edge
+cases are tracked in SUBMODULE-CONFLICT-PARITY.md. See also RESET-PARITY.md.
 
 Finder exposes normal Resolve when cached conflicts fall within the selection.
 Commit, Working Tree and workspace conflict menus dispatch the side choices.
@@ -67,8 +67,8 @@ labels, broader native side-choice execution, stale
 refresh/retry, Commit handoff, dark-mode/keyboard/Help QA, parent restoration,
 signed Finder and sandbox runtime remain pending. Double-click now opens the native delete/modify chooser for a single ordinary
 missing-side conflict (see DELETE-CONFLICT-PARITY.md), and the native submodule
-chooser for gitlink conflicts (see SUBMODULE-CONFLICT-PARITY.md). Ordinary text conflicts still open
-Compare with base rather than the full upstream conflict editor. All Resolve
+chooser for gitlink conflicts (see SUBMODULE-CONFLICT-PARITY.md). Ordinary UTF-8 text conflicts now open the partial native three-pane editor;
+see TEXT-MERGE-PARITY.md for implementation and verification gaps. All Resolve
 workflow records remain partial; no complete dialog or App Store parity is claimed.
 
 Submodule deletion now offers native Delete/Abort after failed Git removal.

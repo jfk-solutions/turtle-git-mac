@@ -7,7 +7,7 @@ public actor GitRepository {
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git")) {
         self.root = root.standardizedFileURL; self.executable = executable
     }
-    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true) throws -> GitResult {
+    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
@@ -30,8 +30,8 @@ public actor GitRepository {
         process.standardOutput = output; process.standardError = error
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         try process.run(); process.waitUntilExit()
-        let result = GitResult(stdout: try Data(contentsOf: out), stderr: try Data(contentsOf: err))
-        guard process.terminationStatus == 0 else {
+        let result = GitResult(exitCode: process.terminationStatus, stdout: try Data(contentsOf: out), stderr: try Data(contentsOf: err))
+        guard successfulExitCodes.contains(process.terminationStatus) else {
             throw GitFailure(arguments: arguments, code: process.terminationStatus, message: result.text)
         }
         return result

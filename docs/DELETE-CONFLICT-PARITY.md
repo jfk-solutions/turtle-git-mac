@@ -19,8 +19,8 @@ captures are site/assets/delete-conflict.png and delete-conflict-dark.png, both
 Edit conflict appears for one ordinary DU/UD/AU/UA file in Commit, Working Tree
 and workspace context menus. Commit/Working Tree double-clicks and Resolve's
 single missing-side double-click open the same window. Submodules are excluded;
-full text merging and the Base/Mine/Theirs submodule chooser remain separate
-unported editors. The Finder shell Edit conflict menu is not exposed until the
+UTF-8 text merging and the Base/Mine/Theirs submodule chooser now have separate
+partial native editors (TEXT-MERGE-PARITY.md and SUBMODULE-CONFLICT-PARITY.md). The Finder shell Edit conflict menu is not exposed until the
 full editor dispatch is available. Debug Finder-style URLs exercise scoped app
 routing but do not prove signed Finder activation.
 

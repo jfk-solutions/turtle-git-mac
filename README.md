@@ -48,6 +48,9 @@ bundle structure; it is not a signed distribution.
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Working-tree and index diffs, with selectable, monospaced operation output.
+- Native three-pane UTF-8 text conflict editor with Theirs/Mine/Merged, block choices,
+  line numbers and guarded Save/Mark as resolved. Full editor parity and native QA
+  remain in progress; see [Text merge parity](docs/TEXT-MERGE-PARITY.md).
 - Native Merge window with branch/tag/commit selection, squash, fast-forward, No Commit,
   message summaries, strategy controls and custom messages. See [Merge parity](docs/MERGE-PARITY.md).
 - Native Stash Save window with an optional message, mutually exclusive include-untracked

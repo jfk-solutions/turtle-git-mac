@@ -39,6 +39,7 @@ import TurtleGitCore
     private var cloneWindow: CloneWindowController?
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
+    private var textConflictWindows: [String: TextConflictWindowController] = [:]
     private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
     private var deleteConflictWindows: [String: DeleteConflictWindowController] = [:]
     private var resetWindows: [String: ResetWindowController] = [:]
@@ -404,7 +405,18 @@ import TurtleGitCore
         Task {
             do {
                 guard let entry = try await repository.conflicts(paths: [path]).first(where: { $0.path == path }) else { throw ResolveFailure.stale }
-                if !entry.isSubmodule { showDeleteConflict(repository: repository, access: access, path: path); return }
+                if entry.isDeleteModify { showDeleteConflict(repository: repository, access: access, path: path); return }
+                if !entry.isSubmodule {
+                    let root = repository.root, key = root.path + "\0" + path
+                    let controller = textConflictWindows[key] ?? TextConflictWindowController(repository: repository, access: access, path: path)
+                    controller.onClosed = { [weak self] in self?.textConflictWindows.removeValue(forKey: key) }
+                    controller.model.onChanged = { [weak self] output in
+                        self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+                        for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
+                        if let self, self.root == root { self.output = output; Task { await self.refresh() } }
+                    }
+                    textConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); return
+                }
                 let root = repository.root, key = root.path + "\0" + path
                 let controller = submoduleConflictWindows[key] ?? SubmoduleConflictWindowController(repository: repository, access: access, path: path)
                 controller.onClosed = { [weak self] in self?.submoduleConflictWindows.removeValue(forKey: key) }

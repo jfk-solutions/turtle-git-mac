@@ -186,7 +186,7 @@ struct RepositoryWindow: View {
                 Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
                 Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
                 if model.canResolveSelection && !model.selectedPaths.isEmpty {
-                    ResolveSelectionMenu(paths: model.selectedPaths, rebase: model.conflictRebase, canEdit: model.selection.count == 1 && model.entries.contains(where: { model.selection.contains($0.id) && ($0.isDeleteModifyConflict || model.submodules.contains($0.path)) })) { action, paths in model.activate(action, paths: paths) }
+                    ResolveSelectionMenu(paths: model.selectedPaths, rebase: model.conflictRebase, canEdit: model.selection.count == 1 && model.entries.contains(where: { model.selection.contains($0.id) && $0.state == .conflicted })) { action, paths in model.activate(action, paths: paths) }
                 }
                 if model.canIgnoreSelection(.ignore) {
                     IgnoreSelectionMenu(paths: model.selectedPaths) { action, paths in model.activate(action, paths: paths) }

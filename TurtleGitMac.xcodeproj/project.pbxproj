@@ -35,6 +35,7 @@
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
 		6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F6087799A5783306A27CEE /* RenameWindow.swift */; };
 		71A192AE217977ACEEDE0E0E /* Ignore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA057A2776BAA8F4BE538EE /* Ignore.swift */; };
+		7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8927431F95C0127D9B66489A /* TextConflict.swift */; };
 		7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC73279697B4174BE7ED4D66 /* StashWindow.swift */; };
 		7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */; };
 		7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1559DC3926805ADF57166DCE /* CommitMessage.swift */; };
@@ -45,6 +46,7 @@
 		9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */; };
 		94D627C3502D8ACE734DD470 /* Reset.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE3C7BF5278D5807BDDF4B21 /* Reset.swift */; };
 		96858E5400FE448CEE799A09 /* Fetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181B9FE19CD19EA7DAB1E824 /* Fetch.swift */; };
+		98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */; };
 		A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08425BF4A91945D52E0F6D99 /* Clone.swift */; };
 		A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FF59B2CF163D9481D39B5 /* CommitSelection.swift */; };
 		A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5AD057FE8CA1C91988DA6E /* Removal.swift */; };
@@ -148,6 +150,7 @@
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
 		2FD299C13A57D2632BB2467B /* Pull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pull.swift; sourceTree = "<group>"; };
 		326985003F83908822D7B91E /* MergeWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWindow.swift; sourceTree = "<group>"; };
+		396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflictWindow.swift; sourceTree = "<group>"; };
 		3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuIcons.swift; sourceTree = "<group>"; };
 		4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageEditor.swift; sourceTree = "<group>"; };
 		4E11987C6F9546E908AD60BA /* FinderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSync.swift; sourceTree = "<group>"; };
@@ -168,6 +171,7 @@
 		7A4B370EB64932B2909A8228 /* CloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneWindow.swift; sourceTree = "<group>"; };
 		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
 		83395323FFA0860A52795F9F /* Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stash.swift; sourceTree = "<group>"; };
+		8927431F95C0127D9B66489A /* TextConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflict.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
 		A2D91605384F213DBC8C3C9F /* CommitAmend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitAmend.swift; sourceTree = "<group>"; };
@@ -251,6 +255,7 @@
 				70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */,
 				0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */,
 				977DAB97DBBB903654C73A78 /* SwitchWindow.swift */,
+				396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */,
 				1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */,
 			);
 			name = TurtleGitMac;
@@ -315,6 +320,7 @@
 				DE3C7BF5278D5807BDDF4B21 /* Reset.swift */,
 				83395323FFA0860A52795F9F /* Stash.swift */,
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
+				8927431F95C0127D9B66489A /* TextConflict.swift */,
 				B20E461B2D9629D0293A80EB /* WorkingTree.swift */,
 			);
 			name = TurtleGitCore;
@@ -490,6 +496,7 @@
 				94D627C3502D8ACE734DD470 /* Reset.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
+				7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */,
 				E046B347B367E63019422195 /* WorkingTree.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -526,6 +533,7 @@
 				2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */,
 				E3EE5EB389BF0E9FD8DDD26A /* SubmoduleConflictWindow.swift in Sources */,
 				A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */,
+				98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */,
 				140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

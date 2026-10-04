@@ -115,6 +115,7 @@ public struct GitFailure: LocalizedError, Sendable {
 }
 
 public struct GitResult: Sendable {
+    public let exitCode: Int32
     public let stdout: Data
     public let stderr: Data
     public var text: String { String(decoding: stdout + stderr, as: UTF8.self) }

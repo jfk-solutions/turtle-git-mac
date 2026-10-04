@@ -122,7 +122,7 @@ import TurtleGitCore
         } catch { self.error = error.localizedDescription }
     }
     func editOrCompare(_ ids: Set<String>) {
-        if ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }), (entry.isDeleteModify || entry.isSubmodule) { onEdit(entry.path) }
+        if ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) { onEdit(entry.path) }
         else { compare(ids) }
     }
     func compare(_ ids: Set<String>) {
@@ -153,7 +153,7 @@ private struct ResolveDialog: View {
                     }.contextMenu(forSelectionType: String.self) { ids in
                         Button { model.compare(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
                         Divider()
-                        ResolveSelectionMenu(paths: Array(ids), rebase: model.rebase, canEdit: ids.count == 1 && model.entries.contains(where: { ids.contains($0.id) && ($0.isDeleteModify || $0.isSubmodule) })) { action, paths in
+                        ResolveSelectionMenu(paths: Array(ids), rebase: model.rebase, canEdit: ids.count == 1 && model.entries.contains(where: { ids.contains($0.id) })) { action, paths in
                             if action == .editConflict, let path = paths.first { model.onEdit(path) } else { model.request(action.resolveChoice ?? .current, ids: Set(paths)) }
                         }
                     } primaryAction: { ids in model.editOrCompare(ids) }
