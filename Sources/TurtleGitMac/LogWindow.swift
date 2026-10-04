@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import TurtleGitCore
+import UniformTypeIdentifiers
 
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
     let model: LogWindowModel
@@ -16,6 +17,7 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: LogDialog(model: model))
         super.init(window: window)
+        model.window = window
         window.delegate = self
         window.setContentSize(NSSize(width: 1120, height: 780))
         window.center()
@@ -32,6 +34,7 @@ import TurtleGitCore
         completion(revision)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.busy, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
@@ -90,6 +93,8 @@ struct LogCommandRequest: Identifiable {
     var onCheckout: (String) -> Void = { _ in }
     var onReset: (String) -> Void = { _ in }
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
+    weak var window: NSWindow?
+    var onFileLog: ((String, String?) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
@@ -188,6 +193,37 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription }
         }
     }
+    func fileLog(_ ids: Set<String>, oldName: Bool = false) {
+        guard !busy, let onFileLog, let revision, ids.count == 1,
+              let file = files.first(where: { ids.contains($0.id) }) else { return }
+        if oldName {
+            guard let path = file.oldPath else { return }; onFileLog(path, nil)
+        } else { onFileLog(file.path, revision.hash) }
+    }
+    func saveHistoricalFile(_ ids: Set<String>) {
+        guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
+              let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        busy = true
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let content = try await repository.historicalFile(revision: revision.hash, path: file.path)
+                guard case .revision(let hash) = content.revision else { throw RevisionComparisonFailure.range }
+                let short = try await repository.run(["rev-parse", "--short", hash]).text.trimmingCharacters(in: .newlines)
+                let name = (file.path as NSString).lastPathComponent as NSString
+                let ext = name.pathExtension
+                let panel = NSSavePanel(); panel.title = "Save file at revision " + short
+                panel.nameFieldStringValue = name.deletingPathExtension + "-" + short + (ext.isEmpty ? "" : "." + ext)
+                panel.allowedContentTypes = [.data]; panel.allowsOtherFileTypes = true
+                panel.canCreateDirectories = true; panel.directoryURL = repository.root.appendingPathComponent(file.path).deletingLastPathComponent()
+                busy = false
+                panel.beginSheetModal(for: window) { [weak self] response in
+                    guard response == .OK, let url = panel.url else { return }
+                    do { try content.bytes.write(to: url, options: .atomic) } catch { self?.error = error.localizedDescription }
+                }
+            } catch { self.error = error.localizedDescription; busy = false }
+        }
+    }
     func compareFiles(_ ids: Set<String>, workingTree: Bool = false) {
         guard !busy, let onFileCompare, let revision, !workingTree || !bare else { return }
         let paths = files.filter { ids.contains($0.id) }.map(\.path)
@@ -235,6 +271,16 @@ struct LogDialog: View {
                     Button { model.selectedFiles = ids; fileDiff() } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1 || model.busy)
                     Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.bare || model.onFileCompare == nil || model.busy)
                     Divider()
+                    if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
+                        Button { model.fileLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
+                        if file.oldPath != nil {
+                            Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
+                        }
+                        if !file.isSubmodule && !file.action.hasPrefix("D") {
+                            Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy)
+                        }
+                        Divider()
+                    }
                     Button { model.copy(model.files.filter { ids.contains($0.id) }.map(\.path).joined(separator: "\n")) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(ids.isEmpty)
                 } primaryAction: { ids in
                     model.selectedFiles = ids; model.compareFiles(ids)

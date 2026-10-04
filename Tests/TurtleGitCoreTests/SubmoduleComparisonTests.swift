@@ -28,6 +28,11 @@ final class SubmoduleComparisonTests: XCTestCase {
         XCTAssertEqual(owner, parent.root)
         let childOwner = try await child.discoverSelectionRoot(for: .diff, selected: child.root.appendingPathComponent("file.txt"))
         XCTAssertEqual(childOwner, child.root)
+        let history = try await parent.history(options: HistoryOptions())
+        let entry = try XCTUnwrap(history.first)
+        let files = try await parent.files(in: entry)
+        XCTAssertTrue(files.first(where: { $0.path == path })?.isSubmodule == true)
+        do { _ = try await parent.historicalFile(revision: entry.hash, path: path); XCTFail("Gitlinks are not file exports") } catch RevisionComparisonFailure.selection {}
         let clean = try await parent.submoduleComparison(path: path)
         XCTAssertEqual(clean.change, .identical); XCTAssertFalse(clean.dirty)
         XCTAssertEqual(clean.from.subject, "child base 雪"); XCTAssertEqual(clean.to.revision, base)

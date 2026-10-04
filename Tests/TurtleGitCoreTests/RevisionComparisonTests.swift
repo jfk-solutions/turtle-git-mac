@@ -104,6 +104,29 @@ final class RevisionComparisonTests: XCTestCase {
         XCTAssertEqual(deletedDocument.base.bytes, bytes); XCTAssertTrue(deletedDocument.destination.bytes.isEmpty)
         do { _ = try await repo.revisionFileComparison(from: .revision(second), to: .workingTree, paths: ["../outside"]); XCTFail() } catch {}
     }
+    func testHistoricalSaveReadsExactPinnedBlobsAndRejectsMissingFiles() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let binary = ":(glob)* binary 雪\n.dat", text = "bom.txt", link = "link"
+        let binaryBytes = Data([0, 255, 13, 10, 1]), textBytes = Data([0xef, 0xbb, 0xbf]) + Data("text\r\nlast".utf8)
+        try binaryBytes.write(to: root.appendingPathComponent(binary)); try textBytes.write(to: root.appendingPathComponent(text))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent(link).path, withDestinationPath: "../literal target")
+        try await repo.stage([binary, text, link]); _ = try await repo.commit(message: "export bytes")
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        try Data("working replacement".utf8).write(to: root.appendingPathComponent(binary))
+        let saved = try await repo.historicalFile(revision: hash, path: binary)
+        XCTAssertEqual(saved.revision, .revision(hash)); XCTAssertEqual(saved.bytes, binaryBytes)
+        let bom = try await repo.historicalFile(revision: hash, path: text)
+        XCTAssertEqual(bom.bytes, textBytes)
+        let symlink = try await repo.historicalFile(revision: hash, path: link)
+        XCTAssertEqual(symlink.mode, "120000"); XCTAssertEqual(symlink.bytes, Data("../literal target".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(binary)), Data("working replacement".utf8))
+        for path in ["missing", "../outside"] {
+            do { _ = try await repo.historicalFile(revision: hash, path: path); XCTFail() } catch {}
+        }
+    }
     func testHistoricalRenameBinaryAndLiteralNamesStayPinned() async throws {
         let (root, repo, original) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

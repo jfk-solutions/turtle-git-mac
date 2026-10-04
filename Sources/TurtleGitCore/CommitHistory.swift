@@ -186,7 +186,8 @@ extension GitRepository {
         args += [entry.hash, "--"]
         var names = args; names.insert(contentsOf: ["--name-status", "-z"], at: 1)
         var numbers = args; numbers.insert(contentsOf: ["--numstat", "-z"], at: 1)
-        return CommitFile.parse(names: try run(names).stdout, statistics: try run(numbers).stdout)
+        var raw = args; raw.insert(contentsOf: ["--raw", "-z"], at: 1)
+        return CommitFile.parse(names: try run(names).stdout, statistics: try run(numbers).stdout, raw: try run(raw).stdout)
     }
     public func revisionDiff(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false) throws -> String {
         var args: [String]

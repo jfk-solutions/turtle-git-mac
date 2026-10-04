@@ -146,3 +146,46 @@ both bundle audits and the static Pages build passed. The App Store audit
 exercised universal Git 2.55.0 local operations and checked 11 Mach-O files,
 the Finder extension, licenses and 61 original icons. Signed Finder/sandbox
 acceptance and App Store approval remain unverified.
+
+## File history and historical Save As follow-up
+
+Reviewed upstream file-list Show Log/Show Log of Old Name, FileSaveAs and the
+single-file/deleted/directory menu gates at commit
+`7338078f8ddd924b8cddee35f512f2286072136d`. Log's file menu now offers Show log
+at the selected revision and, for renamed paths, Show log of old name without
+the selected-revision endpoint. Both use retained native path-scoped Log windows
+and the original log icon. Pickers without a file-history factory disable these
+actions. Native QA verified the selected-file endpoint and loaded history.
+
+Save revision to uses the original Save As icon and a native NSSavePanel with a
+base-name/short-hash/extension suggestion. The action is hidden for deleted files
+and gitlinks. Commit-history file rows now include raw-mode metadata, so gitlinks
+are reliably identified. The core historicalFile method pins the commit and
+reads exact blob bytes; it rejects missing/escaping paths and gitlinks without
+checkout or index writes. Export writes the captured Data atomically to the
+panel-selected destination. Symlink blobs export literal target bytes as a file.
+
+A new real-Git test checks binary bytes, UTF-8 BOM, CRLF/no-final-newline text,
+symlink targets, current working-file preservation, pinned revision and exact
+index preservation. The submodule test additionally verifies gitlink file-row
+metadata and export rejection.
+
+Native Save acceptance remains **pending**: three sequential QA instances
+opened the panel with the correct suggested revision filename, but Save and
+New Folder remained disabled. Clearing the read busy state before panel display
+and explicitly allowing data/other file types did not establish a working save.
+Each panel was cancelled; no export was created. No root cause is claimed.
+All three processes were quit and absence verified; fixture HEAD, index and
+source bytes remained unchanged. Further Save-panel validation investigation is
+required before claiming this workflow works natively. Old-name/rename, binary,
+deleted/submodule menu gates and signed sandbox acceptance also remain pending.
+
+The full Swift suite passed all 260 tests before the final native panel-state
+adjustments; the final Swift application build passed after those adjustments.
+Full Log/file-list parity remains incomplete, including per-parent merge rows,
+Blame, revision-file Open/editor actions, multi-file folder export and restoration.
+
+Final unsigned Debug and App Store builds, both bundle audits and the Pages
+build passed. The App Store audit verified universal Git 2.55.0 local operations,
+11 Mach-O files, the Finder extension, licenses and 61 original icons. These
+checks do not establish native Save success, signed scope or App Store approval.

@@ -59,6 +59,9 @@ bundle structure; it is not a signed distribution.
   also open native viewers. Unified/index diff inspection remains available.
   Explicit untracked files compare with an empty base without staging them. Commit
   comparisons follow the selected HEAD/first-parent amend mode.
+  Log file-history actions open scoped native history. Historical blob extraction
+  is byte-preserving; its new Save As panel still has a native validation issue
+  under investigation. See [Log parity](docs/LOG-PARITY.md).
 - Native three-pane UTF-8 text conflict editor with Theirs/Mine/Merged, block choices,
   aligned source rows and colors, original line numbers, undoable whole-source
   selection, Reload and guarded Save/Mark as resolved. Full editor parity and native QA

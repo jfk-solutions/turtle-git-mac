@@ -64,6 +64,12 @@ public struct FileComparisonAlignment: Sendable {
     }
 }
 extension GitRepository {
+    /// Read exact bytes from a pinned commit for Save As; no checkout or index write.
+    public func historicalFile(revision: String, path: String) throws -> ComparisonFileContent {
+        let snapshot = try revisionFileComparison(from: .emptyTree, to: .revision(revision), paths: [path])
+        guard snapshot.files.contains(where: { $0.path == path && !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
+        return try comparisonFile(snapshot, path: path).destination
+    }
     public func comparisonFile(_ snapshot: RevisionComparisonSnapshot, path: String) throws -> FileComparisonDocument {
         guard snapshot.root == root, let file = snapshot.files.first(where: { $0.path == path }), !file.isSubmodule else { throw RevisionComparisonFailure.selection }
         func read(_ revision: ComparisonRevision, _ path: String, absent: Bool) throws -> ComparisonFileContent {
