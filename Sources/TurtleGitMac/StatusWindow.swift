@@ -164,6 +164,9 @@ struct StatusDialog: View {
                     Button { model.onAction(.rename, [path]) } label: { CommandLabel(title: "Rename…", icon: .rename) }
                 }
                 let selected = model.files.filter { ids.contains($0.id) }
+                if !selected.isEmpty && selected.allSatisfy({ ![FileState.normal, .untracked, .ignored].contains($0.state) }) {
+                    Button { model.onAction(.revert, selected.map(\.id)) } label: { CommandLabel(title: "Revert…", icon: .revert) }
+                }
                 IndexFlagsMenu(files: selected) { model.setFlags($0, files: selected) }
                 if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
                     ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onAction)

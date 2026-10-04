@@ -39,6 +39,7 @@ import TurtleGitCore
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .reset && !$0.isIgnore && $0.resolveChoice == nil }) {
             let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
             item.image = action.icon.image()
+            if action == .revert { item.isEnabled = snapshot?.canRevert(paths) == true }
             if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }
             if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
             if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }

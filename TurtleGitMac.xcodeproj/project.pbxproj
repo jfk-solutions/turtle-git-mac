@@ -77,11 +77,13 @@
 		DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = F925723BED85497207863D60 /* SubmoduleConflict.swift */; };
 		E046B347B367E63019422195 /* WorkingTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20E461B2D9629D0293A80EB /* WorkingTree.swift */; };
 		E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */; };
+		E0EF101FE5499CD99CF132F1 /* RevertWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */; };
 		E33A35FBF3211D26C2EE5F72 /* FinderSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E11987C6F9546E908AD60BA /* FinderSync.swift */; };
 		E3EE5EB389BF0E9FD8DDD26A /* SubmoduleConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */; };
 		E74BFF39C0F1EA738EDCD80F /* TurtleGitFinder.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 79C5573349C11EE01ECA2C1E /* TurtleGitFinder.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		E92971BFB0588C2287D36944 /* GitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E43773297420C7FDAE9748 /* GitRepository.swift */; };
 		EB7A90B9B17592BFD2605C3C /* WorkingFileRestore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */; };
+		F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */; };
 		F4D94506F25F14CFDBD68746 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
 		F5EE3ED18BC448DB2B9E658A /* CommitWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */; };
 		F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */; };
@@ -165,6 +167,7 @@
 		396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflictWindow.swift; sourceTree = "<group>"; };
 		3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuIcons.swift; sourceTree = "<group>"; };
 		4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageEditor.swift; sourceTree = "<group>"; };
+		4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertDialogSelection.swift; sourceTree = "<group>"; };
 		4E11987C6F9546E908AD60BA /* FinderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSync.swift; sourceTree = "<group>"; };
 		4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitWindow.swift; sourceTree = "<group>"; };
 		515FF59B2CF163D9481D39B5 /* CommitSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitSelection.swift; sourceTree = "<group>"; };
@@ -212,6 +215,7 @@
 		DE3C7BF5278D5807BDDF4B21 /* Reset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reset.swift; sourceTree = "<group>"; };
 		DF6352B22FB03878FC59F470 /* CommitHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitHistory.swift; sourceTree = "<group>"; };
 		DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchWindow.swift; sourceTree = "<group>"; };
+		E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertWindow.swift; sourceTree = "<group>"; };
 		E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRuntime.swift; sourceTree = "<group>"; };
 		F01FB406B12CA9FED59A3121 /* FinderCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderCache.swift; sourceTree = "<group>"; };
 		F2E43773297420C7FDAE9748 /* GitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRepository.swift; sourceTree = "<group>"; };
@@ -268,6 +272,7 @@
 				6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */,
 				6CFEE049A0098A0212AD01DA /* ResetWindow.swift */,
 				D33C40A99A3883800E7C6431 /* ResolveWindow.swift */,
+				E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
 				CC73279697B4174BE7ED4D66 /* StashWindow.swift */,
 				70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */,
@@ -340,6 +345,7 @@
 				B0144901E0020C531A5D86FB /* RepositoryAccess.swift */,
 				593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */,
 				DE3C7BF5278D5807BDDF4B21 /* Reset.swift */,
+				4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */,
 				83395323FFA0860A52795F9F /* Stash.swift */,
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
 				8927431F95C0127D9B66489A /* TextConflict.swift */,
@@ -545,6 +551,7 @@
 				199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */,
 				5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */,
 				94D627C3502D8ACE734DD470 /* Reset.swift in Sources */,
+				F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
 				7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */,
@@ -583,6 +590,7 @@
 				37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */,
 				DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */,
 				53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */,
+				E0EF101FE5499CD99CF132F1 /* RevertWindow.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,
 				7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */,
 				2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */,

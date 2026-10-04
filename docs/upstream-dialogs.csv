@@ -39,7 +39,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSADV,Advanced Diff/Merge Settin
 src/Resources/TortoiseProcENG.rc,IDD_URL,URL,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_TOOLASSOC,Add/Edit Extension Specific Diff/Merge Program,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_CHECKFORUPDATES,Check For Updates - TortoiseGit,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_REVERT,Revert,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REVERT,Revert,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_LFS_LOCKS,LFS Locks,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_STATGRAPH,Statistics,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETOVERLAYICONS,Icon Set,pending-review

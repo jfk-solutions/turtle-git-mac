@@ -32,6 +32,7 @@ import TurtleGitCore
     private var pushWindows: [String: PushWindowController] = [:]
     private var referenceWindows: [String: BranchTagWindowController] = [:]
     private var switchWindows: [String: SwitchWindowController] = [:]
+    private var revertWindows: [String: RevertWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
     private var mergeWindows: [String: MergeWindowController] = [:]
     private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
@@ -54,6 +55,10 @@ import TurtleGitCore
     private var monitoredRoots: [String] = []
     var visibleEntries: [StatusEntry] { entries.filter { showIgnored || $0.state != .ignored } }
     var selectedPaths: [String] { entries.filter { selection.contains($0.id) }.map(\.path) }
+    var canRevertSelection: Bool {
+        let selected = entries.filter { selection.contains($0.id) }
+        return !selected.isEmpty && selected.allSatisfy { ![FileState.untracked, .ignored].contains($0.state) }
+    }
     var canRenameSelection: Bool {
         let selected = entries.filter { selection.contains($0.id) }
         return !bare && !busy && selected.count == 1 && ![FileState.untracked, .ignored, .deleted].contains(selected[0].state)
@@ -247,6 +252,9 @@ import TurtleGitCore
         case .remove, .removeKeep:
             guard let repository else { return }
             showRemove(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, keepLocal: action == .removeKeep)
+        case .revert:
+            guard let repository else { return }
+            showRevert(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths)
         case .status:
             guard let repository else { return }
             showStatus(repository: repository, access: activeAccess, paths: paths)
@@ -512,6 +520,20 @@ import TurtleGitCore
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
         } catch { self.error = error.localizedDescription }
     }
+    private func showRevert(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        let root = repository.root
+        let controller = revertWindows[root.path] ?? RevertWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.revertWindows.removeValue(forKey: root.path) }
+        controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+        controller.model.onChanged = { [weak self] output in
+            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            guard let self, self.root == root else { return }
+            self.output = output; Task { await self.refresh() }
+        }
+        revertWindows[root.path] = controller
+        controller.model.setScope(paths)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
         let root = repository.root
         section = .status
@@ -523,7 +545,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller

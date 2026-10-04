@@ -7,10 +7,12 @@ import AppKit
         if confirmingQuit { return .terminateLater }
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
         let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
-        guard !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
+        let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
+        guard !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
         guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         repositoryModel?.confirmingQuit = true
+        for revert in reverts { revert.model.confirmingQuit = true }
         for commit in commits { commit.setQuitConfirmation(true) }
         for controller in controllers { controller.model.confirmingQuit = true }
         Task {
@@ -40,6 +42,7 @@ import AppKit
                 }
             }
             if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
+            for revert in reverts { revert.model.confirmingQuit = false }
             for commit in commits { commit.setQuitConfirmation(false) }
             repositoryModel?.confirmingQuit = false
             for controller in controllers { controller.model.confirmingQuit = false }

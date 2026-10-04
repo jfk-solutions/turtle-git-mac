@@ -51,9 +51,53 @@ disk bytes, removed its index entry and displayed an unchecked unversioned row.
 The process was closed after these checks and process absence verified. A transient
 UI observation failure was investigated using the same live process.
 
+## Dedicated native dialog and Finder routing
+
+The pinned `RevertDlg.cpp`, `RevertCommand.cpp` and `IDD_REVERT` were reviewed;
+the two source blobs were verified against the inventory. The native window uses
+the upstream table above Select/deselect all and OK/Cancel/Help arrangement, with
+Path, Extension, Status and added/removed counts, original status/menu artwork,
+independent checkboxes and highlighted rows, and a saved window frame.
+
+Scoped folder requests show versioned changes recursively. Directly requested
+files and added files start checked; other folder changes await review. Mixed
+Select/deselect all clears checks, then an unchecked control selects all. F5
+refresh retains reviewed checks; Control-Return and Command-Return accept the
+plan. Cancel performs no Revert. The unversioned-items note retains the upstream
+default-hidden behavior and uses `Status.UnversionedAsModified`; a settings UI
+for that preference is still pending. File drops are restricted to the same
+repository and refresh the scope. Double-click/context comparison opens a native
+diff sheet; the context menu also provides check/uncheck and scoped Log.
+
+Revert now has an icon-bearing app/Finder action and checked cached eligibility.
+Its URL carries literal multi-path selections through repository authorization
+to the dedicated window. Selecting a submodule checkout root routes Revert to
+its indexed entry in the superproject; independent nested repositories retain
+their own owner. Busy Revert windows prevent close and application Quit while
+Git/filesystem operations run. Idle Revert controls are disabled while another
+window’s application-Quit confirmation is pending.
+
+Three new tests cover real scoped selection defaults, component boundaries,
+unversioned exclusion, unchanged index contents, cached Finder eligibility,
+literal URL roundtrip and initialized submodule/independent-repository routing.
+The final focused selection/Revert/Finder/icon suite passed 20 tests. Native
+Finder-style URL QA checked the initial mixed selection, mixed/off/on selection,
+F5 preservation, Cancel without Git changes, and selective Control-Return
+acceptance with unchecked staged/working contents and HEAD retained. Actual
+light/dark captures are `site/assets/revert.png` and `revert-dark.png`; width and
+footer sizing were corrected after inspecting the native captures. Each preview
+was closed and process absence verified before the next rebuilt preview opened.
+The final unsigned Xcode Debug build and app/extension/icon audit passed.
+
+Full file-list context commands, background artwork, sortable columns, unchanged directly requested
+files, file-drop runtime acceptance, Command-Return, error/retry and busy-Quit
+runtime checks, saved frame reopen and multi-display placement remain pending.
+The Finder request test does not prove signed Finder extension activation or
+actual Finder menu acceptance.
+
 ## Remaining parity
 
-Dedicated Revert dialog and Finder dispatch, upstream progress/notifications and
+Signed Finder menu activation, upstream progress/notifications and
 cancellation, recycle-bin preferences, post-Revert submodule comparison, copy and
 case-only rename combinations, renamed-but-missing destinations and root-amend
 behavior still need audit. Native multi-selection, staged mode, amendment, conflict

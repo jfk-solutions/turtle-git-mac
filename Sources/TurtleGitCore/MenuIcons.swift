@@ -73,6 +73,7 @@ extension RepositoryAction {
         switch self {
         case .status: return .status
         case .commit: return .commit
+        case .revert: return .revert
         case .log, .stashList, .reflog: return .log
         case .diff: return .compare
         case .pull: return .pull

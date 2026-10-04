@@ -43,6 +43,9 @@ bundle structure; it is not a signed distribution.
   restores them after a successful commit, retaining the committed index/HEAD.
   Revert resets selected files and index entries, retaining replaced contents in
   macOS Trash and leaving added files unversioned.
+- Dedicated Revert window with scoped file checks, Select/deselect all, counts,
+  F5 refresh and light/dark appearance; Finder and app-menu routing.
+  [Revert parity details](docs/REVERT-PARITY.md) record the remaining workflows.
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.

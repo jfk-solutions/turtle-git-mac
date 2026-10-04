@@ -46,12 +46,17 @@ extension GitRepository {
     /// continue to use the child repository.
     public func discoverSelectionRoot(for action: RepositoryAction, selected: URL) async throws -> URL {
         let resolved = try discoverRoot()
-        guard action.isResolve, selected.standardizedFileURL == resolved else { return resolved }
+        guard action.isResolve || action == .revert, selected.standardizedFileURL == resolved else { return resolved }
         let parent = GitRepository(root: resolved.deletingLastPathComponent(), executable: executable)
         guard let containing = try? await parent.discoverRoot(), containing != resolved,
               RepositoryAccessLease.pathIsContained(resolved, by: containing) else { return resolved }
         let path = String(resolved.path.dropFirst(containing.path.count + 1))
         let owner = GitRepository(root: containing, executable: executable)
+        if action == .revert {
+            let indexed = try? await owner.run(["ls-files", "--stage", "--", path]).text
+            if indexed?.split(separator: "\n").contains(where: { $0.hasPrefix("160000 ") }) == true { return containing }
+            return resolved
+        }
         if let entries = try? await owner.conflicts(paths: [path]), entries.contains(where: { $0.path == path && $0.isSubmodule }) { return containing }
         return resolved
     }

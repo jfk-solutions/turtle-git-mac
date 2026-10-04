@@ -76,3 +76,8 @@ The Restore after commit capture uses only `restore.txt` in a disposable fixture
 Its caption records the verified ReCommit/working-file behavior and distinguishes
 the verified single-window Quit choices from pending close/failure variants. Keep at most one QA preview process open;
 close it after the scenario and verify process absence before launching another.
+
+The light/dark Revert captures use the disposable Revert dialog fixture. They
+show the actual checked direct-file/addition plan, original artwork and complete
+columns after native width/footer corrections. The gallery distinguishes URL
+routing checks from signed Finder extension activation.

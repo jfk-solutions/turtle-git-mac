@@ -191,6 +191,7 @@ struct RepositoryWindow: View {
                 Button { model.showDiff() } label: { CommandLabel(title: "Diff", icon: .compare) }
                 Button { model.stage() } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(model.selection.isEmpty)
                 Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
+                Button { model.activate(.revert) } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canRevertSelection)
                 Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
                 if model.canResolveSelection && !model.selectedPaths.isEmpty {
                     ResolveSelectionMenu(paths: model.selectedPaths, rebase: model.conflictRebase, canEdit: model.selection.count == 1 && model.entries.contains(where: { model.selection.contains($0.id) && $0.state == .conflicted })) { action, paths in model.activate(action, paths: paths) }
