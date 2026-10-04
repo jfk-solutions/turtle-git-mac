@@ -62,7 +62,8 @@ Apply, inspection and Delete Abort checks above were completed.
 
 ## Remaining
 
-- Complete revision/ref context menus, deletion for non-stash reflogs and chooser mode.
+- Complete revision/ref context menus and deletion for non-stash reflogs.
+- Chooser double-click, multi-selection rejection and normal stash-mode regression QA.
 - Upstream modeless search behavior, F3/F5 shortcuts, no-match presentation and
   broader case/Unicode search QA.
 - Native multi-selection Delete execution, Clear execution, clipboard verification
@@ -70,3 +71,20 @@ Apply, inspection and Delete Abort checks above were completed.
 - Saved column widths/order, sorting, saved geometry, minimum-size and dark-mode QA.
 - Log working-tree/stash menus, selected Pop and branch-from-stash workflows.
 - Signed Finder invocation, multi-repository scope QA and sandbox runtime verification.
+
+## Changed Files revision chooser
+
+RefLog now supports an optional selection callback. In this mode OK accepts exactly
+one entry's immutable hash; Cancel returns no entry, and primary row activation
+accepts the selection. Stash mutation controls and model methods are disabled while
+choosing a revision. The normal window continues to use OK/Cancel to close and row
+activation for inspection. Its repository access lease remains retained, and reads
+require the repository's security scope in App Store builds.
+
+Dark native QA opened the chooser from Changed Files, selected the earlier HEAD
+entry, accepted it and verified the destination hash and empty comparison against
+the same base. Reopening and cancelling preserved both revision fields. Parent and
+child HEAD, the child index and its dirty file were unchanged, and the QA process
+was closed. See [comparison evidence](SUBMODULE-DIFF-PARITY.md) for screenshots and
+remaining chooser checks. This does not verify all ordinary RefLog workflows in
+dark mode.

@@ -5,15 +5,21 @@ import TurtleGitCore
 @MainActor final class ReferenceLogWindowController: NSWindowController, NSWindowDelegate {
     let model: ReferenceLogWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
-        model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference)
+    private var selectionCompletion: ((ReferenceLogEntry?) -> Void)?
+    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, onChoose: ((ReferenceLogEntry?) -> Void)? = nil) {
+        model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference, selecting: onChoose != nil)
+        selectionCompletion = onChoose
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 530), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – RefLog – TurtleGit"
         window.minSize = NSSize(width: 800, height: 360); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ReferenceLogDialog(model: model))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 1000, height: 530)); window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak self] in
+            guard let self else { return }
+            if self.model.selecting { self.finishSelection(nil) } else { self.window?.close() }
+        }
+        model.onChoose = { [weak self] entry in self?.finishSelection(entry) }
         model.confirmDelete = { [weak window] count, clear, proceed in
             guard let window else { return }
             let alert = NSAlert(); alert.alertStyle = .warning
@@ -24,12 +30,21 @@ import TurtleGitCore
         }
         model.reload()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    private func finishSelection(_ entry: ReferenceLogEntry?) {
+        guard let completion = selectionCompletion else { return }; selectionCompletion = nil
+        if let window { window.sheetParent?.endSheet(window); window.close() }
+        completion(entry)
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.busy else { return false }
+        if model.selecting { finishSelection(nil); return false }; return true
+    }
+    func windowWillClose(_ notification: Notification) { let completion = selectionCompletion; selectionCompletion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceLogWindowModel: ObservableObject {
     let repository: GitRepository
+    let selecting: Bool
     private let access: RepositoryAccessLease?
     @Published var reference: String
     @Published var names: [String]
@@ -42,18 +57,21 @@ import TurtleGitCore
     @Published var find = ""
     @Published var matchCase = false
     private var generation = 0
+    var onChoose: (ReferenceLogEntry) -> Void = { _ in }
+    func accept() { if selecting { if !busy, let entry = selectedEntry { onChoose(entry) } } else { close() } }
     var onApply: (String) -> Void = { _ in }
     var onChanged: (String) -> Void = { _ in }
     var confirmDelete: (Int, Bool, @escaping () -> Void) -> Void = { _, _, _ in }
     var close: () -> Void = {}
     var selectedEntry: ReferenceLogEntry? { let chosen = entries.filter { selection.contains($0.id) }; return chosen.count == 1 ? chosen.first : nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
-        self.repository = repository; self.access = access; self.reference = reference; names = [reference]
+    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, selecting: Bool = false) {
+        self.selecting = selecting; self.repository = repository; self.access = access; self.reference = reference; names = [reference]
     }
     func reload() {
         generation += 1; let request = generation, reference = reference; busy = true
         Task {
             do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let refs = try await repository.referenceLogNames(), result = try await repository.referenceLog(reference)
                 guard request == generation else { return }
                 names = Array(Set(refs + [reference])).sorted(); entries = result
@@ -62,12 +80,12 @@ import TurtleGitCore
         }
     }
     func apply(_ ids: Set<String>) {
-        guard !busy, reference == "refs/stash", ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+        guard !selecting, !busy, reference == "refs/stash", ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         // Hash pins the selected entry even if another process changes stash indices.
         onApply(entry.hash)
     }
     func delete(_ ids: Set<String>, clear: Bool = false) {
-        guard !busy, reference == "refs/stash", !entries.isEmpty, clear || !ids.isEmpty else { return }
+        guard !selecting, !busy, reference == "refs/stash", !entries.isEmpty, clear || !ids.isEmpty else { return }
         let expected = entries
         confirmDelete(clear ? entries.count : ids.count, clear) { [weak self] in
             guard let self, !self.busy else { return }; self.busy = true
@@ -113,20 +131,20 @@ private struct ReferenceLogDialog: View {
                 TableColumn("Date") { entry in if let date = entry.date { Text(date.formatted(date: .numeric, time: .standard)) } }.width(min: 140, ideal: 175)
             }.contextMenu(forSelectionType: String.self) { ids in
                 Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1)
-                if model.reference == "refs/stash" {
+                if !model.selecting && model.reference == "refs/stash" {
                     Button { model.apply(ids) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }.disabled(ids.count != 1)
                     Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty)
                 }
                 Divider()
                 Button { model.copy(ids) } label: { CommandLabel(title: "Copy hash", icon: .copy) }.disabled(ids.isEmpty)
-            } primaryAction: { ids in model.inspect(ids) }
+            } primaryAction: { ids in if model.selecting { model.selection = ids; model.accept() } else { model.inspect(ids) } }
             HStack {
                 Button("Search…") { model.showFind = true }.keyboardShortcut("f")
-                if model.reference == "refs/stash" { Button("Clear stash") { model.delete([], clear: true) }.disabled(model.entries.isEmpty) }
+                if !model.selecting && model.reference == "refs/stash" { Button("Clear stash") { model.delete([], clear: true) }.disabled(model.entries.isEmpty) }
                 Button("Refresh") { model.reload() }.keyboardShortcut("r")
                 if model.busy { ProgressView().controlSize(.small) }
                 Spacer()
-                Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
+                Button("OK") { model.accept() }.disabled(model.selecting && model.selectedEntry == nil).keyboardShortcut(.defaultAction)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-reflog.html")!) }
             }

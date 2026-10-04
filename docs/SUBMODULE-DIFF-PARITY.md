@@ -94,13 +94,49 @@ The gallery contains inspected, unedited actual light-mode captures:
 
 ## Remaining work
 
-Full revision/ref/reflog choosers and subjects, upstream Log range behavior,
+Full reference-browser tree/context behavior, upstream Log range behavior,
 column sorting and the remaining file context actions need porting. Primary
 file activation currently opens unified diff; native two-file/image comparison,
 alternative diff tools, blame, export and restore integration remain pending.
 Conflicted gitlinks retain the existing conflict workflow and need explicit
 Diff routing acceptance. Shift-alternative comparison is not wired. Dedicated
 native tests for identical/missing/historical states, Log and Update handoffs,
-F5, filter/swap/whitespace controls, dark mode, multi-monitor placement and busy
+F5, filter/swap/whitespace controls, multi-monitor placement and busy
 Quit remain. Signed Finder and sandbox security-scope acceptance are pending.
 These source files and dialogs remain partial in the full-port scope.
+
+## Revision selection and metadata follow-up
+
+Both revision buttons now offer Browse References, Log and RefLog, alongside
+HEAD/Working tree/Empty tree conveniences. Browse References lists full ref
+names (including refs outside branches/tags/remotes) with filtering and explicit
+OK/Cancel. It is a flat native chooser; the upstream browser's full tree and
+context operations remain pending. Log uses the existing selectable Log window,
+starting at the chosen comparison commit. RefLog uses its existing native window
+in selection mode; OK requires exactly one entry, double-click accepts it,
+Cancel returns no choice, and stash apply/delete/clear are disabled in that mode.
+Normal RefLog behavior retains its existing inspection and stash operations.
+
+Each comparison snapshot includes immutable commit metadata: configured short
+hash, subject, mailmapped author, author date and committer date. Revision labels
+show short hash and subject, with localized author/date tooltips. The newer
+commit side is labelled according to committer dates. Working/empty-tree sides
+have no invented commit metadata. A real-Git test verifies custom refs, default
+checkout reference scope, mailmap, configured abbreviation, separate author and
+committer dates, absent metadata for non-commit sides and retained metadata after
+a ref advances.
+
+One native dark-mode QA process exercised custom-ref selection, Log selection
+of the earlier commit, RefLog selection of the earlier commit and RefLog Cancel.
+The resulting revision fields, subjects, change lists and newer-side labels were
+verified. Parent/child HEAD, child index bytes and local working text were
+retained. The process was quit and absence verified. Inspected, unedited native
+captures are `submodule-diff-dark.png` and `changed-files-dark.png`. Dedicated
+chooser multi-selection rejection, all Cancel variants, RefLog double-click,
+normal stash-mode regression acceptance and signed sandbox checks remain.
+
+Follow-up validation: the full 237-test integration suite passed, followed by the
+metadata test with fixture-relative dates. Unsigned Xcode Debug and App Store
+builds passed; bundle audits verified the embedded Finder extension, licenses,
+59 icon assets and universal bundled Git runtime. The static site build passed.
+These build checks do not prove signed Finder activation or App Store acceptance.

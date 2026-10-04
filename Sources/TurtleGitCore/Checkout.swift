@@ -45,8 +45,8 @@ public enum CheckoutFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func checkoutReferences() throws -> [CheckoutReference] {
-        let bytes = try run(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00", "refs/heads", "refs/remotes", "refs/tags"]).stdout
+    public func checkoutReferences(includeAll: Bool = false) throws -> [CheckoutReference] {
+        let bytes = try run(["for-each-ref", "--sort=refname", "--format=%(refname)%00%(symref)%00"] + (includeAll ? [] : ["refs/heads", "refs/remotes", "refs/tags"])).stdout
         let fields = String(decoding: bytes, as: UTF8.self).components(separatedBy: "\0")
         var result: [CheckoutReference] = []
         var i = 0

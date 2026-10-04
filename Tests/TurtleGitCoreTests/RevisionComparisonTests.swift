@@ -82,4 +82,30 @@ final class RevisionComparisonTests: XCTestCase {
         let identical = try await repo.revisionComparison(from: .revision(main), to: .revision(main))
         XCTAssertTrue(identical.files.isEmpty)
     }
+    func testRevisionDetailsUsePinnedCommitAndMailmapAndAllReferences() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["config", "core.abbrev", "12"])
+        try Data("Mapped Author <mapped@example.invalid> Patch Tests <patch@example.invalid>\n".utf8).write(to: root.appendingPathComponent(".mailmap"))
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let baseTimeText = try await repo.run(["show", "-s", "--format=%ct", base]).text.trimmingCharacters(in: .newlines)
+        let baseTime = try XCTUnwrap(Int(baseTimeText))
+        _ = try await repo.run(["update-ref", "refs/custom/comparison", base])
+        let standard = try await repo.checkoutReferences(), all = try await repo.checkoutReferences(includeAll: true)
+        XCTAssertFalse(standard.contains { $0.name == "refs/custom/comparison" })
+        XCTAssertTrue(all.contains { $0.name == "refs/custom/comparison" })
+        try Data("next\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.run(["commit", "-m", "Subject 雪", "-m", "Body after subject"], environmentOverrides: ["GIT_AUTHOR_DATE": "@\(baseTime + 3600) +0000", "GIT_COMMITTER_DATE": "@\(baseTime + 7200) +0000"])
+        let snapshot = try await repo.revisionComparison(from: .revision("refs/custom/comparison"), to: .revision("HEAD"))
+        let old = try XCTUnwrap(snapshot.fromDetails), new = try XCTUnwrap(snapshot.toDetails)
+        XCTAssertEqual(old.shortHash, String(base.prefix(12))); XCTAssertEqual(old.subject, "base")
+        XCTAssertEqual(new.subject, "Subject 雪"); XCTAssertEqual(new.author, "Mapped Author")
+        XCTAssertEqual(new.committerDate?.timeIntervalSince(new.authorDate!), 3600)
+        XCTAssertGreaterThan(new.committerDate!, old.committerDate!)
+        let working = try await repo.revisionComparison(from: .emptyTree, to: .workingTree)
+        XCTAssertNil(working.fromDetails); XCTAssertNil(working.toDetails)
+        _ = try await repo.run(["update-ref", "refs/custom/comparison", "HEAD"])
+        XCTAssertEqual(snapshot.from, .revision(base)); XCTAssertEqual(snapshot.fromDetails?.subject, "base")
+    }
+
 }

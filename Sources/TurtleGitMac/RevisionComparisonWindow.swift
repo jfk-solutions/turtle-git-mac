@@ -8,9 +8,13 @@ private final class RevisionComparisonNativeWindow: NSWindow {
         if event.keyCode == 96 { refresh(); return true }; return super.performKeyEquivalent(with: event)
     }
 }
+enum ComparisonSide: String, Identifiable { case base, destination; var id: String { rawValue } }
+
 @MainActor final class RevisionComparisonWindowController: NSWindowController, NSWindowDelegate {
     let model: RevisionComparisonWindowModel
     var onClosed: () -> Void = {}
+    private var logPicker: LogWindowController?
+    private var reflogPicker: ReferenceLogWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) {
         model = RevisionComparisonWindowModel(repository: repository, access: access, from: from, to: to)
         let size = NSSize(width: 1000, height: 700)
@@ -20,18 +24,40 @@ private final class RevisionComparisonNativeWindow: NSWindow {
         window.contentViewController = NSHostingController(rootView: RevisionComparisonDialog(model: model))
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.setFrameAutosaveName("FileDiffDialog"); window.center()
+        model.pickHistory = { [weak self] side, reflog in self?.showHistoryPicker(side: side, reflog: reflog) }
         model.window = window; window.refresh = { [weak model] in model?.load() }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.patchWindow?.model.busy != true }
+    private func showHistoryPicker(side: ComparisonSide, reflog: Bool) {
+        guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }
+        if reflog {
+            let picker = ReferenceLogWindowController(repository: model.repository, access: model.access, reference: "HEAD") { [weak model] entry in
+                if let entry { model?.choose(entry.hash, side: side) }
+            }
+            reflogPicker = picker; picker.onClosed = { [weak self] in self?.reflogPicker = nil }
+            if let child = picker.window { window.beginSheet(child) }
+        } else {
+            let picker = LogWindowController(repository: model.repository, access: model.access) { [weak model] entry in
+                if let entry { model?.choose(entry.hash, side: side) }
+            }
+            logPicker = picker; picker.onClosed = { [weak self] in self?.logPicker = nil }
+            let revision = side == .base ? model.snapshot?.from : model.snapshot?.to
+            if case .revision(let hash) = revision { picker.model.endRevision = hash; picker.model.reload() }
+            if let child = picker.window { window.beginSheet(child) }
+        }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.busy && model.patchWindow?.model.busy != true }
     func windowWillClose(_ notification: Notification) { model.patchWindow?.close(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RevisionComparisonWindowModel: ObservableObject {
     let repository: GitRepository
-    private let access: RepositoryAccessLease?
+    let access: RepositoryAccessLease?
     weak var window: NSWindow?
     @Published var from: String
     @Published var to: String
+    @Published var references: [CheckoutReference] = []
+    @Published var browser: ComparisonSide?
+    var pickHistory: (ComparisonSide, Bool) -> Void = { _, _ in }
     @Published var snapshot: RevisionComparisonSnapshot?
     @Published var selection = Set<String>()
     @Published var filter = ""
@@ -56,11 +82,31 @@ private final class RevisionComparisonNativeWindow: NSWindow {
             defer { busy = false }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                references = try await repository.checkoutReferences(includeAll: true)
                 snapshot = try await repository.revisionComparison(from: old, to: new, options: settings)
                 if showingPatch { updatePatch() }
             }
             catch { self.error = error.localizedDescription }
         }
+    }
+    func choose(_ revision: String, side: ComparisonSide) {
+        guard !busy, !confirmingQuit else { return }
+        if side == .base { from = revision } else { to = revision }
+        load()
+    }
+    func revisionDescription(base: Bool) -> String {
+        guard let snapshot else { return "" }
+        if let detail = base ? snapshot.fromDetails : snapshot.toDetails { return detail.shortHash + ": " + detail.subject }
+        return (base ? snapshot.from : snapshot.to).label
+    }
+    func revisionTooltip(base: Bool) -> String {
+        guard let snapshot, let detail = base ? snapshot.fromDetails : snapshot.toDetails else { return "" }
+        return (detail.authorDate?.formatted(date: .numeric, time: .standard) ?? "") + "  " + detail.author
+    }
+    func revisionTitle(base: Bool) -> String {
+        let title = base ? "Version 1 (Base)" : "Version 2"
+        guard let a = snapshot?.fromDetails?.committerDate, let b = snapshot?.toDetails?.committerDate else { return title }
+        return (base ? a > b : b > a) ? title + " (newer)" : title
     }
     func swap() { guard !busy, !confirmingQuit, side(to) != .workingTree else { return }; (from, to) = (to, from); load() }
     func log() {
@@ -105,17 +151,21 @@ private final class RevisionComparisonNativeWindow: NSWindow {
 private struct RevisionComparisonDialog: View {
     @ObservedObject var model: RevisionComparisonWindowModel
     private func revisionGroup(_ title: String, value: Binding<String>, base: Bool) -> some View {
-        GroupBox(title) {
+        GroupBox(model.revisionTitle(base: base)) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     TextField("Revision", text: value).textFieldStyle(.roundedBorder).onSubmit { model.load() }
                     Menu("HEAD") {
+                        Button { model.browser = base ? .base : .destination } label: { CommandLabel(title: "Browse references…", icon: .branch) }
+                        Button { model.pickHistory(base ? .base : .destination, false) } label: { CommandLabel(title: "Log…", icon: .log) }
+                        Button { model.pickHistory(base ? .base : .destination, true) } label: { CommandLabel(title: "RefLog…", icon: .log) }
+                        Divider()
                         Button("HEAD") { value.wrappedValue = "HEAD"; model.load() }
                         Button("Working tree") { value.wrappedValue = "Working tree"; model.load() }
                         Button("Empty tree") { value.wrappedValue = "Empty tree"; model.load() }
                     }.frame(width: 100)
                 }
-                Text(base ? model.snapshot?.from.label ?? "" : model.snapshot?.to.label ?? "").font(.system(.caption, design: .monospaced)).textSelection(.enabled).lineLimit(1)
+                Text(model.revisionDescription(base: base)).font(.system(.caption, design: .monospaced)).textSelection(.enabled).lineLimit(1).help(model.revisionTooltip(base: base))
             }.padding(5)
         }
     }
@@ -154,6 +204,28 @@ private struct RevisionComparisonDialog: View {
         .onChange(of: model.options) { _ in model.load() }
         .onChange(of: model.selection) { _ in model.updatePatch() }
         .onChange(of: model.filter) { _ in model.selection.formIntersection(model.visibleFiles.map(\.path)); model.updatePatch() }
+        .sheet(item: $model.browser) { side in ComparisonReferenceChooser(model: model, side: side) }
         .alert("Comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+    }
+}
+
+private struct ComparisonReferenceChooser: View {
+    @ObservedObject var model: RevisionComparisonWindowModel
+    let side: ComparisonSide
+    @State private var filter = ""
+    @State private var selection: String?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Browse references").font(.headline)
+            TextField("Filter references", text: $filter).textFieldStyle(.roundedBorder)
+            List(selection: $selection) {
+                ForEach(model.references.filter { filter.isEmpty || $0.name.localizedCaseInsensitiveContains(filter) }) { ref in
+                    HStack { Image(nsImage: (ref.name.hasPrefix("refs/tags/") ? MenuIcon.tag : MenuIcon.branch).image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(ref.name) }.tag(ref.name)
+                }
+            }
+            HStack { Spacer(); Button("Cancel") { model.browser = nil }.keyboardShortcut(.cancelAction)
+                Button("OK") { if let selection { model.browser = nil; model.choose(selection, side: side) } }.disabled(selection == nil).keyboardShortcut(.defaultAction)
+            }
+        }.padding(16).frame(width: 640, height: 430)
     }
 }

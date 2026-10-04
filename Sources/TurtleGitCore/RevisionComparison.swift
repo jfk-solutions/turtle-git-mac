@@ -13,10 +13,19 @@ public struct RevisionDiffOptions: Equatable, Sendable {
         (ignoreSpaceAtEnd ? ["--ignore-space-at-eol"] : []) + (ignoreSpaceChange ? ["-b"] : []) + (ignoreAllSpace ? ["-w"] : []) + (ignoreBlankLines ? ["--ignore-blank-lines"] : [])
     }
 }
+public struct ComparisonRevisionDetails: Sendable {
+    public let shortHash: String
+    public let subject: String
+    public let author: String
+    public let authorDate: Date?
+    public let committerDate: Date?
+}
 public struct RevisionComparisonSnapshot: Sendable {
     public let root: URL
     public let from: ComparisonRevision
     public let to: ComparisonRevision
+    public let fromDetails: ComparisonRevisionDetails?
+    public let toDetails: ComparisonRevisionDetails?
     public let files: [CommitFile]
     public let options: RevisionDiffOptions
 }
@@ -41,13 +50,19 @@ extension GitRepository {
         }
         let args = try comparisonArguments(from: old, to: new, options: options)
         let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]).stdout, statistics: try run(args + ["--numstat", "-z", "--"]).stdout)
-        return RevisionComparisonSnapshot(root: root, from: old, to: new, files: files, options: options)
+        return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old), toDetails: try comparisonDetails(new), files: files, options: options)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
         guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { $0.path == path } }) else { throw RevisionComparisonFailure.selection }
         let selected = paths.isEmpty ? [] : snapshot.files.filter { paths.contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
         for path in selected { _ = try restoreLocation(path) }
         return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options) + ["--"] + Set(selected).sorted()).text
+    }
+    private func comparisonDetails(_ side: ComparisonRevision) throws -> ComparisonRevisionDetails? {
+        guard case .revision(let hash) = side else { return nil }
+        let fields = try run(["show", "--no-patch", "--no-notes", "--format=%h%x00%s%x00%aN%x00%at%x00%ct", hash, "--"]).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
+        guard fields.count == 5 else { throw RevisionComparisonFailure.range }
+        return ComparisonRevisionDetails(shortHash: fields[0], subject: fields[1], author: fields[2], authorDate: TimeInterval(fields[3]).map(Date.init(timeIntervalSince1970:)), committerDate: TimeInterval(fields[4]).map(Date.init(timeIntervalSince1970:)))
     }
     private func comparisonArguments(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions) throws -> [String] {
         guard from != .workingTree || to != .workingTree else { throw RevisionComparisonFailure.range }
