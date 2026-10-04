@@ -97,7 +97,7 @@ The gallery contains inspected, unedited actual light-mode captures:
 
 Full reference-browser tree/context behavior, upstream Log range behavior,
 the remaining file context actions need porting. Native
-two-pane editing/save workflows, complete image-diff controls,
+complete two-pane editing/save workflows, image-diff controls,
 alternative diff tools, blame, export and restore integration remain pending.
 Conflicted gitlinks retain the existing conflict workflow and need explicit
 Diff routing acceptance. Shift-alternative comparison is not wired. Dedicated
@@ -134,7 +134,7 @@ and line-number toggling. Its actual dark capture is `two-file-diff-dark.png`.
 Normal Quit exited the process; parent/child HEAD, indexes and local text were
 verified unchanged. Long-file scroll synchronization, multiple difference
 navigation, native rename/binary/image cases, light capture and signed sandbox
-acceptance remain unverified. This viewer is read-only; full TortoiseMerge
+acceptance remain unverified. Historical comparisons remain read-only; full TortoiseMerge
 editing, encoding selection, word diff, locator, folding and settings remain
 part of the unfinished full port.
 
@@ -144,6 +144,49 @@ App Store audit exercised the universal Git 2.55.0 runtime's local commands and
 verified its 11 Mach-O files, embedded Finder extension, licenses and 60 original
 icon resources. The static Pages build passed. These checks do not prove signed
 Finder activation, signed sandbox behavior or App Store approval.
+
+## Working-file editing follow-up
+
+`FileComparisonEditing.swift` maps AppKit UTF-16 selections in aligned panes
+back to real source text. Display gaps and synthetic final newlines are excluded
+from saved bytes. Existing CRLF endings and missing final newlines survive edits;
+inserted newlines use the file's CRLF/LF convention. The viewer offers explicit
+Enable editing for an existing regular working file on either comparison side,
+Save with the original artwork and Command-S, plus guarded close and Reload.
+Historical blobs, symlinks and unsupported encodings remain read-only. Binary
+and image comparisons retain their inspection workflow.
+
+Save preserves UTF-8 BOM or BOM-marked UTF-16 endianness and POSIX permissions.
+It rejects changed file bytes, changed permissions, replacement symlinks and
+read-only destinations, writes a sibling temporary file, revalidates the target
+and atomically replaces it. It never stages, commits or publishes an index.
+Close offers Save/Don't Save/Cancel; Reload offers Save and Reload/Reload Without
+Saving/Cancel. Parent Changed Files closure sends dirty children through their
+close guard. Application Quit includes dirty two-file results in its existing
+coordinated save flow and blocks new edits while confirmation is pending.
+
+Three new tests cover gap selection, CRLF edits, EOF, source/display caret
+mapping, BOM encodings, preserved executable permissions, reversed working-side
+Save, stale bytes/permissions, read-only files, replacement symlinks and unchanged
+HEAD/index. Native QA caught rapid typing reusing the previous alignment; the
+edit handler now updates text and caret synchronously before the next key event.
+The corrected build saved all typed characters and exact no-final-newline bytes.
+Parent and child HEAD/index bytes stayed unchanged. Close Cancel retained a
+draft; Reload Without Saving restored the previously saved file. Both sequential
+test instances exited normally. The existing gallery image shows the earlier
+historical read-only viewer; a new editing screenshot is still needed.
+
+Native Undo/Redo, dirty application Quit, Save and Reload, stale-save alert,
+multi-window close, mixed line endings, gap typing, reversed-side UI, signed
+sandbox and light-mode acceptance remain pending. Historical editing/export,
+block/file transfer controls, full encoding choice, folding, locator and complete
+TortoiseMerge parity remain unfinished.
+
+Validation: all 246 integration tests passed, including the three new editing
+tests. Final unsigned Debug/App Store builds, both bundle audits and the static
+Pages build passed. The App Store audit again verified universal Git 2.55.0,
+its 11 Mach-O files and local commands, the Finder extension, licenses and 60
+original icons. Signed execution and release approval are still unverified.
 
 ## Revision selection and metadata follow-up
 

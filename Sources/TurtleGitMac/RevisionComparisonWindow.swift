@@ -46,7 +46,13 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             if let child = picker.window { window.beginSheet(child) }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.busy && model.patchWindow?.model.busy != true && !model.comparisonWindows.values.contains { $0.model.busy } }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard sender.attachedSheet == nil, !model.busy, model.patchWindow?.model.busy != true, !model.comparisonWindows.values.contains(where: { $0.model.busy }) else { return false }
+        if let child = model.comparisonWindows.values.first(where: { $0.model.dirty }) {
+            child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
+        }
+        return true
+    }
     func windowWillClose(_ notification: Notification) { model.patchWindow?.close(); Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

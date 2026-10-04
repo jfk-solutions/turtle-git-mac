@@ -5,6 +5,10 @@ public struct ComparisonFileContent: Sendable {
     public let revision: ComparisonRevision
     public let bytes: Data
     public let mode: String?
+    public let permissions: Int?
+    init(path: String, revision: ComparisonRevision, bytes: Data, mode: String?, permissions: Int? = nil) {
+        self.path = path; self.revision = revision; self.bytes = bytes; self.mode = mode; self.permissions = permissions
+    }
     public var text: String? {
         if bytes.starts(with: [0xff, 0xfe]) { return String(data: bytes.dropFirst(2), encoding: .utf16LittleEndian) }
         if bytes.starts(with: [0xfe, 0xff]) { return String(data: bytes.dropFirst(2), encoding: .utf16BigEndian) }
@@ -73,7 +77,7 @@ extension GitRepository {
                 }
                 guard type == .typeRegular else { throw RevisionComparisonFailure.selection }
                 let executable = (attributes[.posixPermissions] as? NSNumber)?.intValue ?? 0
-                return ComparisonFileContent(path: path, revision: revision, bytes: try Data(contentsOf: location), mode: executable & 0o111 == 0 ? "100644" : "100755")
+                return ComparisonFileContent(path: path, revision: revision, bytes: try Data(contentsOf: location), mode: executable & 0o111 == 0 ? "100644" : "100755", permissions: executable)
             }
             guard case .revision(let hash) = revision else { throw RevisionComparisonFailure.range }
             // Literal, NUL-delimited tree lookup handles colons, tabs and newlines.

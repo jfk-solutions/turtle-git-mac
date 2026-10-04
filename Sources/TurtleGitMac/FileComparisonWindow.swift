@@ -6,6 +6,7 @@ import TurtleGitCore
     weak var model: FileComparisonWindowModel?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if flags == .command, event.charactersIgnoringModifiers == "s" { model?.save(); return true }
         if flags == .command, event.charactersIgnoringModifiers == "f" { model?.find(.showFindInterface); return true }
         if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "g" {
             model?.find(flags.contains(.shift) ? .previousMatch : .nextMatch); return true
@@ -26,8 +27,18 @@ import TurtleGitCore
         super.init(window: window); window.model = model; window.delegate = self
         window.setFrameAutosaveName("TurtleGit.TwoFileDiff"); window.center()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard !model.busy, !model.confirmingQuit else { return false }
+        guard model.dirty else { return true }
+        let alert = NSAlert(); alert.messageText = "Save changes to “\(model.path)” before closing?"
+        alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: model.save { [weak self] saved in if saved { self?.window?.performClose(nil) } }; return false
+        case .alertSecondButtonReturn: return true
+        default: return false
+        }
+    }
+    func windowWillClose(_ notification: Notification) { model.resetHistory(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class FileComparisonWindowModel: ObservableObject {
@@ -42,21 +53,61 @@ import TurtleGitCore
     @Published var error: String?
     @Published var difference = -1
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
+    @Published var editingEnabled = false
+    @Published var editedText = ""
+    var editableBase: Bool? {
+        guard let document else { return nil }
+        for (base, content) in [(true, document.base), (false, document.destination)] where content.revision == .workingTree && ["100644", "100755"].contains(content.mode ?? "") && content.text != nil { return base }
+        return nil
+    }
+    var dirty: Bool { guard let document, let base = editableBase else { return false }; return !editedText.utf8.elementsEqual((base ? document.base.text! : document.destination.text!).utf8) }
+    var resetHistory: () -> Void = {}
+    var selectionRequest: Int?
     private var scrolls: [Bool: NSScrollView] = [:]
     private var synchronizing = false
     init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
         self.repository = repository; self.access = access; self.snapshot = snapshot; self.path = path
     }
     func load() {
-        guard !busy, !confirmingQuit else { return }; busy = true
+        guard !busy, !confirmingQuit else { return }
+        if dirty {
+            let alert = NSAlert(); alert.messageText = "Save changes to “\(path)” before reloading?"
+            alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
+            switch alert.runModal() {
+            case .alertFirstButtonReturn: save { [weak self] saved in if saved { self?.load() } }; return
+            case .alertSecondButtonReturn: break
+            default: return
+            }
+        }
+        busy = true
         Task {
             defer { busy = false }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let value = try await repository.comparisonFile(snapshot, path: path)
                 document = value
-                alignment = value.base.text.flatMap { base in value.destination.text.map { FileComparisonAlignment(base: base, destination: $0) } }
+                editedText = (editableBase == true ? value.base.text : value.destination.text) ?? ""
+                rebuildAlignment(); resetHistory(); selectionRequest = nil
                 difference = -1
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    func rebuildAlignment() {
+        guard let document else { return }
+        let a = editableBase == true ? editedText : document.base.text
+        let b = editableBase == false ? editedText : document.destination.text
+        alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0) } }
+    }
+    func save(completion: ((Bool) -> Void)? = nil) {
+        guard !busy, let document, let base = editableBase else { completion?(false); return }
+        let text = editedText; busy = true
+        Task {
+            var saved = false
+            defer { busy = false; completion?(saved) }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                self.document = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text)
+                rebuildAlignment(); saved = true
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -107,19 +158,21 @@ private struct FileComparisonDialog: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
+                Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.dirty)
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }
                 Button { model.navigate(-1) } label: { CommandLabel(title: "Previous difference", icon: .mergePreviousConflict) }.disabled(model.difference <= 0)
                 Button { model.navigate(1) } label: { CommandLabel(title: "Next difference", icon: .mergeNextConflict) }.disabled(model.alignment?.differences.isEmpty != false || model.difference >= (model.alignment?.differences.count ?? 0) - 1)
                 Button { model.find(.showFindInterface) } label: { CommandLabel(title: "Find", icon: .mergeFind) }.disabled(model.alignment == nil)
-                Spacer(); Toggle("Line numbers", isOn: $model.showLineNumbers).toggleStyle(.checkbox)
+                Spacer()
             }.padding(10).disabled(model.busy || model.confirmingQuit)
+            HStack { Toggle("Enable editing", isOn: $model.editingEnabled).disabled(model.editableBase == nil || model.busy || model.confirmingQuit); Spacer(); Toggle("Line numbers", isOn: $model.showLineNumbers) }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             Divider()
             HSplitView { pane(base: true); pane(base: false) }
             Divider()
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Text(model.alignment.map { "\($0.differences.count) difference(s)" } ?? "").font(.caption)
-                Spacer(); Text("Read-only comparison").font(.caption).foregroundStyle(.secondary)
+                Spacer(); Text(model.dirty ? "Modified · working file not saved" : model.editingEnabled && model.editableBase != nil ? "Editing working file" : "Read-only comparison").font(.caption).foregroundStyle(.secondary)
             }.padding(8)
         }.onAppear { model.load() }
         .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.showLineNumbers = MergeEditorPreferences.load().showLineNumbers }
@@ -132,6 +185,9 @@ private struct FileComparisonEditor: NSViewRepresentable {
     let base: Bool
     func makeNSView(context: Context) -> NSScrollView {
         let view = NSTextView(); view.isEditable = false; view.isRichText = false
+        view.allowsUndo = true; view.delegate = context.coordinator
+        view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
+        view.isAutomaticSpellingCorrectionEnabled = false
         view.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
         view.textContainerInset = NSSize(width: 8, height: 8)
         view.isVerticallyResizable = true; view.isHorizontallyResizable = true
@@ -144,30 +200,63 @@ private struct FileComparisonEditor: NSViewRepresentable {
         scroll.hasVerticalRuler = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         scroll.contentView.postsBoundsChangedNotifications = true
         context.coordinator.scroll = scroll
+        if model.editableBase == base { model.resetHistory = { [weak view] in view?.undoManager?.removeAllActions() } }
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.scrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         model.register(scroll, base: base)
         return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView else { return }
-        let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
-        paragraph.defaultTabInterval = CGFloat(MergeEditorPreferences.load().tabWidth) * (" " as NSString).size(withAttributes: [.font: view.font!]).width
-        let value = NSMutableAttributedString(string: "")
-        for cell in cells {
-            value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: view.font!, .foregroundColor: NSColor.labelColor, .backgroundColor: MergePalette.color(cell.state), .paragraphStyle: paragraph]))
-        }
+        context.coordinator.cells = cells; context.coordinator.base = base
+        view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
+        let value = Self.attributed(cells, font: view.font!)
         if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
         else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
         scroll.rulersVisible = model.showLineNumbers
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
         scroll.verticalRulerView?.needsDisplay = true
+        if model.editableBase == base, let caret = model.selectionRequest {
+            let offset = FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells)
+            view.setSelectedRange(NSRange(location: min(offset, (view.string as NSString).length), length: 0))
+            view.scrollRangeToVisible(view.selectedRange())
+            DispatchQueue.main.async { if model.selectionRequest == caret { model.selectionRequest = nil } }
+        }
+    }
+    static func attributed(_ cells: [MergeSourceCell], font: NSFont) -> NSAttributedString {
+        let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
+        paragraph.defaultTabInterval = CGFloat(MergeEditorPreferences.load().tabWidth) * (" " as NSString).size(withAttributes: [.font: font]).width
+        let value = NSMutableAttributedString(string: "")
+        for cell in cells { value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: NSColor.labelColor, .backgroundColor: MergePalette.color(cell.state), .paragraphStyle: paragraph])) }
+        return value
     }
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
-    @MainActor final class Coordinator: NSObject {
+    @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         let model: FileComparisonWindowModel
         weak var scroll: NSScrollView?
+        var cells: [MergeSourceCell] = []
+        var base = false
         init(model: FileComparisonWindowModel) { self.model = model }
         @objc func scrolled(_ notification: Notification) { if let scroll { model.scrolled(scroll) } }
+        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
+            guard model.editingEnabled, model.editableBase == base, !model.busy, !model.confirmingQuit else { return false }
+            do {
+                let edit = try FileComparisonEditing.applying(replacementString ?? "", range: affectedCharRange, cells: cells)
+                replace(edit.text, caret: edit.caret)
+            } catch { model.error = error.localizedDescription }
+            return false
+        }
+        private func replace(_ text: String, caret: Int) {
+            guard !model.busy, !model.confirmingQuit else { return }
+            let old = model.editedText
+            guard !old.utf8.elementsEqual(text.utf8) else { return }
+            (scroll?.documentView as? NSTextView)?.undoManager?.registerUndo(withTarget: self) { target in target.replace(old, caret: min(caret, (old as NSString).length)) }
+            model.editedText = text; model.selectionRequest = caret; model.rebuildAlignment()
+            if let alignment = model.alignment, let view = scroll?.documentView as? NSTextView {
+                cells = alignment.rows.map { base ? $0.base : $0.destination }
+                view.textStorage?.setAttributedString(FileComparisonEditor.attributed(cells, font: view.font!))
+                view.setSelectedRange(NSRange(location: min(FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells), (view.string as NSString).length), length: 0))
+            }
+        }
         deinit { NotificationCenter.default.removeObserver(self) }
     }
 }

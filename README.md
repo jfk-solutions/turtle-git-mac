@@ -217,7 +217,8 @@ the native comparison windows, immutable revision comparisons, post-Revert
 submodule handling, the native Base/Theirs file viewer and remaining comparison
 actions. File double-click opens colored, aligned panes with Find and difference
 navigation; unified patch is available separately. The two-file viewer is
-currently read-only; full TortoiseMerge parity remains in progress.
+supports explicit working-file editing and guarded Save; historical sides stay
+read-only. Full TortoiseMerge parity remains in progress.
 [Submodule Update parity](docs/SUBMODULE-UPDATE-PARITY.md) records the native
 selection/options window, real Git behavior and remaining progress/Finder checks.
 

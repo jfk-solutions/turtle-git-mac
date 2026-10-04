@@ -14,7 +14,7 @@ import AppKit
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
         guard !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
-        guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) else { return .terminateNow }
+        guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         repositoryModel?.confirmingQuit = true
         for comparison in fileComparisons { comparison.model.confirmingQuit = true }
@@ -26,7 +26,20 @@ import AppKit
         for controller in controllers { controller.model.confirmingQuit = true }
         Task {
             var allowQuit = true
-            for controller in controllers where controller.model.dirty {
+            for controller in fileComparisons where controller.model.dirty {
+                controller.window?.makeKeyAndOrderFront(nil)
+                let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.path)” before quitting?"
+                alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
+                switch alert.runModal() {
+                case .alertFirstButtonReturn:
+                    let saved = await withCheckedContinuation { continuation in controller.model.save { continuation.resume(returning: $0) } }
+                    if !saved { allowQuit = false }
+                case .alertSecondButtonReturn: break
+                default: allowQuit = false
+                }
+                if !allowQuit { break }
+            }
+            for controller in controllers where allowQuit && controller.model.dirty {
                 controller.window?.makeKeyAndOrderFront(nil)
                 let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.path)” before quitting?"
                 alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
