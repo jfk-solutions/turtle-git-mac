@@ -28,8 +28,9 @@ bundle structure; it is not a signed distribution.
 
 ## Implemented first pass
 
-The historical Blame data reader is tested, but its native window and menus are
-still pending. See [Blame parity](docs/BLAME-PARITY.md).
+Native historical Blame opens from Log with annotation columns, age colors,
+Find/Go To Line and origin-aware Show log. Full menus, syntax highlighting and
+encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 
 - Open normal repositories and linked worktrees; show branch and status.
 - Remember recent repositories with security-scoped bookmarks; renew stale permissions

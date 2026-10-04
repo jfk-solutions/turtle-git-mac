@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */; };
 		0195C6B3141B1AE8A2DD732B /* Checkout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593DF9B126BBA7E5D206ABE5 /* Checkout.swift */; };
+		04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147C1880748CAF195D6A19CA /* BlameWindow.swift */; };
 		0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */; };
 		0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FB406B12CA9FED59A3121 /* FinderCache.swift */; };
 		10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = 966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */; };
@@ -165,6 +166,7 @@
 		1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertProgressWindow.swift; sourceTree = "<group>"; };
 		11C14DF0DFBA0B8AC513278E /* NOTICE */ = {isa = PBXFileReference; path = NOTICE; sourceTree = "<group>"; };
 		136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchTagWindow.swift; sourceTree = "<group>"; };
+		147C1880748CAF195D6A19CA /* BlameWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameWindow.swift; sourceTree = "<group>"; };
 		1491F4A59F19B27A3FCCF966 /* PushWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushWindow.swift; sourceTree = "<group>"; };
 		152D20910797F40A39CBF1A8 /* LICENSE */ = {isa = PBXFileReference; path = LICENSE; sourceTree = "<group>"; };
 		1559DC3926805ADF57166DCE /* CommitMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessage.swift; sourceTree = "<group>"; };
@@ -277,6 +279,7 @@
 			children = (
 				B16F443B326FDAB1414D334B /* Appearance.swift */,
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
+				147C1880748CAF195D6A19CA /* BlameWindow.swift */,
 				136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */,
 				7A4B370EB64932B2909A8228 /* CloneWindow.swift */,
 				0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */,
@@ -618,6 +621,7 @@
 			files = (
 				D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */,
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
+				04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */,
 				7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */,
 				5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */,
 				A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */,

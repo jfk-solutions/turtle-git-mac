@@ -27,6 +27,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private var blameWindows: [String: BlameWindowController] = [:]
     private var rebaseWindows: [String: RebaseWindowController] = [:]
     private var fetchWindows: [String: FetchWindowController] = [:]
     private var pushWindows: [String: PushWindowController] = [:]
@@ -693,6 +694,13 @@ import TurtleGitCore
         stashRestoreWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
+    private func showBlame(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String) {
+        let key = repository.root.path + "\0" + path + "\0" + revision
+        let controller = blameWindows[key] ?? BlameWindowController(repository: repository, access: access, path: path, revision: revision)
+        controller.onClosed = { [weak self] in self?.blameWindows.removeValue(forKey: key) }
+        controller.model.onLog = { [weak self] origin, hash in self?.showLog(repository: repository, access: access, paths: [origin], endRevision: hash) }
+        blameWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil) {
         let root = repository.root
         let key = root.path + (endRevision.map { "\0" + $0 } ?? "") + (paths.isEmpty ? "" : "\0paths\0" + paths.sorted().joined(separator: "\0"))
@@ -705,6 +713,7 @@ import TurtleGitCore
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
+        controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
         logWindows[key] = controller
         controller.model.endRevision = endRevision
         let location = paths.count == 1 ? root.lastPathComponent + "/" + paths[0] : root.lastPathComponent

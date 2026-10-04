@@ -225,3 +225,10 @@ audits and the static Pages build passed. The App Store audit verified the
 universal Git 2.55.0 runtime/local operations, 11 Mach-O files, Finder extension,
 licenses and 61 original icons. Native clipboard and signed
 execution remain pending.
+
+## Historical Blame handoff
+
+The single non-deleted, non-submodule changed-file menu opens the native Blame window
+at the selected revision, with original Blame application artwork. Native root
+and renamed-file history handoffs were checked; full Blame menus, editor layout,
+encodings and Finder routing remain pending. See [Blame parity](BLAME-PARITY.md).

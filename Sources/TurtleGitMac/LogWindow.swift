@@ -114,6 +114,7 @@ struct LogCommandRequest: Identifiable {
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
+    var onBlame: ((String, String) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
@@ -305,6 +306,7 @@ struct LogDialog: View {
                             Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
                         }
                         if !file.isSubmodule && !file.action.hasPrefix("D") {
+                            Button { if let revision = model.revision { model.onBlame?(file.path, revision.hash) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(model.busy || model.onBlame == nil)
                             Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy)
                         }
                         Divider()

@@ -6,6 +6,7 @@ import AppKit
 /// cherry-pick glyphs use template tinting to remain visible in both appearances.
 public enum MenuIcon: String, CaseIterable {
     case turtle = "TortoiseSmall", status = "menushowchanged", commit = "menucommit", log = "menulog"
+    case blame = "TortoiseGitBlame"
     case compare = "menucompare", unifiedDiff = "menudiff", pull = "pull1", push = "Push", fetch = "menuupdate"
     case branch = "menucopy", tag = "tag", checkout = "menuswitch", merge = "menumerge", rebase = "menurebase"
     case rebasePick = "menupick", rebaseSkip = "menuskip", rebaseEdit = "menuedit", rebaseSquash = "menusquash", reverse = "switch"

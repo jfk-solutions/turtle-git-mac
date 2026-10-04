@@ -1,8 +1,8 @@
 # Blame parity
 
 Target: the native equivalent of TortoiseGitBlame, including its annotated source
-layout, colors, navigation, context menus and settings. This workflow is not yet
-available in the app: the first implementation is the repository data reader.
+layout, colors, navigation, context menus and settings. A first native historical
+viewer is available from the Log changed-file context menu. Full parity is pending.
 
 ## Baseline
 
@@ -51,21 +51,59 @@ Git 2.55.0, checking attribution and unchanged HEAD/index/working contents. This
 checks the local packaged runtime, not signed sandbox or App Store acceptance.
 The documentation site build passed. No app process was launched for these checks.
 
+## Native historical viewer
+
+`Sources/TurtleGitMac/BlameWindow.swift` uses an AppKit annotation table in a
+resizable native window. Revision, author, localized date and line number precede
+monospaced source. Horizontal/vertical scrolling retain source order. Find searches
+revision, author and source with optional case sensitivity and wraps in either
+direction; Go To Line selects and scrolls to a valid source line. This is native
+navigation, not a source-line filter. Tooltips and the selection footer show the
+origin filename/line and commit summary.
+
+Ignore whitespace, moved-line and copied-line options reload at the already pinned
+commit. Colorize by age uses the original light/dark palette endpoints and upstream
+integer history-rank interpolation. Ranks currently come from Git's `--follow`
+file history; merge ordering and copied origins outside that history still need
+comparison against the upstream log list. The source display removes a leading BOM
+and trailing CR markers while the underlying snapshot preserves all bytes.
+
+The line menu has original Log/Copy icons, Show log, Copy revision and Copy source
+line. Show log and double-click use the line's origin filename and commit rather
+than the current filename. The Log Blame item uses the unchanged original
+`TortoiseGitBlame.ico` application artwork with verified Git blob identity and
+SHA-256 provenance; the exact upstream command-icon mapping remains pending.
+
+The controller retains its repository security-scoped lease and invalidates pending
+UI updates on close. It does not edit or stage files. Native QA verified root-file
+annotations, Find, Go To Line, historical Show log, three authors, and Show log for
+the original filename before a rename. Dark age shades were visually verified;
+[the actual screenshot](site/assets/blame-dark.png) is included in the site gallery.
+All QA processes were quit after their scenarios and repository HEAD/index/source
+baselines were unchanged. Light appearance acceptance remains pending: the UI
+automation could not act on the Appearance menu, so no light screenshot is claimed.
+
+Viewer milestone validation: Swift build and the six Blame tests passed; unsigned
+Debug/AppStore builds and bundle audits passed with 62 upstream icon resources.
+The packaged universal Git audit, including historical Blame, and the site build
+also passed. The earlier full 266-test run covers the unchanged annotation reader.
+
 ## Remaining work
 
-- Native annotated source window, revision/author/date margin and line numbers.
-- Original light/dark age palettes, revision/author selection and hover highlighting.
+- Sticky revision/author selection and hover highlighting, full source locator and
+  integrated revision-log layout; light palette native acceptance.
 - Syntax highlighting, source selection and native editor scrolling behavior.
-- Find, previous/next match, Go To Line and revision/block navigation.
-- Show Log using each line's origin filename and revision; Show Changes, Blame
-  Previous, clipboard/export commands and original menu icons.
+- Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and
+  revision/block navigation.
+- Show Changes, Blame Previous, full commit-message copy/export commands and
+  remaining original menu icons.
 - Blame options dialog, revision chooser, complete copied-line modes/thresholds,
   settings and persistent preferences.
 - UTF-16 and other encodings, including the upstream BOM/trailing-line cases;
   current binary, invalid UTF-8 and symlink inputs are explicitly unsupported.
 - Working/uncommitted content, Finder routing, cancellation/progress and signed
   sandbox acceptance, including security-scoped access retained by the window.
-- Native light/dark visual comparison, keyboard/VoiceOver acceptance and genuine
-  screenshots for the documentation gallery.
+- Full light/dark visual comparison, keyboard/VoiceOver acceptance and a light
+  screenshot for the documentation gallery.
 
-No native Blame window or full source-file parity is claimed by this data milestone.
+The native viewer is partial; populated controls do not establish full source-file parity.

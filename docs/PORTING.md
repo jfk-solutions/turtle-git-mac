@@ -29,7 +29,7 @@ require review; a dialog count is not a count of all upstream UI.
 | TortoiseShell / COM | Finder Sync extension and URL routing | Compiles; signed end-to-end behavior unverified |
 | TGitCache | App Group snapshot, directory badge aggregation | Active repository polling; independent daemon pending |
 | TortoiseMerge | Native three-pane UTF-8 conflict editor | Partial stage extraction, block choices and guarded saves; full view/menu parity pending. See TEXT-MERGE-PARITY.md |
-| TortoiseGitBlame | Historical annotation reader; native annotated source window planned | Partial data reader with real Git tests; UI, navigation and encoding parity pending. See BLAME-PARITY.md |
+| TortoiseGitBlame | Historical annotation reader and native annotated source window | Partial columns, age colors, Find/Go To Line and origin-aware Log; full menus, syntax, encodings and signed acceptance pending. See BLAME-PARITY.md |
 | TortoiseIDiff | Native image comparison window | Pending |
 | TortoiseUDiff | Native syntax-highlighted patch window | Plain patch output only |
 | SshAskPass / TortoisePlink | Git helpers, Keychain and OpenSSH | Existing helper configuration only |
