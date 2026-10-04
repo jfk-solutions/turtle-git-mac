@@ -49,7 +49,7 @@ extension GitRepository {
             old = .revision(try run(["merge-base", a, b]).text.trimmingCharacters(in: .newlines))
         }
         let args = try comparisonArguments(from: old, to: new, options: options)
-        let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]).stdout, statistics: try run(args + ["--numstat", "-z", "--"]).stdout)
+        let files = CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]).stdout, statistics: try run(args + ["--numstat", "-z", "--"]).stdout, raw: try run(args + ["--raw", "-z", "--"]).stdout).filter { $0.hasStatistics || $0.isSubmodule }
         return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old), toDetails: try comparisonDetails(new), files: files, options: options)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {

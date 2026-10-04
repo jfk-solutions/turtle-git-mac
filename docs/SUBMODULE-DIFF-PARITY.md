@@ -56,8 +56,8 @@ snapshot. Rename paths and filenames containing Unicode, newlines or pathspec
 syntax are parsed with NUL records and passed literally. Comparisons against
 the working tree include staged and unstaged tracked changes. Untracked files
 are excluded until added to Git. Empty-tree comparisons support added/deleted
-submodules. Reverse comparison uses Git's `-R`. Whitespace suppression can leave
-an entry in Git's name-status list while its selected patch is empty.
+submodules. Reverse comparison uses Git's `-R`. Whitespace-only entries omitted by Git numstat are now hidden, matching the
+upstream FileDiff filter. Binary entries and gitlinks remain visible.
 
 Successful Revert retains the operation's exact comparison revision and its
 restored submodule paths. Its Handle submodules button closes progress and
@@ -95,7 +95,7 @@ The gallery contains inspected, unedited actual light-mode captures:
 ## Remaining work
 
 Full reference-browser tree/context behavior, upstream Log range behavior,
-column sorting and the remaining file context actions need porting. Primary
+the remaining file context actions need porting. Primary
 file activation currently opens unified diff; native two-file/image comparison,
 alternative diff tools, blame, export and restore integration remain pending.
 Conflicted gitlinks retain the existing conflict workflow and need explicit
@@ -140,3 +140,48 @@ metadata test with fixture-relative dates. Unsigned Xcode Debug and App Store
 builds passed; bundle audits verified the embedded Finder extension, licenses,
 59 icon assets and universal bundled Git runtime. The static site build passed.
 These build checks do not prove signed Finder activation or App Store acceptance.
+
+## File list sorting and context actions
+
+All five column headers now sort in both directions. Text uses literal UTF-16
+ordering; Action follows the upstream action flag order; counts sort numerically
+with unavailable statistics treated as zero. Each column uses the path as a tie
+breaker, including reverse sorting. Selection is retained by path. Git raw diff
+metadata identifies current/deleted gitlinks independently of filesystem state;
+these entries remain visible if statistics are absent. Missing numstat records
+for ordinary ignored-whitespace-only changes are filtered, while binary records
+with `-` statistics remain.
+
+Copy Paths and Copy All Columns preserve the displayed selected-row order, with
+tab-separated fields and native LF line endings. Save List uses an NSSavePanel and
+UTF-8 output containing the pinned From/To revisions followed by selected paths.
+It snapshots the selection before opening the panel and writes atomically. The
+Save As icon is the unchanged upstream `src/Resources/saveas.ico`, verified against
+blob `8cf032d7da7ff664a917b1c53898fa156afc62d7` and added to icon provenance.
+
+File-scoped Show Log routes each selected path to its own Log window at the pinned
+destination commit, or working-tree history when appropriate. History window
+identity now includes the path scope, so opening a second path does not overwrite
+the first. Submodule-expanded and child-history variants remain pending.
+
+A real-Git test covers numeric 2/12 ordering, reverse ties, action/extension/deleted
+counts, binary retention, sorted clipboard fields and saved-list revision headers.
+A parser test covers newline/Unicode gitlinks with absent statistics. The existing
+whitespace test now requires the ignored-only file to disappear. All 239 tests
+passed, including the expanded 60-icon decoding checks.
+
+One dark native QA process verified ascending and descending added-count order,
+Ctrl/Cmd-A selection and a path filter retaining the matching selected row. The
+selected-file menu exposed Log, Save List and both copy actions. Save List opened
+its native sheet, but automation could not complete Save/Cancel; no output file
+was created. Context-menu multi-row automation also failed to resolve row targets.
+Clipboard contents, disk Save completion and file Log acceptance therefore remain
+unverified. Parent/child HEAD, exact index bytes and the local working file were
+unchanged. Normal Quit did not dismiss the Save sheet; the finished disposable
+process was terminated with SIGTERM and process absence verified. No UI success
+is inferred from that cleanup. The checked menu/sheet code is still subject to
+native Save/Cancel and signed sandbox acceptance.
+
+File-list build validation: unsigned Xcode Debug and App Store builds passed,
+as did their bundle audits, including the 60 original icons, embedded Finder
+extension and universal Git runtime. The static site build passed.

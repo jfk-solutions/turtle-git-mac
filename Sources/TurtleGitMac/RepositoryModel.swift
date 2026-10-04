@@ -562,6 +562,7 @@ import TurtleGitCore
         let controller = revisionComparisonWindows[key] ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to)
         controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
+        controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
         revisionComparisonWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -640,7 +641,8 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
     private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil) {
-        let root = repository.root, key = endRevision == nil ? root.path : root.path + "\0" + endRevision!
+        let root = repository.root
+        let key = root.path + (endRevision.map { "\0" + $0 } ?? "") + (paths.isEmpty ? "" : "\0paths\0" + paths.sorted().joined(separator: "\0"))
         let controller = logWindows[key] ?? LogWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
@@ -649,7 +651,8 @@ import TurtleGitCore
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         logWindows[key] = controller
         controller.model.endRevision = endRevision
-        if let endRevision { controller.window?.title = "\(root.lastPathComponent) – Log Messages at \(endRevision.prefix(7)) – TurtleGit" }
+        let location = paths.count == 1 ? root.lastPathComponent + "/" + paths[0] : root.lastPathComponent
+        controller.window?.title = location + " – Log Messages" + (endRevision.map { " at " + $0.prefix(7) } ?? "") + " – TurtleGit"
         controller.model.setPathScope(paths)
         controller.model.reload()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

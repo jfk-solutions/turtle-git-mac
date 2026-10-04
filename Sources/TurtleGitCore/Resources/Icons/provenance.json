@@ -297,6 +297,11 @@
       "asset": "restoreovl.ico",
       "source": "src/Resources/restoreovl.ico",
       "sha256": "3797a90ba0bc7998b55fdfc1edb3f1ef954c6397fba4fc00643e9aa8df2fcc6c"
+    },
+    {
+      "asset": "saveas.ico",
+      "source": "src/Resources/saveas.ico",
+      "sha256": "24d40424555aed0dd6ac99c41c0bab39e8cc6007447f49271215a45dd8909ddb"
     }
   ]
 }

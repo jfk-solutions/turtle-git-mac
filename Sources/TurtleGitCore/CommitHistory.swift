@@ -30,6 +30,8 @@ public struct CommitFile: Identifiable, Hashable, Sendable {
     public let action: String
     public let added: Int?
     public let removed: Int?
+    public let hasStatistics: Bool
+    public let isSubmodule: Bool
     public var status: String {
         switch action.first {
         case "A": return "Added"
@@ -40,7 +42,18 @@ public struct CommitFile: Identifiable, Hashable, Sendable {
         default: return "Modified"
         }
     }
-    public static func parse(names: Data, statistics: Data) -> [CommitFile] {
+    public static func parse(names: Data, statistics: Data, raw: Data = Data()) -> [CommitFile] {
+        let rawRecords = raw.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
+        var gitlinks = Set<String>(), cursor = 0
+        while cursor + 1 < rawRecords.count {
+            let header = rawRecords[cursor].split(separator: " "); cursor += 1
+            guard header.count == 5, header[0].hasPrefix(":") else { break }
+            var path = rawRecords[cursor]; cursor += 1
+            if header[4].hasPrefix("R") || header[4].hasPrefix("C") {
+                guard cursor < rawRecords.count else { break }; path = rawRecords[cursor]; cursor += 1
+            }
+            if header[1] == "160000" || (header[1] == "000000" && header[0] == ":160000") { gitlinks.insert(path) }
+        }
         let numbers = statistics.split(separator: 0, omittingEmptySubsequences: false)
         var stats: [String: (Int?, Int?)] = [:]
         var i = 0
@@ -67,7 +80,7 @@ public struct CommitFile: Identifiable, Hashable, Sendable {
             guard i < records.count else { break }
             let path = records[i]; i += 1
             files.append(CommitFile(path: path, oldPath: oldPath, action: action,
-                                    added: stats[path]?.0, removed: stats[path]?.1))
+                                    added: stats[path]?.0, removed: stats[path]?.1, hasStatistics: stats[path] != nil, isSubmodule: gitlinks.contains(path)))
         }
         return files
     }

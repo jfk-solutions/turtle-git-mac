@@ -11,7 +11,7 @@ public enum MenuIcon: String, CaseIterable {
     case rebasePick = "menupick", rebaseSkip = "menuskip", rebaseEdit = "menuedit", rebaseSquash = "menusquash", reverse = "switch"
     case stash = "menushelve", stashPop = "menuunshelve", clone = "menucheckout", initialize = "menucreaterepos"
     case add = "menuadd", revert = "menurevert", reset = "reset", cherryPick = "cherry-pick", copy = "copy"
-    case help = "menuhelp", settings = "menusettings"
+    case help = "menuhelp", settings = "menusettings", saveAs = "saveas"
     case open = "open", explore = "explorer"
     case rename = "menurename"
     case remove = "menudelete"

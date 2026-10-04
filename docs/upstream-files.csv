@@ -1526,7 +1526,7 @@ src/Resources/ribbon/WhiteSpace2.bmp,Resources,blob,98f7af2d5002fd422693a9de7fd8
 src/Resources/ribbon/WhiteSpace3.bmp,Resources,blob,26a55d0eccc7b0ca32d601948c262b6d70568cec,pending-review,,
 src/Resources/ribbon/WrapLines.bmp,Resources,blob,646d3f0f20a94eb266ca75b160baa4d121c01d94,pending-review,,
 src/Resources/save.ico,Resources,blob,24f0cb89db07ba7e198db85d2bf69ddb18e69168,pending-review,,
-src/Resources/saveas.ico,Resources,blob,8cf032d7da7ff664a917b1c53898fa156afc62d7,pending-review,,
+src/Resources/saveas.ico,Resources,blob,8cf032d7da7ff664a917b1c53898fa156afc62d7,ported-artwork,Sources/TurtleGitCore/Resources/Icons/saveas.ico,Unchanged original Save As artwork; pinned blob and SHA-256 verified; AppKit decode tests. Used by comparison Save List.
 src/Resources/saveddata.ico,Resources,blob,613af496a8ba409e408972416a5279c4c44b2aaf,pending-review,,
 src/Resources/showbranches.ico,Resources,blob,3ddc030ce49dfdb61d08a851562e7ce8555ced80,pending-review,,
 src/Resources/snippet.ico,Resources,blob,ceb1ca48619cea69a46d15e114b24d6fb4054f38,pending-review,,
@@ -2379,7 +2379,7 @@ src/TortoiseProc/DiffLinesForStaging.h,TortoiseProc,blob,c767b0ea840dce48b9b812f
 src/TortoiseProc/EnableStagingTypes.h,TortoiseProc,blob,4edfd0f455755cb1fcf1f5090ae6985236110ad1,pending-review,,
 src/TortoiseProc/ExportDlg.cpp,TortoiseProc,blob,e700b242c5386ee87fa779ce9c5727fdfcc237ef,pending-review,,
 src/TortoiseProc/ExportDlg.h,TortoiseProc,blob,44f8719287e6f32a856a8b91d2e1bb41ce07c21a,pending-review,,
-src/TortoiseProc/FileDiffDlg.cpp,TortoiseProc,blob,fe4171a852023344cac5af1711873104393e1b0a,partial,Sources/TurtleGitCore/RevisionComparison.swift; Sources/TurtleGitMac/RevisionComparisonWindow.swift,"Native groups/subjects/tooltips/newer labels, flat all-ref chooser, Log/RefLog selection, filter/options/swap/read-only patch. Dark native chooser acceptance verified. Full browser contexts, two-file comparison, file actions and signed acceptance pending. See SUBMODULE-DIFF-PARITY.md."
+src/TortoiseProc/FileDiffDlg.cpp,TortoiseProc,blob,fe4171a852023344cac5af1711873104393e1b0a,partial,Sources/TurtleGitCore/RevisionComparison.swift; Sources/TurtleGitMac/RevisionComparisonWindow.swift; Sources/TurtleGitCore/ComparisonFileList.swift,"Native revision groups/choosers/metadata; five-column sorting; ignored-whitespace filter; list copy/save and scoped Log wired. Sorting/filter native QA and 239 tests passed; Save/clipboard/Log completion, full contexts/two-file comparison and signed acceptance pending. See SUBMODULE-DIFF-PARITY.md."
 src/TortoiseProc/FileDiffDlg.h,TortoiseProc,blob,613511939e889203db0c7ace30cc5c799ebeb214,partial,Sources/TurtleGitCore/RevisionComparison.swift; Sources/TurtleGitMac/RevisionComparisonWindow.swift,"Native groups/subjects/tooltips/newer labels, flat all-ref chooser, Log/RefLog selection, filter/options/swap/read-only patch. Dark native chooser acceptance verified. Full browser contexts, two-file comparison, file actions and signed acceptance pending. See SUBMODULE-DIFF-PARITY.md."
 src/TortoiseProc/FilterHelper.cpp,TortoiseProc,blob,16d8473f1168f61ebd7aff83444bbf8163fc00b8,pending-review,,
 src/TortoiseProc/FilterHelper.h,TortoiseProc,blob,9e1483e256598565dcdc38052f8c8e2e29248528,pending-review,,

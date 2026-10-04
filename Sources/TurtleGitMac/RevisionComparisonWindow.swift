@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 import TurtleGitCore
+import UniformTypeIdentifiers
 
 private final class RevisionComparisonNativeWindow: NSWindow {
     var refresh: () -> Void = {}
@@ -61,6 +62,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     @Published var snapshot: RevisionComparisonSnapshot?
     @Published var selection = Set<String>()
     @Published var filter = ""
+    @Published var sortOrder = [KeyPathComparator(\CommitFile.sortPath)]
     @Published var options = RevisionDiffOptions()
     @Published var busy = false
     @Published var confirmingQuit = false
@@ -69,7 +71,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var patchWindow: PatchWindowController?
     private var patchGeneration = 0
     var onLog: (String?) -> Void = { _ in }
-    var visibleFiles: [CommitFile] { snapshot?.files.filter { filter.isEmpty || $0.path.localizedCaseInsensitiveContains(filter) || $0.oldPath?.localizedCaseInsensitiveContains(filter) == true } ?? [] }
+    var onFileLog: (String, String?) -> Void = { _, _ in }
+    var visibleFiles: [CommitFile] { snapshot?.files.filter { filter.isEmpty || $0.path.localizedCaseInsensitiveContains(filter) || $0.oldPath?.localizedCaseInsensitiveContains(filter) == true }.sorted(using: sortOrder) ?? [] }
     init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) { self.repository = repository; self.access = access; self.from = from.label; self.to = to.label }
     private func side(_ input: String) -> ComparisonRevision {
         switch input.lowercased() { case "working tree": return .workingTree; case "empty tree": return .emptyTree; default: return .revision(input) }
@@ -113,7 +116,25 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         guard !busy, !confirmingQuit, let snapshot else { return }
         if case .revision(let value) = snapshot.to { onLog(value) } else { onLog(nil) }
     }
-    func copyPaths(_ ids: Set<String>) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(visibleFiles.filter { ids.contains($0.path) }.map(\.path).joined(separator: "\n"), forType: .string) }
+    func logFiles(_ ids: Set<String>) {
+        guard !busy, !confirmingQuit, let snapshot else { return }
+        let revision: String? = { if case .revision(let value) = snapshot.to { return value }; return nil }()
+        for file in visibleFiles where ids.contains(file.path) { onFileLog(file.path, revision) }
+    }
+    func copyPaths(_ ids: Set<String>, extended: Bool = false) {
+        let files = visibleFiles.filter { ids.contains($0.path) }; guard !files.isEmpty else { return }
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(ComparisonFileList.clipboard(files, extended: extended), forType: .string)
+    }
+    func saveList(_ ids: Set<String>) {
+        guard !busy, !confirmingQuit, let snapshot, let window else { return }
+        let files = visibleFiles.filter { ids.contains($0.path) }; guard !files.isEmpty else { return }
+        let text = ComparisonFileList.savedList(files, from: snapshot.from, to: snapshot.to)
+        let panel = NSSavePanel(); panel.nameFieldStringValue = "changed-files.txt"; panel.allowedContentTypes = [.plainText]
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            do { try text.write(to: url, atomically: true, encoding: .utf8) } catch { self?.error = error.localizedDescription }
+        }
+    }
     func togglePatch() {
         guard !busy, !confirmingQuit else { return }
         if showingPatch { patchWindow?.close(); return }
@@ -189,14 +210,18 @@ private struct RevisionComparisonDialog: View {
             revisionGroup("Version 1 (Base)", value: $model.from, base: true)
             revisionGroup("Version 2", value: $model.to, base: false)
             HStack { TextField("Filter paths", text: $model.filter).textFieldStyle(.roundedBorder); if !model.filter.isEmpty { Button("Clear") { model.filter = "" } } }
-            Table(model.visibleFiles, selection: $model.selection) {
-                TableColumn("File") { file in HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(file.path).foregroundStyle(model.selection.contains(file.path) ? Color.primary : state(file).textColor) }.help(file.oldPath.map { "Renamed from \($0)" } ?? file.path) }.width(min: 350, ideal: 500)
-                TableColumn("Extension") { file in Text((file.path as NSString).pathExtension) }.width(75)
-                TableColumn("Action", value: \.status).width(100)
-                TableColumn("Lines added") { file in Text(file.added.map(String.init) ?? "–") }.width(85)
-                TableColumn("Lines deleted") { file in Text(file.removed.map(String.init) ?? "–") }.width(95)
+            Table(model.visibleFiles, selection: $model.selection, sortOrder: $model.sortOrder) {
+                TableColumn("File", value: \.sortPath) { file in HStack { Image(nsImage: state(file).icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(file.path).foregroundStyle(model.selection.contains(file.path) ? Color.primary : state(file).textColor) }.help(file.oldPath.map { "Renamed from \($0)" } ?? file.path) }.width(min: 350, ideal: 500)
+                TableColumn("Extension", value: \.sortExtension) { file in Text(file.fileExtension) }.width(75)
+                TableColumn("Action", value: \.sortAction) { file in Text(file.status) }.width(100)
+                TableColumn("Lines added", value: \.sortAdded) { file in Text(file.addedText) }.width(85)
+                TableColumn("Lines deleted", value: \.sortRemoved) { file in Text(file.removedText) }.width(95)
             }.contextMenu(forSelectionType: String.self) { ids in
                 Button { model.showPatch(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
+                Button { model.logFiles(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
+                Divider()
+                Button { model.saveList(ids) } label: { CommandLabel(title: "Save list of selected files…", icon: .saveAs) }.disabled(ids.isEmpty)
+                Button { model.copyPaths(ids, extended: true) } label: { CommandLabel(title: "Copy all columns to clipboard", icon: .copy) }.disabled(ids.isEmpty)
                 Button { model.copyPaths(ids) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(ids.isEmpty)
             } primaryAction: { model.showPatch($0) }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text("\(model.visibleFiles.count) changed file(s)").font(.caption).foregroundStyle(.secondary); Spacer(); Button(model.showingPatch ? "Hide Patch<<" : "View Patch>>") { model.togglePatch() }.buttonStyle(.link).disabled(model.snapshot == nil) }

@@ -39,6 +39,7 @@
 		5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4B370EB64932B2909A8228 /* CloneWindow.swift */; };
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
 		61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */; };
+		68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */; };
 		6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F6087799A5783306A27CEE /* RenameWindow.swift */; };
 		6B9238091F271707632595BC /* SubmoduleUpdateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */; };
 		71A192AE217977ACEEDE0E0E /* Ignore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA057A2776BAA8F4BE538EE /* Ignore.swift */; };
@@ -203,6 +204,7 @@
 		85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleDiffWindow.swift; sourceTree = "<group>"; };
 		870D95A7EC384863F1C04342 /* RevisionComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionComparison.swift; sourceTree = "<group>"; };
 		8927431F95C0127D9B66489A /* TextConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflict.swift; sourceTree = "<group>"; };
+		9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonFileList.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
 		A2D91605384F213DBC8C3C9F /* CommitAmend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitAmend.swift; sourceTree = "<group>"; };
@@ -339,6 +341,7 @@
 				5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */,
 				FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */,
 				515FF59B2CF163D9481D39B5 /* CommitSelection.swift */,
+				9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */,
 				102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */,
 				966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */,
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
@@ -549,6 +552,7 @@
 				1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */,
 				4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */,
 				A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */,
+				68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */,
 				B37762B44078ECEA7539D02D /* ConflictResolution.swift in Sources */,
 				10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */,
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,

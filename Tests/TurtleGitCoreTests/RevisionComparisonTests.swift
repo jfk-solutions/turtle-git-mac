@@ -59,7 +59,7 @@ final class RevisionComparisonTests: XCTestCase {
         try Data(text.replacingOccurrences(of: "line 2\n", with: "line   2  \n").utf8).write(to: root.appendingPathComponent(path))
         var options = RevisionDiffOptions(); options.ignoreAllSpace = true
         let ignored = try await repo.revisionComparison(from: .revision("HEAD"), to: .workingTree, options: options)
-        XCTAssertEqual(ignored.files.map(\.path), [path])
+        XCTAssertTrue(ignored.files.isEmpty)
         let patch = try await repo.revisionComparisonPatch(ignored); XCTAssertTrue(patch.isEmpty)
         options.ignoreAllSpace = false; options.ignoreSpaceAtEnd = true
         let visible = try await repo.revisionComparison(from: .revision("HEAD"), to: .workingTree, options: options)
