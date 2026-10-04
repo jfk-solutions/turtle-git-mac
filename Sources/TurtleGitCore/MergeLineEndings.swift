@@ -51,6 +51,17 @@ public enum MergeLineEndings {
         return ranges
     }
     public static func styles(in text: String) -> Set<MergeLineEnding> { Set(endings(in: text).map(\.style)) }
+    static func mappingLineContents(_ text: String, transform: (String) -> String) -> String {
+        let source = text as NSString
+        var output = "", start = 0
+        for ending in endings(in: text) {
+            output += transform(source.substring(with: NSRange(location: start, length: ending.range.location - start)))
+            output += source.substring(with: ending.range)
+            start = NSMaxRange(ending.range)
+        }
+        output += transform(source.substring(from: start))
+        return output
+    }
     public static func lineNumber(in text: String, utf16Offset: Int) -> Int {
         let offset = min(max(utf16Offset, 0), (text as NSString).length)
         return endings(in: text).filter { NSMaxRange($0.range) <= offset }.count + 1

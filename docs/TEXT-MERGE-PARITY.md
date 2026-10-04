@@ -281,3 +281,33 @@ after verification.
 After the combined-choice correction, all 14 targeted tests passed again.
 After adding all 81 mixed-style pairs in both orders, the four scanner tests
 passed again. The full-suite run preceding that correction passed 186 tests.
+
+## Whitespace commands
+
+BaseView.cpp's ConvertTabToSpaces, Tabularize, RemoveTrailWhiteChars and
+GetWhitecharsProperties were compared with the native merged-result menu.
+The resource labels Convert tabs to spaces, Convert spaces to tabs and Trim
+right are retained, before the line-ending submenu. Each command transforms
+the full merged result and uses one Undo step. Source panes remain read-only;
+busy or inapplicable commands are disabled and guarded again on dispatch.
+
+Both conversions touch leading ASCII spaces/tabs only. Tabs within text remain
+unchanged. Expansion uses the next four-column stop; tabularization retains
+partial runs and follows the upstream handling of existing tabs. The native
+paragraph tab interval now matches four monospaced columns in all panes. Trim
+right removes trailing ASCII spaces/tabs. Configurable tab width, EditorConfig,
+locale-specific Unicode TrimRight behavior and visual tab-width acceptance
+remain pending. Original line terminators and Unicode spelling are preserved;
+whitespace-only final lines may naturally become empty after trimming.
+
+Three new tests cover all nine endings, mixed terminators, leading tab stops,
+partial runs, trailing whitespace, internal tabs, Unicode/NFD, BOM, blank lines,
+missing final newlines and availability. All 17 targeted scanner, whitespace
+and text-conflict tests passed with zero failures; the app also compiled.
+
+Native QA entered a Unicode/NFD draft with CRLF and no final newline, exercised
+leading-tabs expansion and one-step Undo, then spaces-to-tabs and Trim right.
+The spaces-to-tabs command became disabled after normalization. Save produced
+exactly `\t  🦎é\t雪\r\n\t tail\r\n\tEOF`, preserving HEAD, refs and
+unresolved index stages. The QA app was closed immediately afterward, with no
+preview processes remaining. Busy-state and large-file native QA remain pending.

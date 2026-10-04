@@ -300,6 +300,9 @@ private struct MergeEditor: NSViewRepresentable {
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticSpellingCorrectionEnabled = false; view.isContinuousSpellCheckingEnabled = false
         view.font = .monospacedSystemFont(ofSize: 12, weight: .regular); view.textContainerInset = NSSize(width: 8, height: 8)
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.tabStops = []; paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: view.font!]).width * 4
+        view.defaultParagraphStyle = paragraph
         view.isVerticallyResizable = true; view.isHorizontallyResizable = true; view.autoresizingMask = [.width]
         view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         view.textContainer?.widthTracksTextView = false; view.textContainer?.containerSize = view.maxSize
@@ -334,7 +337,7 @@ private struct MergeEditor: NSViewRepresentable {
         let range = view.selectedRange()
         if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
         let entire = NSRange(location: 0, length: (text as NSString).length)
-        view.textStorage?.addAttributes([.foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.textBackgroundColor, .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)], range: entire)
+        view.textStorage?.addAttributes([.foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.textBackgroundColor, .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), .paragraphStyle: view.defaultParagraphStyle ?? NSParagraphStyle.default], range: entire)
         if editable {
             for block in MergeText.conflicts(in: text) { view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.color(.conflicted), range: block.range) }
             if let requested = model.selectionRequest, NSMaxRange(requested) <= entire.length {
@@ -432,6 +435,10 @@ private final class MergeTextView: NSTextView {
             menu.addItem(item)
         }
         menu.addItem(.separator())
+        for (index, command) in MergeWhitespaceCommand.allCases.enumerated() {
+            let item = NSMenuItem(title: command.rawValue, action: #selector(changeWhitespace(_:)), keyEquivalent: "")
+            item.target = self; item.tag = index; menu.addItem(item)
+        }
         let endingsItem = NSMenuItem(title: "Line endings", action: nil, keyEquivalent: "")
         let endingsMenu = NSMenu(title: "Line endings")
         let styles = MergeLineEndings.styles(in: string)
@@ -449,6 +456,10 @@ private final class MergeTextView: NSTextView {
         (window as? TextConflictNSWindow)?.find(.showFindInterface)
     }
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(changeWhitespace(_:)) {
+            guard mergeEditable, isEditable, model?.busy == false, MergeWhitespaceCommand.allCases.indices.contains(menuItem.tag) else { return false }
+            return MergeWhitespace.canApply(MergeWhitespaceCommand.allCases[menuItem.tag], to: string)
+        }
         if menuItem.action == #selector(convertLineEndings(_:)) {
             return mergeEditable && isEditable && model?.busy == false && MergeLineEnding.allCases.indices.contains(menuItem.tag)
         }
@@ -472,6 +483,14 @@ private final class MergeTextView: NSTextView {
         guard !converted.utf8.elementsEqual(string.utf8) else { return }
         window?.makeFirstResponder(self)
         replaceMergeBlock(NSRange(location: 0, length: (string as NSString).length), with: converted, actionName: "Change line endings")
+    }
+    @objc private func changeWhitespace(_ sender: NSMenuItem) {
+        guard mergeEditable, isEditable, model?.busy == false, MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
+        let command = MergeWhitespaceCommand.allCases[sender.tag]
+        let converted = MergeWhitespace.applying(command, to: string)
+        guard !converted.utf8.elementsEqual(string.utf8) else { return }
+        window?.makeFirstResponder(self)
+        replaceMergeBlock(NSRange(location: 0, length: (string as NSString).length), with: converted, actionName: command.rawValue)
     }
     @objc private func useBlock(_ sender: NSMenuItem) {
         guard mergeEditable, isEditable, MergeBlockChoice.allCases.indices.contains(sender.tag), let model, !model.busy, let block = model.blocks.first(where: { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }

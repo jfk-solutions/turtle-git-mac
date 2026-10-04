@@ -106,3 +106,9 @@ with reversible conversion. A shared UTF-16 scanner fixes CRLF marker detection
 and caret line numbers. Native CRLF → LF, Undo/Redo and unresolved Save warning
 were verified; complete EOL/encoding metadata and exotic native combinations
 remain partial. See TEXT-MERGE-PARITY.md.
+
+The text merge context menu now includes upstream leading tabs/spaces
+conversion and Trim right, with single-step Undo and conditional availability.
+Native conversion, Undo and exact Unicode/CRLF Save bytes were verified.
+Configurable tab widths, EditorConfig and locale-specific Unicode trim remain
+pending. See TEXT-MERGE-PARITY.md.
