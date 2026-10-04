@@ -29,6 +29,7 @@ bundle structure; it is not a signed distribution.
 ## Implemented first pass
 
 Native historical Blame opens from Log with annotation columns, age colors,
+revision/author highlighting,
 Find/Go To Line and origin-aware Show log. Full menus, syntax highlighting and
 encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 

@@ -10,6 +10,7 @@ import TurtleGitCore
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
+        window.acceptsMouseMovedEvents = true
         window.contentViewController = NSHostingController(rootView: BlameDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.reload()
     }
@@ -30,15 +31,38 @@ import TurtleGitCore
     @Published var detectCopied = false
     @Published var colorAge = true
     @Published var selection: Int?
+    @Published var highlightedHash: String?
+    @Published var hoveredLine: Int?
     @Published var find = ""
     @Published var matchCase = false
     @Published var goTo = ""
     @Published var navigationMessage = ""
     var ranks: [String: Int] = [:]
+    private var origins: [String: GitBlameLine] = [:]
     var historyCount = 0
     var onLog: ((String, String) -> Void)?
     var lines: [GitBlameLine] { snapshot?.lines ?? [] }
-    var selectedLine: GitBlameLine? { selection.flatMap { index in lines.first { $0.number == index } } }
+    private func line(_ number: Int?) -> GitBlameLine? {
+        guard let number, number > 0, lines.indices.contains(number - 1) else { return nil }; return lines[number - 1]
+    }
+    var selectedLine: GitBlameLine? { line(selection) }
+    var highlightedLine: GitBlameLine? { highlightedHash.flatMap { origins[$0] } }
+    var hoverLine: GitBlameLine? { line(hoveredLine) }
+    func highlight(_ row: Int) {
+        guard lines.indices.contains(row) else { return }
+        let hash = lines[row].hash; highlightedHash = highlightedHash == hash ? nil : hash
+    }
+    func highlightKind(_ line: GitBlameLine) -> Int {
+        if let selected = highlightedLine {
+            if line.hash == selected.hash { return 1 }
+            if line.author == selected.author { return 2 }
+        }
+        if let hovered = hoverLine {
+            if line.hash == hovered.hash { return 3 }
+            if line.author == hovered.author { return 4 }
+        }
+        return 0
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision
     }
@@ -55,6 +79,7 @@ import TurtleGitCore
                 let history = try await repository.run(["log", "--format=%H", "--follow", result.revision, "--", path]).text.split(separator: "\n").map(String.init)
                 guard request == generation else { return }
                 ranks = Dictionary(history.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: min)
+                origins = Dictionary(result.lines.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first })
                 historyCount = history.count; revision = result.revision; snapshot = result
                 if let selection, !result.lines.contains(where: { $0.number == selection }) { self.selection = nil }
                 busy = false
@@ -117,7 +142,13 @@ private struct BlameTable: NSViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSScrollView {
-        let table = NSTableView(); table.delegate = context.coordinator; table.dataSource = context.coordinator
+        let table = BlameTableView(); table.delegate = context.coordinator; table.dataSource = context.coordinator
+        table.onMarginClick = { [weak coordinator = context.coordinator] row in coordinator?.model.highlight(row) }
+        table.onHover = { [weak coordinator = context.coordinator] row in
+            guard let model = coordinator?.model else { return }
+            let number = row.map { $0 + 1 }
+            if model.hoveredLine != number { model.hoveredLine = number }
+        }
         table.rowHeight = 22; table.intercellSpacing = NSSize(width: 6, height: 0)
         table.columnAutoresizingStyle = .noColumnAutoresizing; table.allowsMultipleSelection = false
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.showLog)
@@ -174,7 +205,7 @@ private struct BlameTable: NSViewRepresentable {
             let label = NSTextField(labelWithString: value); label.font = id == "source" || id == "revision" ? .monospacedSystemFont(ofSize: 12, weight: .regular) : .systemFont(ofSize: 12)
             label.lineBreakMode = .byClipping; label.maximumNumberOfLines = 1
             label.toolTip = "\(line.hash)\n\(line.author)\n\(line.summary)\n\(line.filename):\(line.originalLine)"
-            label.textColor = .labelColor
+            label.textColor = [1, 2].contains(model.highlightKind(line)) ? .alternateSelectedControlTextColor : .labelColor
             return label
         }
         func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
@@ -188,6 +219,19 @@ private struct BlameTable: NSViewRepresentable {
             }
             func component(_ index: Int) -> CGFloat { CGFloat((new[index] * slider + old[index] * (100 - slider)) / 100) / 255 }
             view.ageColor = NSColor(srgbRed: component(0), green: component(1), blue: component(2), alpha: 1)
+            switch model.highlightKind(model.lines[row]) {
+            case 1: view.ageColor = dark ? NSColor(srgbRed: 0, green: 30.0 / 255, blue: 80.0 / 255, alpha: 1) : .selectedContentBackgroundColor
+            case 2:
+                let selected = dark ? NSColor(srgbRed: 0, green: 30.0 / 255, blue: 80.0 / 255, alpha: 1) : .selectedContentBackgroundColor
+                let highlightText = dark ? NSColor(srgbRed: 240.0 / 255, green: 240.0 / 255, blue: 240.0 / 255, alpha: 1) : .white
+                view.ageColor = selected.blended(withFraction: dark ? 0.15 : 0.35, of: highlightText) ?? selected
+            case 3, 4:
+                let percentage = model.highlightKind(model.lines[row]) == 3 ? 20 : 10
+                let level = ((dark ? 240 : 0) * percentage + (dark ? 32 : 255) * (100 - percentage)) / 100
+                view.ageColor = NSColor(srgbRed: CGFloat(level) / 255, green: CGFloat(level) / 255, blue: CGFloat(level) / 255, alpha: 1)
+            default: break
+            }
+            view.revisionHighlighted = [1, 2].contains(model.highlightKind(model.lines[row]))
             return view
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
@@ -206,9 +250,37 @@ private struct BlameTable: NSViewRepresentable {
     }
 }
 
+private final class BlameTableView: NSTableView {
+    var onMarginClick: (Int) -> Void = { _ in }
+    var onHover: (Int?) -> Void = { _ in }
+    private var hoverTracking: NSTrackingArea?
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let hoverTracking { removeTrackingArea(hoverTracking) }
+        let tracking = NSTrackingArea(rect: .zero, options: [.mouseMoved, .mouseEnteredAndExited, .activeInKeyWindow, .inVisibleRect], owner: self)
+        addTrackingArea(tracking); hoverTracking = tracking
+    }
+    override func mouseDown(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)
+        super.mouseDown(with: event)
+        if event.clickCount == 1, row >= 0, (0...2).contains(column) { onMarginClick(row) }
+    }
+    override func mouseMoved(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)
+        onHover(row >= 0 && (0...2).contains(column) ? row : nil)
+        super.mouseMoved(with: event)
+    }
+    override func mouseExited(with event: NSEvent) { onHover(nil); super.mouseExited(with: event) }
+}
+
 private final class BlameRowView: NSTableRowView {
     var ageColor: NSColor = .textBackgroundColor
+    var revisionHighlighted = false
     override func drawBackground(in dirtyRect: NSRect) {
         ageColor.setFill(); dirtyRect.fill()
+    }
+    override func drawSelection(in dirtyRect: NSRect) {
+        if revisionHighlighted { ageColor.setFill(); dirtyRect.fill() }
+        else { super.drawSelection(in: dirtyRect) }
     }
 }

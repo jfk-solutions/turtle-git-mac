@@ -1607,7 +1607,7 @@ src/TortoiseGit.settings.props,TortoiseGit.settings.props,blob,ad59bf74e82478d4a
 src/TortoiseGit.sln,TortoiseGit.sln,blob,ba2acae8cd0154437e068e8f7231ed1e4aaace65,pending-review,,
 src/TortoiseGit.toolset.props,TortoiseGit.toolset.props,blob,06d5ff58424c0d1302a9bf02c3c637b0e2ba6714,pending-review,,
 src/TortoiseGitBlame/BlameDetectMovedOrCopiedLines.h,TortoiseGitBlame,blob,75e6c2caf42394b3b5408eafed59b2249629c2b1,pending-review,,
-src/TortoiseGitBlame/BlameIndexColors.h,TortoiseGitBlame,blob,3419f67484cb97c8f265a2883546bc2e858b269b,partial,Sources/TurtleGitMac/BlameWindow.swift,"Original age palette and integer rank interpolation; native annotation columns, navigation, origin-aware Log and dark QA added. Full view, selection/hover, menus and settings remain pending. See docs/BLAME-PARITY.md."
+src/TortoiseGitBlame/BlameIndexColors.h,TortoiseGitBlame,blob,3419f67484cb97c8f265a2883546bc2e858b269b,partial,Sources/TurtleGitMac/BlameWindow.swift,"Original age palette and integer rank interpolation; native annotation columns, navigation, origin-aware Log and dark QA added. Sticky revision/author and hover tracking added; native light age, author distinction, focus persistence and clearing checked. Pointer-hover/dark sticky, multi-selection, full view, menus and settings remain pending. See docs/BLAME-PARITY.md."
 src/TortoiseGitBlame/EditGotoDlg.cpp,TortoiseGitBlame,blob,d7315bb0cc4eb69151ebfe438ac6dc8dac46e948,pending-review,,
 src/TortoiseGitBlame/EditGotoDlg.h,TortoiseGitBlame,blob,3cca1259e6df50a9722eac909387c7a18a91bc36,pending-review,,
 src/TortoiseGitBlame/GitBlameLogList.h,TortoiseGitBlame,blob,a8147cef7cccfdc3cd9308767ffd5ece057853a2,pending-review,,
@@ -1630,7 +1630,7 @@ src/TortoiseGitBlame/TortoiseGitBlameDoc.cpp,TortoiseGitBlame,blob,6530683a8d691
 src/TortoiseGitBlame/TortoiseGitBlameDoc.h,TortoiseGitBlame,blob,f63411e16cf41879250ce79a179bd1556cc08a2c,pending-review,,
 src/TortoiseGitBlame/TortoiseGitBlameLang.vcxproj,TortoiseGitBlame,blob,f3f3b95b95de22962c6163696d26692c4d333e73,pending-review,,
 src/TortoiseGitBlame/TortoiseGitBlameLang.vcxproj.filters,TortoiseGitBlame,blob,b8b48e62222f9d2d99ed4ba2bf0205a3d2131be1,pending-review,,
-src/TortoiseGitBlame/TortoiseGitBlameView.cpp,TortoiseGitBlame,blob,574f423041725a149f292ab51f1267b467cbd9e6,partial,Sources/TurtleGitMac/BlameWindow.swift,"Original age palette and integer rank interpolation; native annotation columns, navigation, origin-aware Log and dark QA added. Full view, selection/hover, menus and settings remain pending. See docs/BLAME-PARITY.md."
+src/TortoiseGitBlame/TortoiseGitBlameView.cpp,TortoiseGitBlame,blob,574f423041725a149f292ab51f1267b467cbd9e6,partial,Sources/TurtleGitMac/BlameWindow.swift,"Original age palette and integer rank interpolation; native annotation columns, navigation, origin-aware Log and dark QA added. Sticky revision/author and hover tracking added; native light age, author distinction, focus persistence and clearing checked. Pointer-hover/dark sticky, multi-selection, full view, menus and settings remain pending. See docs/BLAME-PARITY.md."
 src/TortoiseGitBlame/TortoiseGitBlameView.h,TortoiseGitBlame,blob,020b5c0c7a199ef5645d17f4d42962c5ab3a89f4,pending-review,,
 src/TortoiseGitBlame/res/TortoiseGitBlame.rc2,TortoiseGitBlame,blob,e8dbdf6181f3a2647b303a05fb333db24916ea2f,pending-review,,
 src/TortoiseGitBlame/stdafx.cpp,TortoiseGitBlame,blob,4f02f63812772c703f91f34b060f65edddb6908f,pending-review,,

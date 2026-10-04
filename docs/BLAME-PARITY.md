@@ -80,18 +80,31 @@ annotations, Find, Go To Line, historical Show log, three authors, and Show log 
 the original filename before a rename. Dark age shades were visually verified;
 [the actual screenshot](site/assets/blame-dark.png) is included in the site gallery.
 All QA processes were quit after their scenarios and repository HEAD/index/source
-baselines were unchanged. Light appearance acceptance remains pending: the UI
-automation could not act on the Appearance menu, so no light screenshot is claimed.
+baselines were unchanged. Light age colors have now also been checked using the
+disposable preview's initial appearance preset, with an actual light screenshot.
+Clicking a revision margin highlights its lines and uses a lighter shade for
+other revisions by the same author. Clicking that revision again clears the sticky
+highlight. Native light QA checked the author/revision distinction, clearing and
+persistence after focus moved to Find. Custom row selection drawing preserves the
+sticky background when the table loses focus. Hover tracking applies transient
+revision/author shades in the information columns; pointer-hover and dark sticky
+acceptance still need separate native checks. Author metadata is cached by revision
+so highlighting avoids searching every source line for every rendered cell.
 
 Viewer milestone validation: Swift build and the six Blame tests passed; unsigned
 Debug/AppStore builds and bundle audits passed with 62 upstream icon resources.
 The packaged universal Git audit, including historical Blame, and the site build
 also passed. The earlier full 266-test run covers the unchanged annotation reader.
 
+The highlighting milestone passed Swift, unsigned Debug/AppStore builds, both
+bundle audits and the site build after the native light checks. It leaves the
+annotation reader unchanged. Mouse tracking is confined to the Blame window and
+uses AppKit's [tracking areas](https://developer.apple.com/documentation/appkit/nstrackingarea).
+
 ## Remaining work
 
-- Sticky revision/author selection and hover highlighting, full source locator and
-  integrated revision-log layout; light palette native acceptance.
+- Multi-revision selection, full source locator and integrated revision-log layout;
+  pointer-hover and dark sticky native acceptance.
 - Syntax highlighting, source selection and native editor scrolling behavior.
 - Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and
   revision/block navigation.
@@ -103,7 +116,6 @@ also passed. The earlier full 266-test run covers the unchanged annotation reade
   current binary, invalid UTF-8 and symlink inputs are explicitly unsupported.
 - Working/uncommitted content, Finder routing, cancellation/progress and signed
   sandbox acceptance, including security-scoped access retained by the window.
-- Full light/dark visual comparison, keyboard/VoiceOver acceptance and a light
-  screenshot for the documentation gallery.
+- Full light/dark visual comparison and keyboard/VoiceOver acceptance.
 
 The native viewer is partial; populated controls do not establish full source-file parity.
