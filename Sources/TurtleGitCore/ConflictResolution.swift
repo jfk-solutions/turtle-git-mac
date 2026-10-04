@@ -14,15 +14,30 @@ public struct ConflictEntry: Identifiable, Hashable, Sendable {
 }
 public enum ResolveChoice: Int, Sendable { case current = 0, mine = 2, theirs = 3 }
 public enum ResolveFailure: LocalizedError {
-    case selection, outsideWorkingTree, stale, indexFormat, submoduleCheckout(String)
+    case selection, outsideWorkingTree, stale, indexFormat, cancelled, submoduleCheckout(String)
     public var errorDescription: String? {
         switch self {
+        case .cancelled: return "Resolution aborted. Earlier resolved items remain resolved."
         case .selection: return "Check at least one conflicted file to resolve."
         case .outsideWorkingTree: return "Resolve selections must stay inside this working tree, outside Git’s administrative directories."
         case .stale: return "The conflict stages have changed. Refresh the conflict list before resolving."
         case .indexFormat: return "Git returned an invalid conflict-stage record."
         case .submoduleCheckout(let path): return "The selected submodule commit differs from its current checkout: \(path). Check out that commit in the submodule before resolving this conflict."
         }
+    }
+}
+public struct SubmoduleDeletionRequest: Sendable {
+    public let path: String
+    public let location: URL
+    public let gitError: String
+}
+public struct SubmoduleDeletionFailure: LocalizedError, Sendable {
+    public let path: String
+    public let trashedLocation: URL?
+    public let gitError: String
+    public var errorDescription: String? {
+        "The folder “\(path)” was moved to Trash, but Git could not resolve its deletion. " +
+        (trashedLocation.map { "Recoverable folder: " + $0.path + "\n" } ?? "") + gitError
     }
 }
 extension GitRepository {
@@ -72,14 +87,24 @@ extension GitRepository {
     /// Capture stages when populating the dialog and revalidate all checked rows
     /// before mutation. Resolving records the index result; it does not commit or
     /// continue a merge/rebase/cherry-pick automatically.
-    public func resolveConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice) throws -> String {
+    public func resolveConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice, confirmSubmoduleDeletion: (@Sendable (SubmoduleDeletionRequest) async -> Bool)? = nil) async throws -> String {
         try validateConflicts(checked, using: choice)
         var output: [String] = []
         for entry in checked {
+            // Confirmation suspends this actor. Recheck every remaining item after
+            // resumption, including the original index stages and path containment.
+            try validateConflicts([entry], using: choice)
             if choice == .current {
                 output.append(try run(["add", "-f", "--", entry.path]).text)
             } else if let destination = entry.stages.first(where: { $0.number == choice.rawValue }) {
                 if destination.mode == "160000" {
+                    let location = root.appendingPathComponent(entry.path)
+                    var directory: ObjCBool = false
+                    if !FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) || !directory.boolValue {
+                        // Upstream checks out an uninitialized gitlink first. This
+                        // replaces a conflicting file with the submodule directory.
+                        output.append(try run(["checkout-index", "-f", "--stage=" + String(choice.rawValue), "--", entry.path]).text)
+                    }
                     output.append(try run(["update-index", "--replace", "--cacheinfo", "160000," + destination.object + "," + entry.path]).text)
                 } else {
                     output.append(try run(["checkout-index", "-f", "--stage=" + String(choice.rawValue), "--", entry.path]).text)
@@ -87,7 +112,30 @@ extension GitRepository {
                 }
             } else {
                 // A missing selected stage means that side deleted the path.
-                output.append(try run(["rm", "-f", "--", entry.path]).text)
+                do { output.append(try run(["rm", "-f", "--", entry.path]).text) }
+                catch let failure as GitFailure {
+                    let location = root.appendingPathComponent(entry.path)
+                    var directory: ObjCBool = false
+                    guard entry.isSubmodule,
+                          FileManager.default.fileExists(atPath: location.path, isDirectory: &directory), directory.boolValue,
+                          !(try FileManager.default.contentsOfDirectory(atPath: location.path)).isEmpty,
+                          let confirmSubmoduleDeletion else { throw failure }
+                    let request = SubmoduleDeletionRequest(path: entry.path, location: location, gitError: failure.localizedDescription)
+                    guard await confirmSubmoduleDeletion(request) else { throw ResolveFailure.cancelled }
+                    try validateConflicts([entry], using: choice)
+                    // Move the complete checkout (including its .git directory) to
+                    // macOS Trash, matching upstream's recycle-bin deletion.
+                    guard (try FileManager.default.attributesOfItem(atPath: location.path)[.type]) as? FileAttributeType == .typeDirectory else { throw ResolveFailure.stale }
+                    #if os(macOS)
+                    var trashed: NSURL?
+                    try FileManager.default.trashItem(at: location, resultingItemURL: &trashed)
+                    if let path = trashed?.path { output.append("Moved to Trash: " + path) }
+                    do { output.append(try run(["rm", "-f", "--", entry.path]).text) }
+                    catch { throw SubmoduleDeletionFailure(path: entry.path, trashedLocation: trashed as URL?, gitError: error.localizedDescription) }
+                    #else
+                    throw failure
+                    #endif
+                }
             }
             output.append("Resolved: " + entry.path)
         }

@@ -28,3 +28,9 @@ System were verified. Comprehensive switching across every open window, selected
 contrast, accessibility contrast settings, Finder appearance and every other
 window's visual comparison remain in the UI parity audit. User-selectable status
 palettes and upstream Colors settings are not implemented yet.
+
+Original Log and Help icons are monochrome at every embedded size. They now use
+native template tinting alongside cherry-pick; the shared SwiftUI command label
+respects template images while preserving all colored artwork. The updated native
+submodule dark capture verifies readable Log/Help shapes and green Fast Forward
+types. The byte-exact source ICO files remain unchanged.

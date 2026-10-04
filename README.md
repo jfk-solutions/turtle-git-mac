@@ -198,4 +198,6 @@ Pull follows Fetch → Rebase and starts automatically; see
 The native submodule Conflict chooser now shows checkout-based Base and destination
 revision/subject/type details, with side history and Use this choices.
 [Submodule conflict parity](docs/SUBMODULE-CONFLICT-PARITY.md) records remaining
-edge cases and native QA. The full suite currently passes 162 tests.
+edge cases and native QA. The full suite currently passes 167 tests. Submodule deletion offers Delete/Abort
+and preserves the complete checkout in macOS Trash. Monochrome Log, Help and
+cherry-pick icons adapt to light/dark appearances.

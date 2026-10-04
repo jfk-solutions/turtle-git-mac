@@ -1,8 +1,8 @@
 import AppKit
 
 /// Original upstream artwork. ICO retains its multiple sizes and alpha masks; AppKit
-/// chooses a representation for the display scale. Only the monochrome cherry-pick
-/// glyph uses template tinting so its shape stays visible in both macOS appearances.
+/// chooses a representation for the display scale. Monochrome Log, Help and
+/// cherry-pick glyphs use template tinting to remain visible in both appearances.
 public enum MenuIcon: String, CaseIterable {
     case turtle = "TortoiseSmall", status = "menushowchanged", commit = "menucommit", log = "menulog"
     case compare = "menucompare", unifiedDiff = "menudiff", pull = "pull1", push = "Push", fetch = "menuupdate"
@@ -26,7 +26,7 @@ public enum MenuIcon: String, CaseIterable {
         #endif
         guard let url = bundle.url(forResource: rawValue, withExtension: "ico", subdirectory: "Icons"),
               let image = NSImage(contentsOf: url) else { return nil }
-        image.size = NSSize(width: size, height: size); image.isTemplate = self == .cherryPick
+        image.size = NSSize(width: size, height: size); image.isTemplate = [.cherryPick, .log, .help].contains(self)
         return image
     }
 }

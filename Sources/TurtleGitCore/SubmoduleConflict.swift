@@ -53,7 +53,8 @@ extension GitRepository {
                 return (String(parts[1]), true, time)
             } catch { return (error.localizedDescription, false, 0) }
         }
-        let baseInfo = metadata(baseHash)
+        let addedBoth = !initialized && originalBase == nil && local != nil && remote != nil
+        let baseInfo = addedBoth ? ("", true, Int64(0)) : metadata(baseHash)
         func side(_ stage: ConflictStage?, number: Int, title: String) -> SubmoduleConflictSide {
             var info = metadata(stage?.object), change = SubmoduleChangeType.unknown
             if let stage, stage.mode != "160000" { info = ("file, not a submodule", false, 0) }
@@ -67,11 +68,20 @@ extension GitRepository {
                     else { change = info.2 > baseInfo.2 ? .newerTime : info.2 < baseInfo.2 ? .olderTime : .sameTime }
                 }
                 if !baseInfo.1 || !info.1 { change = .unknown }
-            } else if stage == nil {
-                change = baseHash == nil ? .identical : .deleteSubmodule
-                if baseHash != nil { info = ("not initialized", false, 0) }
-            } else if baseHash == stage?.object { change = .identical }
-            else if baseHash == nil, (local == nil || remote == nil || local?.mode != remote?.mode), stage?.mode == "160000" { change = .newSubmodule }
+            } else if addedBoth {
+                // Upstream distinguishes file/submodule add-add conflicts from
+                // uninitialized submodule/submodule additions.
+                info = stage?.mode == "160000" ? ("not initialized", false, 0) : ("file, not a submodule", false, 0)
+                let other = number == 2 ? remote : local
+                if stage?.mode == "160000", other?.mode != "160000" { change = .newSubmodule }
+            } else if originalBase == nil && local == nil && remote != nil {
+                info = number == 2 ? ("no submodule", false, 0) : ("not initialized", false, 0)
+                change = number == 2 ? .identical : .newSubmodule
+            } else if baseHash != nil {
+                info = ("not initialized", false, 0)
+                if stage == nil { change = .deleteSubmodule }
+                else if baseHash == stage?.object && (number == 2 || local == nil || remote == nil) { change = .identical }
+            }
             return SubmoduleConflictSide(stage: number, title: title, revision: stage?.object, subject: info.0, available: info.1, change: change)
         }
         let rebase = try conflictIsRebase()

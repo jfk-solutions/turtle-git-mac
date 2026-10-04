@@ -7,7 +7,7 @@ final class MenuIconTests: XCTestCase {
         for icon in MenuIcon.allCases {
             guard let image = icon.image() else { XCTFail("Missing or unreadable icon: \(icon.rawValue)"); continue }
             XCTAssertEqual(image.size, NSSize(width: 16, height: 16))
-            XCTAssertEqual(image.isTemplate, icon == .cherryPick, "Preserve colors; tint only the monochrome glyph")
+            XCTAssertEqual(image.isTemplate, [.cherryPick, .log, .help].contains(icon), "Preserve colors; tint the monochrome glyphs")
             XCTAssertFalse(image.representations.isEmpty)
             // Ask AppKit for actual pixels rather than accepting an ICO file that
             // exists but cannot render its Windows alpha mask on macOS.

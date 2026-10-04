@@ -53,8 +53,10 @@ import TurtleGitCore
             defer { busy = false }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let output = try await repository.resolveConflicts([entry], using: choice)
+                let output = try await repository.resolveConflicts([entry], using: choice, confirmSubmoduleDeletion: { request in await ConflictPrompts.deleteSubmodule(request) })
                 onChanged(output); close()
+            } catch ResolveFailure.cancelled {
+                Task { @MainActor [weak self] in self?.load() }
             } catch ResolveFailure.submoduleCheckout {
                 do {
                     let (root, revision) = try await repository.submoduleResetTarget(entry, using: choice)

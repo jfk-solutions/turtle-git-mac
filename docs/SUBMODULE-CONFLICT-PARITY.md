@@ -29,12 +29,25 @@ permission lease and uses the existing App Store mutation guards.
 Edit conflict and double-click dispatch are extended for submodules in Commit,
 Working Tree and Resolve. The workspace conflict context menu also offers the editor.
 
+Choosing an uninitialized gitlink now first uses checkout-index when the current
+path is a regular file, creating the destination directory before recording the
+exact gitlink. For a missing destination stage, failed Git removal of a nonempty
+submodule directory presents the upstream Delete/Abort choices. Abort is the
+Return action; Delete moves the complete folder to macOS Trash and retries Git rm.
+The actor revalidates captured index stages and containment after confirmation and
+before each remaining item. A failure after moving to Trash reports the recoverable
+location rather than implying that nothing changed.
+
 ## Verification
 
-The full Swift suite passed 162 tests. Four new real-Git tests verify checkout-based
+The full Swift suite passed 167 tests. The initial four real-Git tests verify checkout-based
 Base versus captured stage 1, subjects/history availability, forward/rewind,
 uninitialized exact-index resolution, rebase stage reversal and regular-file rejection.
-After the final reference-label change, all four focused tests passed again.
+Nine submodule tests plus ten general Resolve tests also passed after the edge-case
+changes. New fixtures verify file-to-gitlink directory replacement, Delete/Abort,
+recoverable Trash contents, stale stages after confirmation suspends the actor,
+and deterministic newer/older/same committer-time classification. Original icon
+decoding/template assertions passed; the final shared SwiftUI renderer compiled.
 
 Native QA on `/private/tmp/TurtleGitSubmoduleChooserQA` displayed the expected
 checkout and destination revisions. No retained the chooser; Use this followed by
@@ -43,10 +56,20 @@ gitlink, unchanged parent HEAD/refs and working files, and retained MERGE_HEAD.
 The chooser closed; parent-window restoration remains unverified because the UI
 observer reported no windows while the app inventory still showed the app running.
 
+Native `/private/tmp/TurtleGitSubmoduleDeleteQA` selected the deleted side, showed
+the failed Git removal message and Delete/Abort prompt, and used Return to Abort.
+Git verified unchanged HEAD, refs, all index stages, working files and child .git.
+An independent `/private/tmp/TurtleGitSubmoduleDeleteExecuteQA` case selected Delete.
+The index became resolved/deleted, parent HEAD/refs stayed unchanged, and the complete
+child checkout was verified recoverable in macOS Trash. Post-action window
+observations failed while the apps remained live, so parent restoration and fully
+enabled Abort recovery are not claimed.
+
 `site/assets/submodule-conflict.png` and `submodule-conflict-dark.png` are actual
 native captures (1560 × 1204), inspected before copying. They show a same-time
-conflict, so the colored ancestry cases are tested in the core but remain pending
-native visual QA. The first QA request incorrectly used form-style plus encoding
+conflict in light mode and green Fast Forward types in the updated dark capture.
+The dark Log/Help glyphs retain the original shapes with readable native tinting.
+Rewind and divergent-time colors still need native visual QA. The first QA request incorrectly used form-style plus encoding
 for a space; a percent-encoded request opened the intended dialog successfully.
 
 ## Remaining parity
@@ -54,10 +77,10 @@ for a space; a percent-encoded request opened the intended dialog successfully.
 Native child Log handoff, Reset/resume from this chooser, resizing/persistence,
 uninitialized/error/rebase controls and all menu consumers still need broader QA.
 Missing-object handling and the full uninitialized decision table need further
-fixtures. Mixed regular-file/gitlink replacements and submodule deletion must be
-audited against the upstream per-item Delete/Abort handling; existing generic
-Resolve behavior is not evidence of full parity for those cases. Full progress,
+fixtures. Reverse gitlink-to-file replacement, registered submodule removal,
+multiple-item failure/recovery and other mixed type changes need broader QA. Full progress,
 cancellation and signed permissions for external submodule administrative directories
-remain pending. Dark-mode original Log artwork also needs contrast adaptation.
+remain pending. Child Log handoff attempts failed in the UI observer, so that
+workflow is still unverified. Native signed Finder icon appearance also remains pending.
 
 All 26 resource controls and related source files remain **partial**.

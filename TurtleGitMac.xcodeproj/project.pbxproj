@@ -18,6 +18,7 @@
 		199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0144901E0020C531A5D86FB /* RepositoryAccess.swift */; };
 		1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 326985003F83908822D7B91E /* MergeWindow.swift */; };
 		1CB7F6B1BB3F2584AD6F9547 /* DeleteConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */; };
+		1E72435F8842C227747192C5 /* ConflictPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */; };
 		1EE5D062EF745705C82D9271 /* ReferenceCreation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 244AD68D8412684F520E64AC /* ReferenceCreation.swift */; };
 		20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */; };
 		241DD127E807673880A95899 /* PatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */; };
@@ -172,6 +173,7 @@
 		A2D91605384F213DBC8C3C9F /* CommitAmend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitAmend.swift; sourceTree = "<group>"; };
 		A35B58726A94B9B4799C06DE /* RemoveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveWindow.swift; sourceTree = "<group>"; };
 		A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashRestoreWindow.swift; sourceTree = "<group>"; };
+		A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictPrompts.swift; sourceTree = "<group>"; };
 		A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RebaseWindow.swift; sourceTree = "<group>"; };
 		AA5AD057FE8CA1C91988DA6E /* Removal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Removal.swift; sourceTree = "<group>"; };
 		AB86EFEBCB6909C206458540 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
@@ -227,6 +229,7 @@
 				0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */,
 				4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */,
 				4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */,
+				A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */,
 				022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */,
 				7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */,
 				798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */,
@@ -501,6 +504,7 @@
 				A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */,
 				E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */,
 				F5EE3ED18BC448DB2B9E658A /* CommitWindow.swift in Sources */,
+				1E72435F8842C227747192C5 /* ConflictPrompts.swift in Sources */,
 				DB59BAE5F3CCA439B5A6C388 /* CreateRepositoryWindow.swift in Sources */,
 				1CB7F6B1BB3F2584AD6F9547 /* DeleteConflictWindow.swift in Sources */,
 				B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */,

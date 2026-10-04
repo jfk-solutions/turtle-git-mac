@@ -148,5 +148,10 @@ on disposable sample data. The right-hand patch window now stages/unstages selec
 tracked UTF-8 text files, with native UI and real Git integration verification. See COMMIT-PARITY.md for remaining parity.
 
 Submodule conflict chooser now has native Base/destination groups and choice
-actions, with 162 passing tests and actual light/dark captures. See
+actions, with 167 passing tests and actual light/dark captures. See
 SUBMODULE-CONFLICT-PARITY.md for the remaining full-port requirements.
+
+Resolve now matches upstream file-to-gitlink checkout and failed submodule
+removal Delete/Abort choices, with native Abort/Delete and recoverable Trash
+verification. Remaining type transitions, registered/multi-item removal and full
+progress still require audit.

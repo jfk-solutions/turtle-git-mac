@@ -74,3 +74,8 @@ not a claim that all existing dialogs have passed visual QA.
 Submodule conflict: native 26-control resource mapping, checkout Base, colored
 types, side choices and rebase stage ordering are partial; see
 [SUBMODULE-CONFLICT-PARITY.md](SUBMODULE-CONFLICT-PARITY.md).
+
+Submodule Delete/Abort, recoverable Trash, and file-to-gitlink directory conversion
+are implemented with native Abort/Delete effects verified. Registered/multi-item
+removal and reverse transitions remain partial. Shared command labels now respect
+template tinting for monochrome Log, Help and cherry-pick artwork.

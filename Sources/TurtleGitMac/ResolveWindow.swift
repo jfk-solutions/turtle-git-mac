@@ -105,8 +105,11 @@ import TurtleGitCore
             Task {
                 defer { busy = false }
                 do {
-                    let output = try await repository.resolveConflicts(selected, using: choice)
+                    let output = try await repository.resolveConflicts(selected, using: choice, confirmSubmoduleDeletion: { request in await ConflictPrompts.deleteSubmodule(request) })
                     onChanged(output); onFinished(selected.count)
+                } catch ResolveFailure.cancelled {
+                    onChanged(ResolveFailure.cancelled.localizedDescription)
+                    Task { @MainActor [weak self] in self?.load() }
                 } catch ResolveFailure.submoduleCheckout(let path) {
                     do {
                         guard let entry = selected.first(where: { $0.path == path }) else { throw ResolveFailure.stale }
