@@ -10,6 +10,7 @@ public struct ConflictEntry: Identifiable, Hashable, Sendable {
     public let path: String
     public let stages: [ConflictStage]
     public var isSubmodule: Bool { stages.contains { $0.mode == "160000" } }
+    public var isDeleteModify: Bool { !isSubmodule && stages.contains(where: { $0.number == 2 }) != stages.contains(where: { $0.number == 3 }) }
 }
 public enum ResolveChoice: Int, Sendable { case current = 0, mine = 2, theirs = 3 }
 public enum ResolveFailure: LocalizedError {
@@ -72,6 +73,27 @@ extension GitRepository {
     /// before mutation. Resolving records the index result; it does not commit or
     /// continue a merge/rebase/cherry-pick automatically.
     public func resolveConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice) throws -> String {
+        try validateConflicts(checked, using: choice)
+        var output: [String] = []
+        for entry in checked {
+            if choice == .current {
+                output.append(try run(["add", "-f", "--", entry.path]).text)
+            } else if let destination = entry.stages.first(where: { $0.number == choice.rawValue }) {
+                if destination.mode == "160000" {
+                    output.append(try run(["update-index", "--replace", "--cacheinfo", "160000," + destination.object + "," + entry.path]).text)
+                } else {
+                    output.append(try run(["checkout-index", "-f", "--stage=" + String(choice.rawValue), "--", entry.path]).text)
+                    output.append(try run(["add", "-f", "--", entry.path]).text)
+                }
+            } else {
+                // A missing selected stage means that side deleted the path.
+                output.append(try run(["rm", "-f", "--", entry.path]).text)
+            }
+            output.append("Resolved: " + entry.path)
+        }
+        return output.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+    func validateConflicts(_ checked: [ConflictEntry], using choice: ResolveChoice) throws {
         guard !checked.isEmpty, Set(checked.map(\.path)).count == checked.count else { throw ResolveFailure.selection }
         let current = Dictionary(try conflicts().map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         for entry in checked {
@@ -92,23 +114,5 @@ extension GitRepository {
                 }
             }
         }
-        var output: [String] = []
-        for entry in checked {
-            if choice == .current {
-                output.append(try run(["add", "-f", "--", entry.path]).text)
-            } else if let destination = entry.stages.first(where: { $0.number == choice.rawValue }) {
-                if destination.mode == "160000" {
-                    output.append(try run(["update-index", "--replace", "--cacheinfo", "160000," + destination.object + "," + entry.path]).text)
-                } else {
-                    output.append(try run(["checkout-index", "-f", "--stage=" + String(choice.rawValue), "--", entry.path]).text)
-                    output.append(try run(["add", "-f", "--", entry.path]).text)
-                }
-            } else {
-                // A missing selected stage means that side deleted the path.
-                output.append(try run(["rm", "-f", "--", entry.path]).text)
-            }
-            output.append("Resolved: " + entry.path)
-        }
-        return output.filter { !$0.isEmpty }.joined(separator: "\n")
     }
 }

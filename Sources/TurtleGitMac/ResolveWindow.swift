@@ -69,6 +69,7 @@ import TurtleGitCore
     var confirm: (ResolveChoice, [ConflictEntry]) -> Void = { _, _ in }
     var onChanged: (String) -> Void = { _ in }
     var onFinished: (Int) -> Void = { _ in }
+    var onEdit: (String) -> Void = { _ in }
     var onSubmoduleReset: (GitRepository, String, @escaping () -> Void) -> Void = { _, _, _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?) {
         self.repository = repository; self.access = access; self.paths = paths; self.quick = quick
@@ -117,6 +118,10 @@ import TurtleGitCore
             }
         } catch { self.error = error.localizedDescription }
     }
+    func editOrCompare(_ ids: Set<String>) {
+        if ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }), entry.isDeleteModify { onEdit(entry.path) }
+        else { compare(ids) }
+    }
     func compare(_ ids: Set<String>) {
         guard !busy, !ids.isEmpty else { return }; busy = true
         Task {
@@ -145,8 +150,10 @@ private struct ResolveDialog: View {
                     }.contextMenu(forSelectionType: String.self) { ids in
                         Button { model.compare(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
                         Divider()
-                        ResolveSelectionMenu(paths: Array(ids), rebase: model.rebase) { action, paths in model.request(action.resolveChoice ?? .current, ids: Set(paths)) }
-                    } primaryAction: { ids in model.compare(ids) }
+                        ResolveSelectionMenu(paths: Array(ids), rebase: model.rebase, canEdit: ids.count == 1 && model.entries.contains(where: { ids.contains($0.id) && $0.isDeleteModify })) { action, paths in
+                            if action == .editConflict, let path = paths.first { model.onEdit(path) } else { model.request(action.resolveChoice ?? .current, ids: Set(paths)) }
+                        }
+                    } primaryAction: { ids in model.editOrCompare(ids) }
                     HStack {
                         ResolveAllCheckbox(checked: model.checked.count, total: model.entries.count) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.fixedSize()
                         Spacer()
@@ -174,8 +181,10 @@ private struct ResolveDialog: View {
 struct ResolveSelectionMenu: View {
     let paths: [String]
     var rebase = false
+    var canEdit = false
     let action: (RepositoryAction, [String]) -> Void
     var body: some View {
+        if canEdit { Button { action(.editConflict, paths) } label: { CommandLabel(title: "Edit conflict…", icon: .editConflict) } }
         Button { action(.resolveCurrent, paths) } label: { CommandLabel(title: "Resolved", icon: .resolve) }.disabled(paths.isEmpty)
         Button { action(.resolveTheirs, paths) } label: { CommandLabel(title: rebase ? "Resolve using commit being replayed" : "Resolve conflict using ‘theirs’", icon: .resolve) }.disabled(paths.isEmpty)
         Button { action(.resolveMine, paths) } label: { CommandLabel(title: rebase ? "Resolve using branch being rebased onto" : "Resolve conflict using ‘mine’", icon: .resolve) }.disabled(paths.isEmpty)

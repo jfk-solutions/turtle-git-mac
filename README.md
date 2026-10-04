@@ -106,6 +106,9 @@ bundle structure; it is not a signed distribution.
 - Dedicated native Reset dialog with Branch/Tag/Commit, Soft/Mixed/Hard and
   submodule resolution handoff. [Reset parity](docs/RESET-PARITY.md) records the
   verified Git effects and remaining native/progress work.
+- Native delete/modify Conflict dialog with Modified/Created, Delete and default
+  Abort, side history and base comparison. [Conflict parity](docs/DELETE-CONFLICT-PARITY.md)
+  records native keep behavior and remaining editor/QA work.
 - Upstream file and dialog inventories pinned to an exact commit.
 
 These are initial workflows, not full upstream parity. The operation dialogs expose

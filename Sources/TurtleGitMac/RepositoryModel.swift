@@ -8,6 +8,7 @@ import TurtleGitCore
     @Published var branch = ""
     @Published var bare = false
     @Published var conflictRebase = false
+    @Published var submodules = Set<String>()
     @Published var entries: [StatusEntry] = []
     @Published var selection = Set<String>()
     @Published var output = "Open a repository to get started."
@@ -38,6 +39,7 @@ import TurtleGitCore
     private var cloneWindow: CloneWindowController?
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
+    private var deleteConflictWindows: [String: DeleteConflictWindowController] = [:]
     private var resetWindows: [String: ResetWindowController] = [:]
     private var resolveWindows: [String: ResolveWindowController] = [:]
     private var ignoreWindows: [String: IgnoreWindowController] = [:]
@@ -178,6 +180,7 @@ import TurtleGitCore
         bare = try await repository.isBare()
         entries = bare ? [] : try await repository.status()
         conflictRebase = bare ? false : try await repository.conflictIsRebase()
+        submodules = bare ? [] : try await repository.submodulePaths()
         selection.formIntersection(Set(entries.map(\.id)))
         branch = try await repository.branch()
         let tracked = bare ? [] : try await repository.trackedPaths()
@@ -226,6 +229,11 @@ import TurtleGitCore
             let selected = paths.isEmpty ? selectedPaths : paths
             guard selected.count == 1, selected[0] != "." else { error = RenameFailure.source.localizedDescription; return }
             showRename(repository: repository, access: activeAccess, source: selected[0])
+        case .editConflict:
+            guard let repository else { return }
+            let selected = paths.isEmpty ? selectedPaths : paths
+            guard selected.count == 1, selected[0] != "." else { error = "Select one delete/modify conflict to edit."; return }
+            showDeleteConflict(repository: repository, access: activeAccess, path: selected[0])
         case .resolve, .resolveCurrent, .resolveMine, .resolveTheirs:
             guard let repository else { return }
             showResolve(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, quick: action.resolveChoice)
@@ -251,7 +259,10 @@ import TurtleGitCore
             let access = controller.model.access
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
             controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
-            controller.model.onResolve = { [weak self] action, paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
+            controller.model.onResolve = { [weak self] action, paths in
+                if action == .editConflict, let path = paths.first { self?.showDeleteConflict(repository: repository, access: access, path: path) }
+                else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
+            }
             controller.model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
             controller.model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
             controller.model.configureLogPicker = { [weak self] log in
@@ -388,6 +399,18 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func showDeleteConflict(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
+        let root = repository.root, key = root.path + "\0" + path
+        let controller = deleteConflictWindows[key] ?? DeleteConflictWindowController(repository: repository, access: access, path: path)
+        controller.onClosed = { [weak self] in self?.deleteConflictWindows.removeValue(forKey: key) }
+        controller.model.onChanged = { [weak self] output in
+            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            for resolve in self?.resolveWindows.values ?? Dictionary<String, ResolveWindowController>().values where resolve.model.repository.root == root { resolve.model.load() }
+            if let self, self.root == root { self.output = output; Task { await self.refresh() } }
+        }
+        controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
+        deleteConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, completion: (() -> Void)? = nil) {
         let root = repository.root, key = root.path + "\0" + (revision ?? "")
         if let existing = resetWindows[key] {
@@ -414,6 +437,7 @@ import TurtleGitCore
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
+        controller.model.onEdit = { [weak self] path in self?.showDeleteConflict(repository: repository, access: access, path: path) }
         controller.model.onSubmoduleReset = { [weak self] child, revision, done in
             self?.showReset(repository: child, access: access, revision: revision, completion: done)
         }
@@ -500,16 +524,19 @@ import TurtleGitCore
         stashRestoreWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
-    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
-        let root = repository.root
-        let controller = logWindows[root.path] ?? LogWindowController(repository: repository, access: access)
-        controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: root.path) }
+    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil) {
+        let root = repository.root, key = endRevision == nil ? root.path : root.path + "\0" + endRevision!
+        let controller = logWindows[key] ?? LogWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
-        logWindows[root.path] = controller
+        logWindows[key] = controller
+        controller.model.endRevision = endRevision
+        if let endRevision { controller.window?.title = "\(root.lastPathComponent) – Log Messages at \(endRevision.prefix(7)) – TurtleGit" }
         controller.model.setPathScope(paths)
+        controller.model.reload()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 

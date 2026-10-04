@@ -69,6 +69,7 @@ struct LogCommandRequest: Identifiable {
     @Published var files: [CommitFile] = []
     @Published var selectedFiles = Set<String>()
     @Published var allBranches = false
+    @Published var endRevision: String?
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
     @Published var search = ""
@@ -111,7 +112,7 @@ struct LogCommandRequest: Identifiable {
     func reload(more: Bool = false) {
         if more { limit += 200 } else { limit = 200 }
         generation += 1; let request = generation
-        var options = HistoryOptions(); options.allBranches = allBranches; options.search = search; options.limit = limit
+        var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.limit = limit
         if !showWholeProject { options.paths = historyPaths }
         if useDates { options.since = Calendar.current.startOfDay(for: from); options.until = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) }
         busy = true
@@ -222,7 +223,7 @@ struct LogDialog: View {
             Text("Showing \(model.entries.count) revision(s) • \(model.selected.count) revision(s) selected • \(model.files.count) changed file(s) (merge changes against first parent)")
                 .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             HStack {
-                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).onChange(of: model.allBranches) { _ in model.reload() }
+                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil).onChange(of: model.allBranches) { _ in model.reload() }
                 if !model.historyPaths.isEmpty {
                     Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).onChange(of: model.showWholeProject) { _ in model.reload() }
                         .help(model.historyPaths.joined(separator: "\n"))

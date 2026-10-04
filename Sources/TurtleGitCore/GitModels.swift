@@ -24,6 +24,7 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
     /// `git rm --cached` can emit D and ??/!! records for the same literal path.
     /// Keep one list identity while retaining the copy outside the index.
     public var hasUnversionedCopy = false
+    public var isDeleteModifyConflict: Bool { ["DU", "UD", "AU", "UA"].contains(String([index, worktree])) }
     public var staged: Bool { index != " " && index != "?" && index != "!" }
     public var state: FileState {
         let code = String([index, worktree])

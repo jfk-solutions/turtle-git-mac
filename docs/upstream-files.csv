@@ -1411,7 +1411,7 @@ src/Resources/menucleanup.ico,Resources,blob,df725fc476ca2444af193b6f73101291102
 src/Resources/menucombine.ico,Resources,blob,f903756ca809b62392d8935f2ade527431ac398d,pending-review,,
 src/Resources/menucommit.ico,Resources,blob,24086b801d2edb5f4182b9ce68035b4238536861,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menucommit.ico,Unchanged upstream ICO; AppKit decodes at native menu/badge size. GPL alternative; retained source license and provenance.
 src/Resources/menucompare.ico,Resources,blob,ccaf80d42e23b1b94d0d63daa5417b7771243fa3,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menucompare.ico,Unchanged upstream ICO; AppKit decodes at native menu/badge size. GPL alternative; retained source license and provenance.
-src/Resources/menuconflict.ico,Resources,blob,829e9362d45383785d5a0c2e43897253c63ee4cb,pending-review,,
+src/Resources/menuconflict.ico,Resources,blob,829e9362d45383785d5a0c2e43897253c63ee4cb,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menuconflict.ico,Unchanged original artwork with hash/GPL provenance and native decode verification.
 src/Resources/menucopy.ico,Resources,blob,e552050f3d44af8cae88adb2db51227b6365910d,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menucopy.ico,Unchanged upstream ICO; AppKit decodes at native menu/badge size. GPL alternative; retained source license and provenance.
 src/Resources/menucreaterepos.ico,Resources,blob,243c63e5ae911aaf08741f6770378924a0db57f0,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menucreaterepos.ico,Unchanged upstream ICO; AppKit decodes at native menu/badge size. GPL alternative; retained source license and provenance.
 src/Resources/menudaemon.ico,Resources,blob,9a3d971ef584091a26fd8de1afe2bccf4efc09a7,pending-review,,
@@ -2370,8 +2370,8 @@ src/TortoiseProc/CreateRepoDlg.cpp,TortoiseProc,blob,79e78604a4e41a2425e72cd20cf
 src/TortoiseProc/CreateRepoDlg.h,TortoiseProc,blob,129f7699761228f226ad6d3e672297c6b0efa8b9,partial,Sources/TurtleGitMac/CreateRepositoryWindow.swift; Sources/TurtleGitCore/RepositoryInitialization.swift; Sources/TurtleGitMac/RepositoryModel.swift,"Native five-control layout, Bare defaults and warnings; real Git preservation and native normal/bare/Cancel/Abort verified. Picker, adoption/recents and signed QA pending; docs/INIT-PARITY.md."
 src/TortoiseProc/CreateWorktreeDlg.cpp,TortoiseProc,blob,e15ff43dcc0a6bf4c09429792dd644919dcf0f1a,pending-review,,
 src/TortoiseProc/CreateWorktreeDlg.h,TortoiseProc,blob,cdc58bd112fec3d4a3f35953202928997235436a,pending-review,,
-src/TortoiseProc/DeleteConflictDlg.cpp,TortoiseProc,blob,f9e2214a7173b33df4af1f7acef29e3e412d8ebf,pending-review,,
-src/TortoiseProc/DeleteConflictDlg.h,TortoiseProc,blob,7c15702476415fd5f8cf356fd285de99f2de38c8,pending-review,,
+src/TortoiseProc/DeleteConflictDlg.cpp,TortoiseProc,blob,f9e2214a7173b33df4af1f7acef29e3e412d8ebf,partial,Sources/TurtleGitMac/DeleteConflictWindow.swift; Sources/TurtleGitCore/DeleteConflict.swift,"Native side/status/button layout and keep/delete/Abort, bounded side history; remaining QA/editor gaps in DELETE-CONFLICT-PARITY.md."
+src/TortoiseProc/DeleteConflictDlg.h,TortoiseProc,blob,7c15702476415fd5f8cf356fd285de99f2de38c8,partial,Sources/TurtleGitMac/DeleteConflictWindow.swift; Sources/TurtleGitCore/DeleteConflict.swift,"Native side/status/button layout and keep/delete/Abort, bounded side history; remaining QA/editor gaps in DELETE-CONFLICT-PARITY.md."
 src/TortoiseProc/DeleteRemoteTagDlg.cpp,TortoiseProc,blob,3f897488309f69bddc72934e10981ac0b2a91492,pending-review,,
 src/TortoiseProc/DeleteRemoteTagDlg.h,TortoiseProc,blob,4730398b3c3c213b0b47c77416275fc6048882d6,pending-review,,
 src/TortoiseProc/DiffLinesForStaging.cpp,TortoiseProc,blob,dc91d0753551484549d4ab74e8677b9fcca8eb67,pending-review,,

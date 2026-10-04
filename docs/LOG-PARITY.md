@@ -37,6 +37,8 @@ Audited baseline: `7338078f8ddd924b8cddee35f512f2286072136d`.
   Each operation opens a native dialog capturing the exact selected revision.
   Reset now uses the full revision/type window; see [Reset parity](RESET-PARITY.md)
   for Git effects, native Mixed checks and remaining chooser/progress work.
+- Conflict-side Show log can bound history to a verified commit and path; the
+  incoming-side native handoff was checked. All Branches retains that bound.
 - Original upstream colored command icons in revision and changed-file menus.
 
 Tests cover graph continuity at merges and branch points, octopus/disconnected

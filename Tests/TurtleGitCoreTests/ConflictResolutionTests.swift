@@ -2,14 +2,16 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ConflictResolutionTests: XCTestCase {
-    func fixture(deletedMine: Bool = false, binary: Bool = false) async throws -> (URL, GitRepository, String) {
+    func fixture(deletedMine: Bool = false, binary: Bool = false, deletedTheirs: Bool = false) async throws -> (URL, GitRepository, String) {
         let (root, repo) = try await CommitSelectionTests().fixture()
         let path = "-conflict 雪\n[*].txt"
         func write(_ text: String) throws { try Data(((binary ? "\0" : "") + text).utf8).write(to: root.appendingPathComponent(path)) }
         try write("base\n"); try Data("base other\n".utf8).write(to: root.appendingPathComponent("other.txt"))
         try await repo.stage([path, "other.txt"]); _ = try await repo.commit(message: "base")
         _ = try await repo.run(["checkout", "-b", "side"])
-        try write("theirs\n"); try await repo.stage([path]); _ = try await repo.commit(message: "theirs")
+        if deletedTheirs { _ = try await repo.run(["rm", "--", path]) }
+        else { try write("theirs\n"); try await repo.stage([path]) }
+        _ = try await repo.commit(message: "theirs")
         _ = try await repo.run(["checkout", "main"])
         if deletedMine { _ = try await repo.run(["rm", "--", path]) }
         else { try write("mine\n"); try await repo.stage([path]) }

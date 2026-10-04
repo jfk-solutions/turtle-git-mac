@@ -61,11 +61,11 @@ claimed. The actual native capture is site/assets/resolve.png (1560 × 964).
 
 ## Remaining parity
 
-Full Edit Conflict/three-way merge integration, delete/modify and submodule chooser
-dialogs, upstream status-list menu coverage, drag/drop, temporary merge artifact
+Full three-way merge integration and the submodule chooser, upstream status-list menu coverage, drag/drop, temporary merge artifact
 ownership and cleanup, progress cancellation/error continuation, branch identity
 labels, broader native side-choice execution, stale
 refresh/retry, Commit handoff, dark-mode/keyboard/Help QA, parent restoration,
-signed Finder and sandbox runtime remain pending. Double-click currently opens
+signed Finder and sandbox runtime remain pending. Double-click now opens the native delete/modify chooser for a single ordinary
+missing-side conflict (see DELETE-CONFLICT-PARITY.md); other conflicts still open
 Compare with base rather than the full upstream conflict editor. All Resolve
 workflow records remain partial; no complete dialog or App Store parity is claimed.

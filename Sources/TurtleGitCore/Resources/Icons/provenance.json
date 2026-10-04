@@ -217,6 +217,11 @@
       "asset": "menuresolve.ico",
       "source": "src/Resources/menuresolve.ico",
       "sha256": "822d6d10a4f848dc82432111961b7c746ed2b052132699244fa8305c5cce97bb"
+    },
+    {
+      "asset": "menuconflict.ico",
+      "source": "src/Resources/menuconflict.ico",
+      "sha256": "8e2ffe664db9a21faf080f7ed10b9ca83c210cac76a26cc273742a0e7bf27523"
     }
   ]
 }

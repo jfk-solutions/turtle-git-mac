@@ -76,5 +76,5 @@ Debug URL dispatch.
 Full upstream ref/log chooser and FileDiffDlg, progress/cancellation/post-actions,
 native Hard warning/Cancel and error recovery, bare native layout, keyboard focus,
 Help, saved position, Log handoff, parent restoration and signed sandbox runtime
-remain pending. Full submodule Base/Mine/Theirs chooser and delete/modify conflict
-windows remain separate unported dialogs. Reset and Resolve remain partial.
+remain pending. Full submodule Base/Mine/Theirs chooser remains unported. Delete/modify conflicts
+now have a native window with separate gaps recorded in DELETE-CONFLICT-PARITY.md. Reset and Resolve remain partial.

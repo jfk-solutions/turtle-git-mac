@@ -615,7 +615,7 @@ GroupBox("Changes made (double-click on file for diff):") {
             }
             if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
                 Divider()
-                ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, action: model.onResolve)
+                ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1 && selected[0].isDeleteModifyConflict && !model.submodules.contains(selected[0].path), action: model.onResolve)
             }
             if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
                 Divider()
@@ -648,7 +648,11 @@ GroupBox("Changes made (double-click on file for diff):") {
                     }
                 } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
             }
-        } primaryAction: { ids in selection.wrappedValue = ids; model.diff(paths: ids, staged: staged) }
+        } primaryAction: { ids in
+            selection.wrappedValue = ids
+            if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.isDeleteModifyConflict, !model.submodules.contains(entry.path) { model.onResolve(.editConflict, [entry.path]) }
+            else { model.diff(paths: ids, staged: staged) }
+        }
     }
     func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }
 }

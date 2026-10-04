@@ -86,7 +86,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset
+    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -116,6 +116,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .ignoreMask: return "Ignore by extension"
         case .ignoreDelete: return "Delete and add to ignore list"
         case .ignoreDeleteMask: return "Delete and ignore by extension"
+        case .editConflict: return "Edit conflict…"
         case .reset: return "Reset…"
         case .resolve: return "Resolve…"
         case .resolveCurrent: return "Resolved"
@@ -126,12 +127,12 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var resolveChoice: ResolveChoice? {
         switch self { case .resolveCurrent: return .current; case .resolveMine: return .mine; case .resolveTheirs: return .theirs; default: return nil }
     }
-    public var isResolve: Bool { self == .resolve || resolveChoice != nil }
+    public var isResolve: Bool { self == .resolve || self == .editConflict || resolveChoice != nil }
     public var isIgnore: Bool { [.ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask].contains(self) }
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

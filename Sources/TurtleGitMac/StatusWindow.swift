@@ -53,6 +53,7 @@ struct StatusRow: Identifiable {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     @Published var conflictRebase = false
+    @Published var submodules = Set<String>()
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: [String: CommitFile] = [:]
     @Published var selection = Set<String>()
@@ -81,7 +82,7 @@ struct StatusRow: Identifiable {
             defer { busy = false }
             do {
                 files = try await repository.workingTreeStatus(); branch = try await repository.branch()
-                conflictRebase = (try await repository.conflictIsRebase())
+                conflictRebase = (try await repository.conflictIsRebase()); submodules = try await repository.submodulePaths()
                 statistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 selection.formIntersection(Set(visibleFiles.map(\.id)))
             } catch { self.error = error.localizedDescription }
@@ -152,7 +153,7 @@ struct StatusDialog: View {
                 }
                 let selected = model.files.filter { ids.contains($0.id) }
                 if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
-                    ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, action: model.onAction)
+                    ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1 && selected[0].entry.isDeleteModifyConflict && !model.submodules.contains(selected[0].id), action: model.onAction)
                 }
                 if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
                     IgnoreSelectionMenu(paths: selected.map(\.id), action: model.onAction)
@@ -161,7 +162,10 @@ struct StatusDialog: View {
                 Button { model.onAction(.log, Array(ids)) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
                 Button { model.reveal(ids) } label: { Label("Show in Finder", systemImage: "folder") }.disabled(ids.isEmpty)
                 Button { model.copy(ids) } label: { CommandLabel(title: "Copy paths", icon: .copy) }.disabled(ids.isEmpty)
-            } primaryAction: { ids in model.diff(ids) }
+            } primaryAction: { ids in
+                if ids.count == 1, let entry = model.files.first(where: { ids.contains($0.id) }), entry.entry.isDeleteModifyConflict, !model.submodules.contains(entry.id) { model.onAction(.editConflict, [entry.id]) }
+                else { model.diff(ids) }
+            }
             .frame(minHeight: 300)
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {

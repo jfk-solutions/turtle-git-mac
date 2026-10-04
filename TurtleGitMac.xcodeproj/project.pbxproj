@@ -11,11 +11,13 @@
 		0195C6B3141B1AE8A2DD732B /* Checkout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593DF9B126BBA7E5D206ABE5 /* Checkout.swift */; };
 		0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */; };
 		0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FB406B12CA9FED59A3121 /* FinderCache.swift */; };
+		10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = 966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */; };
 		140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */; };
 		174E45FA66A5BAED1EAEF918 /* IgnoreWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */; };
 		1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */; };
 		199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0144901E0020C531A5D86FB /* RepositoryAccess.swift */; };
 		1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 326985003F83908822D7B91E /* MergeWindow.swift */; };
+		1CB7F6B1BB3F2584AD6F9547 /* DeleteConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */; };
 		1EE5D062EF745705C82D9271 /* ReferenceCreation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 244AD68D8412684F520E64AC /* ReferenceCreation.swift */; };
 		20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */; };
 		241DD127E807673880A95899 /* PatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */; };
@@ -160,7 +162,9 @@
 		79C5573349C11EE01ECA2C1E /* TurtleGitFinder.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TurtleGitFinder.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7A48D22D1E6D22153CBA3744 /* Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Push.swift; sourceTree = "<group>"; };
 		7A4B370EB64932B2909A8228 /* CloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneWindow.swift; sourceTree = "<group>"; };
+		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
 		83395323FFA0860A52795F9F /* Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stash.swift; sourceTree = "<group>"; };
+		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
 		A2D91605384F213DBC8C3C9F /* CommitAmend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitAmend.swift; sourceTree = "<group>"; };
 		A35B58726A94B9B4799C06DE /* RemoveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveWindow.swift; sourceTree = "<group>"; };
@@ -220,6 +224,7 @@
 				4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */,
 				4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */,
 				022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */,
+				7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */,
 				798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */,
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */,
@@ -279,6 +284,7 @@
 				FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */,
 				515FF59B2CF163D9481D39B5 /* CommitSelection.swift */,
 				102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */,
+				966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */,
 				181B9FE19CD19EA7DAB1E824 /* Fetch.swift */,
 				F01FB406B12CA9FED59A3121 /* FinderCache.swift */,
 				BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */,
@@ -452,6 +458,7 @@
 				4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */,
 				A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */,
 				B37762B44078ECEA7539D02D /* ConflictResolution.swift in Sources */,
+				10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */,
 				96858E5400FE448CEE799A09 /* Fetch.swift in Sources */,
 				0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */,
 				AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */,
@@ -488,6 +495,7 @@
 				E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */,
 				F5EE3ED18BC448DB2B9E658A /* CommitWindow.swift in Sources */,
 				DB59BAE5F3CCA439B5A6C388 /* CreateRepositoryWindow.swift in Sources */,
+				1CB7F6B1BB3F2584AD6F9547 /* DeleteConflictWindow.swift in Sources */,
 				B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */,
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				174E45FA66A5BAED1EAEF918 /* IgnoreWindow.swift in Sources */,

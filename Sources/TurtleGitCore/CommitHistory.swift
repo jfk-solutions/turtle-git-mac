@@ -13,6 +13,7 @@ public struct RevisionReference: Hashable, Sendable {
 
 public struct HistoryOptions: Sendable {
     public var allBranches = false
+    public var endRevision: String?
     public var limit = 200
     public var search = ""
     public var path: String?
@@ -132,12 +133,15 @@ public enum CommitGraph {
 extension GitRepository {
     public func history(options: HistoryOptions = HistoryOptions()) throws -> [LogEntry] {
         // An unborn HEAD is valid; --all may still have commits in other branches.
-        if !options.allBranches {
+        if !options.allBranches && options.endRevision == nil {
             do { _ = try run(["rev-parse", "--verify", "--quiet", "HEAD"]) }
             catch let failure as GitFailure where failure.code == 1 { return [] }
         }
         var args = ["log", "--topo-order", "-\(options.limit)", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00"]
-        if options.allBranches { args.append("--all") }
+        if let revision = options.endRevision {
+            let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+            args.append(hash)
+        } else if options.allBranches { args.append("--all") }
         if !options.search.isEmpty { args += ["--fixed-strings", "--regexp-ignore-case", "--grep=" + options.search] }
         if let since = options.since { args.append("--since=@\(Int(since.timeIntervalSince1970))") }
         if let until = options.until { args.append("--until=@\(Int(until.timeIntervalSince1970))") }
