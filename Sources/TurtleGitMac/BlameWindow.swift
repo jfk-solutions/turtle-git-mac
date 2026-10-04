@@ -336,7 +336,7 @@ private struct BlameDialog: View {
                     BlameHistoryTable(model: model).frame(minHeight: 80, idealHeight: 170, maxHeight: 320)
                 }.frame(minWidth: 450, maxWidth: .infinity, maxHeight: .infinity)
                 if model.showProperties {
-                    BlamePropertiesPane(entry: model.selectedHistoryEntry, history: model.historyEntries)
+                    BlamePropertiesPane(entry: model.selectedHistoryEntry, history: model.historyEntries, copy: model.copy)
                         .frame(minWidth: 230, idealWidth: 300, maxWidth: 350, maxHeight: .infinity)
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -352,6 +352,7 @@ private struct BlameDialog: View {
 private struct BlamePropertiesPane: View {
     let entry: LogEntry?
     let history: [LogEntry]
+    let copy: (String) -> Void
     private func property(_ name: String, _ value: String) -> some View {
         HStack(alignment: .top, spacing: 8) {
             Text(name).foregroundStyle(.secondary).frame(width: 88, alignment: .leading)
@@ -359,12 +360,7 @@ private struct BlamePropertiesPane: View {
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
         }.accessibilityElement(children: .combine)
     }
-    private var bodyText: String {
-        guard let entry else { return "" }
-        // Git's %B contains the subject and body. Upstream exposes them separately.
-        return entry.message.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: false)
-            .dropFirst().joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
-    }
+    private var properties: GitBlameRevisionProperties? { entry.map { GitBlameRevisionProperties(entry: $0) } }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Properties").font(.headline).padding(8)
@@ -374,17 +370,21 @@ private struct BlamePropertiesPane: View {
                     Text("Basic information").font(.headline)
                     property("SHA-1", entry?.hash ?? "")
                     property("Author", entry?.author ?? "")
-                    property("Author date", entry?.date ?? "")
+                    property("Author date", properties?.authorDate ?? "")
                     property("Author email", entry?.email ?? "")
                     property("Committer", entry?.committer ?? "")
                     property("Committer email", entry?.committerEmail ?? "")
-                    property("Committer date", entry?.committerDate ?? "")
-                    property("Subject", entry?.subject ?? "")
-                    property("Body", bodyText)
+                    property("Committer date", properties?.committerDate ?? "")
+                    property("Subject", properties?.subject ?? "")
+                    property("Body", properties?.body ?? "")
                     Divider()
                     Text("Parents").font(.headline)
                     ForEach(entry?.parents ?? [], id: \.self) { hash in
-                        property(hash, history.first(where: { $0.hash == hash })?.subject ?? "")
+                        let subject = history.first(where: { $0.hash == hash }).map { GitBlameRevisionProperties(entry: $0).subject } ?? ""
+                        property(String(hash.prefix(7)), subject).help("\(hash)\n\(subject)")
+                            .contextMenu {
+                                Button { copy(hash) } label: { CommandLabel(title: "Copy SHA-1 to clipboard", icon: .copy) }
+                            }
                     }
                 }.font(.system(size: 11)).padding(10).frame(maxWidth: .infinity, alignment: .leading)
             }

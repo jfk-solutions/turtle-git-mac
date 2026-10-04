@@ -565,6 +565,39 @@ binaries; documentation site and whitespace checks passed. Dark mode,
 multi-selection clearing, long-body/multi-line-subject handling, splitter resizing,
 property text copy and hide/show require native acceptance.
 
+## Properties text and date formatting
+
+Reviewed upstream `GitRev.cpp`'s libgit2 `ParserFromCommit`, which splits raw
+messages at the first newline, and `PropertiesWnd.cpp`, which trims Body and
+formats local `CTime` values as `%Y-%m-%d %H:%M`. The existing Body split already
+matched this behavior. Properties Subject now uses the raw first line rather than
+Git `%s`, which folds the first paragraph. The full original log message remains
+unchanged for clipboard output. Author and committer dates now use the local time
+zone and minute precision with a fixed Gregorian/POSIX format. Unknown timestamp
+strings are preserved rather than replaced with misleading dates.
+
+Parent labels use seven-character hashes; help text retains the full hash and
+cached subject. The parent context menu copies the full hash and uses the original
+copy icon. It routes through the viewer's clipboard generation guard so an older
+asynchronous log-copy request cannot overwrite the chosen parent hash.
+
+Three focused presentation tests passed. Coverage includes a multi-line first
+paragraph, Unicode body and trailers, single-line/empty messages, different
+source offsets, UTC and Berlin summer time, winter time crossing midnight,
+invalid timestamps and retained full messages. This supplements the prior
+282-test full-suite baseline; the full suite was not rerun for this formatting
+change. Debug and App Store builds and both bundle audits passed.
+
+One isolated native light QA instance showed the first-line Subject, separate
+local minute dates and abbreviated parent with full help text. A stale file-menu
+accessibility ID was recovered by invoking the same observed Blame action with
+keyboard navigation. The long-body scroll attempt returned `noWindowsAvailable`;
+it does not establish scrolling acceptance. No new screenshot file was produced
+or published. The app quit normally, process absence was verified, and HEAD,
+raw index and working source stayed identical to baseline. Parent copy/icon
+rendering, long-body scrolling, dark mode and full Properties interactions still
+need native acceptance. Overall Blame remains partial.
+
 ## Remaining work
 
 - Native multi-revision selection acceptance, full source locator and complete revision-log layout;

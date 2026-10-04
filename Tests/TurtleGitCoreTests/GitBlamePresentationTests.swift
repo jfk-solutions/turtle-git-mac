@@ -2,6 +2,26 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlamePresentationTests: XCTestCase {
+    func testRevisionPropertiesUseFirstLineAndLocalMinuteDatesWithoutChangingMessage() {
+        let message = "Subject 雪\nsecond subject line\n\nBody 🐢\n\nSigned-off-by: Test\n"
+        let entry = LogEntry(hash: "abc", author: "Author", date: "2001-09-10T00:33:20-05:00",
+            subject: "Subject 雪 second subject line", message: message, committerDate: "2001-09-11T11:50:00+02:30")
+        let utc = GitBlameRevisionProperties(entry: entry, timeZone: TimeZone(secondsFromGMT: 0)!)
+        XCTAssertEqual(utc.subject, "Subject 雪")
+        XCTAssertEqual(utc.body, "second subject line\n\nBody 🐢\n\nSigned-off-by: Test")
+        XCTAssertEqual(utc.authorDate, "2001-09-10 05:33")
+        XCTAssertEqual(utc.committerDate, "2001-09-11 09:20")
+        let berlin = GitBlameRevisionProperties(entry: entry, timeZone: TimeZone(identifier: "Europe/Berlin")!)
+        XCTAssertEqual(berlin.authorDate, "2001-09-10 07:33")
+        XCTAssertEqual(berlin.committerDate, "2001-09-11 11:20")
+        XCTAssertEqual(entry.message, message)
+        let winter = LogEntry(hash: "winter", author: "", date: "2026-01-01T23:59:59-05:00", subject: "Only subject", message: "Only subject", committerDate: "invalid")
+        let properties = GitBlameRevisionProperties(entry: winter, timeZone: TimeZone(identifier: "Europe/Berlin")!)
+        XCTAssertEqual(properties.authorDate, "2026-01-02 05:59")
+        XCTAssertEqual(properties.committerDate, "invalid"); XCTAssertEqual(properties.body, "")
+        let empty = GitBlameRevisionProperties(entry: LogEntry(hash: "", author: "", date: "", subject: "Fallback"))
+        XCTAssertEqual(empty.subject, "Fallback"); XCTAssertEqual(empty.body, ""); XCTAssertEqual(empty.authorDate, "")
+    }
     func testPresentationReopensSeparatelyFromAnnotationDefaults() throws {
         let name = "GitBlamePresentationTests." + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))

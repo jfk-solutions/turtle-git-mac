@@ -1,5 +1,32 @@
 import Foundation
 
+/// Read-only Properties values, following GitRev's first-newline message split.
+public struct GitBlameRevisionProperties: Sendable {
+    public let subject: String
+    public let body: String
+    public let authorDate: String
+    public let committerDate: String
+    public init(entry: LogEntry, timeZone: TimeZone = .current) {
+        if let newline = entry.message.firstIndex(of: "\n") {
+            subject = String(entry.message[..<newline])
+            body = String(entry.message[entry.message.index(after: newline)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            subject = entry.message.isEmpty ? entry.subject : entry.message
+            body = ""
+        }
+        let parser = ISO8601DateFormatter()
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = timeZone
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        func date(_ raw: String) -> String {
+            parser.date(from: raw).map(formatter.string(from:)) ?? raw
+        }
+        authorDate = date(entry.date); committerDate = date(entry.committerDate)
+    }
+}
+
 public struct GitBlamePresentation: Equatable, Sendable {
     public var fontName = "Menlo"
     public var fontSize = 10
