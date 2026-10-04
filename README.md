@@ -28,6 +28,9 @@ bundle structure; it is not a signed distribution.
 
 ## Implemented first pass
 
+The historical Blame data reader is tested, but its native window and menus are
+still pending. See [Blame parity](docs/BLAME-PARITY.md).
+
 - Open normal repositories and linked worktrees; show branch and status.
 - Remember recent repositories with security-scoped bookmarks; renew stale permissions
   and hold access for the session. Finder requests require an existing grant or a picker.

@@ -1624,7 +1624,7 @@ src/TortoiseGitBlame/TortoiseGitBlame.cpp,TortoiseGitBlame,blob,5fe1b325a2552ce3
 src/TortoiseGitBlame/TortoiseGitBlame.h,TortoiseGitBlame,blob,fa2ae0d6185f947500557253d99ba0d708645efb,pending-review,,
 src/TortoiseGitBlame/TortoiseGitBlame.vcxproj,TortoiseGitBlame,blob,768f75704631faa3312b8eddfa0802d9e2d52266,pending-review,,
 src/TortoiseGitBlame/TortoiseGitBlame.vcxproj.filters,TortoiseGitBlame,blob,b9cb5b9331533078c799a819b84e22826f082e57,pending-review,,
-src/TortoiseGitBlame/TortoiseGitBlameData.cpp,TortoiseGitBlame,blob,124f03a1a68ded855ee1c75756a861e931fb0a48,pending-review,,
+src/TortoiseGitBlame/TortoiseGitBlameData.cpp,TortoiseGitBlame,blob,124f03a1a68ded855ee1c75756a861e931fb0a48,partial,Sources/TurtleGitCore/GitBlame.swift; Tests/TurtleGitCoreTests/GitBlameTests.swift,"Historical UTF-8 line-porcelain reader; quoted origin paths, metadata, exact pinned source validation and real Git rename/whitespace/moved/copied tests. Ordinary porcelain cache, encoding conversion, search and native UI remain pending. See docs/BLAME-PARITY.md."
 src/TortoiseGitBlame/TortoiseGitBlameData.h,TortoiseGitBlame,blob,1470866eb4b8a96b34df58aa23f17629ec54fda1,pending-review,,
 src/TortoiseGitBlame/TortoiseGitBlameDoc.cpp,TortoiseGitBlame,blob,6530683a8d6917914fe3ff1b3d13abd3a3d03f68,pending-review,,
 src/TortoiseGitBlame/TortoiseGitBlameDoc.h,TortoiseGitBlame,blob,f63411e16cf41879250ce79a179bd1556cc08a2c,pending-review,,
@@ -2949,7 +2949,7 @@ test/UnitTests/StagingTest.cpp,test,blob,d0197214464e380e0954ad69f0d47d702d230ed
 test/UnitTests/StringUtilsTest.cpp,test,blob,f32c2a4da27707f4f58f3259b6f910acd37b6fdc,pending-review,,
 test/UnitTests/TGitPathTest.cpp,test,blob,bb22a186d894defad9fbe0e3c5cb572d7e4b67e1,pending-review,,
 test/UnitTests/TempFileTest.cpp,test,blob,dd4d69fff9b96a7d3033922769c8282965cdf140,pending-review,,
-test/UnitTests/TortoiseGitBlameDataTest.cpp,test,blob,3347bd77098b2c4e3ed770a15149ce8681314274,pending-review,,
+test/UnitTests/TortoiseGitBlameDataTest.cpp,test,blob,3347bd77098b2c4e3ed770a15149ce8681314274,partial,Sources/TurtleGitCore/GitBlame.swift; Tests/TurtleGitCoreTests/GitBlameTests.swift,"Historical UTF-8 line-porcelain reader; quoted origin paths, metadata, exact pinned source validation and real Git rename/whitespace/moved/copied tests. Ordinary porcelain cache, encoding conversion, search and native UI remain pending. See docs/BLAME-PARITY.md."
 test/UnitTests/UnicodeUtilsTest.cpp,test,blob,a827f2850a4cf4e190de9f44d5e93bc7affc0c32,pending-review,,
 test/UnitTests/UniqueQueueTests.cpp,test,blob,dddaf7bd2b2725e129ed7bf953c5cb4463e5f600,pending-review,,
 test/UnitTests/UnitTests.cpp,test,blob,d1b707c189090e2b487635de98640f77c53dc07f,pending-review,,

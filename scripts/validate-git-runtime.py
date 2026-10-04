@@ -58,6 +58,16 @@ def main():
         run('-C', str(repository), 'add', '--', path.name)
         run('-C', str(repository), '-c', 'commit.gpgsign=false', 'commit', '-m', 'base')
         path.write_bytes(b'working\n')
+        head = run('-C', str(repository), 'rev-parse', 'HEAD').strip()
+        index = (repository / '.git/index').read_bytes()
+        annotation = run('--literal-pathspecs', '-C', str(repository), '-c', 'blame.blankBoundary=false',
+                         'blame', '--line-porcelain', '--no-progress', '--no-textconv', '-w', '-M', '-C',
+                         head.decode('ascii'), '--', path.name)
+        assert annotation.startswith(head + b' 1 1 1\n')
+        assert b'\nauthor Runtime QA\n' in annotation and b'\nauthor-mail <runtime@example.invalid>\n' in annotation
+        assert annotation.endswith(b'\tbase\n'), 'Historical blame must ignore uncommitted contents'
+        assert (repository / '.git/index').read_bytes() == index and path.read_bytes() == b'working\n'
+        assert run('-C', str(repository), 'rev-parse', 'HEAD').strip() == head
         assert b'+working' in run('-C', str(repository), 'diff', '--', path.name)
         run('-C', str(repository), 'stash', 'push', '-m', 'runtime stash')
         assert path.read_bytes() == b'base\n'
@@ -72,6 +82,6 @@ def main():
             result = run('ls-remote', '--exit-code', 'https://github.com/TortoiseGit/TortoiseGit.git', 'HEAD', timeout=60, cwd=directory)
         assert result.rstrip().endswith(b'\tHEAD'), 'Missing HTTPS remote HEAD'
         print('Public HTTPS ls-remote passed with bundled git-remote-https.')
-    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log passed.')
+    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/blame passed.')
 
 if __name__ == '__main__': main()
