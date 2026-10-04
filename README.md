@@ -222,7 +222,9 @@ read-only. Use other block/file, both block orders, Undo/Redo and pane-specific
 Save As are available. Pane context menus also apply selected line ranges and
 offer Copy/Cut/Paste with alignment gaps excluded. Mark/Unmark and Leave only
 marked blocks preserve marked and manually edited lines, with original gutter
-icons and Undo. Full TortoiseMerge parity remains in progress.
+icons and Undo. Inline character/word differences use the upstream light/dark
+colors and missing-text markers; normal Log comparisons open Changed Files.
+Full TortoiseMerge parity remains in progress.
 [Submodule Update parity](docs/SUBMODULE-UPDATE-PARITY.md) records the native
 selection/options window, real Git behavior and remaining progress/Finder checks.
 

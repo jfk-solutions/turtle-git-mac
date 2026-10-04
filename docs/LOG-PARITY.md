@@ -94,3 +94,15 @@ has no such row in either mode. Native Commit QA verified single acceptance,
 multiple-selection rejection, no-match search rejection and cancellation.
 See COMMIT-PARITY.md for insertion and Git-state evidence. This mode does not
 establish completeness of the shared Log controls or mutation menus.
+
+## Native comparison routing follow-up
+
+Normal repository Log revision menus now open the retained Changed Files window
+for working-tree, previous-revision and two-revision comparison. A root commit
+uses the empty tree; a merge uses its first parent. Unified diff remains its
+separate menu action. One native test verified Log → Changed Files → ordinary
+two-pane file viewer; HEAD, index and working contents stayed unchanged and the
+QA process exited. Root/two-revision native variants, file-level comparison
+routing and history-picker comparison factories remain pending. See
+[comparison parity](SUBMODULE-DIFF-PARITY.md) for inline character/word display
+and remaining fidelity differences.

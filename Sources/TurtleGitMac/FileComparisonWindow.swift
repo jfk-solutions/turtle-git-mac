@@ -57,6 +57,8 @@ import TurtleGitCore
     @Published var error: String?
     @Published var difference = -1
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
+    @Published var showInlineDiff = true
+    @Published var inlineWordDiff = false
     @Published var editingEnabled = false
     @Published var editedText = ""
     @Published var canUndo = false
@@ -65,6 +67,20 @@ import TurtleGitCore
     @Published var annotations = FileComparisonEditing.Annotations()
     private var savedMarked = Set<Int>()
     private(set) var alignmentGeneration = 0
+    private struct InlineResult { let value: MergeInlineComparison? }
+    private var inlineCache: [Int: InlineResult] = [:]
+    private var inlineGeneration = -1
+    private var cachedWordMode = false
+    func inlineDifference(_ index: Int) -> MergeInlineComparison? {
+        guard showInlineDiff, let alignment, alignment.rows.indices.contains(index), alignment.rows[index].changed else { return nil }
+        if inlineGeneration != alignmentGeneration || cachedWordMode != inlineWordDiff {
+            inlineCache = [:]; inlineGeneration = alignmentGeneration; cachedWordMode = inlineWordDiff
+        }
+        if let cached = inlineCache[index] { return cached.value }
+        let row = alignment.rows[index]
+        let value = row.base.lineNumber != nil && row.destination.lineNumber != nil ? MergeInlineComparison(base: row.base.displayText, destination: row.destination.displayText, word: inlineWordDiff) : nil
+        inlineCache[index] = InlineResult(value: value); return value
+    }
     weak var window: NSWindow?
     var undo: () -> Void = {}
     var redo: () -> Void = {}
@@ -231,7 +247,13 @@ private struct FileComparisonDialog: View {
                 Button { model.find(.showFindInterface) } label: { CommandLabel(title: "Find", icon: .mergeFind) }.disabled(model.alignment == nil)
                 Spacer()
             }.padding(10).disabled(model.busy || model.confirmingQuit)
-            HStack { Toggle("Enable editing", isOn: $model.editingEnabled).disabled(model.editableBase == nil || model.busy || model.confirmingQuit); Spacer(); Toggle("Line numbers", isOn: $model.showLineNumbers) }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
+            HStack {
+                Toggle("Enable editing", isOn: $model.editingEnabled).disabled(model.editableBase == nil || model.busy || model.confirmingQuit)
+                Spacer()
+                Toggle("Inline diff", isOn: $model.showInlineDiff).disabled(model.alignment == nil)
+                Toggle("Word diff", isOn: $model.inlineWordDiff).disabled(!model.showInlineDiff || model.alignment == nil)
+                Toggle("Line numbers", isOn: $model.showLineNumbers)
+            }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
             HStack {
                 Menu {
                     Button { model.useOtherBlock() } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }
@@ -297,7 +319,9 @@ private struct FileComparisonEditor: NSViewRepresentable {
         context.coordinator.cells = cells; context.coordinator.base = base
         (view as? FileComparisonTextView)?.sourceCells = cells
         view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
-        let value = Self.attributed(cells, font: view.font!)
+        let value = Self.attributed(cells, font: view.font!, model: model, base: base)
+        (view as? FileComparisonTextView)?.missingOffsets = Self.missingOffsets(cells, model: model, base: base)
+        view.needsDisplay = true
         if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
         else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
         scroll.rulersVisible = model.showLineNumbers
@@ -311,11 +335,29 @@ private struct FileComparisonEditor: NSViewRepresentable {
             DispatchQueue.main.async { if model.selectionRequest == caret { model.selectionRequest = nil } }
         }
     }
-    static func attributed(_ cells: [MergeSourceCell], font: NSFont) -> NSAttributedString {
+    static func inline(_ row: Int, model: FileComparisonWindowModel, base: Bool) -> MergeInlineComparison? {
+        guard let alignment = model.alignment, alignment.rows.indices.contains(row), ((base ? alignment.rows[row].base : alignment.rows[row].destination).displayText as NSString).length <= 3000 else { return nil }
+        return model.inlineDifference(row)
+    }
+    static func missingOffsets(_ cells: [MergeSourceCell], model: FileComparisonWindowModel, base: Bool) -> [Int] {
+        var offset = 0, result: [Int] = []
+        for (index, cell) in cells.enumerated() {
+            if let diff = inline(index, model: model, base: base) { result += (base ? diff.baseMissing : diff.destinationMissing).map { offset + $0 } }
+            offset += (cell.displayText as NSString).length + 1
+        }
+        return result
+    }
+    static func attributed(_ cells: [MergeSourceCell], font: NSFont, model: FileComparisonWindowModel, base: Bool) -> NSAttributedString {
         let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
         paragraph.defaultTabInterval = CGFloat(MergeEditorPreferences.load().tabWidth) * (" " as NSString).size(withAttributes: [.font: font]).width
         let value = NSMutableAttributedString(string: "")
-        for cell in cells { value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: NSColor.labelColor, .backgroundColor: MergePalette.color(cell.state), .paragraphStyle: paragraph])) }
+        for (index, cell) in cells.enumerated() {
+            let diff = inline(index, model: model, base: base), offset = value.length
+            value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: NSColor.labelColor, .backgroundColor: diff == nil ? MergePalette.color(cell.state) : MergePalette.inlineCommon, .paragraphStyle: paragraph]))
+            if let diff {
+                for range in base ? diff.base : diff.destination { value.addAttribute(.backgroundColor, value: base ? MergePalette.inlineRemoved : MergePalette.inlineAdded, range: NSRange(location: offset + range.location, length: range.length)) }
+            }
+        }
         return value
     }
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
@@ -358,7 +400,8 @@ private struct FileComparisonEditor: NSViewRepresentable {
             if let alignment = model.alignment, let view = scroll?.documentView as? NSTextView {
                 cells = alignment.rows.map { base ? $0.base : $0.destination }
                 (view as? FileComparisonTextView)?.sourceCells = cells
-                view.textStorage?.setAttributedString(FileComparisonEditor.attributed(cells, font: view.font!))
+                view.textStorage?.setAttributedString(FileComparisonEditor.attributed(cells, font: view.font!, model: model, base: base))
+                (view as? FileComparisonTextView)?.missingOffsets = FileComparisonEditor.missingOffsets(cells, model: model, base: base)
                 view.setSelectedRange(NSRange(location: min(FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells), (view.string as NSString).length), length: 0))
             }
             DispatchQueue.main.async { self.updateUndoState() }
@@ -371,6 +414,18 @@ private final class FileComparisonTextView: NSTextView {
     weak var model: FileComparisonWindowModel?
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
+    var missingOffsets: [Int] = []
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        guard let layoutManager, let textContainer else { return }
+        MergePalette.inlineRemoved.setFill()
+        for offset in missingOffsets where offset < (string as NSString).length {
+            let glyphs = layoutManager.glyphRange(forCharacterRange: NSRange(location: offset, length: 1), actualCharacterRange: nil)
+            let frame = layoutManager.boundingRect(forGlyphRange: glyphs, in: textContainer).offsetBy(dx: textContainerInset.width, dy: textContainerInset.height)
+            let marker = NSRect(x: frame.minX, y: frame.minY, width: 2, height: frame.height)
+            if marker.intersects(dirtyRect) { marker.fill() }
+        }
+    }
     override var undoManager: UndoManager? { history ?? super.undoManager }
     override func copy(_ sender: Any?) {
         guard let text = try? FileComparisonEditing.selectedText(selectedRange(), cells: sourceCells), !text.isEmpty else { return }

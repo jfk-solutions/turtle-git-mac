@@ -89,6 +89,7 @@ struct LogCommandRequest: Identifiable {
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
     var onReset: (String) -> Void = { _ in }
+    var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
     var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
@@ -185,6 +186,14 @@ struct LogCommandRequest: Identifiable {
                 } else { patch = try await repository.revisionDiff(revisions[0], path: path, workingTree: workingTree) }
             } catch { self.error = error.localizedDescription }
         }
+    }
+    func compare(workingTree: Bool = false) {
+        guard !busy, let onCompare, !workingTree || !bare else { return }
+        let chosen = revisions
+        guard chosen.count == 1 || chosen.count == 2 && !workingTree else { return }
+        if workingTree { onCompare(.revision(chosen[0].hash), .workingTree) }
+        else if chosen.count == 2 { onCompare(.revision(chosen[1].hash), .revision(chosen[0].hash)) }
+        else { onCompare(chosen[0].parents.first.map { .revision($0) } ?? .emptyTree, .revision(chosen[0].hash)) }
     }
 }
 
@@ -343,9 +352,9 @@ struct RevisionTable: NSViewRepresentable {
             }
             menu.autoenablesItems = false
             let one = model.revision != nil, two = model.revisions.count == 2
-            item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one && !model.bare)
-            item(two ? "Compare revisions" : "Compare with previous revision", #selector(showDiff), icon: .compare, enabled: one || two)
-            item("Show changes as unified diff", #selector(showDiff), icon: .compare, enabled: one || two)
+            item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one && !model.bare && !model.busy && model.onCompare != nil)
+            item(two ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (one || two) && !model.busy && model.onCompare != nil)
+            item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: one || two)
             menu.addItem(.separator())
             item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
             item("Switch/Checkout to this…", #selector(checkout), icon: .checkout, enabled: one && !model.busy && !model.bare)
@@ -376,7 +385,8 @@ struct RevisionTable: NSViewRepresentable {
         @objc func revert() { model.request(.revert) }
         @objc func cherryPick() { model.request(.cherryPick) }
         @objc func showDiff() { model.diff() }
-        @objc func workingDiff() { model.diff(workingTree: true) }
+        @objc func compare() { model.compare() }
+        @objc func workingDiff() { model.compare(workingTree: true) }
         @objc func copyAuthors() { model.copy(model.revisions.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n")) }
         @objc func copyAuthorNames() { model.copy(model.revisions.map(\.author).joined(separator: "\n")) }
         @objc func copyAuthorEmails() { model.copy(model.revisions.map(\.email).joined(separator: "\n")) }

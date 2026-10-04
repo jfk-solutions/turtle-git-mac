@@ -245,6 +245,15 @@ private enum MergeSourceSide {
     init(_ view: NSScrollView) { self.view = view }
 }
 enum MergePalette {
+    static var inlineAdded: NSColor { inlineColor(light: (255, 255, 150), dark: (120, 120, 50)) }
+    static var inlineRemoved: NSColor { inlineColor(light: (200, 100, 100), dark: (100, 40, 40)) }
+    static var inlineCommon: NSColor { inlineColor(light: (220, 220, 255), dark: (80, 80, 103)) }
+    private static func inlineColor(light: (Int, Int, Int), dark: (Int, Int, Int)) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let rgb = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
+            return NSColor(calibratedRed: CGFloat(rgb.0) / 255, green: CGFloat(rgb.1) / 255, blue: CGFloat(rgb.2) / 255, alpha: 1)
+        }
+    }
     static func color(_ state: MergeSourceState) -> NSColor {
         if state == .normal { return .textBackgroundColor }
         return NSColor(name: nil) { appearance in

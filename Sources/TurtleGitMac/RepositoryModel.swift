@@ -654,6 +654,7 @@ import TurtleGitCore
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
+        controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         logWindows[key] = controller
         controller.model.endRevision = endRevision
         let location = paths.count == 1 ? root.lastPathComponent + "/" + paths[0] : root.lastPathComponent

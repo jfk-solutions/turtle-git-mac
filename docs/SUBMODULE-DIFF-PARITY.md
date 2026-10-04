@@ -299,6 +299,61 @@ audit exercised universal Git 2.55.0 local commands and verified 11 Mach-O files
 the Finder extension, licenses and 61 original icon resources. Signed activation,
 sandbox acceptance and release approval remain unverified.
 
+## Inline character/word display and Log integration follow-up
+
+Reviewed the pinned [SVNLineDiff.cpp](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseMerge/libsvn_diff/SVNLineDiff.cpp)
+ParseLineWords/ParseLineChars and ShowInlineDiff, BaseView GetLineColors and
+InlineViewLineDiffColor, and MainFrm OnViewInlinediff/OnViewInlinediffword gates.
+The two-file viewer now offers Inline diff and Word diff session toggles. Inline
+is initially on in character mode; Word diff is disabled when inline display is
+off. These display controls do not edit source bytes or add Undo entries.
+
+`MergeInlineComparison.swift` returns exact UTF-16 spans and opposite-pane
+missing-text positions. Word mode groups alphanumeric runs and ASCII space/tab
+runs; punctuation is separate. Character mode compares UTF-16 units. Shared
+tokens must exceed half the changed tokens plus the number of change groups,
+matching the upstream similarity gate. Empty/equal lines, gaps and dissimilar
+pairs retain their existing row colors. The 3,000 UTF-16-unit limit applies to
+each displayed pane independently, allowing a short side to compare against a
+longer opposite side. Results are cached per alignment and word mode.
+
+The original DiffColors defaults now render common text in lavender, removed
+spans in red and added spans in pale yellow, with their corresponding dark-mode
+values. Missing text has a narrow red marker. Changing mode or editing rebuilds
+the display spans and markers without inserting display-only characters.
+
+Native acceptance found ordinary Log comparisons still opened unified diff.
+Normal repository Log now routes one revision against working tree, first parent
+(or empty tree for a root commit), or two revisions into the retained Changed
+Files factory. Show changes as unified diff remains a separate command with
+its original unified-diff icon. History-selection dialogs without a comparison
+factory disable comparison commands; full picker integration remains pending.
+
+Three new tests cover exact character/word ranges, UTF-16 emoji/NFC/NFD offsets,
+whitespace/punctuation, insertion/deletion markers, empty/equal/dissimilar pairs
+and asymmetric/over-limit lines. Two sequential native QA processes were closed;
+the first exposed the Log routing gap, the updated build verified Log → Changed
+Files → two-pane viewer. Character/word toggles, opposite insertion marker,
+similarity fallback, light/dark colors and disabled-inline full-row restoration
+were checked. Inspected unedited gallery captures are `two-file-inline-dark.png`
+and `two-file-inline-light.png`. Process absence and unchanged fixture HEAD,
+index and working-file bytes were verified.
+
+Swift's diff engine replaces libsvn matching; repeated-token tie behavior and
+platform Unicode alphanumeric classification can differ. Exact libsvn parity,
+inline navigation, EOL/whitespace markers, configurable inline colors/cutoff,
+very long opposite-line performance, signed execution and history-picker/native
+root/two-revision comparison variants remain pending. Three-way inline display
+is intentionally still absent, matching upstream's visible-bottom-pane gate.
+Full TortoiseMerge and Log parity remain incomplete.
+
+Validation: the final full suite passed all 255 tests. Final unsigned Debug and
+App Store builds, both bundle audits and the static Pages build passed. The
+App Store audit exercised universal Git 2.55.0 local commands and verified
+11 Mach-O files, the Finder extension, licenses and 61 original icons. These
+checks establish compilation/packaging; signed Finder activation, sandbox
+acceptance and App Store release approval remain unverified.
+
 ## Revision selection and metadata follow-up
 
 Both revision buttons now offer Browse References, Log and RefLog, alongside

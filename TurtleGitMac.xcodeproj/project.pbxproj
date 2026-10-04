@@ -25,6 +25,7 @@
 		230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */; };
 		241DD127E807673880A95899 /* PatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */; };
 		2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */; };
+		3094584FBFF93568DEBA8626 /* MergeInlineComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */; };
 		37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */; };
 		3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */; };
 		3E19A6945479711E0CDE3542 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = 5E600ADAA231E0E7D95C9827 /* Icons */; };
@@ -240,6 +241,7 @@
 		DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchWindow.swift; sourceTree = "<group>"; };
 		E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertWindow.swift; sourceTree = "<group>"; };
 		E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRuntime.swift; sourceTree = "<group>"; };
+		EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeInlineComparison.swift; sourceTree = "<group>"; };
 		F01FB406B12CA9FED59A3121 /* FinderCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderCache.swift; sourceTree = "<group>"; };
 		F2E43773297420C7FDAE9748 /* GitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRepository.swift; sourceTree = "<group>"; };
 		F7809458AF943456197C0AC7 /* MergeWhitespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWhitespace.swift; sourceTree = "<group>"; };
@@ -364,6 +366,7 @@
 				3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */,
 				D975B1620A435727724213D1 /* Merge.swift */,
 				35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */,
+				EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */,
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
 				5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */,
 				F7809458AF943456197C0AC7 /* MergeWhitespace.swift */,
@@ -577,6 +580,7 @@
 				00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */,
 				90A423E07A63281C4163EAD0 /* Merge.swift in Sources */,
 				3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */,
+				3094584FBFF93568DEBA8626 /* MergeInlineComparison.swift in Sources */,
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,
 				FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */,
 				AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */,
