@@ -511,11 +511,18 @@ that only the working file returned to the saved contents; HEAD/index held the
 later contents and the overlay cleared. `site/assets/commit-restore.png` is the
 actual native capture before that commit.
 
-Manual Restore, hook-failure choices, close/Quit prompts, multiple Commit windows,
-staging-mode combinations, renamed paths, dark appearance and signed sandbox
-access remain unverified natively. Menu-observation failures prevented the later
-Quit scenario from reaching its prompt. Its preview was closed and process
-absence verified; no successful Quit-prompt test is claimed. This remains a
+A subsequent single-window native Quit scenario reached both sheets. The default
+No kept Commit and its draft open. After marking a tracked file, later edits were
+made on disk: Yes followed by Cancel in the restoration sheet retained those
+edits, the saved copy, index and HEAD. Yes followed by Restore old state returned
+the saved working bytes while preserving the exact index bytes and HEAD hash.
+The UI observer then presented a fresh empty draft, consistent with relaunching
+the preview after termination. That preview was closed through Quit/Yes without
+another UI observation, and the process list confirmed no TurtleGit process.
+
+Manual Restore, hook-failure choices, Keep current state, window-close gestures,
+multiple Commit windows, staging-mode combinations, renamed paths, dark
+appearance and signed sandbox access remain unverified natively. This remains a
 partial port, not completion of either upstream source file.
 
 The unsigned Xcode Debug app build passed after this addition. Its bundle audit

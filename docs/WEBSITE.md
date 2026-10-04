@@ -74,5 +74,5 @@ it again. Do not accumulate independent preview instances across goal turns.
 
 The Restore after commit capture uses only `restore.txt` in a disposable fixture.
 Its caption records the verified ReCommit/working-file behavior and distinguishes
-the pending close/Quit/failure prompts. Keep at most one QA preview process open;
+the verified single-window Quit choices from pending close/failure variants. Keep at most one QA preview process open;
 close it after the scenario and verify process absence before launching another.
