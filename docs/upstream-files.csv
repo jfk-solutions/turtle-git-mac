@@ -1333,7 +1333,7 @@ src/Resources/Toolbar.bmp,Resources,blob,58b47cf4a33ef7de4b163f8a06038435b608654
 src/Resources/Tortoise.ico,Resources,blob,fead950533f8dcd70f458ad7a31f64c63620a8cf,pending-review,,
 src/Resources/TortoiseGitBlame.ico,Resources,blob,d5bb0080a003aa20230f0ea97f04fb4e40f9ec89,pending-review,,
 src/Resources/TortoiseGitBlameENG.rc,Resources,blob,d102ab60b618610958f8a381e43b3e0743a1506b,pending-review,,
-src/Resources/TortoiseGitMergeRibbon.xml,Resources,blob,908c3cdfb5433e70481a57d67cd15477776aa2d2,pending-review,,
+src/Resources/TortoiseGitMergeRibbon.xml,Resources,blob,908c3cdfb5433e70481a57d67cd15477776aa2d2,partial,Sources/TurtleGitMac/TextConflictWindow.swift; Sources/TurtleGitCore/MenuIcons.swift,Reviewed mappings for Save/Save As/Mark as resolved/Undo/Redo/Find/conflict navigation/four merge block choices. Original assets reused; complete ribbon behavior remains pending.
 src/Resources/TortoiseGitMerge_Logo.svgz,Resources,blob,0a49b983c9e7a5927c02c64420abfbcb38b50c88,pending-review,,
 src/Resources/TortoiseGit_Logo.svgz,Resources,blob,747f733ef1b1e3eb9e82c00537ce5134202adf3f,pending-review,,
 src/Resources/TortoiseLoglistCommon.rc2,Resources,blob,a174ae27ca959c289076127e729f58ba37bd2fd6,pending-review,,
@@ -1466,13 +1466,13 @@ src/Resources/restoreovl.ico,Resources,blob,c9997f51f28ef200008d47343dac993b8176
 src/Resources/revgraphbar.bmp,Resources,blob,3032391794a41f583eb966bf6df47d5b133231ca,pending-review,,
 src/Resources/revgraphglyphs.bmp,Resources,blob,0f4408ce8aa4f27d4e58c84c999ba1f611f7b577,pending-review,,
 src/Resources/ribbon/About.bmp,Resources,blob,98f6b8eeb83b0603e7167f410843f666e7496d3b,pending-review,,
-src/Resources/ribbon/Check.bmp,Resources,blob,96f12977250cd268bc7bec5fd5b3030ae8fbd402,pending-review,,
+src/Resources/ribbon/Check.bmp,Resources,blob,96f12977250cd268bc7bec5fd5b3030ae8fbd402,ported-artwork,Sources/TurtleGitCore/Resources/Icons/Check.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
 src/Resources/ribbon/Collapse.bmp,Resources,blob,ac17d142c44591967ce0786c10bf47eea57e8190,pending-review,,
 src/Resources/ribbon/Comment.bmp,Resources,blob,4c6d8c39095d551c3d78f8acf6fbf6db53847342,pending-review,,
 src/Resources/ribbon/Copy.bmp,Resources,blob,64c50e73af295840eb86a44d0eaf1a05e2001df4,pending-review,,
 src/Resources/ribbon/DownGreen.bmp,Resources,blob,2dfde892e3a277f2b1d72396dab4939b0dd5100a,pending-review,,
 src/Resources/ribbon/DownGreenDots.bmp,Resources,blob,028ba16b1ba13e115ada7fc38af660b20fc8acae,pending-review,,
-src/Resources/ribbon/DownRed.bmp,Resources,blob,f25f3d5457b8a4be2262bcdd5293d282fb892197,pending-review,,
+src/Resources/ribbon/DownRed.bmp,Resources,blob,f25f3d5457b8a4be2262bcdd5293d282fb892197,ported-artwork,Sources/TurtleGitCore/Resources/Icons/DownRed.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
 src/Resources/ribbon/EOL.bmp,Resources,blob,ad69e4381a96a7c6a8da0b2e25a935f0e07c60aa,pending-review,,
 src/Resources/ribbon/EditEnabled.bmp,Resources,blob,80f8f25e86554729a4bf69f74bdedfffa27491bd,pending-review,,
 src/Resources/ribbon/Exit.bmp,Resources,blob,ecdf5f4dd74bc3ba51e51897a1578b380e04bd96,pending-review,,
@@ -1494,32 +1494,32 @@ src/Resources/ribbon/OrangeDotRight.bmp,Resources,blob,5dc7cdb149a7b53c34f656c6b
 src/Resources/ribbon/OrangeDotUp.bmp,Resources,blob,8e46e5c76862c933b94450647660785d925943c2,pending-review,,
 src/Resources/ribbon/Paste.bmp,Resources,blob,7e9c6b85a3affdad9dcf9fb9824113628331e655,pending-review,,
 src/Resources/ribbon/Pilcrow.bmp,Resources,blob,db88f50237203a660bcaf956b9173d4856c32685,pending-review,,
-src/Resources/ribbon/Redo.bmp,Resources,blob,d31e8c4111fa5342179208d5033f642136221770,pending-review,,
+src/Resources/ribbon/Redo.bmp,Resources,blob,d31e8c4111fa5342179208d5033f642136221770,ported-artwork,Sources/TurtleGitCore/Resources/Icons/Redo.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
 src/Resources/ribbon/Refresh.bmp,Resources,blob,0282ff362cee917a5a2035e7e4916127d2b2976b,pending-review,,
 src/Resources/ribbon/RightGreen.bmp,Resources,blob,998b441ffc798a3a08dceebc24ad1ca5e4f6d95e,pending-review,,
 src/Resources/ribbon/RightGreenDots.bmp,Resources,blob,f49e18477267a759c08f9a30ac895e2efab42939,pending-review,,
 src/Resources/ribbon/RightRed.bmp,Resources,blob,95461c1687e4787510f1775c1c90ef7368d79638,pending-review,,
-src/Resources/ribbon/Save.bmp,Resources,blob,7c443047fdacfb5eda3b0467ca8a52af3d6d1082,pending-review,,
-src/Resources/ribbon/SaveAs.bmp,Resources,blob,3067df4e4ec0155025905518ea19ff9b675eb9c9,pending-review,,
-src/Resources/ribbon/Search.bmp,Resources,blob,97f6e9dc7967b343d765bb3565d0bab3d23bb28d,pending-review,,
+src/Resources/ribbon/Save.bmp,Resources,blob,7c443047fdacfb5eda3b0467ca8a52af3d6d1082,ported-artwork,Sources/TurtleGitCore/Resources/Icons/Save.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
+src/Resources/ribbon/SaveAs.bmp,Resources,blob,3067df4e4ec0155025905518ea19ff9b675eb9c9,ported-artwork,Sources/TurtleGitCore/Resources/Icons/SaveAs.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
+src/Resources/ribbon/Search.bmp,Resources,blob,97f6e9dc7967b343d765bb3565d0bab3d23bb28d,ported-artwork,Sources/TurtleGitCore/Resources/Icons/Search.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
 src/Resources/ribbon/Settings.bmp,Resources,blob,12f5842599b26d2cd9e45b2b5583588d0009c543,pending-review,,
 src/Resources/ribbon/SmartTab.bmp,Resources,blob,8ad859a7f737b1e116c25274d4abd0faabf09ebd,pending-review,,
 src/Resources/ribbon/Switch.bmp,Resources,blob,2712e3dbad3ba3c1f5bfafee53ef654cc2ecd0e7,pending-review,,
 src/Resources/ribbon/TabSpace.bmp,Resources,blob,e006847f49e7ef137c5ac80156298af985d20a82,pending-review,,
 src/Resources/ribbon/TortoiseMerge.png,Resources,blob,62beedacff8515b4dd5d378c6e8d687a16836f5d,pending-review,,
-src/Resources/ribbon/Undo.bmp,Resources,blob,6b775403c47aad17fbb87b3b690b945a0ce062bb,pending-review,,
+src/Resources/ribbon/Undo.bmp,Resources,blob,6b775403c47aad17fbb87b3b690b945a0ce062bb,ported-artwork,Sources/TurtleGitCore/Resources/Icons/Undo.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
 src/Resources/ribbon/UniDiff.bmp,Resources,blob,d70718d56016fb673d87b908e2fc9b255627ae71,pending-review,,
 src/Resources/ribbon/UpGreen.bmp,Resources,blob,a086ff53cbf24524a554ed1757c416c435a944ab,pending-review,,
 src/Resources/ribbon/UpGreenDots.bmp,Resources,blob,c47a6f3386c0acd18537cc0ff6817d712197d21d,pending-review,,
-src/Resources/ribbon/UpRed.bmp,Resources,blob,3af0aecf0f2faf14de3646558bb2ce196549efda,pending-review,,
+src/Resources/ribbon/UpRed.bmp,Resources,blob,3af0aecf0f2faf14de3646558bb2ce196549efda,ported-artwork,Sources/TurtleGitCore/Resources/Icons/UpRed.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
 src/Resources/ribbon/UseLeftBlock.bmp,Resources,blob,be52b637292312814cb7c29189da9300a7fef4ad,pending-review,,
 src/Resources/ribbon/UseLeftFile.bmp,Resources,blob,b7204566f7bccefdd022499812b841da9b4a8cd5,pending-review,,
 src/Resources/ribbon/UseLeftRight.bmp,Resources,blob,ce0d6b84426f16cf87867cbe0a2fbe9ea0a9f271,pending-review,,
-src/Resources/ribbon/UseMine.bmp,Resources,blob,93b26568f43c0b22b96489f6719a03fcfc3f750c,pending-review,,
-src/Resources/ribbon/UseMineTheirs.bmp,Resources,blob,335065d93866463f8b83ba4c1784d8ae7fb84b8f,pending-review,,
+src/Resources/ribbon/UseMine.bmp,Resources,blob,93b26568f43c0b22b96489f6719a03fcfc3f750c,ported-artwork,Sources/TurtleGitCore/Resources/Icons/UseMine.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
+src/Resources/ribbon/UseMineTheirs.bmp,Resources,blob,335065d93866463f8b83ba4c1784d8ae7fb84b8f,ported-artwork,Sources/TurtleGitCore/Resources/Icons/UseMineTheirs.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
 src/Resources/ribbon/UseRightLeft.bmp,Resources,blob,b99f58ed74bc48e7a737a7b4c372c47e258286b9,pending-review,,
-src/Resources/ribbon/UseTheirs.bmp,Resources,blob,00395353c8161f5e21a0295b64f58cf975c8f916,pending-review,,
-src/Resources/ribbon/UseTheirsMine.bmp,Resources,blob,46a97fb6c4c45dc42a5dac13de20e6d43d9240a0,pending-review,,
+src/Resources/ribbon/UseTheirs.bmp,Resources,blob,00395353c8161f5e21a0295b64f58cf975c8f916,ported-artwork,Sources/TurtleGitCore/Resources/Icons/UseTheirs.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
+src/Resources/ribbon/UseTheirsMine.bmp,Resources,blob,46a97fb6c4c45dc42a5dac13de20e6d43d9240a0,ported-artwork,Sources/TurtleGitCore/Resources/Icons/UseTheirsMine.bmp,"Unchanged original merge ribbon artwork with blob/SHA-256 verification. Native BGRA alpha renderer, transparency tests and light/dark captures; workflow parity remains partial."
 src/Resources/ribbon/ViewBars.bmp,Resources,blob,0dc1e110a2ed8d48fff65fb97cf41ddd83bb04e5,pending-review,,
 src/Resources/ribbon/WhiteSpace1.bmp,Resources,blob,d540de50ddec10b4dabbfc507d786d9d9bec6fa7,pending-review,,
 src/Resources/ribbon/WhiteSpace2.bmp,Resources,blob,98f7af2d5002fd422693a9de7fd8532c5a028a12,pending-review,,

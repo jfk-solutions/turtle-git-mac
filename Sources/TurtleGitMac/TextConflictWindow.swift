@@ -3,6 +3,17 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
+private extension MergeBlockChoice {
+    var icon: MenuIcon {
+        switch self {
+        case .mine: return .mergeUseMine
+        case .theirs: return .mergeUseTheirs
+        case .mineThenTheirs: return .mergeMineThenTheirs
+        case .theirsThenMine: return .mergeTheirsThenMine
+        }
+    }
+}
+
 @MainActor private final class TextConflictNSWindow: NSWindow {
     weak var mergedText: NSTextView?
     private var activeText: NSTextView? { (firstResponder as? NSTextView) ?? mergedText }
@@ -153,12 +164,12 @@ private struct TextConflictDialog: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
-                Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .unifiedDiff) }.keyboardShortcut("s", modifiers: .command)
-                Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .resolve) }.disabled(model.document == nil || MergeText.hasMarkers(model.result))
-                Button("Save As…") { model.export() }
+                Button { model.save(markResolved: false) } label: { CommandLabel(title: "Save", icon: .mergeSave) }.keyboardShortcut("s", modifiers: .command)
+                Button { model.save(markResolved: true) } label: { CommandLabel(title: "Mark as resolved", icon: .mergeResolved) }.disabled(model.document == nil || MergeText.hasMarkers(model.result))
+                Button { model.export() } label: { CommandLabel(title: "Save As…", icon: .mergeSaveAs) }
                 Divider().frame(height: 20)
-                Button("Previous conflict") { model.selectConflict(model.selectedConflict - 1) }.disabled(model.blocks.isEmpty || model.selectedConflict == 0)
-                Button("Next conflict") { model.selectConflict(model.selectedConflict + 1) }.disabled(model.blocks.isEmpty || model.selectedConflict >= model.blocks.count - 1)
+                Button { model.selectConflict(model.selectedConflict - 1) } label: { CommandLabel(title: "Previous conflict", icon: .mergePreviousConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict == 0)
+                Button { model.selectConflict(model.selectedConflict + 1) } label: { CommandLabel(title: "Next conflict", icon: .mergeNextConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict >= model.blocks.count - 1)
                 Toggle("Show Base", isOn: $model.showBase).toggleStyle(.button)
                 Spacer()
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
@@ -175,10 +186,10 @@ private struct TextConflictDialog: View {
                 HStack {
                     Text(model.blocks.isEmpty ? (MergeText.hasMarkers(model.result) ? "Incomplete conflict markers" : "No remaining conflicts") : "Conflict \(min(model.selectedConflict + 1, model.blocks.count)) of \(model.blocks.count)").foregroundStyle(model.blocks.isEmpty ? Color.secondary : .red)
                     Spacer()
-                    Button("Undo") { model.undo() }.keyboardShortcut("z", modifiers: .command).disabled(!model.canUndo)
-                    Button("Redo") { model.redo() }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!model.canRedo)
+                    Button { model.undo() } label: { CommandLabel(title: "Undo", icon: .mergeUndo) }.keyboardShortcut("z", modifiers: .command).disabled(!model.canUndo)
+                    Button { model.redo() } label: { CommandLabel(title: "Redo", icon: .mergeRedo) }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!model.canRedo)
                     Menu("Use text block") {
-                        ForEach(MergeBlockChoice.allCases, id: \.self) { choice in Button(choice.rawValue) { model.choose(choice) } }
+                        ForEach(MergeBlockChoice.allCases, id: \.self) { choice in Button { model.choose(choice) } label: { CommandLabel(title: choice.rawValue, icon: choice.icon) } }
                     }.disabled(model.blocks.isEmpty)
                     Text("Line \((model.result as NSString).substring(to: min(model.caret.location, (model.result as NSString).length)).filter { $0 == "\n" }.count + 1)").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
@@ -296,13 +307,13 @@ private final class MergeTextView: NSTextView {
         let menu = super.menu(for: event) ?? NSMenu()
         menu.addItem(.separator())
         let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
-        find.target = self; find.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Find"); menu.addItem(find)
+        find.target = self; find.image = MenuIcon.mergeFind.image(); menu.addItem(find)
         guard mergeEditable, let model else { return menu }
         if selectedRange().length == 0 { setSelectedRange(NSRange(location: characterIndexForInsertion(at: convert(event.locationInWindow, from: nil)), length: 0)) }
         menu.addItem(.separator())
         for (index, choice) in MergeBlockChoice.allCases.enumerated() {
             let item = NSMenuItem(title: choice.rawValue, action: #selector(useBlock(_:)), keyEquivalent: "")
-            item.tag = index; item.target = self; item.image = MenuIcon.merge.image()
+            item.tag = index; item.target = self; item.image = choice.icon.image()
             item.isEnabled = !model.busy && model.blocks.contains { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }
             menu.addItem(item)
         }
@@ -325,6 +336,10 @@ private final class MergeLineRuler: NSRulerView {
         guard let view = clientView as? NSTextView ?? scrollView?.documentView as? NSTextView, let manager = view.layoutManager, let container = view.textContainer else { return }
         NSColor.controlBackgroundColor.setFill(); bounds.fill()
         let text = view.string as NSString, visible = view.visibleRect
+        let visibleInRuler = convert(visible, from: view)
+        NSGraphicsContext.saveGraphicsState()
+        defer { NSGraphicsContext.restoreGraphicsState() }
+        NSBezierPath(rect: NSRect(x: bounds.minX, y: visibleInRuler.minY, width: bounds.width, height: visibleInRuler.height).intersection(bounds)).addClip()
         var location = 0, line = 1
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular), .foregroundColor: NSColor.secondaryLabelColor]
         while location < text.length {
@@ -333,7 +348,7 @@ private final class MergeLineRuler: NSRulerView {
             let frame = manager.boundingRect(forGlyphRange: glyph, in: container).offsetBy(dx: view.textContainerInset.width, dy: view.textContainerInset.height)
             if frame.maxY >= visible.minY && frame.minY <= visible.maxY {
                 let value = String(line) as NSString
-                value.draw(at: NSPoint(x: ruleThickness - value.size(withAttributes: attrs).width - 6, y: frame.minY - visible.minY), withAttributes: attrs)
+                value.draw(at: NSPoint(x: ruleThickness - value.size(withAttributes: attrs).width - 6, y: convert(frame.origin, from: view).y), withAttributes: attrs)
             }
             if frame.minY > visible.maxY { break }
             location = NSMaxRange(range); line += 1

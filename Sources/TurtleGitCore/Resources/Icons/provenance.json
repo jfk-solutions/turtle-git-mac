@@ -222,6 +222,66 @@
       "asset": "menuconflict.ico",
       "source": "src/Resources/menuconflict.ico",
       "sha256": "8e2ffe664db9a21faf080f7ed10b9ca83c210cac76a26cc273742a0e7bf27523"
+    },
+    {
+      "asset": "Save.bmp",
+      "source": "src/Resources/ribbon/Save.bmp",
+      "sha256": "4ac3d9c2281391a24112c20fad32d07168b3a536045884b9034bb3a30ae46be4"
+    },
+    {
+      "asset": "SaveAs.bmp",
+      "source": "src/Resources/ribbon/SaveAs.bmp",
+      "sha256": "eb1712fa5076b5e955562d2d313fae91cebe33646c1987c7f483c6fef632d856"
+    },
+    {
+      "asset": "Check.bmp",
+      "source": "src/Resources/ribbon/Check.bmp",
+      "sha256": "888a54f5085d1d886bb100a6b4c8162ebf43cfb5e3e222ccc63a52a7b737db91"
+    },
+    {
+      "asset": "Undo.bmp",
+      "source": "src/Resources/ribbon/Undo.bmp",
+      "sha256": "8075435667004e4047cb91839d0df1817441dcf0d27c071b383b85663c46e649"
+    },
+    {
+      "asset": "Redo.bmp",
+      "source": "src/Resources/ribbon/Redo.bmp",
+      "sha256": "ee478b07b4dd14995005ac4843cc34128a660f1eacf120a4d7f9de1beba2ef0f"
+    },
+    {
+      "asset": "Search.bmp",
+      "source": "src/Resources/ribbon/Search.bmp",
+      "sha256": "fbf547ad4f899227c0dc6450e362c6751f603b8ff97cce341609c8d05d9dce1b"
+    },
+    {
+      "asset": "UpRed.bmp",
+      "source": "src/Resources/ribbon/UpRed.bmp",
+      "sha256": "0f4520274909d0ee20d8639d46ecef17484cb9fd1f428e3805df79691669c385"
+    },
+    {
+      "asset": "DownRed.bmp",
+      "source": "src/Resources/ribbon/DownRed.bmp",
+      "sha256": "176f0db538cc636a080b6346917a344c18eaea15e6a97db862f8df4e2295fda1"
+    },
+    {
+      "asset": "UseMine.bmp",
+      "source": "src/Resources/ribbon/UseMine.bmp",
+      "sha256": "b7dd044ffcb49a2121839702ca58fa1d10e3691e697c232b1568edc89acf9a6c"
+    },
+    {
+      "asset": "UseTheirs.bmp",
+      "source": "src/Resources/ribbon/UseTheirs.bmp",
+      "sha256": "7458c674d0c346b4d05ec6c6188db776ad2ede58c7c844facd61e8a8b91fbe7d"
+    },
+    {
+      "asset": "UseMineTheirs.bmp",
+      "source": "src/Resources/ribbon/UseMineTheirs.bmp",
+      "sha256": "72de035a304e2f2882e154a887cea60838f56ae495e02729afc6f29bdc2ea5ba"
+    },
+    {
+      "asset": "UseTheirsMine.bmp",
+      "source": "src/Resources/ribbon/UseTheirsMine.bmp",
+      "sha256": "fd8aa7b6a7261189b47eb85a8cb5e4f7f570d7728a4125cf8c3f15f46f275c51"
     }
   ]
 }

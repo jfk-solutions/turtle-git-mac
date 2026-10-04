@@ -14,7 +14,13 @@ submodules retain their dedicated native choosers. Regular UTF-8 text with both
 sides opens TurtleGitMerge: Theirs on the left, Mine on the right and an editable
 Merged result below. Show Base adds the original version. Native split views,
 monospaced text, line numbers, green changed-source lines and red conflict blocks
-support both appearances. The original Resolve and merge command artwork is reused.
+support both appearances. The original upstream ribbon artwork is reused for Save, Save As, Mark as
+resolved, Undo/Redo, Find, conflict navigation and all four block choices. Twelve
+unchanged BMP assets carry source/blob/SHA-256 provenance. The ribbon XML command
+mappings were reviewed. AppKit ignores BI_RGB BMP alpha by default; the native
+renderer reads their original straight BGRA pixels explicitly, preserving
+transparency and orientation. Icon tests check transparent corners and visible
+pixels, and actual light/dark captures verify contrast without black backgrounds.
 
 Previous/Next conflict and the four block choices retain upstream meanings:
 Mine, Theirs, Mine before Theirs and Theirs before Mine. The merged editor's
@@ -63,8 +69,10 @@ found the second block's text and closed with Escape. Choosing Theirs replaced
 that second block correctly. Early keyboard Undo attempts did not restore text;
 explicit history and visible Undo/Redo controls were subsequently added. The final visible Undo control restored the entire first block and cleared the
 Modified indicator; Redo reapplied its combined text and restored the remaining
-conflict selection. Keyboard Undo remains unverified. Native Save/Mark-as-resolved
-checks are still pending. A stale selected-conflict index after Redo was observed
+conflict selection. Keyboard Undo remains unverified. Native Save wrote the exact combined first block and Theirs second block while
+retaining all three index conflict stages. Mark as resolved then staged those
+exact reviewed bytes and cleared all unmerged entries. Both operations preserved
+HEAD, refs, unrelated index/working changes and MERGE_HEAD. A stale selected-conflict index after Redo was observed
 and corrected by recomputing selection against the current buffer.
 
 ## Remaining upstream behavior
@@ -76,4 +84,14 @@ and menus, standalone two-file comparison, external tools, binary/image merging,
 empty-result Delete/Keep, backup files, general reload/open workflows and selection
 mapping from source-pane block menus remain pending. EOF block-choice fidelity
 needs broader checks. Full native keyboard/Undo/Redo, save/close/export/error/rebase,
-light/dark/resize and signed Finder/sandbox acceptance remain partial until verified.
+resize and signed Finder/sandbox acceptance remain partial until verified.
+
+Actual light/dark captures are site/assets/text-merge.png and text-merge-dark.png,
+both 1720 × 1144 pixels. Native capture QA preserved HEAD, index and every working
+file. The initial capture exposed a scrolled line number drawing into the pane
+heading; converting text coordinates into ruler coordinates and clipping its
+visible area corrected it in both verified captures. The upstream three-pane
+screenshot was visually inspected: pane order matches, while aligned rows, richer
+color distinctions, locator strip and full toolbar remain outstanding. Show Base subsequently worked in the current native dark build and displayed
+the exact original contents alongside both sides. A manual-edit/close-cancellation
+check encountered AX selection/observation failures and remains unverified.
