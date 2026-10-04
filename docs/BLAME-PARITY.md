@@ -598,9 +598,45 @@ raw index and working source stayed identical to baseline. Parent copy/icon
 rendering, long-body scrolling, dark mode and full Properties interactions still
 need native acceptance. Overall Blame remains partial.
 
+## Whole-file source locator
+
+Reviewed upstream `DrawLocatorBar` and `GetLineColor` in the pinned
+`TortoiseGitBlameView.cpp`, plus `LOCATOR_WIDTH` in its header. The native strip is
+10 points wide and sits left of the annotated source. It maps the full file into
+integer vertical bands using loaded Log age ranks and saved palette endpoints.
+The visible section blends age colors 10 percent toward the light/dark text color;
+two one-point boundary lines mark its position. It does not use revision-selection
+or hover colors, matching upstream's locator. Disabled age shading and hashes
+absent from the Log use the window background. Source scrolling and resizing
+invalidate the strip; its accessibility value identifies the current line range.
+The strip is a visual overview, as in the reviewed upstream implementation.
+
+A native 400-line fixture verified initial age bands and movement after Go To Line
+200. The first check exposed an existing layout issue: showing selected-source
+metadata shrank the source after the initial scroll and hid the selected line.
+The container now tiles on resize and keeps the selected row visible. A second
+native check verified line 200 visible after the footer appeared. Both QA
+instances quit normally, one at a time; process absence was verified and HEAD,
+raw index and source bytes were identical to baseline. The actual final screenshot
+was saved, inspected and published as `site/assets/blame-locator-light.png`
+(2240 by 1464), including the compact graph and Properties pane.
+
+All four focused presentation tests passed. The new assertions compare upstream
+integer viewport blending in light/dark modes and background behavior with age
+disabled or an unmapped hash. This supplements the prior full-suite baseline;
+no additional full-suite run was needed for the locator color helper. Debug and
+App Store builds and both bundle audits passed, including the Finder extension,
+62 original icon resources and 11 universal packaged Git binaries. The
+documentation site build and whitespace check passed. Native dark/color-off
+behavior, keyboard paging, resize
+variants, empty/very long files and accessibility reading remain pending.
+`NSTableView` can retain rows partly occluded by its header in `visibleRect`;
+exact viewport boundaries against that header still require comparison and
+acceptance. This partial locator does not establish complete Blame parity.
+
 ## Remaining work
 
-- Native multi-revision selection acceptance, full source locator and complete revision-log layout;
+- Native multi-revision selection acceptance, full locator acceptance and complete revision-log layout;
   pointer-hover and dark sticky native acceptance.
 - Syntax highlighting, source selection and native editor scrolling behavior.
 - Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and

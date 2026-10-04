@@ -489,7 +489,7 @@ private struct BlameTable: NSViewRepresentable {
     @ObservedObject var model: BlameWindowModel
     @Environment(\.colorScheme) private var colorScheme
     func makeCoordinator() -> Coordinator { Coordinator(model) }
-    func makeNSView(context: Context) -> NSScrollView {
+    func makeNSView(context: Context) -> BlameSourceContainer {
         let table = BlameTableView(); table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.onMarginClick = { [weak coordinator = context.coordinator] row in coordinator?.model.highlight(row) }
         table.onContextMenu = { [weak coordinator = context.coordinator] row, event in
@@ -513,10 +513,13 @@ private struct BlameTable: NSViewRepresentable {
         table.setAccessibilityLabel("Annotated source")
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
         context.coordinator.table = table
-        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = table
-        return scroll
+        let container = BlameSourceContainer()
+        let scroll = container.scroll
+        scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.autohidesScrollers = true; scroll.documentView = table
+        container.locator.table = table
+        return container
     }
-    func updateNSView(_ scroll: NSScrollView, context: Context) {
+    func updateNSView(_ container: BlameSourceContainer, context: Context) {
         let coordinator = context.coordinator; coordinator.model = model
         guard let table = coordinator.table else { return }
         coordinator.updating = true
@@ -532,6 +535,11 @@ private struct BlameTable: NSViewRepresentable {
             let row = number - 1
             if table.selectedRow != row { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false); table.scrollRowToVisible(row) }
         } else { table.deselectAll(nil) }
+        container.locator.presentation = model.presentation
+        container.locator.ranks = model.lines.map { model.ranks[$0.hash] }
+        container.locator.historyCount = model.historyCount
+        container.locator.colorAge = model.colorAge
+        container.locator.needsDisplay = true
         coordinator.updating = false
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDelegate, NSTableViewDataSource, NSMenuDelegate {
@@ -663,6 +671,78 @@ private final class BlameTableView: NSTableView {
         super.mouseMoved(with: event)
     }
     override func mouseExited(with event: NSEvent) { onHover(nil); super.mouseExited(with: event) }
+}
+
+private final class BlameSourceScrollView: NSScrollView {
+    var onScroll: () -> Void = {}
+    override func reflectScrolledClipView(_ clipView: NSClipView) {
+        super.reflectScrolledClipView(clipView); onScroll()
+    }
+}
+
+private final class BlameSourceContainer: NSView {
+    let scroll = BlameSourceScrollView()
+    let locator = BlameLocatorView()
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        addSubview(locator); addSubview(scroll)
+        locator.scroll = scroll
+        scroll.onScroll = { [weak locator] in locator?.needsDisplay = true }
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    override func layout() {
+        super.layout()
+        locator.frame = NSRect(x: 0, y: 0, width: 10, height: bounds.height)
+        let frame = NSRect(x: 10, y: 0, width: max(0, bounds.width - 10), height: bounds.height)
+        let resized = scroll.frame.size != frame.size
+        scroll.frame = frame
+        scroll.tile()
+        if resized, let table = scroll.documentView as? NSTableView, table.selectedRow >= 0 {
+            table.scrollRowToVisible(table.selectedRow)
+        }
+        locator.needsDisplay = true
+    }
+}
+
+private final class BlameLocatorView: NSView {
+    weak var table: NSTableView?
+    weak var scroll: NSScrollView?
+    var presentation = GitBlamePresentation()
+    var ranks: [Int?] = []
+    var historyCount = 0
+    var colorAge = true
+    override var isFlipped: Bool { true }
+    override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        setAccessibilityElement(true); setAccessibilityRole(.image)
+        setAccessibilityLabel("Blame source locator")
+        toolTip = "Age overview of the whole source file; darkened section shows visible lines."
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    override func viewDidChangeEffectiveAppearance() { super.viewDidChangeEffectiveAppearance(); needsDisplay = true }
+    override func draw(_ dirtyRect: NSRect) {
+        let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let background = dark ? NSColor(srgbRed: 32.0 / 255, green: 32.0 / 255, blue: 32.0 / 255, alpha: 1) : .white
+        background.setFill(); bounds.fill()
+        guard !ranks.isEmpty, let table, let scroll else { return }
+        let rowHeight = table.rowHeight + table.intercellSpacing.height
+        let rows = table.rows(in: table.visibleRect)
+        let first = rows.location == NSNotFound ? 0 : min(ranks.count, rows.location)
+        let end = min(ranks.count, first + max(0, Int(scroll.contentView.bounds.height / max(1, rowHeight))))
+        let height = Int(bounds.height)
+        for line in ranks.indices {
+            let value = presentation.locatorColor(rank: ranks[line], historyCount: historyCount, dark: dark, enabled: colorAge, visible: line >= first && line < end)
+            NSColor(srgbRed: CGFloat((value >> 16) & 255) / 255, green: CGFloat((value >> 8) & 255) / 255, blue: CGFloat(value & 255) / 255, alpha: 1).setFill()
+            let top = line * height / ranks.count, bottom = (line + 1) * height / ranks.count
+            NSRect(x: 0, y: CGFloat(top), width: bounds.width, height: CGFloat(bottom - top)).fill()
+        }
+        let text: NSColor = dark ? NSColor(srgbRed: 240.0 / 255, green: 240.0 / 255, blue: 240.0 / 255, alpha: 1) : .black
+        text.setFill()
+        for boundary in [first, end] {
+            NSRect(x: 0, y: CGFloat(boundary * height / ranks.count), width: bounds.width, height: 1).fill()
+        }
+        setAccessibilityValue("Visible lines \(min(ranks.count, first + 1)) through \(end) of \(ranks.count)")
+    }
 }
 
 private final class BlameRowView: NSTableRowView {

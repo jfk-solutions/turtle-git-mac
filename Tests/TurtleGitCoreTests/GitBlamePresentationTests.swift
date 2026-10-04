@@ -2,6 +2,17 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlamePresentationTests: XCTestCase {
+    func testLocatorUsesAgeOnlyAndIntegerViewportShading() {
+        var value = GitBlamePresentation()
+        XCTAssertEqual(value.locatorColor(rank: 0, historyCount: 1, dark: false, enabled: true, visible: false), 0xffffa7)
+        XCTAssertEqual(value.locatorColor(rank: 0, historyCount: 1, dark: false, enabled: true, visible: true), 0xe5e596)
+        XCTAssertEqual(value.locatorColor(rank: 0, historyCount: 1, dark: true, enabled: true, visible: true), 0x4a4a26)
+        value.oldColor = 0x00ff00; value.darkOldColor = 0xff0000
+        XCTAssertEqual(value.locatorColor(rank: nil, historyCount: 10, dark: false, enabled: true, visible: false), 0xffffff)
+        XCTAssertEqual(value.locatorColor(rank: 0, historyCount: 10, dark: false, enabled: false, visible: true), 0xe5e5e5)
+        XCTAssertEqual(value.locatorColor(rank: nil, historyCount: 10, dark: true, enabled: true, visible: false), 0x202020)
+        XCTAssertEqual(value.locatorColor(rank: 0, historyCount: 10, dark: true, enabled: false, visible: true), 0x343434)
+    }
     func testRevisionPropertiesUseFirstLineAndLocalMinuteDatesWithoutChangingMessage() {
         let message = "Subject 雪\nsecond subject line\n\nBody 🐢\n\nSigned-off-by: Test\n"
         let entry = LogEntry(hash: "abc", author: "Author", date: "2001-09-10T00:33:20-05:00",

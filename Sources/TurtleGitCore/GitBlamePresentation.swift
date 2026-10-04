@@ -71,4 +71,13 @@ public struct GitBlamePresentation: Equatable, Sendable {
         }
         return component(16) | component(8) | component(0)
     }
+    public func locatorColor(rank: Int?, historyCount: Int, dark: Bool, enabled: Bool, visible: Bool) -> UInt32 {
+        let color = enabled && rank != nil ? ageColor(rank: rank, historyCount: historyCount, dark: dark, enabled: true) : (dark ? 0x202020 : 0xffffff)
+        guard visible else { return color }
+        let text = dark ? 240 : 0
+        func component(_ shift: Int) -> UInt32 {
+            UInt32((Int((color >> shift) & 255) * 90 + text * 10) / 100) << shift
+        }
+        return component(16) | component(8) | component(0)
+    }
 }
