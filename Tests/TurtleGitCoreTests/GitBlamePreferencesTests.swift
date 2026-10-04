@@ -10,6 +10,7 @@ final class GitBlamePreferencesTests: XCTestCase {
         var options = GitBlameOptions(); options.detectionMode = .existingFiles
         options.withinFileCharacters = 0; options.betweenFileCharacters = .max
         options.ignoreWhitespace = true; options.onlyFirstParent = true
+        options.showCompleteLog = false; options.followRenames = true
         GitBlamePreferences.save(options, to: defaults)
         XCTAssertEqual(GitBlamePreferences.load(from: try XCTUnwrap(UserDefaults(suiteName: name))), options)
         defaults.set(-1, forKey: "TurtleGitBlame.WithinFileCharacters")

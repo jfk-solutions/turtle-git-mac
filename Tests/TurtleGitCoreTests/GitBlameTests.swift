@@ -77,6 +77,8 @@ final class GitBlameTests: XCTestCase {
         let atCreation = try await repo.blame(path: target, options: options)
         XCTAssertEqual(atCreation.lines[0].hash, origin)
         XCTAssertEqual(atCreation.lines[0].filename, source)
+        let copiedHistory = try await repo.blameHistory(atCreation, options: options)
+        XCTAssertEqual(Set(copiedHistory.map(\.hash)), [origin, creation])
         try Data("\(firstLine)\nnew destination marker\n\(laterLine)\n".utf8).write(to: root.appendingPathComponent(target))
         let shortTarget = "short-copy.txt"
         try Data("\(shortLine)\nunique destination marker\n".utf8).write(to: root.appendingPathComponent(shortTarget))
@@ -90,6 +92,9 @@ final class GitBlameTests: XCTestCase {
         options.detectionMode = .existingFiles
         let all = try await repo.blame(path: target, options: options)
         XCTAssertEqual(all.lines[2].hash, origin); XCTAssertEqual(all.lines[2].originalLine, 2)
+        let existingHistory = try await repo.blameHistory(all, options: options)
+        XCTAssertEqual(Set(existingHistory.map(\.hash)), Set(all.lines.map(\.hash)))
+        XCTAssertTrue(existingHistory.contains { $0.hash == origin })
         let shortDefault = try await repo.blame(path: shortTarget, options: options)
         XCTAssertEqual(shortDefault.lines[0].hash, head)
         options.betweenFileCharacters = 1
@@ -387,4 +392,66 @@ final class GitBlameTests: XCTestCase {
             do { _ = try await repo.blame(path: path); XCTFail("Must reject \(path)") } catch {}
         }
     }
+    func testCompleteAndOriginHistoriesFollowLiteralRenamesWithoutMutations() async throws {
+        let (root, repo, original) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let initial = try Data(contentsOf: root.appendingPathComponent(original))
+        let text = String(decoding: initial, as: UTF8.self).replacingOccurrences(of: "line 2\n", with: "temporary line 2\n")
+        try Data(text.utf8).write(to: root.appendingPathComponent(original)); try await repo.stage([original]); _ = try await repo.commit(message: "temporary change")
+        let temporary = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        try initial.write(to: root.appendingPathComponent(original)); try await repo.stage([original]); _ = try await repo.commit(message: "restore line\n\nBody 雪 🐢")
+        let restored = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let renamed = ":(glob)* renamed 雪\n.txt"
+        _ = try await repo.run(["mv", "--", original, renamed]); _ = try await repo.commit(message: "rename")
+        let rename = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let snapshot = try await repo.blame(path: renamed)
+        try Data("staged replacement\n".utf8).write(to: root.appendingPathComponent(renamed)); try await repo.stage([renamed])
+        try Data("working replacement\n".utf8).write(to: root.appendingPathComponent(renamed))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        var options = GitBlameOptions()
+        let currentName = try await repo.blameHistory(snapshot, options: options)
+        XCTAssertEqual(currentName.map(\.hash), [rename])
+        options.followRenames = true
+        let full = try await repo.blameHistory(snapshot, options: options)
+        XCTAssertEqual(full.map(\.hash), [rename, restored, temporary, base])
+        XCTAssertTrue(full.first(where: { $0.hash == restored })?.message.contains("Body 雪 🐢") == true)
+        options.showCompleteLog = false
+        let origins = try await repo.blameHistory(snapshot, options: options)
+        XCTAssertEqual(Set(origins.map(\.hash)), Set(snapshot.lines.map(\.hash)))
+        XCTAssertEqual(Set(origins.map(\.hash)), [base, restored]); XCTAssertFalse(origins.contains { $0.hash == temporary || $0.hash == rename })
+        for mode in GitBlameDetectionMode.allCases where mode.betweenFiles {
+            options.showCompleteLog = true; options.detectionMode = mode
+            let gated = try await repo.blameHistory(snapshot, options: options)
+            XCTAssertEqual(Set(gated.map(\.hash)), Set(origins.map(\.hash)))
+        }
+        options.detectionMode = .disabled; options.onlyFirstParent = true
+        let firstParentGated = try await repo.blameHistory(snapshot, options: options)
+        XCTAssertEqual(Set(firstParentGated.map(\.hash)), Set(origins.map(\.hash)))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(renamed)), Data("working replacement\n".utf8))
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, rename)
+        XCTAssertEqual(snapshot.contents, initial)
+    }
+    func testEmptyBlameOriginHistoryAndLogSettingsDependencies() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data().write(to: root.appendingPathComponent("empty")); try await repo.stage(["empty"]); _ = try await repo.commit(message: "empty")
+        let snapshot = try await repo.blame(path: "empty")
+        var options = GitBlameOptions()
+        let complete = try await repo.blameHistory(snapshot, options: options); XCTAssertEqual(complete.count, 1)
+        options.showCompleteLog = false
+        let origins = try await repo.blameHistory(snapshot, options: options); XCTAssertTrue(origins.isEmpty)
+        for mode in GitBlameDetectionMode.allCases {
+            options = GitBlameOptions(); options.detectionMode = mode; options.followRenames = true
+            XCTAssertEqual(options.canShowCompleteLog, !mode.betweenFiles)
+            options.normalizeLogSettings()
+            XCTAssertEqual(options.showCompleteLog, !mode.betweenFiles); XCTAssertEqual(options.followRenames, !mode.betweenFiles)
+            options.onlyFirstParent = true; options.normalizeLogSettings()
+            XCTAssertFalse(options.showCompleteLog); XCTAssertFalse(options.followRenames)
+        }
+        options = GitBlameOptions(); options.showCompleteLog = false; options.followRenames = true; options.normalizeLogSettings()
+        XCTAssertFalse(options.followRenames)
+    }
+
 }

@@ -6,6 +6,8 @@ public enum GitBlamePreferences {
         var options = GitBlameOptions()
         options.ignoreWhitespace = defaults.bool(forKey: prefix + "IgnoreWhitespace")
         options.onlyFirstParent = defaults.bool(forKey: prefix + "OnlyFirstParent")
+        options.showCompleteLog = defaults.object(forKey: prefix + "ShowCompleteLog") == nil ? true : defaults.bool(forKey: prefix + "ShowCompleteLog")
+        options.followRenames = defaults.bool(forKey: prefix + "FollowRenames")
         options.detectionMode = defaults.string(forKey: prefix + "DetectMovedOrCopiedLines").flatMap(Int.init).flatMap(GitBlameDetectionMode.init(rawValue:)) ?? .disabled
         options.withinFileCharacters = defaults.string(forKey: prefix + "WithinFileCharacters").flatMap(UInt32.init) ?? 20
         options.betweenFileCharacters = defaults.string(forKey: prefix + "BetweenFileCharacters").flatMap(UInt32.init) ?? 40
@@ -14,6 +16,8 @@ public enum GitBlamePreferences {
     public static func save(_ options: GitBlameOptions, to defaults: UserDefaults = .standard) {
         defaults.set(options.ignoreWhitespace, forKey: prefix + "IgnoreWhitespace")
         defaults.set(options.onlyFirstParent, forKey: prefix + "OnlyFirstParent")
+        defaults.set(options.showCompleteLog, forKey: prefix + "ShowCompleteLog")
+        defaults.set(options.followRenames, forKey: prefix + "FollowRenames")
         defaults.set(String(options.detectionMode.rawValue), forKey: prefix + "DetectMovedOrCopiedLines")
         defaults.set(String(options.withinFileCharacters), forKey: prefix + "WithinFileCharacters")
         defaults.set(String(options.betweenFileCharacters), forKey: prefix + "BetweenFileCharacters")

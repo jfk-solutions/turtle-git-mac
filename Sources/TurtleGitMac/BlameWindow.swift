@@ -37,6 +37,14 @@ private struct BlameParentMenuTarget {
     @Published var error: String?
     @Published var ignoreWhitespace = false
     @Published var onlyFirstParent = false
+    @Published var showCompleteLog = true
+    @Published var followRenames = false
+    @Published var historyEntries: [LogEntry] = []
+    @Published var selectedLogHashes: Set<String> = []
+    var historyGraph: [CommitGraphRow] { CommitGraph.layout(historyEntries) }
+    var showHistoryGraph: Bool { appliedOptions.usesCompleteLog && !appliedOptions.usesFollowRenames }
+    var canShowCompleteLog: Bool { !detectionMode.betweenFiles && !onlyFirstParent }
+    var selectedHistoryEntry: LogEntry? { selectedLogHashes.count == 1 ? historyEntries.first { selectedLogHashes.contains($0.hash) } : nil }
     @Published var detectionMode = GitBlameDetectionMode.disabled
     @Published var withinFileCharacters = "20"
     @Published var betweenFileCharacters = "40"
@@ -86,8 +94,15 @@ private struct BlameParentMenuTarget {
     func highlight(_ row: Int) {
         guard lines.indices.contains(row) else { return }
         let hash = lines[row].hash; highlightedHash = highlightedHash == hash ? nil : hash
+        selectedLogHashes = highlightedHash.map { [$0] } ?? []
+    }
+    func focusHistory(_ hashes: Set<String>, focus: String?) {
+        let old = selectedLogHashes; selectedLogHashes = hashes; highlightedHash = nil
+        if let focus, !old.contains(focus), let line = lines.first(where: { $0.hash == focus }) { selection = line.number }
     }
     func highlightKind(_ line: GitBlameLine) -> Int {
+        if selectedLogHashes.contains(line.hash) { return 1 }
+        if let entry = selectedHistoryEntry, entry.author == line.author { return 2 }
         if let selected = highlightedLine {
             if line.hash == selected.hash { return 1 }
             if line.author == selected.author { return 2 }
@@ -106,6 +121,7 @@ private struct BlameParentMenuTarget {
         var options = GitBlameOptions()
         options.ignoreWhitespace = ignoreWhitespace; options.detectionMode = detectionMode; options.encoding = sourceEncoding
         options.onlyFirstParent = onlyFirstParent
+        options.showCompleteLog = showCompleteLog; options.followRenames = followRenames
         options.withinFileCharacters = UInt32(withinFileCharacters) ?? appliedOptions.withinFileCharacters
         options.betweenFileCharacters = UInt32(betweenFileCharacters) ?? appliedOptions.betweenFileCharacters
         return options
@@ -116,6 +132,7 @@ private struct BlameParentMenuTarget {
     private func setControls(_ options: GitBlameOptions) {
         ignoreWhitespace = options.ignoreWhitespace; detectionMode = options.detectionMode; sourceEncoding = options.encoding
         onlyFirstParent = options.onlyFirstParent
+        showCompleteLog = options.showCompleteLog; followRenames = options.followRenames
         withinFileCharacters = String(options.withinFileCharacters); betweenFileCharacters = String(options.betweenFileCharacters)
     }
     func configure(options: GitBlameOptions, line: Int?) {
@@ -146,6 +163,14 @@ private struct BlameParentMenuTarget {
         presentation = .load()
         var options = GitBlamePreferences.load(); options.encoding = sourceEncoding
         configure(options: options, line: selection)
+    }
+    func setShowCompleteLog(_ enabled: Bool) {
+        guard !busy, canShowCompleteLog, showCompleteLog != enabled else { return }
+        showCompleteLog = enabled; GitBlamePreferences.update { $0.showCompleteLog = enabled }; reload(saveThresholds: true)
+    }
+    func setFollowRenames(_ enabled: Bool) {
+        guard !busy, canShowCompleteLog, showCompleteLog, followRenames != enabled else { return }
+        followRenames = enabled; GitBlamePreferences.update { $0.followRenames = enabled }; reload(saveThresholds: true)
     }
     func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -192,18 +217,20 @@ private struct BlameParentMenuTarget {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.blame(path: path, revision: revision, options: options)
-                let historyArguments = ["log", "--format=%H", "--follow"] + (options.onlyFirstParent ? ["--first-parent"] : [])
-                let history = try await repository.run(historyArguments + [result.revision, "--", path]).text.split(separator: "\n").map(String.init)
+                let entries = try await repository.blameHistory(result, options: options)
+                let history = entries.map(\.hash)
                 guard request == generation else { return }
                 ranks = Dictionary(history.enumerated().map { ($0.element, $0.offset) }, uniquingKeysWith: min)
                 origins = Dictionary(result.lines.map { ($0.hash, $0) }, uniquingKeysWith: { first, _ in first })
                 historyCount = history.count; revision = result.revision; appliedOptions = options; snapshot = result
+                historyEntries = entries; selectedLogHashes.formIntersection(Set(history))
                 if let selection, !result.lines.contains(where: { $0.number == selection }) { self.selection = nil }
                 busy = false; applyPendingLine()
             } catch {
                 if request == generation {
                     snapshot = nil; selection = nil; highlightedHash = nil; hoveredLine = nil; origins = [:]; ranks = [:]
                     historyCount = 0; navigationMessage = ""
+                    historyEntries = []; selectedLogHashes = []
                     self.error = error.localizedDescription; busy = false
                 }
             }
@@ -296,13 +323,117 @@ private struct BlameDialog: View {
             if model.loadingParents { ProgressView("Reading previous revisions…").controlSize(.small) }
             if model.copyingLog { ProgressView("Reading log message for clipboard…").controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            BlameTable(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
+            HStack {
+                Toggle("Show complete log", isOn: Binding(get: { model.canShowCompleteLog && model.showCompleteLog }, set: { model.setShowCompleteLog($0) })).disabled(!model.canShowCompleteLog)
+                Toggle("Follow renames", isOn: Binding(get: { model.canShowCompleteLog && model.showCompleteLog && model.followRenames }, set: { model.setFollowRenames($0) })).disabled(!model.canShowCompleteLog || !model.showCompleteLog)
+                Spacer()
+            }.disabled(model.busy)
+            VSplitView {
+                BlameTable(model: model).frame(minHeight: 90, maxHeight: .infinity)
+                BlameHistoryTable(model: model).frame(minHeight: 80, idealHeight: 170, maxHeight: 320)
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+            if let entry = model.selectedHistoryEntry {
+                Text(entry.message).font(.system(size: 11)).lineLimit(4).textSelection(.enabled)
+            }
             if let line = model.selectedLine {
                 Text("\(line.hash) • \(line.author) <\(line.email)>").font(.system(size: 11)).textSelection(.enabled)
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary)
         }.padding(12).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
+    }
+}
+
+private struct BlameHistoryTable: NSViewRepresentable {
+    @ObservedObject var model: BlameWindowModel
+    func makeCoordinator() -> Coordinator { Coordinator(model) }
+    func makeNSView(context: Context) -> NSScrollView {
+        let table = NSTableView()
+        table.setAccessibilityLabel("Blame Log")
+        table.rowHeight = 24; table.intercellSpacing = NSSize(width: 4, height: 0)
+        table.allowsMultipleSelection = true; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+        for (id, title, width) in [("graph", "Graph", 65.0), ("hash", "SHA-1", 92.0), ("message", "Message", 420.0), ("author", "Author", 140.0), ("date", "Date", 170.0)] {
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width
+            column.minWidth = id == "graph" ? 38 : 70; table.addTableColumn(column)
+        }
+        table.delegate = context.coordinator; table.dataSource = context.coordinator
+        table.target = context.coordinator; table.doubleAction = #selector(Coordinator.showLog)
+        table.menu = NSMenu(); table.menu?.delegate = context.coordinator
+        context.coordinator.table = table
+        let scroll = NSScrollView(); scroll.borderType = .bezelBorder
+        scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.documentView = table
+        return scroll
+    }
+    func updateNSView(_ view: NSScrollView, context: Context) {
+        let coordinator = context.coordinator; coordinator.model = model
+        guard let table = coordinator.table else { return }
+        coordinator.updating = true; defer { coordinator.updating = false }
+        let signature = model.historyEntries.map(\.hash)
+        if signature != coordinator.signature || coordinator.showGraph != model.showHistoryGraph {
+            coordinator.signature = signature; coordinator.showGraph = model.showHistoryGraph
+            coordinator.graph = model.historyGraph
+            table.tableColumns.first?.isHidden = !model.showHistoryGraph
+            table.tableColumns.first?.width = CGFloat(max(65, min(240, (coordinator.graph.map(\.width).max() ?? 1) * 14 + 24)))
+            table.reloadData()
+        }
+        let selected = IndexSet(model.historyEntries.enumerated().compactMap { model.selectedLogHashes.contains($0.element.hash) ? $0.offset : nil })
+        if table.selectedRowIndexes != selected {
+            table.selectRowIndexes(selected, byExtendingSelection: false)
+            if let first = selected.first { table.scrollRowToVisible(first) }
+        }
+    }
+    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
+        var model: BlameWindowModel
+        weak var table: NSTableView?
+        var updating = false, showGraph = false
+        var signature: [String] = []
+        var graph: [CommitGraphRow] = []
+        init(_ model: BlameWindowModel) { self.model = model }
+        func numberOfRows(in tableView: NSTableView) -> Int { model.historyEntries.count }
+        func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
+            guard model.historyEntries.indices.contains(row) else { return nil }
+            let entry = model.historyEntries[row]
+            if column?.identifier.rawValue == "graph", graph.indices.contains(row) {
+                let view = GraphCell(); view.graph = graph[row]
+                view.setAccessibilityLabel("\(entry.parents.count) parents, graph lane \(graph[row].column + 1)"); return view
+            }
+            let text = NSTextField(labelWithString: "")
+            text.font = .systemFont(ofSize: 12); text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
+            switch column?.identifier.rawValue {
+            case "hash": text.stringValue = String(entry.hash.prefix(10)); text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+            case "author": text.stringValue = entry.author
+            case "date": text.stringValue = entry.date.replacingOccurrences(of: "T", with: " ").prefix(19).description
+            default: text.stringValue = entry.subject
+            }
+            text.toolTip = entry.message + "\n" + entry.hash
+            let cell = NSTableCellView(); cell.addSubview(text); cell.textField = text; text.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
+            return cell
+        }
+        func tableViewSelectionDidChange(_ notification: Notification) {
+            guard !updating, let table else { return }
+            let hashes = Set(table.selectedRowIndexes.compactMap { model.historyEntries.indices.contains($0) ? model.historyEntries[$0].hash : nil })
+            let row = table.selectedRow
+            model.focusHistory(hashes, focus: model.historyEntries.indices.contains(row) ? model.historyEntries[row].hash : nil)
+        }
+        func menuNeedsUpdate(_ menu: NSMenu) {
+            menu.removeAllItems(); menu.autoenablesItems = false
+            for (title, action, icon) in [("Show log", #selector(showLog), MenuIcon.log), ("Copy SHA-1 to clipboard", #selector(copyHash), MenuIcon.copy), ("Copy log message", #selector(copyLog), MenuIcon.copy)] {
+                let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.image()
+                item.isEnabled = !model.busy && model.selectedHistoryEntry != nil && (action != #selector(showLog) || model.onLog != nil)
+                menu.addItem(item)
+            }
+        }
+        @objc func showLog() {
+            guard let entry = model.selectedHistoryEntry else { return }
+            let path = model.lines.first(where: { $0.hash == entry.hash })?.filename ?? model.path
+            model.onLog?(path, entry.hash)
+        }
+        @objc func copyHash() {
+            guard let entry = model.selectedHistoryEntry else { return }
+            model.copy(entry.hash)
+        }
+        @objc func copyLog() { if let entry = model.selectedHistoryEntry { model.copyLogMessage(entry.hash) } }
     }
 }
 
@@ -390,6 +521,9 @@ private struct BlameTable: NSViewRepresentable {
             let dark = tableView.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
             let color = model.presentation.ageColor(rank: model.ranks[model.lines[row].hash], historyCount: model.historyCount, dark: dark, enabled: model.colorAge)
             view.ageColor = NSColor(srgbRed: CGFloat((color >> 16) & 255) / 255, green: CGFloat((color >> 8) & 255) / 255, blue: CGFloat(color & 255) / 255, alpha: 1)
+            if !model.colorAge || model.ranks[model.lines[row].hash] == nil {
+                view.ageColor = dark ? NSColor(srgbRed: 32.0 / 255, green: 32.0 / 255, blue: 32.0 / 255, alpha: 1) : .white
+            }
             switch model.highlightKind(model.lines[row]) {
             case 1: view.ageColor = dark ? NSColor(srgbRed: 0, green: 30.0 / 255, blue: 80.0 / 255, alpha: 1) : .selectedContentBackgroundColor
             case 2:

@@ -18,11 +18,22 @@ public enum GitBlameDetectionMode: Int, CaseIterable, Identifiable, Sendable {
 public struct GitBlameOptions: Equatable, Sendable {
     public var ignoreWhitespace = false
     public var onlyFirstParent = false
+    public var showCompleteLog = true
+    public var followRenames = false
     public var detectionMode = GitBlameDetectionMode.disabled
     public var withinFileCharacters: UInt32 = 20
     public var betweenFileCharacters: UInt32 = 40
     public var encoding: GitBlameEncoding?
     public init() {}
+    public var canShowCompleteLog: Bool { !detectionMode.betweenFiles && !onlyFirstParent }
+    public var usesCompleteLog: Bool { canShowCompleteLog && showCompleteLog }
+    public var usesFollowRenames: Bool { usesCompleteLog && followRenames }
+    /// Settings clears unavailable choices; viewer menus retain the saved flags
+    /// and use the effective gates while switching annotation modes.
+    public mutating func normalizeLogSettings() {
+        if !canShowCompleteLog { showCompleteLog = false }
+        if !usesCompleteLog { followRenames = false }
+    }
     var detectionArguments: [String] {
         switch detectionMode {
         case .disabled: return []
@@ -234,6 +245,39 @@ public enum GitBlameParser {
     }
 }
 extension GitRepository {
+    public func blameHistory(_ snapshot: GitBlameSnapshot, options: GitBlameOptions) throws -> [LogEntry] {
+        let format = "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%ct%x00"
+        func records(_ data: Data) throws -> [(LogEntry, Int64)] {
+            let fields = String(decoding: data, as: UTF8.self).components(separatedBy: "\0")
+            var result: [(LogEntry, Int64)] = []
+            var index = 0
+            while index + 7 < fields.count {
+                let hash = fields[index].trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !hash.isEmpty, let timestamp = Int64(fields[index + 7]) else { throw GitBlameFailure.format }
+                result.append((LogEntry(hash: hash, author: fields[index + 2], date: fields[index + 4], subject: fields[index + 5],
+                    parents: fields[index + 1].split(separator: " ").map(String.init), email: fields[index + 3], message: fields[index + 6]), timestamp))
+                index += 8
+            }
+            return result
+        }
+        if options.usesCompleteLog {
+            let args = ["log", "--topo-order", format] + (options.usesFollowRenames ? ["--follow"] : [])
+            return try records(run(args + [snapshot.revision, "--", snapshot.path]).stdout).map { $0.0 }
+        }
+        let hashes = Set(snapshot.lines.map(\.hash)).sorted()
+        var entries: [(LogEntry, Int64)] = []
+        // Bound argv size for large files with many distinct originating commits.
+        for start in stride(from: 0, to: hashes.count, by: 128) {
+            entries += try records(run(["log", "--no-walk=unsorted", format] + Array(hashes[start..<min(start + 128, hashes.count)]) + ["--"]).stdout)
+        }
+        guard Set(entries.map { $0.0.hash }) == Set(hashes), entries.count == hashes.count else { throw GitBlameFailure.format }
+        return entries.sorted { lhs, rhs in
+            if lhs.0.parents.contains(rhs.0.hash) { return true }
+            if rhs.0.parents.contains(lhs.0.hash) { return false }
+            if lhs.1 != rhs.1 { return lhs.1 > rhs.1 }
+            return lhs.0.hash < rhs.0.hash
+        }.map { $0.0 }
+    }
     /// Only parents that changed an existing origin file are relevant, matching
     /// TortoiseBlame's menu gates. Preserve each parent's old rename path.
     public func blameParentComparisons(revision: String, path: String) throws -> [GitBlameParentComparison] {

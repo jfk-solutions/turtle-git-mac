@@ -40,8 +40,9 @@ attribution through merges. Native Blame Settings and viewer controls save
 annotation defaults for future windows. Font, tab width and separate light/dark
 age-color settings are available; native font/tab persistence and alignment are
 verified, while custom color selection and live updates still need acceptance.
-Full menus, syntax highlighting and
-encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
+An embedded revision Log provides Show complete log and Follow renames, with
+upstream option dependencies and source-line focus. Full menus, syntax
+highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 
 - Open normal repositories and linked worktrees; show branch and status.
 - Remember recent repositories with security-scoped bookmarks; renew stale permissions

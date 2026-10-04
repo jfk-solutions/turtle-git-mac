@@ -15,6 +15,8 @@ struct BlameSettings: View {
     @State private var fontSize = String(GitBlamePresentation.load().fontSize)
     @State private var tabSize = String(GitBlamePresentation.load().tabSize)
     @State private var darkColors = false
+    @State private var savedOptions = GitBlamePreferences.load()
+    @State private var savedPresentation = GitBlamePresentation.load()
     private var fonts: [String] {
         let fixed = NSFontManager.shared.availableFontFamilies.filter { family in
             NSFontManager.shared.font(withFamily: family, traits: [], weight: 5, size: 10)?.isFixedPitch == true
@@ -91,6 +93,12 @@ struct BlameSettings: View {
                     if options == nil { Text("Enter character counts from 0 to 4294967295.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
+            GroupBox("Log") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Show complete log", isOn: $draft.showCompleteLog).disabled(!draft.canShowCompleteLog)
+                    Toggle("Follow renames", isOn: $draft.followRenames).padding(.leading, 16).disabled(!draft.usesCompleteLog)
+                }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
+            }
             Text("Apply these defaults to open and new Blame windows. Each window retains its source encoding.").font(.caption).foregroundStyle(.secondary)
             Spacer()
             HStack {
@@ -100,13 +108,18 @@ struct BlameSettings: View {
                     guard let options, let validPresentation else { return }
                     GitBlamePreferences.save(options)
                     validPresentation.save()
+                    savedOptions = options; savedPresentation = validPresentation
                     NotificationCenter.default.post(name: .blamePreferencesChanged, object: nil)
-                }.disabled(options == nil || validPresentation == nil || (options == GitBlamePreferences.load() && validPresentation == GitBlamePresentation.load()))
+                }.disabled(options == nil || validPresentation == nil || (options == savedOptions && validPresentation == savedPresentation))
             }
         }.padding(20).background(BlameSettingsWindowProbe(reference: reference).frame(width: 0, height: 0)).onAppear { restore() }
+            .onChange(of: draft.detectionMode) { _ in draft.normalizeLogSettings() }
+            .onChange(of: draft.onlyFirstParent) { _ in draft.normalizeLogSettings() }
+            .onChange(of: draft.showCompleteLog) { _ in draft.normalizeLogSettings() }
     }
     private func restore() {
-        draft = GitBlamePreferences.load(); within = String(draft.withinFileCharacters); between = String(draft.betweenFileCharacters)
+        savedOptions = GitBlamePreferences.load(); savedPresentation = .load()
+        draft = savedOptions; draft.normalizeLogSettings(); within = String(draft.withinFileCharacters); between = String(draft.betweenFileCharacters)
         presentation = .load(); fontSize = String(presentation.fontSize); tabSize = String(presentation.tabSize)
     }
 }

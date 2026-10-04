@@ -487,9 +487,53 @@ invalid-size input, other fonts, preset selection, multi-window updates, unsaved
 accessibility checks remain pending. Full Log settings and editor layout remain
 partial.
 
+## Embedded Log and history settings
+
+Compared against pinned upstream `SettingsTBlame.cpp`, `TortoiseGitBlameDoc.cpp`,
+`OutputWnd.cpp`, `TortoiseGitBlameView.cpp` and `LogDataVector.cpp`.
+Show complete log defaults on; Follow renames defaults off. Complete history is
+available only with disabled/within-file detection and without first-parent mode.
+Settings clears unavailable flags; the viewer retains saved flags while gating
+their effective values. Disabling complete history in Settings also clears Follow.
+
+Complete history uses the pinned revision and literal file path, without a row
+cap, optionally following renames. Otherwise the Log loads every distinct source
+attribution hash, including copied-file origins. Direct children precede parents;
+other rows use descending committer date with a deterministic hash tie-break.
+The compact graph appears only for complete history without Follow. Age shading
+uses loaded Log ranks; absent hashes use the light/dark window background.
+
+The native split view includes SHA-1, Message, Author and Date columns, multiple
+selection support and source focus. Single-selection message text and Show log,
+Copy SHA-1 and Copy log message actions are provided. Hash copying cancels any
+older asynchronous clipboard request. Full Properties, locator, docking and Log
+context-menu parity remain pending.
+
+Native QA observed one rename row with complete history, four rows with Follow
+and no graph, and source line 2 focused by selecting its restoration commit,
+including its full message. No saved source screenshot was obtained for that
+scenario; an unresponsive menu prevented normal Quit, so the sole known preview
+process was terminated and absence verified. A separate Settings check verified
+first-parent and cross-file modes clearing/disabling both Log options, persistence
+and Apply becoming disabled after save. That process quit normally. The inspected
+actual capture is `site/assets/blame-log-settings.png` (1240 by 1576).
+
+The initial repository overview refreshed Git's index stat-cache size and checksum;
+staged blob, path, mode, HEAD and working source remained unchanged. After settling
+that cache before the second baseline, HEAD, raw index and working bytes were
+identical after Settings QA. Direct history tests also preserve all three exactly.
+
+All 282 core tests passed, including literal rename, complete/follow/origin
+histories, copied donor origins, empty sources and option dependencies. Focused
+Blame runs passed 22 tests plus the copied-source test. Debug and App Store builds and both bundle audits passed, including 62 original
+icon resources and 11 universal packaged Git binaries. The documentation site
+build and whitespace check passed. Native multi-selection, viewer dependency
+changes, context menus/clipboard and dark layout still require
+acceptance. This remains a partial port.
+
 ## Remaining work
 
-- Multi-revision selection, full source locator and integrated revision-log layout;
+- Native multi-revision selection acceptance, full source locator and complete revision-log layout;
   pointer-hover and dark sticky native acceptance.
 - Syntax highlighting, source selection and native editor scrolling behavior.
 - Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and
@@ -497,7 +541,7 @@ partial.
 - Clipboard presentation/localized dates, export commands and remaining original
   menu icons.
 - Complete Blame settings layout, revision chooser, font preview drawing,
-  native preset/color acceptance and log preferences; native multi-window updates and unsaved Cancel acceptance.
+  native preset/color acceptance and full log preferences parity; native multi-window updates and unsaved Cancel acceptance.
 - Persistent/system encoding defaults, chooser/accessibility parity, unsupported
   codecs and byte-LF within other UTF-16 code units; binary, malformed text and
   symlinks remain unsupported.
