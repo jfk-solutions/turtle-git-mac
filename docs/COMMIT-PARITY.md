@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context command audit, including extension/column clipboard and changelists, plus broader Delete selection verification. File Blame/log/open/reveal
+- Remaining file context command audit, including changelists and broader clipboard verification, plus broader Delete selection verification. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -404,7 +404,7 @@ file/folder names and all displayed information. It operates on context selectio
 in displayed order, independently of Commit checkboxes. All-information output
 has the visible column headings and tab-separated statistics; path outputs have
 one selected path per line and the upstream trailing newline, using macOS LF.
-Copy-current-column behavior still needs an AppKit table hit-column mapping.
+Copy-current-column and native path-copy shortcuts are now implemented as detailed below.
 
 Native QA on the disposable six-revision fixture verified tracked/untracked menu
 conditions, absence of single-file actions for multiple selection, relative-path
@@ -810,3 +810,53 @@ Native Command deselection, forward-Delete hardware, ignored directories,
 staging/dark mode, partial filesystem failures and signed sandbox checks remain
 pending. Other context-menu gates still need their own focus-sensitive audit;
 full status-list and Commit parity remain partial.
+
+
+## Clipboard column selection and native shortcuts
+
+Upstream `IDGITLC_COPYEXT` is named misleadingly: its resource text is “Copy all
+information to clipboard,” and it copies all visible columns. It is not a separate
+extension-only command. `IDGITLC_COPYCOL` copies the column hit by the context-menu
+request without a heading. The menu label is `column '<name>'` and uses the original
+clipboard icon. `PreTranslateMessage` also maps Control-Insert to relative paths
+and Shift-Control-Insert to relative paths with status and headings.
+
+Commit now supplies that column item through the native menu tracking notification.
+The AppKit table’s public geometry determines the clicked row/column. It is added
+before the menu is displayed, avoiding SwiftUI’s cached menu content, which initially
+required reopening the menu. The item follows a subsequent request on a different
+column. Clicking an unselected row uses that context row; an already selected row
+copies the current selection in displayed order. The checkbox column has no text
+command. Observers are removed when their Commit view is detached.
+
+Command-C is the macOS shortcut for relative paths; Shift-Command-C copies paths
+and status. Control-Insert variants are also handled for keyboards that supply the
+Insert/Help key. These shortcuts run only with keyboard focus in the file table;
+message and other text editors retain their native copy behavior. The shared
+clipboard formatter supplies full/relative/name, all-information and single-column
+text with macOS LF and the upstream trailing newline. Only multi-column output has
+headings. Native count placeholders remain the displayed en dash.
+
+The extension column now includes its leading dot, matching `GetFileExtension`,
+including dotfiles; directories/submodules have no extension. Renamed paths display
+the upstream `(from old-path)` suffix. Column/all-information copying retains that
+visible suffix; raw full/relative/name commands and path/status shortcuts do not.
+This updates Commit’s display and formatter, not all other file lists yet.
+
+Three formatter tests cover Unicode paths and selected order, raw path commands,
+rename annotations/status, dotfiles/directories, missing and staged statistics,
+header rules, displayed column order and empty selections. Together with the eight
+Delete tests, all 11 focused tests passed. Native light-mode QA verified Command-C
+raw paths, Shift-Command-C paths/status, first-request `column 'Status'`, then
+`column 'Extension'`, headerless status/leading-dot extension values, and the
+all-information headings/renamed path/counts. Values were pasted into the actual
+Commit message editor for verification; no commit was made. HEAD, raw index and
+working bytes stayed exact. QA apps ran sequentially and each quit normally.
+`site/assets/commit-clipboard.png` is the inspected actual 2000 × 1584 final window.
+Both unsigned Xcode builds, both bundle audits and the site build passed; the
+App Store bundle audit verified the pinned universal Git runtime and original icons.
+
+Native keyboard navigation of the context submenu, Control-Insert hardware,
+checkbox/empty-area menus, column reordering/hiding, optional filename/date/size/LFS
+columns, staging/dark mode and signed sandbox execution remain pending. Full
+status-list, clipboard and Commit parity remain partial.

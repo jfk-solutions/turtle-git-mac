@@ -66,7 +66,10 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   moves unversioned files to Trash and stages removal of missing tracked paths;
   a separate Shift confirmation supports permanent deletion. Mixed selections use
   the marked row to enable Delete; table-focused Delete keys preserve normal text
-  editing. Broader selection and signed sandbox checks remain under audit.
+  editing. The clipboard submenu copies the clicked column with the original icon;
+  Command-C copies relative paths and Shift-Command-C adds status. Renamed paths
+  and leading-dot extensions match the upstream display. Broader selection and
+  signed sandbox checks remain under audit.
 - Dedicated Revert window with scoped file checks, Select/deselect all, counts,
   F5 refresh and light/dark appearance; Finder and app-menu routing.
   [Revert parity details](docs/REVERT-PARITY.md) record the remaining workflows.

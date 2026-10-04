@@ -279,18 +279,18 @@ import UniformTypeIdentifiers
     }
     func copyFiles(_ selected: [StatusEntry], information: CopyFileInformation, staged: Bool?) {
         let stats = staged.map { $0 ? stagedStatistics : unstagedStatistics } ?? statistics
-        let header = information == .all ? "Path\tExtension\tStatus\tLines added\tLines removed\n" : ""
-        let text = header + selected.map { entry in
-            switch information {
-            case .fullPaths: return repository.root.appendingPathComponent(entry.path).path
-            case .relativePaths: return entry.path
-            case .names: return (entry.path as NSString).lastPathComponent
-            case .all:
-                let count = stats[entry.path]
-                return [entry.path, (entry.path as NSString).pathExtension, count?.status ?? entry.state.rawValue.capitalized,
-                        count?.added.map(String.init) ?? "–", count?.removed.map(String.init) ?? "–"].joined(separator: "\t")
-            }
-        }.joined(separator: "\n") + (selected.isEmpty ? "" : "\n")
+        let copy: StatusListCopy
+        switch information {
+        case .fullPaths: copy = .fullPaths
+        case .relativePaths: copy = .relativePaths
+        case .names: copy = .names
+        case .all: copy = .all
+        }
+        copyFileText(selected, statistics: stats, copy: copy)
+    }
+    func copyFileText(_ selected: [StatusEntry], statistics: [String: CommitFile], copy: StatusListCopy) {
+        guard !selected.isEmpty else { return }
+        let text = StatusListClipboard.text(selected, root: repository.root, statistics: statistics, copy: copy)
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     private func validateRestoreAccess() throws {
@@ -791,8 +791,8 @@ GroupBox("Changes made (double-click on file for diff):") {
                         .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
                 }
             }.width(24)
-            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay { if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) } }; Text(entry.path).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
-            TableColumn("Extension") { entry in Text((entry.path as NSString).pathExtension) }.width(75)
+            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay { if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) } }; Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
+            TableColumn("Extension") { entry in Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path))) }.width(75)
             TableColumn("Status") { entry in Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }.width(90)
             TableColumn("Lines added") { entry in Text(statistics[entry.path]?.added.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(80)
             TableColumn("Lines removed") { entry in Text(statistics[entry.path]?.removed.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(95)
@@ -882,7 +882,7 @@ GroupBox("Changes made (double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(entries: entries, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit) { model.deleteFiles($0, selectionMark: $1, permanently: $2) })
+        .background(CommitFileInteraction(entries: entries, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }))
         .onChange(of: selection.wrappedValue) { ids in
             if ids.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = ids.first }
         }

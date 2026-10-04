@@ -79,6 +79,7 @@
 		AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */; };
 		AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7809458AF943456197C0AC7 /* MergeWhitespace.swift */; };
 		B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83395323FFA0860A52795F9F /* Stash.swift */; };
+		B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */; };
 		B172FF1DD6076D00FCEB58D7 /* CommitAmend.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D91605384F213DBC8C3C9F /* CommitAmend.swift */; };
 		B325035DE8116D7F3CCCC3FD /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 11C14DF0DFBA0B8AC513278E /* NOTICE */; };
 		B37762B44078ECEA7539D02D /* ConflictResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */; };
@@ -184,6 +185,7 @@
 		1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitMacApp.swift; sourceTree = "<group>"; };
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		244AD68D8412684F520E64AC /* ReferenceCreation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCreation.swift; sourceTree = "<group>"; };
+		29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListClipboard.swift; sourceTree = "<group>"; };
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
 		2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeLineEndings.swift; sourceTree = "<group>"; };
 		2FD299C13A57D2632BB2467B /* Pull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pull.swift; sourceTree = "<group>"; };
@@ -414,6 +416,7 @@
 				4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */,
 				870D95A7EC384863F1C04342 /* RevisionComparison.swift */,
 				83395323FFA0860A52795F9F /* Stash.swift */,
+				29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */,
 				6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */,
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
 				C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */,
@@ -635,6 +638,7 @@
 				F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */,
 				510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
+				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
 				4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */,
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
 				61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */,
