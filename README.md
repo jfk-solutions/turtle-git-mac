@@ -55,7 +55,8 @@ bundle structure; it is not a signed distribution.
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Ordinary file Diff from Finder requests, app menus, Commit and Working Tree routes to the
   native two-pane viewer, comparing HEAD with working contents including staged edits.
-  Folder Diff opens Working Tree; unified/index diff inspection remains available.
+  Folder Diff opens Working Tree; Log changed-file comparisons and double-click
+  also open native viewers. Unified/index diff inspection remains available.
   Explicit untracked files compare with an empty base without staging them. Commit
   comparisons follow the selected HEAD/first-parent amend mode.
 - Native three-pane UTF-8 text conflict editor with Theirs/Mine/Merged, block choices,

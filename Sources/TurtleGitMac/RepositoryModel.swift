@@ -590,18 +590,33 @@ import TurtleGitCore
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let snapshot = try await repository.workingFileComparison(paths: ordinary, amendToParent: amendToParent)
                 if snapshot.files.isEmpty { output = "No changes for the selected files."; return }
-                for file in snapshot.files {
-                    if file.isSubmodule {
-                        showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label)
-                        continue
-                    }
-                    let key = repository.root.path + "\0" + file.path + "\0" + snapshot.from.label
-                    let controller = fileComparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
-                    controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
-                    fileComparisonWindows[key] = controller
-                    controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
-                }
+                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
             } catch { self.error = error.localizedDescription }
+        }
+    }
+    private func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String]) {
+        guard !busy, !confirmingQuit else { return }; busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let snapshot = try await repository.revisionFileComparison(from: from, to: to, paths: paths)
+                if snapshot.files.isEmpty { output = "No files exist at the selected comparison paths."; return }
+                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    private func showFileComparisons(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot) {
+        for file in snapshot.files {
+            if file.isSubmodule {
+                showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label)
+                continue
+            }
+            let key = repository.root.path + "\0" + file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label
+            let controller = fileComparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
+            controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+            fileComparisonWindows[key] = controller
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
     }
     private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], completion: (() -> Void)? = nil) {
@@ -688,6 +703,7 @@ import TurtleGitCore
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
         logWindows[key] = controller
         controller.model.endRevision = endRevision
         let location = paths.count == 1 ? root.lastPathComponent + "/" + paths[0] : root.lastPathComponent

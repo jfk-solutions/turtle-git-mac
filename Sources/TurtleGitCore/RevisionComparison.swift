@@ -65,6 +65,48 @@ extension GitRepository {
         }
         return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
     }
+    /// Selected-file comparisons also display unchanged files. Working bytes
+    /// take precedence over an index deletion when the path exists on disk.
+    public func revisionFileComparison(from: ComparisonRevision, to: ComparisonRevision, paths: [String]) throws -> RevisionComparisonSnapshot {
+        guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
+        for path in paths { _ = try restoreLocation(path) }
+        let snapshot = try revisionComparison(from: from, to: to)
+        func mode(_ revision: ComparisonRevision, _ path: String) throws -> String? {
+            if revision == .emptyTree { return nil }
+            if revision == .workingTree {
+                do {
+                    let attributes = try FileManager.default.attributesOfItem(atPath: restoreLocation(path).path)
+                    switch attributes[.type] as? FileAttributeType {
+                    case .typeRegular: return "100644"
+                    case .typeSymbolicLink: return "120000"
+                    case .typeDirectory: return "160000"
+                    default: throw RevisionComparisonFailure.selection
+                    }
+                } catch let error as NSError where error.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(error.code) { return nil }
+            }
+            guard case .revision(let hash) = revision else { throw RevisionComparisonFailure.range }
+            for record in try run(["ls-tree", "-z", hash, "--", path]).stdout.split(separator: 0) {
+                guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(path.utf8) else { continue }
+                let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
+                guard header.count == 3, ["100644", "100755", "120000", "160000"].contains(String(header[0])) else { throw RevisionComparisonFailure.selection }
+                return String(header[0])
+            }
+            return nil
+        }
+        var files: [CommitFile] = []
+        for path in Set(paths).sorted() {
+            let existing = snapshot.files.first { $0.path == path || $0.oldPath == path }
+            let destination = existing?.path ?? path, original = existing?.oldPath ?? path
+            guard !files.contains(where: { $0.path == destination }) else { continue }
+            let oldMode = try mode(snapshot.from, original), newMode = try mode(snapshot.to, destination)
+            guard oldMode != nil || newMode != nil else { continue }
+            let isSubmodule = oldMode == "160000" || newMode == "160000"
+            guard newMode != "160000" || oldMode == "160000" || existing?.isSubmodule == true else { throw RevisionComparisonFailure.selection }
+            let action = oldMode == nil ? "A" : newMode == nil ? "D" : existing?.action.hasPrefix("R") == true ? "R" : "M"
+            files.append(CommitFile(path: destination, oldPath: existing?.oldPath, action: action, added: existing?.added, removed: existing?.removed, hasStatistics: existing?.hasStatistics ?? false, isSubmodule: isSubmodule))
+        }
+        return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
+    }
     public func revisionComparison(from: ComparisonRevision, to: ComparisonRevision, options: RevisionDiffOptions = RevisionDiffOptions()) throws -> RevisionComparisonSnapshot {
         func resolve(_ side: ComparisonRevision) throws -> ComparisonRevision {
             if case .revision(let name) = side { return .revision(try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"]).text.trimmingCharacters(in: .newlines)) }

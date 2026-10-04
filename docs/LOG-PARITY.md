@@ -106,3 +106,43 @@ QA process exited. Root/two-revision native variants, file-level comparison
 routing and history-picker comparison factories remain pending. See
 [comparison parity](SUBMODULE-DIFF-PARITY.md) for inline character/word display
 and remaining fidelity differences.
+
+## Changed-file native comparison routing
+
+Reviewed `CGitStatusListCtrl::StartDiff`, `StartDiffWC` and double-click routing
+at upstream commit `7338078f8ddd924b8cddee35f512f2286072136d`. Log's changed-file
+Compare with base and double-click now open retained native two-pane viewers;
+Compare with working tree uses the selected historical revision and current
+disk contents. The separate unified command uses the original unified-diff icon
+and retains its patch sheet. File comparison commands are disabled in history
+pickers without a comparison factory. Multi-selection dispatch opens one window
+per selected path, with a shared pinned comparison range.
+
+Selected-file snapshots retain rename source paths, added/deleted empty sides
+and gitlink routing. Unchanged selected files still open a viewer. For working
+comparisons, actual disk existence determines absence: a file left on disk after
+an index deletion must display its contents rather than an empty destination.
+Historical revisions are pinned before tree inspection. Literal path validation
+and NUL-delimited tree lookup preserve Unicode/newline/pathspec-looking names.
+Missing paths on both sides produce no file window; directories outside an
+identified gitlink are rejected.
+
+One real-Git test verifies renamed and unchanged comparisons, duplicate old/new
+path selection, absent paths, working contents after index deletion, actual file
+deletion and path escape rejection. It checks exact bytes and unchanged indexes.
+One native process verified root-commit file double-click: the base was empty,
+the destination contained exact committed bytes, and editing was disabled.
+The app was quit immediately afterward; process absence and unchanged fixture
+HEAD, index and working bytes were verified.
+
+The changed-file list still shows merge changes against the first parent.
+Upstream per-parent rows and combined historical merge display remain pending;
+this change does not claim complete merge comparison parity. Native context
+menu/working/multi-file/submodule acceptance, picker integration, signed scope,
+file log/blame, export and the other advanced file commands remain incomplete.
+
+Validation: all 259 Swift tests passed. Unsigned Debug and App Store builds,
+both bundle audits and the static Pages build passed. The App Store audit
+exercised universal Git 2.55.0 local operations and checked 11 Mach-O files,
+the Finder extension, licenses and 61 original icons. Signed Finder/sandbox
+acceptance and App Store approval remain unverified.

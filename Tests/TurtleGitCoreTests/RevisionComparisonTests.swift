@@ -69,6 +69,41 @@ final class RevisionComparisonTests: XCTestCase {
         XCTAssertEqual(normalDocument.base.text, "last commit\n"); XCTAssertEqual(normalDocument.destination.text, "working\n")
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
+    func testSelectedHistoricalFilesKeepRenameAndWorkingDiskContentsWithoutIndexWrites() async throws {
+        let (root, repo, original) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let bytes = try Data(contentsOf: root.appendingPathComponent(original))
+        let renamed = ":(glob)* renamed 雪\n.txt"
+        _ = try await repo.run(["mv", "--", original, renamed]); _ = try await repo.commit(message: "rename")
+        let second = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let historical = try await repo.revisionFileComparison(from: .revision(first), to: .revision(second), paths: [renamed, original])
+        XCTAssertEqual(historical.files.count, 1); XCTAssertEqual(historical.files.first?.oldPath, original)
+        let historyDocument = try await repo.comparisonFile(historical, path: renamed)
+        XCTAssertEqual(historyDocument.base.bytes, bytes); XCTAssertEqual(historyDocument.destination.bytes, bytes)
+        let clean = try await repo.revisionFileComparison(from: .revision(second), to: .workingTree, paths: [renamed])
+        XCTAssertEqual(clean.files.count, 1)
+        let cleanDocument = try await repo.comparisonFile(clean, path: renamed)
+        XCTAssertEqual(cleanDocument.base.bytes, bytes); XCTAssertEqual(cleanDocument.destination.bytes, bytes)
+        let missing = try await repo.revisionFileComparison(from: .revision(second), to: .workingTree, paths: ["absent"])
+        XCTAssertTrue(missing.files.isEmpty)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        _ = try await repo.run(["rm", "--cached", "--", renamed])
+        try Data("recreated working\n".utf8).write(to: root.appendingPathComponent(renamed))
+        let removedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let disk = try await repo.revisionFileComparison(from: .revision(second), to: .workingTree, paths: [renamed])
+        XCTAssertEqual(disk.files.first?.action, "M")
+        let diskDocument = try await repo.comparisonFile(disk, path: renamed)
+        XCTAssertEqual(diskDocument.base.bytes, bytes); XCTAssertEqual(diskDocument.destination.text, "recreated working\n")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), removedIndex)
+        try FileManager.default.removeItem(at: root.appendingPathComponent(renamed))
+        let deleted = try await repo.revisionFileComparison(from: .revision(second), to: .workingTree, paths: [renamed])
+        XCTAssertEqual(deleted.files.first?.action, "D")
+        let deletedDocument = try await repo.comparisonFile(deleted, path: renamed)
+        XCTAssertEqual(deletedDocument.base.bytes, bytes); XCTAssertTrue(deletedDocument.destination.bytes.isEmpty)
+        do { _ = try await repo.revisionFileComparison(from: .revision(second), to: .workingTree, paths: ["../outside"]); XCTFail() } catch {}
+    }
     func testHistoricalRenameBinaryAndLiteralNamesStayPinned() async throws {
         let (root, repo, original) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

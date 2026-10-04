@@ -90,6 +90,7 @@ struct LogCommandRequest: Identifiable {
     var onCheckout: (String) -> Void = { _ in }
     var onReset: (String) -> Void = { _ in }
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
+    var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
     var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
@@ -187,6 +188,14 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription }
         }
     }
+    func compareFiles(_ ids: Set<String>, workingTree: Bool = false) {
+        guard !busy, let onFileCompare, let revision, !workingTree || !bare else { return }
+        let paths = files.filter { ids.contains($0.id) }.map(\.path)
+        guard !paths.isEmpty else { return }
+        let from: ComparisonRevision = workingTree ? .revision(revision.hash) : revision.parents.first.map { .revision($0) } ?? .emptyTree
+        let to: ComparisonRevision = workingTree ? .workingTree : .revision(revision.hash)
+        onFileCompare(from, to, paths)
+    }
     func compare(workingTree: Bool = false) {
         guard !busy, let onCompare, !workingTree || !bare else { return }
         let chosen = revisions
@@ -221,12 +230,14 @@ struct LogDialog: View {
                     TableColumn("Lines added") { file in Text(file.added.map(String.init) ?? "–").foregroundStyle(.blue) }.width(90)
                     TableColumn("Lines removed") { file in Text(file.removed.map(String.init) ?? "–").foregroundStyle(.blue) }.width(105)
                 }.frame(minHeight: 130, idealHeight: 180)
-                .contextMenu {
-                    Button { fileDiff() } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(model.selectedFiles.count != 1)
-                    Button { fileDiff() } label: { CommandLabel(title: "Show changes as unified diff", icon: .compare) }.disabled(model.selectedFiles.count != 1)
-                    Button { fileDiff(workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(model.selectedFiles.count != 1 || model.bare)
+                .contextMenu(forSelectionType: String.self) { ids in
+                    Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
+                    Button { model.selectedFiles = ids; fileDiff() } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1 || model.busy)
+                    Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.bare || model.onFileCompare == nil || model.busy)
                     Divider()
-                    Button { model.copy(model.files.filter { model.selectedFiles.contains($0.id) }.map(\.path).joined(separator: "\n")) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(model.selectedFiles.isEmpty)
+                    Button { model.copy(model.files.filter { ids.contains($0.id) }.map(\.path).joined(separator: "\n")) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(ids.isEmpty)
+                } primaryAction: { ids in
+                    model.selectedFiles = ids; model.compareFiles(ids)
                 }
             }
             Text("Showing \(model.entries.count) revision(s) • \(model.selected.count) revision(s) selected • \(model.files.count) changed file(s) (merge changes against first parent)")
