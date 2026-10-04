@@ -31,7 +31,8 @@ bundle structure; it is not a signed distribution.
 Native historical Blame opens from Log with annotation columns, age colors,
 revision/author highlighting, Find/Go To Line, origin-aware Show log and
 Show changes and Blame previous revision with merge-parent choices, plus full log
-clipboard details. Full menus, syntax highlighting and
+clipboard details. UTF-8 and unambiguous UTF-16 LE/BE sources retain exact
+historical bytes. Full menus, syntax highlighting and
 encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 
 - Open normal repositories and linked worktrees; show branch and status.

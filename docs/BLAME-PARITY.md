@@ -23,7 +23,8 @@ all lines, rather than caching metadata from upstream's ordinary porcelain mode.
 ## Implemented data behavior
 
 `Sources/TurtleGitCore/GitBlame.swift` reads a regular historical UTF-8 file at a
-resolved commit. It retains the pinned revision and raw file contents, and returns
+resolved commit. It now also decodes UTF-16 LE/BE as described below. It retains
+the pinned revision and raw file contents, and returns
 revision, author/email, timestamp/timezone, summary, boundary flag, origin path,
 origin line number, current line number and source for each annotated line.
 
@@ -199,6 +200,48 @@ files and local operations including Blame. The documentation site build passed.
 Cancellation and overlapping clipboard requests still need targeted native
 acceptance; signed sandbox checks remain pending.
 
+## UTF-16 source decoding
+
+The historical reader now supports UTF-16 little/big endian with BOMs and
+conservatively detected BOM-less files. The snapshot records the detected encoding,
+and the native footer displays it. Every annotation retains its exact source
+payload bytes separately from decoded text; those payloads are checked against
+splitting the original pinned blob at Git's byte-LF delimiters. Metadata remains
+strict UTF-8 and cannot contain NULs.
+
+Upstream `TortoiseGitBlameData.cpp` and its unit tests were reviewed for these
+cases. Like upstream, decoding removes the LF's carried zero byte from later LE
+records and the incomplete LF prefix at the end of BE records. LE files ending in
+LF retain Git's extra trailing empty annotation; BE files retain their corresponding
+Git line count. BOM-only files produce one empty annotation. CR is retained in the
+data layer and removed for display; raw file bytes are unchanged.
+
+BOM-less detection requires a consistent zero-byte pattern and valid UTF-16 with
+printable text. A future encoding chooser is still needed for ambiguous files and
+legacy code pages. Odd byte lengths, embedded NUL code units, unpaired surrogates
+and byte-LF within another Unicode code unit are rejected instead of silently
+truncating text. The last case needs further upstream parity work because Git's
+byte line boundaries cannot directly represent its Unicode source lines.
+
+Twelve focused Blame tests passed. A real Git matrix covers both byte orders,
+BOM/no BOM, missing final LF, LF, CRLF, trailing blank lines, emoji/surrogate pairs,
+BOM-only files and exact payload/blob bytes. A second UTF-16 fixture checks that
+editing the second line retains the first line's original attribution; malformed
+encoding cases fail. The fixtures preserve HEAD, index and working content.
+
+Native light QA verified a BOM-marked UTF-16 LE file from Log to Blame, rendering
+Unicode and emoji, CRLF and blank lines, with UTF-16 LE in the footer. The one app
+was quit immediately afterward; no TurtleGit process remained and its fixture
+HEAD/index/working bytes matched their baseline. Native BE, BOM-less, dark,
+Find/Go To Line and previous-revision encoding checks remain pending.
+
+The full suite passed all 272 core tests. Unsigned Debug/AppStore builds passed
+without compiler warnings, and both bundle audits passed with 62 icon resources.
+The packaged universal Git 2.55.0 audit verified 11 Mach-O files and real UTF-16
+LE/BE BOM/no-BOM porcelain payloads, alongside the existing UTF-8 and local Git
+operations. These runtime checks preserve repository and source state. The static
+documentation build passed; signed sandbox and App Store acceptance remain pending.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;
@@ -210,8 +253,8 @@ acceptance; signed sandbox checks remain pending.
   menu icons.
 - Blame options dialog, revision chooser, complete copied-line modes/thresholds,
   settings and persistent preferences.
-- UTF-16 and other encodings, including the upstream BOM/trailing-line cases;
-  current binary, invalid UTF-8 and symlink inputs are explicitly unsupported.
+- An encoding chooser, ambiguous BOM-less UTF-16, legacy encodings and byte-LF
+  within other UTF-16 code units; binary, malformed text and symlinks remain unsupported.
 - Working/uncommitted content, Finder routing, cancellation/progress and signed
   sandbox acceptance, including security-scoped access retained by the window.
 - Full light/dark visual comparison and keyboard/VoiceOver acceptance.

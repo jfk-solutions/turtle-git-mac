@@ -198,7 +198,7 @@ private struct BlameDialog: View {
                 Text("\(line.hash) • \(line.author) <\(line.email)>").font(.system(size: 11)).textSelection(.enabled)
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
-            Text("\(model.lines.count) lines • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary)
+            Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary)
         }.padding(12)
     }
 }

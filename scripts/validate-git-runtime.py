@@ -55,7 +55,13 @@ def main():
         run('-C', str(repository), 'config', 'user.name', 'Runtime QA')
         run('-C', str(repository), 'config', 'user.email', 'runtime@example.invalid')
         path = repository / 'file 雪.txt'; path.write_bytes(b'base\n')
-        run('-C', str(repository), 'add', '--', path.name)
+        encoded_files = {}
+        for encoding, bom in [('utf-16-le', b'\xff\xfe'), ('utf-16-be', b'\xfe\xff')]:
+            for with_bom in [False, True]:
+                name = f'{encoding}-{with_bom}.txt'
+                encoded_files[name] = (bom if with_bom else b'') + 'first\r\n雪 turtle\r\n\r\n'.encode(encoding)
+                (repository / name).write_bytes(encoded_files[name])
+        run('-C', str(repository), 'add', '--', path.name, *encoded_files)
         run('-C', str(repository), '-c', 'commit.gpgsign=false', 'commit', '-m', 'base')
         path.write_bytes(b'working\n')
         head = run('-C', str(repository), 'rev-parse', 'HEAD').strip()
@@ -67,6 +73,16 @@ def main():
         assert b'\nauthor Runtime QA\n' in annotation and b'\nauthor-mail <runtime@example.invalid>\n' in annotation
         assert annotation.endswith(b'\tbase\n'), 'Historical blame must ignore uncommitted contents'
         assert (repository / '.git/index').read_bytes() == index and path.read_bytes() == b'working\n'
+        for name, original in encoded_files.items():
+            encoded_annotation = run('--literal-pathspecs', '-C', str(repository), 'blame',
+                                     '--line-porcelain', '--no-progress', '--no-textconv',
+                                     head.decode('ascii'), '--', name)
+            payloads = [record[1:] for record in encoded_annotation.split(b'\n') if record.startswith(b'\t')]
+            expected = original.split(b'\n')
+            if original.endswith(b'\n'): expected.pop()
+            assert payloads == expected, f'UTF-16 byte framing mismatch: {name}'
+            assert (repository / name).read_bytes() == original
+        assert (repository / '.git/index').read_bytes() == index
         assert run('-C', str(repository), 'rev-parse', 'HEAD').strip() == head
         assert b'+working' in run('-C', str(repository), 'diff', '--', path.name)
         run('-C', str(repository), 'stash', 'push', '-m', 'runtime stash')
@@ -82,6 +98,6 @@ def main():
             result = run('ls-remote', '--exit-code', 'https://github.com/TortoiseGit/TortoiseGit.git', 'HEAD', timeout=60, cwd=directory)
         assert result.rstrip().endswith(b'\tHEAD'), 'Missing HTTPS remote HEAD'
         print('Public HTTPS ls-remote passed with bundled git-remote-https.')
-    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/blame passed.')
+    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/blame (UTF-8 and UTF-16) passed.')
 
 if __name__ == '__main__': main()

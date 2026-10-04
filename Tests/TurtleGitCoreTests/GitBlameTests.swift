@@ -184,6 +184,51 @@ final class GitBlameTests: XCTestCase {
         let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, hash)
         do { _ = try await repo.commitLogText(revision: "--all"); XCTFail() } catch {}
     }
+    func testUTF16ByteFramingBOMBlankLinesAndExactPinnedContent() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        for (encoding, detected, bom) in [(String.Encoding.utf16LittleEndian, GitBlameEncoding.utf16LE, [UInt8(255), 254]), (.utf16BigEndian, .utf16BE, [254, 255])] {
+            for hasBOM in [false, true] {
+                for ending in ["", "\n", "\r\n", "\n\n"] {
+                    let path = "source-\(detected)-\(hasBOM)-\(ending.utf8.count).txt"
+                    let text = "first\nsecond 雪 🐢" + ending
+                    let bytes = (hasBOM ? Data(bom) : Data()) + (try XCTUnwrap(text.data(using: encoding)))
+                    try bytes.write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "encoded origin")
+                    let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+                    try Data("later working content\n".utf8).write(to: root.appendingPathComponent(path))
+                    let snapshot = try await repo.blame(path: path)
+                    XCTAssertEqual(snapshot.encoding, detected); XCTAssertEqual(snapshot.contents, bytes)
+                    let expected = ["first", "second 雪 🐢" + (ending == "\r\n" ? "\r" : "")] + (ending == "\n\n" ? [""] : []) + (detected == .utf16LE && !ending.isEmpty ? [""] : [])
+                    XCTAssertEqual(snapshot.lines.map(\.source), expected, path)
+                    var raw = bytes.split(separator: UInt8(10), omittingEmptySubsequences: false).map { Data($0) }
+                    if bytes.last == 10 { raw.removeLast() }
+                    XCTAssertEqual(snapshot.lines.map(\.sourceBytes), raw)
+                    XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+                    XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("later working content\n".utf8))
+                    let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, snapshot.revision)
+                }
+            }
+            let path = "bom-only-\(detected)"
+            try Data(bom).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "BOM only")
+            let empty = try await repo.blame(path: path); XCTAssertEqual(empty.lines.map(\.source), [""])
+        }
+    }
+    func testUTF16AttributionAndMalformedEncodingRejection() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = "encoded.txt", bom = Data([0xff, 0xfe])
+        try (bom + XCTUnwrap("first\nold\n".data(using: .utf16LittleEndian))).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "first encoded")
+        let first = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        try (bom + XCTUnwrap("first\nnew 雪\n".data(using: .utf16LittleEndian))).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "encoded change")
+        let snapshot = try await repo.blame(path: path)
+        XCTAssertEqual(snapshot.lines[0].hash, first); XCTAssertEqual(snapshot.lines[1].hash, snapshot.revision)
+        XCTAssertEqual(snapshot.lines[1].source, "new 雪")
+        for bytes in [Data([255,254,65]), Data([255,254,0,216]), Data([255,254,0,220]), Data([255,254,0,0]), Data([255,254,10,1]), Data([0,1,0,2])] {
+            XCTAssertThrowsError(try GitBlameEncoding.detect(bytes))
+        }
+    }
     func testUnsupportedAndUnsafeFilesFail() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
