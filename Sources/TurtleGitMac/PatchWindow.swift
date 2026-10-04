@@ -60,6 +60,8 @@ import UniformTypeIdentifiers
     @Published var staged = false
     @Published var readOnly = false
     @Published var comparisonTitle = "HEAD → Working tree"
+    var customRefresh: (() -> Void)?
+    var readOnlyInformation: String?
     var base: String?
     @Published var busy = false
     @Published var confirmingQuit = false
@@ -72,6 +74,7 @@ import UniformTypeIdentifiers
     var canApplyLines: Bool { !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
     var canApplyHunks: Bool { !readOnly && !busy && !confirmingQuit && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
     var information: String {
+        if readOnly, let readOnlyInformation { return readOnlyInformation }
         if paths.isEmpty { return "Select files in the Commit window to see their patch." }
         if readOnly { return document.text.isEmpty ? "No patch for the selected files." : "Select files in the Commit window to compare their contents." }
         if document.text.isEmpty { return "No changes in this view. New files must be staged as a whole file first." }
@@ -79,6 +82,7 @@ import UniformTypeIdentifiers
         return "Select changed lines, or place the caret in a hunk. Right-click for staging actions."
     }
     func reload(paths: [String], staged: Bool) {
+        if let customRefresh { customRefresh(); return }
         generation += 1; let request = generation
         let base = self.base, readOnly = self.readOnly
         self.paths = paths; self.staged = staged; selectedLines = []; document = GitPatch(text: ""); busy = true

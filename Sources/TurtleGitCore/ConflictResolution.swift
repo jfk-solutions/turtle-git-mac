@@ -46,15 +46,18 @@ extension GitRepository {
     /// continue to use the child repository.
     public func discoverSelectionRoot(for action: RepositoryAction, selected: URL) async throws -> URL {
         let resolved = try discoverRoot()
-        guard action.isResolve || action == .revert || action == .submoduleUpdate, selected.standardizedFileURL == resolved else { return resolved }
+        guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .diff, selected.standardizedFileURL == resolved else { return resolved }
         let parent = GitRepository(root: resolved.deletingLastPathComponent(), executable: executable)
         guard let containing = try? await parent.discoverRoot(), containing != resolved,
               RepositoryAccessLease.pathIsContained(resolved, by: containing) else { return resolved }
         let path = String(resolved.path.dropFirst(containing.path.count + 1))
         let owner = GitRepository(root: containing, executable: executable)
-        if action == .revert || action == .submoduleUpdate {
-            let indexed = try? await owner.run(["ls-files", "--stage", "--", path]).text
-            if indexed?.split(separator: "\n").contains(where: { $0.hasPrefix("160000 ") }) == true { return containing }
+        if action == .revert || action == .submoduleUpdate || action == .diff {
+            let indexed = try? await owner.run(["ls-files", "--stage", "-z", "--", path]).stdout
+            if indexed?.split(separator: 0).contains(where: { record in
+                let fields = record.split(separator: 9, maxSplits: 1)
+                return fields.count == 2 && fields[0].starts(with: "160000 ".utf8) && String(decoding: fields[1], as: UTF8.self) == path
+            }) == true { return containing }
             return resolved
         }
         if let entries = try? await owner.conflicts(paths: [path]), entries.contains(where: { $0.path == path && $0.isSubmodule }) { return containing }

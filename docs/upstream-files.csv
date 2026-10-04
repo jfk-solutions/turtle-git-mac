@@ -2379,8 +2379,8 @@ src/TortoiseProc/DiffLinesForStaging.h,TortoiseProc,blob,c767b0ea840dce48b9b812f
 src/TortoiseProc/EnableStagingTypes.h,TortoiseProc,blob,4edfd0f455755cb1fcf1f5090ae6985236110ad1,pending-review,,
 src/TortoiseProc/ExportDlg.cpp,TortoiseProc,blob,e700b242c5386ee87fa779ce9c5727fdfcc237ef,pending-review,,
 src/TortoiseProc/ExportDlg.h,TortoiseProc,blob,44f8719287e6f32a856a8b91d2e1bb41ce07c21a,pending-review,,
-src/TortoiseProc/FileDiffDlg.cpp,TortoiseProc,blob,fe4171a852023344cac5af1711873104393e1b0a,pending-review,,
-src/TortoiseProc/FileDiffDlg.h,TortoiseProc,blob,613511939e889203db0c7ace30cc5c799ebeb214,pending-review,,
+src/TortoiseProc/FileDiffDlg.cpp,TortoiseProc,blob,fe4171a852023344cac5af1711873104393e1b0a,partial,Sources/TurtleGitCore/RevisionComparison.swift; Sources/TurtleGitMac/RevisionComparisonWindow.swift,"Native revision groups/filter/five columns/options/swap/read-only patch. Full choosers, contexts, two-file comparison and signed acceptance pending. See SUBMODULE-DIFF-PARITY.md."
+src/TortoiseProc/FileDiffDlg.h,TortoiseProc,blob,613511939e889203db0c7ace30cc5c799ebeb214,partial,Sources/TurtleGitCore/RevisionComparison.swift; Sources/TurtleGitMac/RevisionComparisonWindow.swift,"Native revision groups/filter/five columns/options/swap/read-only patch. Full choosers, contexts, two-file comparison and signed acceptance pending. See SUBMODULE-DIFF-PARITY.md."
 src/TortoiseProc/FilterHelper.cpp,TortoiseProc,blob,16d8473f1168f61ebd7aff83444bbf8163fc00b8,pending-review,,
 src/TortoiseProc/FilterHelper.h,TortoiseProc,blob,9e1483e256598565dcdc38052f8c8e2e29248528,pending-review,,
 src/TortoiseProc/FindBar.cpp,TortoiseProc,blob,837addbec12940e4264d806489ad68f841704c24,pending-review,,
@@ -2405,7 +2405,7 @@ src/TortoiseProc/FormatPatchDlg.cpp,TortoiseProc,blob,b8ad0c02bb27397700a6aee773
 src/TortoiseProc/FormatPatchDlg.h,TortoiseProc,blob,0c6f835c35d32fab5a97c0fc94700edfac71fcb2,pending-review,,
 src/TortoiseProc/GitCliOutputParser.cpp,TortoiseProc,blob,719cd542dbb77314dedca6f28f6ad1c29eb43421,pending-review,,
 src/TortoiseProc/GitCliOutputParser.h,TortoiseProc,blob,dbbe922317200247c2be24a4dc278f4a37f569db,pending-review,,
-src/TortoiseProc/GitDiff.cpp,TortoiseProc,blob,df09c3c370bb1f86b3f71e4981a6b1d64892dce7,partial,Sources/TurtleGitCore/SubmoduleComparison.swift,Submodule metadata/ancestry/time classification audited against pinned blob; read-only superproject/checkout comparison implemented. Native Submodule Diff window; Update; Show Compare; ordinary diff branches remain pending. See SUBMODULE-DIFF-PARITY.md.
+src/TortoiseProc/GitDiff.cpp,TortoiseProc,blob,df09c3c370bb1f86b3f71e4981a6b1d64892dce7,partial,Sources/TurtleGitCore/SubmoduleComparison.swift,Read-only submodule classification and native comparison handoff implemented and tested. Ordinary diff branches and full native two-file/image integration remain pending. See SUBMODULE-DIFF-PARITY.md.
 src/TortoiseProc/GitDiff.h,TortoiseProc,blob,5f0ba216ff87f1054fa1a23d128fc75fd492fb14,pending-review,,
 src/TortoiseProc/GitLogCache.cpp,TortoiseProc,blob,e4c770a0c77be05f411064bbbd66e85198613df0,pending-review,,
 src/TortoiseProc/GitLogList.h,TortoiseProc,blob,6db02968f166adf7b2b1fb1df1410db5e341560a,partial,Sources/TurtleGitMac/LogWindow.swift; Sources/TurtleGitCore/CommitHistory.swift,"Native three-pane dialog, topology lanes, revision/file comparisons and selected revision actions; see docs/LOG-PARITY.md for remaining controls and menu items."
@@ -2605,8 +2605,8 @@ src/TortoiseProc/StatGraphDlg.cpp,TortoiseProc,blob,99eaf454cddff437ac9622f79abd
 src/TortoiseProc/StatGraphDlg.h,TortoiseProc,blob,e26379e23a1d3c00460b877f6ad98d2475e79321,pending-review,,
 src/TortoiseProc/SubmoduleAddDlg.cpp,TortoiseProc,blob,8a6d30cb43121b13b928460bc9fd3fd25b4f29bd,pending-review,,
 src/TortoiseProc/SubmoduleAddDlg.h,TortoiseProc,blob,b4b11ee8204dc18fbe75f8fa9084ce73f756e1c1,pending-review,,
-src/TortoiseProc/SubmoduleDiffDlg.cpp,TortoiseProc,blob,2cf3e4174776d769bfb46a6caa0d44fea23cdca2,pending-review,,
-src/TortoiseProc/SubmoduleDiffDlg.h,TortoiseProc,blob,b77438be20a61c659b5eb8b75c1164e00506b75d,pending-review,,
+src/TortoiseProc/SubmoduleDiffDlg.cpp,TortoiseProc,blob,2cf3e4174776d769bfb46a6caa0d44fea23cdca2,partial,Sources/TurtleGitMac/SubmoduleDiffWindow.swift,Native groups/colors/dirty marker/Log/Update/Compare and post-Revert handoff. Light native comparison verified; remaining variants and signed Finder/sandbox pending. See SUBMODULE-DIFF-PARITY.md.
+src/TortoiseProc/SubmoduleDiffDlg.h,TortoiseProc,blob,b77438be20a61c659b5eb8b75c1164e00506b75d,partial,Sources/TurtleGitMac/SubmoduleDiffWindow.swift,Native groups/colors/dirty marker/Log/Update/Compare and post-Revert handoff. Light native comparison verified; remaining variants and signed Finder/sandbox pending. See SUBMODULE-DIFF-PARITY.md.
 src/TortoiseProc/SubmoduleResolveConflictDlg.cpp,TortoiseProc,blob,afcce367380d03a36ac89dad5412afbd64156f79,partial,Sources/TurtleGitMac/SubmoduleConflictWindow.swift; Sources/TurtleGitCore/SubmoduleConflict.swift,Native chooser remains partial; see docs/SUBMODULE-CONFLICT-PARITY.md.
 src/TortoiseProc/SubmoduleResolveConflictDlg.h,TortoiseProc,blob,efaa5da2ec9bd6406ec7563a155a0e2581951cd4,partial,Sources/TurtleGitMac/SubmoduleConflictWindow.swift; Sources/TurtleGitCore/SubmoduleConflict.swift,Native chooser remains partial; see docs/SUBMODULE-CONFLICT-PARITY.md.
 src/TortoiseProc/SubmoduleUpdateDlg.cpp,TortoiseProc,blob,6bfca39956f295e061d828c1935ba4600ef87fbe,partial,Sources/TurtleGitCore/SubmoduleUpdate.swift; Sources/TurtleGitMac/SubmoduleUpdateWindow.swift,Update branch and seven options; native scoped/all selection and preferences; real checkout/init/no-fetch/force/remote/merge/rebase/recursive tests. Separate progress/cancellation; bisect post-options; other SubmoduleCommand branches and signed Finder/sandbox pending. See SUBMODULE-UPDATE-PARITY.md.

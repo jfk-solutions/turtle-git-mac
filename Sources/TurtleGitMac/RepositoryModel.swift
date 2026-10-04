@@ -43,6 +43,8 @@ import TurtleGitCore
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
     private var textConflictWindows: [String: TextConflictWindowController] = [:]
+    private var submoduleDiffWindows: [String: SubmoduleDiffWindowController] = [:]
+    private var revisionComparisonWindows: [String: RevisionComparisonWindowController] = [:]
     private var submoduleUpdateWindows: [String: SubmoduleUpdateWindowController] = [:]
     private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
     private var deleteConflictWindows: [String: DeleteConflictWindowController] = [:]
@@ -171,9 +173,7 @@ import TurtleGitCore
                 if let action {
                     let paths = actionPaths ?? selected?.relativePaths(root: resolved) ?? []
                     if action == .diff { showDiff(paths: paths) } else { activate(action, paths: paths) }
-                    // Dedicated dialogs raise their own windows. Only Diff uses
-                    // the workspace output; do not cover a Finder-launched dialog.
-                    if action == .diff { workspaceWindow?.makeKeyAndOrderFront(nil) }
+                    if action == .diff && !(paths.count == 1 && submodules.contains(paths[0])) { workspaceWindow?.makeKeyAndOrderFront(nil) }
                 }
                 onOpened?()
             } catch { self.error = error.localizedDescription; busy = false }
@@ -219,6 +219,9 @@ import TurtleGitCore
     func unstage() { let paths = selectedPaths; perform { try await $0.unstage(paths); return "Unstaged \(paths.count) file(s)." } }
     func showDiff(paths requested: [String]? = nil) {
         let paths = requested ?? selectedPaths, staged = stagedDiff
+        if paths.count == 1, submodules.contains(paths[0]), let repository {
+            showSubmoduleDiff(repository: repository, access: activeAccess, path: paths[0]); return
+        }
         perform { repo in
             let text = try await repo.diff(paths: paths, staged: staged)
             return text.isEmpty ? "No diff in this view. Untracked files must be staged before Git can show their diff." : text
@@ -323,7 +326,11 @@ import TurtleGitCore
         case .switchBranch:
             guard let repository else { return }
             showSwitch(repository: repository, access: activeAccess)
-        case .diff: showDiff()
+        case .diff:
+            let selected = paths.isEmpty ? selectedPaths : paths
+            if selected.count == 1, submodules.contains(selected[0]), let repository {
+                showSubmoduleDiff(repository: repository, access: activeAccess, path: selected[0])
+            } else { showDiff(paths: selected) }
         case .stashList, .reflog:
             guard let repository else { return }
             showReferenceLog(repository: repository, access: activeAccess, reference: action == .stashList ? "refs/stash" : "HEAD")
@@ -539,6 +546,25 @@ import TurtleGitCore
         controller.model.setScope(paths)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func showSubmoduleDiff(repository: GitRepository, access: RepositoryAccessLease?, path: String, from: String = "HEAD", to: String? = nil) {
+        let key = repository.root.path + "\0" + path + "\0" + from + "\0" + (to ?? "Working tree")
+        let controller = submoduleDiffWindows[key] ?? SubmoduleDiffWindowController(repository: repository, access: access, path: path, from: from, to: to)
+        controller.onClosed = { [weak self] in self?.submoduleDiffWindows.removeValue(forKey: key) }
+        controller.model.onLog = { [weak self] child, hash in self?.showLog(repository: child, access: access, paths: [], endRevision: hash) }
+        controller.model.onStatus = { [weak self] child in self?.showStatus(repository: child, access: access) }
+        controller.model.onCompare = { [weak self] child, old, new in self?.showRevisionComparison(repository: child, access: access, from: old, to: new) }
+        controller.model.onUpdate = { [weak self] done in self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], selected: [path], completion: done) }
+        submoduleDiffWindows[key] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.load()
+    }
+    private func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) {
+        let key = repository.root.path + "\0" + from.label + "\0" + to.label
+        let controller = revisionComparisonWindows[key] ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to)
+        controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
+        controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
+        revisionComparisonWindows[key] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], completion: (() -> Void)? = nil) {
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
         let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected)
@@ -561,6 +587,9 @@ import TurtleGitCore
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
+        controller.model.onHandleSubmodules = { [weak self] revision, paths in
+            for path in paths { self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: revision) }
+        }
         revertProgressWindows[id] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
@@ -575,7 +604,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller

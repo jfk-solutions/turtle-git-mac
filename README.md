@@ -212,8 +212,9 @@ Pull follows Fetch → Rebase and starts automatically; see
 
 The native submodule Conflict chooser now shows checkout-based Base and destination
 revision/subject/type details, with side history and Use this choices.
-[Submodule comparison parity](docs/SUBMODULE-DIFF-PARITY.md) records the read-only
-comparison backend; its native comparison window remains pending.
+[Submodule Diff and Changed Files parity](docs/SUBMODULE-DIFF-PARITY.md) records
+the native comparison windows, immutable revision comparisons, post-Revert
+submodule handling and remaining comparison actions.
 [Submodule Update parity](docs/SUBMODULE-UPDATE-PARITY.md) records the native
 selection/options window, real Git behavior and remaining progress/Finder checks.
 

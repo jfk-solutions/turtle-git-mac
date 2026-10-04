@@ -24,6 +24,10 @@ final class SubmoduleComparisonTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         try Data("ignored.txt\n".utf8).write(to: child.root.appendingPathComponent(".git/info/exclude"))
         try Data("ignored local\n".utf8).write(to: child.root.appendingPathComponent("ignored.txt"))
+        let owner = try await child.discoverSelectionRoot(for: .diff, selected: child.root)
+        XCTAssertEqual(owner, parent.root)
+        let childOwner = try await child.discoverSelectionRoot(for: .diff, selected: child.root.appendingPathComponent("file.txt"))
+        XCTAssertEqual(childOwner, child.root)
         let clean = try await parent.submoduleComparison(path: path)
         XCTAssertEqual(clean.change, .identical); XCTAssertFalse(clean.dirty)
         XCTAssertEqual(clean.from.subject, "child base 雪"); XCTAssertEqual(clean.to.revision, base)

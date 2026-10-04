@@ -56,6 +56,9 @@ private struct RevertProgressRow: Identifiable {
     @Published var failed = false
     @Published var cancelled = false
     @Published var trashedFiles: [URL] = []
+    @Published var submodulePaths: [String] = []
+    private var comparisonRevision: String?
+    var onHandleSubmodules: (String, [String]) -> Void = { _, _ in }
     var close: () -> Void = {}
     var onFinished: (String, Bool) -> Void = { _, _ in }
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool) {
@@ -81,12 +84,13 @@ private struct RevertProgressRow: Identifiable {
                 }
                 for await event in stream { receive(event) }
                 let result = try await operation.value
+                submodulePaths = result.submodulePaths; comparisonRevision = result.comparisonRevision
                 trashedFiles = result.trashedFiles
                 information = "\(result.revertedPaths.count) file(s) reverted."
                 current = "Finished"
                 busy = false
                 onFinished((result.trashedFiles.map { "Moved to Trash: " + $0.path } + [information]).joined(separator: "\n"), true)
-                if autoCloseSuccess { close() }
+                if autoCloseSuccess && submodulePaths.isEmpty { close() }
             } catch {
                 let failure = error as? WorkingFileRevertFailure
                 cancelled = failure?.wasCancelled == true || error is OperationCancellationFailure
@@ -98,6 +102,10 @@ private struct RevertProgressRow: Identifiable {
                 busy = false; onFinished(information, false)
             }
         }
+    }
+    func handleSubmodules() {
+        guard !busy, !failed, !cancelled, !submodulePaths.isEmpty, let revision = comparisonRevision else { return }
+        close(); onHandleSubmodules(revision, submodulePaths)
     }
     func revealCopies() { guard !trashedFiles.isEmpty else { return }; NSWorkspace.shared.activateFileViewerSelecting(trashedFiles) }
     func copyOutput() {
@@ -131,6 +139,9 @@ private struct RevertProgressDialog: View {
             }
             HStack {
                 if !model.trashedFiles.isEmpty { Button { model.revealCopies() } label: { CommandLabel(title: "Show saved copies in Finder", icon: .explore) } }
+                if !model.busy && !model.failed && !model.cancelled && !model.submodulePaths.isEmpty {
+                    Button { model.handleSubmodules() } label: { CommandLabel(title: "Handle submodules", icon: .compare) }
+                }
                 Spacer()
                 if model.total > 0 { Text("\(model.completed) / \(model.total) operations").font(.caption).foregroundStyle(.secondary) }
                 Button("OK") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.busy)
