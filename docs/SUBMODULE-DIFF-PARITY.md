@@ -261,6 +261,44 @@ audit exercised universal Git 2.55.0 local commands and verified 11 Mach-O files
 the Finder extension, licenses and 60 original icon resources. Signed runtime
 behavior and release approval remain unverified.
 
+## Marked-block follow-up
+
+Reviewed the pinned RightView MarkBlock/LeaveOnlyMarkedBlocks context entries
+and BaseView MarkBlock, UseViewBlock and its skip predicates. The working-pane
+menu now offers Mark block, Unmark block and Leave only marked blocks. Single
+rows show the applicable mark action; multi-row selections offer both. Marking
+requires an editable working pane and follows the same busy/Quit gates as edits.
+The unchanged upstream `src/Resources/linemarked.ico` blob was verified against
+`33975e0b218b36be8dc5c788bc8baba6d7f02780`; its SHA-256/source path is recorded
+in the icon manifest. It appears in menus and the numbered working-pane gutter.
+
+Marks and manually edited row flags participate in the existing Undo history.
+Row flags follow insertions, replacements, deletions and alignment gaps; direct
+block/file replacement clears flags in the replaced range. Leave only marked
+blocks retains marked or typed rows, replaces the rest from the other pane using
+the destination line-ending style, and consumes all marks as upstream does.
+A formerly final line gains a separator if it now precedes additional lines.
+Reload clears annotations; Save records the current mark state. Marks are view
+metadata and do not become file bytes or index entries.
+
+Two new tests cover marked/typed preservation, unmarked replacement, gaps,
+reverse sides, target endings, EOF separators, invalid row flags and annotation
+remapping through insertions/replacements/deletions. One native QA process
+verified Mark, original gutter artwork, mark consumption with preserved text,
+Undo of consumption/marking, retained manually typed text and replacement of an
+unmarked original line. All drafts were undone before normal Quit. Process
+absence and unchanged source bytes, both HEADs and both index files were checked.
+The inspected unedited capture is `two-file-marked-dark.png` in the Pages gallery.
+Native multi-block marking, reverse-side editing, gap marks, Unmark/Redo/Save
+variants and signed sandbox acceptance remain pending. Full source state
+transitions, three-way marked operations and TortoiseMerge parity remain partial.
+
+Validation: all 252 integration tests passed. Unsigned Debug and App Store
+builds, both bundle audits and the static Pages build passed. The App Store
+audit exercised universal Git 2.55.0 local commands and verified 11 Mach-O files,
+the Finder extension, licenses and 61 original icon resources. Signed activation,
+sandbox acceptance and release approval remain unverified.
+
 ## Revision selection and metadata follow-up
 
 Both revision buttons now offer Browse References, Log and RefLog, alongside

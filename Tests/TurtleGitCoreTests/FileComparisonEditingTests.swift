@@ -2,6 +2,33 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testLeaveOnlyMarkedKeepsMarkedAndTypedRowsButTakesUnmarkedSourceAndGaps() throws {
+        let comparison = FileComparisonAlignment(base: "base one\ncommon\nbase two\nremoved\nend", destination: "local one\r\ncommon\r\nlocal two\r\nend")
+        let flags = FileComparisonEditing.Annotations(marked: [0], edited: [2, 3])
+        XCTAssertEqual(try FileComparisonEditing.leavingOnlyMarked(comparison, targetBase: false, annotations: flags), "local one\r\ncommon\r\nlocal two\r\nend")
+        XCTAssertEqual(try FileComparisonEditing.leavingOnlyMarked(comparison, targetBase: false, annotations: .init()), "base one\r\ncommon\r\nbase two\r\nremoved\r\nend")
+        XCTAssertEqual(try FileComparisonEditing.leavingOnlyMarked(comparison, targetBase: true, annotations: .init(marked: [0])), "base one\ncommon\nlocal two\nend")
+        XCTAssertThrowsError(try FileComparisonEditing.leavingOnlyMarked(comparison, targetBase: false, annotations: .init(marked: [99])))
+        let eof = FileComparisonAlignment(base: "base\nextra", destination: "typed")
+        XCTAssertEqual(try FileComparisonEditing.leavingOnlyMarked(eof, targetBase: false, annotations: .init(edited: [0])), "typed\nextra")
+    }
+    func testAnnotationsFollowInsertedReplacedDeletedAndRealignedLines() throws {
+        let source = "a\nb\nc\nend"
+        let old = FileComparisonAlignment(base: source, destination: "a\nlocal\nc\nend")
+        let new = FileComparisonAlignment(base: source, destination: "intro\na\ntyped\nc\nend")
+        let flags = FileComparisonEditing.Annotations(marked: [1, 2], edited: [1])
+        let moved = flags.remapped(from: old, to: new, targetBase: false, typing: true)
+        XCTAssertEqual(moved.marked, [2, 3])
+        XCTAssertEqual(moved.edited, [0, 2])
+        let deleted = FileComparisonAlignment(base: source, destination: "a\nc\nend")
+        let removed = flags.remapped(from: old, to: deleted, targetBase: false, typing: true)
+        XCTAssertEqual(removed.marked, [1, 2])
+        XCTAssertEqual(removed.edited, [1])
+        XCTAssertEqual(try FileComparisonEditing.leavingOnlyMarked(deleted, targetBase: false, annotations: removed), "a\nc\nend")
+        let reversedOld = FileComparisonAlignment(base: "a\nlocal\nc\nend", destination: source)
+        let reversedNew = FileComparisonAlignment(base: "intro\na\ntyped\nc\nend", destination: source)
+        XCTAssertEqual(flags.remapped(from: reversedOld, to: reversedNew, targetBase: true, typing: true), moved)
+    }
     func testSelectedRowsIncludeEndpointAndCopyExcludesAlignmentArtifacts() throws {
         let alignment = FileComparisonAlignment(base: "removed\r\n🐢keep\r\nend", destination: "🐢keep\r\nend")
         let cells = alignment.rows.map(\.destination)

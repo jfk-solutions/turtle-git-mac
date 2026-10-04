@@ -15,6 +15,61 @@ public enum FileComparisonEditFailure: LocalizedError {
 /// AppKit selections refer to aligned display rows; gaps and display-only final
 /// newlines must never become bytes in the saved file.
 public enum FileComparisonEditing {
+    public struct Annotations: Equatable, Sendable {
+        public var marked: Set<Int>
+        public var edited: Set<Int>
+        public init(marked: Set<Int> = [], edited: Set<Int> = []) { self.marked = marked; self.edited = edited }
+        /// Retain row flags across insertion/deletion/re-alignment. Replacement
+        /// lines inherit flags; deleted lines can retain flags on source gaps.
+        public func remapped(from old: FileComparisonAlignment, to new: FileComparisonAlignment, targetBase: Bool, typing: Bool) -> Annotations {
+            func target(_ row: FileComparisonRow) -> MergeSourceCell { targetBase ? row.base : row.destination }
+            func other(_ row: FileComparisonRow) -> MergeSourceCell { targetBase ? row.destination : row.base }
+            let before = old.rows.map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
+            let after = new.rows.map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
+            let changes = FileComparisonAlignment(base: before, destination: after)
+            var lineMap: [Int: Int] = [:], changedLines = Set<Int>(), deletedLines = Set<Int>()
+            for row in changes.rows {
+                if let a = row.base.lineNumber, let b = row.destination.lineNumber { lineMap[a] = b }
+                if row.changed {
+                    if let b = row.destination.lineNumber { changedLines.insert(b) }
+                    else if let a = row.base.lineNumber { deletedLines.insert(a) }
+                }
+            }
+            let targetRows = Dictionary(uniqueKeysWithValues: new.rows.enumerated().compactMap { i, row in target(row).lineNumber.map { ($0, i) } })
+            let otherRows = Dictionary(uniqueKeysWithValues: new.rows.enumerated().compactMap { i, row in other(row).lineNumber.map { ($0, i) } })
+            func moved(_ indices: Set<Int>) -> Set<Int> {
+                Set(indices.compactMap { index in
+                    guard old.rows.indices.contains(index) else { return nil }
+                    let row = old.rows[index]
+                    if let line = target(row).lineNumber, let mapped = lineMap[line], let i = targetRows[mapped] { return i }
+                    return other(row).lineNumber.flatMap { otherRows[$0] }
+                })
+            }
+            var result = Annotations(marked: moved(marked), edited: moved(edited))
+            if typing {
+                result.edited.formUnion(changedLines.compactMap { targetRows[$0] })
+                for row in old.rows where target(row).lineNumber.map({ deletedLines.contains($0) }) == true {
+                    if let line = other(row).lineNumber, let i = otherRows[line] { result.edited.insert(i) }
+                }
+            }
+            return result
+        }
+    }
+    public static func leavingOnlyMarked(_ alignment: FileComparisonAlignment, targetBase: Bool, annotations: Annotations) throws -> String {
+        guard annotations.marked.union(annotations.edited).allSatisfy({ alignment.rows.indices.contains($0) }) else { throw FileComparisonEditFailure.range }
+        func target(_ row: FileComparisonRow) -> MergeSourceCell { targetBase ? row.base : row.destination }
+        let original = alignment.rows.map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
+        let style: MergeLineEnding = original.contains("\r\n") ? .crlf : .lf
+        let lines = alignment.rows.enumerated().map { index, row in
+            if annotations.marked.contains(index) || annotations.edited.contains(index) { return target(row).lineNumber == nil ? "" : target(row).text }
+            let source = targetBase ? row.destination : row.base
+            return source.lineNumber == nil ? "" : MergeLineEndings.converting(source.text, to: style)
+        }.filter { !$0.isEmpty }
+        return lines.enumerated().map { index, line in
+            if index < lines.count - 1, line.utf16.last != 10, line.utf16.last != 13 { return line + (style == .crlf ? "\r\n" : "\n") }
+            return line
+        }.joined()
+    }
     public enum BlockChoice: Sendable { case other, otherThenCurrent, currentThenOther }
     public static func takingOtherBlock(_ alignment: FileComparisonAlignment, difference: Int, targetBase: Bool, choice: BlockChoice = .other) throws -> (text: String, caret: Int) {
         guard alignment.differences.indices.contains(difference) else { throw FileComparisonEditFailure.range }

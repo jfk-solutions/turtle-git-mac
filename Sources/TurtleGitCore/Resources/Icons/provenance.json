@@ -302,6 +302,11 @@
       "asset": "saveas.ico",
       "source": "src/Resources/saveas.ico",
       "sha256": "24d40424555aed0dd6ac99c41c0bab39e8cc6007447f49271215a45dd8909ddb"
+    },
+    {
+      "asset": "linemarked.ico",
+      "source": "src/Resources/linemarked.ico",
+      "sha256": "4f947d807bac4a79f2e64eeec0b347d84be8e807bc7aeb5f58198c75a176e071"
     }
   ]
 }

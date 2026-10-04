@@ -62,22 +62,37 @@ import TurtleGitCore
     @Published var canUndo = false
     @Published var canRedo = false
     @Published var selectedRows: Range<Int>?
+    @Published var annotations = FileComparisonEditing.Annotations()
+    private var savedMarked = Set<Int>()
     private(set) var alignmentGeneration = 0
     weak var window: NSWindow?
     var undo: () -> Void = {}
     var redo: () -> Void = {}
-    var replaceText: (String, Int) -> Void = { _, _ in }
+    var replaceText: (String, Int, Range<Int>?) -> Void = { _, _, _ in }
+    var replaceAnnotations: (FileComparisonEditing.Annotations) -> Void = { _ in }
+    var replaceKeepingEdits: (String) -> Void = { _ in }
     var canTransfer: Bool { editingEnabled && editableBase != nil && alignment != nil && !busy && !confirmingQuit }
     var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
     func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other) {
         guard canTransfer, let alignment, let base = editableBase, let rows = transferRows else { return }
-        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: rows, targetBase: base, choice: choice); replaceText(edit.text, edit.caret) }
+        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: rows, targetBase: base, choice: choice); replaceText(edit.text, edit.caret, choice == .other ? rows : nil) }
         catch { self.error = error.localizedDescription }
     }
     func useOtherFile() {
         guard canTransfer, let alignment, let base = editableBase else { return }
-        if alignment.rows.isEmpty { replaceText("", 0); return }
-        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: base); replaceText(edit.text, 0) }
+        if alignment.rows.isEmpty { replaceText("", 0, nil); return }
+        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: base); replaceText(edit.text, 0, alignment.rows.indices) }
+        catch { self.error = error.localizedDescription }
+    }
+    func markBlock(_ marked: Bool) {
+        guard canTransfer, let rows = transferRows else { return }
+        var value = annotations
+        if marked { value.marked.formUnion(rows) } else { value.marked.subtract(rows) }
+        replaceAnnotations(value)
+    }
+    func leaveOnlyMarked() {
+        guard canTransfer, let alignment, let base = editableBase else { return }
+        do { replaceKeepingEdits(try FileComparisonEditing.leavingOnlyMarked(alignment, targetBase: base, annotations: annotations)) }
         catch { self.error = error.localizedDescription }
     }
     func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
@@ -105,7 +120,7 @@ import TurtleGitCore
         for (base, content) in [(true, document.base), (false, document.destination)] where content.revision == .workingTree && ["100644", "100755"].contains(content.mode ?? "") && content.text != nil { return base }
         return nil
     }
-    var dirty: Bool { guard let document, let base = editableBase else { return false }; return !editedText.utf8.elementsEqual((base ? document.base.text! : document.destination.text!).utf8) }
+    var dirty: Bool { guard let document, let base = editableBase else { return false }; return annotations.marked != savedMarked || !editedText.utf8.elementsEqual((base ? document.base.text! : document.destination.text!).utf8) }
     var resetHistory: () -> Void = {}
     var selectionRequest: Int?
     private var scrolls: [Bool: NSScrollView] = [:]
@@ -132,6 +147,7 @@ import TurtleGitCore
                 let value = try await repository.comparisonFile(snapshot, path: path)
                 document = value
                 editedText = (editableBase == true ? value.base.text : value.destination.text) ?? ""
+                annotations = .init(); savedMarked = []
                 rebuildAlignment(); resetHistory(); selectionRequest = nil
                 difference = -1
             } catch { self.error = error.localizedDescription }
@@ -153,6 +169,7 @@ import TurtleGitCore
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 self.document = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text)
+                savedMarked = annotations.marked
                 rebuildAlignment(); saved = true
             } catch { self.error = error.localizedDescription }
         }
@@ -263,7 +280,12 @@ private struct FileComparisonEditor: NSViewRepresentable {
             model.resetHistory = { [weak coordinator = context.coordinator] in coordinator?.history.removeAllActions(); coordinator?.updateUndoState() }
             model.undo = { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.undo(); coordinator.updateUndoState() }
             model.redo = { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.redo(); coordinator.updateUndoState() }
-            model.replaceText = { [weak coordinator = context.coordinator] text, caret in coordinator?.replace(text, caret: caret) }
+            model.replaceText = { [weak coordinator = context.coordinator] text, caret, cleared in coordinator?.replace(text, caret: caret, cleared: cleared) }
+            model.replaceAnnotations = { [weak coordinator = context.coordinator] value in
+                guard let coordinator else { return }
+                coordinator.replace(coordinator.model.editedText, caret: 0, restored: value)
+            }
+            model.replaceKeepingEdits = { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true) }
             view.history = context.coordinator.history
         }
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.scrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
@@ -280,6 +302,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
         else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
         scroll.rulersVisible = model.showLineNumbers
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
+        (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.editableBase == base ? model.annotations.marked : []
         scroll.verticalRulerView?.needsDisplay = true
         if model.editableBase == base, let caret = model.selectionRequest {
             let offset = FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells)
@@ -308,7 +331,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
             guard model.editingEnabled, model.editableBase == base, !model.busy, !model.confirmingQuit else { return false }
             do {
                 let edit = try FileComparisonEditing.applying(replacementString ?? "", range: affectedCharRange, cells: cells)
-                replace(edit.text, caret: edit.caret)
+                replace(edit.text, caret: edit.caret, typing: true)
             } catch { model.error = error.localizedDescription }
             return false
         }
@@ -318,13 +341,20 @@ private struct FileComparisonEditor: NSViewRepresentable {
             DispatchQueue.main.async { if self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
         func updateUndoState() { model.canUndo = history.canUndo; model.canRedo = history.canRedo }
-        func replace(_ text: String, caret: Int) {
+        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false) {
             guard !model.busy, !model.confirmingQuit else { return }
-            let old = model.editedText
-            guard !old.utf8.elementsEqual(text.utf8) else { return }
-            history.registerUndo(withTarget: self) { target in target.replace(old, caret: min(caret, (old as NSString).length)) }
+            let old = model.editedText, previous = model.annotations, oldAlignment = model.alignment
+            var next = previous
+            if clearMarks { next.marked = [] }
+            if let cleared { next.marked.subtract(cleared); next.edited.subtract(cleared) }
+            let textChanged = !old.utf8.elementsEqual(text.utf8)
+            guard textChanged || restored != nil || next != previous else { return }
+            if !textChanged, (restored ?? next) == previous { return }
+            history.registerUndo(withTarget: self) { target in target.replace(old, caret: min(caret, (old as NSString).length), restored: previous) }
             history.setActionName("Edit comparison")
             model.editedText = text; model.selectionRequest = caret; model.rebuildAlignment()
+            if let restored { model.annotations = restored }
+            else if let oldAlignment, let alignment = model.alignment { model.annotations = next.remapped(from: oldAlignment, to: alignment, targetBase: base, typing: typing) }
             if let alignment = model.alignment, let view = scroll?.documentView as? NSTextView {
                 cells = alignment.rows.map { base ? $0.base : $0.destination }
                 (view as? FileComparisonTextView)?.sourceCells = cells
@@ -358,6 +388,14 @@ private final class FileComparisonTextView: NSTextView {
         add(source ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)
         add("Use both blocks, this one first", #selector(useThisFirst), MenuIcon.mergeMineThenTheirs.image(), block)
         add("Use both blocks, this one last", #selector(useThisLast), MenuIcon.mergeTheirsThenMine.image(), block)
+        if !source {
+            menu.addItem(.separator())
+            if let rows = model.transferRows {
+                if rows.count > 1 || !model.annotations.marked.contains(rows.lowerBound) { add("Mark block", #selector(markBlock), MenuIcon.mergeMarked.image(), block) }
+                if rows.count > 1 || model.annotations.marked.contains(rows.lowerBound) { add("Unmark block", #selector(unmarkBlock), MenuIcon.mergeMarked.image(), block) }
+            }
+            add("Leave only marked blocks", #selector(leaveOnlyMarked), MenuIcon.mergeMarked.image(), model.canTransfer)
+        }
         add(source ? "Use this whole file" : "Use other file", #selector(useFile), MenuIcon.mergeUseTheirs.image(), model.canTransfer)
         menu.addItem(.separator())
         add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
@@ -373,6 +411,9 @@ private final class FileComparisonTextView: NSTextView {
     @objc private func useThisFirst() { model?.useOtherBlock(model?.editableBase == baseSide ? .currentThenOther : .otherThenCurrent) }
     @objc private func useThisLast() { model?.useOtherBlock(model?.editableBase == baseSide ? .otherThenCurrent : .currentThenOther) }
     @objc private func useFile() { model?.useOtherFile() }
+    @objc private func markBlock() { model?.markBlock(true) }
+    @objc private func unmarkBlock() { model?.markBlock(false) }
+    @objc private func leaveOnlyMarked() { model?.leaveOnlyMarked() }
     @objc private func exportPane() { model?.export(base: baseSide) }
     @objc private func undoEdit() { model?.undo() }
     @objc private func redoEdit() { model?.redo() }

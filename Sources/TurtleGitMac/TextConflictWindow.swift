@@ -576,6 +576,7 @@ private final class MergeTextView: NSTextView {
 }
 final class MergeLineRuler: NSRulerView {
     var sourceNumbers: [Int?]?
+    var markedRows = Set<Int>()
     override init(scrollView: NSScrollView?, orientation: NSRulerView.Orientation) { super.init(scrollView: scrollView, orientation: orientation); ruleThickness = 45 }
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func drawHashMarksAndLabels(in rect: NSRect) {
@@ -596,6 +597,7 @@ final class MergeLineRuler: NSRulerView {
                 let number = sourceNumbers == nil ? line : (sourceNumbers!.indices.contains(line - 1) ? sourceNumbers![line - 1] : nil)
                 let value = number.map(String.init) as NSString? ?? ""
                 value.draw(at: NSPoint(x: ruleThickness - value.size(withAttributes: attrs).width - 6, y: convert(frame.origin, from: view).y), withAttributes: attrs)
+                if markedRows.contains(line - 1) { MenuIcon.mergeMarked.image(size: 12)?.draw(in: NSRect(x: 2, y: convert(frame.origin, from: view).y, width: 12, height: 12)) }
             }
             if frame.minY > visible.maxY { break }
             location = NSMaxRange(range); line += 1

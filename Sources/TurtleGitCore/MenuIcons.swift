@@ -20,6 +20,7 @@ public enum MenuIcon: String, CaseIterable {
     case resolve = "menuresolve", editConflict = "menuconflict"
     case mergeSave = "Save", mergeSaveAs = "SaveAs", mergeResolved = "Check"
     case mergeReload = "Refresh"
+    case mergeMarked = "linemarked"
     case mergeUndo = "Undo", mergeRedo = "Redo", mergeFind = "Search"
     case mergePreviousConflict = "UpRed", mergeNextConflict = "DownRed"
     case mergeUseMine = "UseMine", mergeUseTheirs = "UseTheirs"
