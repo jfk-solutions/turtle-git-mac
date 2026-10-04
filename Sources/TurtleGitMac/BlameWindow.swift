@@ -724,11 +724,27 @@ private final class BlameLocatorView: NSView {
         let dark = effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         let background = dark ? NSColor(srgbRed: 32.0 / 255, green: 32.0 / 255, blue: 32.0 / 255, alpha: 1) : .white
         background.setFill(); bounds.fill()
-        guard !ranks.isEmpty, let table, let scroll else { return }
-        let rowHeight = table.rowHeight + table.intercellSpacing.height
-        let rows = table.rows(in: table.visibleRect)
-        let first = rows.location == NSNotFound ? 0 : min(ranks.count, rows.location)
-        let end = min(ranks.count, first + max(0, Int(scroll.contentView.bounds.height / max(1, rowHeight))))
+        guard !ranks.isEmpty, let table, scroll != nil else {
+            setAccessibilityValue("No source lines"); return
+        }
+        var viewport = table.visibleRect
+        // AppKit can keep table rows behind the floating header in visibleRect.
+        // Convert the header into source coordinates before finding visible rows.
+        if let header = table.headerView {
+            let headerRect = table.convert(header.bounds, from: header)
+            let overlap = viewport.intersection(headerRect)
+            if !overlap.isNull, overlap.height > 0 {
+                let bottom = viewport.maxY
+                viewport.origin.y = max(viewport.minY, headerRect.maxY)
+                viewport.size.height = max(0, bottom - viewport.minY)
+            }
+        }
+        let rows = table.rows(in: viewport)
+        guard rows.location != NSNotFound, rows.length > 0 else {
+            setAccessibilityValue("No visible source lines"); return
+        }
+        let first = min(ranks.count, rows.location)
+        let end = min(ranks.count, NSMaxRange(rows))
         let height = Int(bounds.height)
         for line in ranks.indices {
             let value = presentation.locatorColor(rank: ranks[line], historyCount: historyCount, dark: dark, enabled: colorAge, visible: line >= first && line < end)

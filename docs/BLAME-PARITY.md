@@ -634,6 +634,41 @@ variants, empty/very long files and accessibility reading remain pending.
 exact viewport boundaries against that header still require comparison and
 acceptance. This partial locator does not establish complete Blame parity.
 
+## Table-header viewport and dark acceptance
+
+The locator now converts the native floating header into source-table coordinates
+and removes its overlap from `visibleRect` before asking AppKit for visible rows.
+This corrects the range previously including rows hidden behind the header. The
+range includes partly visible first/last rows, consistent with the native clipped
+table. Empty source/viewport states clear the accessible locator value rather
+than leaving an earlier file's range.
+
+Native dark QA on the 400-line fixture verified the initial range 1–10 and, after
+Go To Line 200, range 193–202. The screenshot shows line 193 partly under the header,
+line 200 selected/visible and line 202 partly at the bottom. The earlier range
+192–201 included an occluded row; that geometry is now corrected for this case.
+Turning Colorize by age off removed the source/locator age bands and retained the
+viewport lines and shaded section. The actual age-on capture was saved and
+inspected, then published as `site/assets/blame-locator-dark.png` (2240 by 1464).
+
+A click/Page Down automation timed out, then its accessibility recheck timed out
+and reset the CUA kernel. The same live PID was confirmed; no second app was
+launched. A two-second process sample showed the main thread mostly idle in the
+AppKit event loop, which does not support claiming an app hang. Rebinding to that
+same app recovered the UI and normal Quit succeeded. The locator remained at the
+previous range, so keyboard paging was not accepted. Process absence and exact
+HEAD, raw index and source preservation were verified after Quit.
+
+Debug and App Store builds passed without compiler warnings, and both bundle
+audits verified the Finder extension and 62 original icons; packaged Git verified
+11 universal Mach-O binaries and integration behavior. Documentation site and
+whitespace checks passed. The geometry change
+is confined to the native view; prior four presentation tests cover locator colors
+and no implementation-mirroring test was added. Further light/header variants,
+keyboard paging, scrolling, empty-file native accessibility and full Blame editor
+parity remain pending. This evidence covers the observed dark scenario, not every
+viewport configuration.
+
 ## Remaining work
 
 - Native multi-revision selection acceptance, full locator acceptance and complete revision-log layout;
