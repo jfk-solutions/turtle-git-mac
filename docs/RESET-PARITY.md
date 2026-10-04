@@ -14,7 +14,7 @@ value share a native text row. Mixed is initially selected. Bare repositories us
 Soft and disable Mixed, Hard and the working-tree button, matching ResetDlg.
 Original reset artwork is used by the app menu and Log context command. Light
 and dark native captures are site/assets/reset.png and reset-dark.png, both
-1380 × 874 pixels. Reset is an app/Log command, not an added Finder shell menu.
+1380 × 850 pixels. Reset is an app/Log command, not an added Finder shell menu.
 
 Log captures the selected revision and opens this window. Submodule side resolution
 opens it with the chosen index-stage commit when the initialized child checkout
