@@ -375,6 +375,19 @@ import UniformTypeIdentifiers
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
+    func addFiles(_ selected: [StatusEntry], mode: WorkingFileAddMode) {
+        guard !busy, !confirmingQuit, !selected.isEmpty else { return }
+        busy = true
+        let paths = selected.map(\.path)
+        Task {
+            do {
+                try validateRestoreAccess()
+                try await repository.addWorkingFiles(paths: paths, mode: mode)
+                checked.formUnion(paths)
+            } catch { self.error = error.localizedDescription }
+            busy = false; reload()
+        }
+    }
     var canCommit: Bool { !busy && !confirmingQuit && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
@@ -766,6 +779,15 @@ GroupBox("Changes made (double-click on file for diff):") {
         }.contextMenu(forSelectionType: String.self) { ids in
             let selected = entries.filter { ids.contains($0.id) }
             let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
+            if !selected.isEmpty && selected.allSatisfy({ [.untracked, .ignored].contains($0.state) }) {
+                Button { model.addFiles(selected, mode: .normal) } label: { CommandLabel(title: WorkingFileAddMode.normal.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
+                if NSEvent.modifierFlags.contains(.shift), selected.allSatisfy({ !model.submodules.contains($0.path) }) {
+                    ForEach([WorkingFileAddMode.executable, .symlink], id: \.self) { mode in
+                        Button { model.addFiles(selected, mode: mode) } label: { CommandLabel(title: mode.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
+                    }
+                }
+                Divider()
+            }
             Button { model.compare(paths: ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
             Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
             Divider()

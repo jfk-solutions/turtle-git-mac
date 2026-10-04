@@ -63,6 +63,7 @@
 		8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */; };
 		90A423E07A63281C4163EAD0 /* Merge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D975B1620A435727724213D1 /* Merge.swift */; };
 		9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */; };
+		9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */ = {isa = PBXBuildFile; fileRef = C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */; };
 		94D627C3502D8ACE734DD470 /* Reset.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE3C7BF5278D5807BDDF4B21 /* Reset.swift */; };
 		96858E5400FE448CEE799A09 /* Fetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181B9FE19CD19EA7DAB1E824 /* Fetch.swift */; };
 		98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */; };
@@ -244,6 +245,7 @@
 		BA121F2E317F86B146016B4E /* Rename.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rename.swift; sourceTree = "<group>"; };
 		BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetchWindow.swift; sourceTree = "<group>"; };
 		BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
+		C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileAdd.swift; sourceTree = "<group>"; };
 		C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdate.swift; sourceTree = "<group>"; };
 		CC73279697B4174BE7ED4D66 /* StashWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashWindow.swift; sourceTree = "<group>"; };
 		D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionComparisonWindow.swift; sourceTree = "<group>"; };
@@ -411,6 +413,7 @@
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
 				C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */,
 				8927431F95C0127D9B66489A /* TextConflict.swift */,
+				C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */,
 				9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */,
 				3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */,
 				331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */,
@@ -630,6 +633,7 @@
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
 				61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */,
 				7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */,
+				9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */,
 				05736B77F7D781FD78B2665B /* WorkingFileExport.swift in Sources */,
 				EB7A90B9B17592BFD2605C3C /* WorkingFileRestore.swift in Sources */,
 				114EB220A33E2848C99E7466 /* WorkingFileRevert.swift in Sources */,

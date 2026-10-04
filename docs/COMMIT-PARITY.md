@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context command audit, including prepare-diff and revision Save As. File Blame/log/open/reveal
+- Remaining file context command audit, including Delete, extension/column clipboard and changelists. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -657,3 +657,41 @@ Other editor applications, missing/moved apps, typing/Cancel combinations, dark
 appearance, signed sandbox file handoff and editor routes outside Commit remain
 pending. This implements the Commit command and Settings page, not all upstream
 external-tool configuration or complete status-list menu parity.
+
+## Explicit Add commands and Commit menu mask
+
+The pinned `CommitDlg::OnInitDialog` calls status-list `Init` with
+`GITSLC_POPALL ^ (GITSLC_POPCOMMIT | GITSLC_POPSAVEAS | GITSLC_POPPREPAREDIFF)`.
+Save As, prepare-diff and the status-list Commit command are deliberately absent
+from this dialog upstream. Their earlier listing as Commit gaps was incorrect;
+the corresponding commands still need audit in the other windows that enable them.
+
+Unversioned file selections now expose Add with the original Add icon. Holding
+Shift when opening the menu also exposes Add as Executable (+x) and Add as Symlink,
+as upstream does for file selections. Normal Add force-stages the selected paths,
+including ignored files when explicitly passed. Extended commands retain the staged
+blob and set only its index mode to 100755 or 120000; they do not chmod the working
+file or create a filesystem symlink. Directory children retain their normal modes,
+matching `AddProgressCommand::SetFileMode`'s directory skip.
+
+Successful Add refreshes the list and checks the added files, clearing their old
+unchecked state as upstream does. Existing checks remain unchanged. Operations
+retain repository access and serialize through GitRepository. A real index lock is
+held while a private index is prepared; only successful completion replaces the
+real index. Missing/invalid paths, mode errors and pre-existing locks preserve it.
+
+Four integration tests verify force-add, all three modes, raw binary/Unicode and
+literal paths, unchanged working contents/permissions and HEAD, retained staged
+entries, split indexes, unborn indexes, directory modes, existing locks, failed
+selections and linked-worktree index isolation. Native light-mode QA selected one
+unchecked untracked Unicode file, invoked Add, and verified Added status, its checked
+box and the updated two-file count. Its staged blob and disk bytes matched exactly;
+HEAD and the previously staged entry stayed unchanged. The single QA app quit
+normally. `site/assets/commit-add.png` is the inspected actual refreshed window.
+
+Native Shift-menu exposure, extended-mode actions, staging/dark mode, cancellation
+and a dedicated upstream-style Add progress window remain pending. Explicit mode
+persistence through later whole-file re-staging/checkbox Commit needs macOS audit:
+normal Git add can recalculate modes from disk, especially with core.filemode=true.
+The explicit Add operation and staging-mode index behavior are implemented; full
+Add-dialog/progress and Commit completion parity remain partial.
