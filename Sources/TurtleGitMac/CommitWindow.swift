@@ -37,6 +37,20 @@ import UniformTypeIdentifiers
                 self?.model.openFile(path, application: app)
             }
         }
+        model.chooseExportFolder = { [weak self] paths in
+            // Finish context-menu tracking before starting the native sheet.
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let window = self.window, window.attachedSheet == nil else { return }
+                let panel = NSOpenPanel()
+                panel.title = "Export selected files"; panel.prompt = "Export"
+                panel.canChooseFiles = false; panel.canChooseDirectories = true
+                panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
+                panel.beginSheetModal(for: window) { [weak self] response in
+                    guard response == .OK, let folder = panel.url else { return }
+                    self?.model.exportFiles(paths, to: folder)
+                }
+            }
+        }
         model.chooseRestoreCopies = { [weak window] allowCancel, choose in
             guard let window else { choose(.cancel); return }
             let alert = NSAlert()
@@ -188,6 +202,7 @@ import UniformTypeIdentifiers
     var onIgnore: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onRename: (String) -> Void = { _ in }
     var chooseApplication: (String) -> Void = { _ in }
+    var chooseExportFolder: ([String]) -> Void = { _ in }
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping () -> Void) -> Void = { _ in }
@@ -238,6 +253,18 @@ import UniformTypeIdentifiers
                 if let failure { Task { @MainActor in self?.error = failure.localizedDescription } }
             }
         } else if !NSWorkspace.shared.open(url) { error = "Could not open \(path)." }
+    }
+    func exportFiles(_ paths: [String], to folder: URL) {
+        guard !busy, !confirmingQuit else { return }
+        busy = true
+        let scoped = folder.startAccessingSecurityScopedResource()
+        Task {
+            defer { if scoped { folder.stopAccessingSecurityScopedResource() }; busy = false }
+            do {
+                try validateRestoreAccess()
+                try await repository.exportWorkingFiles(paths: paths, to: folder)
+            } catch { self.error = error.localizedDescription }
+        }
     }
     enum CopyFileInformation: String, CaseIterable {
         case fullPaths = "Full paths", relativePaths = "Relative paths", names = "File/folder names", all = "Copy all information to clipboard"
@@ -644,7 +671,7 @@ struct CommitDialog: View {
         }
         .onChange(of: model.selection) { _ in model.refreshPartial() }
         .onChange(of: model.stagingEnabled) { _ in model.stagingChanged() }
-        .alert("Commit failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+        .alert("TurtleGit", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
         .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) {
@@ -782,6 +809,9 @@ GroupBox("Changes made (double-click on file for diff):") {
                     }
                     Button { NSWorkspace.shared.activateFileViewerSelecting([model.repository.root.appendingPathComponent(entry.path)]) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
                 }
+            }
+            if !selected.isEmpty && selected.allSatisfy({ $0.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent($0.path).path) }) {
+                Button { model.chooseExportFolder(selected.map(\.path)) } label: { CommandLabel(title: "Export…", icon: .export) }.disabled(model.busy || model.confirmingQuit)
             }
             if !selected.isEmpty {
                 Divider()

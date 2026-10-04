@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context commands: export and alternate editor. File Blame/log/open/reveal
+- Remaining file context commands: alternate editor. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -594,3 +594,33 @@ audit exercised universal Git 2.55.0 local operations and verified 11 Mach-O
 files, the Finder extension, licenses and 61 original icons. These checks prove
 compilation and packaging; signed execution and App Store approval remain
 unverified.
+
+## Working-file Export
+
+Pinned `CGitStatusListCtrl::FilesExport` copies selected working files into a chosen
+folder, retaining repository-relative paths and replacing existing copies. The
+Commit file menu now provides Export… with the original `IDI_EXPORT`
+(`menuexport.ico`) artwork. It acts on highlighted rows independently of commit
+checkboxes and exports working contents even in staging mode. Deleted/missing
+selections hide the command; directories/submodules are skipped by the exporter.
+Symlink sources export their target contents, matching upstream `CopyFile`.
+
+The native macOS folder chooser offers folder creation and retains its temporary
+security scope through the copy operation. Errors leave the dialog and selection
+intact. Each destination replacement is atomic; earlier successful files remain
+if a later copy fails, as upstream does. Source overwrite, Git metadata paths and
+destination parent symlinks escaping the chosen folder are rejected. Destination
+leaf symlinks are replaced rather than writing through them.
+
+Four focused export tests cover binary and Unicode contents, nested paths,
+untracked files, overwrite, executable permissions, directory skipping, symlink
+sources/destinations, missing files, source overwrite and metadata/path escape.
+They verify exact HEAD/index preservation. The original icon decode test passes.
+Native QA selected both a modified nested text file and an unchecked untracked
+binary, invoked Export from their shared context menu, selected an existing folder
+and verified both outputs byte for byte against the working tree. HEAD and raw
+index were unchanged; the single QA app was quit normally. Export/New Folder were
+disabled after Go to Folder entered an empty destination, then enabled when its
+row was selected from the parent folder. Native overwrite, cancellation, staging,
+dark appearance and signed sandbox permissions remain to be exercised; this
+folder-chooser result does not resolve the separate Log Save As issue.

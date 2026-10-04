@@ -312,6 +312,11 @@
       "asset": "TortoiseGitBlame.ico",
       "source": "src/Resources/TortoiseGitBlame.ico",
       "sha256": "6d37fce91db46ec5eeac92729fde17a70472bf03aa38aae706865ba08ff582e1"
+    },
+    {
+      "asset": "menuexport.ico",
+      "source": "src/Resources/menuexport.ico",
+      "sha256": "11fc86d88e6dfbb904a3730f27d728d7d9e850dfdd8dab6a3ac5625d6dbeb19d"
     }
   ]
 }
