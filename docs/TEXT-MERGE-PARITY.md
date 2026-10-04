@@ -71,10 +71,15 @@ found the second block's text and closed with Escape. Choosing Theirs replaced
 that second block correctly. Early keyboard Undo attempts did not restore text;
 explicit history and visible Undo/Redo controls were subsequently added. The final visible Undo control restored the entire first block and cleared the
 Modified indicator; Redo reapplied its combined text and restored the remaining
-conflict selection. Manual Unicode edits and visible Undo were subsequently verified. Command-Z
-still left the edited text unchanged in native QA, while Command-F opened Find.
-Two local event-monitor routing experiments did not correct this and were removed.
-Keyboard Undo remains a known defect. Native Save wrote the exact combined first block and Theirs second block while
+conflict selection. Manual Unicode edits and visible Undo were subsequently verified. The apparent
+keyboard failure was traced to the QA host's keyboard layout: the automation
+key named `y` visibly inserts `z`. In the production build without event monitors,
+logical Command-Z restored the original text and cleared Modified; logical
+Shift-Command-Z restored the inserted character and Modified. Earlier calls named
+`super+z` did not test logical Command-Z on this host. The unsuccessful local
+monitor experiments were removed. Unicode keyboard history, search-field history
+and broader keyboard combinations still need acceptance checks.
+ Native Save wrote the exact combined first block and Theirs second block while
 retaining all three index conflict stages. Mark as resolved then staged those
 exact reviewed bytes and cleared all unmerged entries. Both operations preserved
 HEAD, refs, unrelated index/working changes and MERGE_HEAD. A stale selected-conflict index after Redo was observed
@@ -121,3 +126,14 @@ now opens at 1120 × 780 rather than being reduced to its minimum by hosting
 layout. The merged buffer retains Git's original diff3 text. Find keeps its
 source editor target while the search field is focused; broader keyboard QA is
 still pending.
+
+## Conflict menu validation
+
+AppKit automatically validates contextual menus. Explicit item enabled flags
+can be overwritten; see Apple's [menu validation guidance](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/MenuList/Articles/EnablingMenuItems.html).
+The merged text view now validates its four block actions against editability,
+busy state, action tag and a current conflict at the selection. Standard text
+actions retain NSTextView validation. The action handler repeats the busy/editable
+checks. Native context-menu QA verified all four block commands disabled outside
+a conflict. Inside-conflict activation, busy-state UI and multi-block selections
+remain pending.

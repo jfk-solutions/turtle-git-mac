@@ -161,4 +161,4 @@ with upstream light/dark colors and original source line numbers. The latest
 full suite passes 180 tests; alignment tests reconstruct exact source contents
 over exhaustive and seeded Unicode/CRLF cases. Actual native captures verify
 the palette and layout. Full libsvn segmentation parity, source scrolling QA
-and keyboard Undo remain incomplete; see TEXT-MERGE-PARITY.md.
+and broader keyboard acceptance remain incomplete; see TEXT-MERGE-PARITY.md.

@@ -381,8 +381,17 @@ private final class MergeTextView: NSTextView {
         window?.makeFirstResponder(self)
         (window as? TextConflictNSWindow)?.find(.showFindInterface)
     }
+    override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(useBlock(_:)) {
+            guard mergeEditable, isEditable, let model, !model.busy,
+                  MergeBlockChoice.allCases.indices.contains(menuItem.tag) else { return false }
+            let selection = selectedRange()
+            return model.blocks.contains { NSIntersectionRange($0.range, selection).length > 0 || NSLocationInRange(selection.location, $0.range) }
+        }
+        return super.validateMenuItem(menuItem)
+    }
     @objc private func useBlock(_ sender: NSMenuItem) {
-        guard MergeBlockChoice.allCases.indices.contains(sender.tag), let model, let block = model.blocks.first(where: { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }
+        guard mergeEditable, isEditable, MergeBlockChoice.allCases.indices.contains(sender.tag), let model, !model.busy, let block = model.blocks.first(where: { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }) else { return }
         let text = block.replacement(MergeBlockChoice.allCases[sender.tag])
         replaceMergeBlock(block.range, with: text)
     }

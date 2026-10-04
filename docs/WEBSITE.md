@@ -59,3 +59,10 @@ into the website assets. This does not synthesize or alter the window image.
 
 The preview has its own bundle identity and temporary recent-repository store; it
 does not reuse the real app's saved permissions or URL handler.
+
+For native keyboard QA, verify the host keyboard layout before interpreting
+shortcut failures. On the current host, the automation key named `y` produces
+logical `z`; `super+y` and `super+shift+y` therefore exercise Command-Z and
+Shift-Command-Z. This was verified by inserting a visible `z`, undoing it and
+redoing it in the merge editor. Do not change application shortcuts to compensate
+for physical automation key names.
