@@ -116,4 +116,9 @@ pending. See TEXT-MERGE-PARITY.md.
 The merge editor now has independent 1/2/4/8 tab-width menus in each pane.
 Native width changes preserved clean state and Undo history; merged-result
 conversion and Save bytes at width eight were verified. Global persistence,
-insertion modes, Smart tab char and EditorConfig remain pending.
+global insertion-mode preferences and EditorConfig remain pending.
+
+Merge pane menus now include Tab/Space and Smart tab char. Native Space
+insertion, nearby-tab Smart choice, multiline Tab/Shift-Tab, Undo and exact Save
+bytes were verified. Global preferences, EditorConfig, precise partial-column
+selection restoration and broader key/view behavior remain pending.

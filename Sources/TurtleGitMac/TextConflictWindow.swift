@@ -120,6 +120,8 @@ private enum MergeSourceSide {
     @Published var canUndo = false
     @Published var canRedo = false
     @Published var tabWidths: [String: Int] = [:]
+    @Published var spacePanes: Set<String> = []
+    @Published var smartTabPanes: Set<String> = []
     var applyBlock: ((NSRange, String) -> Void)?
     var replaceEntireResult: ((String) -> Void)?
     var resetHistory: () -> Void = {}
@@ -247,12 +249,24 @@ private struct TextConflictDialog: View {
     func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
         let displayed = cells.map { $0.map(\.displayText).joined(separator: "\n") + ($0.isEmpty ? "" : "\n") } ?? text
         let tabWidth = model.tabWidths[title] ?? 4
+        let useSpaces = model.spacePanes.contains(title), smartTab = model.smartTabPanes.contains(title)
         return VStack(spacing: 0) {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
-            MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth).frame(minWidth: 220, minHeight: 120)
+            MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             HStack {
                 Spacer()
-                Menu("Tab \(tabWidth)") {
+                Menu("\(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")") {
+                    Button { model.spacePanes.remove(title) } label: {
+                        if !useSpaces { Label("Tab", systemImage: "checkmark") } else { Text("Tab") }
+                    }
+                    Button { model.spacePanes.insert(title) } label: {
+                        if useSpaces { Label("Space", systemImage: "checkmark") } else { Text("Space") }
+                    }
+                    Divider()
+                    Toggle("Smart tab char", isOn: Binding(get: { model.smartTabPanes.contains(title) }, set: { enabled in
+                        if enabled { model.smartTabPanes.insert(title) } else { model.smartTabPanes.remove(title) }
+                    }))
+                    Divider()
                     ForEach([1, 2, 4, 8], id: \.self) { width in
                         Button { model.tabWidths[title] = width } label: {
                             if width == tabWidth { Label("\(width)", systemImage: "checkmark") }
@@ -309,12 +323,15 @@ private struct MergeEditor: NSViewRepresentable {
     let sourceCells: [MergeSourceCell]?
     let sourceSide: MergeSourceSide?
     let tabWidth: Int
+    let useSpaces: Bool
+    let smartTab: Bool
     func makeNSView(context: Context) -> NSScrollView {
         let view = MergeTextView(); view.isRichText = false; view.allowsUndo = editable
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticSpellingCorrectionEnabled = false; view.isContinuousSpellCheckingEnabled = false
         view.font = .monospacedSystemFont(ofSize: 12, weight: .regular); view.textContainerInset = NSSize(width: 8, height: 8)
         view.setMergeTabWidth(tabWidth)
+        view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         view.isVerticallyResizable = true; view.isHorizontallyResizable = true; view.autoresizingMask = [.width]
         view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         view.textContainer?.widthTracksTextView = false; view.textContainer?.containerSize = view.maxSize
@@ -345,6 +362,7 @@ private struct MergeEditor: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? MergeTextView else { return }
         view.setMergeTabWidth(tabWidth)
+        view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
         view.isEditable = editable && !model.busy; view.model = model
         let range = view.selectedRange()
@@ -404,6 +422,26 @@ private final class MergeTextView: NSTextView {
     var mergeEditable = false
     var sourceSide: MergeSourceSide?
     private var mergeTabWidth = 4
+    var mergeUseSpaces = false
+    var mergeSmartTab = false
+    override func insertTab(_ sender: Any?) {
+        guard mergeEditable else { super.insertTab(sender); return }
+        guard isEditable, model?.busy == false else { return }
+        let range = selectedRange()
+        if let edit = MergeWhitespace.indentSelection(in: string, selection: range, tabWidth: mergeTabWidth, useSpaces: mergeUseSpaces, smart: mergeSmartTab) {
+            if !(string as NSString).substring(with: edit.range).utf8.elementsEqual(edit.replacement.utf8) { replaceMergeBlock(edit.range, with: edit.replacement, actionName: "Indent lines") }
+            return
+        }
+        let remaining = (string as NSString).replacingCharacters(in: range, with: "")
+        let replacement = MergeWhitespace.tabInsertion(in: remaining, utf16Offset: range.location, tabWidth: mergeTabWidth, useSpaces: mergeUseSpaces, smart: mergeSmartTab)
+        replaceMergeBlock(range, with: replacement, actionName: "Insert tab")
+        setSelectedRange(NSRange(location: range.location + (replacement as NSString).length, length: 0))
+    }
+    override func insertBacktab(_ sender: Any?) {
+        guard mergeEditable else { super.insertBacktab(sender); return }
+        guard isEditable, model?.busy == false, let edit = MergeWhitespace.indentSelection(in: string, selection: selectedRange(), tabWidth: mergeTabWidth, remove: true) else { return }
+        if !(string as NSString).substring(with: edit.range).utf8.elementsEqual(edit.replacement.utf8) { replaceMergeBlock(edit.range, with: edit.replacement, actionName: "Unindent lines") }
+    }
     func setMergeTabWidth(_ width: Int) {
         mergeTabWidth = width
         let paragraph = NSMutableParagraphStyle()

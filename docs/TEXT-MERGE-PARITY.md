@@ -321,7 +321,7 @@ choices, a checkmark for its current width and Tab N caption. Changes are local
 to that pane and editor session, refreshing its monospaced tab interval without
 changing text, dirty state or Undo history. The merged pane's whitespace
 conversion and availability use its selected width. Global preference persistence,
-Tab/Space insertion modes, Smart tab char and EditorConfig remain pending.
+Global insertion-mode preferences and EditorConfig remain pending.
 
 Regression checks now cover all four menu widths, leading tab stops and
 internal-tab preservation. All 17 targeted merge tests passed and the app
@@ -333,3 +333,41 @@ index stages. The spaces-to-tabs item was disabled for a four-space run at
 width eight. The QA app was closed and no preview instances remained running.
 Pixel-level tab alignment in all four panes, resize and broader menu QA remain
 pending.
+
+## Tab, Space and Smart tab char
+
+Per-pane menus now retain upstream Tab, Space, Smart tab char and the width
+choices, with Tab/Space N Smart captions. Mode changes alter session-local
+behavior without rewriting text. The merged NSTextView dispatches Tab through
+the reviewed BaseView GetIndentCharsForLine rule: explicit Space inserts to
+the next expanded UTF-16 tab stop; explicit Tab inserts one tab. Smart mode
+uses any tab in the current line, otherwise a space streak greater than the
+width, then searches up to 100 lines on each side. A nearby tab wins; space
+evidence requires both lines at the same distance; undecided Smart falls back
+to tabs even when explicit Space is selected.
+
+A multiline selection uses the reviewed Add/RemoveIndentationForSelectedBlock
+rules. Tab skips empty/whitespace-only lines, adds a mode-dependent prefix,
+and excludes the final line when selection ends at its start. Shift-Tab removes
+up to one width of leading spaces, or a tab after a shorter space prefix. Each
+block change records one Undo step and retains a selection over the affected
+lines. Single-line insertion replaces selected text first when computing the
+indentation mode, matching upstream OnChar ordering. Global preferences,
+EditorConfig, precise partial-column selection restoration and broader key/view
+behavior remain pending. Unicode whitespace-only classification uses Foundation
+and still needs comparison with upstream's locale-sensitive trimming.
+
+Three new tests cover explicit modes, UTF-16/expanded columns, all nine endings,
+current/nearby Smart evidence, 100/101-line boundaries, block indentation, blank
+lines, mixed leading spaces/tabs, end-boundary exclusion and invalid ranges.
+All 20 targeted merge tests passed and the app compiled. The whitespace tests
+were rerun after tightening the invalid-range guard.
+
+Native QA verified Space Tab at column two, single Undo, Space 4 Smart choosing
+a tab from the preceding line, disabling Smart, multiline Tab/Shift-Tab and
+one-step Undo of unindent. Save produced exactly four leading spaces on each
+nonblank selected line with the two-space blank line intact, CRLF separators
+and no final newline. HEAD, refs and unresolved index remained unchanged.
+The QA app was closed immediately; no preview instances remained running.
+Other Smart branch native combinations, partial-column selections, readonly
+keyboard handoffs and signed/sandbox acceptance remain pending.
