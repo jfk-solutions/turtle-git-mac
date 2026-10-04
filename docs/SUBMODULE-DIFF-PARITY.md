@@ -195,7 +195,8 @@ context entries, plus `MainFrm.cpp` pane-specific Save As. The native viewer now
 offers Use other block, Use both blocks (this one first/last) and Use other file
 for its editable working side. A selected difference determines the block;
 caret selection or navigation selects it. Transferring excludes gaps, keeps
-source line endings and preserves a missing final newline. Combining two EOF
+the target line-ending style (corrected in the selected-range follow-up below)
+and preserves a missing final newline. Combining two EOF
 blocks inserts a separating newline when needed. A CRLF suffix comparison bug
 found by the new tests was fixed without adding blank lines.
 
@@ -226,6 +227,39 @@ both bundle audits and the static Pages build passed. The App Store audit
 verified the universal Git 2.55.0 runtime and its local commands, embedded Finder
 extension, licenses and 60 original icon resources. These are packaging and
 compilation checks; signed activation and release approval remain unverified.
+
+## Pane context menus and selected-range transfer follow-up
+
+Reviewed the pinned [BaseView.cpp](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseMerge/BaseView.cpp)
+selection and UseViewBlock implementation, and [LeftView.cpp](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseMerge/LeftView.cpp)
+context actions. Both native panes now provide menus with original transfer,
+Save As, Undo/Redo and Copy icons; Cut/Paste use native macOS symbols. The source
+pane offers Use this block/whole file; the working pane offers Use other
+block/file. Both-order actions interpret “this” as the pane that opened the menu.
+Commands honor editing, busy and Quit-confirmation state.
+
+A selected range takes precedence over the navigated difference and can include
+unchanged lines and alignment gaps. Upstream inclusive block endpoints include
+the next line when the selection ends at its column zero. Incoming ended lines
+use the target LF/CRLF style; missing final newlines remain absent. Copy/Cut map
+the display selection back to actual bytes, excluding gaps and artificial EOF
+newlines. Deferred selection notifications are discarded after alignment changes.
+
+Two new core tests cover multi-difference range transfers, reverse sides, invalid
+ranges, target line-ending conversion, inclusive selection endpoints, UTF-16
+emoji offsets, gap exclusion and exact CRLF/EOF copy text. One native QA process
+verified both pane menus, working-pane last/source-pane first ordering, Cut and
+Undo. The draft was restored before normal Quit; process absence, source bytes,
+both repository HEADs and both index files were verified. Native arbitrary
+multi-line transfers, Paste/clipboard acceptance, reverse-side editing, marked
+blocks and signed sandbox execution remain pending. Earlier screenshots remain
+accurately labeled and do not depict these newer context menus.
+
+Validation: all 250 integration tests passed. Unsigned Debug and App Store
+builds, both bundle audits and the static Pages build passed. The App Store
+audit exercised universal Git 2.55.0 local commands and verified 11 Mach-O files,
+the Finder extension, licenses and 60 original icon resources. Signed runtime
+behavior and release approval remain unverified.
 
 ## Revision selection and metadata follow-up
 

@@ -2,6 +2,32 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testSelectedRowsIncludeEndpointAndCopyExcludesAlignmentArtifacts() throws {
+        let alignment = FileComparisonAlignment(base: "removed\r\n🐢keep\r\nend", destination: "🐢keep\r\nend")
+        let cells = alignment.rows.map(\.destination)
+        // Display is a gap followed by two rows, with LF display separators.
+        XCTAssertEqual(try FileComparisonEditing.selectedRows(NSRange(location: 1, length: 7), cells: cells), 1..<3)
+        XCTAssertEqual(try FileComparisonEditing.selectedRows(NSRange(location: 2, length: 2), cells: cells), 1..<2)
+        XCTAssertNil(try FileComparisonEditing.selectedRows(NSRange(location: 1, length: 0), cells: cells))
+        XCTAssertEqual(try FileComparisonEditing.selectedText(NSRange(location: 0, length: 1), cells: cells), "")
+        XCTAssertEqual(try FileComparisonEditing.selectedText(NSRange(location: 1, length: 7), cells: cells), "🐢keep\r\n")
+        XCTAssertEqual(try FileComparisonEditing.selectedText(NSRange(location: 0, length: 12), cells: cells), "🐢keep\r\nend")
+        XCTAssertEqual(try FileComparisonEditing.selectedRows(NSRange(location: 0, length: 12), cells: cells), 0..<3)
+        XCTAssertThrowsError(try FileComparisonEditing.selectedRows(NSRange(location: 13, length: 0), cells: cells))
+        XCTAssertThrowsError(try FileComparisonEditing.selectedText(NSRange(location: 11, length: 2), cells: cells))
+    }
+    func testRangeTransfersSpanUnchangedRowsAndNormalizeTargetEndings() throws {
+        let alignment = FileComparisonAlignment(base: "start\nold\nkeep\nremoved\nend", destination: "start\nnew\nkeep\nend")
+        XCTAssertEqual(try FileComparisonEditing.takingOtherRows(alignment, rows: 1..<4, targetBase: false).text, "start\nold\nkeep\nremoved\nend")
+        XCTAssertEqual(try FileComparisonEditing.takingOtherRows(alignment, rows: 1..<4, targetBase: true).text, "start\nnew\nkeep\nend")
+        XCTAssertThrowsError(try FileComparisonEditing.takingOtherRows(alignment, rows: 0..<0, targetBase: false))
+        XCTAssertThrowsError(try FileComparisonEditing.takingOtherRows(alignment, rows: -1..<2, targetBase: false))
+        XCTAssertThrowsError(try FileComparisonEditing.takingOtherRows(alignment, rows: 0..<99, targetBase: false))
+        let mixed = FileComparisonAlignment(base: "old\nlast", destination: "new\r\nfinal")
+        XCTAssertEqual(try FileComparisonEditing.takingOtherRows(mixed, rows: mixed.rows.indices, targetBase: false).text, "old\r\nlast")
+        XCTAssertEqual(try FileComparisonEditing.takingOtherRows(mixed, rows: mixed.rows.indices, targetBase: true).text, "new\nfinal")
+        XCTAssertEqual(try FileComparisonEditing.takingOtherRows(mixed, rows: mixed.rows.indices, targetBase: false, choice: .currentThenOther).text, "new\r\nfinal\r\nold\r\nlast")
+    }
     func testBlockTransfersHandleReplacementInsertionDeletionReverseAndBothOrders() throws {
         let a = "common\r\nold\r\nend", b = "common\r\nnew\r\nextra\r\nend"
         let alignment = FileComparisonAlignment(base: a, destination: b)

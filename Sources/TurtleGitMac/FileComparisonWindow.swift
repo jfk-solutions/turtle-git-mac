@@ -61,19 +61,32 @@ import TurtleGitCore
     @Published var editedText = ""
     @Published var canUndo = false
     @Published var canRedo = false
+    @Published var selectedRows: Range<Int>?
+    private(set) var alignmentGeneration = 0
     weak var window: NSWindow?
     var undo: () -> Void = {}
     var redo: () -> Void = {}
     var replaceText: (String, Int) -> Void = { _, _ in }
     var canTransfer: Bool { editingEnabled && editableBase != nil && alignment != nil && !busy && !confirmingQuit }
+    var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
     func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other) {
-        guard canTransfer, let alignment, let base = editableBase else { return }
-        do { let edit = try FileComparisonEditing.takingOtherBlock(alignment, difference: difference, targetBase: base, choice: choice); replaceText(edit.text, edit.caret) }
+        guard canTransfer, let alignment, let base = editableBase, let rows = transferRows else { return }
+        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: rows, targetBase: base, choice: choice); replaceText(edit.text, edit.caret) }
         catch { self.error = error.localizedDescription }
     }
     func useOtherFile() {
-        guard canTransfer, let document, let base = editableBase, let text = base ? document.destination.text : document.base.text else { return }
-        replaceText(text, 0)
+        guard canTransfer, let alignment, let base = editableBase else { return }
+        if alignment.rows.isEmpty { replaceText("", 0); return }
+        do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: base); replaceText(edit.text, 0) }
+        catch { self.error = error.localizedDescription }
+    }
+    func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
+        guard let alignment else { return }
+        selectedRows = try? FileComparisonEditing.selectedRows(range, cells: cells)
+        var cursor = 0, row = cells.count
+        for (index, cell) in cells.enumerated() { cursor += (cell.displayText as NSString).length + 1; if range.location < cursor { row = index; break } }
+        let index = alignment.differences.firstIndex { $0.contains(row) } ?? -1
+        if difference != index { difference = index }
     }
     func export(base: Bool) {
         guard !busy, !confirmingQuit, let window, window.attachedSheet == nil, let document else { return }
@@ -126,6 +139,7 @@ import TurtleGitCore
     }
     func rebuildAlignment() {
         guard let document else { return }
+        alignmentGeneration += 1; selectedRows = nil
         let a = editableBase == true ? editedText : document.base.text
         let b = editableBase == false ? editedText : document.destination.text
         alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0) } }
@@ -206,7 +220,7 @@ private struct FileComparisonDialog: View {
                     Button { model.useOtherBlock() } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }
                     Button { model.useOtherBlock(.currentThenOther) } label: { CommandLabel(title: "Use both blocks, this one first", icon: .mergeMineThenTheirs) }
                     Button { model.useOtherBlock(.otherThenCurrent) } label: { CommandLabel(title: "Use both blocks, this one last", icon: .mergeTheirsThenMine) }
-                } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }.disabled(!model.canTransfer || model.alignment?.differences.indices.contains(model.difference) != true)
+                } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }.disabled(!model.canTransfer || model.transferRows == nil)
                 Button { model.useOtherFile() } label: { CommandLabel(title: "Use other file", icon: .mergeUseTheirs) }.disabled(!model.canTransfer)
                 Spacer()
             }.padding(.horizontal, 10).padding(.bottom, 8)
@@ -229,6 +243,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
     let base: Bool
     func makeNSView(context: Context) -> NSScrollView {
         let view = FileComparisonTextView(); view.isEditable = false; view.isRichText = false
+        view.model = model; view.baseSide = base
         view.allowsUndo = true; view.delegate = context.coordinator
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticSpellingCorrectionEnabled = false
@@ -258,6 +273,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? NSTextView else { return }
         context.coordinator.cells = cells; context.coordinator.base = base
+        (view as? FileComparisonTextView)?.sourceCells = cells
         view.isEditable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
         let value = Self.attributed(cells, font: view.font!)
         if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
@@ -297,11 +313,9 @@ private struct FileComparisonEditor: NSViewRepresentable {
             return false
         }
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard let view = notification.object as? NSTextView, let alignment = model.alignment else { return }
-            let offset = min(view.selectedRange().location, (view.string as NSString).length)
-            let row = (view.string as NSString).substring(to: offset).components(separatedBy: "\n").count - 1
-            let selected = alignment.differences.firstIndex { $0.contains(row) } ?? -1
-            DispatchQueue.main.async { if self.model.difference != selected { self.model.difference = selected } }
+            guard let view = notification.object as? NSTextView else { return }
+            let range = view.selectedRange(), cells = cells, generation = model.alignmentGeneration
+            DispatchQueue.main.async { if self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
         func updateUndoState() { model.canUndo = history.canUndo; model.canRedo = history.canRedo }
         func replace(_ text: String, caret: Int) {
@@ -313,6 +327,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
             model.editedText = text; model.selectionRequest = caret; model.rebuildAlignment()
             if let alignment = model.alignment, let view = scroll?.documentView as? NSTextView {
                 cells = alignment.rows.map { base ? $0.base : $0.destination }
+                (view as? FileComparisonTextView)?.sourceCells = cells
                 view.textStorage?.setAttributedString(FileComparisonEditor.attributed(cells, font: view.font!))
                 view.setSelectedRange(NSRange(location: min(FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells), (view.string as NSString).length), length: 0))
             }
@@ -323,5 +338,43 @@ private struct FileComparisonEditor: NSViewRepresentable {
 }
 private final class FileComparisonTextView: NSTextView {
     var history: UndoManager?
+    weak var model: FileComparisonWindowModel?
+    var baseSide = false
+    var sourceCells: [MergeSourceCell] = []
     override var undoManager: UndoManager? { history ?? super.undoManager }
+    override func copy(_ sender: Any?) {
+        guard let text = try? FileComparisonEditing.selectedText(selectedRange(), cells: sourceCells), !text.isEmpty else { return }
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+    }
+    override func menu(for event: NSEvent) -> NSMenu? {
+        guard let model else { return super.menu(for: event) }
+        model.updateSelection(selectedRange(), cells: sourceCells)
+        let menu = NSMenu(); menu.autoenablesItems = false
+        func add(_ title: String, _ action: Selector, _ icon: NSImage?, _ enabled: Bool) {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon; item.isEnabled = enabled; menu.addItem(item)
+        }
+        let source = model.editableBase != baseSide
+        let block = model.canTransfer && model.transferRows != nil
+        add(source ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)
+        add("Use both blocks, this one first", #selector(useThisFirst), MenuIcon.mergeMineThenTheirs.image(), block)
+        add("Use both blocks, this one last", #selector(useThisLast), MenuIcon.mergeTheirsThenMine.image(), block)
+        add(source ? "Use this whole file" : "Use other file", #selector(useFile), MenuIcon.mergeUseTheirs.image(), model.canTransfer)
+        menu.addItem(.separator())
+        add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
+        add("Undo", #selector(undoEdit), MenuIcon.mergeUndo.image(), model.canUndo && !model.busy && !model.confirmingQuit)
+        add("Redo", #selector(redoEdit), MenuIcon.mergeRedo.image(), model.canRedo && !model.busy && !model.confirmingQuit)
+        menu.addItem(.separator())
+        add("Copy", #selector(copy(_:)), MenuIcon.copy.image(), selectedRange().length > 0)
+        add("Cut", #selector(cutSelection), NSImage(systemSymbolName: "scissors", accessibilityDescription: nil), isEditable && selectedRange().length > 0)
+        add("Paste", #selector(paste(_:)), NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil), isEditable && NSPasteboard.general.string(forType: .string) != nil)
+        return menu
+    }
+    @objc private func useBlock() { model?.useOtherBlock() }
+    @objc private func useThisFirst() { model?.useOtherBlock(model?.editableBase == baseSide ? .currentThenOther : .otherThenCurrent) }
+    @objc private func useThisLast() { model?.useOtherBlock(model?.editableBase == baseSide ? .otherThenCurrent : .currentThenOther) }
+    @objc private func useFile() { model?.useOtherFile() }
+    @objc private func exportPane() { model?.export(base: baseSide) }
+    @objc private func undoEdit() { model?.undo() }
+    @objc private func redoEdit() { model?.redo() }
+    @objc private func cutSelection() { copy(nil); insertText("", replacementRange: selectedRange()) }
 }
