@@ -119,6 +119,7 @@ private enum MergeSourceSide {
     @Published var showBase = false
     @Published var canUndo = false
     @Published var canRedo = false
+    @Published var tabWidths: [String: Int] = [:]
     var applyBlock: ((NSRange, String) -> Void)?
     var replaceEntireResult: ((String) -> Void)?
     var resetHistory: () -> Void = {}
@@ -245,9 +246,21 @@ private struct TextConflictDialog: View {
     @ObservedObject var model: TextConflictWindowModel
     func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
         let displayed = cells.map { $0.map(\.displayText).joined(separator: "\n") + ($0.isEmpty ? "" : "\n") } ?? text
+        let tabWidth = model.tabWidths[title] ?? 4
         return VStack(spacing: 0) {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
-            MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side).frame(minWidth: 220, minHeight: 120)
+            MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth).frame(minWidth: 220, minHeight: 120)
+            HStack {
+                Spacer()
+                Menu("Tab \(tabWidth)") {
+                    ForEach([1, 2, 4, 8], id: \.self) { width in
+                        Button { model.tabWidths[title] = width } label: {
+                            if width == tabWidth { Label("\(width)", systemImage: "checkmark") }
+                            else { Text("\(width)") }
+                        }
+                    }
+                }.fixedSize().accessibilityLabel("\(title) tab width")
+            }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))
         }
     }
     var body: some View {
@@ -295,14 +308,13 @@ private struct MergeEditor: NSViewRepresentable {
     let editable: Bool
     let sourceCells: [MergeSourceCell]?
     let sourceSide: MergeSourceSide?
+    let tabWidth: Int
     func makeNSView(context: Context) -> NSScrollView {
         let view = MergeTextView(); view.isRichText = false; view.allowsUndo = editable
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticSpellingCorrectionEnabled = false; view.isContinuousSpellCheckingEnabled = false
         view.font = .monospacedSystemFont(ofSize: 12, weight: .regular); view.textContainerInset = NSSize(width: 8, height: 8)
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.tabStops = []; paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: view.font!]).width * 4
-        view.defaultParagraphStyle = paragraph
+        view.setMergeTabWidth(tabWidth)
         view.isVerticallyResizable = true; view.isHorizontallyResizable = true; view.autoresizingMask = [.width]
         view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         view.textContainer?.widthTracksTextView = false; view.textContainer?.containerSize = view.maxSize
@@ -332,6 +344,7 @@ private struct MergeEditor: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let view = scroll.documentView as? MergeTextView else { return }
+        view.setMergeTabWidth(tabWidth)
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
         view.isEditable = editable && !model.busy; view.model = model
         let range = view.selectedRange()
@@ -390,6 +403,14 @@ private final class MergeTextView: NSTextView {
     weak var model: TextConflictWindowModel?
     var mergeEditable = false
     var sourceSide: MergeSourceSide?
+    private var mergeTabWidth = 4
+    func setMergeTabWidth(_ width: Int) {
+        mergeTabWidth = width
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.tabStops = []
+        paragraph.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: font ?? NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)]).width * CGFloat(width)
+        defaultParagraphStyle = paragraph
+    }
     private let mergeUndoManager = UndoManager()
     override var undoManager: UndoManager? { mergeEditable ? mergeUndoManager : super.undoManager }
     func updateUndoState() { model?.canUndo = mergeUndoManager.canUndo; model?.canRedo = mergeUndoManager.canRedo }
@@ -458,7 +479,7 @@ private final class MergeTextView: NSTextView {
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(changeWhitespace(_:)) {
             guard mergeEditable, isEditable, model?.busy == false, MergeWhitespaceCommand.allCases.indices.contains(menuItem.tag) else { return false }
-            return MergeWhitespace.canApply(MergeWhitespaceCommand.allCases[menuItem.tag], to: string)
+            return MergeWhitespace.canApply(MergeWhitespaceCommand.allCases[menuItem.tag], to: string, tabWidth: mergeTabWidth)
         }
         if menuItem.action == #selector(convertLineEndings(_:)) {
             return mergeEditable && isEditable && model?.busy == false && MergeLineEnding.allCases.indices.contains(menuItem.tag)
@@ -487,7 +508,7 @@ private final class MergeTextView: NSTextView {
     @objc private func changeWhitespace(_ sender: NSMenuItem) {
         guard mergeEditable, isEditable, model?.busy == false, MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
         let command = MergeWhitespaceCommand.allCases[sender.tag]
-        let converted = MergeWhitespace.applying(command, to: string)
+        let converted = MergeWhitespace.applying(command, to: string, tabWidth: mergeTabWidth)
         guard !converted.utf8.elementsEqual(string.utf8) else { return }
         window?.makeFirstResponder(self)
         replaceMergeBlock(NSRange(location: 0, length: (string as NSString).length), with: converted, actionName: command.rawValue)

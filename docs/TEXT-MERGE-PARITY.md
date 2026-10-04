@@ -295,7 +295,7 @@ Both conversions touch leading ASCII spaces/tabs only. Tabs within text remain
 unchanged. Expansion uses the next four-column stop; tabularization retains
 partial runs and follows the upstream handling of existing tabs. The native
 paragraph tab interval now matches four monospaced columns in all panes. Trim
-right removes trailing ASCII spaces/tabs. Configurable tab width, EditorConfig,
+right removes trailing ASCII spaces/tabs. Global tab-width preferences, EditorConfig,
 locale-specific Unicode TrimRight behavior and visual tab-width acceptance
 remain pending. Original line terminators and Unicode spelling are preserved;
 whitespace-only final lines may naturally become empty after trimming.
@@ -311,3 +311,25 @@ The spaces-to-tabs command became disabled after normalization. Save produced
 exactly `\t  🦎é\t雪\r\n\t tail\r\n\tEOF`, preserving HEAD, refs and
 unresolved index stages. The QA app was closed immediately afterward, with no
 preview processes remaining. Busy-state and large-file native QA remain pending.
+
+## Per-pane tab widths
+
+MainFrm.cpp's FillTabModeButton, OnTabMode and OnUpdateTabMode were reviewed,
+along with BaseView's width accessors and SetMainPage's default width four.
+Each native pane now has a footer width menu with the upstream 1, 2, 4 and 8
+choices, a checkmark for its current width and Tab N caption. Changes are local
+to that pane and editor session, refreshing its monospaced tab interval without
+changing text, dirty state or Undo history. The merged pane's whitespace
+conversion and availability use its selected width. Global preference persistence,
+Tab/Space insertion modes, Smart tab char and EditorConfig remain pending.
+
+Regression checks now cover all four menu widths, leading tab stops and
+internal-tab preservation. All 17 targeted merge tests passed and the app
+compiled. Native QA independently selected Mine 2 and Merged 8 while Theirs
+retained 4; the result remained clean with Undo disabled. An eight-column
+conversion preserved internal tabs, Unicode/NFD, CRLF and no final newline;
+Save wrote the exact expected bytes without changing HEAD, refs or unresolved
+index stages. The spaces-to-tabs item was disabled for a four-space run at
+width eight. The QA app was closed and no preview instances remained running.
+Pixel-level tab alignment in all four panes, resize and broader menu QA remain
+pending.

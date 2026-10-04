@@ -17,6 +17,12 @@ final class MergeWhitespaceTests: XCTestCase {
         }
     }
     func testTabStopsPartialRunsAndEnablement() {
+        for width in [1, 2, 4, 8] {
+            let spaces = String(repeating: " ", count: width)
+            XCTAssertEqual(MergeWhitespace.applying(.tabsToSpaces, to: "\t🦎\ttext", tabWidth: width), spaces + "🦎\ttext")
+            XCTAssertEqual(MergeWhitespace.applying(.spacesToTabs, to: spaces + "🦎\ttext", tabWidth: width), "\t🦎\ttext")
+            XCTAssertEqual(MergeWhitespace.applying(.tabsToSpaces, to: " \ttext", tabWidth: width), String(repeating: " ", count: width == 1 ? 2 : width) + "text")
+        }
         XCTAssertEqual(MergeWhitespace.applying(.tabsToSpaces, to: "  \t\tX", tabWidth: 3), "      X")
         XCTAssertEqual(MergeWhitespace.applying(.spacesToTabs, to: "  \t  X", tabWidth: 3), "\t  X")
         XCTAssertEqual(MergeWhitespace.applying(.spacesToTabs, to: "       X", tabWidth: 3), "\t\t X")

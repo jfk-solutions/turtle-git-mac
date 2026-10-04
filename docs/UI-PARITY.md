@@ -110,5 +110,10 @@ remain partial. See TEXT-MERGE-PARITY.md.
 The text merge context menu now includes upstream leading tabs/spaces
 conversion and Trim right, with single-step Undo and conditional availability.
 Native conversion, Undo and exact Unicode/CRLF Save bytes were verified.
-Configurable tab widths, EditorConfig and locale-specific Unicode trim remain
+Global tab-width preferences, EditorConfig and locale-specific Unicode trim remain
 pending. See TEXT-MERGE-PARITY.md.
+
+The merge editor now has independent 1/2/4/8 tab-width menus in each pane.
+Native width changes preserved clean state and Undo history; merged-result
+conversion and Save bytes at width eight were verified. Global persistence,
+insertion modes, Smart tab char and EditorConfig remain pending.
