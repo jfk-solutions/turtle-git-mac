@@ -97,10 +97,63 @@ actual Finder menu acceptance.
 
 ## Remaining parity
 
-Signed Finder menu activation, upstream progress/notifications and
-cancellation, recycle-bin preferences, post-Revert submodule comparison, copy and
+Signed Finder menu activation, remaining upstream progress notifications and
+post-command options, recycle-bin preferences, post-Revert submodule comparison, copy and
 case-only rename combinations, renamed-but-missing destinations and root-amend
 behavior still need audit. Native multi-selection, staged mode, amendment, conflict
 and submodule UI acceptance remain to be exercised. Signed sandbox Trash access
 and external-volume behavior are unverified. These source inventory entries
 remain partial; the app is not yet ready for App Store distribution.
+
+## Native Revert progress and cancellation
+
+The pinned `GitProgressDlg.cpp` and `.h` blobs were verified against the source
+inventory. `CGitProgressDlg` uses `IDD_SVNPROGRESS`: an action/path list above
+progress, information and OK/Cancel controls. The native Revert progress window
+follows that arrangement with original command artwork and colored terminal
+states. Accepting the selection closes the planning window before starting this
+window. Dedicated Revert keeps its terminal result open; Commit-list Revert
+requests successful auto-close unless submodules are selected. Failed/cancelled
+Commit-list Revert retains selection checks.
+
+Progress arrives in order through an asynchronous stream. Cancel, Escape or
+closing a running progress window requests cooperative cancellation. OK remains
+disabled until completion, repeated cancellation is disabled, and application
+Quit is blocked while the operation runs. Git batches contain at most 64 paths;
+checks between batches and filesystem operations stop subsequent changes. A
+running Git command finishes before cancellation takes effect. Cancellation
+before index publication preserves the original index, reports structured Trash
+URLs, and explicitly explains that completed working-file changes remain.
+The final recovery button reveals those copies in Finder.
+
+Five additional integration tests cover pre-cancellation, stopping after the
+first Trash operation, stopping before checkout, a 70-file checkout cancelled
+between batches, and successful progress with a literal added filename. Together
+with the eleven existing Revert tests, all 16 passed. The unsigned Xcode Debug
+build and embedded app/extension/59-icon audit passed. The complete Swift test
+suite passed 219 tests with zero failures.
+
+One disposable native preview used a delayed checkout filter. Quit was blocked
+while busy; Cancel changed the status and disabled itself. After the active
+checkout finished, the result showed cancellation with completed rows, enabled
+OK and the recovery button. HEAD and indexed contents matched their pre-operation
+values; checkout contents and the exact displaced working bytes in Trash were
+verified. Status refresh can update index stat metadata; this native check does
+not assert byte-identical index serialization. Core cancellation tests assert
+byte-identical indexes before any refresh. The real capture is
+`site/assets/revert-progress.png`. The finished progress window was closed;
+a subsequent accessibility observation timed out, so the same completed test
+process was terminated and process absence verified without reopening it.
+
+A second, sequential native run checked successful dedicated Revert: the result
+remained open with completed rows, enabled OK and disabled Cancel. Working and
+indexed contents matched HEAD; HEAD was unchanged and the exact displaced bytes
+were verified in Trash. Normal application Quit exited, and process absence was
+verified before any further UI acquisition. The unsigned App Store build and its
+app/extension/icons/pinned universal Git runtime audit also passed; this does not
+prove signed sandbox acceptance.
+
+Successful Commit-list native auto-close, native failure/retry, Escape/window-close variants,
+clipboard/reveal acceptance, dark progress rendering, global auto-close
+preferences, post-Revert submodule comparison, background animation and shared
+progress for other operations remain pending. These entries are partial.

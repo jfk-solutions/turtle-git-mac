@@ -259,6 +259,7 @@ import UniformTypeIdentifiers
     private func validateRestoreAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
+    var onRevert: ([StatusEntry], Bool, Bool, @escaping (Bool) -> Void) -> Void = { _, _, _, done in done(false) }
     func revertFiles(_ selected: [StatusEntry]) {
         guard !busy, !confirmingQuit, !selected.isEmpty else { return }
         if selected.contains(where: { [.modified, .conflicted].contains($0.state) }) {
@@ -269,14 +270,10 @@ import UniformTypeIdentifiers
             guard alert.runModal() == .alertSecondButtonReturn else { return }
         }
         busy = true
-        let amendment = amend, againstHead = amendDiffToLastCommit
-        Task {
-            do {
-                try validateRestoreAccess()
-                _ = try await repository.revertWorkingFiles(selected, amend: amendment, amendDiffToLastCommit: againstHead)
-                checked.subtract(selected.map(\.path)); selection.subtract(selected.map(\.path))
-            } catch { self.error = error.localizedDescription }
-            busy = false; reload(); refreshPartial()
+        onRevert(selected, amend, amendDiffToLastCommit) { [weak self] succeeded in
+            guard let self else { return }
+            if succeeded { self.checked.subtract(selected.map(\.path)); self.selection.subtract(selected.map(\.path)) }
+            self.busy = false; self.reload(); self.refreshPartial()
         }
     }
     func markForRestore(_ paths: Set<String>) {

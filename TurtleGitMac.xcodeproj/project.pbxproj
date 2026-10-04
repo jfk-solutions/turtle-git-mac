@@ -44,6 +44,7 @@
 		7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */; };
 		7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1559DC3926805ADF57166DCE /* CommitMessage.swift */; };
 		8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB86EFEBCB6909C206458540 /* LogWindow.swift */; };
+		885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */; };
 		8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1491F4A59F19B27A3FCCF966 /* PushWindow.swift */; };
 		8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */; };
 		90A423E07A63281C4163EAD0 /* Merge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D975B1620A435727724213D1 /* Merge.swift */; };
@@ -66,6 +67,7 @@
 		B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */; };
 		B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA121F2E317F86B146016B4E /* Rename.swift */; };
 		B9AFF3F19CAB2A9F7313754D /* TurtleGitCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */; };
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
 		D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */; };
 		D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A48D22D1E6D22153CBA3744 /* Push.swift */; };
@@ -148,6 +150,7 @@
 		0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rebase.swift; sourceTree = "<group>"; };
 		0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLabel.swift; sourceTree = "<group>"; };
 		102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConflictResolution.swift; sourceTree = "<group>"; };
+		1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertProgressWindow.swift; sourceTree = "<group>"; };
 		11C14DF0DFBA0B8AC513278E /* NOTICE */ = {isa = PBXFileReference; path = NOTICE; sourceTree = "<group>"; };
 		136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchTagWindow.swift; sourceTree = "<group>"; };
 		1491F4A59F19B27A3FCCF966 /* PushWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushWindow.swift; sourceTree = "<group>"; };
@@ -160,6 +163,7 @@
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
 		2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeLineEndings.swift; sourceTree = "<group>"; };
 		2FD299C13A57D2632BB2467B /* Pull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pull.swift; sourceTree = "<group>"; };
+		3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationCancellation.swift; sourceTree = "<group>"; };
 		326985003F83908822D7B91E /* MergeWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWindow.swift; sourceTree = "<group>"; };
 		331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRevert.swift; sourceTree = "<group>"; };
 		35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorPreferences.swift; sourceTree = "<group>"; };
@@ -272,6 +276,7 @@
 				6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */,
 				6CFEE049A0098A0212AD01DA /* ResetWindow.swift */,
 				D33C40A99A3883800E7C6431 /* ResolveWindow.swift */,
+				1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */,
 				E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
 				CC73279697B4174BE7ED4D66 /* StashWindow.swift */,
@@ -335,6 +340,7 @@
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
 				5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */,
 				F7809458AF943456197C0AC7 /* MergeWhitespace.swift */,
+				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
 				2FD299C13A57D2632BB2467B /* Pull.swift */,
 				7A48D22D1E6D22153CBA3744 /* Push.swift */,
 				0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */,
@@ -541,6 +547,7 @@
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,
 				FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */,
 				AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */,
+				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,
 				5F4478C2B26B372096688B52 /* Pull.swift in Sources */,
 				D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */,
 				D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */,
@@ -590,6 +597,7 @@
 				37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */,
 				DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */,
 				53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */,
+				885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */,
 				E0EF101FE5499CD99CF132F1 /* RevertWindow.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,
 				7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */,

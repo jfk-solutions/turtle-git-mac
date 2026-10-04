@@ -32,7 +32,7 @@ src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAY,Icon Overlays,pending-revie
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAYHANDLERS,Overlay Handlers,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROXY,Network,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMTP,Email,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_SVNPROGRESS,Progress,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SVNPROGRESS,Progress,partial
 src/Resources/TortoiseProcENG.rc,IDD_SIMPLEPROMPT,Authentication,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_INPUTDLG,Input,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSADV,Advanced Diff/Merge Settings,pending-review

@@ -8,6 +8,7 @@ public struct WorkingFileRevertResult: Sendable {
 
 public struct WorkingFileRevertFailure: LocalizedError, Sendable {
     public let gitError: String
+    public let wasCancelled: Bool
     public let trashedFiles: [URL]
     public var errorDescription: String? {
         gitError + (trashedFiles.isEmpty ? "" : "\n\nWorking files moved to Trash remain recoverable:\n" + trashedFiles.map(\.path).joined(separator: "\n"))
@@ -17,7 +18,8 @@ public struct WorkingFileRevertFailure: LocalizedError, Sendable {
 extension GitRepository {
     /// Revert selected status rows, preserving added working files and recycling
     /// replaced contents. The index is held privately until all Git steps pass.
-    public func revertWorkingFiles(_ selected: [StatusEntry], amend: Bool = false, amendDiffToLastCommit: Bool = false) throws -> WorkingFileRevertResult {
+    public func revertWorkingFiles(_ selected: [StatusEntry], amend: Bool = false, amendDiffToLastCommit: Bool = false, cancellation: OperationCancellation? = nil, progress: @Sendable (WorkingFileRevertProgress) -> Void = { _ in }) throws -> WorkingFileRevertResult {
+        try cancellation?.check()
         guard !selected.isEmpty, Set(selected.map(\.path)).count == selected.count,
               selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) else {
             throw GitFailure(arguments: ["revert"], code: 1, message: "Select versioned files to revert.")
@@ -35,6 +37,7 @@ extension GitRepository {
         var restore = Set<String>(), unstage = Set<String>(), recycle: [URL] = []
         // Validate every destination before locking the index or moving anything.
         for entry in selected {
+            try cancellation?.check()
             let location = try restoreLocation(entry.path)
             let attributes = try? manager.attributesOfItem(atPath: location.path)
             let directory = attributes?[.type] as? FileAttributeType == .typeDirectory
@@ -63,6 +66,7 @@ extension GitRepository {
                 recycle.append(location)
             }
         }
+        try cancellation?.check()
         var indexBytes = try run(["rev-parse", "--git-path", "index"]).stdout
         if indexBytes.last == 10 { indexBytes.removeLast() }
         let indexPath = String(decoding: indexBytes, as: UTF8.self)
@@ -75,22 +79,50 @@ extension GitRepository {
         do { try handle.write(contentsOf: Data(contentsOf: index)); try handle.close() }
         catch { try? handle.close(); throw error }
         let environment = ["GIT_INDEX_FILE": lock.path]
+        let recycling = Set(recycle).sorted(by: { $0.path < $1.path })
+        let total = unstage.count + recycling.count + submoduleRenames.count + restore.count
+        var completed = 0
+        func notify(_ step: WorkingFileRevertProgress.Step, _ path: String, finished: Bool) {
+            if finished { completed += 1 }
+            progress(WorkingFileRevertProgress(step: step, path: path, finished: finished, completed: completed, total: total))
+        }
+        // Bounded batches preserve Git startup performance and provide boundaries
+        // at which cancellation can stop before another group changes files.
+        func runBatches(_ paths: [String], step: WorkingFileRevertProgress.Step, arguments: [String]) throws {
+            for offset in stride(from: 0, to: paths.count, by: 64) {
+                try cancellation?.check()
+                let batch = Array(paths[offset..<min(offset + 64, paths.count)])
+                for path in batch { notify(step, path, finished: false) }
+                try cancellation?.check()
+                _ = try run(arguments + batch, environmentOverrides: environment)
+                for path in batch { notify(step, path, finished: true) }
+            }
+        }
         do {
-            if !unstage.isEmpty { _ = try run(["rm", "-f", "--cached", "--ignore-unmatch", "--"] + unstage.sorted(), environmentOverrides: environment) }
-            for location in Set(recycle).sorted(by: { $0.path < $1.path }) {
+            try runBatches(unstage.sorted(), step: .unstage, arguments: ["rm", "-f", "--cached", "--ignore-unmatch", "--"])
+            for location in recycling {
+                try cancellation?.check()
+                let path = String(location.path.dropFirst(root.path.count + 1))
+                notify(.recycle, path, finished: false)
+                try cancellation?.check()
                 var trashed: NSURL?
                 try manager.trashItem(at: location, resultingItemURL: &trashed)
                 if let trashed { trash.append(trashed as URL) }
+                notify(.recycle, path, finished: true)
             }
             for (new, old) in submoduleRenames {
+                try cancellation?.check(); notify(.move, new, finished: false)
+                try cancellation?.check()
                 _ = try run(["mv", "-f", "--", new, old], environmentOverrides: environment)
+                notify(.move, new, finished: true)
             }
-            if !restore.isEmpty { _ = try run(["restore", "--source=" + source, "--staged", "--worktree", "--"] + restore.sorted(), environmentOverrides: environment) }
+            try runBatches(restore.sorted(), step: .restore, arguments: ["restore", "--source=" + source, "--staged", "--worktree", "--"])
+            try cancellation?.check()
             let permissions = try manager.attributesOfItem(atPath: index.path)[.posixPermissions]
             if let permissions { try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: lock.path) }
             guard Darwin.rename(lock.path, index.path) == 0 else { throw GitFailure(arguments: ["revert"], code: 1, message: String(cString: strerror(errno))) }
         } catch {
-            throw WorkingFileRevertFailure(gitError: error.localizedDescription, trashedFiles: trash)
+            throw WorkingFileRevertFailure(gitError: error.localizedDescription, wasCancelled: error is OperationCancellationFailure, trashedFiles: trash)
         }
         return WorkingFileRevertResult(revertedPaths: selected.map(\.path), trashedFiles: trash)
     }

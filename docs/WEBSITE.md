@@ -81,3 +81,9 @@ The light/dark Revert captures use the disposable Revert dialog fixture. They
 show the actual checked direct-file/addition plan, original artwork and complete
 columns after native width/footer corrections. The gallery distinguishes URL
 routing checks from signed Finder extension activation.
+
+The Revert progress capture uses a disposable delayed-filter fixture. It records
+actual cooperative cancellation after the running checkout finishes, completed
+rows, the recovery location and terminal controls. It was inspected before being
+copied unchanged. HEAD, indexed contents and the exact Trash copy were checked;
+the preview was closed and its process absence verified.

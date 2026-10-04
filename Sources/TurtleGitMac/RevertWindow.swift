@@ -49,9 +49,9 @@ private final class RevertNativeWindow: NSWindow {
     private var paths: [String] = []
     private var hasLoaded = false
     var close: () -> Void = {}
-    var onChanged: (String) -> Void = { _ in }
+    var onAccepted: ([StatusEntry]) -> Void = { _ in }
     var onFileLog: (String) -> Void = { _ in }
-    var canApply: Bool { !busy && !confirmingQuit && !checked.isEmpty }
+    var canApply: Bool { !busy && !confirmingQuit && patch == nil && !checked.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
     func setScope(_ paths: [String]) {
         guard !busy, !confirmingQuit else { return }
@@ -82,16 +82,9 @@ private final class RevertNativeWindow: NSWindow {
     func apply() {
         guard canApply else { return }
         let selected = entries.filter { checked.contains($0.path) }
-        busy = true
-        Task {
-            do {
-                try validateAccess()
-                let result = try await repository.revertWorkingFiles(selected)
-                onChanged((result.trashedFiles.map { "Moved to Trash: " + $0.path } + result.revertedPaths.map { "Reverted: " + $0 }).joined(separator: "\n"))
-                busy = false; close()
-            } catch { self.error = error.localizedDescription; busy = false; reload() }
-        }
+        onAccepted(selected); close()
     }
+
     func diff(_ ids: Set<String>) {
         guard !busy, !confirmingQuit, !ids.isEmpty else { return }; busy = true
         Task { defer { busy = false }; do { patch = try await repository.workingTreeDiff(paths: ids.sorted()) } catch { self.error = error.localizedDescription } }

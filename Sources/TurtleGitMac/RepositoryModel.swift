@@ -32,6 +32,7 @@ import TurtleGitCore
     private var pushWindows: [String: PushWindowController] = [:]
     private var referenceWindows: [String: BranchTagWindowController] = [:]
     private var switchWindows: [String: SwitchWindowController] = [:]
+    private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
     private var revertWindows: [String: RevertWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
     private var mergeWindows: [String: MergeWindowController] = [:]
@@ -276,6 +277,10 @@ import TurtleGitCore
                 else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
             }
             controller.model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
+            controller.model.onRevert = { [weak self, weak model = controller.model] entries, amend, againstHead, done in
+                guard let self else { done(false); return }
+                self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), completion: done)
+            }
             controller.model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
             controller.model.configureLogPicker = { [weak self] log in
                 log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
@@ -525,14 +530,23 @@ import TurtleGitCore
         let controller = revertWindows[root.path] ?? RevertWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.revertWindows.removeValue(forKey: root.path) }
         controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
-        controller.model.onChanged = { [weak self] output in
+        controller.model.onAccepted = { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
+        revertWindows[root.path] = controller
+        controller.model.setScope(paths)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) {
+        let root = repository.root, id = UUID()
+        let controller = RevertProgressWindowController(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess)
+        controller.onClosed = { [weak self] in self?.revertProgressWindows.removeValue(forKey: id) }
+        controller.model.onFinished = { [weak self] output, succeeded in
+            completion(succeeded)
             self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        revertWindows[root.path] = controller
-        controller.model.setScope(paths)
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        revertProgressWindows[id] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
         let root = repository.root
