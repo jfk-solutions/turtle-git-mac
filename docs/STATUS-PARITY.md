@@ -60,3 +60,13 @@ The file menu now offers upstream Ignore name/extension and containing-folder ac
 for unversioned/deleted selections. [Ignore parity](IGNORE-PARITY.md) records rule
 semantics and native Commit/Working Tree handoff evidence; post-close restoration
 remains unverified.
+
+
+## Local-change index flags
+
+Skip worktree, Assume Unchanged and Unflag are now shared with Commit. The
+existing Show ignore local changes flagged files filter exposes flagged rows for
+unflagging. Native confirmation, restoration to Modified and assume-unchanged
+status were verified; Git tests cover clearing both flags and linked-worktree
+index separation. See [Commit's index flag audit](COMMIT-PARITY.md#index-flag-context-actions)
+for source review, test evidence and remaining acceptance work.

@@ -98,6 +98,18 @@ struct StatusRow: Identifiable {
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
+    func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile]) {
+        guard !busy, action.isAvailable(for: files), confirmIndexFlags(action) else { return }
+        busy = true
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try await repository.setIndexFlags(action, paths: files.map(\.id))
+            }
+            catch { self.error = error.localizedDescription }
+            busy = false; reload(); onChanged()
+        }
+    }
     func diff(_ ids: Set<String>, saving: Bool = false) {
         guard !busy else { return }; busy = true
         let paths = saving ? (filter.wholeProject ? [] : filter.paths) : files.filter { ids.contains($0.id) }.map(\.id)
@@ -152,6 +164,7 @@ struct StatusDialog: View {
                     Button { model.onAction(.rename, [path]) } label: { CommandLabel(title: "Rename…", icon: .rename) }
                 }
                 let selected = model.files.filter { ids.contains($0.id) }
+                IndexFlagsMenu(files: selected) { model.setFlags($0, files: selected) }
                 if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
                     ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onAction)
                 }
@@ -200,4 +213,20 @@ struct StatusDialog: View {
             VStack { Text("Unified Diff").font(.headline); OutputView(text: model.patch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }.padding(12)
         }
     }
+}
+
+
+struct IndexFlagsMenu: View {
+    let files: [WorkingTreeFile]
+    let action: (IndexFlagAction) -> Void
+    var body: some View {
+        ForEach(IndexFlagAction.allCases.filter { $0.isAvailable(for: files) }, id: \.self) { item in
+            Button { action(item) } label: { CommandLabel(title: item.rawValue, icon: .ignore) }
+        }
+    }
+}
+@MainActor func confirmIndexFlags(_ action: IndexFlagAction) -> Bool {
+    let alert = NSAlert(); alert.messageText = action.confirmation
+    alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+    return alert.runModal() == .alertSecondButtonReturn
 }

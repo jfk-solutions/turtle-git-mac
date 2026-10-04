@@ -93,8 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context commands: revert, skip-worktree, assume-unchanged,
-  restore after commit, blame, export and alternate editor. File log/open/reveal
+- Remaining file context commands: revert, restore after commit, blame, export and alternate editor. File log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -435,3 +434,47 @@ The file menu now offers upstream Ignore name/extension and containing-folder ac
 for unversioned/deleted selections. [Ignore parity](IGNORE-PARITY.md) records rule
 semantics and native Commit/Working Tree handoff evidence; post-close restoration
 remains unverified.
+
+
+## Index flag context actions
+
+Commit and Working Tree now expose Skip worktree and Assume Unchanged for
+eligible versioned selections. Working Tree also offers Unflag as skip-worktree
+and assume-unchanged for selections containing either flag. The pinned
+GitStatusListCtrl.cpp menu gates, command dispatch and
+SetGitIndexFlagsForSelectedFiles were reviewed, together with the confirmation
+strings and resourceshell.rc's exact Assume Unchanged label. The native menus
+use the existing original Ignore artwork; upstream gives these particular
+status-list entries no explicit icon resource.
+
+Both mark actions retain the other flag. Unflag clears both, without changing
+staged object IDs or working bytes. Git accepts one flag mode per invocation, so
+Unflag holds the real index lock, changes a private index twice and replaces the
+real index only after both succeed. It preserves index permissions and resolves
+the per-worktree index path. Eligibility is re-read with optional Git index
+refresh disabled before mutation; invalid mixed selections fail before a write.
+App Store builds require the model's active repository security scope.
+
+Native QA used one app at a time. Commit showed both actions for a modified file;
+Skip worktree's Return-default No preserved the row, while Yes removed it from
+the Commit list. Working Tree's Show ignore local changes flagged files exposed
+the skip-worktree row. Its Unflag confirmation restored Modified with the
+original added/removed line counts. Assume Unchanged then displayed its matching
+status. Process checks confirmed both test apps exited immediately after their
+checks. Working bytes, staged bytes and the single original commit were retained.
+An application-menu handoff attempt produced stale observer targets; Working
+Tree acceptance therefore used a separately launched status preview after the
+Commit preview had exited. No menu-handoff success is claimed.
+
+Real Git tests cover both flags simultaneously, clearing both, mixed staged and
+working contents, newline/Unicode and pathspec-looking filenames, invalid mixed
+selections, existing index locks, linked-worktree separation and index permissions.
+The first combined-clear attempt failed these tests because Git retained one
+flag; the locked private-index implementation fixes it. A second test exposed
+optional status-refresh writes changing permissions during validation; disabling
+that refresh fixes it. The 16 Working Tree/Git repository tests passed after
+those fixes. Final native rendering used the earlier sentence-case menu label;
+the final exact upstream capitalization and sandbox access guard were compiled
+and tested afterward; all six final Working Tree tests passed.
+Dark/multiple-selection/native error paths, staged rename
+and amend-comparison eligibility, and signed sandbox acceptance remain pending.

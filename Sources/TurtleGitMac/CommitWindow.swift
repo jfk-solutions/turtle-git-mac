@@ -142,6 +142,7 @@ import UniformTypeIdentifiers
     let access: RepositoryAccessLease?
     @Published var conflictRebase = false
     @Published var entries: [StatusEntry] = []
+    @Published var indexFlagFiles: [WorkingTreeFile] = []
     @Published var comparisonBase: String?
     @Published var stagedStatistics: [String: CommitFile] = [:]
     @Published var unstagedStatistics: [String: CommitFile] = [:]
@@ -239,6 +240,18 @@ import UniformTypeIdentifiers
         }.joined(separator: "\n") + (selected.isEmpty ? "" : "\n")
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
+    func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile]) {
+        guard !busy, action.isAvailable(for: files), confirmIndexFlags(action) else { return }
+        busy = true
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try await repository.setIndexFlags(action, paths: files.map(\.id))
+            }
+            catch { self.error = error.localizedDescription }
+            busy = false; reload()
+        }
+    }
     func moveToStage(_ paths: Set<String>, staged: Bool) {
         guard !busy, !paths.isEmpty else { return }; busy = true
         let valid = entries.filter { paths.contains($0.id) && $0.state != .conflicted }.map(\.path)
@@ -271,6 +284,7 @@ import UniformTypeIdentifiers
                 if amend && !hasParent { amendDiffToLastCommit = true }
                 comparisonBase = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : nil
                 entries = try await repository.commitDialogStatus(amendToParent: amendToParent); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
+                indexFlagFiles = try await repository.workingTreeStatus()
                 conflictRebase = (try await repository.conflictIsRebase())
                 statistics = Dictionary(try await repository.workingTreeFiles(amendToParent: amendToParent).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 stagedStatistics = Dictionary(try await repository.stagingFiles(staged: true, base: comparisonBase).map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
@@ -603,6 +617,7 @@ GroupBox("Changes made (double-click on file for diff):") {
             TableColumn("Lines removed") { entry in Text(statistics[entry.path]?.removed.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(95)
         }.contextMenu(forSelectionType: String.self) { ids in
             let selected = entries.filter { ids.contains($0.id) }
+            let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
             Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
             Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
             Divider()
@@ -613,6 +628,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                 Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
                 Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
             }
+            if flagFiles.count == selected.count { IndexFlagsMenu(files: flagFiles) { model.setFlags($0, files: flagFiles) } }
             if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
                 Divider()
                 ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onResolve)
