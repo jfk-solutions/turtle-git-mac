@@ -2405,7 +2405,7 @@ src/TortoiseProc/FormatPatchDlg.cpp,TortoiseProc,blob,b8ad0c02bb27397700a6aee773
 src/TortoiseProc/FormatPatchDlg.h,TortoiseProc,blob,0c6f835c35d32fab5a97c0fc94700edfac71fcb2,pending-review,,
 src/TortoiseProc/GitCliOutputParser.cpp,TortoiseProc,blob,719cd542dbb77314dedca6f28f6ad1c29eb43421,pending-review,,
 src/TortoiseProc/GitCliOutputParser.h,TortoiseProc,blob,dbbe922317200247c2be24a4dc278f4a37f569db,pending-review,,
-src/TortoiseProc/GitDiff.cpp,TortoiseProc,blob,df09c3c370bb1f86b3f71e4981a6b1d64892dce7,pending-review,,
+src/TortoiseProc/GitDiff.cpp,TortoiseProc,blob,df09c3c370bb1f86b3f71e4981a6b1d64892dce7,partial,Sources/TurtleGitCore/SubmoduleComparison.swift,Submodule metadata/ancestry/time classification audited against pinned blob; read-only superproject/checkout comparison implemented. Native Submodule Diff window; Update; Show Compare; ordinary diff branches remain pending. See SUBMODULE-DIFF-PARITY.md.
 src/TortoiseProc/GitDiff.h,TortoiseProc,blob,5f0ba216ff87f1054fa1a23d128fc75fd492fb14,pending-review,,
 src/TortoiseProc/GitLogCache.cpp,TortoiseProc,blob,e4c770a0c77be05f411064bbbd66e85198613df0,pending-review,,
 src/TortoiseProc/GitLogList.h,TortoiseProc,blob,6db02968f166adf7b2b1fb1df1410db5e341560a,partial,Sources/TurtleGitMac/LogWindow.swift; Sources/TurtleGitCore/CommitHistory.swift,"Native three-pane dialog, topology lanes, revision/file comparisons and selected revision actions; see docs/LOG-PARITY.md for remaining controls and menu items."

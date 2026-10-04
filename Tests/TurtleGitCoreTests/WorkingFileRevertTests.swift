@@ -91,6 +91,9 @@ final class WorkingFileRevertTests: XCTestCase {
             }
             let result = try await repo.revertWorkingFiles(selected)
             XCTAssertTrue(result.trashedFiles.isEmpty)
+            XCTAssertEqual(result.submodulePaths, [path])
+            let sourceRevision = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+            XCTAssertEqual(result.comparisonRevision, sourceRevision)
             let indexed = try await repo.run(["ls-files", "--stage", "--", path]).text
             XCTAssertTrue(indexed.hasPrefix("160000 " + expected + " 0\t"))
             let conflicts = try await repo.conflicts(); XCTAssertTrue(conflicts.isEmpty)
@@ -140,7 +143,8 @@ final class WorkingFileRevertTests: XCTestCase {
         let head = try await child.run(["rev-parse", "HEAD"]).stdout
         let selected = try await repo.status().filter { $0.path == "renamed-module" }
         XCTAssertEqual(selected.first?.originalPath, "module")
-        _ = try await repo.revertWorkingFiles(selected)
+        let result = try await repo.revertWorkingFiles(selected)
+        XCTAssertEqual(result.submodulePaths, ["module"])
         let restored = GitRepository(root: root.appendingPathComponent("module"))
         XCTAssertEqual(try Data(contentsOf: restored.root.appendingPathComponent("local.txt")), Data("child local edit".utf8))
         let afterHead = try await restored.run(["rev-parse", "HEAD"]).stdout

@@ -4,6 +4,10 @@ import Darwin
 public struct WorkingFileRevertResult: Sendable {
     public let revertedPaths: [String]
     public let trashedFiles: [URL]
+    /// Exact superproject tree used by this operation, for post-Revert comparison.
+    public let comparisonRevision: String
+    /// Submodule names after restoring any staged rename.
+    public let submodulePaths: [String]
 }
 
 public struct WorkingFileRevertFailure: LocalizedError, Sendable {
@@ -34,6 +38,7 @@ extension GitRepository {
         else { source = try run(["mktree"]).text.trimmingCharacters(in: .newlines) }
         let manager = FileManager.default
         var trash: [URL] = [], submoduleRenames: [(String, String)] = []
+        var submodulePaths = Set<String>()
         var restore = Set<String>(), unstage = Set<String>(), recycle: [URL] = []
         // Validate every destination before locking the index or moving anything.
         for entry in selected {
@@ -42,6 +47,7 @@ extension GitRepository {
             let attributes = try? manager.attributesOfItem(atPath: location.path)
             let directory = attributes?[.type] as? FileAttributeType == .typeDirectory
             let gitlink = try run(["ls-files", "--stage", "--", entry.path]).text.split(separator: "\n").contains { $0.hasPrefix("160000 ") }
+            if gitlink { submodulePaths.insert((entry.index == "R" || entry.worktree == "R") ? entry.originalPath ?? entry.path : entry.path) }
             if directory && !gitlink { throw WorkingFileRestoreFailure.unsupported }
             if let old = entry.originalPath, entry.index == "R" || entry.worktree == "R" {
                 let oldLocation = try restoreLocation(old)
@@ -124,6 +130,6 @@ extension GitRepository {
         } catch {
             throw WorkingFileRevertFailure(gitError: error.localizedDescription, wasCancelled: error is OperationCancellationFailure, trashedFiles: trash)
         }
-        return WorkingFileRevertResult(revertedPaths: selected.map(\.path), trashedFiles: trash)
+        return WorkingFileRevertResult(revertedPaths: selected.map(\.path), trashedFiles: trash, comparisonRevision: source, submodulePaths: submodulePaths.sorted())
     }
 }

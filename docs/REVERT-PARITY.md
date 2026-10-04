@@ -157,3 +157,8 @@ Successful Commit-list native auto-close, native failure/retry, Escape/window-cl
 clipboard/reveal acceptance, dark progress rendering, global auto-close
 preferences, post-Revert submodule comparison, background animation and shared
 progress for other operations remain pending. These entries are partial.
+
+Post-Revert comparison data now includes the exact resolved baseline revision
+and restored submodule names. The read-only classification backend and its tests
+are recorded in [SUBMODULE-DIFF-PARITY.md](SUBMODULE-DIFF-PARITY.md); the native
+Handle submodules action and comparison/Update windows remain pending.
