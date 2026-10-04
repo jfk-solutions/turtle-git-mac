@@ -51,9 +51,9 @@ extension GitRepository {
 
     func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions) throws -> String {
         let base = try commitComparisonBase(amendToParent: true)
-        return try commitSeparateSelection(message: message, checked: checked, options: options, base: base)
+        return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked))
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String) throws -> String {
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:]) throws -> String {
         let tracked = Set(try trackedPaths())
         let retainedDeletes = Set(checked.filter { $0.index == "D" && $0.hasUnversionedCopy }.map(\.path))
         var paths = checked.filter { !retainedDeletes.contains($0.path) }.map(\.path)
@@ -75,8 +75,10 @@ extension GitRepository {
         if !retainedDeletes.isEmpty {
             _ = try run(["update-index", "--force-remove", "--"] + retainedDeletes.sorted(), environmentOverrides: environment)
         }
+        try applySelectedFileModes(fileModes, environment: environment)
         try prepareCommitBranch(options.newBranch)
         try stage(realStage)
+        try applySelectedFileModes(fileModes)
         var args = ["commit", "-m", message]
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }

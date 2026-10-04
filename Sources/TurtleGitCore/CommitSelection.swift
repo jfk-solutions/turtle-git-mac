@@ -35,6 +35,12 @@ extension GitRepository {
         }
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"]) }
         if parentMode { return try commitParentSelection(message: message, checked: checked, options: options) }
+        let modes = try selectedStagedFileModes(checked)
+        if !modes.isEmpty {
+            let base = try (try? run(["rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines))
+                ?? (try run(["mktree"]).text.trimmingCharacters(in: .newlines))
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: modes)
+        }
         if checked.contains(where: { $0.index == "D" && $0.hasUnversionedCopy }) {
             // --only would read the retained working copy and silently re-add it.
             // Build the selected tree separately while leaving that copy on disk.
@@ -67,6 +73,45 @@ extension GitRepository {
         }
         args += ["--pathspec-from-file=" + file.path, "--pathspec-file-nul"]
         return try run(args).text
+    }
+
+    /// Preserve staged modes that differ from disk. Ordinary matching entries
+    /// can keep using --only without additional per-file Git processes.
+    func selectedStagedFileModes(_ checked: [StatusEntry]) throws -> [String: String] {
+        let paths = checked.filter { $0.index != " " && $0.index != "D" && $0.state != .deleted }.map(\.path)
+        var result: [String: String] = [:]
+        for offset in stride(from: 0, to: paths.count, by: 64) {
+            let batch = Array(paths[offset..<min(offset + 64, paths.count)])
+            for record in try run(["ls-files", "--stage", "-z", "--"] + batch).stdout.split(separator: 0) {
+                guard let tab = record.firstIndex(of: 9) else { continue }
+                let fields = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
+                guard fields.count == 3, fields[2] == "0", ["100644", "100755", "120000"].contains(String(fields[0])) else { continue }
+                let path = String(decoding: record[record.index(after: tab)...], as: UTF8.self)
+                let attributes = try FileManager.default.attributesOfItem(atPath: restoreLocation(path).path)
+                let diskMode: String
+                switch attributes[.type] as? FileAttributeType {
+                case .typeSymbolicLink: diskMode = "120000"
+                case .typeRegular:
+                    let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue ?? 0
+                    // Git's executable mode is determined by the owner bit.
+                    diskMode = permissions & 0o100 == 0 ? "100644" : "100755"
+                default: continue
+                }
+                if fields[0] != diskMode { result[path] = String(fields[0]) }
+            }
+        }
+        return result
+    }
+    func applySelectedFileModes(_ modes: [String: String], environment: [String: String] = [:]) throws {
+        for path in modes.keys.sorted() {
+            let records = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment).stdout.split(separator: 0)
+            guard records.count == 1, let record = records.first, let tab = record.firstIndex(of: 9) else {
+                throw GitFailure(arguments: ["commit"], code: 1, message: "Could not preserve the staged file mode for " + path)
+            }
+            let fields = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
+            guard fields.count == 3, fields[2] == "0" else { throw GitFailure(arguments: ["commit"], code: 1, message: "The selected file has unresolved index entries: " + path) }
+            _ = try run(["update-index", "--cacheinfo", modes[path]!, String(fields[1]), path], environmentOverrides: environment)
+        }
     }
 
     /// Staging mode commits the index exactly as it is, including partial files.

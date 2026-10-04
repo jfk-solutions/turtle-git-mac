@@ -690,8 +690,49 @@ HEAD and the previously staged entry stayed unchanged. The single QA app quit
 normally. `site/assets/commit-add.png` is the inspected actual refreshed window.
 
 Native Shift-menu exposure, extended-mode actions, staging/dark mode, cancellation
-and a dedicated upstream-style Add progress window remain pending. Explicit mode
-persistence through later whole-file re-staging/checkbox Commit needs macOS audit:
-normal Git add can recalculate modes from disk, especially with core.filemode=true.
-The explicit Add operation and staging-mode index behavior are implemented; full
-Add-dialog/progress and Commit completion parity remain partial.
+and a dedicated upstream-style Add progress window remain pending. Checkbox Commit
+now preserves staged modes that differ from disk while updating checked-file bytes,
+as detailed below. An explicit normal Add/Stage recalculates modes from disk;
+staging mode commits the current index directly. Full Add-dialog/progress and
+Commit completion parity remain partial.
+
+## Staged modes through checkbox Commit
+
+`PrepareIndexForCommitWithoutStagingSupport` updates checked entries with
+`git_index_add_bypath` or CLI `update-index`, while staging mode skips preparation.
+Our previous `git add` plus `git commit --only` path could discard an explicitly
+staged executable or symlink mode when disk still held a regular non-executable
+file. This made the extended Add commands ineffective in default checkbox mode.
+
+Checkbox Commit now captures selected staged regular/executable/symlink modes
+that differ from disk. It reads the latest checked-file bytes into a separate
+commit index, reapplies those modes to the commit and real indexes, and commits
+that prepared tree without --only. The existing separate-index path also handles
+parent-based amendments. Matching staged modes and wholly unstaged changes keep
+the ordinary path; unstaged native chmod changes still commit their disk mode.
+No global core.filemode/core.symlinks configuration is changed. Explicit normal
+Add/Stage replaces the mode intent with disk's current mode. Staging Commit retains
+its original behavior of committing the index exactly as supplied.
+
+The 27 focused Add, Commit-selection, amend, mode and removal tests passed. Four new
+mode tests include both explicit Add modes, later working edits, unchecked staged
+contents, literal Unicode/comma/newline filenames, unborn HEAD, parent amendments,
+ordinary unstaged chmod, staged executable-bit removal and resetting with normal
+Add. Disk-mode comparison follows Git’s owner execute bit, including a file with
+only another execute bit set. Actual tree/index modes, blobs, working permissions and unaffected staged
+entries are asserted.
+
+Native light-mode checkbox Commit was exercised with pre-staged executable and
+symlink entries backed by regular files and edited after staging. Both were checked;
+a third staged file was unchecked. The resulting commit contained 100755 and 120000
+with the latest exact working bytes. The unchecked file was excluded from the
+commit and retained its staged entry. Disk contents and permissions were unchanged;
+the only QA app quit normally. This verifies native Commit completion with the
+prepared modes, not Shift-menu invocation of extended Add.
+
+Native Shift extended Add, staging/dark mode, root/amend mode combinations, signed
+sandbox behavior and hook-driven changes to prepared indexes remain to be checked.
+Later unstaged disk type/permission changes after a successful commit still follow
+Git's macOS behavior; broader subsequent-commit virtual-link and executable-file
+usability remains under audit. Passing these cases does not establish full dialog
+parity or distribution readiness.

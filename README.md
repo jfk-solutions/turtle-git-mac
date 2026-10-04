@@ -77,6 +77,7 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Commit’s file menu adds unversioned paths explicitly; Shift reveals upstream
   executable/symlink index-mode choices without modifying working-file contents.
+  Checkbox Commit retains explicit staged modes while reading later working edits.
 - Commit’s separate editor command uses TextEdit or a saved custom macOS app,
   configured in Settings → Alternative Editor, with the original editor icon.
 - Commit file Export uses the original icon and a native folder chooser, preserving
