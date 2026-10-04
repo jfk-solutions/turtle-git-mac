@@ -15,6 +15,28 @@ public enum FileComparisonEditFailure: LocalizedError {
 /// AppKit selections refer to aligned display rows; gaps and display-only final
 /// newlines must never become bytes in the saved file.
 public enum FileComparisonEditing {
+    public enum BlockChoice: Sendable { case other, otherThenCurrent, currentThenOther }
+    public static func takingOtherBlock(_ alignment: FileComparisonAlignment, difference: Int, targetBase: Bool, choice: BlockChoice = .other) throws -> (text: String, caret: Int) {
+        guard alignment.differences.indices.contains(difference) else { throw FileComparisonEditFailure.range }
+        let range = alignment.differences[difference]
+        func target(_ row: FileComparisonRow) -> MergeSourceCell { targetBase ? row.base : row.destination }
+        func other(_ row: FileComparisonRow) -> MergeSourceCell { targetBase ? row.destination : row.base }
+        let original = alignment.rows.map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
+        let start = alignment.rows.prefix(range.lowerBound).map(target).filter { $0.lineNumber != nil }.reduce(0) { $0 + ($1.text as NSString).length }
+        let length = alignment.rows[range].map(target).filter { $0.lineNumber != nil }.reduce(0) { $0 + ($1.text as NSString).length }
+        let otherText = alignment.rows[range].map(other).filter { $0.lineNumber != nil }.map(\.text).joined()
+        let currentText = alignment.rows[range].map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
+        func both(_ first: String, _ second: String) -> String {
+            let separator = !first.isEmpty && !second.isEmpty && first.utf16.last != 10 && first.utf16.last != 13 ? (original.contains("\r\n") ? "\r\n" : "\n") : ""
+            return first + separator + second
+        }
+        let replacement: String
+        switch choice { case .other: replacement = otherText; case .otherThenCurrent: replacement = both(otherText, currentText); case .currentThenOther: replacement = both(currentText, otherText) }
+        return ((original as NSString).replacingCharacters(in: NSRange(location: start, length: length), with: replacement), start + (replacement as NSString).length)
+    }
+    public static func exported(_ content: ComparisonFileContent, editedText: String? = nil) throws -> Data {
+        try editedText.map { try encoded($0, like: content) } ?? content.bytes
+    }
     public static func applying(_ replacement: String, range: NSRange, cells: [MergeSourceCell]) throws -> (text: String, caret: Int) {
         let displayLength = cells.reduce(0) { $0 + ($1.displayText as NSString).length + 1 }
         guard range.location >= 0, range.length >= 0, range.location <= displayLength, range.length <= displayLength - range.location else { throw FileComparisonEditFailure.range }

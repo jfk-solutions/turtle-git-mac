@@ -176,10 +176,10 @@ draft; Reload Without Saving restored the previously saved file. Both sequential
 test instances exited normally. The existing gallery image shows the earlier
 historical read-only viewer; a new editing screenshot is still needed.
 
-Native Undo/Redo, dirty application Quit, Save and Reload, stale-save alert,
+Dirty application Quit, Save and Reload, stale-save alert,
 multi-window close, mixed line endings, gap typing, reversed-side UI, signed
-sandbox and light-mode acceptance remain pending. Historical editing/export,
-block/file transfer controls, full encoding choice, folding, locator and complete
+sandbox and light-mode acceptance remain pending. Historical editing,
+complete block/file transfer controls, full encoding choice, folding, locator and complete
 TortoiseMerge parity remain unfinished.
 
 Validation: all 246 integration tests passed, including the three new editing
@@ -187,6 +187,45 @@ tests. Final unsigned Debug/App Store builds, both bundle audits and the static
 Pages build passed. The App Store audit again verified universal Git 2.55.0,
 its 11 Mach-O files and local commands, the Finder extension, licenses and 60
 original icons. Signed execution and release approval are still unverified.
+
+## Block transfer, Undo/Redo and Save As follow-up
+
+Reviewed the pinned `RightView.cpp` UseLeftBlock/UseLeftFile and both-order
+context entries, plus `MainFrm.cpp` pane-specific Save As. The native viewer now
+offers Use other block, Use both blocks (this one first/last) and Use other file
+for its editable working side. A selected difference determines the block;
+caret selection or navigation selects it. Transferring excludes gaps, keeps
+source line endings and preserves a missing final newline. Combining two EOF
+blocks inserts a separating newline when needed. A CRLF suffix comparison bug
+found by the new tests was fixed without adding blank lines.
+
+Both transfers and typing use an owned UndoManager, with original Undo/Redo
+toolbar artwork and Command-Z/Command-Shift-Z. Reload and closure clear that
+window's history. Save As offers left/right pane choices in a native save sheet,
+with the repository as its initial directory. Historical/binary exports retain
+raw bytes. The editable pane exports its draft with the original BOM/encoding;
+export does not save that draft back to the source or clear its dirty state.
+
+Two new core tests cover replacement, insertion, deletion, reversed transfers,
+both block orders, CRLF, EOF and byte-distinct Unicode, invalid difference
+selection, binary export and encoded draft export. One native QA process
+verified whole-file transfer, Undo/Redo, both blocks with the working block last,
+Save As of the resulting draft and exact exported bytes. Its source working
+file, parent/child HEADs and index bytes stayed unchanged. The draft was undone
+before normal Quit, and process absence was verified. The inspected unedited
+capture `two-file-edit-dark.png` shows the current toolbar and transfer controls.
+
+Native arbitrary multi-line block selection/context menus, marked-block
+operations, left-pane export, binary export, other block order, reverse-side
+editing, undo caret restoration and keyboard shortcuts still need acceptance.
+Historical editing, light-mode capture, full image controls, word diff, locator,
+folding, complete settings and signed sandbox execution remain unfinished.
+
+Validation: all 248 integration tests passed. Unsigned Debug and App Store builds,
+both bundle audits and the static Pages build passed. The App Store audit
+verified the universal Git 2.55.0 runtime and its local commands, embedded Finder
+extension, licenses and 60 original icon resources. These are packaging and
+compilation checks; signed activation and release approval remain unverified.
 
 ## Revision selection and metadata follow-up
 

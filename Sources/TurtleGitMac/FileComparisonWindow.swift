@@ -6,6 +6,9 @@ import TurtleGitCore
     weak var model: FileComparisonWindowModel?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
+            if flags.contains(.shift) { model?.redo() } else { model?.undo() }; return true
+        }
         if flags == .command, event.charactersIgnoringModifiers == "s" { model?.save(); return true }
         if flags == .command, event.charactersIgnoringModifiers == "f" { model?.find(.showFindInterface); return true }
         if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "g" {
@@ -24,11 +27,12 @@ import TurtleGitCore
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 800, height: 440)
         window.contentViewController = NSHostingController(rootView: FileComparisonDialog(model: model))
-        super.init(window: window); window.model = model; window.delegate = self
+        super.init(window: window); window.model = model; window.delegate = self; model.window = window
+        window.setContentSize(NSSize(width: 1120, height: 720))
         window.setFrameAutosaveName("TurtleGit.TwoFileDiff"); window.center()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.busy, !model.confirmingQuit else { return false }
+        guard sender.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
         let alert = NSAlert(); alert.messageText = "Save changes to “\(model.path)” before closing?"
         alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
@@ -55,6 +59,34 @@ import TurtleGitCore
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
     @Published var editingEnabled = false
     @Published var editedText = ""
+    @Published var canUndo = false
+    @Published var canRedo = false
+    weak var window: NSWindow?
+    var undo: () -> Void = {}
+    var redo: () -> Void = {}
+    var replaceText: (String, Int) -> Void = { _, _ in }
+    var canTransfer: Bool { editingEnabled && editableBase != nil && alignment != nil && !busy && !confirmingQuit }
+    func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other) {
+        guard canTransfer, let alignment, let base = editableBase else { return }
+        do { let edit = try FileComparisonEditing.takingOtherBlock(alignment, difference: difference, targetBase: base, choice: choice); replaceText(edit.text, edit.caret) }
+        catch { self.error = error.localizedDescription }
+    }
+    func useOtherFile() {
+        guard canTransfer, let document, let base = editableBase, let text = base ? document.destination.text : document.base.text else { return }
+        replaceText(text, 0)
+    }
+    func export(base: Bool) {
+        guard !busy, !confirmingQuit, let window, window.attachedSheet == nil, let document else { return }
+        let content = base ? document.base : document.destination
+        do {
+            let bytes = try FileComparisonEditing.exported(content, editedText: editableBase == base ? editedText : nil)
+            let panel = NSSavePanel(); panel.nameFieldStringValue = (content.path as NSString).lastPathComponent; panel.canCreateDirectories = true; panel.directoryURL = repository.root
+            panel.beginSheetModal(for: window) { [weak self] response in
+                guard response == .OK, let url = panel.url else { return }
+                do { try bytes.write(to: url, options: .atomic) } catch { self?.error = error.localizedDescription }
+            }
+        } catch { self.error = error.localizedDescription }
+    }
     var editableBase: Bool? {
         guard let document else { return nil }
         for (base, content) in [(true, document.base), (false, document.destination)] where content.revision == .workingTree && ["100644", "100755"].contains(content.mode ?? "") && content.text != nil { return base }
@@ -159,6 +191,9 @@ private struct FileComparisonDialog: View {
         VStack(spacing: 0) {
             HStack {
                 Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.dirty)
+                Menu { Button("Save left pane as…") { model.export(base: true) }; Button("Save right pane as…") { model.export(base: false) } } label: { CommandLabel(title: "Save As", icon: .mergeSaveAs) }.disabled(model.document == nil)
+                Button { model.undo() } label: { Image(nsImage: MenuIcon.mergeUndo.image() ?? NSImage()) }.help("Undo").accessibilityLabel("Undo").disabled(!model.canUndo)
+                Button { model.redo() } label: { Image(nsImage: MenuIcon.mergeRedo.image() ?? NSImage()) }.help("Redo").accessibilityLabel("Redo").disabled(!model.canRedo)
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }
                 Button { model.navigate(-1) } label: { CommandLabel(title: "Previous difference", icon: .mergePreviousConflict) }.disabled(model.difference <= 0)
                 Button { model.navigate(1) } label: { CommandLabel(title: "Next difference", icon: .mergeNextConflict) }.disabled(model.alignment?.differences.isEmpty != false || model.difference >= (model.alignment?.differences.count ?? 0) - 1)
@@ -166,6 +201,15 @@ private struct FileComparisonDialog: View {
                 Spacer()
             }.padding(10).disabled(model.busy || model.confirmingQuit)
             HStack { Toggle("Enable editing", isOn: $model.editingEnabled).disabled(model.editableBase == nil || model.busy || model.confirmingQuit); Spacer(); Toggle("Line numbers", isOn: $model.showLineNumbers) }.toggleStyle(.checkbox).padding(.horizontal, 10).padding(.bottom, 8)
+            HStack {
+                Menu {
+                    Button { model.useOtherBlock() } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }
+                    Button { model.useOtherBlock(.currentThenOther) } label: { CommandLabel(title: "Use both blocks, this one first", icon: .mergeMineThenTheirs) }
+                    Button { model.useOtherBlock(.otherThenCurrent) } label: { CommandLabel(title: "Use both blocks, this one last", icon: .mergeTheirsThenMine) }
+                } label: { CommandLabel(title: "Use other block", icon: .mergeUseTheirs) }.disabled(!model.canTransfer || model.alignment?.differences.indices.contains(model.difference) != true)
+                Button { model.useOtherFile() } label: { CommandLabel(title: "Use other file", icon: .mergeUseTheirs) }.disabled(!model.canTransfer)
+                Spacer()
+            }.padding(.horizontal, 10).padding(.bottom, 8)
             Divider()
             HSplitView { pane(base: true); pane(base: false) }
             Divider()
@@ -184,7 +228,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
     let cells: [MergeSourceCell]
     let base: Bool
     func makeNSView(context: Context) -> NSScrollView {
-        let view = NSTextView(); view.isEditable = false; view.isRichText = false
+        let view = FileComparisonTextView(); view.isEditable = false; view.isRichText = false
         view.allowsUndo = true; view.delegate = context.coordinator
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticSpellingCorrectionEnabled = false
@@ -200,7 +244,13 @@ private struct FileComparisonEditor: NSViewRepresentable {
         scroll.hasVerticalRuler = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         scroll.contentView.postsBoundsChangedNotifications = true
         context.coordinator.scroll = scroll
-        if model.editableBase == base { model.resetHistory = { [weak view] in view?.undoManager?.removeAllActions() } }
+        if model.editableBase == base {
+            model.resetHistory = { [weak coordinator = context.coordinator] in coordinator?.history.removeAllActions(); coordinator?.updateUndoState() }
+            model.undo = { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.undo(); coordinator.updateUndoState() }
+            model.redo = { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.redo(); coordinator.updateUndoState() }
+            model.replaceText = { [weak coordinator = context.coordinator] text, caret in coordinator?.replace(text, caret: caret) }
+            view.history = context.coordinator.history
+        }
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.scrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
         model.register(scroll, base: base)
         return scroll
@@ -235,6 +285,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
         weak var scroll: NSScrollView?
         var cells: [MergeSourceCell] = []
         var base = false
+        let history = UndoManager()
         init(model: FileComparisonWindowModel) { self.model = model }
         @objc func scrolled(_ notification: Notification) { if let scroll { model.scrolled(scroll) } }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
@@ -245,18 +296,32 @@ private struct FileComparisonEditor: NSViewRepresentable {
             } catch { model.error = error.localizedDescription }
             return false
         }
-        private func replace(_ text: String, caret: Int) {
+        func textViewDidChangeSelection(_ notification: Notification) {
+            guard let view = notification.object as? NSTextView, let alignment = model.alignment else { return }
+            let offset = min(view.selectedRange().location, (view.string as NSString).length)
+            let row = (view.string as NSString).substring(to: offset).components(separatedBy: "\n").count - 1
+            let selected = alignment.differences.firstIndex { $0.contains(row) } ?? -1
+            DispatchQueue.main.async { if self.model.difference != selected { self.model.difference = selected } }
+        }
+        func updateUndoState() { model.canUndo = history.canUndo; model.canRedo = history.canRedo }
+        func replace(_ text: String, caret: Int) {
             guard !model.busy, !model.confirmingQuit else { return }
             let old = model.editedText
             guard !old.utf8.elementsEqual(text.utf8) else { return }
-            (scroll?.documentView as? NSTextView)?.undoManager?.registerUndo(withTarget: self) { target in target.replace(old, caret: min(caret, (old as NSString).length)) }
+            history.registerUndo(withTarget: self) { target in target.replace(old, caret: min(caret, (old as NSString).length)) }
+            history.setActionName("Edit comparison")
             model.editedText = text; model.selectionRequest = caret; model.rebuildAlignment()
             if let alignment = model.alignment, let view = scroll?.documentView as? NSTextView {
                 cells = alignment.rows.map { base ? $0.base : $0.destination }
                 view.textStorage?.setAttributedString(FileComparisonEditor.attributed(cells, font: view.font!))
                 view.setSelectedRange(NSRange(location: min(FileComparisonEditing.displayOffset(sourceOffset: caret, cells: cells), (view.string as NSString).length), length: 0))
             }
+            DispatchQueue.main.async { self.updateUndoState() }
         }
         deinit { NotificationCenter.default.removeObserver(self) }
     }
+}
+private final class FileComparisonTextView: NSTextView {
+    var history: UndoManager?
+    override var undoManager: UndoManager? { history ?? super.undoManager }
 }

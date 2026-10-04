@@ -2,6 +2,29 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testBlockTransfersHandleReplacementInsertionDeletionReverseAndBothOrders() throws {
+        let a = "common\r\nold\r\nend", b = "common\r\nnew\r\nextra\r\nend"
+        let alignment = FileComparisonAlignment(base: a, destination: b)
+        XCTAssertEqual(try FileComparisonEditing.takingOtherBlock(alignment, difference: 0, targetBase: false).text, a)
+        XCTAssertEqual(try FileComparisonEditing.takingOtherBlock(alignment, difference: 0, targetBase: true).text, b)
+        XCTAssertEqual(try FileComparisonEditing.takingOtherBlock(alignment, difference: 0, targetBase: false, choice: .otherThenCurrent).text, "common\r\nold\r\nnew\r\nextra\r\nend")
+        XCTAssertEqual(try FileComparisonEditing.takingOtherBlock(alignment, difference: 0, targetBase: false, choice: .currentThenOther).text, "common\r\nnew\r\nextra\r\nold\r\nend")
+        for (old, new) in [("", "added\n"), ("removed\n", ""), ("old", "new"), ("é\n", "e\u{301}\n")] {
+            let comparison = FileComparisonAlignment(base: old, destination: new)
+            XCTAssertEqual(Data(try FileComparisonEditing.takingOtherBlock(comparison, difference: 0, targetBase: false).text.utf8), Data(old.utf8))
+            XCTAssertEqual(Data(try FileComparisonEditing.takingOtherBlock(comparison, difference: 0, targetBase: true).text.utf8), Data(new.utf8))
+        }
+        let noEnd = FileComparisonAlignment(base: "old", destination: "new")
+        XCTAssertEqual(try FileComparisonEditing.takingOtherBlock(noEnd, difference: 0, targetBase: false, choice: .otherThenCurrent).text, "old\nnew")
+        XCTAssertThrowsError(try FileComparisonEditing.takingOtherBlock(alignment, difference: 99, targetBase: false))
+    }
+    func testExportRetainsRawBinaryAndUsesDraftEncodingWithoutSourceChanges() throws {
+        let binary = ComparisonFileContent(path: "binary", revision: .revision("pinned"), bytes: Data([0, 1, 255]), mode: "100644")
+        XCTAssertEqual(try FileComparisonEditing.exported(binary), binary.bytes)
+        let utf16 = ComparisonFileContent(path: "text", revision: .workingTree, bytes: Data([0xff, 0xfe]) + "before\r\n".data(using: .utf16LittleEndian)!, mode: "100644")
+        XCTAssertEqual(try FileComparisonEditing.exported(utf16, editedText: "draft 雪"), Data([0xff, 0xfe]) + "draft 雪".data(using: .utf16LittleEndian)!)
+        XCTAssertEqual(utf16.text, "before\r\n")
+    }
     func testAlignedEditsExcludeGapsAndPreserveEndingsAndEOF() throws {
         let aligned = FileComparisonAlignment(base: "removed\r\nkeep\r\nend", destination: "keep\r\nend")
         let cells = aligned.rows.map(\.destination)
