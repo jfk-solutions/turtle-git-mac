@@ -37,7 +37,10 @@ code-page choices. Previous-revision Blame retains the applied encoding and
 whitespace/move/copy options. Five upstream detection modes and separate within-file
 and between-file character thresholds are available, along with first-parent
 attribution through merges. Native Blame Settings and viewer controls save
-annotation defaults for future windows. Full menus, syntax highlighting and
+annotation defaults for future windows. Font, tab width and separate light/dark
+age-color settings are available; native font/tab persistence and alignment are
+verified, while custom color selection and live updates still need acceptance.
+Full menus, syntax highlighting and
 encoding parity remain pending. See [Blame parity](docs/BLAME-PARITY.md).
 
 - Open normal repositories and linked worktrees; show branch and status.

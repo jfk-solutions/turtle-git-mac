@@ -447,6 +447,46 @@ historical line and unchanged index/worktree/HEAD assertions are retained.
 Production Blame behavior is unchanged. CI reports the system Git version as
 well as PATH Git, since integration tests use `/usr/bin/git`.
 
+## Native presentation settings
+
+Blame Settings now groups Colors, Font and Blame controls in the upstream order.
+The native presentation defaults are Menlo 10 points and tab width 4; Menlo
+replaces the Windows Consolas default. Installed fixed-width font families can be selected,
+with a native monospaced fallback for missing families. Font and tab sizes are
+validated from 1 through 1000, a native limit rather than upstream DWORD parity.
+The editable native size combo offers upstream presets 6 through 30 in steps
+of 2. Native QA observed Andale Mono, Courier New, Menlo, Monaco and PT Mono,
+all thirteen size presets and successful typed size entry. Preset selection by
+mouse/keyboard and font preview drawing still need native acceptance.
+
+Source cells use attributed Cocoa text with tab intervals measured from the
+selected font's space width. Row heights and source widths update with the
+presentation settings. Tabs, source BOM and CR display handling do not rewrite
+historical bytes or the source used by clipboard actions. Colors retain upstream
+integer interpolation and default yellow/white and dark yellow/gray endpoints.
+Separate saved light and dark endpoints are exposed through native color wells;
+Restore Default restores colors without resetting font or annotation choices.
+Settings Apply broadcasts presentation and annotation defaults to open viewers.
+
+Two presentation tests cover saved values, field independence, malformed values,
+range handling and custom/default light/dark interpolation. All 280 core tests
+passed after the CI rename fixture correction. Swift and unsigned Debug/AppStore
+builds and both bundle audits passed; the packaged runtime audit verified 11
+universal Mach-O files and Git 2.55.0 integration behavior.
+
+Native QA saved Menlo 14 and tab width 8, verified those isolated preferences after
+Quit, then opened a new viewer. The actual viewer showed larger source text,
+leading and intervening tabs at the expected eight-space intervals, including
+Unicode and emoji source lines. HEAD, index and source bytes were unchanged.
+Each QA process was quit before another launch, and no app process remained.
+`site/assets/blame-presentation-settings.png` is the inspected actual Settings
+capture (1240 by 1396). An earlier source screenshot did not finish writing before Quit; the subsequent
+final viewer capture was saved and inspected before Quit and is published as
+`site/assets/blame-font-tabs-light.png` (2240 by 1464). Native custom-color selection, dark/Restore Default,
+invalid-size input, other fonts, preset selection, multi-window updates, unsaved Cancel and
+accessibility checks remain pending. Full Log settings and editor layout remain
+partial.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;
@@ -456,8 +496,8 @@ well as PATH Git, since integration tests use `/usr/bin/git`.
   revision/block navigation.
 - Clipboard presentation/localized dates, export commands and remaining original
   menu icons.
-- Complete Blame settings layout, revision chooser, font/tab/color and log
-  preferences; native multi-window updates and unsaved Cancel acceptance.
+- Complete Blame settings layout, revision chooser, font preview drawing,
+  native preset/color acceptance and log preferences; native multi-window updates and unsaved Cancel acceptance.
 - Persistent/system encoding defaults, chooser/accessibility parity, unsupported
   codecs and byte-LF within other UTF-16 code units; binary, malformed text and
   symlinks remain unsupported.

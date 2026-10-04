@@ -62,7 +62,7 @@ import TurtleGitCore
                 AppearanceSettings(appearance: appearance).tabItem { Label("Appearance", systemImage: "circle.lefthalf.filled") }
                 MergeEditorSettings().tabItem { Label("Merge Editor", systemImage: "arrow.triangle.merge") }
                 BlameSettings().tabItem { Label("Blame", systemImage: "text.alignleft") }
-            }.frame(width: 520, height: 380)
+            }.frame(width: 620, height: 610)
         }
     }
 }

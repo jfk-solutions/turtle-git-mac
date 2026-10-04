@@ -41,6 +41,22 @@ private struct BlameParentMenuTarget {
     @Published var withinFileCharacters = "20"
     @Published var betweenFileCharacters = "40"
     @Published var colorAge = true
+    @Published var presentation = GitBlamePresentation.load()
+    private var cachedSourceFont: (String, Int, NSFont)?
+    var sourceFont: NSFont {
+        if let cachedSourceFont, cachedSourceFont.0 == presentation.fontName, cachedSourceFont.1 == presentation.fontSize { return cachedSourceFont.2 }
+        let font = NSFontManager.shared.font(withFamily: presentation.fontName, traits: [], weight: 5, size: CGFloat(presentation.fontSize)) ?? .monospacedSystemFont(ofSize: CGFloat(presentation.fontSize), weight: .regular)
+        cachedSourceFont = (presentation.fontName, presentation.fontSize, font)
+        return font
+    }
+    func displayedSource(_ line: GitBlameLine) -> NSAttributedString {
+        var source = line.source
+        while source.hasSuffix("\r") { source.removeLast() }
+        if line.number == 1, source.hasPrefix("\u{feff}") { source.removeFirst() }
+        let style = NSMutableParagraphStyle(); style.tabStops = []; style.defaultTabInterval = (" " as NSString).size(withAttributes: [.font: sourceFont]).width * CGFloat(presentation.tabSize)
+        style.lineBreakMode = .byClipping
+        return NSAttributedString(string: source, attributes: [.font: sourceFont, .paragraphStyle: style])
+    }
     @Published var sourceEncoding: GitBlameEncoding?
     @Published var selection: Int?
     @Published var parentChoices: [GitBlameParentComparison] = []
@@ -127,6 +143,7 @@ private struct BlameParentMenuTarget {
         ignoreWhitespace = enabled; GitBlamePreferences.update { $0.ignoreWhitespace = enabled }; reload(saveThresholds: true)
     }
     func applyPreferences() {
+        presentation = .load()
         var options = GitBlamePreferences.load(); options.encoding = sourceEncoding
         configure(options: options, line: selection)
     }
@@ -324,10 +341,11 @@ private struct BlameTable: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model
         guard let table = coordinator.table else { return }
         coordinator.updating = true
-        if coordinator.revision != model.snapshot?.revision {
+        if coordinator.revision != model.snapshot?.revision || coordinator.presentation != model.presentation {
             coordinator.revision = model.snapshot?.revision
-            let font = NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
-            let width = model.lines.reduce(CGFloat(600)) { max($0, ($1.source as NSString).size(withAttributes: [.font: font]).width + 24) }
+            coordinator.presentation = model.presentation
+            table.rowHeight = max(22, model.sourceFont.ascender - model.sourceFont.descender + model.sourceFont.leading + 6)
+            let width = model.lines.reduce(CGFloat(600)) { max($0, model.displayedSource($1).size().width + 24) }
             table.tableColumns.last?.width = width
         }
         table.reloadData()
@@ -342,6 +360,7 @@ private struct BlameTable: NSViewRepresentable {
         weak var table: NSTableView?
         var updating = false
         var revision: String?
+        var presentation: GitBlamePresentation?
         init(_ model: BlameWindowModel) { self.model = model }
         func numberOfRows(in tableView: NSTableView) -> Int { model.lines.count }
         func tableViewSelectionDidChange(_ notification: Notification) {
@@ -350,18 +369,16 @@ private struct BlameTable: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
             guard row < model.lines.count else { return nil }; let line = model.lines[row]
             let id = tableColumn?.identifier.rawValue ?? "source"
-            var source = line.source
-            while source.hasSuffix("\r") { source.removeLast() }
-            if row == 0, source.hasPrefix("\u{feff}") { source.removeFirst() }
             let value: String
             switch id {
             case "revision": value = String(line.hash.prefix(8))
             case "author": value = line.author
             case "date": value = DateFormatter.localizedString(from: line.date, dateStyle: .short, timeStyle: .short)
             case "line": value = String(line.number)
-            default: value = source
+            default: value = model.displayedSource(line).string
             }
             let label = NSTextField(labelWithString: value); label.font = id == "source" || id == "revision" ? .monospacedSystemFont(ofSize: 12, weight: .regular) : .systemFont(ofSize: 12)
+            if id == "source" { label.attributedStringValue = model.displayedSource(line) }
             label.lineBreakMode = .byClipping; label.maximumNumberOfLines = 1
             label.toolTip = "\(line.hash)\n\(line.author)\n\(line.summary)\n\(line.filename):\(line.originalLine)"
             label.textColor = [1, 2].contains(model.highlightKind(line)) ? .alternateSelectedControlTextColor : .labelColor
@@ -371,13 +388,8 @@ private struct BlameTable: NSViewRepresentable {
             let view = BlameRowView()
             guard row < model.lines.count else { return view }
             let dark = tableView.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
-            let old = dark ? [32, 32, 32] : [255, 255, 255], new = dark ? [80, 80, 0] : [255, 255, 80]
-            var slider = 0
-            if model.colorAge, let rank = model.ranks[model.lines[row].hash] {
-                slider = min(100, max(0, (model.historyCount - rank) * 100 / (model.historyCount + 1)))
-            }
-            func component(_ index: Int) -> CGFloat { CGFloat((new[index] * slider + old[index] * (100 - slider)) / 100) / 255 }
-            view.ageColor = NSColor(srgbRed: component(0), green: component(1), blue: component(2), alpha: 1)
+            let color = model.presentation.ageColor(rank: model.ranks[model.lines[row].hash], historyCount: model.historyCount, dark: dark, enabled: model.colorAge)
+            view.ageColor = NSColor(srgbRed: CGFloat((color >> 16) & 255) / 255, green: CGFloat((color >> 8) & 255) / 255, blue: CGFloat(color & 255) / 255, alpha: 1)
             switch model.highlightKind(model.lines[row]) {
             case 1: view.ageColor = dark ? NSColor(srgbRed: 0, green: 30.0 / 255, blue: 80.0 / 255, alpha: 1) : .selectedContentBackgroundColor
             case 2:
