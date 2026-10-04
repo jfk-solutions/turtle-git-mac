@@ -38,12 +38,18 @@ public enum RevisionComparisonFailure: LocalizedError {
 extension GitRepository {
     /// Ordinary file Diff uses HEAD-to-working content, including staged edits.
     /// Explicit untracked selections use an empty base without staging them.
-    public func workingFileComparison(paths: [String]) throws -> RevisionComparisonSnapshot {
+    public func workingFileComparison(paths: [String], amendToParent: Bool = false) throws -> RevisionComparisonSnapshot {
         guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
         for path in paths { _ = try restoreLocation(path) }
         let head = try run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1)
         let from: ComparisonRevision
-        if head.exitCode == 0 { from = .revision(String(decoding: head.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)) }
+        if head.exitCode == 0 {
+            let hash = String(decoding: head.stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
+            if amendToParent {
+                let parents = try run(["rev-list", "--parents", "-n", "1", hash]).text.split(whereSeparator: \.isWhitespace)
+                from = parents.count > 1 ? .revision(String(parents[1])) : .emptyTree
+            } else { from = .revision(hash) }
+        }
         else {
             let ref = try run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
             guard try run(["show-ref", "--verify", "--quiet", ref], successfulExitCodes: 0...1).exitCode == 1 else { throw RevisionComparisonFailure.range }

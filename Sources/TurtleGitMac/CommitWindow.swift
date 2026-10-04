@@ -181,6 +181,7 @@ import UniformTypeIdentifiers
     var showMessageHistory: (@escaping (String) -> Void) -> Void = { _ in }
     var pickRevision: (Bool, @escaping (String) -> Void) -> Void = { _, _ in }
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
+    var onCompare: ([String], Bool) -> Void = { _, _ in }
     var onFileLog: (String) -> Void = { _ in }
     var onResolve: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onIgnore: (RepositoryAction, [String]) -> Void = { _, _ in }
@@ -468,6 +469,11 @@ import UniformTypeIdentifiers
             } catch { self.error = "Configure your Git user name and email before adding a sign-off.\n" + error.localizedDescription }
         }
     }
+    func compare(paths selected: Set<String>) {
+        guard !busy, !confirmingQuit else { return }
+        let paths = entries.filter { selected.contains($0.id) }.map(\.path)
+        guard !paths.isEmpty else { return }; onCompare(paths, amendToParent)
+    }
     func diff(paths selected: Set<String>, staged: Bool? = nil) {
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }
@@ -725,7 +731,7 @@ GroupBox("Changes made (double-click on file for diff):") {
         }.contextMenu(forSelectionType: String.self) { ids in
             let selected = entries.filter { ids.contains($0.id) }
             let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
-            Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
+            Button { model.compare(paths: ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
             Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
             Divider()
             if staged != nil {
@@ -784,7 +790,7 @@ GroupBox("Changes made (double-click on file for diff):") {
         } primaryAction: { ids in
             selection.wrappedValue = ids
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
-            else { model.diff(paths: ids, staged: staged) }
+            else { model.compare(paths: ids) }
         }
     }
     func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }

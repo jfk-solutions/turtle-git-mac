@@ -53,10 +53,11 @@ bundle structure; it is not a signed distribution.
   original XPStyle status artwork for Finder badges and app file status.
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
-- Ordinary file Diff from Finder requests, app menus and Working Tree routes to the
+- Ordinary file Diff from Finder requests, app menus, Commit and Working Tree routes to the
   native two-pane viewer, comparing HEAD with working contents including staged edits.
   Folder Diff opens Working Tree; unified/index diff inspection remains available.
-  Explicit untracked files compare with an empty base without staging them.
+  Explicit untracked files compare with an empty base without staging them. Commit
+  comparisons follow the selected HEAD/first-parent amend mode.
 - Native three-pane UTF-8 text conflict editor with Theirs/Mine/Merged, block choices,
   aligned source rows and colors, original line numbers, undoable whole-source
   selection, Reload and guarded Save/Mark as resolved. Full editor parity and native QA

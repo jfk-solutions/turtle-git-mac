@@ -278,6 +278,9 @@ import TurtleGitCore
             }
             let access = controller.model.access
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
+            controller.model.onCompare = { [weak self] paths, amendToParent in
+                self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent)
+            }
             controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
             controller.model.onResolve = { [weak self] action, paths in
                 if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
@@ -575,7 +578,7 @@ import TurtleGitCore
         revisionComparisonWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+    private func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], amendToParent: Bool = false) {
         guard !busy, !confirmingQuit else { return }; busy = true
         let conflicts = paths.filter { path in entries.contains { $0.path == path && $0.state == .conflicted } }
         for path in conflicts { showConflictEditor(repository: repository, access: access, path: path) }
@@ -585,10 +588,13 @@ import TurtleGitCore
             defer { busy = false }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let snapshot = try await repository.workingFileComparison(paths: ordinary)
+                let snapshot = try await repository.workingFileComparison(paths: ordinary, amendToParent: amendToParent)
                 if snapshot.files.isEmpty { output = "No changes for the selected files."; return }
                 for file in snapshot.files {
-                    if file.isSubmodule { showSubmoduleDiff(repository: repository, access: access, path: file.path); continue }
+                    if file.isSubmodule {
+                        showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label)
+                        continue
+                    }
                     let key = repository.root.path + "\0" + file.path + "\0" + snapshot.from.label
                     let controller = fileComparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
                     controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }

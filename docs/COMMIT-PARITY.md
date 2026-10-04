@@ -540,3 +540,31 @@ file handling and unrelated-content preservation were exercised on a disposable
 repository. Revert during amend targets the parent even when the list shows HEAD,
 as in the pinned source. See [Revert parity](REVERT-PARITY.md) for backend coverage,
 recovery behavior and remaining dedicated-dialog/Finder/progress work.
+
+## Native file comparison routing
+
+Reviewed `CGitStatusListCtrl::StartDiff` at upstream commit
+`7338078f8ddd924b8cddee35f512f2286072136d`. Commit's Compare with base and
+file double-click now open the native two-pane viewer instead of the unified
+patch sheet. The viewer uses HEAD versus working contents, including staged
+edits; amend-with-parent uses the pinned first parent, while Diff to last commit
+uses HEAD. A root commit has an empty parent base. Staging-list comparison uses
+working contents, following upstream file-list behavior. The separate unified
+command keeps its existing index/working patch selection. Submodule comparisons
+receive the same pinned base through their dedicated window.
+
+A real-Git test checks root empty-base and parent/HEAD comparison bytes with
+staged-plus-working changes and verifies that comparisons preserve the index.
+One native QA process verified Commit double-click opening the two-pane viewer
+with exact committed and working text. After the viewer was closed, the UI
+observer timed out; the same disposable process was terminated and absence
+verified. HEAD, index and working bytes stayed unchanged. Context-menu unified
+output, staging/amend combinations, multi-file and submodule native acceptance,
+and signed sandbox execution remain pending. Full Commit parity remains partial.
+
+Validation: all 258 Swift tests passed. Final unsigned Debug and App Store
+builds, both bundle audits and the static Pages build passed. The App Store
+audit exercised universal Git 2.55.0 local operations and verified 11 Mach-O
+files, the Finder extension, licenses and 61 original icons. These checks prove
+compilation and packaging; signed execution and App Store approval remain
+unverified.

@@ -46,6 +46,29 @@ final class RevisionComparisonTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: other) }
         let clean = try await otherRepo.workingFileComparison(paths: [path]); XCTAssertTrue(clean.files.isEmpty)
     }
+    func testCommitComparisonAmendUsesPinnedFirstParentAndRootEmptyBase() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let first = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let original = try Data(contentsOf: root.appendingPathComponent(path))
+        let initial = try await repo.workingFileComparison(paths: [path], amendToParent: true)
+        XCTAssertEqual(initial.from, .emptyTree)
+        let initialDocument = try await repo.comparisonFile(initial, path: path)
+        XCTAssertTrue(initialDocument.base.bytes.isEmpty); XCTAssertEqual(initialDocument.destination.bytes, original)
+        try Data("last commit\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.commit(message: "second")
+        try Data("staged\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        try Data("working\n".utf8).write(to: root.appendingPathComponent(path))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let amended = try await repo.workingFileComparison(paths: [path], amendToParent: true)
+        XCTAssertEqual(amended.from, .revision(first))
+        let amendedDocument = try await repo.comparisonFile(amended, path: path)
+        XCTAssertEqual(amendedDocument.base.bytes, original); XCTAssertEqual(amendedDocument.destination.text, "working\n")
+        let normal = try await repo.workingFileComparison(paths: [path])
+        let normalDocument = try await repo.comparisonFile(normal, path: path)
+        XCTAssertEqual(normalDocument.base.text, "last commit\n"); XCTAssertEqual(normalDocument.destination.text, "working\n")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
     func testHistoricalRenameBinaryAndLiteralNamesStayPinned() async throws {
         let (root, repo, original) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
