@@ -39,7 +39,8 @@ bundle structure; it is not a signed distribution.
   sign-off, file statistics and icon context menus. Enable staging area switches to
   three-state staging checkboxes and commits the index, preserving unstaged edits.
   An attached right-hand patch window stages/unstages selected lines or hunks in
-  ordinary tracked UTF-8 text files.
+  ordinary tracked UTF-8 text files. Restore after commit saves working contents and
+  restores them after a successful commit, retaining the committed index/HEAD.
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.

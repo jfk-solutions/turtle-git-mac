@@ -93,7 +93,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   completion, spelling, issue IDs and tracker plugins.
 - Groups/changelists, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context commands: revert, restore after commit, blame, export and alternate editor. File log/open/reveal
+- Remaining file context commands: revert, blame, export and alternate editor. File log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -478,3 +478,47 @@ the final exact upstream capitalization and sandbox access guard were compiled
 and tested afterward; all six final Working Tree tests passed.
 Dark/multiple-selection/native error paths, staged rename
 and amend-comparison eligibility, and signed sandbox acceptance remain pending.
+
+## Restore after commit
+
+The pinned `GitStatusListCtrl.cpp` restore commands and `CommitDlg::RestoreFiles`
+now have a native implementation. Marking a versioned file saves its current
+working contents once and adds the unchanged upstream restore overlay to its
+status icon. The context command then becomes Restore. Marking does not stage
+the file. A successful commit restores saved working contents automatically;
+HEAD and the index retain the newly committed contents. ReCommit consumes the
+saved copy and removes the overlay while retaining the dialog.
+
+Manual Restore asks before replacing later edits. Failed commits offer Keep
+current state (the default) or Restore old state. Closing Commit also allows
+Cancel. Application Quit now routes open Commit windows through this cancellation
+path, pauses mutations in the repository and attached patch windows, and cancels
+termination when a prompt is declined or restoration fails. Remaining saved
+copies are retained after restoration errors for retry.
+
+Copies are disk-backed, support binary contents and executable permissions, and
+preserve symbolic-link target text without reading or overwriting its target.
+Restoration replaces the working file atomically and rejects another repository,
+a directory destination or a parent escaping the working tree. It does not change
+the Git index or HEAD. Copies are owned by the dialog; crash recovery is not yet
+implemented.
+
+Four real Git tests cover binary bytes, permissions, post-commit index/HEAD
+preservation, symlinks, unversioned rejection, escaping parents, invalid
+destinations and retry. The focused restore, icon and rebase suite passed 15 tests.
+Native QA marked a file, committed later contents through ReCommit, and verified
+that only the working file returned to the saved contents; HEAD/index held the
+later contents and the overlay cleared. `site/assets/commit-restore.png` is the
+actual native capture before that commit.
+
+Manual Restore, hook-failure choices, close/Quit prompts, multiple Commit windows,
+staging-mode combinations, renamed paths, dark appearance and signed sandbox
+access remain unverified natively. Menu-observation failures prevented the later
+Quit scenario from reaching its prompt. Its preview was closed and process
+absence verified; no successful Quit-prompt test is claimed. This remains a
+partial port, not completion of either upstream source file.
+
+The unsigned Xcode Debug app build passed after this addition. Its bundle audit
+verified the embedded Finder extension, licenses and all 59 upstream icon assets,
+including both restoration icons. This proves packaging, not signed Finder
+activation or App Store approval.

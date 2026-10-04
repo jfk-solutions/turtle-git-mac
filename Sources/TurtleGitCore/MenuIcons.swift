@@ -16,6 +16,7 @@ public enum MenuIcon: String, CaseIterable {
     case rename = "menurename"
     case remove = "menudelete"
     case ignore = "menuignore"
+    case restore = "restore", restoreOverlay = "restoreovl"
     case resolve = "menuresolve", editConflict = "menuconflict"
     case mergeSave = "Save", mergeSaveAs = "SaveAs", mergeResolved = "Check"
     case mergeReload = "Refresh"

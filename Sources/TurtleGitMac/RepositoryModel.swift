@@ -13,6 +13,7 @@ import TurtleGitCore
     @Published var selection = Set<String>()
     @Published var output = "Open a repository to get started."
     @Published var busy = false
+    @Published var confirmingQuit = false
     @Published var error: String?
     @Published var section = RepositoryAction.status
     @Published var dialog: RepositoryAction?
@@ -81,14 +82,14 @@ import TurtleGitCore
             }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-            Task { @MainActor in if let self, !self.busy, self.root != nil { await self.refresh(refreshStatus: false) } }
+            Task { @MainActor in if let self, !self.busy, !self.confirmingQuit, self.root != nil { await self.refresh(refreshStatus: false) } }
         }
     }
     private func makeRepository(_ url: URL) throws -> GitRepository {
         GitRepository(root: url, executable: try GitRuntime.executable())
     }
     func chooseRepository(preferred: URL? = nil) {
-        guard !busy else { return }
+        guard !busy, !confirmingQuit else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.prompt = "Open repository"
         panel.message = "Choose the repository’s root folder. TurtleGit remembers your permission to work in this folder."
@@ -97,7 +98,7 @@ import TurtleGitCore
     }
     func open(_ url: URL, onOpened: (() -> Void)? = nil) { openSession(RepositoryAccessLease(url: url), onOpened: onOpened) }
     func openRecent(_ saved: SavedRepository) {
-        guard !busy else { return }
+        guard !busy, !confirmingQuit else { return }
         do {
             guard let store = accessStore else { throw RepositoryAccessFailure.unknownRepository }
             let lease = try store.acquire(saved.id, requireSecurityScope: GitRuntime.isAppStoreBuild)
@@ -112,7 +113,7 @@ import TurtleGitCore
         catch { self.error = error.localizedDescription }
     }
     func closeRepository() {
-        guard !busy else { return }
+        guard !busy, !confirmingQuit else { return }
         adoptionGeneration += 1; bare = false
         repository = nil; activeAccess = nil; root = nil; entries = []; selection = []
         branch = ""; message = ""; output = "Open a repository to get started."
@@ -122,7 +123,7 @@ import TurtleGitCore
         catch { self.error = "The repository is open, but its permission could not be saved: " + error.localizedDescription }
     }
     private func openSession(_ lease: RepositoryAccessLease, selected: FinderRequest? = nil, action: RepositoryAction? = nil, actionPaths: [String]? = nil, onOpened: (() -> Void)? = nil) {
-        guard !busy else { return }
+        guard !busy, !confirmingQuit else { return }
         adoptionGeneration += 1
         busy = true
         Task {
@@ -172,7 +173,7 @@ import TurtleGitCore
         }
     }
     func refresh(refreshStatus: Bool = true) async {
-        guard !busy else { return }
+        guard !busy, !confirmingQuit else { return }
         busy = true; defer { busy = false }
         do { try await reload() } catch { self.error = error.localizedDescription }
         if refreshStatus, let root { statusWindows[root.path]?.model.reload() }
@@ -222,6 +223,7 @@ import TurtleGitCore
         perform { repo in let result = try await repo.commit(message: text); await MainActor.run { self.message = "" }; return result }
     }
     func activate(_ action: RepositoryAction, paths: [String] = []) {
+        guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
         case .clone: showClone()
@@ -692,7 +694,7 @@ import TurtleGitCore
         perform { try await $0.run(args).text }
     }
     func handle(_ url: URL) {
-        guard !busy, let request = FinderRequest(url: url) else { return }
+        guard !busy, !confirmingQuit, let request = FinderRequest(url: url) else { return }
         let action = request.action
         if action == .clone { showClone(directory: request.paths.first); return }
         if action == .initialize { showCreateRepository(folder: request.paths.first); return }

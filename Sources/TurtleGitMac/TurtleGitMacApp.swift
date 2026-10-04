@@ -12,6 +12,7 @@ import TurtleGitCore
     var body: some Scene {
         WindowGroup("TurtleGit for Mac") {
             RepositoryWindow(model: model)
+                .disabled(model.confirmingQuit)
                 .onOpenURL { model.handle($0) }
                 .onAppear { applicationDelegate.repositoryModel = model; appearance.apply() }
                 #if DEBUG

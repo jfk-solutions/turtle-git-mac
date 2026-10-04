@@ -287,6 +287,16 @@
       "asset": "Refresh.bmp",
       "source": "src/Resources/ribbon/Refresh.bmp",
       "sha256": "4d6017e437782f31f43713b6768787fa8df123abda89939696defd98019ab629"
+    },
+    {
+      "asset": "restore.ico",
+      "source": "src/Resources/restore.ico",
+      "sha256": "aef534894838370458d8a423185cb53872142b5c2821495b94effb559456f34f"
+    },
+    {
+      "asset": "restoreovl.ico",
+      "source": "src/Resources/restoreovl.ico",
+      "sha256": "3797a90ba0bc7998b55fdfc1edb3f1ef954c6397fba4fc00643e9aa8df2fcc6c"
     }
   ]
 }

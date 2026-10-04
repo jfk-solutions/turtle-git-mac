@@ -6,9 +6,12 @@ import AppKit
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if confirmingQuit { return .terminateLater }
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
-        guard repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
-        guard controllers.contains(where: { $0.model.dirty }) else { return .terminateNow }
+        let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
+        guard !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
+        guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
+        repositoryModel?.confirmingQuit = true
+        for commit in commits { commit.setQuitConfirmation(true) }
         for controller in controllers { controller.model.confirmingQuit = true }
         Task {
             var allowQuit = true
@@ -27,6 +30,18 @@ import AppKit
                 }
                 if !allowQuit { break }
             }
+            if allowQuit {
+                for commit in commits {
+                    commit.window?.makeKeyAndOrderFront(nil)
+                    let approved = await withCheckedContinuation { continuation in
+                        commit.model.cancel(closeWindow: false) { continuation.resume(returning: $0) }
+                    }
+                    if !approved { allowQuit = false; break }
+                }
+            }
+            if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
+            for commit in commits { commit.setQuitConfirmation(false) }
+            repositoryModel?.confirmingQuit = false
             for controller in controllers { controller.model.confirmingQuit = false }
             confirmingQuit = false
             sender.reply(toApplicationShouldTerminate: allowQuit)

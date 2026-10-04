@@ -62,14 +62,15 @@ import UniformTypeIdentifiers
     @Published var comparisonTitle = "HEAD → Working tree"
     var base: String?
     @Published var busy = false
+    @Published var confirmingQuit = false
     @Published var error: String?
     @Published var paths: [String] = []
     private var generation = 0
     var onApplying: (Bool) -> Void = { _ in }
     var onApplied: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    var canApplyLines: Bool { !readOnly && !busy && selectedLines.contains(where: { document.changedLine($0) }) }
-    var canApplyHunks: Bool { !readOnly && !busy && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
+    var canApplyLines: Bool { !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
+    var canApplyHunks: Bool { !readOnly && !busy && !confirmingQuit && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
     var information: String {
         if paths.isEmpty { return "Select files in the Commit window to see their patch." }
         if readOnly { return document.text.isEmpty ? "No patch for the selected files." : "Select files in the Commit window to compare their contents." }
@@ -122,7 +123,7 @@ struct PatchDialog: View {
                     Button(model.staged ? "Unstage selected lines" : "Stage selected lines") { model.apply(entireHunks: false) }.disabled(!model.canApplyLines)
                 }
             }
-        }.padding(12)
+        }.padding(12).disabled(model.confirmingQuit)
         .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }

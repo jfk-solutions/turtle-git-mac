@@ -71,3 +71,8 @@ Close each disposable QA application immediately after its checks, including
 failed observation attempts once the scenario has ended. Verify it is absent
 from the running-app inventory without reacquiring its handle, which can launch
 it again. Do not accumulate independent preview instances across goal turns.
+
+The Restore after commit capture uses only `restore.txt` in a disposable fixture.
+Its caption records the verified ReCommit/working-file behavior and distinguishes
+the pending close/Quit/failure prompts. Keep at most one QA preview process open;
+close it after the scenario and verify process absence before launching another.

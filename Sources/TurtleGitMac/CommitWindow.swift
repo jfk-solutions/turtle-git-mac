@@ -37,15 +37,26 @@ import UniformTypeIdentifiers
                 self?.model.openFile(path, application: app)
             }
         }
-        model.confirmCancel = { [weak window] proceed in
-            guard let window else { return }
+        model.chooseRestoreCopies = { [weak window] allowCancel, choose in
+            guard let window else { choose(.cancel); return }
+            let alert = NSAlert()
+            alert.messageText = "You marked some files as “Restore after commit”."
+            alert.informativeText = "Do you want to restore them now? You might lose all changes to this file after marking it."
+            alert.addButton(withTitle: "Keep current state"); alert.addButton(withTitle: "Restore old state")
+            if allowCancel { alert.addButton(withTitle: "Cancel") }
+            alert.beginSheetModal(for: window) { response in
+                choose(response == .alertSecondButtonReturn ? .restore : response == .alertFirstButtonReturn ? .keep : .cancel)
+            }
+        }
+        model.confirmCancel = { [weak window] choose in
+            guard let window else { choose(false); return }
             let alert = NSAlert(); alert.messageText = "Do you really want to cancel?"
             alert.informativeText = "Your commit message is saved in Recent messages."
             alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
             alert.showsSuppressionButton = true
             alert.beginSheetModal(for: window) { response in
                 if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "Commit.SkipCancelConfirmation") }
-                if response == .alertSecondButtonReturn { proceed() }
+                choose(response == .alertSecondButtonReturn)
             }
         }
         model.confirmUneditedTemplate = { [weak window] proceed in
@@ -64,6 +75,7 @@ import UniformTypeIdentifiers
             }
         }
     }
+    func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) { closingCommit = true; logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { model.cancel(); return false }
     private func showHistory(insert: @escaping (String) -> Void) {
@@ -143,6 +155,9 @@ import UniformTypeIdentifiers
     @Published var conflictRebase = false
     @Published var entries: [StatusEntry] = []
     @Published var indexFlagFiles: [WorkingTreeFile] = []
+    @Published var restoreCopies: [String: WorkingFileRestoreCopy] = [:]
+    enum RestoreChoice { case restore, keep, cancel }
+    var chooseRestoreCopies: (Bool, @escaping (RestoreChoice) -> Void) -> Void = { _, choose in choose(.keep) }
     @Published var comparisonBase: String?
     @Published var stagedStatistics: [String: CommitFile] = [:]
     @Published var unstagedStatistics: [String: CommitFile] = [:]
@@ -171,7 +186,7 @@ import UniformTypeIdentifiers
     var onIgnore: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onRename: (String) -> Void = { _ in }
     var chooseApplication: (String) -> Void = { _ in }
-    var confirmCancel: (@escaping () -> Void) -> Void = { _ in }
+    var confirmCancel: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping () -> Void) -> Void = { _ in }
     @Published var hasHead = false
@@ -193,6 +208,7 @@ import UniformTypeIdentifiers
     @Published var showWholeProject = true
     @Published var scopePaths: [String] = []
     @Published var busy = false
+    @Published var confirmingQuit = false
     @Published var error: String?
     @Published var patch: String?
     var showViewPatch: () -> Void = {}
@@ -240,6 +256,50 @@ import UniformTypeIdentifiers
         }.joined(separator: "\n") + (selected.isEmpty ? "" : "\n")
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
+    private func validateRestoreAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    func markForRestore(_ paths: Set<String>) {
+        guard !busy, !paths.isEmpty else { return }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try validateRestoreAccess()
+                for path in paths.sorted() where restoreCopies[path] == nil {
+                    restoreCopies[path] = try await repository.captureWorkingFileRestoreCopy(path: path)
+                }
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    private func restoreSavedCopies(_ paths: Set<String>) async throws {
+        guard paths.contains(where: { restoreCopies[$0] != nil }) else { return }
+        try validateRestoreAccess()
+        for path in paths.sorted() {
+            guard let copy = restoreCopies[path] else { continue }
+            try await repository.restoreWorkingFile(copy)
+            restoreCopies.removeValue(forKey: path)
+        }
+    }
+    func restoreNow(_ paths: Set<String>) {
+        guard !busy, paths.contains(where: { restoreCopies[$0] != nil }) else { return }
+        let alert = NSAlert()
+        alert.messageText = "Do you really want to restore the copy?"
+        alert.informativeText = "You will lose all changes that you have done after creating the copy."
+        alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Restore")
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        busy = true
+        Task {
+            do { try await restoreSavedCopies(paths) }
+            catch { self.error = error.localizedDescription }
+            busy = false; reload()
+        }
+    }
+    private func chooseSavedCopies(allowCancel: Bool) async -> RestoreChoice {
+        await withCheckedContinuation { continuation in
+            chooseRestoreCopies(allowCancel) { continuation.resume(returning: $0) }
+        }
+    }
     func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile]) {
         guard !busy, action.isAvailable(for: files), confirmIndexFlags(action) else { return }
         busy = true
@@ -262,7 +322,7 @@ import UniformTypeIdentifiers
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
-    var canCommit: Bool { !busy && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { !busy && !confirmingQuit && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -426,6 +486,11 @@ import UniformTypeIdentifiers
                 messageHistory?.add(text)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 onCommitted(output)
+                do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
+                catch {
+                    self.error = "The commit succeeded, but restoring saved working copies failed. The remaining copies are retained in this dialog.\n\n" + error.localizedDescription
+                    busy = false; reload(); return
+                }
                 if action == .recommit {
                     do {
                         let seed = try await repository.commitMessageSeed(includeOperationMessages: false)
@@ -437,7 +502,16 @@ import UniformTypeIdentifiers
                     busy = false
                     reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
                 } else { busy = false; close(); if action == .push { onPush() } }
-            } catch { self.error = error.localizedDescription; busy = false; reload() }
+            } catch {
+                let commitError = error.localizedDescription
+                var failureMessage = commitError
+                if !restoreCopies.isEmpty, await chooseSavedCopies(allowCancel: false) == .restore {
+                    do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
+                    catch { failureMessage = commitError + "\n\nRestoring saved working copies failed: " + error.localizedDescription }
+                }
+                self.error = failureMessage
+                busy = false; reload()
+            }
         }
     }
     var checkedFileList: String {
@@ -446,17 +520,33 @@ import UniformTypeIdentifiers
             return label.padding(toLength: max(10, label.count), withPad: " ", startingAt: 0) + " " + entry.path + "\n"
         }.joined()
     }
-    func cancel() {
-        guard !busy else { return }
+    func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
+        guard !busy, !confirmingQuit || !closeWindow else { completion?(false); return }
         let changed = !message.isEmpty && message != (amend ? originalAmendMessage : messageTemplate)
         let finish = { [weak self] in
-            guard let self else { return }
+            guard let self else { completion?(false); return }
             if changed { self.messageHistory?.add(self.message) }
             if self.amend && !self.nonAmendMessage.isEmpty && self.nonAmendMessage != self.messageTemplate { self.messageHistory?.add(self.nonAmendMessage) }
-            self.close()
+            if closeWindow { self.restoreCopies.removeAll(); self.close() }
+            completion?(true)
         }
-        if (changed || !entries.isEmpty) && !UserDefaults.standard.bool(forKey: "Commit.SkipCancelConfirmation") { confirmCancel(finish) }
-        else { finish() }
+        let restoreAndFinish = { [weak self] in
+            guard let self else { completion?(false); return }
+            guard !self.restoreCopies.isEmpty else { finish(); return }
+            self.busy = true
+            Task {
+                let choice = await self.chooseSavedCopies(allowCancel: true)
+                if choice == .cancel { self.busy = false; completion?(false); return }
+                if choice == .restore {
+                    do { try await self.restoreSavedCopies(Set(self.restoreCopies.keys)) }
+                    catch { self.error = error.localizedDescription; self.busy = false; self.reload(); completion?(false); return }
+                }
+                self.busy = false; finish()
+            }
+        }
+        if (changed || !entries.isEmpty) && !UserDefaults.standard.bool(forKey: "Commit.SkipCancelConfirmation") {
+            confirmCancel { approved in if approved { restoreAndFinish() } else { completion?(false) } }
+        } else { restoreAndFinish() }
     }
 }
 
@@ -517,7 +607,7 @@ struct CommitDialog: View {
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
             }
-        }.padding(12).disabled(model.busy)
+        }.padding(12).disabled(model.busy || model.confirmingQuit)
         .onChange(of: model.amendDiffToLastCommit) { _ in model.comparisonChanged() }
         .onChange(of: model.setAuthor) { _ in model.authorChanged() }
         .onChange(of: model.setAuthorDate) { _ in model.dateChanged() }
@@ -610,7 +700,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                         .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
                 }
             }.width(24)
-            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.path).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
+            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay { if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) } }; Text(entry.path).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }.width(min: 260, ideal: 420)
             TableColumn("Extension") { entry in Text((entry.path as NSString).pathExtension) }.width(75)
             TableColumn("Status") { entry in Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }.width(90)
             TableColumn("Lines added") { entry in Text(statistics[entry.path]?.added.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(80)
@@ -627,6 +717,13 @@ GroupBox("Changes made (double-click on file for diff):") {
             } else {
                 Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
                 Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
+            }
+            if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) && !model.submodules.contains($0.path) }) {
+                if let first = selected.first, model.restoreCopies[first.path] != nil {
+                    Button { model.restoreNow(ids) } label: { CommandLabel(title: "Restore", icon: .restore) }
+                } else {
+                    Button { model.markForRestore(ids) } label: { CommandLabel(title: "Restore after commit", icon: .restore) }
+                }
             }
             if flagFiles.count == selected.count { IndexFlagsMenu(files: flagFiles) { model.setFlags($0, files: flagFiles) } }
             if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
