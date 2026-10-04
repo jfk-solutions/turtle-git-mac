@@ -139,12 +139,17 @@ final class GitBlameTests: XCTestCase {
         let (root, repo, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
         let original = "old 雪\n.txt", renamed = ":(glob)* new 雪\n.txt"
-        let bytes = Data([0xef, 0xbb, 0xbf]) + Data("first\r\n\n\tthird".utf8)
+        // Keep similarity well above the rename threshold on older Apple Git too.
+        // A three-line, 17-byte file is an add/delete on Git 2.39.5 but a rename
+        // on Git 2.50.1; this test exercises attribution after a detected rename.
+        let firstLine = "first " + String(repeating: "unchanged source ", count: 12)
+        let thirdLine = "\tthird " + String(repeating: "preserved final line ", count: 12)
+        let bytes = Data([0xef, 0xbb, 0xbf]) + Data("\(firstLine)\r\n\n\(thirdLine)".utf8)
         try bytes.write(to: root.appendingPathComponent(original)); try await repo.stage([original])
         _ = try await repo.run(["commit", "-m", "original"], environmentOverrides: ["GIT_AUTHOR_NAME": "Alice", "GIT_AUTHOR_EMAIL": "alice@example.invalid", "GIT_AUTHOR_DATE": "@1000000000 +0230"])
         let first = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         _ = try await repo.run(["mv", "--", original, renamed])
-        let changed = Data([0xef, 0xbb, 0xbf]) + Data("first\r\nchanged\n\tthird".utf8)
+        let changed = Data([0xef, 0xbb, 0xbf]) + Data("\(firstLine)\r\nchanged\n\(thirdLine)".utf8)
         try changed.write(to: root.appendingPathComponent(renamed)); try await repo.stage([renamed])
         _ = try await repo.run(["commit", "-m", "rename and edit"], environmentOverrides: ["GIT_AUTHOR_NAME": "Bob", "GIT_AUTHOR_EMAIL": "bob@example.invalid", "GIT_AUTHOR_DATE": "@1000100000 -0500"])
         let second = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
@@ -156,7 +161,7 @@ final class GitBlameTests: XCTestCase {
         XCTAssertEqual(result.lines.map(\.author), ["Alice", "Bob", "Alice"])
         XCTAssertEqual(result.lines.map(\.filename), [original, renamed, original])
         XCTAssertEqual(result.lines.map(\.originalLine), [1, 2, 3]); XCTAssertEqual(result.lines.map(\.number), [1, 2, 3])
-        XCTAssertEqual(result.lines.map(\.source), ["\u{feff}first\r", "changed", "\tthird"])
+        XCTAssertEqual(result.lines.map(\.source), ["\u{feff}" + firstLine + "\r", "changed", thirdLine])
         XCTAssertEqual(result.lines[0].timezone, "+0230"); XCTAssertEqual(result.lines[1].timezone, "-0500")
         let pinned = try await repo.blame(path: original, revision: first)
         XCTAssertEqual(pinned.contents, bytes); XCTAssertEqual(pinned.lines[1].source, "")

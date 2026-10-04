@@ -434,6 +434,19 @@ local, encoding and first-parent checks. The static documentation build passed
 with the inspected Settings screenshot. Signed sandbox/App Store acceptance and
 the full upstream settings page remain unverified.
 
+## CI rename fixture across Git versions
+
+The macOS run at `b8c418b` failed four attribution assertions in
+`testRenamesAuthorsAndExactSourcePreserveRepositoryState`; the remaining tests
+passed. Reproduction with official Git 2.39.5 showed that the original 17-byte
+fixture is detected as add/delete, while Apple Git 2.50.1 detects a 62% rename.
+The fixture now retains three lines but lengthens the two unchanged lines:
+Git 2.39.5 and Apple Git 2.50.1 both detect a rename (97% and 98% respectively).
+The expected author, hash, original filename, timezone, BOM, CRLF, tab, empty
+historical line and unchanged index/worktree/HEAD assertions are retained.
+Production Blame behavior is unchanged. CI reports the system Git version as
+well as PATH Git, since integration tests use `/usr/bin/git`.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;

@@ -7,6 +7,12 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      - name: Report toolchain and system Git used by integration tests
+        run: |
+          swift --version
+          xcodebuild -version
+          /usr/bin/git --version
+          git --version
       - name: Git integration tests
         run: swift test
       - name: Application and embedded Finder extension
