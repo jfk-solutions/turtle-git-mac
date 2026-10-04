@@ -306,6 +306,48 @@ without compiler warnings. Both bundle audits passed with 62 icons; the packaged
 Git 2.55.0 runtime passed its architecture and local-operation checks. The static
 documentation build passed. Signed sandbox and App Store acceptance remain pending.
 
+## Move/copy detection modes and thresholds
+
+The native viewer now offers the five choices from the pinned upstream
+`BlameDetectMovedOrCopiedLines.h`, `TortoiseGitBlameDoc.cpp` and
+`SettingsTBlame.cpp`: Disabled, Within file, From modified files, At file creation
+and From existing files. The former independent move/copy checkboxes are replaced
+by this mutually exclusive choice. Git receives `-M<n>`, `-C<n>`, `-C -C<n>` or
+`-C -C -C<n>` respectively. Separate character counts default to upstream's 20
+within a file and 40 between files. Only the count relevant to the mode is enabled.
+Counts use the upstream unsigned 32-bit range; invalid input reports an error
+without starting another annotation read. Changing mode reloads automatically;
+changed counts are applied by Reload or an encoding change. Applied mode and both
+counts travel with previous-revision menu targets alongside encoding/whitespace.
+
+Real Git tests distinguish copying from a modified donor, copying from an unchanged
+donor at file creation, and copying from an unchanged donor in a later edit. They
+check original filenames/line numbers, within-file movement at low/high thresholds,
+a separate short copied block at low/default thresholds and high-threshold rejection.
+Adjacent copied lines are scored as a block by Git, so the short-block fixture uses
+a separate destination file. Literal Unicode/newline/pathspec-like filenames are
+covered, and HEAD, exact index and an unrelated working edit stay unchanged.
+All 15 focused Blame tests passed.
+
+Native light-mode QA verified all five chooser entries, default disabled threshold
+fields, file-creation attribution to an unchanged donor, enabled between-file count,
+a high count reverting attribution, rejection of 4294967296 and recovery at 40.
+The actual captured window is `site/assets/blame-modes-light.png`. The QA process
+was stopped after the scenario and absence verified; HEAD, exact index and source
+files matched their recorded baseline. An open Commit window can require cancel
+confirmation when Quit is requested; the isolated process was terminated after
+issuing Quit. No replacement instance was launched. Native within-file count
+enablement, remaining copy modes, threshold inheritance/reuse, dark appearance,
+keyboard/VoiceOver, settings persistence and first-parent filtering remain pending.
+The native controls currently live in the viewer rather than the complete upstream
+settings dialog and View menu; full layout/menu parity is not established.
+
+The full suite passed 275 tests. Swift and unsigned Debug/AppStore builds passed
+without compiler warnings; both bundle audits passed with 62 icons. Packaged Git
+2.55.0 passed its 11-Mach-O architecture audit and existing local-operation/encoding
+fixtures. The static site built with the new verified screenshot. These checks
+do not establish signed sandbox or App Store acceptance.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;
@@ -315,7 +357,7 @@ documentation build passed. Signed sandbox and App Store acceptance remain pendi
   revision/block navigation.
 - Clipboard presentation/localized dates, export commands and remaining original
   menu icons.
-- Blame options dialog, revision chooser, complete copied-line modes/thresholds,
+- Blame options dialog, revision chooser, first-parent filtering,
   settings and persistent preferences.
 - Persistent/system encoding defaults, chooser/accessibility parity, unsupported
   codecs and byte-LF within other UTF-16 code units; binary, malformed text and

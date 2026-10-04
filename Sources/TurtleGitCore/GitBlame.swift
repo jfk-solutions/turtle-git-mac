@@ -1,10 +1,36 @@
 import Foundation
 import CoreFoundation
 
-public struct GitBlameOptions: Sendable {
-    public var ignoreWhitespace = false, detectMoved = false, detectCopied = false
+public enum GitBlameDetectionMode: Int, CaseIterable, Identifiable, Sendable {
+    case disabled, withinFile, modifiedFiles, fileCreation, existingFiles
+    public var id: Int { rawValue }
+    public var title: String {
+        switch self {
+        case .disabled: return "Disabled"
+        case .withinFile: return "Within file"
+        case .modifiedFiles: return "From modified files"
+        case .fileCreation: return "At file creation"
+        case .existingFiles: return "From existing files"
+        }
+    }
+    public var betweenFiles: Bool { rawValue >= Self.modifiedFiles.rawValue }
+}
+public struct GitBlameOptions: Equatable, Sendable {
+    public var ignoreWhitespace = false
+    public var detectionMode = GitBlameDetectionMode.disabled
+    public var withinFileCharacters: UInt32 = 20
+    public var betweenFileCharacters: UInt32 = 40
     public var encoding: GitBlameEncoding?
     public init() {}
+    var detectionArguments: [String] {
+        switch detectionMode {
+        case .disabled: return []
+        case .withinFile: return ["-M\(withinFileCharacters)"]
+        case .modifiedFiles: return ["-C\(betweenFileCharacters)"]
+        case .fileCreation: return ["-C", "-C\(betweenFileCharacters)"]
+        case .existingFiles: return ["-C", "-C", "-C\(betweenFileCharacters)"]
+        }
+    }
 }
 public struct GitBlameLine: Identifiable, Sendable {
     public var id: Int { number }
@@ -233,8 +259,7 @@ extension GitRepository {
         try encoding.validate(content.bytes)
         var args = ["-c", "blame.blankBoundary=false", "blame", "--line-porcelain", "--no-progress", "--no-textconv"]
         if options.ignoreWhitespace { args.append("-w") }
-        if options.detectMoved { args.append("-M") }
-        if options.detectCopied { args.append("-C") }
+        args += options.detectionArguments
         let lines = try GitBlameParser.parse(run(args + [hash, "--", path]).stdout, encoding: encoding, decodedSources: try encoding.legacyLines(content.bytes))
         // Git appends LF to each porcelain record even when the source has no final LF.
         // Compare individual source bytes to the pinned blob, preserving CR, tabs and BOM.

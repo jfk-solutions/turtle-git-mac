@@ -2,6 +2,53 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlameTests: XCTestCase {
+    func testCopyDetectionScopesAndCharacterThresholds() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let firstLine = "alpha original statement with many alphanumeric characters for attribution"
+        let laterLine = "bravo separate statement with many alphanumeric characters for attribution"
+        let shortLine = "shortvalue"
+        let source = "donor 雪\n.txt", target = ":(glob)* copy 雪\n.txt"
+        try Data("\(firstLine)\n\(laterLine)\n\(shortLine)\n".utf8).write(to: root.appendingPathComponent(source))
+        try await repo.stage([source]); _ = try await repo.commit(message: "donor origin")
+        let origin = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        try Data("\(firstLine)\nnew destination marker\n".utf8).write(to: root.appendingPathComponent(target))
+        try await repo.stage([target]); _ = try await repo.commit(message: "copy from unchanged donor at creation")
+        let creation = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        var options = GitBlameOptions(); options.detectionMode = .modifiedFiles
+        let modified = try await repo.blame(path: target, options: options)
+        XCTAssertEqual(modified.lines[0].hash, creation)
+        options.detectionMode = .fileCreation
+        let atCreation = try await repo.blame(path: target, options: options)
+        XCTAssertEqual(atCreation.lines[0].hash, origin)
+        XCTAssertEqual(atCreation.lines[0].filename, source)
+        try Data("\(firstLine)\nnew destination marker\n\(laterLine)\n".utf8).write(to: root.appendingPathComponent(target))
+        let shortTarget = "short-copy.txt"
+        try Data("\(shortLine)\nunique destination marker\n".utf8).write(to: root.appendingPathComponent(shortTarget))
+        try await repo.stage([target, shortTarget]); _ = try await repo.commit(message: "later copies from unchanged donor")
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let bytes = try Data(contentsOf: root.appendingPathComponent(target))
+        try Data("uncommitted replacement\n".utf8).write(to: root.appendingPathComponent(target))
+        let creationOnly = try await repo.blame(path: target, options: options)
+        XCTAssertEqual(creationOnly.lines[2].hash, head)
+        options.detectionMode = .existingFiles
+        let all = try await repo.blame(path: target, options: options)
+        XCTAssertEqual(all.lines[2].hash, origin); XCTAssertEqual(all.lines[2].originalLine, 2)
+        let shortDefault = try await repo.blame(path: shortTarget, options: options)
+        XCTAssertEqual(shortDefault.lines[0].hash, head)
+        options.betweenFileCharacters = 1
+        let low = try await repo.blame(path: shortTarget, options: options)
+        XCTAssertEqual(low.lines[0].hash, origin); XCTAssertEqual(low.lines[0].originalLine, 3)
+        options.betweenFileCharacters = 1000
+        let high = try await repo.blame(path: target, options: options)
+        XCTAssertEqual(high.lines[0].hash, creation); XCTAssertEqual(high.lines[2].hash, head)
+        XCTAssertEqual(high.contents, bytes)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(target)), Data("uncommitted replacement\n".utf8))
+        let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(after, head)
+    }
     private let expectedHash = String(repeating: "a", count: 40)
     private func record(hash: String? = nil, header: String = "1 1 1", filename: String = "file.txt", source: String = "source") -> String {
         "\(hash ?? self.expectedHash) \(header)\nauthor Alice\nauthor-mail <alice@example.invalid>\nauthor-time 1000000000\nauthor-tz +0230\nsummary Subject\nboundary\nfilename \(filename)\n\t\(source)\n"
@@ -89,11 +136,17 @@ final class GitBlameTests: XCTestCase {
         try Data("\(a)\n\(c)\n\(b)\nnew marker\n".utf8).write(to: root.appendingPathComponent("source"))
         try Data("\(b)\nnew destination\n".utf8).write(to: root.appendingPathComponent("copy"))
         try await repo.stage(["source", "copy"]); _ = try await repo.commit(message: "move and copy")
-        var options = GitBlameOptions(); options.detectMoved = true
+        var options = GitBlameOptions(); options.detectionMode = .withinFile
         let moved = try await repo.blame(path: "source", options: options)
         XCTAssertEqual(moved.lines.prefix(3).map(\.hash), [first, first, first])
         XCTAssertEqual(moved.lines.prefix(3).map(\.originalLine), [1, 3, 2])
-        options.detectCopied = true
+        options.withinFileCharacters = 1000
+        let highThreshold = try await repo.blame(path: "source", options: options)
+        XCTAssertNotEqual(highThreshold.lines[2].hash, first)
+        options.withinFileCharacters = 1
+        let lowThreshold = try await repo.blame(path: "source", options: options)
+        XCTAssertEqual(lowThreshold.lines[2].hash, first)
+        options.detectionMode = .modifiedFiles
         let copied = try await repo.blame(path: "copy", options: options)
         XCTAssertEqual(copied.lines.first?.hash, first); XCTAssertEqual(copied.lines.first?.filename, "source")
         XCTAssertEqual(copied.lines.first?.originalLine, 2)

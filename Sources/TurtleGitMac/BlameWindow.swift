@@ -36,8 +36,9 @@ private struct BlameParentMenuTarget {
     @Published var busy = false
     @Published var error: String?
     @Published var ignoreWhitespace = false
-    @Published var detectMoved = false
-    @Published var detectCopied = false
+    @Published var detectionMode = GitBlameDetectionMode.disabled
+    @Published var withinFileCharacters = "20"
+    @Published var betweenFileCharacters = "40"
     @Published var colorAge = true
     @Published var sourceEncoding: GitBlameEncoding?
     @Published var selection: Int?
@@ -86,24 +87,33 @@ private struct BlameParentMenuTarget {
     }
     private var currentOptions: GitBlameOptions {
         var options = GitBlameOptions()
-        options.ignoreWhitespace = ignoreWhitespace; options.detectMoved = detectMoved; options.detectCopied = detectCopied; options.encoding = sourceEncoding
+        options.ignoreWhitespace = ignoreWhitespace; options.detectionMode = detectionMode; options.encoding = sourceEncoding
+        options.withinFileCharacters = UInt32(withinFileCharacters) ?? appliedOptions.withinFileCharacters
+        options.betweenFileCharacters = UInt32(betweenFileCharacters) ?? appliedOptions.betweenFileCharacters
         return options
     }
     private func sameOptions(_ a: GitBlameOptions, _ b: GitBlameOptions) -> Bool {
-        a.ignoreWhitespace == b.ignoreWhitespace && a.detectMoved == b.detectMoved && a.detectCopied == b.detectCopied && a.encoding == b.encoding
+        a == b
     }
     private func setControls(_ options: GitBlameOptions) {
-        ignoreWhitespace = options.ignoreWhitespace; detectMoved = options.detectMoved; detectCopied = options.detectCopied; sourceEncoding = options.encoding
+        ignoreWhitespace = options.ignoreWhitespace; detectionMode = options.detectionMode; sourceEncoding = options.encoding
+        withinFileCharacters = String(options.withinFileCharacters); betweenFileCharacters = String(options.betweenFileCharacters)
     }
     func configure(options: GitBlameOptions, line: Int?) {
-        if !sameOptions(currentOptions, options) || (!busy && (snapshot == nil || !sameOptions(appliedOptions, options))) {
-            invalidate(); busy = false; setControls(options); reload()
+        let needsReload = !sameOptions(currentOptions, options) || (!busy && (snapshot == nil || !sameOptions(appliedOptions, options)))
+        setControls(options)
+        if needsReload {
+            invalidate(); busy = false; reload()
         }
         if let line { selectOriginalLine(line) }
     }
     func setEncoding(_ encoding: GitBlameEncoding?) {
         guard !busy, sourceEncoding != encoding else { return }
         sourceEncoding = encoding; reload()
+    }
+    func setDetectionMode(_ mode: GitBlameDetectionMode) {
+        guard !busy, detectionMode != mode else { return }
+        detectionMode = mode; reload()
     }
     func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -127,6 +137,10 @@ private struct BlameParentMenuTarget {
     }
     func reload() {
         guard !busy else { return }
+        let required = detectionMode == .withinFile ? withinFileCharacters : detectionMode.betweenFiles ? betweenFileCharacters : nil
+        if let required, required.isEmpty || !required.utf8.allSatisfy({ (48...57).contains($0) }) || UInt32(required) == nil {
+            error = "Enter a character count from 0 to 4294967295."; return
+        }
         parentGeneration += 1; parentChoices = []; loadingParents = false
         clipboardGeneration += 1; copyingLog = false
         generation += 1; let request = generation
@@ -207,10 +221,17 @@ private struct BlameDialog: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Toggle("Ignore whitespace", isOn: $model.ignoreWhitespace)
-                Toggle("Detect moved lines", isOn: $model.detectMoved)
-                Toggle("Detect copied lines", isOn: $model.detectCopied)
                 Button("Reload") { model.reload() }
                 Spacer(); Toggle("Colorize by age", isOn: $model.colorAge)
+            }.disabled(model.busy)
+            HStack {
+                Picker("Detect moved or copied lines", selection: Binding(get: { model.detectionMode }, set: { model.setDetectionMode($0) })) {
+                    ForEach(GitBlameDetectionMode.allCases) { mode in Text(mode.title).tag(mode) }
+                }.frame(maxWidth: 420)
+                Text("Within a file:")
+                TextField("Characters within a file", text: $model.withinFileCharacters).frame(width: 65).disabled(model.detectionMode != .withinFile)
+                Text("Between files:")
+                TextField("Characters between files", text: $model.betweenFileCharacters).frame(width: 65).disabled(!model.detectionMode.betweenFiles)
             }.disabled(model.busy)
             HStack {
                 Picker("Encoding", selection: Binding(get: { model.sourceEncoding }, set: { model.setEncoding($0) })) {
