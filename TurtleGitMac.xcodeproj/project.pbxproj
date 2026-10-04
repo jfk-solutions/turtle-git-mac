@@ -21,6 +21,7 @@
 		1E72435F8842C227747192C5 /* ConflictPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */; };
 		1EE5D062EF745705C82D9271 /* ReferenceCreation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 244AD68D8412684F520E64AC /* ReferenceCreation.swift */; };
 		20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */; };
+		230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */; };
 		241DD127E807673880A95899 /* PatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */; };
 		2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */; };
 		37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */; };
@@ -166,6 +167,7 @@
 		5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeSourceComparison.swift; sourceTree = "<group>"; };
 		593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryInitialization.swift; sourceTree = "<group>"; };
 		593DF9B126BBA7E5D206ABE5 /* Checkout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Checkout.swift; sourceTree = "<group>"; };
+		5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationDelegate.swift; sourceTree = "<group>"; };
 		5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageHistory.swift; sourceTree = "<group>"; };
 		5E600ADAA231E0E7D95C9827 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = Sources/TurtleGitCore/Resources/Icons; sourceTree = SOURCE_ROOT; };
 		62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLog.swift; sourceTree = "<group>"; };
@@ -238,6 +240,7 @@
 			isa = PBXGroup;
 			children = (
 				B16F443B326FDAB1414D334B /* Appearance.swift */,
+				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
 				136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */,
 				7A4B370EB64932B2909A8228 /* CloneWindow.swift */,
 				0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */,
@@ -525,6 +528,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */,
+				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
 				7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */,
 				5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */,
 				A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */,

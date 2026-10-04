@@ -415,5 +415,39 @@ the draft, Apply on restored the rulers, and the earlier draft edit could still
 be undone to the original clean result. Working bytes, HEAD, refs and unresolved
 index remained unchanged. The QA app was closed immediately after verification.
 Line-number-specific relaunch, long-file scrolling, dark/resize and signed/sandbox
-acceptance remain unverified. App-wide Quit with dirty merge results also needs
-a dedicated acceptance check; tested window-close prompts alone do not prove it.
+acceptance remain unverified. App-wide Quit is covered separately below.
+
+
+## Application Quit with unsaved merge results
+
+The native application delegate now defers termination when merge windows have
+unsaved results. Each dirty result offers Save, Don’t Save and Cancel. Save waits
+for the existing guarded asynchronous working-file write; a cancelled marker
+warning or failed write cancels termination. All open merge editors are frozen
+while the decision is pending, including source-file replacement and keyboard
+Undo. Cancel restores editing. Quit is rejected while the repository model or a
+merge editor reports an operation in progress.
+
+This addresses a reproduced bug: the previous app exited on Command-Q without
+asking about a modified merge result. Upstream MainFrm.cpp's OnClose save check
+is the behavior reference; the macOS implementation handles application-wide
+termination as well as the existing per-window close check.
+
+Native acceptance used one disposable QA instance at a time. Cancel retained the
+draft and Undo history, and a second Quit displayed the choices again. A stale
+working-file Save rejected the write, displayed the error and retained the draft.
+After restoring the disposable baseline, Save on Quit wrote exact UTF-8 bytes
+with NFD text, CRLF and no final newline, then exited; HEAD, refs and unresolved
+index stages stayed unchanged. Don’t Save exited while retaining the previously
+saved working file. Process checks confirmed each instance exited; none was left
+running. The UI observer temporarily retained a stale application-menu snapshot
+during the successful Save retry; process and exact-byte checks proved that Save
+completed, and the next launch provided direct dialog observations for Cancel
+and Don’t Save. The 21 merge tests and 10 rebase tests passed with zero failures;
+the latter include real Git operations using the actual application executable
+as the headless sequence/message editor after the new delegate was added.
+
+Multiple dirty windows, Quit during a deliberately long operation, nested marker
+warning cancellation and signed/sandbox termination remain acceptance work.
+Other dialog models' operations and unsaved drafts need their own Quit audit;
+this change does not establish application-wide parity for those dialogs.

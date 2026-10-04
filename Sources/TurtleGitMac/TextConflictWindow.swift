@@ -46,6 +46,7 @@ private enum MergeSourceSide {
                 else if field.undoManager?.canUndo == true { field.undoManager?.undo() }
                 return true
             }
+            guard mergedText?.isEditable == true else { return true }
             if modifiers.contains(.shift) { if undo.canRedo { undo.redo() } }
             else if undo.canUndo { undo.undo() }
             return true
@@ -92,7 +93,7 @@ private enum MergeSourceSide {
 
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.busy else { return false }
+        guard !model.busy, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
         let alert = NSAlert(); alert.messageText = "Save changes to “\(model.path)”?"
         alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
@@ -116,6 +117,7 @@ private enum MergeSourceSide {
     @Published var caret = NSRange(location: 0, length: 0)
     @Published var selectionRequest: NSRange?
     @Published var busy = false
+    @Published var confirmingQuit = false
     @Published var error: String?
     @Published var showBase = false
     @Published var canUndo = false
@@ -202,28 +204,30 @@ private enum MergeSourceSide {
         catch { self.error = error.localizedDescription }
     }
     fileprivate func useFile(_ side: MergeSourceSide) {
-        guard !busy, let document else { return }
+        guard !busy, !confirmingQuit, let document else { return }
         let contents = side == .mine ? document.mine : document.theirs
         if let replaceEntireResult { replaceEntireResult(contents) }
         else { result = contents }
         selectedConflict = 0
     }
-    func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false) {
-        guard !busy, let document else { return }
+    func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false, completion: ((Bool) -> Void)? = nil) {
+        guard !busy, let document else { completion?(false); return }
         if !markResolved && MergeText.hasMarkers(result) {
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Save with unresolved conflict markers?"
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Save")
-            guard alert.runModal() == .alertSecondButtonReturn else { return }
+            guard alert.runModal() == .alertSecondButtonReturn else { completion?(false); return }
         }
         let text = result; busy = true
         Task {
-            defer { busy = false }
+            var saved = false
+            defer { busy = false; completion?(saved) }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved)
                 onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + path)
                 if markResolved || closeAfter { close() }
                 else if reloadAfter { try await reloadDocument() }
+                saved = true
             } catch let failure as TextConflictSaveFailure {
                 self.document = failure.savedDocument; self.error = failure.localizedDescription; onChanged(failure.localizedDescription)
             } catch { self.error = error.localizedDescription }
@@ -323,7 +327,7 @@ private struct TextConflictDialog: View {
                     Text("Line \(MergeLineEndings.lineNumber(in: model.result, utf16Offset: model.caret.location))").font(.caption).foregroundStyle(.secondary)
                 }.padding(8)
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
-        }.disabled(model.busy).onAppear { model.load() }
+        }.disabled(model.busy || model.confirmingQuit).onAppear { model.load() }
         .alert("Merge editor operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
@@ -377,7 +381,7 @@ private struct MergeEditor: NSViewRepresentable {
         view.setMergeTabWidth(tabWidth)
         view.mergeUseSpaces = useSpaces; view.mergeSmartTab = smartTab
         if editable { (view.window as? TextConflictNSWindow)?.mergedText = view }
-        view.isEditable = editable && !model.busy; view.model = model
+        view.isEditable = editable && !model.busy && !model.confirmingQuit; view.model = model
         let range = view.selectedRange()
         if !view.string.utf8.elementsEqual(text.utf8) { view.string = text; view.setSelectedRange(NSRange(location: min(range.location, (text as NSString).length), length: 0)) }
         let entire = NSRange(location: 0, length: (text as NSString).length)
@@ -535,7 +539,7 @@ private final class MergeTextView: NSTextView {
         if menuItem.action == #selector(convertLineEndings(_:)) {
             return mergeEditable && isEditable && model?.busy == false && MergeLineEnding.allCases.indices.contains(menuItem.tag)
         }
-        if menuItem.action == #selector(useSourceFile(_:)) { return sourceSide != nil && model?.document != nil && model?.busy == false }
+        if menuItem.action == #selector(useSourceFile(_:)) { return sourceSide != nil && model?.document != nil && model?.busy == false && model?.confirmingQuit == false }
         if menuItem.action == #selector(useBlock(_:)) {
             guard mergeEditable, isEditable, let model, !model.busy,
                   MergeBlockChoice.allCases.indices.contains(menuItem.tag) else { return false }

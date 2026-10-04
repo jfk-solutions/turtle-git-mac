@@ -3,6 +3,7 @@ import AppKit
 import TurtleGitCore
 
 @main struct TurtleGitMacApp: App {
+    @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
     @StateObject private var model = RepositoryModel()
     @StateObject private var appearance = AppAppearance()
     init() {
@@ -12,7 +13,7 @@ import TurtleGitCore
         WindowGroup("TurtleGit for Mac") {
             RepositoryWindow(model: model)
                 .onOpenURL { model.handle($0) }
-                .onAppear { appearance.apply() }
+                .onAppear { applicationDelegate.repositoryModel = model; appearance.apply() }
                 #if DEBUG
                 .onAppear {
                     if Bundle.main.bundleIdentifier?.hasPrefix("org.turtlegit.macos.documentation-preview") == true, model.root == nil,
