@@ -131,20 +131,30 @@ private enum MergeSourceSide {
     func load() {
         guard !busy else { return }
         if dirty {
-            let alert = NSAlert(); alert.messageText = "Discard the unsaved merged result and reload?"
-            alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Reload")
-            guard alert.runModal() == .alertSecondButtonReturn else { return }
+            let alert = NSAlert(); alert.messageText = "Save changes to “\(path)” before reloading?"
+            alert.informativeText = "Reload regenerates the merged result from the current conflict stages."
+            alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
+            switch alert.runModal() {
+            case .alertFirstButtonReturn: save(markResolved: false, reloadAfter: true); return
+            case .alertSecondButtonReturn: break
+            default: return
+            }
         }
         busy = true
         Task {
             defer { busy = false }
             do {
-                let next = try await repository.textConflictDocument(path: path)
-                sourceComparison = await Task.detached { MergeSourceComparison(base: next.base, mine: next.mine, theirs: next.theirs) }.value
-                resetHistory()
-                document = next; result = next.initialResult; selectedConflict = 0; selectConflict(0)
+                try await reloadDocument()
             } catch { self.error = error.localizedDescription }
         }
+    }
+    private func reloadDocument() async throws {
+        let next = try await repository.textConflictDocument(path: path)
+        let comparison = await Task.detached { MergeSourceComparison(base: next.base, mine: next.mine, theirs: next.theirs) }.value
+        resetHistory()
+        document = next; sourceComparison = comparison; result = next.initialResult
+        selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
+        selectConflict(0)
     }
     func selectConflict(_ index: Int) {
         let blocks = blocks; guard !blocks.isEmpty else { return }
@@ -167,7 +177,7 @@ private enum MergeSourceSide {
         else { result = contents }
         selectedConflict = 0
     }
-    func save(markResolved: Bool, closeAfter: Bool = false) {
+    func save(markResolved: Bool, closeAfter: Bool = false, reloadAfter: Bool = false) {
         guard !busy, let document else { return }
         if !markResolved && MergeText.hasMarkers(result) {
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Save with unresolved conflict markers?"
@@ -182,6 +192,7 @@ private enum MergeSourceSide {
                 self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved)
                 onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + path)
                 if markResolved || closeAfter { close() }
+                else if reloadAfter { try await reloadDocument() }
             } catch let failure as TextConflictSaveFailure {
                 self.document = failure.savedDocument; self.error = failure.localizedDescription; onChanged(failure.localizedDescription)
             } catch { self.error = error.localizedDescription }
@@ -234,7 +245,7 @@ private struct TextConflictDialog: View {
                 Button { model.selectConflict(model.selectedConflict - 1) } label: { CommandLabel(title: "Previous conflict", icon: .mergePreviousConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict == 0)
                 Button { model.selectConflict(model.selectedConflict + 1) } label: { CommandLabel(title: "Next conflict", icon: .mergeNextConflict) }.disabled(model.blocks.isEmpty || model.selectedConflict >= model.blocks.count - 1)
                 Toggle("Show Base", isOn: $model.showBase).toggleStyle(.button)
-                Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }.help("Reload the current conflict stages; ask before discarding an unsaved result.")
+                Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }.help("Reload the current conflict stages; offer to save an edited result first.")
                 Spacer()
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegitmerge/tmerge-dug-conflicts.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }.padding(9)
@@ -259,7 +270,7 @@ private struct TextConflictDialog: View {
                 }.padding(8)
             } else { ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity) }
         }.disabled(model.busy).onAppear { model.load() }
-        .alert("Could not save merged result", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+        .alert("Merge editor operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
 private struct MergeEditor: NSViewRepresentable {

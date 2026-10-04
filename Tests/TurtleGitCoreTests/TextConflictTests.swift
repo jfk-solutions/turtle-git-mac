@@ -2,6 +2,30 @@ import XCTest
 @testable import TurtleGitCore
 
 final class TextConflictTests: XCTestCase {
+    func testSaveBeforeReloadRegeneratesConflictsWithoutDiscardingSavedWorkingBytes() async throws {
+        let (root, repo, path) = try await ConflictResolutionTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = try await repo.textConflictDocument(path: path)
+        let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let refs = try await repo.run(["show-ref"]).stdout
+        let draft = "reviewed 雪 e\u{301}\r\nno final newline"
+        let saved = try await repo.saveTextConflict(original, result: draft, markResolved: false)
+        let reloaded = try await repo.textConflictDocument(path: path)
+        XCTAssertEqual(saved.initialResult, draft)
+        XCTAssertEqual(reloaded.workingContents, Data(draft.utf8))
+        XCTAssertEqual(Data(reloaded.initialResult.utf8), Data(original.initialResult.utf8))
+        XCTAssertEqual(reloaded.entry.stages, original.entry.stages)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data(draft.utf8))
+        let afterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let afterRefs = try await repo.run(["show-ref"]).stdout
+        XCTAssertEqual(afterIndex, index); XCTAssertEqual(afterHead, head); XCTAssertEqual(afterRefs, refs)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("other.txt")), "other working\n")
+        let otherIndex = try await repo.run(["show", ":other.txt"]).text
+        XCTAssertEqual(otherIndex, "other index\n")
+        _ = try await repo.run(["rev-parse", "--verify", "MERGE_HEAD"])
+    }
     func testStageExtractionAndEveryBlockChoiceRetainsOutsideContextAndUnicode() async throws {
         let (root, repo, path) = try await ConflictResolutionTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

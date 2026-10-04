@@ -168,3 +168,8 @@ undoable original-stage replacement. Native Mine/Theirs, keyboard Undo/Redo and
 unsaved-close Cancel are verified. Reload now exposes existing stage reload
 with original artwork and history reset; its native dirty prompt/Cancel are verified, while confirmed reload remains
 pending. Full source-block selection and upstream EOL handling are still partial.
+
+The merge Reload prompt now includes Save before Reload. A real-Git regression
+test verifies Unicode/CRLF/EOF draft saving followed by conflict regeneration
+without changing unresolved stages or unrelated data. Native Save and Reload
+saved exact Mine contents; final view/history acceptance remains pending.

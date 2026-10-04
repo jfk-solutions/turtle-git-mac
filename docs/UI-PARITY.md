@@ -90,3 +90,8 @@ Merge source panes now offer Use this whole file. Native Mine, Theirs, Undo/Redo
 native combinations remain pending. Reload is visible with original artwork
 and successful-load history reset. Its dirty prompt and Cancel were verified;
 confirmed reload/reset acceptance remains pending.
+
+Reload now offers Save and Reload, Reload Without Saving and Cancel, matching
+the reviewed upstream three-way Save check. Native Save and Reload wrote exact
+Mine bytes and preserved unresolved stages; post-reload rendering/history and
+the new prompt's other choices remain unverified after observer timeouts.

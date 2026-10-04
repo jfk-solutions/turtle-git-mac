@@ -55,7 +55,7 @@ signed sandbox behavior is still unverified.
 
 ## Evidence
 
-The full suite passed 180 tests with zero failures. Eight TextConflict tests cover
+The full suite passed 181 tests with zero failures. Nine TextConflict tests cover
 all four block choices, multiple CRLF blocks and Unicode UTF-16 selection ranges;
 real merge and add/add stage extraction; real rebase role reversal; exact UTF-8
 BOM/CRLF/no-final-newline saves; executable permissions; stale working/stage/mode
@@ -94,7 +94,7 @@ is implemented, but native attempts encountered inaccessible scroll targets and
 no-window observations; it remains unverified. Character-level differences, syntax coloring, whitespace
 and EOL/encoding controls, folding, locator bar, source editing, complete ribbon
 and menus, standalone two-file comparison, external tools, binary/image merging,
-empty-result Delete/Keep, backup files, full save-before-reload/open workflows and selection
+empty-result Delete/Keep, backup files, complete reload/open workflows and selection
 mapping from source-pane block menus remain pending. EOF block-choice fidelity
 needs broader checks. Full native keyboard/Undo/Redo, save/close/export/error/rebase,
 resize and signed Finder/sandbox acceptance remain partial until verified.
@@ -163,10 +163,12 @@ stage extraction and UTF-8/CRLF/EOF save preservation, but do not prove those UI
 combinations.
 
 Reload is now visible with the unchanged upstream Refresh.bmp ribbon artwork
-and SHA-256 provenance. Dirty results ask Cancel/Reload. A successful reload
+and SHA-256 provenance. Dirty results now offer Save and Reload, Reload Without Saving and Cancel. A successful reload
 recaptures current stages and working-file guards, regenerates the merge and
 source alignment, and clears old Undo/Redo actions. Failures retain the prior
-result and history. Upstream also offers save-before-reload, which remains pending.
+result and history. The Save and Reload path uses the existing guarded save and then reloads under
+one busy operation; a save failure stops reload. The replacement document and
+alignment are prepared before clearing history or publishing the new view.
 Native dirty Reload displayed Cancel/Reload in the final dark build; Cancel
 retained Theirs, Modified and enabled Undo. Confirmed Reload/history-reset checks
 encountered missing-window observations and remain unverified.
@@ -182,3 +184,30 @@ Dirty detection and text-view refresh compare UTF-8 bytes rather than Swift's
 canonical String equality, so visually equivalent NFC/NFD changes remain
 unsaved edits and can refresh the displayed buffer. Native normalization-only
 edit/close acceptance still needs verification.
+
+## Save before Reload
+
+Reviewed MainFrm.cpp::CheckForSave's three-way path, Reload reason and failure
+return: Save, discard and Cancel are available, and failed Save cancels Reload.
+The native prompt now offers Save and Reload, Reload Without Saving and Cancel.
+Unresolved-marker Save confirmation and stale-file/index/permission validation
+still apply. Busy remains active throughout save and reload. Reload failures
+retain the current result/history; if Save succeeded first, the refreshed saved
+snapshot remains available for retry. Successful reload clears old history,
+selection requests and caret state before selecting the regenerated conflict.
+
+Nine targeted TextConflict tests pass. The added real-Git save/reload test stores
+a Unicode/NFD/CRLF/no-final-newline draft, regenerates the original diff3 conflicts
+and captures the saved working bytes without changing index stages, HEAD, refs,
+MERGE_HEAD or unrelated index/working contents. This covers the backend sequence,
+not the native alert or history-reset rendering.
+
+Native QA in /private/tmp/TurtleGitMergeReloadQA selected whole Mine, displayed
+all three prompt choices and clicked Save and Reload. The working file then
+matched the original Mine-stage bytes exactly. HEAD, refs, all unresolved index
+stages and unrelated notes.txt stayed unchanged. Subsequent window observations
+timed out, so final regenerated view/history state and Reload Without Saving
+remain unverified in this build. The earlier Cancel verification used the prior
+two-choice prompt; the new prompt's Cancel still needs native acceptance.
+
+The final full suite passed 181 tests with zero failures, including the new save-before-reload regression.
