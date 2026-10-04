@@ -79,3 +79,9 @@ Submodule Delete/Abort, recoverable Trash, and file-to-gitlink directory convers
 are implemented with native Abort/Delete effects verified. Registered/multi-item
 removal and reverse transitions remain partial. Shared command labels now respect
 template tinting for monochrome Log, Help and cherry-pick artwork.
+
+Text conflict editor now has aligned read-only source rows, original source
+numbers, and upstream light/dark removed/added/conflicted/empty colors. Both
+actual native captures were inspected. The full suite passes 180 tests. Exact
+libsvn alignment parity and synchronized scrolling acceptance remain pending;
+native Command-Z is a known defect. See [Text merge parity](TEXT-MERGE-PARITY.md).

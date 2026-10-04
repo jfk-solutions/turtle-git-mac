@@ -16,10 +16,16 @@ private extension MergeBlockChoice {
 
 @MainActor private final class TextConflictNSWindow: NSWindow {
     weak var mergedText: NSTextView?
-    private var activeText: NSTextView? { (firstResponder as? NSTextView) ?? mergedText }
+    private weak var findText: NSTextView?
+    private var activeText: NSTextView? { (firstResponder as? MergeTextView) ?? findText ?? mergedText }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
         if modifiers == .command || modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", let undo = mergedText?.undoManager {
+            if let field = firstResponder as? NSTextView, field.isFieldEditor {
+                if modifiers.contains(.shift) { if field.undoManager?.canRedo == true { field.undoManager?.redo() } }
+                else if field.undoManager?.canUndo == true { field.undoManager?.undo() }
+                return true
+            }
             if modifiers.contains(.shift) { if undo.canRedo { undo.redo() } }
             else if undo.canUndo { undo.undo() }
             return true
@@ -34,6 +40,7 @@ private extension MergeBlockChoice {
     }
     func find(_ action: NSTextFinder.Action) {
         guard let text = activeText else { return }
+        findText = text
         if action == .showFindInterface, text.selectedRange().length > 0 {
             let selection = NSMenuItem(); selection.tag = NSTextFinder.Action.setSearchString.rawValue
             text.performTextFinderAction(selection)
@@ -42,7 +49,7 @@ private extension MergeBlockChoice {
         text.performTextFinderAction(sender)
     }
     override func cancelOperation(_ sender: Any?) {
-        if let text = activeText, text.enclosingScrollView?.isFindBarVisible == true {
+        if let text = findText ?? activeText, text.enclosingScrollView?.isFindBarVisible == true {
             find(.hideFindInterface); makeFirstResponder(text)
         } else { performClose(sender) }
     }
@@ -56,9 +63,13 @@ private extension MergeBlockChoice {
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 860, height: 540)
-        window.contentViewController = NSHostingController(rootView: TextConflictDialog(model: model))
+        let hosting = NSHostingController(rootView: TextConflictDialog(model: model))
+        hosting.sizingOptions = [.minSize]
+        window.contentViewController = hosting
+        window.setContentSize(NSSize(width: 1120, height: 780))
         super.init(window: window); window.delegate = self; window.center(); window.setFrameAutosaveName("TurtleGit.TextConflict")
         model.close = { [weak window] in window?.close() }
+
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !model.busy else { return false }
@@ -79,6 +90,7 @@ private extension MergeBlockChoice {
     let path: String
     private let access: RepositoryAccessLease?
     @Published var document: TextConflictDocument?
+    @Published var sourceComparison: MergeSourceComparison?
     @Published var result = ""
     @Published var selectedConflict = 0
     @Published var caret = NSRange(location: 0, length: 0)
@@ -93,6 +105,20 @@ private extension MergeBlockChoice {
     var redo: () -> Void = {}
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
+    private var sourceScrolls: [String: WeakMergeScroll] = [:]
+    private var synchronizingScroll = false
+    func registerSourceScroll(_ scroll: NSScrollView, label: String) { sourceScrolls[label] = WeakMergeScroll(scroll) }
+    func sourceDidScroll(_ scroll: NSScrollView) {
+        guard !synchronizingScroll else { return }
+        synchronizingScroll = true; defer { synchronizingScroll = false }
+        for reference in sourceScrolls.values {
+            guard let peer = reference.view, peer !== scroll else { continue }
+            let clip = peer.contentView
+            let desired = NSRect(origin: NSPoint(x: clip.bounds.minX, y: scroll.contentView.bounds.minY), size: clip.bounds.size)
+            clip.scroll(to: clip.constrainBoundsRect(desired).origin); peer.reflectScrolledClipView(clip)
+            peer.verticalRulerView?.needsDisplay = true
+        }
+    }
     var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result) }
     var dirty: Bool { document.map { result != $0.initialResult } ?? false }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String) { self.repository = repository; self.access = access; self.path = path }
@@ -108,6 +134,7 @@ private extension MergeBlockChoice {
             defer { busy = false }
             do {
                 let next = try await repository.textConflictDocument(path: path)
+                sourceComparison = await Task.detached { MergeSourceComparison(base: next.base, mine: next.mine, theirs: next.theirs) }.value
                 document = next; result = next.initialResult; selectedConflict = 0; selectConflict(0)
             } catch { self.error = error.localizedDescription }
         }
@@ -153,12 +180,34 @@ private extension MergeBlockChoice {
         do { try Data(result.utf8).write(to: url, options: .atomic) } catch { self.error = error.localizedDescription }
     }
 }
+@MainActor private final class WeakMergeScroll {
+    weak var view: NSScrollView?
+    init(_ view: NSScrollView) { self.view = view }
+}
+private enum MergePalette {
+    static func color(_ state: MergeSourceState) -> NSColor {
+        if state == .normal { return .textBackgroundColor }
+        return NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let rgb: (Int, Int, Int)
+            switch state {
+            case .removed: rgb = dark ? (83, 66, 33) : (255, 200, 100)
+            case .added: rgb = dark ? (83, 83, 0) : (255, 255, 0)
+            case .conflicted: rgb = dark ? (83, 33, 33) : (255, 100, 100)
+            case .empty: rgb = dark ? (66, 66, 66) : (200, 200, 200)
+            case .normal: return .textBackgroundColor
+            }
+            return NSColor(calibratedRed: CGFloat(rgb.0) / 255, green: CGFloat(rgb.1) / 255, blue: CGFloat(rgb.2) / 255, alpha: 1)
+        }
+    }
+}
 private struct TextConflictDialog: View {
     @ObservedObject var model: TextConflictWindowModel
-    func pane(_ title: String, text: String, editable: Bool = false) -> some View {
-        VStack(spacing: 0) {
+    func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil) -> some View {
+        let displayed = cells.map { $0.map(\.displayText).joined(separator: "\n") + ($0.isEmpty ? "" : "\n") } ?? text
+        return VStack(spacing: 0) {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
-            MergeEditor(model: model, text: text, label: title, editable: editable).frame(minWidth: 220, minHeight: 120)
+            MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells).frame(minWidth: 220, minHeight: 120)
         }
     }
     var body: some View {
@@ -177,8 +226,8 @@ private struct TextConflictDialog: View {
             if let document = model.document {
                 VSplitView {
                     HSplitView {
-                        pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs)
-                        pane(document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine", text: document.mine)
+                        pane(document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", text: document.theirs, cells: model.sourceComparison?.rows.map(\.theirs))
+                        pane(document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine", text: document.mine, cells: model.sourceComparison?.rows.map(\.mine))
                         if model.showBase { pane("Base", text: document.base) }
                     }
                     pane("Merged · \(model.path)", text: model.result, editable: true)
@@ -203,6 +252,7 @@ private struct MergeEditor: NSViewRepresentable {
     let text: String
     let label: String
     let editable: Bool
+    let sourceCells: [MergeSourceCell]?
     func makeNSView(context: Context) -> NSScrollView {
         let view = MergeTextView(); view.isRichText = false; view.allowsUndo = editable
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
@@ -224,6 +274,7 @@ private struct MergeEditor: NSViewRepresentable {
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent; view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
         scroll.documentView = view
+        if sourceCells != nil { context.coordinator.attachSourceScroll(scroll, label: label) }
         scroll.hasVerticalRuler = true; scroll.rulersVisible = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
         return scroll
     }
@@ -236,28 +287,35 @@ private struct MergeEditor: NSViewRepresentable {
         let entire = NSRange(location: 0, length: (text as NSString).length)
         view.textStorage?.addAttributes([.foregroundColor: NSColor.labelColor, .backgroundColor: NSColor.textBackgroundColor, .font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)], range: entire)
         if editable {
-            for block in MergeText.conflicts(in: text) { view.textStorage?.addAttribute(.backgroundColor, value: NSColor.systemRed.withAlphaComponent(0.13), range: block.range) }
+            for block in MergeText.conflicts(in: text) { view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.color(.conflicted), range: block.range) }
             if let requested = model.selectionRequest, NSMaxRange(requested) <= entire.length {
                 view.setSelectedRange(requested); view.scrollRangeToVisible(requested)
                 DispatchQueue.main.async { if model.selectionRequest == requested { model.selectionRequest = nil } }
             }
-        } else if let base = model.document?.base {
-            let original = base.components(separatedBy: "\n"), lines = text.components(separatedBy: "\n")
-            let added = Set(lines.difference(from: original).compactMap { change -> Int? in if case .insert(let offset, _, _) = change { return offset }; return nil })
+        } else if let sourceCells {
             var offset = 0
-            for (index, line) in lines.enumerated() {
-                let length = (line as NSString).length
-                if added.contains(index) { view.textStorage?.addAttribute(.backgroundColor, value: NSColor.systemGreen.withAlphaComponent(0.15), range: NSRange(location: offset, length: length)) }
-                offset += length + 1
+            for cell in sourceCells {
+                let length = (cell.displayText as NSString).length + 1
+                view.textStorage?.addAttribute(.backgroundColor, value: MergePalette.color(cell.state), range: NSRange(location: offset, length: length))
+                offset += length
             }
         }
+        (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
         scroll.verticalRulerView?.needsDisplay = true
     }
     func makeCoordinator() -> Coordinator { Coordinator(model: model, editable: editable) }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         let model: TextConflictWindowModel
         let editable: Bool
+        weak var sourceScroll: NSScrollView?
         init(model: TextConflictWindowModel, editable: Bool) { self.model = model; self.editable = editable }
+        func attachSourceScroll(_ scroll: NSScrollView, label: String) {
+            sourceScroll = scroll; model.registerSourceScroll(scroll, label: label)
+            scroll.contentView.postsBoundsChangedNotifications = true
+            NotificationCenter.default.addObserver(self, selector: #selector(sourceScrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        }
+        @objc private func sourceScrolled(_ notification: Notification) { if let sourceScroll { model.sourceDidScroll(sourceScroll) } }
+        deinit { NotificationCenter.default.removeObserver(self) }
         func textDidChange(_ notification: Notification) {
             if editable, let view = notification.object as? MergeTextView {
                 model.result = view.string; view.enclosingScrollView?.verticalRulerView?.needsDisplay = true
@@ -330,6 +388,7 @@ private final class MergeTextView: NSTextView {
     }
 }
 private final class MergeLineRuler: NSRulerView {
+    var sourceNumbers: [Int?]?
     override init(scrollView: NSScrollView?, orientation: NSRulerView.Orientation) { super.init(scrollView: scrollView, orientation: orientation); ruleThickness = 45 }
     required init(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     override func drawHashMarksAndLabels(in rect: NSRect) {
@@ -347,7 +406,8 @@ private final class MergeLineRuler: NSRulerView {
             let glyph = manager.glyphRange(forCharacterRange: NSRange(location: location, length: 1), actualCharacterRange: nil)
             let frame = manager.boundingRect(forGlyphRange: glyph, in: container).offsetBy(dx: view.textContainerInset.width, dy: view.textContainerInset.height)
             if frame.maxY >= visible.minY && frame.minY <= visible.maxY {
-                let value = String(line) as NSString
+                let number = sourceNumbers == nil ? line : (sourceNumbers!.indices.contains(line - 1) ? sourceNumbers![line - 1] : nil)
+                let value = number.map(String.init) as NSString? ?? ""
                 value.draw(at: NSPoint(x: ruleThickness - value.size(withAttributes: attrs).width - 6, y: convert(frame.origin, from: view).y), withAttributes: attrs)
             }
             if frame.minY > visible.maxY { break }

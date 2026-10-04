@@ -155,3 +155,10 @@ Resolve now matches upstream file-to-gitlink checkout and failed submodule
 removal Delete/Abort choices, with native Abort/Delete and recoverable Trash
 verification. Remaining type transitions, registered/multi-item removal and full
 progress still require audit.
+
+Text merge source panes now align base removals, additions, conflicts and gaps
+with upstream light/dark colors and original source line numbers. The latest
+full suite passes 180 tests; alignment tests reconstruct exact source contents
+over exhaustive and seeded Unicode/CRLF cases. Actual native captures verify
+the palette and layout. Full libsvn segmentation parity, source scrolling QA
+and keyboard Undo remain incomplete; see TEXT-MERGE-PARITY.md.

@@ -1726,14 +1726,14 @@ src/TortoiseMerge/AboutDlg.cpp,TortoiseMerge,blob,6aefb0e9bf67ffcef1a8be319a4a86
 src/TortoiseMerge/AboutDlg.h,TortoiseMerge,blob,014f3ad547e5cf5e2464b0a321d530cc461572e3,pending-review,,
 src/TortoiseMerge/AppUtils.cpp,TortoiseMerge,blob,7e67a7ee01c3b25b41b30f1d8142ca265fbd6f46,pending-review,,
 src/TortoiseMerge/AppUtils.h,TortoiseMerge,blob,ad0ee78a1baaeb2b3ebb65e5c033dffd2e78b6eb,pending-review,,
-src/TortoiseMerge/BaseView.cpp,TortoiseMerge,blob,366693a9d1d37033f6c99222fe616e6c1dc394c5,pending-review,,
+src/TortoiseMerge/BaseView.cpp,TortoiseMerge,blob,366693a9d1d37033f6c99222fe616e6c1dc394c5,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed inline-diff gating and line-length limits; source rendering partially replaced; inline/folding/locator/editing and full view behavior pending.
 src/TortoiseMerge/BaseView.h,TortoiseMerge,blob,b6df00936593fedcc7f6375125d2fdc08a86e138,pending-review,,
 src/TortoiseMerge/BottomView.cpp,TortoiseMerge,blob,604c2311ee3b040f233c696debe708a444b4d754,partial,Sources/TurtleGitMac/TextConflictWindow.swift; Sources/TurtleGitCore/TextConflict.swift,Partial text-conflict save/block-choice review and native three-pane editor; full diff/merge view and menus remain pending. See TEXT-MERGE-PARITY.md.
 src/TortoiseMerge/BottomView.h,TortoiseMerge,blob,a7b905538aadc4b90550edbddd8e1812c115b1f7,pending-review,,
 src/TortoiseMerge/CustomMFCRibbonStatusBar.h,TortoiseMerge,blob,d2653405a4597fc304a9ac14926dba9dccf23eed,pending-review,,
-src/TortoiseMerge/DiffColors.cpp,TortoiseMerge,blob,6da9005c64f9e989f495e0c61805306c3894bc56,pending-review,,
-src/TortoiseMerge/DiffColors.h,TortoiseMerge,blob,1e1070aa738a175c5cb9827f61ede75568ef25be,pending-review,,
-src/TortoiseMerge/DiffData.cpp,TortoiseMerge,blob,929b1992ef8c8216d08d5a7673895979079f0eb5,pending-review,,
+src/TortoiseMerge/DiffColors.cpp,TortoiseMerge,blob,6da9005c64f9e989f495e0c61805306c3894bc56,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed palette initialization/default use; native removed/added/conflicted/empty colors mapped; complete registry/settings palette pending.
+src/TortoiseMerge/DiffColors.h,TortoiseMerge,blob,1e1070aa738a175c5cb9827f61ede75568ef25be,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed default light/dark palette; four source states mapped; complete configurable colors pending.
+src/TortoiseMerge/DiffData.cpp,TortoiseMerge,blob,929b1992ef8c8216d08d5a7673895979079f0eb5,partial,Sources/TurtleGitCore/MergeSourceComparison.swift; Sources/TurtleGitMac/TextConflictWindow.swift,Reviewed three-way common/identical/one-side/conflict row construction; exact-byte Swift source alignment added; full libsvn diff3 segmentation and options pending.
 src/TortoiseMerge/DiffData.h,TortoiseMerge,blob,0f4d49b6a917466180d46d53c28ce8c0e8a9df9d,pending-review,,
 src/TortoiseMerge/DiffStates.h,TortoiseMerge,blob,640cb75ab4d1ca1f08f4488a8fa1c92cc032b8ae,pending-review,,
 src/TortoiseMerge/EOL.cpp,TortoiseMerge,blob,9ca871dd472240cc62578c622e7b49b219d13350,pending-review,,
