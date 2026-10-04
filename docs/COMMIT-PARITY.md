@@ -430,3 +430,8 @@ The native window and collision → retry workflow were exercised, including a r
 from Commit that preserved separate staged/worktree contents. Check/selection/scope
 remapping is implemented; its post-close native observation still needs verification.
 See [Rename parity](RENAME-PARITY.md).
+
+The file menu now offers upstream Ignore name/extension and containing-folder actions
+for unversioned/deleted selections. [Ignore parity](IGNORE-PARITY.md) records rule
+semantics and native Commit/Working Tree handoff evidence; post-close restoration
+remains unverified.

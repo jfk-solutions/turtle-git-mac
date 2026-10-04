@@ -41,7 +41,7 @@ import TurtleGitCore
             }
             CommandMenu("TurtleGit") {
                 ForEach(RepositoryAction.allCases.filter { $0 != .clone && $0 != .initialize }) { action in
-                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection))
+                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection) || (action.isIgnore && !model.canIgnoreSelection(action)))
                 }
             }
             CommandMenu("Appearance") {
@@ -185,6 +185,12 @@ struct RepositoryWindow: View {
                 Button { model.stage() } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(model.selection.isEmpty)
                 Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
                 Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
+                if model.canIgnoreSelection(.ignore) {
+                    IgnoreSelectionMenu(paths: model.selectedPaths) { action, paths in model.activate(action, paths: paths) }
+                }
+                if model.canIgnoreSelection(.ignoreDelete) {
+                    IgnoreSelectionMenu(paths: model.selectedPaths, deleting: true) { action, paths in model.activate(action, paths: paths) }
+                }
                 Divider()
                 Button { model.activate(.remove) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(!model.canRemoveSelection)
                 Button { model.activate(.removeKeep) } label: { CommandLabel(title: "Delete (keep local)", icon: .remove) }.disabled(!model.canRemoveSelection)

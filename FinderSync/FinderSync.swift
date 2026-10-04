@@ -36,12 +36,29 @@ import TurtleGitCore
         let selection = controller.selectedItemURLs() ?? []
         let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
         submenu.autoenablesItems = false
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize }) {
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && !$0.isIgnore }) {
             let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
             item.image = action.icon.image()
             if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
             if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
             item.target = self; item.representedObject = action.rawValue; submenu.addItem(item)
+        }
+        for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true {
+            let ignore = NSMenuItem(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", action: nil, keyEquivalent: "")
+            ignore.image = MenuIcon.ignore.image()
+            let choices = NSMenu(title: ignore.title); choices.autoenablesItems = false
+            let name = paths.count == 1 ? paths[0].lastPathComponent : "Ignore \(paths.count) items by name"
+            let named = NSMenuItem(title: name, action: #selector(openAction(_:)), keyEquivalent: "")
+            named.target = self; named.image = MenuIcon.ignore.image(); named.representedObject = (deleting ? RepositoryAction.ignoreDelete : .ignore).rawValue
+            choices.addItem(named)
+            let singleDirectory = paths.count == 1 && snapshot?.states.keys.contains(where: { $0.hasPrefix(paths[0].path + "/") }) == true
+            if !singleDirectory && paths.contains(where: { !$0.pathExtension.isEmpty }) {
+                let title = paths.count == 1 ? "*." + paths[0].pathExtension : "Ignore \(paths.count) items by extension"
+                let mask = NSMenuItem(title: title, action: #selector(openAction(_:)), keyEquivalent: "")
+                mask.target = self; mask.image = MenuIcon.ignore.image(); mask.representedObject = (deleting ? RepositoryAction.ignoreDeleteMask : .ignoreMask).rawValue
+                choices.addItem(mask)
+            }
+            ignore.submenu = choices; submenu.addItem(ignore)
         }
         let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
         parent.image = MenuIcon.turtle.image()

@@ -1105,7 +1105,7 @@ src/Git/GitRevRefBrowser.cpp,Git,blob,9f52554f338a85531703cfffe20899888f7093ae,p
 src/Git/GitRevRefBrowser.h,Git,blob,ffb10ff4a736fefc3823a4c5466a6cadec4d9c5f,pending-review,,
 src/Git/GitStatus.cpp,Git,blob,a5b88525b5bae85c985922f9306bcfaeb7e879df,pending-review,,
 src/Git/GitStatus.h,Git,blob,6c510b4306d177685bb4bc25fb20a081659e6d6f,pending-review,,
-src/Git/GitStatusListCtrl.cpp,Git,blob,bb3424966659715269d38fca610c8d46810b0b15,pending-review,," Commit file access/clipboard menu commands and original Open/Explorer icons ported; native clipboard/chooser and selection contrast verified, external handoff QA pending. See docs/COMMIT-PARITY.md."
+src/Git/GitStatusListCtrl.cpp,Git,blob,bb3424966659715269d38fca610c8d46810b0b15,partial,Sources/TurtleGitCore/Ignore.swift; Sources/TurtleGitMac/IgnoreWindow.swift," Commit file access/clipboard menu commands and original Open/Explorer icons ported; native clipboard/chooser and selection contrast verified, external handoff QA pending. See docs/COMMIT-PARITY.md. Ignore name/extension, scope/destination and menu routing partially ported; see docs/IGNORE-PARITY.md."
 src/Git/GitStatusListCtrl.h,Git,blob,e5d280386a15ae91f66869525dd5eb0ef55c18d4,pending-review,,
 src/Git/MassiveGitTaskBase.cpp,Git,blob,68350603eac0a04f3df40577fb844b6b6ae40a9f,pending-review,,
 src/Git/MassiveGitTaskBase.h,Git,blob,7d5c8aa473f6c3cd865f22eb178498bbb9c605c2,pending-review,,
@@ -1420,7 +1420,7 @@ src/Resources/menudiff.ico,Resources,blob,9ca33ae9026aeeb373c560200f82a4d5ee1c56
 src/Resources/menuedit.ico,Resources,blob,3c6f7123943760b551c74e7ba55fdd23be0fd813,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menuedit.ico,Byte-exact upstream ICO with provenance hash; native Rebase action/reverse artwork; AppKit decoding tested.
 src/Resources/menuexport.ico,Resources,blob,a8068759ccb1c42353dd64e37b3113dfe3797ecd,pending-review,,
 src/Resources/menuhelp.ico,Resources,blob,7f8ab3f1565704ac391964d80e9dde7e49a28e86,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menuhelp.ico,Unchanged upstream ICO; AppKit decodes at native menu/badge size. GPL alternative; retained source license and provenance.
-src/Resources/menuignore.ico,Resources,blob,4629dcd5e97459f1e3c5d3983a07eeb7aab4f43a,pending-review,,
+src/Resources/menuignore.ico,Resources,blob,4629dcd5e97459f1e3c5d3983a07eeb7aab4f43a,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menuignore.ico,Original unchanged artwork; provenance/hash recorded; Ignore variants share icon.
 src/Resources/menulfs.ico,Resources,blob,2001abde97d8586bc0db051ca7b2690f727413a3,pending-review,,
 src/Resources/menulock.ico,Resources,blob,3ad5d7913b5a4e713af0430e4b25469784295944,pending-review,,
 src/Resources/menulog.ico,Resources,blob,7eb6287a4ba5c53ae603330bc99c14b4a45f2b58,ported-artwork,Sources/TurtleGitCore/Resources/Icons/menulog.ico,Unchanged upstream ICO; AppKit decodes at native menu/badge size. GPL alternative; retained source license and provenance.
@@ -2203,7 +2203,7 @@ src/TortoiseProc/AddDlg.cpp,TortoiseProc,blob,95233e8ea888a18feb21e58c5f565f2c98
 src/TortoiseProc/AddDlg.h,TortoiseProc,blob,dbd337eff027c0d58c1bfd50d84a86eae1667589,pending-review,,
 src/TortoiseProc/AddRemoteDlg.cpp,TortoiseProc,blob,f62a686f6529a16a369450d31c434e44a9b5f337,pending-review,,
 src/TortoiseProc/AddRemoteDlg.h,TortoiseProc,blob,4c4115fe705e58b67671afefd6058f22e5d0aa55,pending-review,,
-src/TortoiseProc/AppUtils.cpp,TortoiseProc,blob,ad5cf29edc933f6469fb9a961b84e8251f5fc563,pending-review,,
+src/TortoiseProc/AppUtils.cpp,TortoiseProc,blob,ad5cf29edc933f6469fb9a961b84e8251f5fc563,partial,Sources/TurtleGitCore/Ignore.swift; Sources/TurtleGitMac/IgnoreWindow.swift," Ignore name/extension, scope/destination and menu routing partially ported; see docs/IGNORE-PARITY.md."
 src/TortoiseProc/AppUtils.h,TortoiseProc,blob,fe216a6b0e61cd777fe432d18ea810891e994b44,pending-review,,
 src/TortoiseProc/AutoTextTestDlg.cpp,TortoiseProc,blob,034b8cdc0319ebeae44be20f672bd30368d25c59,pending-review,,
 src/TortoiseProc/AutoTextTestDlg.h,TortoiseProc,blob,ce82cc5ebce1331d7bdd42b888aa1966e68e73a3,pending-review,,
@@ -2279,8 +2279,8 @@ src/TortoiseProc/Commands/FirstStartWizardCommand.h,TortoiseProc,blob,cf012fbc77
 src/TortoiseProc/Commands/FormatPatchCommand.cpp,TortoiseProc,blob,0e05626d7c64c484276c45d5a004d2d9f3d668d3,pending-review,,
 src/TortoiseProc/Commands/FormatPatchCommand.h,TortoiseProc,blob,68193c94e6f64616e74012d789910e5e56bc2680,pending-review,,
 src/TortoiseProc/Commands/HelpCommand.h,TortoiseProc,blob,9bbc80e67728a03c3ae3f2c7e28dd09ab8269bdf,pending-review,,
-src/TortoiseProc/Commands/IgnoreCommand.cpp,TortoiseProc,blob,b88a003fa0cbe0b5f1011bf09fd03b358ac1f68f,pending-review,,
-src/TortoiseProc/Commands/IgnoreCommand.h,TortoiseProc,blob,624d0856cdb66cc253bdc74baf46df34062310dc,pending-review,,
+src/TortoiseProc/Commands/IgnoreCommand.cpp,TortoiseProc,blob,b88a003fa0cbe0b5f1011bf09fd03b358ac1f68f,partial,Sources/TurtleGitCore/Ignore.swift; Sources/TurtleGitMac/IgnoreWindow.swift,Native rule scope/destination dialog and Ignore/Delete-ignore orchestration; broader menu/recovery/signed QA pending. See docs/IGNORE-PARITY.md.
+src/TortoiseProc/Commands/IgnoreCommand.h,TortoiseProc,blob,624d0856cdb66cc253bdc74baf46df34062310dc,partial,Sources/TurtleGitCore/Ignore.swift; Sources/TurtleGitMac/IgnoreWindow.swift,Native rule scope/destination dialog and Ignore/Delete-ignore orchestration; broader menu/recovery/signed QA pending. See docs/IGNORE-PARITY.md.
 src/TortoiseProc/Commands/ImportPatchCommand.cpp,TortoiseProc,blob,3a389f8e32560c451f897a7f4ea258a036a14bdb,pending-review,,
 src/TortoiseProc/Commands/ImportPatchCommand.h,TortoiseProc,blob,2026d1c83458a30be63b2237843e1c55d2b6b7b6,pending-review,,
 src/TortoiseProc/Commands/InaccessibleCommand.cpp,TortoiseProc,blob,c6c479f920d3b4b4e25cc9a055843bbb614a06ad,pending-review,,
@@ -2427,8 +2427,8 @@ src/TortoiseProc/GravatarPictureBox.cpp,TortoiseProc,blob,4acc5f38f369b00290f574
 src/TortoiseProc/GravatarPictureBox.h,TortoiseProc,blob,9bb94a6c016063e710f65f17f108c3bec3e6f0e8,pending-review,,
 src/TortoiseProc/HistoryDlg.cpp,TortoiseProc,blob,852cfd7591ab464bd29685795c5099a4ace2ae03,partial-native-replacement,Sources/TurtleGitMac/CommitMessageEditor.swift; Sources/TurtleGitCore/CommitMessageHistory.swift,"Native history persistence, Cancel Yes/No, insertion, multiselection, Delete, double-click and readable sheet layout verified. Saved geometry, dark mode and broader workflows pending. See docs/COMMIT-PARITY.md."
 src/TortoiseProc/HistoryDlg.h,TortoiseProc,blob,816b73fc1210cf1ff4313815e65a4c4f663260cd,partial-native-replacement,Sources/TurtleGitMac/CommitMessageEditor.swift; Sources/TurtleGitCore/CommitMessageHistory.swift,"Native history persistence, Cancel Yes/No, insertion, multiselection, Delete, double-click and readable sheet layout verified. Saved geometry, dark mode and broader workflows pending. See docs/COMMIT-PARITY.md."
-src/TortoiseProc/IgnoreDlg.cpp,TortoiseProc,blob,a021b3a770ee1476e8af399ecf78b96800a91c14,pending-review,,
-src/TortoiseProc/IgnoreDlg.h,TortoiseProc,blob,915d8cde2a0f402382bfeb0bdda41130f0b4bbbe,pending-review,,
+src/TortoiseProc/IgnoreDlg.cpp,TortoiseProc,blob,a021b3a770ee1476e8af399ecf78b96800a91c14,partial,Sources/TurtleGitCore/Ignore.swift; Sources/TurtleGitMac/IgnoreWindow.swift,Native rule scope/destination dialog and Ignore/Delete-ignore orchestration; broader menu/recovery/signed QA pending. See docs/IGNORE-PARITY.md.
+src/TortoiseProc/IgnoreDlg.h,TortoiseProc,blob,915d8cde2a0f402382bfeb0bdda41130f0b4bbbe,partial,Sources/TurtleGitCore/Ignore.swift; Sources/TurtleGitMac/IgnoreWindow.swift,Native rule scope/destination dialog and Ignore/Delete-ignore orchestration; broader menu/recovery/signed QA pending. See docs/IGNORE-PARITY.md.
 src/TortoiseProc/ImportPatchDlg.cpp,TortoiseProc,blob,3bce8ea1941166a18a3380799d9a44e201a995c9,pending-review,,
 src/TortoiseProc/ImportPatchDlg.h,TortoiseProc,blob,a4cdd5287f9bf37c73bdaeedff82e3654a5b3644,pending-review,,
 src/TortoiseProc/InputDlg.cpp,TortoiseProc,blob,5cb2f222f134800944a0b5ba18a918e32a4b451b,pending-review,,
@@ -2643,7 +2643,7 @@ src/TortoiseProc/refloglist.h,TortoiseProc,blob,aabb60709e88b54512df49b179b43c4a
 src/TortoiseProc/resource.h,TortoiseProc,blob,4f9409abcfafb5a90fa0b390f51bc56fe5e7bafe,pending-review,,
 src/TortoiseProc/stdafx.cpp,TortoiseProc,blob,e0cacce6448d6e5bc8162388398175e5317ffcad,pending-review,,
 src/TortoiseProc/stdafx.h,TortoiseProc,blob,13690d6920bc73fae615e422dddb73cecdcf750d,pending-review,,
-src/TortoiseShell/ContextMenu.cpp,TortoiseShell,blob,0b31f963e73ff71cd9cdb0861972a671236ae20f,pending-review,,
+src/TortoiseShell/ContextMenu.cpp,TortoiseShell,blob,0b31f963e73ff71cd9cdb0861972a671236ae20f,partial,Sources/TurtleGitCore/Ignore.swift; Sources/TurtleGitMac/IgnoreWindow.swift," Ignore name/extension, scope/destination and menu routing partially ported; see docs/IGNORE-PARITY.md."
 src/TortoiseShell/ExplorerCommand.cpp,TortoiseShell,blob,fae1432cabc9a8f835f40683a4c3e596b48adc0b,pending-review,,
 src/TortoiseShell/ExplorerCommand.h,TortoiseShell,blob,51ba946464ae4780195edbce81bec06addaa1aa1,pending-review,,
 src/TortoiseShell/GITPropertyPage.cpp,TortoiseShell,blob,56eb322d166e22a5ca50dba8e49001591b608b28,pending-review,,

@@ -14,6 +14,7 @@ public enum MenuIcon: String, CaseIterable {
     case open = "open", explore = "explorer"
     case rename = "menurename"
     case remove = "menudelete"
+    case ignore = "menuignore"
     case normal = "status-normal", modified = "status-modified", added = "status-added", deleted = "status-deleted"
     case conflicted = "status-conflict", ignored = "status-ignored", untracked = "status-unversioned"
     public func image(size: CGFloat = 16) -> NSImage? {
@@ -51,6 +52,7 @@ extension RepositoryAction {
         case .initialize: return .initialize
         case .rename: return .rename
         case .remove, .removeKeep: return .remove
+        case .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask: return .ignore
         }
     }
 }

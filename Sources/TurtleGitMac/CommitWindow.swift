@@ -165,6 +165,7 @@ import UniformTypeIdentifiers
     var pickRevision: (Bool, @escaping (String) -> Void) -> Void = { _, _ in }
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var onFileLog: (String) -> Void = { _ in }
+    var onIgnore: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onRename: (String) -> Void = { _ in }
     var chooseApplication: (String) -> Void = { _ in }
     var confirmCancel: (@escaping () -> Void) -> Void = { _ in }
@@ -608,6 +609,10 @@ GroupBox("Changes made (double-click on file for diff):") {
             } else {
                 Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
                 Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
+            }
+            if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
+                Divider()
+                IgnoreSelectionMenu(paths: selected.map(\.path), action: model.onIgnore)
             }
             if selected.count == 1, let entry = selected.first {
                 Divider()

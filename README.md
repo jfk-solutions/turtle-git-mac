@@ -97,6 +97,9 @@ bundle structure; it is not a signed distribution.
 - Native Delete / Delete (keep local) confirmation and per-item Ignore/Abort handling,
   original artwork and Finder dispatch. Retained copies survive selective commits
   and amendments. [Delete parity](docs/REMOVE-PARITY.md) tracks remaining QA.
+- Native Ignore dialog with upstream scope/destination radios, name/extension rules,
+  per-folder and linked-worktree excludes, original artwork and Delete-and-ignore
+  keep-local prompts. [Ignore parity](docs/IGNORE-PARITY.md) records remaining QA.
 - Upstream file and dialog inventories pinned to an exact commit.
 
 These are initial workflows, not full upstream parity. The operation dialogs expose

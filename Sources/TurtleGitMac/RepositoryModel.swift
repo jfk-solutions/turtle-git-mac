@@ -37,6 +37,7 @@ import TurtleGitCore
     private var cloneWindow: CloneWindowController?
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
+    private var ignoreWindows: [String: IgnoreWindowController] = [:]
     private var removeWindows: [String: RemoveWindowController] = [:]
     private var adoptionGeneration = 0
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
@@ -52,6 +53,13 @@ import TurtleGitCore
     var canRemoveSelection: Bool {
         let selected = entries.filter { selection.contains($0.id) }
         return !bare && !busy && !selected.isEmpty && selected.allSatisfy { $0.index != "A" && $0.index != "D" && ![FileState.untracked, .ignored].contains($0.state) }
+    }
+
+    func canIgnoreSelection(_ action: RepositoryAction) -> Bool {
+        let selected = entries.filter { selection.contains($0.id) }
+        guard !bare, !busy, !selected.isEmpty else { return false }
+        let eligible = selected.allSatisfy { action.removesWhenIgnoring ? ![FileState.untracked, .ignored, .deleted].contains($0.state) : [.untracked, .deleted].contains($0.state) }
+        return eligible && (!action.ignoresByExtension || selected.contains { !($0.path as NSString).pathExtension.isEmpty })
     }
 
     init() {
@@ -213,6 +221,9 @@ import TurtleGitCore
             let selected = paths.isEmpty ? selectedPaths : paths
             guard selected.count == 1, selected[0] != "." else { error = RenameFailure.source.localizedDescription; return }
             showRename(repository: repository, access: activeAccess, source: selected[0])
+        case .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask:
+            guard let repository else { return }
+            showIgnore(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, action: action)
         case .remove, .removeKeep:
             guard let repository else { return }
             showRemove(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, keepLocal: action == .removeKeep)
@@ -232,6 +243,7 @@ import TurtleGitCore
             let access = controller.model.access
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
             controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+            controller.model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
             controller.model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
             controller.model.configureLogPicker = { [weak self] log in
                 log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
@@ -363,6 +375,20 @@ import TurtleGitCore
         renameWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func showIgnore(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], action: RepositoryAction) {
+        do {
+            let root = repository.root, key = root.path + "\0" + action.rawValue + "\0" + paths.joined(separator: "\0")
+            let controller = try ignoreWindows[key] ?? IgnoreWindowController(repository: repository, access: access, paths: paths, mask: action.ignoresByExtension, delete: action.removesWhenIgnoring)
+            controller.onClosed = { [weak self] in self?.ignoreWindows.removeValue(forKey: key) }
+            controller.onChanged = { [weak self] output in
+                self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+                guard let self, self.root == root else { return }
+                self.output = output; Task { await self.refresh() }
+            }
+            ignoreWindows[key] = controller
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        } catch { self.error = error.localizedDescription }
+    }
     private func showRemove(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], keepLocal: Bool) {
         do {
             let request = try RemovalRequest(paths: paths, keepLocal: keepLocal)
@@ -389,7 +415,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .commit && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller

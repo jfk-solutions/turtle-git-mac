@@ -68,10 +68,19 @@ public struct FinderSnapshot: Codable, Sendable {
             return states.contains { $0.key.hasPrefix(path + "/") && versioned.contains($0.value) }
         }
     }
+    public func canIgnore(_ selection: [URL], deleting: Bool) -> Bool {
+        guard !selection.isEmpty else { return false }
+        let paths = selection.map { $0.standardizedFileURL.path }
+        guard roots.contains(where: { root in paths.allSatisfy { $0.hasPrefix(root + "/") } }) else { return false }
+        return paths.allSatisfy { path in
+            guard let state = states[path] else { return false }
+            return deleting ? [.normal, .modified, .added, .conflicted].contains(state) : [.untracked, .deleted].contains(state)
+        }
+    }
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep
+    case status, commit, log, diff, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -97,10 +106,17 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .rename: return "Rename…"
         case .remove: return "Delete"
         case .removeKeep: return "Delete (keep local)"
+        case .ignore: return "Add to ignore list"
+        case .ignoreMask: return "Ignore by extension"
+        case .ignoreDelete: return "Delete and add to ignore list"
+        case .ignoreDeleteMask: return "Delete and ignore by extension"
         }
     }
+    public var isIgnore: Bool { [.ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask].contains(self) }
+    public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
+    public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

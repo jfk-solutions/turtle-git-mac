@@ -55,3 +55,8 @@ cancelled without changing the repository. `site/assets/status.png` shows the ru
 The main workspace overview still exists. The status command now opens this
 standalone replacement; these entries remain partial until the remaining behavior
 and UI have been compared and exercised.
+
+The file menu now offers upstream Ignore name/extension and containing-folder actions
+for unversioned/deleted selections. [Ignore parity](IGNORE-PARITY.md) records rule
+semantics and native Commit/Working Tree handoff evidence; post-close restoration
+remains unverified.

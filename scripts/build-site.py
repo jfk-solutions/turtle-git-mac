@@ -19,7 +19,7 @@ if not re.fullmatch(r'[\w.-]+/[\w.-]+', repository):
     raise SystemExit('Invalid GITHUB_REPOSITORY.')
 source = root / 'docs/site'
 destination = root / 'build/site'
-for screenshot in ['log-messages.png', 'status.png', 'commit.png', 'staging.png', 'partial-staging.png', 'switch-checkout.png', 'create-branch.png', 'create-tag.png', 'push.png', 'fetch.png', 'pull.png', 'rebase.png', 'rebase-dark.png', 'commit-light.png', 'commit-dark.png', 'commit-controls.png', 'commit-amend.png', 'commit-view-patch.png', 'commit-author-date.png', 'commit-resize.png', 'commit-history.png', 'commit-file-selection.png', 'merge.png', 'stash-save.png', 'stash-pop.png', 'reflog.png', 'clone.png', 'create-repository.png', 'rename.png']:
+for screenshot in ['log-messages.png', 'status.png', 'commit.png', 'staging.png', 'partial-staging.png', 'switch-checkout.png', 'create-branch.png', 'create-tag.png', 'push.png', 'fetch.png', 'pull.png', 'rebase.png', 'rebase-dark.png', 'commit-light.png', 'commit-dark.png', 'commit-controls.png', 'commit-amend.png', 'commit-view-patch.png', 'commit-author-date.png', 'commit-resize.png', 'commit-history.png', 'commit-file-selection.png', 'merge.png', 'stash-save.png', 'stash-pop.png', 'reflog.png', 'clone.png', 'create-repository.png', 'rename.png', 'ignore.png']:
     path = source / 'assets' / screenshot
     if not path.is_file() or path.read_bytes()[:8] != b'\x89PNG\r\n\x1a\n':
         raise SystemExit(f'Missing native screenshot: {path}')

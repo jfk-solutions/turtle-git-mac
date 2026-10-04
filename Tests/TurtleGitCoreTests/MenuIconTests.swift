@@ -20,7 +20,8 @@ final class MenuIconTests: XCTestCase {
         XCTAssertEqual(RepositoryAction.stashList.icon, RepositoryAction.log.icon)
         XCTAssertEqual(RepositoryAction.reflog.icon, RepositoryAction.log.icon)
         XCTAssertEqual(RepositoryAction.remove.icon, RepositoryAction.removeKeep.icon)
-        let distinctActions = RepositoryAction.allCases.filter { ![.stashApply, .stashList, .reflog, .removeKeep].contains($0) }
+        for action in [RepositoryAction.ignoreMask, .ignoreDelete, .ignoreDeleteMask] { XCTAssertEqual(action.icon, RepositoryAction.ignore.icon) }
+        let distinctActions = RepositoryAction.allCases.filter { ![.stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

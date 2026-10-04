@@ -148,6 +148,10 @@ struct StatusDialog: View {
                 if ids.count == 1, let path = ids.first, let row = model.files.first(where: { $0.id == path }), ![FileState.untracked, .ignored, .deleted].contains(row.state) {
                     Button { model.onAction(.rename, [path]) } label: { CommandLabel(title: "Rename…", icon: .rename) }
                 }
+                let selected = model.files.filter { ids.contains($0.id) }
+                if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
+                    IgnoreSelectionMenu(paths: selected.map(\.id), action: model.onAction)
+                }
                 Divider()
                 Button { model.onAction(.log, Array(ids)) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
                 Button { model.reveal(ids) } label: { Label("Show in Finder", systemImage: "folder") }.disabled(ids.isEmpty)

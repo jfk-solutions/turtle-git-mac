@@ -42,7 +42,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Workflow | First-pass implementation | Remaining upstream behavior |
 | --- | --- | --- |
 | Check for modifications | Native standalone Working Tree dialog; columns, scope/filters, statistics, dates, sorting, diff export and basic menus | Full menus, remote checks, progress/cancellation and persistent preferences; see STATUS-PARITY.md |
-| Commit | Native checked-file dialog; optional three-state staging; amend, author, sign-off, statistics | Unsupported partial-stage file types, author date, message history/completion, hooks UI, issue trackers, full action menu |
+| Commit | Native checked-file dialog; optional three-state staging; amend, author, sign-off, statistics | Unsupported partial-stage file types, full history/completion, hooks UI, issue trackers, remaining action menu |
 | Log | Separate native three-pane window; graph, refs, message/files/line counts, search/date filters, load more, comparisons and revision actions | Working-tree row, actions column, branch/ref chooser, author search, walk/view controls, statistics, multi-revision file union, remaining context commands; see LOG-PARITY.md |
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
 | Clone | Native Git/SSH/SVN option groups, URL/destination history and browsing, real Git clone tests, native shallow selected-branch/custom-origin clone and Log handoff | Full progress/cancellation, native picker/Cancel QA, authentication, real SVN/LFS runtimes, signed sandbox and bare clone adoption QA; see CLONE-PARITY.md |
@@ -60,7 +60,8 @@ require review; a dialog count is not a count of all upstream UI.
 | Settings | Not yet implemented | Git identity, tools, overlays, dialogs, hooks, credentials, networking, localization |
 | Rename | Native source/name/browse/OK/Cancel, original artwork, versioned-file menus and guarded Git mv; mixed-file effects verified | Native browse, post-close restoration, submodules, shared-dialog consumers and signed Finder QA; see RENAME-PARITY.md |
 | Delete / keep local | Native confirmation, per-item Remove/Ignore/Abort, original icon and guarded Git removal; retained-copy commits/amendments tested | Native normal-delete execution, submodules, complete Finder conditions and signed QA; see REMOVE-PARITY.md |
-| Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, ignore, resolve, bisect, clean, export |
+| Ignore | Native five-radio upstream layout, original icon, app/Finder name/extension actions and Delete-and-ignore keep-local flow; real Git and native checks | Full menu conditions, native recovery/No/refresh and signed permissions; see IGNORE-PARITY.md |
+| Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, resolve, bisect, clean, export |
 | Patch workflows | Not yet implemented | Format/apply patches, am continuation/abort, review, email integration |
 | Advanced repositories | Linked-worktree discovery | Submodule, worktree management, git-svn, LFS, repository browser, reflog |
 | Helper apps | Not yet implemented | Blame, image diff, merge, revision graph, askpass, revision/template tools |
