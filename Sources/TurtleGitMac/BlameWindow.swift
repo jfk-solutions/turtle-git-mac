@@ -29,6 +29,8 @@ private struct BlameParentMenuTarget {
     private var revision: String
     private var generation = 0
     private var pendingLine: Int?
+    private var clipboardGeneration = 0
+    @Published var copyingLog = false
     @Published var snapshot: GitBlameSnapshot?
     @Published var busy = false
     @Published var error: String?
@@ -78,7 +80,7 @@ private struct BlameParentMenuTarget {
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String) {
         self.repository = repository; self.access = access; self.path = path; self.revision = revision
     }
-    func invalidate() { generation += 1; parentGeneration += 1 }
+    func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         selection = number; loadParents(completion: completion)
     }
@@ -101,6 +103,7 @@ private struct BlameParentMenuTarget {
     func reload() {
         guard !busy else { return }
         parentGeneration += 1; parentChoices = []; loadingParents = false
+        clipboardGeneration += 1; copyingLog = false
         generation += 1; let request = generation
         var options = GitBlameOptions(); options.ignoreWhitespace = ignoreWhitespace; options.detectMoved = detectMoved; options.detectCopied = detectCopied
         busy = true; error = nil
@@ -130,7 +133,25 @@ private struct BlameParentMenuTarget {
         goTo = String(selected); selection = selected; navigationMessage = "Line \(selected)"
     }
     func showLog(_ line: GitBlameLine) { onLog?(line.filename, line.hash) }
-    func copy(_ text: String) { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
+    func copyLogMessage(_ hash: String) {
+        let request = generation
+        clipboardGeneration += 1; let clipboardRequest = clipboardGeneration
+        copyingLog = true; error = nil
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let text = try await repository.commitLogText(revision: hash)
+                guard request == generation, clipboardRequest == clipboardGeneration else { return }
+                copy(text)
+            } catch {
+                if request == generation, clipboardRequest == clipboardGeneration { self.error = error.localizedDescription; copyingLog = false }
+            }
+        }
+    }
+    func copy(_ text: String) {
+        clipboardGeneration += 1; copyingLog = false
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+    }
     func findLine(previous: Bool) {
         guard !find.isEmpty, !lines.isEmpty else { return }
         let start = selection.map { $0 - 1 } ?? (previous ? 0 : -1), count = lines.count
@@ -170,6 +191,7 @@ private struct BlameDialog: View {
             }.disabled(model.busy)
             if model.busy { ProgressView("Reading annotations…").controlSize(.small) }
             if model.loadingParents { ProgressView("Reading previous revisions…").controlSize(.small) }
+            if model.copyingLog { ProgressView("Reading log message for clipboard…").controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             BlameTable(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             if let line = model.selectedLine {
@@ -310,9 +332,12 @@ private struct BlameTable: NSViewRepresentable {
                 addCommand(title: "Blame previous revision", action: #selector(blamePrevious(_:)), icon: .blame, enabled: model.onPrevious != nil)
                 addCommand(title: "Show changes", action: #selector(showChanges(_:)), icon: .compare, enabled: model.onChanges != nil)
             }
-            for (title, action, icon) in [("Show log", #selector(showLog), MenuIcon.log), ("Copy revision", #selector(copyRevision), .copy), ("Copy source line", #selector(copySource), .copy)] {
+            let log = NSMenuItem(title: "Show log", action: #selector(showLog), keyEquivalent: "")
+            log.target = self; log.image = MenuIcon.log.image(); log.isEnabled = model.onLog != nil; menu.addItem(log)
+            menu.addItem(.separator())
+            for (title, action, icon) in [("Copy revision", #selector(copyRevision), MenuIcon.copy), ("Copy log message", #selector(copyLogMessage(_:)), .copy), ("Copy source line", #selector(copySource), .copy)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.image()
-                item.isEnabled = action != #selector(showLog) || model.onLog != nil; menu.addItem(item)
+                item.representedObject = selectedLine.hash; menu.addItem(item)
             }
         }
         @objc func showLog() { if let line = model.selectedLine { model.showLog(line) } }
@@ -323,6 +348,9 @@ private struct BlameTable: NSViewRepresentable {
             if let target = sender.representedObject as? BlameParentMenuTarget {
                 model.onPrevious?(target.choice.path, target.choice.revision, target.originalLine)
             }
+        }
+        @objc func copyLogMessage(_ sender: NSMenuItem) {
+            if let hash = sender.representedObject as? String { model.copyLogMessage(hash) }
         }
         @objc func copyRevision() { if let line = model.selectedLine { model.copy(line.hash) } }
         @objc func copySource() { if let line = model.selectedLine { model.copy(line.source) } }

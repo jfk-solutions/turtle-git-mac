@@ -164,6 +164,41 @@ Debug/AppStore builds passed without compiler warnings. Both bundle audits passe
 with 62 icons and the packaged universal Git 2.55.0 runtime; the documentation site
 build passed. Signed sandbox acceptance remains pending.
 
+## Full log clipboard
+
+Copy log message follows the Blame context action's use of the Log list's full
+clipboard output. Reviewed baseline:
+[GitLogListBase.cpp, CopySelectionToClipBoard](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseProc/GitLogListBase.cpp).
+The native command reads the captured origin hash, then copies revision, author,
+author date, complete subject/body/trailers, Git notes, annotated-tag contents and
+changed paths. Rename paths include their previous names. Merge paths are read
+against every parent. A separator divides Show log from the copy commands, as in
+upstream; Copy source line remains an additional native command.
+
+`GitRepository.commitLogText` resolves a commit before reading metadata, tags and
+paths; each annotated tag is read by its captured object hash. The UI retains the
+repository access lease and ignores the result if Blame closes, reloads or receives
+a newer copy action during the read. A progress indicator shows the pending read;
+errors are shown in the window. Output uses macOS LF line endings, ISO
+author dates and Git's raw annotated-tag representation. Upstream localized date
+preferences and tag presentation still need parity work; Log's own full clipboard
+command has not yet been switched to this reader. Nested annotated tags and
+multi-revision selection remain pending.
+
+Ten focused Blame tests passed, including a multiline subject/body/trailer, note,
+annotated tag, Unicode rename and unchanged HEAD/index/working source. The merge
+fixture checks paths from both parents. Native QA copied a message and pasted it
+into Find, verifying the revision, body, note, tag and path. The QA app was quit
+immediately after this check; no TurtleGit process remained, and the disposable
+fixture matched its recorded HEAD/index/source baseline.
+
+The full suite passed all 270 core tests. Swift and unsigned Debug/AppStore builds
+passed without compiler warnings, and both bundle audits passed with 62 icon
+resources. The AppStore audit verified the universal Git 2.55.0 runtime's 11 Mach-O
+files and local operations including Blame. The documentation site build passed.
+Cancellation and overlapping clipboard requests still need targeted native
+acceptance; signed sandbox checks remain pending.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;
@@ -171,8 +206,8 @@ build passed. Signed sandbox acceptance remains pending.
 - Syntax highlighting, source selection and native editor scrolling behavior.
 - Upstream Find/Go To Line dialogs, menu shortcuts, match highlighting and
   revision/block navigation.
-- Full commit-message copy/export commands and
-  remaining original menu icons.
+- Clipboard presentation/localized dates, export commands and remaining original
+  menu icons.
 - Blame options dialog, revision chooser, complete copied-line modes/thresholds,
   settings and persistent preferences.
 - UTF-16 and other encodings, including the upstream BOM/trailing-line cases;

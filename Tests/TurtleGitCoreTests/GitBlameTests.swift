@@ -144,6 +144,8 @@ final class GitBlameTests: XCTestCase {
         XCTAssertEqual(annotations.lines[1].hash, annotations.revision)
         let parents = try await repo.blameParentComparisons(revision: annotations.lines[1].hash, path: annotations.lines[1].filename)
         XCTAssertEqual(parents.map(\.revision), [main, side]); XCTAssertEqual(parents.map(\.parentNumber), [1, 2])
+        let logText = try await repo.commitLogText(revision: annotations.revision)
+        XCTAssertEqual(logText.components(separatedBy: "Modified: \(path)\n").count - 1, 2)
         for (choice, expected) in zip(parents, ["main change", "side change"]) {
             let document = try await repo.comparisonFile(choice.comparison, path: path)
             XCTAssertTrue(document.base.text?.contains(expected) == true); XCTAssertTrue(document.destination.text?.contains("resolved") == true)
@@ -155,6 +157,28 @@ final class GitBlameTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: root) }
         try Data("first version\n".utf8).write(to: root.appendingPathComponent("new")); try await repo.stage(["new"]); _ = try await repo.commit(message: "birth")
         let parents = try await repo.blameParentComparisons(revision: "HEAD", path: "new"); XCTAssertTrue(parents.isEmpty)
+    }
+    func testFullLogCopyIncludesBodyNotesAnnotatedTagAndRenamedPath() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let renamed = "renamed 雪.txt"
+        _ = try await repo.run(["mv", "--", path, renamed])
+        _ = try await repo.commit(message: "Rename subject\n\nDetailed body\n\nSigned-off-by: Test <test@example.invalid>")
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["notes", "add", "-m", "Review note", hash])
+        _ = try await repo.run(["tag", "-a", "release-copy", "-m", "Annotated release body", hash])
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        try Data("later replacement\n".utf8).write(to: root.appendingPathComponent(renamed))
+        let text = try await repo.commitLogText(revision: hash)
+        XCTAssertTrue(text.contains("Revision: \(hash)\nAuthor:"))
+        XCTAssertTrue(text.contains("Message:\nRename subject\n\nDetailed body\n\nSigned-off-by:"))
+        XCTAssertTrue(text.contains("Notes:\nReview note"))
+        XCTAssertTrue(text.contains("Tag info: refs/tags/release-copy")); XCTAssertTrue(text.contains("Annotated release body"))
+        XCTAssertTrue(text.contains("Renamed: \(renamed) (from \(path))"))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(renamed)), Data("later replacement\n".utf8))
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, hash)
+        do { _ = try await repo.commitLogText(revision: "--all"); XCTFail() } catch {}
     }
     func testUnsupportedAndUnsafeFilesFail() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
