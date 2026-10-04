@@ -697,7 +697,7 @@ import TurtleGitCore
     }
     private func showBlame(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, line: Int? = nil, options: GitBlameOptions? = nil) {
         let key = repository.root.path + "\0" + path + "\0" + revision
-        let controller = blameWindows[key] ?? BlameWindowController(repository: repository, access: access, path: path, revision: revision, options: options ?? GitBlameOptions())
+        let controller = blameWindows[key] ?? BlameWindowController(repository: repository, access: access, path: path, revision: revision, options: options ?? GitBlamePreferences.load())
         controller.onClosed = { [weak self] in self?.blameWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] origin, hash in self?.showLog(repository: repository, access: access, paths: [origin], endRevision: hash) }
         controller.model.onChanges = { [weak self] snapshot in self?.showFileComparisons(repository: repository, access: access, snapshot: snapshot) }

@@ -11,7 +11,7 @@ private struct BlameParentMenuTarget {
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     let model: BlameWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlameOptions()) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load()) {
         model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options: options)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(path) at \(revision.prefix(7)) – Blame – TurtleGit"
@@ -112,15 +112,23 @@ private struct BlameParentMenuTarget {
     }
     func setEncoding(_ encoding: GitBlameEncoding?) {
         guard !busy, sourceEncoding != encoding else { return }
-        sourceEncoding = encoding; reload()
+        sourceEncoding = encoding; reload(saveThresholds: true)
     }
     func setDetectionMode(_ mode: GitBlameDetectionMode) {
         guard !busy, detectionMode != mode else { return }
-        detectionMode = mode; reload()
+        detectionMode = mode; GitBlamePreferences.update { $0.detectionMode = mode }; reload(saveThresholds: true)
     }
     func setOnlyFirstParent(_ enabled: Bool) {
         guard !busy, onlyFirstParent != enabled else { return }
-        onlyFirstParent = enabled; reload()
+        onlyFirstParent = enabled; GitBlamePreferences.update { $0.onlyFirstParent = enabled }; reload(saveThresholds: true)
+    }
+    func setIgnoreWhitespace(_ enabled: Bool) {
+        guard !busy, ignoreWhitespace != enabled else { return }
+        ignoreWhitespace = enabled; GitBlamePreferences.update { $0.ignoreWhitespace = enabled }; reload(saveThresholds: true)
+    }
+    func applyPreferences() {
+        var options = GitBlamePreferences.load(); options.encoding = sourceEncoding
+        configure(options: options, line: selection)
     }
     func invalidate() { generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -142,7 +150,7 @@ private struct BlameParentMenuTarget {
             } catch { if request == parentGeneration { self.error = error.localizedDescription; loadingParents = false } }
         }
     }
-    func reload() {
+    func reload(saveThresholds: Bool = false) {
         guard !busy else { return }
         let required = detectionMode == .withinFile ? withinFileCharacters : detectionMode.betweenFiles ? betweenFileCharacters : nil
         if let required, required.isEmpty || !required.utf8.allSatisfy({ (48...57).contains($0) }) || UInt32(required) == nil {
@@ -152,6 +160,16 @@ private struct BlameParentMenuTarget {
         clipboardGeneration += 1; copyingLog = false
         generation += 1; let request = generation
         let options = currentOptions
+        if saveThresholds {
+            let changedWithin = UInt32(withinFileCharacters).flatMap { $0 == appliedOptions.withinFileCharacters ? nil : $0 }
+            let changedBetween = UInt32(betweenFileCharacters).flatMap { $0 == appliedOptions.betweenFileCharacters ? nil : $0 }
+            if changedWithin != nil || changedBetween != nil {
+                GitBlamePreferences.update {
+                    if let changedWithin { $0.withinFileCharacters = changedWithin }
+                    if let changedBetween { $0.betweenFileCharacters = changedBetween }
+                }
+            }
+        }
         busy = true; error = nil
         Task {
             do {
@@ -228,9 +246,9 @@ private struct BlameDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Toggle("Ignore whitespace", isOn: $model.ignoreWhitespace)
+                Toggle("Ignore whitespace", isOn: Binding(get: { model.ignoreWhitespace }, set: { model.setIgnoreWhitespace($0) }))
                 Toggle("Only consider first parents on blame", isOn: Binding(get: { model.onlyFirstParent }, set: { model.setOnlyFirstParent($0) }))
-                Button("Reload") { model.reload() }
+                Button("Reload") { model.reload(saveThresholds: true) }
                 Spacer(); Toggle("Colorize by age", isOn: $model.colorAge)
             }.disabled(model.busy)
             HStack {
@@ -267,7 +285,7 @@ private struct BlameDialog: View {
                 Text("\(line.summary)\nOrigin: \(line.filename), line \(line.originalLine)").font(.system(size: 11)).textSelection(.enabled)
             }
             Text("\(model.lines.count) lines • \(model.snapshot?.encoding.rawValue ?? "") • \(model.navigationMessage)").font(.system(size: 11)).foregroundStyle(.secondary)
-        }.padding(12)
+        }.padding(12).onReceive(NotificationCenter.default.publisher(for: .blamePreferencesChanged)) { _ in model.applyPreferences() }
     }
 }
 

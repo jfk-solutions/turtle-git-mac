@@ -385,6 +385,55 @@ Its 11 Mach-O files passed architecture checks. Saved preferences, complete View
 settings layout, renamed/complex merge histories, full age-color/history behavior,
 dark/VoiceOver and signed sandbox acceptance remain pending.
 
+## Native settings and saved annotation defaults
+
+The Settings window now has a Blame page for the upstream five-way detection mode,
+within/between-file character counts, Ignore whitespace and Only consider first
+parents on blame. The relevant character field is enabled for the selected mode;
+invalid counts disable Apply. Apply saves the draft and broadcasts an update to
+open Blame viewers, retaining each viewer's encoding and selected original line.
+Cancel restores the draft and closes Settings. The shared settings window now has
+room for these controls. Font, tab size, age colors and complete-log/follow-renames
+settings from the upstream page are not yet implemented.
+
+New viewers load the saved annotation defaults. Changing the viewer's mode,
+whitespace or first-parent checkbox saves that individual field and reloads.
+Changed valid counts are saved on user-triggered Reload/encoding/mode changes.
+Programmatic previous-revision option inheritance does not overwrite saved defaults.
+Each field edit reloads the current preference store before saving, retaining
+choices made by other viewers. Encoding remains a per-window choice; no persistent
+system-codepage fallback is added. Annotation defaults use the application's own
+macOS preference domain.
+
+Two isolated preference tests cover default values, reopen, zero/max unsigned counts,
+malformed stored mode/count fallback, interleaved field updates and exclusion of
+encoding from the saved annotation defaults. All 18 focused Blame/preferences tests
+passed. The preceding full 276-test reader run remains the wider baseline; no new
+full-suite result is claimed for this settings change.
+
+Native light-mode QA verified default disabled count fields, selecting From existing
+files, rejection of 4294967296 with disabled Apply, valid threshold 17, both flags
+and successful Apply. `site/assets/blame-settings.png` is the inspected actual
+window. Closing Settings timed out in the UI tool; reselecting the still-running
+process also timed out, so existing-viewer update is not claimed as native acceptance.
+Quit stopped that process and absence was verified before reopening. The reopened
+viewer restored the mode, count and both flags and displayed first-parent merge
+attribution. Turning Ignore whitespace off saved that field while the first-parent
+choice remained enabled. The second run was quit immediately and process absence
+verified. HEAD, exact index bytes and working source matched the fixture baseline.
+
+Native unsaved Cancel, within-file count editing, multi-window updates, open-viewer
+encoding preservation, pending-load updates, dark/keyboard/VoiceOver and complete
+upstream settings layout remain pending. Existing windows receive explicit Settings
+Apply updates; ordinary viewer edits are defaults for subsequent viewers rather
+than a broadcast to every currently open viewer.
+
+Swift and unsigned Debug/AppStore builds passed without compiler warnings. Both
+bundle audits passed with 62 icons and the packaged Git 2.55.0 runtime's existing
+local, encoding and first-parent checks. The static documentation build passed
+with the inspected Settings screenshot. Signed sandbox/App Store acceptance and
+the full upstream settings page remain unverified.
+
 ## Remaining work
 
 - Multi-revision selection, full source locator and integrated revision-log layout;
@@ -394,8 +443,8 @@ dark/VoiceOver and signed sandbox acceptance remain pending.
   revision/block navigation.
 - Clipboard presentation/localized dates, export commands and remaining original
   menu icons.
-- Blame options dialog, revision chooser,
-  settings and persistent preferences.
+- Complete Blame settings layout, revision chooser, font/tab/color and log
+  preferences; native multi-window updates and unsaved Cancel acceptance.
 - Persistent/system encoding defaults, chooser/accessibility parity, unsupported
   codecs and byte-LF within other UTF-16 code units; binary, malformed text and
   symlinks remain unsupported.
