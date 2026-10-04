@@ -371,3 +371,29 @@ and no final newline. HEAD, refs and unresolved index remained unchanged.
 The QA app was closed immediately; no preview instances remained running.
 Other Smart branch native combinations, partial-column selections, readonly
 keyboard handoffs and signed/sandbox acceptance remain pending.
+
+## Saved indentation defaults in native Settings
+
+Native Settings now has Appearance and Merge Editor tabs. The partial General
+section maps IDD_SETMAINPAGE's Use spaces, Smart tab char and Tab size, with
+Apply and Cancel. Defaults are Tab, Smart off and width four. MainFrm.h's
+1–1000 range is used for validation and stored-value clamping. Apply saves
+defaults and refreshes open panes without editing text or clearing Undo history;
+Cancel discards the draft and closes Settings. Session menus can still override
+each pane, including false overrides when global defaults are enabled.
+
+The native approach preserves the editable result when indentation defaults
+change. Upstream settings can request LoadViews and a Save check; that broader
+reload behavior, other General options, Colors, EditorConfig and full Settings
+parity remain pending.
+
+An isolated UserDefaults test covers fresh defaults, saved non-menu width seven,
+booleans, a second defaults instance, invalid stored values and write clamping.
+All 21 targeted tests passed; the final Cancel/window implementation compiled.
+Native QA rejected zero with Apply disabled, discarded it through Cancel,
+reopened with four, applied Space/Smart/seven, and observed Space 7 Smart on all
+three open panes while the result remained clean and Undo disabled. Quitting and
+relaunching restored all three captions. Working bytes, HEAD, refs and unresolved
+index matched their pre-test state. The QA app was closed immediately after
+verification. False session overrides, active Undo preservation, upper-bound
+native checks, resize/dark and signed/sandbox acceptance remain unverified.

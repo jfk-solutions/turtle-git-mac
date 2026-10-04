@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 import UniformTypeIdentifiers
 
@@ -120,8 +121,10 @@ private enum MergeSourceSide {
     @Published var canUndo = false
     @Published var canRedo = false
     @Published var tabWidths: [String: Int] = [:]
-    @Published var spacePanes: Set<String> = []
-    @Published var smartTabPanes: Set<String> = []
+    @Published var spacePanes: [String: Bool] = [:]
+    @Published var smartTabPanes: [String: Bool] = [:]
+    @Published var indentationDefaults = MergeEditorPreferences.load()
+    private var preferencesSubscription: AnyCancellable?
     var applyBlock: ((NSRange, String) -> Void)?
     var replaceEntireResult: ((String) -> Void)?
     var resetHistory: () -> Void = {}
@@ -145,7 +148,13 @@ private enum MergeSourceSide {
     }
     var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result, document: document) }
     var dirty: Bool { document.map { !result.utf8.elementsEqual($0.initialResult.utf8) } ?? false }
-    init(repository: GitRepository, access: RepositoryAccessLease?, path: String) { self.repository = repository; self.access = access; self.path = path }
+    init(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
+        self.repository = repository; self.access = access; self.path = path
+        preferencesSubscription = NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged).sink { [weak self] _ in
+            guard let self else { return }
+            self.indentationDefaults = .load(); self.tabWidths = [:]; self.spacePanes = [:]; self.smartTabPanes = [:]
+        }
+    }
     func load() {
         guard !busy else { return }
         if dirty {
@@ -248,24 +257,23 @@ private struct TextConflictDialog: View {
     @ObservedObject var model: TextConflictWindowModel
     func pane(_ title: String, text: String, editable: Bool = false, cells: [MergeSourceCell]? = nil, side: MergeSourceSide? = nil) -> some View {
         let displayed = cells.map { $0.map(\.displayText).joined(separator: "\n") + ($0.isEmpty ? "" : "\n") } ?? text
-        let tabWidth = model.tabWidths[title] ?? 4
-        let useSpaces = model.spacePanes.contains(title), smartTab = model.smartTabPanes.contains(title)
+        let tabWidth = model.tabWidths[title] ?? model.indentationDefaults.tabWidth
+        let useSpaces = model.spacePanes[title] ?? model.indentationDefaults.useSpaces
+        let smartTab = model.smartTabPanes[title] ?? model.indentationDefaults.smartTab
         return VStack(spacing: 0) {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             HStack {
                 Spacer()
                 Menu("\(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")") {
-                    Button { model.spacePanes.remove(title) } label: {
+                    Button { model.spacePanes[title] = false } label: {
                         if !useSpaces { Label("Tab", systemImage: "checkmark") } else { Text("Tab") }
                     }
-                    Button { model.spacePanes.insert(title) } label: {
+                    Button { model.spacePanes[title] = true } label: {
                         if useSpaces { Label("Space", systemImage: "checkmark") } else { Text("Space") }
                     }
                     Divider()
-                    Toggle("Smart tab char", isOn: Binding(get: { model.smartTabPanes.contains(title) }, set: { enabled in
-                        if enabled { model.smartTabPanes.insert(title) } else { model.smartTabPanes.remove(title) }
-                    }))
+                    Toggle("Smart tab char", isOn: Binding(get: { smartTab }, set: { model.smartTabPanes[title] = $0 }))
                     Divider()
                     ForEach([1, 2, 4, 8], id: \.self) { width in
                         Button { model.tabWidths[title] = width } label: {

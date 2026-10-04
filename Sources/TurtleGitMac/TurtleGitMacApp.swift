@@ -55,7 +55,12 @@ import TurtleGitCore
             }
             #endif
         }
-        Settings { AppearanceSettings(appearance: appearance) }
+        Settings {
+            TabView {
+                AppearanceSettings(appearance: appearance).tabItem { Label("Appearance", systemImage: "circle.lefthalf.filled") }
+                MergeEditorSettings().tabItem { Label("Merge Editor", systemImage: "arrow.triangle.merge") }
+            }.frame(width: 470, height: 300)
+        }
     }
 }
 
