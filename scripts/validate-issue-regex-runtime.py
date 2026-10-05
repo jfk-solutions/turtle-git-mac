@@ -70,4 +70,13 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitIssueRegexAudit-') as folder:
                 file.write_bytes(value.encode('utf-16-le'))
             output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--styles-utf8'], text=True, timeout=6)
             assert output == expected, (prefix, message, output, expected)
+        for check, message, expected in [
+            (r'(foo)|(bar)', 'FOO bar foo', 'captures\tutf16\n0\t3\n4\t3\n8\t3\n'),
+            (r'(after)', 'before\0after', 'captures\tutf16\n7\t5\n'),
+            (r'(a\x00b)', 'a\0b', 'captures\tutf16\n0\t1\n'),
+        ]:
+            for file, value in zip(inputs, (check, '', message)):
+                file.write_bytes(value.encode('utf-16-le'))
+            output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--code-captures'], text=True, timeout=6)
+            assert output == expected, (prefix, message, output, expected)
 print('IssueRegex: universal macOS 13 matcher, UTF-16 offsets, extraction, source and system linkage verified.')

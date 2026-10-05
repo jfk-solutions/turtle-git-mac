@@ -61,3 +61,9 @@ Sources/TurtleGitCore/MessageSnippets.swift adapts CommitDlg.cpp snippet parsing
 and selection expansion, under GPL version 2 or later with its TortoiseGit
 copyright notice. The original shipped snippet.txt and snippet.ico are retained
 unchanged, with pinned source and SHA-256 provenance in their resource folders.
+
+The helper also adapts CommitDlg.cpp::ScanFile capture-group extraction under
+GPL version 2 or later. MessageCodeSymbols.swift adapts its definition parsing
+and capture transport, retaining TortoiseGit attribution. The original
+autolist.txt is bundled unchanged with pinned provenance. File scanning and
+complete native code-completion integration remain under development.

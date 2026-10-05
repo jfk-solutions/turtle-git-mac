@@ -6,6 +6,12 @@
       "source": "src/TortoiseGitSetup/include/snippet.txt",
       "blob": "301f52c0a1aacdcf53775677ec24b0be949b70d8",
       "sha256": "0acd18c714b539545af178eda7159d0eab45de3c723f2cfb9330054a7cc5d7da"
+    },
+    {
+      "asset": "autolist.txt",
+      "source": "src/TortoiseGitSetup/include/autolist.txt",
+      "blob": "4115a7a301b9a209613e7b458ee2215cd205f5d4",
+      "sha256": "189c420ba9de79e77ae3d921b0d87ae21fa291c6dfe0c30203d4a8b6ffd7e1c0"
     }
   ]
 }

@@ -1,5 +1,5 @@
 // Issue matching adapted from TortoiseGit ProjectProperties.cpp and
-// Utils/MiscUI/SciEdit.cpp::MarkEnteredBugID.
+// Utils/MiscUI/SciEdit.cpp::MarkEnteredBugID and CommitDlg.cpp::ScanFile.
 // Copyright (C) 2003-2021, 2023-2025 - TortoiseGit
 // SciEdit: Copyright (C) 2009-2026 - TortoiseGit
 // Copyright (C) 2003-2008, 2012-2020, 2025 - TortoiseSVN
@@ -15,7 +15,7 @@
 
 // wchar_t is 32-bit on macOS. Keep one Windows UTF-16 unit per wchar_t so
 // ECMAScript escapes, captures and offsets retain Windows string semantics.
-static std::wstring read_units(const char* path) {
+static std::wstring read_units(const char* path, bool nullTerminated = true) {
     std::ifstream input(path, std::ios::binary);
     if (!input) throw std::runtime_error("Could not open regex input.");
     std::string bytes((std::istreambuf_iterator<char>(input)), {});
@@ -29,7 +29,7 @@ static std::wstring read_units(const char* path) {
                           (static_cast<unsigned char>(bytes[index + 1]) << 8);
         // Upstream constructs regexes and searched std::wstring values from
         // CString's null-terminated LPCWSTR conversion.
-        if (unit == 0) break;
+        if (unit == 0 && nullTerminated) break;
         value.push_back(unit);
     }
     return value;
@@ -86,9 +86,28 @@ static void styles(const std::wstring& checkUnits, const std::wstring& extractUn
 }
 int main(int argc, char** argv) {
     const bool styling = argc == 5 && std::string(argv[4]) == "--styles-utf8";
-    if (argc != 4 && !styling) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
+    const bool code = argc == 5 && std::string(argv[4]) == "--code-captures";
+    if (argc != 4 && !styling && !code) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
     try {
-        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3]);
+        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code);
+        if (code) {
+            const std::wregex pattern(check, std::regex_constants::icase | std::regex_constants::ECMAScript);
+            std::cout << "captures\tutf16\n";
+            const std::wsregex_iterator end;
+            for (std::wsregex_iterator match(text.cbegin(), text.cend(), pattern); match != end; ++match) {
+                for (size_t i = 1; i < match->size(); ++i) {
+                    const auto& group = (*match)[i];
+                    if (group.first == group.second) continue;
+                    // ScanFile inserts the captured wstring via c_str(), so a
+                    // captured NUL truncates its candidate, even though the
+                    // searched decoded file is an explicit string_view.
+                    auto finish = group.first;
+                    while (finish != group.second && *finish != 0) ++finish;
+                    std::cout << (group.first - text.cbegin()) << '\t' << (finish - group.first) << '\n';
+                }
+            }
+            return 0;
+        }
         if (styling) { styles(check, extract, text); return 0; }
         if (check.empty()) { std::cout << "matched\t0\n"; return 0; }
         const std::wregex first(check), second(extract);

@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-05",
+  "scope": "Commit code definition parser and capture engine; not integrated file scanner",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "autolist.txt": "4115a7a301b9a209613e7b458ee2215cd205f5d4"
+  },
+  "focused_tests": {
+    "count": 19,
+    "failures": 0,
+    "log_sha256": "5c231615944ebc4428574ae74cdabe8009118576a2208ffa889113489b9cbbc8",
+    "new_code_symbol_cases": 4
+  },
+  "runtime": {
+    "source_sha256": "9e62375ec411fa830ceb86f411439000559f4c23213684a64d82592d6bfd4f32",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "both_slices_validation_styling_capture_protocol_passed": true,
+    "architecture_log_sha256": "347f6ff6cbc40fc934dc7804750ae7cc6faa8cb28655222d5bb387466f43e9a9",
+    "corresponding_source_reconstruction": "Copied bundled Sources/build to a fresh TemporaryDirectory, built runtime with included script and ran included validator --all-architectures; both commands exited zero",
+    "capture_transport": "UTF-16 ranges over explicit file content; captured keys truncate at NUL",
+    "native_process_guard": "Bounded helper execution retained; source traversal timeout remains pending"
+  },
+  "builds": {
+    "Debug": "Unsigned build and complete helper/resource audit passed",
+    "AppStore": "Unsigned build and packaged Git/helper/resource audit passed",
+    "GitHub Pages": "Local site build passed; no new native feature screenshots for isolated engine; publication pending"
+  },
+  "build_log_sha256": {
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "store": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "native": {
+    "status": "not applicable to isolated engine; integration and keyboard acceptance still pending",
+    "QA_apps_running": 0
+  },
+  "remaining": [
+    "Changed-file decoding and scanning",
+    "Unversioned/ignored, size and traversal-timeout gates",
+    "Source regex cache behavior",
+    "Code icon and native popup integration",
+    "Exact Windows locale rules",
+    "Signed sandbox and App Store acceptance",
+    "Fresh GitHub verification after publication"
+  ],
+  "next_decoder_source_blob": "e9ac66ef889687750921f09d4ccafce7f843e996",
+  "next_decoder_observation": "Source rejects aligned zero dwords before BOM checks; BOM-less UTF-16 uses nullcount > cb/50 and byte parity. No decoder implementation claimed.",
+  "full_tests": {
+    "count": 397,
+    "failures": 0,
+    "command": "swift test",
+    "log_sha256": "93975bcbc611458e50b3a418a7d6672e6e8a7df92a6453f341120c1ffeffc929"
+  }
+}

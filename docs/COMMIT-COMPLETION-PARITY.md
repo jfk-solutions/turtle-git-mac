@@ -147,3 +147,10 @@ checked Widget.swift / unchecked Window.swift fixture:
    preview normally after testing.
 
 See [build and pending acceptance record](qa/commit-completion-keys-2026-10-05.json).
+
+## Code-symbol scanner groundwork
+
+The upstream definition parser and icase ECMAScript capture engine are now
+ported and tested in isolation. Changed-file scanning and popup integration
+remain pending. See the [code-symbol audit](COMMIT-CODE-SYMBOL-PARITY.md) for
+source semantics, retained quirks and required decoding/gating/native acceptance.
