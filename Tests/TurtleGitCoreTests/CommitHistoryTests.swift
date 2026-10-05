@@ -2,6 +2,43 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testSelectedUnifiedDiffKeepsOrderRootRenameAndLiteralScopeWithoutMutations() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let initialHistory = try await repo.history()
+        let initial = try XCTUnwrap(initialHistory.first)
+        let initialFiles = try await repo.files(in: initial)
+        let rootPatch = try await repo.revisionFileDiff(initial, files: initialFiles)
+        XCTAssertTrue(rootPatch.contains("new file mode"))
+        let literal = ":(glob)* 雪\n.txt", other = "other.txt", renamed = "renamed.txt"
+        try Data("literal initial\n".utf8).write(to: root.appendingPathComponent(literal))
+        try Data("other initial\n".utf8).write(to: root.appendingPathComponent(other))
+        try await repo.stage([literal, other]); _ = try await repo.commit(message: "more paths")
+        _ = try await repo.run(["mv", "--", path, renamed])
+        try Data("literal selected\n".utf8).write(to: root.appendingPathComponent(literal))
+        try Data("UNSELECTED CHANGE\n".utf8).write(to: root.appendingPathComponent(other))
+        try await repo.stage([literal, other]); _ = try await repo.commit(message: "rename and modifications")
+        let history = try await repo.history(), selected = try XCTUnwrap(history.first)
+        let files = try await repo.files(in: selected)
+        let rename = try XCTUnwrap(files.first { $0.path == renamed })
+        let unusual = try XCTUnwrap(files.first { $0.path == literal })
+        try Data("later staged\n".utf8).write(to: root.appendingPathComponent(literal)); try await repo.stage([literal])
+        try Data("later working\n".utf8).write(to: root.appendingPathComponent(literal))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let patch = try await repo.revisionFileDiff(selected, files: [unusual, rename, unusual])
+        XCTAssertTrue(patch.contains("+literal selected")); XCTAssertFalse(patch.contains("UNSELECTED CHANGE"))
+        XCTAssertFalse(patch.contains("later staged")); XCTAssertFalse(patch.contains("later working"))
+        XCTAssertEqual(rename.oldPath, path)
+        XCTAssertTrue(patch.contains("rename from ")); XCTAssertTrue(patch.contains("rename to " + renamed))
+        let first = try XCTUnwrap(patch.range(of: "+literal selected")), second = try XCTUnwrap(patch.range(of: "rename to " + renamed))
+        XCTAssertLessThan(first.lowerBound, second.lowerBound)
+        XCTAssertEqual(patch.components(separatedBy: "+literal selected").count, 2)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(literal)), Data("later working\n".utf8))
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(head, finalHead)
+        do { _ = try await repo.revisionFileDiff(selected, files: []); XCTFail("Empty selection accepted") } catch RevisionComparisonFailure.selection {}
+    }
     private func entry(_ hash: String, _ parents: [String]) -> LogEntry {
         LogEntry(hash: hash, author: "A", date: "", subject: hash, parents: parents)
     }

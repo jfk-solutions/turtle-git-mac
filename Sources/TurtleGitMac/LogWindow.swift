@@ -388,6 +388,18 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
+    func selectedFileDiff(_ ids: Set<String>) {
+        guard !busy, let revision else { return }
+        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        guard !chosen.isEmpty else { return }; busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                patch = try await repository.revisionFileDiff(revision, files: chosen)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     func canCompareFilePair(_ ids: Set<String>) -> Bool {
         let chosen = visibleFiles.filter { ids.contains($0.id) }
         return chosen.count == 2 && chosen.allSatisfy { !$0.isSubmodule }
@@ -482,7 +494,7 @@ struct LogDialog: View {
     }
     @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
         Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
-        Button { model.selectedFiles = ids; fileDiff() } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1 || model.busy)
+        Button { model.selectedFileDiff(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.revision == nil || model.busy)
         Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.bare || model.onFileCompare == nil || model.busy)
         if model.canCompareFilePair(ids) {
             Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || model.revision == nil || model.onFilePairCompare == nil)
@@ -515,10 +527,7 @@ struct LogDialog: View {
         Button { model.openHistoricalFile(ids, action: .open) } label: { CommandLabel(title: "Open", icon: .open) }.disabled(model.busy)
         Button { model.openHistoricalFile(ids, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(model.busy)
     }
-    func fileDiff(workingTree: Bool = false) {
-        guard let path = model.selectedFiles.first else { return }
-        model.diff(workingTree: workingTree, path: path)
-    }
+
 }
 
 struct RevisionTable: NSViewRepresentable {

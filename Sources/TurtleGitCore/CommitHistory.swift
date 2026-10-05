@@ -223,6 +223,24 @@ extension GitRepository {
         var raw = args; raw.insert(contentsOf: ["--raw", "-z"], at: 1)
         return CommitFile.parse(names: try run(names).stdout, statistics: try run(numbers).stdout, raw: try run(raw).stdout)
     }
+    /// Upstream status-list unified diff concatenates each selected file's
+    /// patch in visible list order, without including unselected changes.
+    public func revisionFileDiff(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false) throws -> String {
+        guard !files.isEmpty else { throw RevisionComparisonFailure.selection }
+        var seen = Set<String>(), patches: [String] = []
+        for file in files where seen.insert(file.path).inserted {
+            guard !file.path.isEmpty, !file.path.contains("\0") else { throw RevisionComparisonFailure.selection }
+            if let oldPath = file.oldPath {
+                var args: [String]
+                if workingTree { args = ["diff", "--no-ext-diff", "--no-color", entry.hash] }
+                else if let parent = entry.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
+                else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
+                args += ["--", oldPath, file.path]
+                patches.append(try run(args).text)
+            } else { patches.append(try revisionDiff(entry, path: file.path, workingTree: workingTree)) }
+        }
+        return patches.joined()
+    }
     public func revisionDiff(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false) throws -> String {
         var args: [String]
         if workingTree { args = ["diff", "--no-ext-diff", "--no-color", entry.hash] }

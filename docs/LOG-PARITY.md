@@ -450,3 +450,31 @@ The previous compiler correction at 6b3d697 passed the full GitHub macOS workflo
 including integration tests, Debug/Finder build, universal Git runtime and
 unsigned App Store build/audit. This does not prove the new pair change or signed
 distribution readiness.
+
+## Unified diff for a file selection (2026-10-05)
+
+Upstream `IDGITLC_GNUDIFF1` (2290–2365) iterates selected rows and appends each
+file's patch to one read-only viewer. The Log file menu now accepts multiple
+selected files for Show changes as unified diff. It captures visible list order,
+reads only those paths against the selected commit's first parent (or root), and
+concatenates their patches. Rename entries include old and new literal paths so
+Git emits the rename rather than just the destination addition. Duplicate paths
+are ignored; empty selections are rejected. The operation is busy-guarded and
+checks the App Store repository grant before reading. Unified patch text remains
+in the existing separate read-only sheet.
+
+A new real Git regression verifies root additions, multi-file ordering,
+rename-from/to metadata, leading pathspec-magic/Unicode/newline names, exclusion
+of an unselected change and later staged/working contents, duplicate filtering,
+and exact raw index/HEAD/working preservation. The five CommitHistory tests pass.
+The original assertion expected the old Unicode path unquoted in the patch;
+it was corrected to account for Git's quoted patch headers without changing the
+fixture's names or content coverage. Debug builds pass. Native multi-file patch
+sheet acceptance, configured filters/tools, per-parent merge rows and error-partial
+output still require verification.
+
+The separate historical pair native retry again selected both rows but returned
+an automation `noWindowsAvailable` error when opening the context menu. Its one
+QA app quit normally; exact repository state and process absence were checked.
+No native pair handoff or new screenshot is claimed. This does not block the
+remaining source port, and full Log parity remains incomplete.

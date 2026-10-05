@@ -302,3 +302,8 @@ Log also offers Compare two files for a selected historical pair, using the
 selected commit's first parent independently for deleted sides. Exact blob and
 pinned-revision tests pass; native viewer and signed sandbox acceptance remain
 pending. The implemented file-menu commands now put Export before Save/Open.
+
+Show changes as unified diff in Log now accepts multiple selected files, appends
+patches in displayed order and includes both names of a rename. Selected-path,
+root and rename regressions pass; native multi-file patch acceptance and merge
+parent variants remain under audit.
