@@ -19,6 +19,56 @@ final class SubmoduleComparisonTests: XCTestCase {
         return (root, parent, child, path, hash)
     }
 
+    func testBrowserSubmoduleResolutionPinsChildHistoryWithoutWrites() async throws {
+        let (root, parent, child, path, base) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let snapshot = try await parent.browseRepository()
+        let entry = try XCTUnwrap(snapshot.entries.first { $0.path == path })
+        try Data("next\n".utf8).write(to: child.root.appendingPathComponent("file.txt"))
+        try await child.stage(["file.txt"]); _ = try await child.commit(message: "new child must not be shown")
+        let next = try await child.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await parent.run(["update-index", "--cacheinfo", "160000," + next + "," + path])
+        _ = try await parent.commit(message: "advance gitlink")
+        try Data("child staged\n".utf8).write(to: child.root.appendingPathComponent("file.txt")); try await child.stage(["file.txt"])
+        try Data("child working\n".utf8).write(to: child.root.appendingPathComponent("file.txt"))
+        let parentIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let childIndex = try Data(contentsOf: child.root.appendingPathComponent(".git/index"))
+        let details = try await parent.repositoryBrowserSubmodule(snapshot, entry: entry)
+        XCTAssertEqual(details.checkout, child.root); XCTAssertEqual(details.from.revision, base)
+        XCTAssertTrue(details.from.canShowLog); XCTAssertEqual(details.from.subject, "child base 雪")
+        var options = HistoryOptions(); options.endRevision = entry.objectID
+        let history = try await child.history(options: options)
+        XCTAssertEqual(history.first?.hash, base)
+        XCTAssertFalse(history.contains { $0.hash == next })
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), parentIndex)
+        XCTAssertEqual(try Data(contentsOf: child.root.appendingPathComponent(".git/index")), childIndex)
+        XCTAssertEqual(try String(contentsOf: child.root.appendingPathComponent("file.txt")), "child working\n")
+        let childHead = try await child.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(childHead, next)
+        let ordinary = try XCTUnwrap(snapshot.entries.first { $0.kind == .file })
+        do { _ = try await parent.repositoryBrowserSubmodule(snapshot, entry: ordinary); XCTFail("Ordinary file treated as child repository") } catch is RepositoryBrowserFailure {}
+    }
+    func testBrowserSubmoduleUnavailableAndBareDoNotFetchOrInitialize() async throws {
+        let (root, parent, child, path, base) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let snapshot = try await parent.browseRepository()
+        let entry = try XCTUnwrap(snapshot.entries.first { $0.path == path })
+        try FileManager.default.removeItem(at: child.root)
+        try FileManager.default.createDirectory(at: child.root, withIntermediateDirectories: false)
+        let missing = try await parent.repositoryBrowserSubmodule(snapshot, entry: entry)
+        XCTAssertNil(missing.checkout); XCTAssertEqual(missing.from.revision, base); XCTAssertFalse(missing.from.canShowLog)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: child.root.appendingPathComponent(".git").path))
+        _ = try await child.run(["init", "-b", "main"])
+        try Data("unrelated\n".utf8).write(to: child.root.appendingPathComponent("other.txt")); try await child.stage(["other.txt"])
+        _ = try await child.run(["-c", "user.name=QA", "-c", "user.email=qa@example.invalid", "commit", "-m", "unrelated child"])
+        let unavailable = try await parent.repositoryBrowserSubmodule(snapshot, entry: entry)
+        XCTAssertEqual(unavailable.checkout, child.root); XCTAssertFalse(unavailable.from.available)
+        let bareRoot = root.appendingPathComponent("bare.git")
+        _ = try await parent.run(["clone", "--bare", "--", root.path, bareRoot.path])
+        let bareRepo = GitRepository(root: bareRoot), bare = try await bareRepo.browseRepository()
+        let bareEntry = try XCTUnwrap(bare.entries.first { $0.kind == .submodule })
+        do { _ = try await bareRepo.repositoryBrowserSubmodule(bare, entry: bareEntry); XCTFail("Bare child resolution attempted") } catch is RepositoryBrowserFailure {}
+    }
     func testWorkingComparisonUsesChildHeadAndDirtyStateWithoutWrites() async throws {
         let (root, parent, child, path, base) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }

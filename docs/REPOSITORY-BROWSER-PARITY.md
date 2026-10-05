@@ -59,6 +59,38 @@ when unavailable. Bare/submodule Open With produces the source-style plain text
 files retained by the app; Save writes the exact selected blob bytes. Sandbox
 access checks and leases protect reads and historical comparison handoffs.
 
+## Parent and child submodule history
+
+A single gitlink now has both source commands: Show log opens the selected path
+in the superproject at the displayed parent revision; Show submodule log opens
+the child repository at the displayed gitlink hash. The child checkout's current
+HEAD does not override this hash. The new Core resolution API validates that the
+entry belongs to the displayed snapshot, is a gitlink and resolves to the same
+recorded hash. Existing child-checkout containment checks remain in effect.
+
+The native handoff shares this resolution with Open. An unavailable Open retains
+the Update/Cancel sheet; unavailable child Log shows an explanatory error and
+performs no update/fetch. The source child-Log command also does not dispatch
+Submodule Update automatically. Bare repositories have no child working checkout;
+the native command reports selection unavailability. Reads retain the parent scope
+lease, validate Store access and suppress the handoff if the parent browser closes.
+The child viewer uses the inherited Git runtime and lease.
+
+Two additional integration tests exercise pinned history after the parent gitlink
+and child HEAD move, exact parent/child index and dirty-file preservation, ordinary
+entry rejection, missing/unrelated child repositories and bare rejection. Combined
+RepositoryBrowserTests/SubmoduleComparisonTests pass 17 cases, zero failures.
+Final Debug and Store builds and complete bundle audits passed. These are targeted
+checks; no new full-suite run is claimed.
+
+Native acceptance opened Show submodule log at the recorded old gitlink and
+confirmed that only the pinned child commit appeared, excluding the newer child
+HEAD. Parent and child HEADs, raw index hashes and uncommitted child bytes remained
+unchanged. UI observation timed out during the subsequent close; normal Cmd-Q
+on the same live process succeeded, and the final process scan was empty. Further
+parent-Log, unavailable-Log and Open/update native acceptance remains pending.
+No new screenshot was captured. See [submodule evidence](qa/repository-browser-submodule-2026-10-05.json).
+
 ## Revert to the displayed revision
 
 For one or multiple selected ordinary files in a working repository, Revert uses
@@ -140,7 +172,8 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 - Native multi-file Revert menu and partial-success Continue/Cancel acceptance;
   the per-file backend, single-file recovery and rejection cases are verified.
 - Drag export and file-object clipboard interoperability.
-- Separate Show submodule log and full initialized/missing child-update acceptance.
+- Broader native parent/child Log and initialized/missing child Open/update acceptance.
+  Separate child Log and its pinned read-only routing are now implemented.
 - Historical tree-object Log/Blame/compare handoffs: listing and blob reads accept
   tree objects, while existing helpers generally expect commits.
 - Complete Open With, alternative editor, Save, Blame and working comparison

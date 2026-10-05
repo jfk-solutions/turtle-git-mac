@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-05",
+  "scope": "Repository Browser separate child Log and shared pinned child resolution; full app port remains active",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": "ced08d910b48b8c261fe7d131a409d4dc44875ac",
+  "source_commands": {
+    "Show log": "Superproject path with parent endrev/rev and submodule dispatch flag",
+    "Show submodule log": "Child path with gitlink endrev/rev",
+    "Open": "Child browser at gitlink or explicit Submodule Update prompt"
+  },
+  "tests": {
+    "suites": [
+      "RepositoryBrowserTests",
+      "SubmoduleComparisonTests"
+    ],
+    "count": 17,
+    "new_submodule_cases": 2,
+    "failures": 0,
+    "log_sha256": "ee8069c64d684340682d1fe3ff68c6fddd2eee944f1633c6c6fa3b1cf0c5e84e",
+    "coverage": [
+      "Pinned child history after parent/child HEAD move",
+      "Exact parent/child raw index and dirty-child preservation",
+      "Ordinary-entry rejection",
+      "Uninitialized checkout without fetch/init",
+      "Unrelated child without historical hash",
+      "Bare checkout rejection"
+    ]
+  },
+  "builds": {
+    "debug": {
+      "exit_code": 0,
+      "log_sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "bundle_audit": "Passed; 71 icons, Finder/helpers/licenses; Store universal Git 2.55.0 audited",
+      "phase": "Final UI including explicit bare-checkout explanation; native child Log acceptance precedes this message-only change"
+    },
+    "store": {
+      "exit_code": 0,
+      "log_sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "bundle_audit": "Passed; 71 icons, Finder/helpers/licenses; Store universal Git 2.55.0 audited",
+      "phase": "Final UI including explicit bare-checkout explanation"
+    }
+  },
+  "native": {
+    "fixture": {
+      "root": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitBrowserSubmoduleQA-4ry1okp3",
+      "child": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitBrowserSubmoduleQA-4ry1okp3/module",
+      "gitlink": "abe439b2bfd716d24a8ae8014fce71b65b916875",
+      "heads": {
+        "parent": "d873d9a2ab060eb7bc5af8e5ec53f23e52cc5e1e",
+        "child": "d667a16d3f59a10803aa96ecb44924a76d9f5de2"
+      },
+      "indexes": {
+        "parent": "19eac75daa41a42233859c3820dcb263aacf355c909fd7cba685d072c95f5708",
+        "child": "215351f54e81dc949b5200bb3bdc8cba5b3512559f1f8ab3a8ea2c1e2a674e4f"
+      },
+      "working_sha256": "35f083a45f0d6abdb9e94d7c90097381fe225c8cd6a10d5b40f0608a230df016"
+    },
+    "maximum_concurrent_QA_apps": 1,
+    "accepted": [
+      "Gitlink menu has distinct parent and child Log actions",
+      "Child Log title and selected commit match recorded gitlink",
+      "One pinned child revision shown; newer child HEAD excluded",
+      "Parent/child HEAD and raw indexes unchanged",
+      "Dirty child bytes unchanged"
+    ],
+    "observation_limitation": "Subsequent window-close observation repeatedly timed out; same process verified live, no duplicate launched",
+    "cleanup": "Normal Cmd-Q succeeded on same process; final empty TurtleGit process scan",
+    "screenshots": []
+  },
+  "remaining": [
+    "Native parent Log and unavailable child Log acceptance",
+    "Initialized child Open and missing-child Update/Cancel acceptance",
+    "Signed Store/Finder scope and native dark acceptance",
+    "Complete browser/full application parity"
+  ],
+  "publication": "Local; existing Git authentication blocker unchanged"
+}

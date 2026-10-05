@@ -103,6 +103,15 @@ extension GitRepository {
         let entries = try RepositoryBrowserListing.parse(run(["ls-tree", "-z", "-l", subtree, "--"]).stdout, directory: directory)
         return RepositoryBrowserSnapshot(root: root, revision: revision, objectID: objectID, treeID: treeID, directory: directory, bare: bare, entries: entries)
     }
+    /// Resolve the child checkout at the gitlink displayed by this pinned tree.
+    /// Availability may be false; this never initializes or fetches a submodule.
+    public func repositoryBrowserSubmodule(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry) throws -> SubmoduleComparison {
+        guard snapshot.root == root, !snapshot.bare, snapshot.entries.contains(entry),
+              entry.kind == .submodule, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
+        let result = try submoduleComparison(path: entry.path, from: object, to: object)
+        guard result.from.revision == entry.objectID else { throw RepositoryBrowserFailure.selection }
+        return result
+    }
     /// Restore one displayed ordinary file to the pinned browser revision,
     /// updating both index and working tree like RepositoryBrowser.cpp checkout.
     /// The caller sequences files and decides Continue/Cancel after each error.

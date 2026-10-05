@@ -36,7 +36,9 @@ Name/Extension/Size list and historical file menus with original command and mod
 icons. It browses pinned nested revisions, including bare repositories and tags,
 and compares marked files across revisions without checking them out. Revert to
 this revision restores selected ordinary files into the index and working tree,
-with per-file Continue/Cancel errors. Drag export, complete submodule commands,
+with per-file Continue/Cancel errors. Gitlinks provide separate parent and child
+history; child Log uses the displayed gitlink rather than its current HEAD.
+Drag export, broader submodule acceptance,
 broader native acceptance and signed integration remain pending.
 See [Repository Browser parity](docs/REPOSITORY-BROWSER-PARITY.md).
 

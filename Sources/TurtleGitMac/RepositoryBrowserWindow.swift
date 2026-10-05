@@ -125,7 +125,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     var onLog: (String, String) -> Void = { _, _ in }
     var onBlame: (String, String) -> Void = { _, _ in }
     var onCompare: (String, String) -> Void = { _, _ in }
-    var onSubmodule: (String, String, String) -> Void = { _, _, _ in }
+    var onSubmodule: (RepositoryBrowserSnapshot, RepositoryBrowserEntry, Bool) -> Void = { _, _, _ in }
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     enum FileAction { case open, openWith, alternativeEditor, save }
     var presentFile: (ComparisonFileContent, FileAction) -> Void = { _, _ in }
@@ -194,7 +194,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard active, !busy, !confirmingQuit, let snapshot, snapshot.entries.contains(entry) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
         if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path, select: true); return }
-        if entry.kind == .submodule && action == .open && !snapshot.bare, let revision = snapshot.objectID { onSubmodule(entry.path, revision, entry.objectID); return }
+        if entry.kind == .submodule && action == .open && !snapshot.bare { onSubmodule(snapshot, entry, false); return }
         Task { [weak self, repository, access] in
             do {
                 guard let self else { return }; try self.validateAccess()
@@ -203,6 +203,12 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             } catch { self?.error = error.localizedDescription }
             withExtendedLifetime(access) {}
         }
+    }
+    func showSubmoduleLog(_ entry: RepositoryBrowserEntry) {
+        guard active, !busy, !confirmingQuit, let snapshot, snapshot.entries.contains(entry), entry.kind == .submodule else { return }
+        do { try validateAccess() } catch { self.error = error.localizedDescription; return }
+        guard !snapshot.bare else { error = "This bare repository has no child working checkout. Open an initialized working repository to show submodule history."; return }
+        onSubmodule(snapshot, entry, true)
     }
     func revert(_ entries: [RepositoryBrowserEntry]) {
         guard active, !busy, !confirmingQuit, let snapshot, !snapshot.bare, !entries.isEmpty,
@@ -292,6 +298,9 @@ private struct RepositoryBrowserDialog: View {
                             Divider()
                         }
                         Button { model.onLog(entry.path, revision) } label: { CommandLabel(title: "Show log", icon: .log) }
+                        if entry.kind == .submodule {
+                            Button { model.showSubmoduleLog(entry) } label: { CommandLabel(title: "Show submodule log", icon: .log) }
+                        }
                         if ![.directory, .submodule].contains(entry.kind) {
                             if model.snapshot?.bare == false {
                                 Button { model.onBlame(entry.path, revision) } label: { CommandLabel(title: "Blame", icon: .blame) }

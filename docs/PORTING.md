@@ -66,7 +66,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Resolve | Native checked list, current/mine/theirs, original icon and app/Finder dispatch; real Git and native checked-current/Cancel verified | Full conflict editor, remaining submodule chooser edge cases, progress, signed Finder and broader QA pending; see RESOLVE-PARITY.md |
 | Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, resolve, bisect, clean, export |
 | Patch workflows | Not yet implemented | Format/apply patches, am continuation/abort, review, email integration |
-| Repository Browser | Native lazy folder tree, pinned revisions, sortable Name/Extension/Size, historical file menus, marked comparisons and historical Revert | Multi-file Revert acceptance, drag export, full submodule commands, dark/native action coverage and signed scopes; see REPOSITORY-BROWSER-PARITY.md |
+| Repository Browser | Native lazy folder tree, pinned revisions, sortable Name/Extension/Size, historical file menus, marked comparisons and historical Revert and pinned child Log | Multi-file Revert acceptance, drag export, broader submodule acceptance, dark/native action coverage and signed scopes; see REPOSITORY-BROWSER-PARITY.md |
 | Advanced repositories | Linked-worktree discovery and partial submodule workflows | Complete submodule/worktree management, git-svn and LFS |
 | Helper apps | Not yet implemented | Blame, image diff, merge, revision graph, askpass, revision/template tools |
 
