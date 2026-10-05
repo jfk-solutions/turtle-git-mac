@@ -117,3 +117,98 @@ final class RepositoryAccessTests: XCTestCase {
         XCTAssertEqual(try GitRuntime.executable(bundle: bundle, appStore: false).path, "/usr/bin/git")
     }
 }
+
+final class WorkingComparisonMarkTests: XCTestCase {
+    func testPrivateBookmarkSharedMetadataRelaunchAndConditionalConsumption() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let path = root.appendingPathComponent("marked 雪\n.txt"), bytes = Data([0, 255, 13, 10])
+        try bytes.write(to: path)
+        let storage = root.appendingPathComponent("private/mark.json"), shared = root.appendingPathComponent("shared/mark.json"), provider = TestBookmarks()
+        let permission = RepositoryAccessLease(url: root, provider: provider)
+        let store = WorkingComparisonMarkStore(storageURL: storage, provider: provider)
+        let first = try store.remember(file: path, permission: permission, requireSecurityScope: true)
+        XCTAssertTrue(try WorkingComparisonMarkSnapshot.publish(first, to: shared))
+        XCTAssertEqual(try WorkingComparisonMarkSnapshot.read(from: shared), first)
+        let metadata = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: shared)) as? [String: Any])
+        XCTAssertEqual(Set(metadata.keys), ["id", "path"])
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: storage.path)[.posixPermissions] as? NSNumber, 0o600)
+        let relaunched = WorkingComparisonMarkStore(storageURL: storage, provider: provider)
+        var acquired: WorkingComparisonAccess? = try relaunched.acquire(requireSecurityScope: true)
+        XCTAssertEqual(acquired?.file.path, path.path); XCTAssertEqual(acquired?.mark, first)
+        XCTAssertEqual(provider.starts, 2); XCTAssertEqual(provider.stops, 0)
+        acquired = nil; XCTAssertEqual(provider.stops, 1)
+        let second = try relaunched.remember(file: path, permission: permission)
+        XCTAssertNotEqual(first.id, second.id)
+        XCTAssertFalse(try store.consume(first.id)); XCTAssertEqual(try store.snapshot(), second)
+        XCTAssertTrue(try store.consume(second.id)); XCTAssertNil(try relaunched.snapshot())
+        XCTAssertTrue(try WorkingComparisonMarkSnapshot.publish(nil, to: shared)); XCTAssertNil(try WorkingComparisonMarkSnapshot.read(from: shared))
+        XCTAssertEqual(try Data(contentsOf: path), bytes)
+    }
+    func testSingleFileGrantFollowsMovedFileWithoutGrantingItsSibling() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let file = root.appendingPathComponent("file"), sibling = root.appendingPathComponent("sibling"), moved = root.appendingPathComponent("moved")
+        try Data("file".utf8).write(to: file); try Data("sibling".utf8).write(to: sibling)
+        let provider = TestBookmarks(), permission = RepositoryAccessLease(url: file, provider: provider)
+        let store = WorkingComparisonMarkStore(storageURL: root.appendingPathComponent("private/mark.json"), provider: provider)
+        let mark = try store.remember(file: file, permission: permission, requireSecurityScope: true)
+        XCTAssertThrowsError(try store.remember(file: sibling, permission: permission))
+        try FileManager.default.moveItem(at: file, to: moved)
+        provider.movedURL = moved; provider.stale = true
+        let access = try store.acquire(requireSecurityScope: true)
+        XCTAssertEqual(access.file.path, moved.path); XCTAssertEqual(access.mark.id, mark.id)
+        XCTAssertFalse(access.permission.contains(sibling)); XCTAssertEqual(try Data(contentsOf: access.file), Data("file".utf8))
+        let shared = root.appendingPathComponent("shared/mark.json")
+        XCTAssertThrowsError(try WorkingComparisonMarkSnapshot.publish(.init(id: UUID(), path: "relative"), to: shared))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: shared.path))
+        try FileManager.default.createDirectory(at: shared.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(WorkingComparisonMarkSnapshot(id: UUID(), path: "relative")).write(to: shared)
+        XCTAssertThrowsError(try WorkingComparisonMarkSnapshot.read(from: shared))
+    }
+    func testMovedFolderRenewalAndFailedAccessKeepMarkAvailable() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let old = root.appendingPathComponent("old"), moved = root.appendingPathComponent("moved"), name = "nested/file.txt"
+        try FileManager.default.createDirectory(at: old.appendingPathComponent("nested"), withIntermediateDirectories: true)
+        try Data("contents\n".utf8).write(to: old.appendingPathComponent(name))
+        let provider = TestBookmarks(), store = WorkingComparisonMarkStore(storageURL: root.appendingPathComponent("private/mark.json"), provider: provider)
+        let saved = try store.remember(file: old.appendingPathComponent(name), permission: RepositoryAccessLease(url: old, provider: provider))
+        provider.failResolution = true
+        XCTAssertThrowsError(try store.acquire()); XCTAssertEqual(try store.snapshot(), saved)
+        provider.failResolution = false; provider.scopeAvailable = false
+        XCTAssertThrowsError(try store.acquire(requireSecurityScope: true)); XCTAssertEqual(try store.snapshot(), saved)
+        provider.scopeAvailable = true
+        try FileManager.default.moveItem(at: old, to: moved)
+        provider.stale = true; provider.movedURL = moved
+        let access = try store.acquire(requireSecurityScope: true)
+        XCTAssertEqual(access.mark.id, saved.id); XCTAssertEqual(access.file.path, moved.appendingPathComponent(name).path)
+        XCTAssertEqual(provider.creates, 2); XCTAssertEqual(try store.snapshot()?.path, access.file.path)
+        try FileManager.default.removeItem(at: access.file)
+        XCTAssertThrowsError(try store.acquire()); XCTAssertEqual(try store.snapshot()?.id, saved.id)
+    }
+    func testMarkRejectsDirectoriesEscapingLinksAndUnavailableScopeWithoutOverwriting() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let folder = root.appendingPathComponent("repo"), outside = root.appendingPathComponent("outside")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try Data("outside".utf8).write(to: outside)
+        let file = folder.appendingPathComponent("file"); try Data("inside".utf8).write(to: file)
+        try FileManager.default.createSymbolicLink(at: folder.appendingPathComponent("escape"), withDestinationURL: outside)
+        let provider = TestBookmarks(), store = WorkingComparisonMarkStore(storageURL: root.appendingPathComponent("mark.json"), provider: provider)
+        let permission = RepositoryAccessLease(url: folder, provider: provider)
+        let saved = try store.remember(file: file, permission: permission)
+        for invalid in [folder, outside, folder.appendingPathComponent("escape"), folder.appendingPathComponent("missing")] {
+            XCTAssertThrowsError(try store.remember(file: invalid, permission: permission))
+            XCTAssertEqual(try store.snapshot(), saved)
+        }
+        provider.scopeAvailable = false
+        XCTAssertThrowsError(try store.remember(file: file, permission: RepositoryAccessLease(url: folder, provider: provider), requireSecurityScope: true))
+        XCTAssertEqual(try store.snapshot(), saved)
+        let corrupt = Data("invalid".utf8); try corrupt.write(to: store.storageURL)
+        XCTAssertThrowsError(try store.snapshot()); XCTAssertThrowsError(try store.acquire())
+        XCTAssertEqual(try Data(contentsOf: store.storageURL), corrupt)
+    }
+}

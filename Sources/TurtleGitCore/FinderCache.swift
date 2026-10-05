@@ -170,3 +170,26 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         }
     }
 }
+
+/// Menu metadata only. This shared record intentionally has no bookmark or scope.
+public struct WorkingComparisonMarkSnapshot: Codable, Equatable, Sendable {
+    public let id: UUID
+    public var path: String
+    public init(id: UUID, path: String) { self.id = id; self.path = path }
+    public static var sharedURL: URL? { FinderIntegration.container?.appendingPathComponent("comparison-mark.json") }
+    public static func read(from url: URL? = sharedURL) throws -> Self? {
+        guard let url, FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let value = try JSONDecoder().decode(Self.self, from: Data(contentsOf: url))
+        guard value.path.hasPrefix("/"), !value.path.contains("\0") else { throw RevisionComparisonFailure.selection }
+        return value
+    }
+    @discardableResult public static func publish(_ mark: Self?, to url: URL? = sharedURL) throws -> Bool {
+        guard let url else { return false }
+        if let mark {
+            guard mark.path.hasPrefix("/"), !mark.path.contains("\0") else { throw RevisionComparisonFailure.selection }
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(mark).write(to: url, options: .atomic)
+        } else if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+        return true
+    }
+}

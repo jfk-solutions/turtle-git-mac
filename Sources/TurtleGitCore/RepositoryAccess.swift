@@ -141,3 +141,74 @@ public final class RepositoryAccessStore {
     }
     public func forget(_ id: UUID) throws { try persist(repositories.filter { $0.id != id }) }
 }
+
+/// A bookmark remains app-private; Finder receives only WorkingComparisonMarkSnapshot.
+/// Use on the app's main actor. Each operation reloads storage so an old token
+/// cannot consume a newer mark, even when another store instance has changed it.
+public final class WorkingComparisonMarkStore {
+    private struct Record: Codable {
+        var snapshot: WorkingComparisonMarkSnapshot
+        var bookmark: Data
+        var relativePath: String
+    }
+    private struct Envelope: Codable { var mark: Record? }
+    public let storageURL: URL
+    private let provider: any RepositoryBookmarkProvider
+    public init(storageURL: URL, provider: any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider()) {
+        self.storageURL = storageURL; self.provider = provider
+    }
+    public static var defaultStorageURL: URL {
+        RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("comparison-mark.json")
+    }
+    private func read() throws -> Record? {
+        guard FileManager.default.fileExists(atPath: storageURL.path) else { return nil }
+        return try JSONDecoder().decode(Envelope.self, from: Data(contentsOf: storageURL)).mark
+    }
+    private func persist(_ mark: Record?) throws {
+        try FileManager.default.createDirectory(at: storageURL.deletingLastPathComponent(), withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try JSONEncoder().encode(Envelope(mark: mark)).write(to: storageURL, options: .atomic)
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: storageURL.path)
+    }
+    public func snapshot() throws -> WorkingComparisonMarkSnapshot? { try read()?.snapshot }
+    @discardableResult public func remember(file: URL, permission: RepositoryAccessLease, requireSecurityScope: Bool = false) throws -> WorkingComparisonMarkSnapshot {
+        guard !requireSecurityScope || permission.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let file = file.standardizedFileURL, grant = permission.url.standardizedFileURL
+        guard file.isFileURL, !file.path.contains("\0"), permission.contains(file),
+              file.path == grant.path || file.path.hasPrefix(grant.path == "/" ? "/" : grant.path + "/") else { throw RevisionComparisonFailure.selection }
+        let type = try FileManager.default.attributesOfItem(atPath: file.path)[.type] as? FileAttributeType
+        guard type == .typeRegular || type == .typeSymbolicLink else { throw RevisionComparisonFailure.selection }
+        let relative = file.path == grant.path ? "" : String(file.path.dropFirst(grant.path == "/" ? 1 : grant.path.count + 1))
+        let snapshot = WorkingComparisonMarkSnapshot(id: UUID(), path: file.path)
+        try persist(Record(snapshot: snapshot, bookmark: try provider.create(for: grant), relativePath: relative))
+        return snapshot
+    }
+    public func acquire(requireSecurityScope: Bool = false) throws -> WorkingComparisonAccess {
+        guard var mark = try read() else { throw RepositoryAccessFailure.unknownRepository }
+        let resolved = try provider.resolve(mark.bookmark)
+        let lease = RepositoryAccessLease(url: resolved.url, provider: provider)
+        guard !requireSecurityScope || lease.hasSecurityScope else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let path = mark.relativePath
+        guard !path.hasPrefix("/"), !path.contains("\0"), !path.split(separator: "/").contains("..") else { throw RevisionComparisonFailure.selection }
+        let file = path.isEmpty ? lease.url : lease.url.appendingPathComponent(path)
+        guard lease.contains(file) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let type = try FileManager.default.attributesOfItem(atPath: file.path)[.type] as? FileAttributeType
+        guard type == .typeRegular || type == .typeSymbolicLink else { throw RevisionComparisonFailure.selection }
+        if resolved.stale { mark.bookmark = try provider.create(for: resolved.url) }
+        mark.snapshot.path = file.standardizedFileURL.path
+        try persist(mark)
+        return WorkingComparisonAccess(mark: mark.snapshot, file: file, permission: lease)
+    }
+    /// Call after the comparison handoff succeeds. A failed read/authorization
+    /// leaves the mark available for retry; a newer mark survives an older use.
+    @discardableResult public func consume(_ id: UUID) throws -> Bool {
+        guard try read()?.snapshot.id == id else { return false }
+        try persist(nil); return true
+    }
+    public func clear() throws { try persist(nil) }
+}
+
+public struct WorkingComparisonAccess {
+    public let mark: WorkingComparisonMarkSnapshot
+    public let file: URL
+    public let permission: RepositoryAccessLease
+}

@@ -562,3 +562,11 @@ Long-path compaction remains pending. Explorer's `ContextMenu.cpp` DiffLater
 handler (1350–1371) stores an absolute working-file path, consumes it after
 comparison, and supports Control to clear and Shift for an alternative tool;
 that shared Finder/app route still needs porting.
+
+
+The external mark's private bookmark store and metadata-only Finder snapshot
+now have persistence, renewal and conditional-consumption regressions. The
+Finder/app/Log command routes remain pending; see
+[comparison mark parity](COMPARISON-MARK-PARITY.md) for the complete source audit
+and required integration. This storage foundation does not change the verified
+historical Log comparison route.
