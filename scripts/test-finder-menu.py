@@ -154,6 +154,31 @@ import TurtleGitCore
         precondition(FinderMenuBuilder.paths(kind: .contextualMenuForItems, selection: [tracked], target: folder) == [tracked])
         precondition(FinderMenuBuilder.paths(kind: .toolbarItemMenu, selection: [tracked], target: nil).isEmpty)
         print("Actual creation menu receiver: outside folder and targetless toolbar Clone/Create only, captured target routing and URL round-trip, versioned Shift rules, admin exclusion and container/item/toolbar selection passed. Activated Finder and native dialog handoff remain pending.")
+        func metadataMenu(_ info: FinderRepositoryMetadata) -> NSMenu {
+            let cached = FinderSnapshot(roots: snapshot.roots, states: snapshot.states, repositories: [folder.path: info])
+            return FinderMenuBuilder.make(paths: [folder], snapshot: cached, settings: FinderMenuSettings(),
+                comparisonMark: nil, target: target, actionSelector: selector)
+        }
+        func rootActions(_ menu: NSMenu) -> Set<RepositoryAction> {
+            Set(menu.items[0].submenu!.items.compactMap(FinderShellMenuLayout.action))
+        }
+        let ordinary = metadataMenu(FinderRepositoryMetadata())
+        verifyOrder(ordinary)
+        precondition(!rootActions(ordinary).contains(.stashApply) && !rootActions(ordinary).contains(.stashPop) && !rootActions(ordinary).contains(.stashList) && !rootActions(ordinary).contains(.submoduleUpdate))
+        let complete = metadataMenu(FinderRepositoryMetadata(hasStash: true, hasSubmoduleConfig: true))
+        verifyOrder(complete)
+        precondition([RepositoryAction.stashApply, .stashPop, .stashList, .submoduleUpdate].allSatisfy(rootActions(complete).contains))
+        let merging = metadataMenu(FinderRepositoryMetadata(mergeActive: true, hasStash: true, hasSubmoduleConfig: true))
+        verifyOrder(merging)
+        precondition([RepositoryAction.pull, .merge, .rebase, .stash].allSatisfy { !rootActions(merging).contains($0) })
+        precondition(rootActions(merging).contains(.fetch) && rootActions(merging).contains(.commit) && rootActions(merging).contains(.stashApply))
+        let bisecting = metadataMenu(FinderRepositoryMetadata(bisectActive: true))
+        verifyOrder(bisecting)
+        precondition([RepositoryAction.pull, .merge, .rebase].allSatisfy { !rootActions(bisecting).contains($0) } && rootActions(bisecting).contains(.stash))
+        let bareMenu = metadataMenu(FinderRepositoryMetadata(bare: true))
+        verifyOrder(bareMenu)
+        precondition(rootActions(bareMenu) == [.fetch, .push, .log, .reflog, .repositoryBrowser, .worktreeList])
+        print("Actual metadata menu receiver: absent/present stash and .gitmodules, merge/bisect exclusions and six bare-root commands follow source repository clauses while preserving groups. Cached facts only; fresh signed handoff remains pending.")
         let unrelated = outside.appendingPathComponent("plain.txt"); try Data().write(to: unrelated)
         let outsideFileMenu = FinderMenuBuilder.make(paths: [unrelated], snapshot: nil, settings: FinderMenuSettings(),
             comparisonMark: nil, target: target, actionSelector: selector)

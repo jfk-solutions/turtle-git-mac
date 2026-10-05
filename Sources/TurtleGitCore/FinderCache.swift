@@ -83,12 +83,65 @@ public struct FinderCreationMenuContext: Sendable {
     }
 }
 
+public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
+    public var bare: Bool
+    public var bisectActive: Bool
+    public var mergeActive: Bool
+    public var hasStash: Bool
+    public var hasSubmoduleConfig: Bool
+    public init(bare: Bool = false, bisectActive: Bool = false, mergeActive: Bool = false,
+                hasStash: Bool = false, hasSubmoduleConfig: Bool = false) {
+        self.bare = bare; self.bisectActive = bisectActive; self.mergeActive = mergeActive
+        self.hasStash = hasStash; self.hasSubmoduleConfig = hasSubmoduleConfig
+    }
+    /// Repository-wide clauses only; path/status clauses remain separate.
+    public func allows(_ action: RepositoryAction) -> Bool {
+        if bare { return [.fetch, .push, .log, .reflog, .repositoryBrowser, .worktreeList].contains(action) }
+        if [.pull, .merge, .rebase].contains(action) && (bisectActive || mergeActive) { return false }
+        if action == .stash && mergeActive { return false }
+        if [.stashApply, .stashPop, .stashList].contains(action) && !hasStash { return false }
+        if action == .submoduleUpdate && !hasSubmoduleConfig { return false }
+        return true
+    }
+}
+
+extension GitRepository {
+    /// Runs only in the containing app; linked-worktree markers use its own Git dir.
+    public func finderMetadata(knownBare: Bool? = nil) throws -> FinderRepositoryMetadata {
+        let bare = try knownBare ?? isBare()
+        var bytes = try run(["rev-parse", "--absolute-git-dir"]).stdout
+        if bytes.last == 10 { bytes.removeLast() }
+        let directory = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true)
+        let fm = FileManager.default
+        let stash = try run(["show-ref", "--verify", "--quiet", "refs/stash"], successfulExitCodes: 0...1).exitCode == 0
+        return FinderRepositoryMetadata(bare: bare,
+            bisectActive: fm.fileExists(atPath: directory.appendingPathComponent("BISECT_START").path),
+            mergeActive: fm.fileExists(atPath: directory.appendingPathComponent("MERGE_HEAD").path),
+            hasStash: stash, hasSubmoduleConfig: !bare && fm.fileExists(atPath: root.appendingPathComponent(".gitmodules").path))
+    }
+}
+
 public struct FinderSnapshot: Codable, Sendable {
     public var roots: [String]
     public var states: [String: FileState]
     public var updated: Date
-    public init(roots: [String], states: [String: FileState], updated: Date = Date()) {
-        self.roots = roots; self.states = states; self.updated = updated
+    public var repositories: [String: FinderRepositoryMetadata]
+    public init(roots: [String], states: [String: FileState], updated: Date = Date(), repositories: [String: FinderRepositoryMetadata] = [:]) {
+        self.roots = roots; self.states = states; self.updated = updated; self.repositories = repositories
+    }
+    private enum CodingKeys: String, CodingKey { case roots, states, updated, repositories }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        roots = try values.decode([String].self, forKey: .roots)
+        states = try values.decode([String: FileState].self, forKey: .states)
+        updated = try values.decode(Date.self, forKey: .updated)
+        repositories = try values.decodeIfPresent([String: FinderRepositoryMetadata].self, forKey: .repositories) ?? [:]
+    }
+    public func repositoryMetadata(for paths: [URL]) -> FinderRepositoryMetadata? {
+        guard !paths.isEmpty else { return nil }
+        return roots.sorted { $0.count > $1.count }.first { root in
+            paths.allSatisfy { $0.path == root || $0.path.hasPrefix(root.hasSuffix("/") ? root : root + "/") }
+        }.flatMap { repositories[$0] }
     }
     @discardableResult public func write() throws -> Bool {
         guard let url = FinderIntegration.snapshotURL else { return false }

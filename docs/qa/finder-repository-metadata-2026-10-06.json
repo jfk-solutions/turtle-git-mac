@@ -1,0 +1,106 @@
+{
+  "date": "2026-10-06",
+  "scope": "App-collected repository facts, compatible snapshot and repository-wide Finder clauses; full path eligibility/signed monitoring pending",
+  "baseCommit": "4473b2c39345879f33a118806464e0461c9dddea",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2",
+    "MenuInfo.cpp": "aee7f91ad1111fe03ab85b390855885ca940a27f"
+  },
+  "focusedCoreTests": {
+    "count": 16,
+    "newTests": 4,
+    "failures": 0
+  },
+  "fullCoreTests": {
+    "count": 471,
+    "failures": 0,
+    "durationSeconds": 263.86
+  },
+  "actualCoreEvidence": [
+    "Old snapshot missing repositories decodes; old reader ignores new key while preserving roots/states/date",
+    "Deepest root lookup and path boundaries",
+    "Source repository clause combinations including six bare command alternatives",
+    "Real Git stash creation/pack-refs/drop and bare clone",
+    "Real linked worktrees share stash but simulated BISECT_START/MERGE_HEAD markers remain private",
+    "Whitespace/Unicode/newline repository path survives absolute git-dir output"
+  ],
+  "actualNativeReceivers": [
+    "Actual extension source compiled Swift 6/macOS 13 minimum without constructing Finder controller/extension",
+    "Absent/present stash and .gitmodules hide/show corresponding commands",
+    "Merge/bisect exclusions match source while retaining Fetch/Commit and source-allowed stash variants",
+    "Six implemented bare-root commands and preserved source groups",
+    "Previous order, captured-selection, icons, creation, cache and badge-artwork checks pass"
+  ],
+  "publisher": "RepositoryModel restores/merges root metadata and publishes with atomic status snapshot/notification; compiled/source-audited, no real entitled handoff exercised",
+  "compatibility": "Snapshot roots/states/updated unchanged; new optional repositories dictionary; preferences/comparison schemas unchanged",
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App/Finder extension, unchanged 75 icons, current NOTICE/licenses, universal helper runtimes and Store Git 2.55.0 verified",
+  "nativeUI": "No windows/menus displayed or extension activated; no gesture/screenshot/signed acceptance claim",
+  "appProcesses": "No app launched; isolated test fixtures cleaned; no main app or native receiver at audit",
+  "logs": {
+    "core": {
+      "path": "/tmp/turtlegit-finder-metadata-core.log",
+      "sha256": "3165097aca61dc25bc5be3d19a3218bb461426955cc479ebde3eddf56cbb5034",
+      "exitCode": 0
+    },
+    "full-core": {
+      "path": "/tmp/turtlegit-finder-metadata-full-core.log",
+      "sha256": "b9a951b6bd3055c7dd5edfc104ea0926f4837efbfffffe28bb3be7a9fb31bc47",
+      "exitCode": 0
+    },
+    "menu": {
+      "path": "/tmp/turtlegit-finder-metadata-menu.log",
+      "sha256": "4717ef3da4fcf255e439c20972856ae9c6a78bd8b4203c6b9b34a63771397889",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-metadata-debug.log",
+      "sha256": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-metadata-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-finder-metadata-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-finder-metadata-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-metadata-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    "FinderSync/FinderSync.swift": "9f07f752cbe706d94ec7686b78074ae2ccfc0ed127bdcc2d8908ca7c154589cd",
+    "NOTICE": "553c66ab3e145bceea26dd8ef51aa4324ad8db79e9814c439065b82b20286af9",
+    "README.md": "dda139f3a69a5db8ddf6d4b8294968496c95d1b06c4c4bbe94eaa57593211221",
+    "Sources/TurtleGitCore/FinderCache.swift": "ded04aaeb474ce44aa861b0e165f7471755eff437c3fefb00ba6e9463bb4e8e1",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "f93ac7ac5bbb5c665a42e23d0e046b94431031c20ce1caedfd9f6de9589da711",
+    "docs/FINDER-MENU-LAYOUT-PARITY.md": "65d4821bb686e2c1dcb7413aaf9636aba1a1e16192f29ec6eb59ac8c55e4b41b",
+    "docs/upstream-files.csv": "9cf4dee79c6f96c17b4cb6727f844b0e95aaed6718c68ff61b3ea42e960733dd",
+    "scripts/test-finder-menu.py": "ed07810fddcdbd5e630965dffe167dcdcc6b34ae71b4e76c5466be7ad06a157b",
+    "Tests/TurtleGitCoreTests/FinderRepositoryMetadataTests.swift": "5cae24e3ee1b44fda3636c58bb62e6052ba585d0fd2a3fde476ec6aaba03b121",
+    "docs/FINDER-REPOSITORY-METADATA-PARITY.md": "ef3a1b3cd7e3c1c2f8716cbbc36cd1854ded42bf51a85d817428f46b618dfeea"
+  },
+  "pending": [
+    "Real signed app-to-extension metadata publication and scope acceptance",
+    "Actual activated Finder commands and operation transitions",
+    "Complete path/status/selection/git-svn/submodule/admin/configuration clauses",
+    "Legacy/missing metadata refresh and independent daemon/FSEvents/non-current-root monitoring",
+    "Malformed/unsupported ref formats and broader stale-state recovery",
+    "Signed distribution and GitHub publication/execution; existing authentication blocker"
+  ]
+}

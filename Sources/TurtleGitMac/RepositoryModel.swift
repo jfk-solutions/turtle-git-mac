@@ -65,6 +65,7 @@ import TurtleGitCore
     private var cloneKeyAccess: [String: RepositoryAccessLease] = [:]
     private var timer: Timer?
     private var cacheStates: [String: FileState] = [:]
+    private var cacheRepositories: [String: FinderRepositoryMetadata] = [:]
     private var monitoredRoots: [String] = []
     var visibleEntries: [StatusEntry] { entries.filter { showIgnored || $0.state != .ignored } }
     var selectedPaths: [String] { entries.filter { selection.contains($0.id) }.map(\.path) }
@@ -99,7 +100,7 @@ import TurtleGitCore
         } catch { self.error = "Saved repository permissions could not be loaded: " + error.localizedDescription }
         Task {
             if let snapshot = await Task.detached(operation: { FinderSnapshot.read() }).value, root == nil {
-                cacheStates = snapshot.states; monitoredRoots = snapshot.roots
+                cacheStates = snapshot.states; monitoredRoots = snapshot.roots; cacheRepositories = snapshot.repositories
             }
         }
         timer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
@@ -205,12 +206,14 @@ import TurtleGitCore
         selection.formIntersection(Set(entries.map(\.id)))
         branch = try await repository.branch()
         let tracked = bare ? [] : try await repository.trackedPaths()
+        let metadata = try await repository.finderMetadata(knownBare: bare)
         let snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
+        cacheRepositories[root.path] = metadata
         cacheStates = cacheStates.filter { $0.key != root.path && !$0.key.hasPrefix(root.path + "/") }
         cacheStates.merge(snapshot.states) { _, new in new }
         if !monitoredRoots.contains(root.path) { monitoredRoots.append(root.path) }
         do {
-            let cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates)
+            let cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates, repositories: cacheRepositories)
             let written = try await Task.detached(operation: { try cached.write() }).value
             finderStatus = written ? "Finder cache updated" : "Finder cache unavailable: App Group access required"
             if written { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) }

@@ -15,7 +15,8 @@ history/Repository Browser/Working Tree/Rebase/stash, Resolve/Rename/Delete/Reve
 Switch/Merge/Branch/Tag, Create repository/Ignore, Worktrees/Submodule Update, then
 Format Patch. Omitted command groups remain in the fixture for subsequent ports.
 The current layout does not add missing commands or change eligibility of the
-remaining entries.
+remaining entries in that order-only follow-up. Repository-wide availability
+now also consumes [cached metadata](FINDER-REPOSITORY-METADATA-PARITY.md).
 
 `ContextMenu.cpp` defers separators until a subsequent visible entry. The native
 arranger likewise removes preexisting separators and emits one between surviving

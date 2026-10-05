@@ -183,6 +183,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Implemented Finder commands follow upstream order and separator groups;
   Worktrees → Add opens New Worktree. Full conditions/coverage remain pending;
   see [menu layout audit](docs/FINDER-MENU-LAYOUT-PARITY.md).
+  Cached bare/merge/bisect/stash/submodule facts now filter repository commands;
+  see [metadata audit](docs/FINDER-REPOSITORY-METADATA-PARITY.md). Full path
+  conditions, fresh background monitoring and signed handoff remain pending.
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Commit’s file menu adds unversioned paths explicitly; Shift reveals upstream

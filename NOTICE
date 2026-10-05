@@ -279,3 +279,9 @@ command table and ContextMenu.cpp's separator insertion, using the existing GPL
 version 2 or later source attribution above. The native menu projects implemented
 commands into upstream order; omitted commands/conditions/configuration remain
 pending. Worktree creation is reached through the Worktrees manager.
+
+Finder repository metadata partially adapts TGitPath.cpp GetAdminDirMask/
+HasStashDir, Copyright (C) 2008-2023, 2025-2026 TortoiseGit and Copyright (C) 2003-2008,
+2025 TortoiseSVN, under GPL version 2 or later. Git's ref resolver replaces loose/
+packed-ref parsing; per-worktree metadata and the original .gitmodules presence
+flag are cached by the app. Full path clauses and signed integration remain pending.
