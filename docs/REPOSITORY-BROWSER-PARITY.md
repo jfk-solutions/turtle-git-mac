@@ -44,7 +44,7 @@ with itself; its subsequent size/name tie order is retained explicitly. macOS
 locale comparison and byte-size formatting can differ from Windows.
 
 File menus use the original command icons: Open, Open With, alternative editor,
-working-tree comparison, Show log, Blame, Save revision to, Mark for comparison,
+working-tree comparison, Show log, Blame, Save revision to, Revert to this revision, Mark for comparison,
 Compare with marked file, copy names and copy hashes. Directory menus provide
 navigation, Log and copying. A marked historical file retains its path and peeled
 revision when the browser changes revision; comparison uses the existing native
@@ -59,9 +59,34 @@ when unavailable. Bare/submodule Open With produces the source-style plain text
 files retained by the app; Save writes the exact selected blob bytes. Sandbox
 access checks and leases protect reads and historical comparison handoffs.
 
+## Revert to the displayed revision
+
+For one or multiple selected ordinary files in a working repository, Revert uses
+`git checkout --end-of-options <pinned object> -- <literal path>` for each file.
+It updates both the index and working file without moving HEAD. Folders, gitlinks,
+bare repositories and entries from a different listing are rejected. Destination
+validation rejects paths through an ancestor symlink outside the repository or
+inside Git administration directories. Argument arrays and literal pathspecs
+preserve unusual names. Unlike the status-dialog Revert, this historical command
+does not move replaced contents to Trash; that matches RepositoryBrowser.cpp.
+
+Files are processed in displayed selection order. A native per-file error sheet
+provides Continue/Cancel, and the final result reports successes, failures and
+unattempted files. The source increments its reported count even after a failed
+checkout when OK is chosen; the native adaptation reports only successful Git
+operations. It restores the displayed pinned object rather than re-resolving a
+branch/tag that may have moved while the browser was open. These adaptations
+preserve the selected historical content and avoid an inaccurate success message.
+
+Closing/Quitting is blocked during the mutation; quit-confirmation disables
+browser actions. Leases remain held through the sequence and each file revalidates
+Store scope. Completion refreshes existing Working Tree/Commit/workspace views.
+Earlier successful files remain restored if a later file fails or is cancelled,
+matching the source's per-file sequence rather than an atomic batch.
+
 ## Verification on 2026-10-05
 
-Four RepositoryBrowserTests exercise tree modes and exact bytes, pinned nested
+The original four RepositoryBrowserTests exercise tree modes and exact bytes, pinned nested
 reads after HEAD moves, annotated tags/bare/tree/unborn handling, sorting and
 malformed records. FinderRequestTests adds action/selection URL round-trip and
 bare-repository eligibility. The focused browser/Finder/submodule run passed
@@ -84,6 +109,27 @@ HEAD, raw index SHA-256 and working-file SHA-256 remained unchanged afterward.
 The initial pane-width problem was corrected and all columns became visible.
 Executable/symlink overlays were inspected in the root view. A real native light
 screenshot was saved and inspected; dark-mode acceptance remains pending.
+Three additional Revert integration tests now bring RepositoryBrowserTests to
+seven passing cases. They verify pinned annotated-tag restoration after the tag
+moves, binary/literal names, executable and symlink modes, exact index entries,
+unrelated staged preservation, folder/gitlink/foreign/bare rejection, an escaping
+ancestor symlink and index-lock failure/recovery. The focused seven-test run
+passed with zero failures; the earlier 415-test full suite predates this mutation.
+Final Debug/Store builds and audits passed after the new command was added.
+
+Native Revert acceptance used a separate disposable repository with different
+staged/working contents. A deliberate index lock produced the expected error;
+Cancel yielded zero successes with raw index and both working files unchanged.
+After removing only the owned test lock, Revert reported one success and restored
+exact HEAD bytes into both index and working file. HEAD, the unselected working
+file and unrelated staged file remained unchanged. Continue was activated through
+the default error-sheet action, yielding an accurate zero-success result. Native
+multi-file error sequencing remains unverified because selected-row context-menu
+automation returned ambiguous-element errors; this is not counted as a pass.
+The final result screenshot attempt failed with a macOS recording-stream error;
+no new Revert screenshot is claimed. The earlier light browser screenshot is kept.
+See [Revert evidence](qa/repository-browser-revert-2026-10-05.json).
+
 Every QA app was closed using normal Quit, with a final empty process scan.
 See [structured evidence](qa/repository-browser-2026-10-05.json).
 
@@ -91,8 +137,8 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 
 ## Remaining parity work
 
-- Revert to this revision for one/multiple ordinary files, source error/continue
-  behavior, and native index/worktree effect acceptance.
+- Native multi-file Revert menu and partial-success Continue/Cancel acceptance;
+  the per-file backend, single-file recovery and rejection cases are verified.
 - Drag export and file-object clipboard interoperability.
 - Separate Show submodule log and full initialized/missing child-update acceptance.
 - Historical tree-object Log/Blame/compare handoffs: listing and blob reads accept

@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-05",
+  "scope": "Repository Browser historical per-file Revert; full port remains incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": "ced08d910b48b8c261fe7d131a409d4dc44875ac",
+  "source_behavior": "Only ordinary files in working repositories; checkout each selected path; OK continues errors, Cancel breaks, final count",
+  "native_adaptations": [
+    "Restore displayed peeled object instead of resolving possibly moved branch/tag",
+    "Continue label for source OK error choice",
+    "Report successful operations separately from failed/skipped operations; source increments count after OK on failure",
+    "Reject escaped destination ancestors and Git administration paths"
+  ],
+  "tests": {
+    "focused": {
+      "suite": "RepositoryBrowserTests",
+      "count": 7,
+      "failures": 0,
+      "new_cases": 3,
+      "log_sha256": "5d3abfc655b1afd78ae6ce40f0ac350a16268424d7fad117e8803e972b9bc74a"
+    },
+    "earlier_full_suite": {
+      "count": 415,
+      "failures": 0,
+      "phase": "Before Revert mutation; not rerun for this command"
+    }
+  },
+  "builds": {
+    "debug": {
+      "exit_code": 0,
+      "log_sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "bundle_audit": "Passed, Finder/helpers/licenses and 71 original icons; Store universal Git audit passed"
+    },
+    "store": {
+      "exit_code": 0,
+      "log_sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "bundle_audit": "Passed, Finder/helpers/licenses and 71 original icons; Store universal Git audit passed"
+    }
+  },
+  "native": {
+    "fixture": {
+      "root": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitBrowserRevertQA-w5hd28un",
+      "head": "394095fec42d11188d6eee977831cf613c609bf4",
+      "index_sha256": "0cbe5f1380c3f2e756320c0f21f24c0e618735afb206b0e0c9b9d11c4f7eb89b",
+      "unrelated_index": "100644 e860d8cf9a5f51beec27c112a86775227e9b0d15 0\tunrelated.txt\n",
+      "unrelated_bytes": "Unrelated staged\n"
+    },
+    "maximum_concurrent_QA_apps": 1,
+    "accepted": [
+      "Ordinary-file Revert menu and two-file table selection",
+      "Owned index lock triggers per-file error",
+      "Cancel reports zero successes and preserves raw index and working files",
+      "Default Continue action reports zero successes after error",
+      "Retry after removing owned index lock reports one success",
+      "Selected index and working bytes equal displayed HEAD content",
+      "HEAD unchanged",
+      "Unselected working file unchanged",
+      "Unrelated staged blob and working file unchanged",
+      "Normal Quit and final empty TurtleGit process scan"
+    ],
+    "limitations": [
+      "Selected-row right-click automation returned ambiguous-element error; multi-file menu/action sequencing not accepted yet",
+      "Coordinate UI automation returned noWindowsAvailable; same process retained, no duplicate launch",
+      "Final native screenshot failed macOS audio/video recording stream; no Revert PNG saved"
+    ],
+    "cleanup": "Normal Quit; zero QA apps remain"
+  },
+  "remaining": [
+    "Native multi-file partial-success Continue/Cancel sequencing",
+    "Quit/close guards during slow Git mutation and dirty-editor confirmation",
+    "Signed Store/Finder scope acceptance",
+    "Full repository browser parity and whole-app port"
+  ],
+  "publication": "Local, existing git authentication blocker unchanged"
+}

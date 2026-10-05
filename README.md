@@ -34,8 +34,10 @@ bundle structure; it is not a signed distribution.
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
 icons. It browses pinned nested revisions, including bare repositories and tags,
-and compares marked files across revisions without checking them out. Revert,
-drag export, complete submodule commands and signed acceptance remain pending.
+and compares marked files across revisions without checking them out. Revert to
+this revision restores selected ordinary files into the index and working tree,
+with per-file Continue/Cancel errors. Drag export, complete submodule commands,
+broader native acceptance and signed integration remain pending.
 See [Repository Browser parity](docs/REPOSITORY-BROWSER-PARITY.md).
 
 ![Native Repository Browser](docs/site/assets/repository-browser.png)

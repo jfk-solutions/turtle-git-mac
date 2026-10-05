@@ -9,15 +9,17 @@ import AppKit
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
         let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
+        let browsers = sender.windows.compactMap { $0.delegate as? RepositoryBrowserWindowController }
         let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
         let submoduleDiffs = sender.windows.compactMap { $0.delegate as? SubmoduleDiffWindowController }
         let comparisons = sender.windows.compactMap { $0.delegate as? RevisionComparisonWindowController }
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
-        guard !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
+        guard !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
         guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         repositoryModel?.confirmingQuit = true
+        for browser in browsers { browser.model.confirmingQuit = true }
         for comparison in fileComparisons { comparison.model.confirmingQuit = true }
         for diff in submoduleDiffs { diff.model.confirmingQuit = true }
         for comparison in comparisons { comparison.model.confirmingQuit = true; comparison.model.patchWindow?.model.confirmingQuit = true }
@@ -65,6 +67,7 @@ import AppKit
                 }
             }
             if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
+            for browser in browsers { browser.model.confirmingQuit = false }
             for diff in submoduleDiffs { diff.model.confirmingQuit = false }
             for comparison in fileComparisons { comparison.model.confirmingQuit = false }
             for comparison in comparisons { comparison.model.confirmingQuit = false; comparison.model.patchWindow?.model.confirmingQuit = false }

@@ -103,6 +103,17 @@ extension GitRepository {
         let entries = try RepositoryBrowserListing.parse(run(["ls-tree", "-z", "-l", subtree, "--"]).stdout, directory: directory)
         return RepositoryBrowserSnapshot(root: root, revision: revision, objectID: objectID, treeID: treeID, directory: directory, bare: bare, entries: entries)
     }
+    /// Restore one displayed ordinary file to the pinned browser revision,
+    /// updating both index and working tree like RepositoryBrowser.cpp checkout.
+    /// The caller sequences files and decides Continue/Cancel after each error.
+    public func revertRepositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry) throws {
+        guard snapshot.root == root, !snapshot.bare, try !isBare(),
+              snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind),
+              RepositoryBrowserListing.validPath(entry.path, allowRoot: false),
+              let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
+        _ = try restoreLocation(entry.path)
+        _ = try run(["checkout", "--end-of-options", object, "--", entry.path])
+    }
     public func repositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry) throws -> ComparisonFileContent {
         guard snapshot.root == root, snapshot.entries.contains(entry), entry.kind != .directory, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
         if entry.kind == .submodule {

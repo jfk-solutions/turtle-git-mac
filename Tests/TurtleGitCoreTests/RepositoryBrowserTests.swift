@@ -78,6 +78,93 @@ final class RepositoryBrowserTests: XCTestCase {
             do { _ = try await repo.browseRepository(revision: invalid); XCTFail("Non-tree revision accepted") } catch {}
         }
     }
+    func testRevertRestoresPinnedBytesModesAndIndexWithoutMovingHead() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let name = ":(glob)*.bin", binary = Data([0, 255, 10, 13])
+        try binary.write(to: root.appendingPathComponent(name))
+        try Data("old executable\n".utf8).write(to: root.appendingPathComponent("run.sh"))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: root.appendingPathComponent("run.sh").path)
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("link").path, withDestinationPath: "old-target")
+        try await repo.stage([name, "run.sh", "link"]); _ = try await repo.commit(message: "original browser files")
+        _ = try await repo.run(["tag", "-a", "restore-tag", "-m", "original"])
+        let snapshot = try await repo.browseRepository(revision: "restore-tag")
+        try Data("new bytes".utf8).write(to: root.appendingPathComponent(name))
+        try Data("new executable\n".utf8).write(to: root.appendingPathComponent("run.sh"))
+        try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: root.appendingPathComponent("run.sh").path)
+        try FileManager.default.removeItem(at: root.appendingPathComponent("link"))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("link").path, withDestinationPath: "new-target")
+        try await repo.stage([name, "run.sh", "link"]); _ = try await repo.commit(message: "new browser files")
+        // The named tag moves, but the displayed selection must still restore the old blob.
+        _ = try await repo.run(["tag", "-f", "restore-tag", "HEAD"])
+        try Data("uncommitted".utf8).write(to: root.appendingPathComponent(name))
+        try Data("unrelated staged".utf8).write(to: root.appendingPathComponent("unrelated.txt"))
+        try await repo.stage(["unrelated.txt"])
+        let unrelated = try await repo.run(["ls-files", "--stage", "--", "unrelated.txt"]).stdout
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        for path in [name, "run.sh", "link"] {
+            let entry = try XCTUnwrap(snapshot.entries.first { $0.path == path })
+            try await repo.revertRepositoryBrowserFile(snapshot, entry: entry)
+            let indexed = try await repo.run(["ls-files", "--stage", "--", path]).text
+            XCTAssertTrue(indexed.hasPrefix(entry.mode + " " + entry.objectID + " 0\t"))
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(name)), binary)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: root.appendingPathComponent("link").path), "old-target")
+        let permissions = try FileManager.default.attributesOfItem(atPath: root.appendingPathComponent("run.sh").path)[.posixPermissions] as? NSNumber
+        XCTAssertEqual((permissions?.intValue ?? 0) & 0o111, 0o111)
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let finalUnrelated = try await repo.run(["ls-files", "--stage", "--", "unrelated.txt"]).stdout
+        XCTAssertEqual(finalHead, head); XCTAssertEqual(finalUnrelated, unrelated)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("unrelated.txt")), Data("unrelated staged".utf8))
+    }
+    func testRevertRejectsForeignFoldersSubmodulesBareAndEscapedAncestors() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("nested"), withIntermediateDirectories: false)
+        try Data("historical".utf8).write(to: root.appendingPathComponent("nested/file.txt"))
+        try await repo.stage(["nested"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + head + ",module"])
+        _ = try await repo.commit(message: "browser rejection fixture")
+        let snapshot = try await repo.browseRepository()
+        let nested = try await repo.browseRepositoryDirectory(snapshot, directory: "nested")
+        let file = try XCTUnwrap(nested.entries.first)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        for entry in snapshot.entries.filter({ [.directory, .submodule].contains($0.kind) }) {
+            do { try await repo.revertRepositoryBrowserFile(snapshot, entry: entry); XCTFail("Unsupported kind restored") } catch is RepositoryBrowserFailure {}
+        }
+        do { try await repo.revertRepositoryBrowserFile(snapshot, entry: file); XCTFail("Foreign entry restored") } catch is RepositoryBrowserFailure {}
+        let bareRoot = root.appendingPathComponent("bare.git")
+        _ = try await repo.run(["clone", "--bare", "--", root.path, bareRoot.path])
+        let bareRepo = GitRepository(root: bareRoot), bare = try await bareRepo.browseRepository(directory: "nested")
+        do { try await bareRepo.revertRepositoryBrowserFile(bare, entry: XCTUnwrap(bare.entries.first)); XCTFail("Bare restored") } catch is RepositoryBrowserFailure {}
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitBrowserOutside-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: outside) }
+        try Data("outside must remain".utf8).write(to: outside.appendingPathComponent("file.txt"))
+        try FileManager.default.removeItem(at: root.appendingPathComponent("nested"))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("nested").path, withDestinationPath: outside.path)
+        do { try await repo.revertRepositoryBrowserFile(nested, entry: file); XCTFail("Escaped ancestor restored") } catch is WorkingFileRestoreFailure {}
+        XCTAssertEqual(try Data(contentsOf: outside.appendingPathComponent("file.txt")), Data("outside must remain".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+    func testRevertLockFailureLeavesFileAndIndexUnchangedThenCanResume() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let snapshot = try await repo.browseRepository()
+        let entry = try XCTUnwrap(snapshot.entries.first { $0.kind == .file })
+        let location = root.appendingPathComponent(entry.path), lock = root.appendingPathComponent(".git/index.lock")
+        try Data("working stays on failure".utf8).write(to: location)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        try Data().write(to: lock)
+        do { try await repo.revertRepositoryBrowserFile(snapshot, entry: entry); XCTFail("Index lock ignored") } catch is GitFailure {}
+        XCTAssertEqual(try Data(contentsOf: location), Data("working stays on failure".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        try FileManager.default.removeItem(at: lock)
+        try await repo.revertRepositoryBrowserFile(snapshot, entry: entry)
+        let original = try await repo.repositoryBrowserFile(snapshot, entry: entry)
+        XCTAssertEqual(try Data(contentsOf: location), original.bytes)
+    }
     func testSortingAndMalformedTreeRecords() throws {
         let oid = String(repeating: "a", count: 40)
         let bytes = Data(("100644 blob " + oid + " 20\tfile2.txt\0" + "040000 tree " + oid + " -\tfolder\0" + "100644 blob " + oid + " 1\tfile10.txt\0").utf8)

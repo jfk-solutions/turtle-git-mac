@@ -34,6 +34,20 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         model.presentFile = { [weak self] content, action in
             DispatchQueue.main.async { [weak self] in self?.presentFile(content, action: action) }
         }
+        model.handleRevertFailure = { [weak window] message in
+            guard let window, window.attachedSheet == nil else { return false }
+            let alert = NSAlert(); alert.messageText = "Could not revert file"
+            alert.informativeText = message; alert.alertStyle = .warning
+            alert.addButton(withTitle: "Continue"); alert.addButton(withTitle: "Cancel")
+            return await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
+            }
+        }
+        model.showRevertResult = { [weak window] message in
+            guard let window, window.attachedSheet == nil else { return }
+            let alert = NSAlert(); alert.messageText = "Revert to this revision"; alert.informativeText = message
+            alert.addButton(withTitle: "OK"); alert.beginSheetModal(for: window)
+        }
         model.refresh()
     }
     private func chooseRevision() {
@@ -79,7 +93,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             } else if !NSWorkspace.shared.open(preview.file) { failed("Could not open the historical file. Choose an application using Open With.") }
         } catch { model.error = error.localizedDescription }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.mutating && !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -93,6 +107,8 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     @Published var selection = Set<String>()
     @Published var sortOrder = [KeyPathComparator(\RepositoryBrowserEntry.name)]
     @Published var busy = false
+    @Published var mutating = false
+    @Published var confirmingQuit = false
     @Published var error: String?
     @Published var comparisonMark: PreparedFileComparisonMark?
     private var lastImportedWorkingMark: UUID?
@@ -101,6 +117,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     private var listings: [String: RepositoryBrowserSnapshot] = [:]
     private var requestedDirectory = ""
     private var active = true
+    var handleRevertFailure: (String) async -> Bool = { _ in false }
+    var showRevertResult: (String) -> Void = { _ in }
+    var onChanged: () -> Void = {}
     var close: () -> Void = {}
     var chooseRevision: () -> Void = {}
     var onLog: (String, String) -> Void = { _, _ in }
@@ -133,7 +152,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func refresh() {
-        guard active else { return }
+        guard active, !mutating, !confirmingQuit else { return }
         let token = UUID(); generation = token; busy = true
         let value = revision, directory = snapshot?.directory ?? ""
         Task { [weak self, repository, access] in
@@ -151,7 +170,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func loadDirectory(_ path: String, select: Bool) {
-        guard active, !busy, let snapshot, snapshot.treeID != nil else { return }
+        guard active, !busy, !confirmingQuit, let snapshot, snapshot.treeID != nil else { return }
         let token = generation
         if select { requestedDirectory = path }
         if let cached = listings[path] {
@@ -172,7 +191,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func open(_ entry: RepositoryBrowserEntry, action: FileAction = .open) {
-        guard active, !busy, let snapshot, snapshot.entries.contains(entry) else { return }
+        guard active, !busy, !confirmingQuit, let snapshot, snapshot.entries.contains(entry) else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
         if entry.kind == .directory { expanded.insert(entry.path); loadDirectory(entry.path, select: true); return }
         if entry.kind == .submodule && action == .open && !snapshot.bare, let revision = snapshot.objectID { onSubmodule(entry.path, revision, entry.objectID); return }
@@ -185,18 +204,42 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             withExtendedLifetime(access) {}
         }
     }
+    func revert(_ entries: [RepositoryBrowserEntry]) {
+        guard active, !busy, !confirmingQuit, let snapshot, !snapshot.bare, !entries.isEmpty,
+              Set(entries.map(\.id)).count == entries.count,
+              entries.allSatisfy({ snapshot.entries.contains($0) && ![.directory, .submodule].contains($0.kind) }) else { return }
+        do { try validateAccess() } catch { self.error = error.localizedDescription; return }
+        busy = true; mutating = true
+        Task { [self, repository, access] in
+            var restored = 0, failed = 0, attempted = 0
+            for entry in entries {
+                attempted += 1
+                do {
+                    try validateAccess()
+                    try await repository.revertRepositoryBrowserFile(snapshot, entry: entry)
+                    restored += 1
+                } catch {
+                    failed += 1
+                    if !(await handleRevertFailure(entry.path + "\n\n" + error.localizedDescription)) { break }
+                }
+            }
+            mutating = false; busy = false; onChanged()
+            showRevertResult("\(restored) file(s) reverted to \(snapshot.revision)." + (failed == 0 ? "" : "\n\(failed) file(s) failed. \(entries.count - attempted) file(s) were not attempted."))
+            withExtendedLifetime(access) {}
+        }
+    }
     func importWorkingComparisonMark(_ access: WorkingComparisonAccess?) {
         guard let access, access.mark.id != lastImportedWorkingMark else { return }
         lastImportedWorkingMark = access.mark.id
         comparisonMark = PreparedFileComparisonMark(path: access.file.path, revision: "", workingAccess: access)
     }
     func markForComparison(_ entry: RepositoryBrowserEntry) {
-        guard active, !busy, let snapshot, let revision = snapshot.objectID,
+        guard active, !busy, !confirmingQuit, let snapshot, let revision = snapshot.objectID,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         comparisonMark = PreparedFileComparisonMark(path: entry.path, revision: revision)
     }
     func compareWithMarkedFile(_ entry: RepositoryBrowserEntry) {
-        guard active, !busy, let snapshot, let revision = snapshot.objectID, let comparisonMark,
+        guard active, !busy, !confirmingQuit, let snapshot, let revision = snapshot.objectID, let comparisonMark,
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind) else { return }
         onPreparedFileCompare?(comparisonMark, PreparedFileComparisonMark(path: entry.path, revision: revision))
     }
@@ -255,11 +298,18 @@ private struct RepositoryBrowserDialog: View {
                             }
                             Divider()
                             Button { model.open(entry, action: .save) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }
-                            Divider()
-                            Button { model.markForComparison(entry) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }
-                            if let mark = model.comparisonMark {
-                                Button { model.compareWithMarkedFile(entry) } label: { CommandLabel(title: "Compare with " + mark.label(for: entry.path), icon: .compare) }.disabled(model.onPreparedFileCompare == nil)
-                            }
+
+                        }
+                        Divider()
+                    }
+                    if !values.isEmpty && model.snapshot?.bare == false && values.allSatisfy({ ![.directory, .submodule].contains($0.kind) }) {
+                        Button { model.revert(values) } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }
+                        Divider()
+                    }
+                    if values.count == 1, let entry = values.first, ![.directory, .submodule].contains(entry.kind) {
+                        Button { model.markForComparison(entry) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }
+                        if let mark = model.comparisonMark {
+                            Button { model.compareWithMarkedFile(entry) } label: { CommandLabel(title: "Compare with " + mark.label(for: entry.path), icon: .compare) }.disabled(model.onPreparedFileCompare == nil)
                         }
                         Divider()
                     }
@@ -274,11 +324,11 @@ private struct RepositoryBrowserDialog: View {
             HStack {
                 Text(model.info).font(.caption).frame(maxWidth: .infinity, alignment: .leading)
                 if model.busy { ProgressView().controlSize(.small) }
-                Button("OK", action: model.close).keyboardShortcut(.defaultAction)
-                Button("Cancel", action: model.close).keyboardShortcut(.cancelAction)
+                Button("OK", action: model.close).keyboardShortcut(.defaultAction).disabled(model.mutating)
+                Button("Cancel", action: model.close).keyboardShortcut(.cancelAction).disabled(model.mutating)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-repobrowser.html")!) }
             }
-        }.padding(12).alert("Repository Browser", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
+        }.padding(12).disabled(model.confirmingQuit).alert("Repository Browser", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
     }

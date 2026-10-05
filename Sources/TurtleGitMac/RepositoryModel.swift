@@ -767,6 +767,12 @@ import TurtleGitCore
         controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
         controller.model.onCompare = { [weak self] path, hash in self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path]) }
+        controller.model.onChanged = { [weak self] in
+            guard let self else { return }
+            self.statusWindows[repository.root.path]?.model.reload()
+            self.commitWindows[repository.root.path]?.model.reload()
+            if self.root == repository.root { Task { await self.refresh() } }
+        }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
         controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
         controller.model.onSubmodule = { [weak self, weak model = controller.model, weak window = controller.window] path, parent, hash in
