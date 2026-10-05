@@ -16,8 +16,10 @@ and signed sandbox verification remain pending. See
 ## Audited baseline
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a
-repository-layer port with disposable-repository tests. Native worktree dialogs,
-menus and acceptance remain pending. See [WORKTREE-PARITY.md](WORKTREE-PARITY.md).
+repository-layer port with disposable-repository tests. New Worktree has a native
+dialog and create routing with actual model verification. Worktree List,
+management menus and native/signed acceptance remain pending. See
+[WORKTREE-PARITY.md](WORKTREE-PARITY.md).
 
 Upstream: https://github.com/TortoiseGit/TortoiseGit
 

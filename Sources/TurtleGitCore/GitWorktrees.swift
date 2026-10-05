@@ -77,7 +77,8 @@ extension GitRepository {
 
     /// Matches CreateWorktreeDlg / CAppUtils::CreateWorktree: Force is --force,
     /// never -B; HEAD is omitted so Git uses its directory-name branch behavior.
-    public func createWorktree(at path: URL, options: WorktreeCreationOptions = .init()) throws -> String {
+    public func createWorktree(at path: URL, options: WorktreeCreationOptions = .init(), cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         guard path.isFileURL, !path.path.isEmpty, !path.path.contains("\0") else { throw WorktreeFailure.invalidPath }
         guard !(options.detach && options.newBranch != nil) else { throw WorktreeFailure.conflictingOptions }
         if let name = options.newBranch {
@@ -99,7 +100,7 @@ extension GitRepository {
         if let name = options.newBranch { args += ["-b", name] }
         args += ["--", path.standardizedFileURL.path]
         if options.revision != "HEAD" { args.append(options.revision) }
-        return try run(args).text
+        return try run(args, cancellation: cancellation).text
     }
 
     private func linkedWorktreePath(_ path: URL) throws -> String {

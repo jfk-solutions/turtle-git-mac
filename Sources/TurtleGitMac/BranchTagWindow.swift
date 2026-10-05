@@ -146,7 +146,7 @@ private struct BranchTagDialog: View {
     }
 }
 
-private struct BaseRadio: NSViewRepresentable {
+struct BaseRadio: NSViewRepresentable {
     let title: String
     let selected: Bool
     let select: () -> Void

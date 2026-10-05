@@ -38,6 +38,7 @@
 		338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */; };
 		36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */; };
 		37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */; };
+		37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */; };
 		39DF8589F3A2226D095F7C2E /* GitBlame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */; };
 		3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */; };
 		3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */; };
@@ -261,6 +262,7 @@
 		5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationDelegate.swift; sourceTree = "<group>"; };
 		5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueRegex.swift; sourceTree = "<group>"; };
 		5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageHistory.swift; sourceTree = "<group>"; };
+		5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeCreateWindow.swift; sourceTree = "<group>"; };
 		5E600ADAA231E0E7D95C9827 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = Sources/TurtleGitCore/Resources/Icons; sourceTree = SOURCE_ROOT; };
 		62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLog.swift; sourceTree = "<group>"; };
 		6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleComparison.swift; sourceTree = "<group>"; };
@@ -419,6 +421,7 @@
 				1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */,
 				4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */,
 				2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */,
+				5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */,
 			);
 			name = TurtleGitMac;
 			path = Sources/TurtleGitMac;
@@ -874,6 +877,7 @@
 				140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */,
 				3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */,
 				1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */,
+				37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

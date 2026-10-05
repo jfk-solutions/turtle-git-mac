@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-05",
+  "scope": "Native New Worktree dialog, create routing and owned-process cancellation; Worktree List pending",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "coreTests": {
+    "suite": "GitWorktreeTests",
+    "count": 9,
+    "failures": 0
+  },
+  "actualNativeModel": "Swift 6/macOS 13 driver passed defaults, revision suggestions, forced detach/mutual exclusion, HEAD creation callback, attached existing local branch and automatic tracking of remote base; source branch preserved; not UI acceptance",
+  "logs": {
+    "core": {
+      "path": "/tmp/turtlegit-new-worktree-tests.log",
+      "sha256": "8fde1fc2c66026261132a314ae6ae5677226c65c990007c6606fbe1ff29d5513",
+      "exitCode": 0
+    },
+    "nativeModel": {
+      "path": "/tmp/turtlegit-new-worktree-model.log",
+      "sha256": "6b61ddcc05681799e213eb92375e85b8fdff922214c65114527356c90a1bce39",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-new-worktree-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-new-worktree-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    },
+    "appStoreUnsigned": {
+      "path": "/tmp/turtlegit-new-worktree-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    }
+  },
+  "nativeAttempt": {
+    "preview": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitNewWorktreeQA-blqskrg7/TurtleGit New Worktree QA.app",
+    "result": "Sky Computer Use native pipe closed before response",
+    "screenshot": null,
+    "normalQuit": "unverified",
+    "cleanup": "Revalidated canonical executable for owned PID 5347, sent SIGTERM; no TurtleGit process remained"
+  },
+  "pending": [
+    "Native clicks/layout/light and dark modes/menu icons",
+    "Directory picker and signed scope including linked/common directory",
+    "Full revision-browser and Log-picker fidelity",
+    "Active-operation cancellation and post-create submodule interaction",
+    "Worktree List and management menu port"
+  ],
+  "bundleAudits": {
+    "debug": "passed",
+    "appStoreUnsigned": "passed with bundled universal Git 2.55.0",
+    "notice": "Source matches both bundles"
+  },
+  "github": "Workflow now includes actual native model driver; this local change has not run on GitHub"
+}

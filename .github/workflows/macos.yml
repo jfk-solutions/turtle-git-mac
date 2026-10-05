@@ -28,6 +28,8 @@ jobs:
           -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Verify app, extension and original icon resources
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
+      - name: Native New Worktree model and Git integration
+        run: python3 scripts/test-worktree-dialog.py
       - name: Build pinned universal Git runtime with source and licenses
         run: python3 scripts/build-git-runtime.py
       - name: Sandboxed App Store configuration (unsigned compilation)

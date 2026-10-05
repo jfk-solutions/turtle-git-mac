@@ -195,3 +195,11 @@ version 2 or later. Copyright (C) 2022-2025 TortoiseGit (creation dialog),
 (C) 2003-2011, 2013-2014 TortoiseSVN (AppUtils). Git CLI porcelain replaces
 libgit2 list/lock calls. Native worktree dialogs and signed sandbox acceptance
 remain under development.
+
+WorktreeCreateWindow.swift adapts CreateWorktreeDlg.cpp/.h and the New Worktree
+resource layout under GPL version 2 or later. Copyright (C) 2022-2025 TortoiseGit.
+Its revision-label selection adapts ChooseVersion.h, Copyright (C) 2008-2020,
+2023-2025 TortoiseGit, under the same license.
+AppKit/SwiftUI controls and scoped folder access replace Win32 controls and the
+Windows folder picker. Native visual/click and signed sandbox acceptance remain
+pending; the actual dialog model has isolated state/creation verification.

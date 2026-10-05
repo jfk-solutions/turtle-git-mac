@@ -247,7 +247,7 @@ struct ReferencePopup: NSViewRepresentable {
     }
     final class Coordinator: NSObject {
         var names: [String] = []; var change: (String) -> Void = { _ in }
-        @objc func changed(_ sender: NSPopUpButton) {
+        @MainActor @objc func changed(_ sender: NSPopUpButton) {
             guard names.indices.contains(sender.indexOfSelectedItem) else { return }; change(names[sender.indexOfSelectedItem])
         }
     }

@@ -86,7 +86,7 @@ extension RepositoryAction {
         case .pull: return .pull
         case .push: return .push
         case .fetch, .submoduleUpdate: return .fetch
-        case .branch: return .branch
+        case .branch, .worktreeCreate: return .branch
         case .tag: return .tag
         case .switchBranch: return .checkout
         case .merge: return .merge

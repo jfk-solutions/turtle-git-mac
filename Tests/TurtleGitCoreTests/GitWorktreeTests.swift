@@ -131,6 +131,17 @@ final class GitWorktreeTests: XCTestCase {
         XCTAssertFalse(records[1].isMain); XCTAssertEqual(records[1].pruneReason, "missing")
     }
 
+    func testCancelledCreationDoesNotCreateCheckoutOrBranch() async throws {
+        let (base, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        let path = base.appendingPathComponent("cancelled")
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.createWorktree(at: path, cancellation: token); XCTFail("Already cancelled") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: path.path))
+        let records = try await repo.worktrees(); XCTAssertEqual(records.count, 1)
+        let exists = try await repo.run(["show-ref", "--verify", "--quiet", "refs/heads/cancelled"], successfulExitCodes: 0...1).exitCode
+        XCTAssertEqual(exists, 1)
+    }
+
     func testBareRepositoryCanCreateAndManageLinkedCheckout() async throws {
         let (base, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
         let barePath = base.appendingPathComponent("source.git")

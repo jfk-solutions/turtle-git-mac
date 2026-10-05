@@ -31,6 +31,7 @@ import TurtleGitCore
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
     private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
+    private var worktreeCreateWindows: [String: WorktreeCreateWindowController] = [:]
     private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
     private var blameWindows: [String: BlameWindowController] = [:]
     private var rebaseWindows: [String: RebaseWindowController] = [:]
@@ -324,6 +325,9 @@ import TurtleGitCore
         case .repositoryBrowser:
             guard let repository else { return }
             showRepositoryBrowser(repository: repository, access: activeAccess)
+        case .worktreeCreate:
+            guard let repository else { return }
+            showWorktreeCreate(repository: repository, access: activeAccess)
         case .formatPatch:
             guard let repository else { return }
             showFormatPatch(repository: repository, access: activeAccess)
@@ -763,6 +767,19 @@ import TurtleGitCore
         controller.onViewChanges = { [weak self] in self?.showStatus(repository: repository, access: access) }
         stashRestoreWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
+    }
+    private func showWorktreeCreate(repository: GitRepository, access: RepositoryAccessLease?) {
+        let key = repository.root.path
+        let controller = worktreeCreateWindows[key] ?? WorktreeCreateWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.worktreeCreateWindows.removeValue(forKey: key) }
+        controller.model.onCreated = { [weak self] output in
+            if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
+        }
+        controller.model.onSubmodules = { [weak self] path, lease in
+            self?.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [])
+        }
+        worktreeCreateWindows[key] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil) {
         let rootKey = repository.root.path
