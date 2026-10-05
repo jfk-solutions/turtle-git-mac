@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-05",
+  "feature": "Checked-file completion of resolved pending Git operations",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "file": "src/TortoiseProc/CommitDlg.cpp",
+    "blob": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "reviewed": [
+      "OnInit merge-active/new-branch state",
+      "PrepareIndexForCommitWithoutStagingSupport checked/reset paths",
+      "OnOK normal commit and merge empty-selection condition"
+    ]
+  },
+  "tests": {
+    "count": 34,
+    "failures": 0,
+    "log": "/tmp/turtlegit-commit-operation-final-regressions.log",
+    "new_cases": [
+      "Two-parent selected merge tree and retained unchecked index/working files",
+      "Cherry-pick author/date and unchecked staged/working retention",
+      "Revert single parent and state cleanup",
+      "Preflight new-branch refusal, hook rejection/state retention, empty selected merge commit"
+    ]
+  },
+  "native": {
+    "app": "/tmp/TurtleGitCommitMergeQA.app",
+    "repository": "/tmp/TurtleGitCommitMergeQA-repository",
+    "selected": "checked.txt",
+    "unchecked": "unchecked \u96ea.txt",
+    "result_commit": "ca1066b1611050b744f89d05a39e686d2c420d27",
+    "verified": [
+      "new branch and amend disabled",
+      "merge indicator displayed",
+      "Commit succeeds and closes dialog",
+      "both parents match fixture exactly",
+      "HEAD checked file equals latest whole working file",
+      "HEAD unchecked file retains pre-merge base",
+      "unchecked index blob retains incoming version",
+      "both working files unchanged",
+      "MERGE_HEAD cleared"
+    ]
+  },
+  "builds": {
+    "Debug_unsigned": "passed",
+    "AppStore_unsigned": "passed",
+    "both_bundle_audits": "passed",
+    "site": "passed"
+  },
+  "screenshot": {
+    "path": "docs/site/assets/commit-merge.png",
+    "source": "Actual Debug window capture, inspected before publication",
+    "width": 2000,
+    "height": 1584
+  },
+  "lifecycle": "Only one QA instance launched; CmdQ; final ps scan empty",
+  "pending": [
+    "Native cherry-pick/revert and hook-failure UI",
+    "Native empty-selection merge",
+    "Operation changes while open",
+    "Linked-worktree/octopus/multi-step sequencer cases",
+    "Unresolved-conflict Ignore behavior",
+    "Dark/narrow layout",
+    "Signed sandbox execution",
+    "Complete progress/signing/hook UI"
+  ]
+}

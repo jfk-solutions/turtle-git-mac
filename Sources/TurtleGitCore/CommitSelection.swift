@@ -12,15 +12,38 @@ public struct CommitOptions: Sendable {
     public init() {}
 }
 
+public enum CommitOperation: String, Sendable {
+    case merge, cherryPick, revert
+    public var title: String {
+        switch self {
+        case .merge: return "You are about to commit a merge."
+        case .cherryPick: return "You are about to commit a cherry-pick."
+        case .revert: return "You are about to commit a revert."
+        }
+    }
+}
+
 extension GitRepository {
+    public func commitOperation() throws -> CommitOperation? {
+        for (name, operation) in [("MERGE_HEAD", CommitOperation.merge), ("CHERRY_PICK_HEAD", .cherryPick), ("REVERT_HEAD", .revert)] {
+            let path = try run(["rev-parse", "--git-path", name]).text.trimmingCharacters(in: .newlines)
+            let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
+            if FileManager.default.fileExists(atPath: url.path) { return operation }
+        }
+        return nil
+    }
     /// TortoiseGit's default checkbox mode commits the current whole-file contents
     /// of checked paths. HEAD-based commits use --only; parent-based amendments
     /// use a separate index so unrelated staged changes remain intact.
     public func commitSelected(message: String, paths: Set<String>, options: CommitOptions = CommitOptions()) throws -> String {
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
+        let operation = try commitOperation()
+        if operation != nil, options.amend || options.newBranch != nil {
+            throw failure("Finish the pending operation before amending or creating a new branch.")
+        }
         let paths = options.messageOnly ? Set<String>() : paths
-        guard !paths.isEmpty || options.amend || options.messageOnly else { throw failure("Check at least one file to commit.") }
+        guard !paths.isEmpty || options.amend || options.messageOnly || operation == .merge else { throw failure("Check at least one file to commit.") }
         let parentMode = options.amend && !options.amendDiffToLastCommit
         let changes = try commitDialogStatus(amendToParent: parentMode)
         guard !changes.contains(where: { $0.state == .conflicted }) else { throw failure("Resolve the conflicted files before committing.") }
@@ -28,10 +51,11 @@ extension GitRepository {
         guard checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored }) else {
             throw failure("The checked files have changed since the dialog was loaded. Refresh the file list before committing.")
         }
-        let mergePath = try run(["rev-parse", "--git-path", "MERGE_HEAD"]).text.trimmingCharacters(in: .newlines)
-        let mergeURL = mergePath.hasPrefix("/") ? URL(fileURLWithPath: mergePath) : root.appendingPathComponent(mergePath)
-        guard !FileManager.default.fileExists(atPath: mergeURL.path) else {
-            throw failure("A merge is in progress. Committing a merge requires the complete resolved index; the checked-file commit dialog does not support that yet.")
+        if operation != nil {
+            // A normal commit against a selected temporary index preserves the
+            // operation's parents/author/state. --only is forbidden by Git for
+            // merges and cherry-picks. The real index retains unchecked entries.
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked))
         }
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"]) }
         if parentMode { return try commitParentSelection(message: message, checked: checked, options: options) }
@@ -118,6 +142,9 @@ extension GitRepository {
     public func commitIndex(message: String, options: CommitOptions = CommitOptions()) throws -> String {
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Enter a commit message.")
+        }
+        if try commitOperation() != nil, options.amend || options.newBranch != nil {
+            throw GitFailure(arguments: ["commit"], code: 1, message: "Finish the pending operation before amending or creating a new branch.")
         }
         try prepareCommitBranch(options.newBranch)
         var args = ["commit", "-m", message]

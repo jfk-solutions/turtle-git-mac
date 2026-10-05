@@ -60,6 +60,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Separate native Commit window with checked-file selection, message, amend, author,
   sign-off, file statistics and icon context menus. Enable staging area switches to
   three-state staging checkboxes and commits the index, preserving unstaged edits.
+  Checked-file mode now completes resolved merges, cherry-picks and reverts using
+  the selected tree, retaining operation metadata and unchecked index entries.
+  ![Native selected-file merge Commit](docs/site/assets/commit-merge.png)
   An attached right-hand patch window stages/unstages selected lines or hunks in
   ordinary tracked UTF-8 text files. Restore after commit saves working contents and
   restores them after a successful commit, retaining the committed index/HEAD.

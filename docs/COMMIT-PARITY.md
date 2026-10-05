@@ -97,8 +97,10 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
-- Checkbox mode completion of merges/cherry-picks. It rejects active merges
-  before changing the index; staging mode uses normal Git index commit behavior.
+- Broader operation completion: native cherry-pick/revert, octopus/linked-worktree
+  merges, empty merge selection UI, hooks/signing and multi-step sequencer workflows.
+  Resolved-operation checkbox completion is implemented; staging mode uses normal
+  Git index commit behavior.
 - A failed checkbox commit can leave checked files staged, as index preparation
   occurs before Git invokes hooks. Unchecked staged contents remain intact.
 
@@ -1135,3 +1137,40 @@ partial-result sheet capture. Native No/cancel, assume-valid, outside-highlight 
 conflicted/added/deleted flag variants, split-index and signed sandbox execution
 remain under audit. This is partial status-list parity, not completion of all
 flag action masks or dialogs.
+
+## Checked-file commits during pending operations
+
+The pinned `CommitDlg.cpp` prepares checked entries against HEAD, resets unchecked
+entries for the selected commit tree, and invokes ordinary `git commit`; its merge
+condition permits a commit without checked changes. New branch is disabled during
+a merge, with the merge-active indicator visible. The old native checkbox path
+rejected active merges and used `--only`, which Git also rejects during a cherry-pick.
+
+`commitOperation()` reads Git-resolved MERGE_HEAD/CHERRY_PICK_HEAD/REVERT_HEAD
+locations. Checked-file mode now uses the existing selected temporary index against
+HEAD and runs normal commit against that index. Git retains merge parents or the
+cherry-pick author/date and clears the operation state on success. The real index
+stages checked whole-file contents and keeps unchecked entries. Git hooks see the
+selected temporary index. A rejection retains HEAD and the operation; checked
+contents can remain staged, as in other checkbox paths. The working tree is not
+reset. Core preflight rejects amend/new branch during pending operations.
+
+Native Commit shows the operation indicator with original command artwork, disables
+new branch/amend, and enables a merge commit with no checked file changes. Settings
+and menu/progress parity remain partial. Unresolved index entries still require
+resolution; upstream's unresolved-conflict Ignore prompt is not yet mapped.
+
+Thirty-four Commit regression tests pass. New cases verify exact merge parents,
+selected whole-file bytes, retained unchecked index and later working edits,
+cherry-pick author/date, revert single parent and state cleanup, branch preflight,
+hook rejection and an empty selected merge tree. Native QA committed checked.txt
+while unchecked Unicode-path staged/working versions stayed intact, verified both
+parents and cleared MERGE_HEAD. Both unsigned builds and resource audits passed.
+The QA app quit normally and the final process scan was empty.
+
+![Actual native resolved-merge Commit](site/assets/commit-merge.png)
+
+See [recorded acceptance](qa/commit-operation-2026-10-05.json). Native cherry-pick/
+revert and hook-failure UI, operation changes while open, dark/narrow layouts,
+linked worktrees, octopus merges, multi-step sequencers and signed sandbox execution
+remain pending. This is not proof of full Commit dialog parity.

@@ -224,6 +224,7 @@ import UniformTypeIdentifiers
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping () -> Void) -> Void = { _ in }
+    @Published var operation: CommitOperation?
     @Published var hasHead = false
     @Published var hasParent = false
     @Published var amend = false
@@ -459,7 +460,7 @@ import UniformTypeIdentifiers
         let origin = entry.originalPath.map { "Renamed from " + $0 } ?? entry.path
         return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
     }
-    var canCommit: Bool { !busy && !confirmingQuit && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || amend : !checked.isEmpty || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { !busy && !confirmingQuit && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checked.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -476,6 +477,8 @@ import UniformTypeIdentifiers
                     let preferences = try await repository.commitPreferences()
                     persistedStaging = preferences.staging; stagingEnabled = preferences.staging; restorePatch = preferences.showPatch; loadedPreferences = true
                 }
+                operation = try await repository.commitOperation()
+                if operation != nil { createBranch = false; amend = false }
                 hasHead = (try? await repository.run(["rev-parse", "--verify", "HEAD"])) != nil
                 hasParent = (try? await repository.run(["rev-parse", "--verify", "HEAD^1"])) != nil
                 if amend && !hasParent { amendDiffToLastCommit = true }
@@ -730,8 +733,12 @@ struct CommitDialog: View {
                 Text("Commit to:")
                 if model.createBranch { TextField("New branch name", text: $model.newBranch).frame(width: 250) }
                 else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
-                Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox)
+                Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
+            }
+            if let operation = model.operation {
+                CommandLabel(title: operation.title, icon: operation == .merge ? .merge : operation == .cherryPick ? .cherryPick : .revert).font(.callout).foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             GeometryReader { geometry in
                 let maximum = max(245.0, geometry.size.height - 288)
@@ -803,7 +810,7 @@ GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
                     CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack {
-                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead).onChange(of: model.amend) { _ in model.amendChanged() }
+                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead || model.operation != nil).onChange(of: model.amend) { _ in model.amendChanged() }
                         if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent) }
                         Spacer(); Text("\(model.message.count) characters").font(.caption).foregroundStyle(.secondary)
                     }

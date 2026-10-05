@@ -126,4 +126,87 @@ final class CommitSelectionTests: XCTestCase {
         XCTAssertEqual(after, head); XCTAssertEqual(other, "other")
     }
 
+    func operationFixture(cherryPick: Bool = false, revert: Bool = false) async throws -> (URL, GitRepository, String, String) {
+        let (root, repo) = try await fixture()
+        try write(root, "checked.txt", "base\n"); try write(root, "unchecked 雪.txt", "base unchecked\n")
+        try await repo.stage(["checked.txt", "unchecked 雪.txt"]); _ = try await repo.commit(message: "base")
+        _ = try await repo.run(["checkout", "-b", "incoming"])
+        try write(root, "checked.txt", "incoming\n"); try write(root, "unchecked 雪.txt", "incoming unchecked\n")
+        try await repo.stage(["checked.txt", "unchecked 雪.txt"])
+        _ = try await repo.run(["commit", "-m", "incoming", "--author=Incoming Author <incoming@example.invalid>", "--date=2009-02-13T23:31:30Z"])
+        let incoming = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["checkout", "main"])
+        try write(root, "checked.txt", "main\n"); try await repo.stage(["checked.txt"]); _ = try await repo.commit(message: "main")
+        let previous = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        do { _ = try await repo.run(revert ? ["revert", "--no-edit", incoming] : cherryPick ? ["cherry-pick", incoming] : ["merge", "--no-edit", "incoming"]); XCTFail("Expected conflict") } catch is GitFailure {}
+        try write(root, "checked.txt", "resolved staged\n"); try await repo.stage(["checked.txt"])
+        try write(root, "checked.txt", "resolved whole file\n")
+        return (root, repo, previous, incoming)
+    }
+    func testCheckedMergeRetainsParentsUncheckedIndexAndWholeWorkingFiles() async throws {
+        let (root, repo, previous, incoming) = try await operationFixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let operation = try await repo.commitOperation(); XCTAssertEqual(operation, .merge)
+        let unchecked = try await repo.run(["show", ":unchecked 雪.txt"]).stdout
+        let working = try Data(contentsOf: root.appendingPathComponent("checked.txt"))
+        _ = try await repo.commitSelected(message: "selected merge", paths: ["checked.txt"])
+        let parents = try await repo.run(["show", "-s", "--format=%P", "HEAD"]).text
+        XCTAssertEqual(parents, previous + " " + incoming + "\n")
+        let selectedTree = try await repo.run(["show", "HEAD:checked.txt"]).stdout
+        let uncheckedTree = try await repo.run(["show", "HEAD:unchecked 雪.txt"]).text
+        let retained = try await repo.run(["show", ":unchecked 雪.txt"]).stdout
+        XCTAssertEqual(selectedTree, working); XCTAssertEqual(uncheckedTree, "base unchecked\n"); XCTAssertEqual(retained, unchecked)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("checked.txt")), working)
+        let after = try await repo.commitOperation(); XCTAssertNil(after)
+    }
+    func testCheckedCherryPickRetainsIncomingAuthorAndUncheckedChanges() async throws {
+        let (root, repo, previous, incoming) = try await operationFixture(cherryPick: true); defer { try? FileManager.default.removeItem(at: root) }
+        let operation = try await repo.commitOperation(); XCTAssertEqual(operation, .cherryPick)
+        let author = try await repo.run(["show", "-s", "--format=%an <%ae> %at", incoming]).text
+        let unchecked = try await repo.run(["show", ":unchecked 雪.txt"]).stdout
+        try write(root, "unchecked 雪.txt", "later unchecked working\n")
+        _ = try await repo.commitSelected(message: "selected pick", paths: ["checked.txt"])
+        let parents = try await repo.run(["show", "-s", "--format=%P", "HEAD"]).text
+        let pickedAuthor = try await repo.run(["show", "-s", "--format=%an <%ae> %at", "HEAD"]).text
+        let retained = try await repo.run(["show", ":unchecked 雪.txt"]).stdout
+        let tree = try await repo.run(["show", "HEAD:unchecked 雪.txt"]).text
+        XCTAssertEqual(parents, previous + "\n"); XCTAssertEqual(pickedAuthor, author)
+        XCTAssertEqual(retained, unchecked); XCTAssertEqual(tree, "base unchecked\n")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("unchecked 雪.txt")), Data("later unchecked working\n".utf8))
+        let after = try await repo.commitOperation(); XCTAssertNil(after)
+    }
+    func testCheckedRevertKeepsSingleParentAndClearsRevertState() async throws {
+        let (root, repo, previous, _) = try await operationFixture(revert: true); defer { try? FileManager.default.removeItem(at: root) }
+        let before = try await repo.commitOperation(); XCTAssertEqual(before, .revert)
+        let working = try Data(contentsOf: root.appendingPathComponent("checked.txt"))
+        _ = try await repo.commitSelected(message: "selected revert", paths: ["checked.txt"])
+        let parents = try await repo.run(["show", "-s", "--format=%P", "HEAD"]).text
+        let contents = try await repo.run(["show", "HEAD:checked.txt"]).stdout
+        let author = try await repo.run(["show", "-s", "--format=%an <%ae>", "HEAD"]).text
+        XCTAssertEqual(parents, previous + "\n"); XCTAssertEqual(contents, working)
+        XCTAssertEqual(author, "Commit Tests <commit@example.invalid>\n")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("checked.txt")), working)
+        let after = try await repo.commitOperation(); XCTAssertNil(after)
+    }
+    func testMergeGuardsAndHookFailureRetainOperationThenEmptySelectionCanFinish() async throws {
+        let (root, repo, previous, incoming) = try await operationFixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        var options = CommitOptions(); options.newBranch = "must-not-exist"
+        do { _ = try await repo.commitSelected(message: "invalid", paths: ["checked.txt"], options: options); XCTFail("Branch creation allowed") } catch is GitFailure {}
+        let afterGuard = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        XCTAssertEqual(index, afterGuard)
+        let hook = root.appendingPathComponent(".git/hooks/pre-commit")
+        try Data("#!/bin/sh\necho reject-merge >&2\nexit 1\n".utf8).write(to: hook)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hook.path)
+        do { _ = try await repo.commitSelected(message: "rejected", paths: ["checked.txt"]); XCTFail("Hook rejection ignored") } catch let error as GitFailure { XCTAssertTrue(error.message.contains("reject-merge")) }
+        let retainedOperation = try await repo.commitOperation(); XCTAssertEqual(retainedOperation, .merge)
+        let retainedHead = try await repo.run(["rev-parse", "HEAD"]).text; XCTAssertEqual(retainedHead, previous + "\n")
+        try FileManager.default.removeItem(at: hook)
+        let retainedIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        _ = try await repo.commitSelected(message: "merge without selected changes", paths: [])
+        let parents = try await repo.run(["show", "-s", "--format=%P", "HEAD"]).text
+        let afterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        XCTAssertEqual(parents, previous + " " + incoming + "\n"); XCTAssertEqual(retainedIndex, afterIndex)
+        let after = try await repo.commitOperation(); XCTAssertNil(after)
+    }
+
 }
