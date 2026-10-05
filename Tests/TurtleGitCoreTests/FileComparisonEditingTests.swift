@@ -2,6 +2,55 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testStandaloneWorkingPairReadsLiteralBytesAndSavesEitherSideWithoutIndexChanges() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let otherRoot = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: otherRoot) }
+        try FileManager.default.createDirectory(at: otherRoot, withIntermediateDirectories: true)
+        let left = root.appendingPathComponent(path), right = otherRoot.appendingPathComponent(":(glob)* 雪\n.txt")
+        let original = try Data(contentsOf: left), bytes = Data([0xff, 0xfe]) + "right\r\n".data(using: .utf16LittleEndian)!
+        try bytes.write(to: right); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: right.path)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let comparison = try WorkingFileComparison(base: left, destination: right), document = try comparison.read()
+        XCTAssertEqual(document.base.bytes, original); XCTAssertEqual(document.destination.bytes, bytes)
+        XCTAssertEqual(document.destination.text, "right\r\n"); XCTAssertEqual(document.destination.mode, "100755")
+        let saved = try comparison.save(document, base: false, text: "edited\r\n")
+        XCTAssertEqual(saved.destination.bytes, Data([0xff, 0xfe]) + "edited\r\n".data(using: .utf16LittleEndian)!)
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: right.path)[.posixPermissions] as? NSNumber, 0o755)
+        XCTAssertEqual(try Data(contentsOf: left), original)
+        _ = try comparison.save(saved, base: true, text: "left edited\n")
+        XCTAssertEqual(try Data(contentsOf: left), Data("left edited\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, head)
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: otherRoot.path).contains { $0.hasPrefix(".TurtleGitDiff-") })
+    }
+    func testStandaloneWorkingPairRejectsChangedContentsModesLinksAndForeignDocuments() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let left = root.appendingPathComponent("left"), right = root.appendingPathComponent("right"), binary = Data([0, 255])
+        try binary.write(to: left); try Data("right\n".utf8).write(to: right)
+        let comparison = try WorkingFileComparison(base: left, destination: right), document = try comparison.read()
+        XCTAssertEqual(document.base.bytes, binary); XCTAssertNil(document.base.text)
+        XCTAssertThrowsError(try comparison.save(document, base: true, text: "text"))
+        try Data("external\n".utf8).write(to: right)
+        XCTAssertThrowsError(try comparison.save(document, base: false, text: "lost update"))
+        XCTAssertEqual(try Data(contentsOf: right), Data("external\n".utf8))
+        let fresh = try comparison.read()
+        try FileManager.default.setAttributes([.posixPermissions: 0o444], ofItemAtPath: right.path)
+        XCTAssertThrowsError(try comparison.save(fresh, base: false, text: "mode changed"))
+        try FileManager.default.removeItem(at: right)
+        try FileManager.default.createSymbolicLink(atPath: right.path, withDestinationPath: "missing target 雪")
+        let link = try comparison.read()
+        XCTAssertEqual(link.destination.mode, "120000"); XCTAssertEqual(link.destination.bytes, Data("missing target 雪".utf8))
+        XCTAssertThrowsError(try comparison.save(link, base: false, text: "replace link"))
+        let reversed = try WorkingFileComparison(base: right, destination: left)
+        XCTAssertThrowsError(try reversed.save(document, base: false, text: "foreign document"))
+        XCTAssertThrowsError(try WorkingFileComparison(base: root, destination: left).read())
+        XCTAssertThrowsError(try WorkingFileComparison(base: URL(string: "https://example.invalid/file")!, destination: left))
+        XCTAssertEqual(try Data(contentsOf: left), binary)
+    }
     func testLeaveOnlyMarkedKeepsMarkedAndTypedRowsButTakesUnmarkedSourceAndGaps() throws {
         let comparison = FileComparisonAlignment(base: "base one\ncommon\nbase two\nremoved\nend", destination: "local one\r\ncommon\r\nlocal two\r\nend")
         let flags = FileComparisonEditing.Annotations(marked: [0], edited: [2, 3])

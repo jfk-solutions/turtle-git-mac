@@ -2,7 +2,8 @@
 
 This is an in-progress source port, not a claim of complete DiffLater parity.
 The native historical Log mark/compare route is recorded separately in
-[Log parity](LOG-PARITY.md). Finder's shared working-file route is not wired yet.
+[Log parity](LOG-PARITY.md). Finder's shared working-file command route is implemented; signed Finder
+activation and end-to-end menu acceptance remain pending.
 
 ## Upstream behavior
 
@@ -51,21 +52,64 @@ Finder extension, 64 original icon resources, and 11 universal Git runtime
 Mach-O files with local Git operations. Signed runtime acceptance remains
 pending. No QA app was launched for this storage-only change.
 
-## Required integration and acceptance
+## Working-file command route (2026-10-05)
 
-- Route Finder's mark/compare action to the app before repository discovery,
-  allowing two files from different repositories or outside repositories.
-- Publish changes and clearing to Finder, with original comparison artwork,
-  dynamic compacted labels, Control clear and Shift alternative tools.
-- Reuse or request access for the current selection; reacquire the marked file's
-  bookmark and retain both leases through reads, reloads and any explicit edits.
-- Hand both exact working-file contents to the native comparison viewer; preserve
-  explicit editing, Save/Save As, encoding and external-change checks.
-- Import external marks in Log, without treating an absolute working path as a
-  historical repository path. Preserve dialog-local marks and consume only the
+Finder now offers a single-file mark/compare action with original comparison
+artwork. Its label reads the shared metadata record; Control invokes clearing.
+The app exposes the dynamic action and explicit Clear comparison mark command
+in its TurtleGit menu, and the working file table offers the same action for a
+single selection. With no selection, the app uses a native file chooser.
+The request handler routes these commands before repository discovery, so both
+files can belong to different repositories or lie outside repositories.
+
+The app reuses saved repository access or requests the current file/containing
+folder in the App Store configuration. It reacquires the marked bookmark and
+retains both leases in the comparison window. WorkingFileComparison reads exact
+regular-file bytes or literal symlink target text and rejects directories. The
+existing viewer supplies Reload, explicit editing, Save/Save As and diff tools.
+Both standalone and repository saves now share the existing byte/mode validation,
+encoding preservation and temporary-file replacement helper. Git metadata is
+not touched by standalone comparison or Save. Only the consumed mark ID clears;
+failed authorization or reads leave the mark available.
+
+Twenty-nine focused comparison, mark-access and Finder-request tests pass,
+including two new standalone tests for literal paths in separate locations,
+UTF-16/BOM and executable permissions, saving either side, unchanged Git index
+and HEAD, binary/symlink reading, stale bytes/modes, foreign documents and invalid
+locations. New mark/clear URL round-trip coverage confirms that these actions do
+not produce Git command arguments. Debug and unsigned App Store builds and
+both icon/runtime audits pass. The preceding storage commit's macOS and Pages
+runs passed; this change's CI requires a separate check after push.
+
+## Native acceptance and limits
+
+An ad-hoc Debug preview received a single-file mark request after opening a
+known disposable repository. The main window reported the marked path and the
+native TurtleGit menu showed Compare with that path plus Clear comparison mark.
+Menu activation attempts returned stale accessibility IDs; no successful direct
+menu chooser handoff is claimed. The app quit normally with the mark persisted.
+After verifying process absence, the same preview was configured with an outside
+file request and deliberately relaunched. The native viewer compared the marked
+14-byte `later working` with the outside file's 17-byte `external partner`.
+Enable editing made the marked pane editable; toggling it off restored the
+read-only view. No Save or file mutation occurred. The private mark was consumed,
+the app quit normally, and exact HEAD/index/working/outside bytes and deleted-file
+absence were verified. Only one QA process was alive at a time.
+
+[Recorded evidence](qa/working-mark-2026-10-05.json) and the
+[actual native screenshot](site/assets/working-mark-comparison.png) cover the
+request route, persisted access, viewer contents and editing toggle. This is not
+an activated Finder extension or signed sandbox acceptance test.
+
+## Remaining parity and acceptance
+
+- Import external marks in Log without treating absolute working paths as
+  historical repository paths; retain dialog-local marks and consume only the
   external token actually used.
-- Verify ordinary native marking/comparison/clearing and application relaunch,
-  different repositories, moved/missing files, cancellation, alternative tools,
-  symlinks/binary/encoded contents, unchanged indexes and signed sandbox behavior.
+- Match compacted menu labels and Shift alternative-tool behavior.
+- Verify native file-chooser cancellation, direct menu activation, explicit Clear,
+  Control clearing from Finder, Reload, Save/Save As and external-change refusal.
+- Verify different repositories, moved/missing files, symlinks/binary/encoded
+  contents, Finder extension activation and signed sandbox permission behavior.
 
-No native shared-mark screenshot or Finder end-to-end acceptance is claimed.
+Full DiffLater, Log and Finder parity remain incomplete.

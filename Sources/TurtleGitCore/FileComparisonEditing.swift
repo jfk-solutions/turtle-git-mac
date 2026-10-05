@@ -168,8 +168,19 @@ extension GitRepository {
     public func saveComparisonFile(_ snapshot: RevisionComparisonSnapshot, document: FileComparisonDocument, base: Bool, text: String) throws -> FileComparisonDocument {
         let original = base ? document.base : document.destination
         guard snapshot.root == root, snapshot.files.contains(where: { $0.path == document.destination.path }),
-              original.revision == .workingTree, ["100644", "100755"].contains(original.mode ?? ""), let permissions = original.permissions else { throw FileComparisonEditFailure.unsupported }
-        let location = try restoreLocation(original.path), manager = FileManager.default
+              original.revision == .workingTree, ["100644", "100755"].contains(original.mode ?? ""), original.permissions != nil else { throw FileComparisonEditFailure.unsupported }
+        let saved = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(original.path), original: original, text: text)
+        return FileComparisonDocument(base: base ? saved : document.base, destination: base ? document.destination : saved)
+    }
+}
+
+
+extension FileComparisonEditing {
+    /// Same byte/permission checks for repository and standalone working files.
+    public static func saveWorkingContent(at location: URL, original: ComparisonFileContent, text: String) throws -> ComparisonFileContent {
+        guard location.isFileURL, original.revision == .workingTree,
+              ["100644", "100755"].contains(original.mode ?? ""), let permissions = original.permissions else { throw FileComparisonEditFailure.unsupported }
+        let manager = FileManager.default
         func validate() throws {
             guard let attributes = try? manager.attributesOfItem(atPath: location.path), attributes[.type] as? FileAttributeType == .typeRegular,
                   (attributes[.posixPermissions] as? NSNumber)?.intValue == permissions,
@@ -184,7 +195,6 @@ extension GitRepository {
         try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: temporary.path)
         try validate()
         guard Darwin.rename(temporary.path, location.path) == 0 else { throw CocoaError(.fileWriteUnknown) }
-        let saved = ComparisonFileContent(path: original.path, revision: original.revision, bytes: bytes, mode: original.mode, permissions: permissions)
-        return FileComparisonDocument(base: base ? saved : document.base, destination: base ? document.destination : saved)
+        return ComparisonFileContent(path: original.path, revision: original.revision, bytes: bytes, mode: original.mode, permissions: permissions)
     }
 }

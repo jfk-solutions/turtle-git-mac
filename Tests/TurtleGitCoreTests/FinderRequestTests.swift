@@ -11,6 +11,16 @@ final class FinderRequestTests: XCTestCase {
         XCTAssertEqual(FinderRequest(url: URL(string: "turtlegit://action?command=log&path=%2Frepo%2Ffile")!)?.paths.first?.path, "/repo/file")
         XCTAssertEqual(FinderRequest(action: .diff, paths: request.paths + request.paths).paths.count, 2)
     }
+    func testWorkingMarkAndClearRequestsRoundTripWithoutGitArguments() throws {
+        for action in [RepositoryAction.diffLater, .clearComparisonMark] {
+            let file = URL(fileURLWithPath: "/outside repository/雪\n?#%.txt")
+            let request = FinderRequest(action: action, paths: [file])
+            let decoded = try XCTUnwrap(FinderRequest(url: XCTUnwrap(request.url)))
+            XCTAssertEqual(decoded.action, action); XCTAssertEqual(decoded.paths, [file])
+            XCTAssertNil(action.arguments(value: "")); XCTAssertFalse(action.requiresWorkingTree)
+            XCTAssertEqual(action.icon, .compare)
+        }
+    }
     func testMalformedRequestsAreRejected() {
         for value in ["https://action?command=diff&path=/repo", "turtlegit://action?command=diff&command=log&path=/repo", "turtlegit://action?command=diff&path=relative", "turtlegit://action?command=diff&path=/repo%00file", "turtlegit://action?command=diff&path", "turtlegit://action?command=unknown&path=/repo"] {
             XCTAssertNil(FinderRequest(url: URL(string: value)!), value)

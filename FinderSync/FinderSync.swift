@@ -36,7 +36,7 @@ import TurtleGitCore
         let selection = controller.selectedItemURLs() ?? []
         let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
         submenu.autoenablesItems = false
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .reset && !$0.isIgnore && $0.resolveChoice == nil }) {
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
             let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
             item.image = action.icon.image()
             if action == .revert { item.isEnabled = snapshot?.canRevert(paths) == true }
@@ -62,6 +62,13 @@ import TurtleGitCore
             }
             ignore.submenu = choices; submenu.addItem(ignore)
         }
+        if paths.count == 1, (try? paths[0].resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == false {
+            let marked = try? WorkingComparisonMarkSnapshot.read()
+            let title = marked.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title
+            let item = NSMenuItem(title: title, action: #selector(openAction(_:)), keyEquivalent: "")
+            item.target = self; item.image = MenuIcon.compare.image(); item.representedObject = RepositoryAction.diffLater.rawValue
+            submenu.addItem(.separator()); submenu.addItem(item)
+        }
         let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
         parent.image = MenuIcon.turtle.image()
         parent.submenu = submenu; menu.addItem(parent)
@@ -72,8 +79,9 @@ import TurtleGitCore
         let selection = controller.selectedItemURLs() ?? []
         let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
         guard let command = sender.representedObject as? String,
-              let action = RepositoryAction(rawValue: command),
-              let url = FinderRequest(action: action, paths: paths).url else { return }
+              var action = RepositoryAction(rawValue: command) else { return }
+        if action == .diffLater, NSEvent.modifierFlags.contains(.control) { action = .clearComparisonMark }
+        guard let url = FinderRequest(action: action, paths: paths).url else { return }
         NSWorkspace.shared.open(url)
     }
 }

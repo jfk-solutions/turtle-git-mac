@@ -566,7 +566,8 @@ that shared Finder/app route still needs porting.
 
 The external mark's private bookmark store and metadata-only Finder snapshot
 now have persistence, renewal and conditional-consumption regressions. The
-Finder/app/Log command routes remain pending; see
+Finder/app working-file routes now open the native viewer; Log external import
+remains pending. See
 [comparison mark parity](COMPARISON-MARK-PARITY.md) for the complete source audit
 and required integration. This storage foundation does not change the verified
 historical Log comparison route.

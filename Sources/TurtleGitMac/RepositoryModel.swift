@@ -21,6 +21,9 @@ import TurtleGitCore
     @Published var stagedDiff = false
     @Published var showIgnored = false
     @Published var finderStatus = "Finder cache not configured"
+    @Published var workingComparisonMark: WorkingComparisonMarkSnapshot?
+    private let comparisonMarkStore = WorkingComparisonMarkStore(storageURL: WorkingComparisonMarkStore.defaultStorageURL)
+    var comparisonMarkTitle: String { workingComparisonMark.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title }
     @Published var recentRepositories: [SavedRepository] = []
     private var accessStore: RepositoryAccessStore?
     private var activeAccess: RepositoryAccessLease?
@@ -83,6 +86,7 @@ import TurtleGitCore
     }
 
     init() {
+        do { workingComparisonMark = try comparisonMarkStore.snapshot() } catch { self.error = error.localizedDescription }
         do {
             let store = try RepositoryAccessStore(storageURL: RepositoryAccessStore.defaultStorageURL)
             accessStore = store; recentRepositories = store.repositories
@@ -237,6 +241,15 @@ import TurtleGitCore
         guard !confirmingQuit else { return }
         guard !bare || !action.requiresWorkingTree else { error = "\(action.title) requires a working tree. This repository is bare."; return }
         switch action {
+        case .diffLater:
+            let selected = paths.isEmpty ? selectedPaths : paths
+            if selected.count == 1, let root { handleComparisonMark(file: root.appendingPathComponent(selected[0])) }
+            else {
+                let panel = NSOpenPanel(); panel.canChooseFiles = true; panel.canChooseDirectories = false
+                panel.prompt = workingComparisonMark == nil ? "Mark for comparison" : "Compare"
+                if panel.runModal() == .OK, let file = panel.url { handleComparisonMark(file: file, permission: RepositoryAccessLease(url: file)) }
+            }
+        case .clearComparisonMark: clearComparisonMark()
         case .clone: showClone()
         case .initialize: showCreateRepository()
         case .rename:
@@ -885,9 +898,63 @@ import TurtleGitCore
         guard !bare || !action.requiresWorkingTree else { error = "This operation requires a working tree."; return }
         perform { try await $0.run(args).text }
     }
+    private func publishComparisonMark() throws {
+        workingComparisonMark = try comparisonMarkStore.snapshot()
+        if try WorkingComparisonMarkSnapshot.publish(workingComparisonMark) {
+            DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil)
+        }
+    }
+    private func clearComparisonMark() {
+        guard !busy, !confirmingQuit else { return }
+        do { try comparisonMarkStore.clear(); try publishComparisonMark() }
+        catch { self.error = error.localizedDescription }
+    }
+    private func comparisonPermission(for file: URL) throws -> RepositoryAccessLease? {
+        if let activeAccess, activeAccess.contains(file), !GitRuntime.isAppStoreBuild || activeAccess.hasSecurityScope { return activeAccess }
+        if let accessStore {
+            for saved in accessStore.repositories {
+                if let lease = try? accessStore.acquire(saved.id, requireSecurityScope: GitRuntime.isAppStoreBuild), lease.contains(file) { return lease }
+            }
+        }
+        if !GitRuntime.isAppStoreBuild { return RepositoryAccessLease(url: file) }
+        let panel = NSOpenPanel(); panel.canChooseFiles = true; panel.canChooseDirectories = true
+        panel.directoryURL = file.deletingLastPathComponent(); panel.prompt = "Authorize comparison"
+        panel.message = "Choose the requested file or its containing folder to allow TurtleGit to compare it."
+        guard panel.runModal() == .OK, let grant = panel.url else { return nil }
+        let lease = RepositoryAccessLease(url: grant)
+        guard lease.hasSecurityScope, lease.contains(file) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        return lease
+    }
+    private func handleComparisonMark(file: URL, permission: RepositoryAccessLease? = nil) {
+        guard !busy, !confirmingQuit else { return }
+        do {
+            guard let permission = try permission ?? comparisonPermission(for: file) else { return }
+            if try comparisonMarkStore.snapshot() == nil {
+                _ = try comparisonMarkStore.remember(file: file, permission: permission, requireSecurityScope: GitRuntime.isAppStoreBuild)
+                try publishComparisonMark(); output = "Marked for comparison: " + file.path
+            } else {
+                let marked = try comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
+                let comparison = try WorkingFileComparison(base: marked.file, destination: file)
+                guard !GitRuntime.isAppStoreBuild || permission.hasSecurityScope && permission.contains(file) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                _ = try comparison.read()
+                let key = "working-mark:" + UUID().uuidString
+                let controller = FileComparisonWindowController(comparison: comparison, permissions: [marked.permission, permission])
+                controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+                fileComparisonWindows[key] = controller
+                controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+                _ = try comparisonMarkStore.consume(marked.mark.id)
+                try publishComparisonMark()
+            }
+        } catch { self.error = error.localizedDescription }
+    }
     func handle(_ url: URL) {
         guard !busy, !confirmingQuit, let request = FinderRequest(url: url) else { return }
         let action = request.action
+        if action == .clearComparisonMark { clearComparisonMark(); return }
+        if action == .diffLater {
+            guard request.paths.count == 1 else { error = "Select one file to mark or compare."; return }
+            handleComparisonMark(file: request.paths[0]); return
+        }
         if action == .clone { showClone(directory: request.paths.first); return }
         if action == .initialize { showCreateRepository(folder: request.paths.first); return }
         let candidate = request.paths[0]

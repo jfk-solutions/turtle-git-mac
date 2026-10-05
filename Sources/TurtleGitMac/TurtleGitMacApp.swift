@@ -42,9 +42,12 @@ import TurtleGitCore
                 Button("Create Repository…") { model.activate(.initialize) }.keyboardShortcut("r", modifiers: [.command, .shift])
             }
             CommandMenu("TurtleGit") {
-                ForEach(RepositoryAction.allCases.filter { $0 != .clone && $0 != .initialize && $0 != .editConflict && $0.resolveChoice == nil }) { action in
+                ForEach(RepositoryAction.allCases.filter { $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .diffLater && $0 != .clearComparisonMark && $0.resolveChoice == nil }) { action in
                     Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection) || (action.isIgnore && !model.canIgnoreSelection(action)) || (action.isResolve && !model.canResolveSelection))
                 }
+                Divider()
+                Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
+                Button { model.activate(.clearComparisonMark) } label: { CommandLabel(title: RepositoryAction.clearComparisonMark.title, icon: .compare) }.disabled(model.busy || model.confirmingQuit || model.workingComparisonMark == nil)
             }
             CommandMenu("Appearance") {
                 Picker("Appearance", selection: $appearance.choice) {
@@ -205,6 +208,9 @@ struct RepositoryWindow: View {
                     IgnoreSelectionMenu(paths: model.selectedPaths, deleting: true) { action, paths in model.activate(action, paths: paths) }
                 }
                 Divider()
+                if model.selectedPaths.count == 1 {
+                    Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
+                }
                 Button { model.activate(.remove) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(!model.canRemoveSelection)
                 Button { model.activate(.removeKeep) } label: { CommandLabel(title: "Delete (keep local)", icon: .remove) }.disabled(!model.canRemoveSelection)
             }

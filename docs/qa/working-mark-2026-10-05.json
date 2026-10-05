@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-05",
+  "base_commit": "44d3e52",
+  "configuration": "Debug with local working-file route changes, ad-hoc preview, no sandbox",
+  "marking": "Documentation startup FinderRequest diffLater for right.txt; workspace output and native TurtleGit menu label verified",
+  "menu_activation": "Stale accessibility IDs prevented direct Compare menu activation; no chooser handoff claimed",
+  "relaunch": "Normal Quit and process absence; reconfigured disposable preview to send an outside-file diffLater request; deliberately relaunched same bundle identifier",
+  "viewer": {
+    "base_path": "/tmp/TurtleGitHistoricalPairQA-repository/right.txt",
+    "base_bytes": 14,
+    "base_text": "later working\n",
+    "destination_path": "/tmp/TurtleGitWorkingMarkQA-other/outside.txt",
+    "destination_bytes": 17,
+    "destination_text": "external partner\n",
+    "difference_count": 1,
+    "editing_toggle": "Enabled made Base editable; disabled restored read-only view; no draft or Save"
+  },
+  "mark_consumed": true,
+  "preserved": {
+    "head": "3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c",
+    "index_sha256": "983b6a1c7c0596c06f84fdeb5fd40bc327a72458222c76277ab9b59174c46497",
+    "working_sha256": "756d1682624a699ea7fee6834e7b6923ee1fa406b19beeace8981b6cc2fc5485",
+    "left_absent": true
+  },
+  "outside_bytes_preserved": true,
+  "shutdown": "Normal Quit on both launches; at most one QA app alive; no process remained",
+  "screenshot": {
+    "path": "../site/assets/working-mark-comparison.png",
+    "width": 2240,
+    "height": 1504,
+    "content": "Actual native viewer in read-only mode"
+  },
+  "pending": [
+    "direct native menu and chooser route",
+    "Finder extension activation and clicks",
+    "Control clearing and native explicit Clear",
+    "Shift alternative tool",
+    "compacted menu labels",
+    "Log external mark import",
+    "native Reload and Save/Save As",
+    "additional file and repository variants",
+    "signed sandbox behavior"
+  ]
+}

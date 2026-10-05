@@ -178,3 +178,37 @@ extension GitRepository {
                                       destination: try read(snapshot.to, path, absent: file.action.hasPrefix("D")))
     }
 }
+
+
+/// Compare selected working files independently of repository discovery.
+/// The app must retain and validate access leases for both locations.
+public struct WorkingFileComparison: Sendable {
+    public let base: URL
+    public let destination: URL
+    public init(base: URL, destination: URL) throws {
+        guard [base, destination].allSatisfy({ $0.isFileURL && !$0.path.contains("\0") }) else { throw RevisionComparisonFailure.selection }
+        self.base = base.standardizedFileURL; self.destination = destination.standardizedFileURL
+    }
+    public var snapshot: RevisionComparisonSnapshot {
+        let file = CommitFile(path: destination.path, oldPath: base.path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        return RevisionComparisonSnapshot(root: destination.deletingLastPathComponent(), from: .workingTree, to: .workingTree, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+    }
+    public func read() throws -> FileComparisonDocument {
+        func content(_ url: URL) throws -> ComparisonFileContent {
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            let type = attributes[.type] as? FileAttributeType
+            guard type == .typeRegular || type == .typeSymbolicLink else { throw RevisionComparisonFailure.selection }
+            let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue
+            let bytes = type == .typeSymbolicLink ? Data(try FileManager.default.destinationOfSymbolicLink(atPath: url.path).utf8) : try Data(contentsOf: url)
+            let mode = type == .typeSymbolicLink ? "120000" : (permissions ?? 0) & 0o111 != 0 ? "100755" : "100644"
+            return ComparisonFileContent(path: url.path, revision: .workingTree, bytes: bytes, mode: mode, permissions: permissions)
+        }
+        return FileComparisonDocument(base: try content(base), destination: try content(destination))
+    }
+    public func save(_ document: FileComparisonDocument, base editingBase: Bool, text: String) throws -> FileComparisonDocument {
+        guard document.base.path == base.path, document.destination.path == destination.path else { throw RevisionComparisonFailure.selection }
+        let original = editingBase ? document.base : document.destination
+        let saved = try FileComparisonEditing.saveWorkingContent(at: editingBase ? base : destination, original: original, text: text)
+        return FileComparisonDocument(base: editingBase ? saved : document.base, destination: editingBase ? document.destination : saved)
+    }
+}

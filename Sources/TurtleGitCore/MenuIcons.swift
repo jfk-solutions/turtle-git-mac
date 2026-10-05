@@ -77,7 +77,7 @@ extension RepositoryAction {
         case .commit: return .commit
         case .revert: return .revert
         case .log, .stashList, .reflog: return .log
-        case .diff: return .compare
+        case .diff, .diffLater, .clearComparisonMark: return .compare
         case .pull: return .pull
         case .push: return .push
         case .fetch, .submoduleUpdate: return .fetch

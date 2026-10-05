@@ -21,8 +21,15 @@ import TurtleGitCore
 @MainActor final class FileComparisonWindowController: NSWindowController, NSWindowDelegate {
     let model: FileComparisonWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
-        model = FileComparisonWindowModel(repository: repository, access: access, snapshot: snapshot, path: path)
+    convenience init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
+        self.init(model: FileComparisonWindowModel(repository: repository, access: access, snapshot: snapshot, path: path))
+    }
+    convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease]) {
+        self.init(model: FileComparisonWindowModel(comparison: comparison, permissions: permissions))
+    }
+    private init(model: FileComparisonWindowModel) {
+        self.model = model
+        let path = model.path
         let window = FileComparisonNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 800, height: 440)
@@ -46,7 +53,9 @@ import TurtleGitCore
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class FileComparisonWindowModel: ObservableObject {
-    private let repository: GitRepository
+    private let repository: GitRepository?
+    private var workingComparison: WorkingFileComparison?
+    private var workingPermissions: [RepositoryAccessLease] = []
     private let access: RepositoryAccessLease?
     let snapshot: RevisionComparisonSnapshot
     let path: String
@@ -124,7 +133,7 @@ import TurtleGitCore
         let content = base ? document.base : document.destination
         do {
             let bytes = try FileComparisonEditing.exported(content, editedText: editableBase == base ? editedText : nil)
-            let panel = NSSavePanel(); panel.nameFieldStringValue = (content.path as NSString).lastPathComponent; panel.canCreateDirectories = true; panel.directoryURL = repository.root
+            let panel = NSSavePanel(); panel.nameFieldStringValue = (content.path as NSString).lastPathComponent; panel.canCreateDirectories = true; panel.directoryURL = snapshot.root
             panel.beginSheetModal(for: window) { [weak self] response in
                 guard response == .OK, let url = panel.url else { return }
                 do { try bytes.write(to: url, options: .atomic) } catch { self?.error = error.localizedDescription }
@@ -144,6 +153,15 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
         self.repository = repository; self.access = access; self.snapshot = snapshot; self.path = path
     }
+    init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease]) {
+        repository = nil; access = nil; workingComparison = comparison; workingPermissions = permissions
+        snapshot = comparison.snapshot; path = comparison.destination.path
+    }
+    private func validateWorkingAccess(_ comparison: WorkingFileComparison) throws {
+        guard !GitRuntime.isAppStoreBuild || [comparison.base, comparison.destination].allSatisfy({ file in
+            workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) }
+        }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
     func load() {
         guard !busy, !confirmingQuit else { return }
         if dirty {
@@ -159,8 +177,14 @@ import TurtleGitCore
         Task {
             defer { busy = false }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let value = try await repository.comparisonFile(snapshot, path: path)
+                let value: FileComparisonDocument
+                if let workingComparison {
+                    try validateWorkingAccess(workingComparison)
+                    value = try workingComparison.read()
+                } else if let repository {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    value = try await repository.comparisonFile(snapshot, path: path)
+                } else { throw RevisionComparisonFailure.selection }
                 document = value
                 editedText = (editableBase == true ? value.base.text : value.destination.text) ?? ""
                 annotations = .init(); savedMarked = []
@@ -183,8 +207,13 @@ import TurtleGitCore
             var saved = false
             defer { busy = false; completion?(saved) }
             do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                self.document = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text)
+                if let workingComparison {
+                    try validateWorkingAccess(workingComparison)
+                    self.document = try workingComparison.save(document, base: base, text: text)
+                } else if let repository {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    self.document = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text)
+                } else { throw RevisionComparisonFailure.selection }
                 savedMarked = annotations.marked
                 rebuildAlignment(); saved = true
             } catch { self.error = error.localizedDescription }
