@@ -3,6 +3,12 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
+struct HistoricalComparisonMark {
+    let path: String
+    let revision: String
+    func label(for path: String) -> String { self.path == path ? revision : self.path + ":" + String(revision.prefix(7)) }
+}
+
 enum HistoricalOpenAction { case open, openWith, alternativeEditor }
 
 @MainActor enum HistoricalPreviewFiles {
@@ -152,6 +158,7 @@ struct LogCommandRequest: Identifiable {
     @Published var selected = Set<String>()
     @Published var files: [CommitFile] = []
     @Published var selectedFiles = Set<String>()
+    @Published var comparisonMark: HistoricalComparisonMark?
     @Published var allBranches = false
     @Published var endRevision: String?
     @Published var historyPaths: [String] = []
@@ -183,6 +190,7 @@ struct LogCommandRequest: Identifiable {
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
     var onBlame: ((String, String) -> Void)?
+    var onPreparedFileCompare: ((HistoricalComparisonMark, HistoricalComparisonMark) -> Void)?
     var onFilePairCompare: ((String, [CommitFile]) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var close: () -> Void = {}
@@ -388,6 +396,16 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
+    func markForComparison(_ ids: Set<String>) {
+        guard !busy, let revision, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        comparisonMark = HistoricalComparisonMark(path: file.path, revision: revision.hash)
+    }
+    func compareWithMarkedFile(_ ids: Set<String>) {
+        guard !busy, let revision, let comparisonMark, let onPreparedFileCompare, ids.count == 1,
+              let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        let current = HistoricalComparisonMark(path: file.path, revision: revision.hash)
+        onPreparedFileCompare(comparisonMark, current)
+    }
     func revealFile(_ ids: Set<String>) {
         guard !busy, !bare, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), !file.action.hasPrefix("D") else { return }
         busy = true
@@ -533,11 +551,21 @@ struct LogDialog: View {
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.action.hasPrefix("D"), !model.bare {
             Button { model.revealFile(ids) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }.disabled(model.busy)
         }
+        if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") {
+            preparedComparisonActions(ids, file: file)
+        }
         Menu {
             ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
                 Button { model.copyFiles(ids, information: information) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
             }
         } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
+    }
+    @ViewBuilder private func preparedComparisonActions(_ ids: Set<String>, file: CommitFile) -> some View {
+        Divider()
+        Button { model.markForComparison(ids) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(model.busy || model.revision == nil)
+        if let mark = model.comparisonMark {
+            Button { model.compareWithMarkedFile(ids) } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare) }.disabled(model.busy || model.revision == nil || model.onPreparedFileCompare == nil)
+        }
     }
     @ViewBuilder private func historicalFileActions(_ ids: Set<String>) -> some View {
         Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy)

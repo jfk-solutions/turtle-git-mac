@@ -610,6 +610,17 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription }
         }
     }
+    private func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: HistoricalComparisonMark, current: HistoricalComparisonMark) {
+        guard !busy, !confirmingQuit else { return }; busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let snapshot = try await repository.historicalPathComparison(fromRevision: marked.revision, fromPath: marked.path, toRevision: current.revision, toPath: current.path)
+                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     private func showHistoricalFilePair(repository: GitRepository, access: RepositoryAccessLease?, revision: String, files: [CommitFile]) {
         guard !busy, !confirmingQuit else { return }; busy = true
         Task {
@@ -741,6 +752,7 @@ import TurtleGitCore
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
         controller.model.onFilePairCompare = { [weak self] revision, files in self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files) }
         controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }

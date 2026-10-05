@@ -512,3 +512,42 @@ coverage. No new screenshot is claimed.
 Native nested missing-parent, symlink, gitlink/bare/deleted menu variants and
 signed sandbox handoff remain pending. Full Log menus, marked-row semantics and
 historical comparison acceptance are still incomplete.
+
+
+## Mark for comparison (2026-10-05)
+
+Audited upstream `GitStatusListCtrl.cpp` menu construction (1894–1913),
+PREPAREDIFF dispatch (2155–2166), and external DiffLater import (3170–3179),
+against pinned upstream `7338078f8ddd924b8cddee35f512f2286072136d`.
+Log now offers Mark for comparison and a dynamic Compare with action for one
+non-deleted historical regular file. Both use original comparison artwork.
+The mark belongs to that Log dialog, survives revision changes and comparison,
+and disappears when the dialog closes. Same-path labels show the saved full
+revision; different-path labels show the saved path and seven-character hash.
+Both endpoints are resolved to commits before content is read. The App Store
+route checks the retained repository grant.
+
+Eight FileComparison tests pass, including a new real-Git regression for
+same/different literal paths, binary contents, Unicode/newlines, invalid paths,
+pinning across a later commit, and exact index/working/HEAD preservation.
+Debug and unsigned App Store builds and resource/runtime audits pass (64 icons,
+11 universal Mach-O files). The preceding base commit's GitHub macOS and Pages
+runs also passed; this change's CI must be checked separately after push.
+
+Native QA marked `right.txt` in the latest commit, changed to the older revision,
+and invoked Compare with using the full-hash label. The viewer showed the marked
+15-byte `selected right` and older 13-byte `parent right`, with editing and Save
+disabled. The mark remained available for the older revision's `left.txt`; its
+menu label was `Compare with right.txt:3afaeae`, and the viewer compared the same
+marked content with 12-byte `parent left`. HEAD, raw index and working bytes
+remained exact; the deleted disk file was not restored. The one QA app quit
+normally, with no remaining QA process.
+[Recorded acceptance evidence](qa/log-mark-2026-10-05.json) and the
+[actual native screenshot](site/assets/log-mark-comparison.png) document the
+checks. The screenshot shows the same-path viewer with an inactive title bar;
+it does not capture the context menu.
+
+External working-file DiffLater import, gitlink comparison, alternative diff
+tools/Shift behavior, configured short-hash length, long-path compaction,
+additional native file types and signed sandbox acceptance remain pending.
+This section does not establish full Log parity.

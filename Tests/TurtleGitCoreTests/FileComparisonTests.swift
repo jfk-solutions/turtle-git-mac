@@ -66,6 +66,35 @@ final class FileComparisonTests: XCTestCase {
             do { _ = try await repo.historicalFilePairComparison(revision: head, files: files); XCTFail("Invalid pair accepted") } catch {}
         }
     }
+    func testMarkedHistoricalPathsCompareSameOrDifferentNamesAtPinnedRevisions() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let before = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let original = try Data(contentsOf: root.appendingPathComponent(path))
+        let other = ":(glob)* marked 雪\n.bin", bytes = Data([0, 255, 13, 10])
+        try bytes.write(to: root.appendingPathComponent(other))
+        try Data("selected contents\n".utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path, other]); _ = try await repo.commit(message: "marked comparison target")
+        let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        try Data("staged later\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        try Data("working later\n".utf8).write(to: root.appendingPathComponent(path))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let same = try await repo.historicalPathComparison(fromRevision: before, fromPath: path, toRevision: "HEAD", toPath: path)
+        let value = try await repo.comparisonFile(same, path: path)
+        XCTAssertEqual(value.base.bytes, original); XCTAssertEqual(value.destination.bytes, Data("selected contents\n".utf8))
+        let different = try await repo.historicalPathComparison(fromRevision: before, fromPath: path, toRevision: "HEAD", toPath: other)
+        let pair = try await repo.comparisonFile(different, path: other)
+        XCTAssertEqual(pair.base.path, path); XCTAssertEqual(pair.destination.path, other); XCTAssertEqual(pair.destination.bytes, bytes)
+        XCTAssertEqual(same.from, .revision(before)); XCTAssertEqual(same.to, .revision(after))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("working later\n".utf8))
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, after)
+        _ = try await repo.commit(message: "advance")
+        let pinned = try await repo.comparisonFile(same, path: path); XCTAssertEqual(pinned.destination.bytes, Data("selected contents\n".utf8))
+        for invalid in ["", "bad\0path", "missing"] {
+            do { _ = try await repo.historicalPathComparison(fromRevision: before, fromPath: invalid, toRevision: after, toPath: path); XCTFail("Invalid mark accepted") } catch {}
+        }
+    }
     func testHistoricalPreviewRejectsUnpinnedAbsentAndNonBlobContents() {
         for (revision, mode, path) in [(ComparisonRevision.workingTree, "100644", "file.txt"), (.emptyTree, "100644", "file.txt"), (.revision("HEAD"), "100644", "file.txt"), (.revision(String(repeating: "a", count: 40)), "160000", "module"), (.revision(String(repeating: "a", count: 40)), "100644", "bad\0file")] {
             let content = ComparisonFileContent(path: path, revision: revision, bytes: Data(), mode: mode)

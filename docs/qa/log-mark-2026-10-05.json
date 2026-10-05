@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-05",
+  "base_commit": "1a8892f",
+  "configuration": "Debug with local Mark for comparison changes, ad-hoc disposable preview, no sandbox",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "same_path": {
+    "marked_path": "right.txt",
+    "marked_revision": "3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c",
+    "current_revision": "741138e77c1ae9d24f5921c574702d452f4ef3d2",
+    "menu_label": "Compare with 3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c",
+    "viewer_base": "selected right\n",
+    "viewer_destination": "parent right\n",
+    "read_only": true
+  },
+  "different_path": {
+    "current_path": "left.txt",
+    "menu_label": "Compare with right.txt:3afaeae",
+    "viewer_base": "selected right\n",
+    "viewer_destination": "parent left\n",
+    "read_only": true,
+    "mark_retained_after_comparison": true
+  },
+  "preserved": {
+    "head": "3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c",
+    "index_sha256": "983b6a1c7c0596c06f84fdeb5fd40bc327a72458222c76277ab9b59174c46497",
+    "working_sha256": "756d1682624a699ea7fee6834e7b6923ee1fa406b19beeace8981b6cc2fc5485",
+    "left_absent": true
+  },
+  "shutdown": "Normal TurtleGit Quit; no QA process remained",
+  "screenshot": {
+    "path": "../site/assets/log-mark-comparison.png",
+    "width": 2240,
+    "height": 1504,
+    "content": "Same-path historical viewer; inactive title bar; context menu not captured"
+  },
+  "pending": [
+    "external working-file marks",
+    "gitlinks",
+    "alternative tools and Shift behavior",
+    "configured hash length and long-path compaction",
+    "additional native file types",
+    "signed sandbox acceptance"
+  ]
+}

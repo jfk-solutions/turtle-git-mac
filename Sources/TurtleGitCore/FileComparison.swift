@@ -131,6 +131,17 @@ extension GitRepository {
         _ = try comparisonFile(snapshot, path: file.path)
         return snapshot
     }
+    /// Compare arbitrary historical paths, including the same path at different
+    /// revisions. Both ends are pinned before any file content is read.
+    public func historicalPathComparison(fromRevision: String, fromPath: String, toRevision: String, toPath: String) throws -> RevisionComparisonSnapshot {
+        guard !fromPath.isEmpty, !toPath.isEmpty, !fromPath.contains("\0"), !toPath.contains("\0") else { throw RevisionComparisonFailure.selection }
+        let fromHash = try run(["rev-parse", "--verify", "--end-of-options", fromRevision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        let toHash = try run(["rev-parse", "--verify", "--end-of-options", toRevision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        let file = CommitFile(path: toPath, oldPath: fromPath, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let snapshot = RevisionComparisonSnapshot(root: root, from: .revision(fromHash), to: .revision(toHash), fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        _ = try comparisonFile(snapshot, path: toPath)
+        return snapshot
+    }
     /// Read exact bytes from a pinned commit for Save As; no checkout or index write.
     public func historicalFile(revision: String, path: String) throws -> ComparisonFileContent {
         let snapshot = try revisionFileComparison(from: .emptyTree, to: .revision(revision), paths: [path])

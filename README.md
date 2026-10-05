@@ -290,26 +290,21 @@ edge cases and native QA. The Git integration suite runs in CI. Submodule deleti
 and preserves the complete checkout in macOS Trash. Monochrome Log, Help and
 cherry-pick icons adapt to light/dark appearances.
 
-Log's selected-file menu now includes historical folder Export with the original
-icon, preserved subfolders, pinned committed bytes and Ignore/Abort failure
-choices. Core regressions and both builds pass. Native three-file export,
-Ignore/Abort and chooser Cancel were verified with exact committed bytes and
-unchanged repository state; overwrite, precise menu gates and signed sandbox
-checks remain pending. See
-[Log parity](docs/LOG-PARITY.md) for the verification limits.
+Log's selected-file menu supports historical folder Export with original artwork,
+subfolders and pinned committed bytes. Native export, Ignore/Abort and chooser
+Cancel preserve repository state; overwrite and signed sandbox checks remain
+pending. Reveal in Finder selects the current disk item or opens its nearest
+existing parent when the historical path is absent, without checking out a file.
+Both native reveal routes were verified.
 
-Log also offers Compare two files for a selected historical pair, using the
-selected commit's first parent independently for deleted sides. Exact blob and
-pinned-revision tests pass; native viewer and signed sandbox acceptance remain
-pending. The implemented file-menu commands now put Export before Save/Open.
+Mark for comparison retains a path and revision within the Log dialog. Compare
+with opens a read-only viewer for the same path at another revision or a different
+historical path. Both native routes were verified with exact repository state
+preserved. External working-file marks, gitlinks and configured menu-label
+formatting remain under audit.
 
-Show changes as unified diff in Log now accepts multiple selected files, appends
-patches in displayed order and includes both names of a rename. Selected-path,
-root and rename regressions pass; native multi-file patch acceptance and merge
-parent variants remain under audit.
-
-Log's Reveal in Finder now selects the current disk item or opens its nearest
-existing parent if the historical path has disappeared. Native file selection
-and missing-file folder fallback were verified without checkout or repository
-changes; six resolver/restore tests and both builds pass. Signed sandbox and
-additional native path variants remain pending.
+Compare two files uses the selected commit's first parent independently for
+deleted sides. Multi-file unified diff appends patches in displayed order and
+includes both names of a rename. Core regressions pass; native pair and multi-file
+patch acceptance, merge-parent variants and signed sandbox checks remain pending.
+See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.
