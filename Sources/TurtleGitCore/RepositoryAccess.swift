@@ -212,3 +212,27 @@ public struct WorkingComparisonAccess {
     public let file: URL
     public let permission: RepositoryAccessLease
 }
+
+/// A direct two-file comparison retains both grants independently of a repository.
+public struct WorkingFilePairAccess {
+    public let comparison: WorkingFileComparison
+    public let permissions: [RepositoryAccessLease]
+    public static func prepare(paths: [URL], requireSecurityScope: Bool,
+                               acquire: (URL) throws -> RepositoryAccessLease?) throws -> Self? {
+        guard paths.count == 2, paths[0].standardizedFileURL != paths[1].standardizedFileURL else {
+            throw RevisionComparisonFailure.selection
+        }
+        let comparison = try WorkingFileComparison(base: paths[0], destination: paths[1])
+        var permissions: [RepositoryAccessLease] = []
+        for file in [comparison.base, comparison.destination] {
+            guard let permission = try acquire(file) else { return nil }
+            guard permission.contains(file), !requireSecurityScope || permission.hasSecurityScope else {
+                throw RepositoryAccessFailure.securityScopeUnavailable
+            }
+            permissions.append(permission)
+        }
+        // Read only after both grants have been acquired and checked.
+        _ = try comparison.read()
+        return Self(comparison: comparison, permissions: permissions)
+    }
+}

@@ -198,6 +198,15 @@ import TurtleGitCore
         let unrelated = outside.appendingPathComponent("plain.txt"); try Data().write(to: unrelated)
         let outsideFileMenu = FinderMenuBuilder.make(paths: [unrelated], snapshot: nil, settings: FinderMenuSettings(),
             comparisonMark: nil, target: target, actionSelector: selector)
+        let unrelatedSecond = outside.appendingPathComponent("second &雪.txt"); try Data("second".utf8).write(to: unrelatedSecond)
+        let outsidePairMenu = FinderMenuBuilder.make(paths: [unrelated, unrelatedSecond], snapshot: nil, settings: FinderMenuSettings(), comparisonMark: nil, target: target, actionSelector: selector)
+        precondition(rootActions(outsidePairMenu) == [.diff], "Two outside files expose direct Diff without repository commands")
+        let pairCommand = outsidePairMenu.items[0].submenu!.items[0].representedObject as! FinderMenuCommand
+        precondition(FinderRequest(url: pairCommand.url()!)?.paths == [unrelated, unrelatedSecond])
+        verifyOrder(outsidePairMenu)
+        let fileAndFolder = FinderMenuBuilder.make(paths: [unrelated, outside], snapshot: nil, settings: FinderMenuSettings(), comparisonMark: nil, target: target, actionSelector: selector)
+        precondition(rootActions(fileAndFolder).isEmpty, "Folder selections do not satisfy the two-file clause")
+        print("Actual pair menu receiver: two outside files expose only Diff and retain ordered paths; file/folder selection is excluded. Native comparison activation remains pending.")
         verifyOrder(outsideFileMenu)
         precondition(outsideFileMenu.items[0].submenu!.items.count == 1, "A lone mark command needs no leading separator")
         print("Actual layout receiver: all 31 implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")

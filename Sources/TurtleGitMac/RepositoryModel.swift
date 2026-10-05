@@ -1078,6 +1078,17 @@ import TurtleGitCore
             }
         } catch { self.error = error.localizedDescription }
     }
+    private func handleFilePair(paths: [URL]) {
+        do {
+            guard let prepared = try WorkingFilePairAccess.prepare(paths: paths, requireSecurityScope: GitRuntime.isAppStoreBuild,
+                acquire: { try comparisonPermission(for: $0) }) else { return }
+            let key = "working-pair:" + UUID().uuidString
+            let controller = FileComparisonWindowController(comparison: prepared.comparison, permissions: prepared.permissions)
+            controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+            fileComparisonWindows[key] = controller
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        } catch { self.error = error.localizedDescription }
+    }
     func handle(_ url: URL) {
         guard !busy, !confirmingQuit, let request = FinderRequest(url: url) else { return }
         let action = request.action
@@ -1088,6 +1099,7 @@ import TurtleGitCore
         }
         if action == .clone { showClone(directory: request.paths.first); return }
         if action == .initialize { showCreateRepository(folder: request.paths.first); return }
+        if action == .diff && request.paths.count == 2 { handleFilePair(paths: request.paths); return }
         let candidate = request.paths[0]
         // A URL from Finder or another app is a request, not a sandbox permission grant.
         if let activeAccess, request.paths.allSatisfy({ activeAccess.contains($0) }) {

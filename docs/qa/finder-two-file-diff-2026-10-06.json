@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-06",
+  "scope": "Ordered direct Finder two-file comparisons inside/outside repositories with independent retained grants; full app goal remains incomplete",
+  "baseCommit": "f03c590449bae18d8f358910fdd1d9b320505b2f",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceBlobs": {
+    "ContextMenu.cpp": "0b31f963e73ff71cd9cdb0861972a671236ae20f",
+    "MenuInfo.cpp": "aee7f91ad1111fe03ab85b390855885ca940a27f"
+  },
+  "coreRuns": [
+    {
+      "count": 39,
+      "failures": 0,
+      "scope": "Comparisons/editing/Finder requests/source rules plus initial three new cases"
+    },
+    {
+      "count": 9,
+      "failures": 0,
+      "scope": "Existing access regression"
+    },
+    {
+      "count": 4,
+      "failures": 0,
+      "scope": "Final pair access cases including new real Git HEAD/index preservation; three overlap earlier run"
+    }
+  ],
+  "fullRegression": "Previous milestone full 474 passed; no new full-suite claim for this change",
+  "actualMenuReceiver": "Actual extension source Swift 6/macOS 13; only Diff for two outside files, ordered request paths, no two-file Diff for file/folder; all earlier order/icon/path/repository/capture checks pass; no extension/controller or window activated",
+  "productionAppBinding": "RepositoryModel routes two-path Diff before repository authorization; calls tested preparation and supplies retained grants to shared viewer. Compiled/source-audited, not exercised as a native Finder click.",
+  "grants": "Injected providers verify scope containment/lifetime/cancellation. Real entitled security scopes and picker gestures unverified.",
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed; existing Locale metric deprecation remains"
+  ],
+  "bundles": "Both audits and exact bundled NOTICE comparison passed; all 75 original icons, universal runtimes and Store Git 2.55.0 retained",
+  "appProcesses": "No main app or native receiver process remained at audit; no app launched for checks",
+  "pending": [
+    "Native Finder activation and direct window acceptance",
+    "Signed sandbox/picker/save/close acceptance",
+    "Shift alternative comparison tool",
+    "Symlink external tool equivalence",
+    "Complete dialog/Finder/App Store parity and publication"
+  ],
+  "sourceSHA256": {
+    "FinderSync/FinderSync.swift": "d00f5fab9adebd673b96da78e3bc6b25da4a13de9671fb03ccea824336e39803",
+    "Sources/TurtleGitCore/RepositoryAccess.swift": "80f3814b15059caa8850758bf3bcede9ff28e69762d1b2dda1a9bdb2227d3732",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "3cd44fa7ac12efcd21b31252d5e5e4725b99adcbb7b23a4c0a39e027e9cda2e4",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "8be9a6e34534714537d834bc245e446fae0201689c2e57ab1c7040db66b8f153",
+    "Tests/TurtleGitCoreTests/WorkingFilePairAccessTests.swift": "41e6dd5a03d9fc3213fa708b0367fb37fa160df6f929157249550d0fcf7a541f",
+    "scripts/test-finder-menu.py": "d628394b4002739188c3b4df2c0f839737e13e0d63f23541d5354bccee43a895",
+    "NOTICE": "0148d8541c9c60de338a6f0b40a5b02b054ccd78f4d5f1ee6eed96c40d00d746"
+  },
+  "logs": {
+    "comparisonRegression": {
+      "path": "/tmp/turtlegit-finder-pair-core.log",
+      "sha256": "61c18519e079cb8667e47c21ad336b357a03de81c46340dd60fd2f2a53423b68"
+    },
+    "accessRegression": {
+      "path": "/tmp/turtlegit-finder-pair-access-regression.log",
+      "sha256": "5e71f16207e724b1250a2f468673d24947146b9c05014451e4031e37141cc793"
+    },
+    "newCases": {
+      "path": "/tmp/turtlegit-finder-pair-final-core.log",
+      "sha256": "93f2192408aabb58df53e84d0d334897968c32e192ebb073d5a5406a300e830e"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-pair-debug.log",
+      "sha256": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-pair-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-finder-pair-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-finder-pair-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "menu": {
+      "path": "/tmp/turtlegit-finder-pair-menu.log",
+      "sha256": "dd719df05c0281dfd57281eb952193701880f9e22f1cb075a12be07dcd4e1ead"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-pair-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

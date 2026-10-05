@@ -128,7 +128,7 @@ enum FinderMenuBuilder {
         let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
-            guard knownRepository, FinderShellRules.allows(action, flags: shellFlags) else { continue }
+            guard (knownRepository || action == .diff && paths.count == 2), FinderShellRules.allows(action, flags: shellFlags) else { continue }
             let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon)
             if action == .formatPatch || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }

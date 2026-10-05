@@ -178,6 +178,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Finder file/folder, added/unchanged and selection-count conditions now follow
   the implemented upstream command clauses; full classification remains pending.
   See [path-condition audit](docs/FINDER-PATH-CONDITIONS-PARITY.md).
+  Finder two-file Diff now compares the ordered selected working files directly,
+  including files outside repositories, with independent retained grants.
+  [Two-file Diff audit](docs/FINDER-TWO-FILE-DIFF-PARITY.md) records native/signed gaps.
   Finder folder creation menus and a toolbar entry point route Clone/Create
   repository to native dialogs/pickers. Targetless toolbar requests are supported;
   signed activation remains unverified. See [creation audit](docs/FINDER-CREATION-PARITY.md).

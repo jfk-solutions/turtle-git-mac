@@ -51,11 +51,9 @@ These checks do not prove full source classification. Registered submodule
 roots, git-svn, inaccessible paths, background/container bit combinations,
 heterogeneous selections across repositories, complete ignored ancestry,
 configuration/placement, omitted commands and fresh background status remain
-pending. Two unrelated files still lack the source's standalone Diff entry:
-the current app route requires a repository and needs a separate comparison
-handoff before that entry can be exposed. Even inside a repository, Finder
-two-file Diff still opens working-change comparisons rather than directly
-comparing the two selected files; the menu tests establish visibility only. Multiple-folder creation remains
+pending. The subsequent [two-file Diff handoff](FINDER-TWO-FILE-DIFF-PARITY.md) adds
+standalone direct comparisons, including unrelated files. Its signed/native
+activation remains pending. Multiple-folder creation remains
 pending. Signed extension activation, native menu gestures and screenshots
 remain unverified.
 

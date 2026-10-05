@@ -291,3 +291,8 @@ flag clauses in MenuInfo.cpp and ContextMenu.cpp ShouldEnableMenu, under the
 GPL version 2 or later source attributions above. Cached macOS path/status
 classification supplies a subset of TGitPath.cpp administrative flags. Full
 submodule, inaccessible, mixed-selection and signed Finder parity remain pending.
+
+Finder two-file Diff dispatch follows ContextMenu.cpp's ordered /path and /path2
+handoff, under the source attribution above. A native direct working-file viewer
+retains independent security-scoped grants without opening a repository session.
+Shift's alternative diff tool and signed native activation remain pending.
