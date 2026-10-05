@@ -295,3 +295,52 @@ is claimed. Normal Quit attempts through UI automation did not confirm terminati
 the single identified disposable process was sent SIGTERM after those attempts.
 Process absence and repository/output byte invariants were then verified. No other
 processes or system services were targeted.
+
+
+## Historical file Open and editor actions
+
+Pinned `GitStatusListCtrl.cpp` lines 1884–1889 expose View revision in alternative
+editor, Open and Open With for a single non-directory, nondeleted/nonmissing file.
+`OpenFile` (4673–4699) reads historical contents into a temporary file, marks it
+read-only, then launches the configured editor, default association or Open With.
+Log now exposes these three commands with the original notepad/open icons under
+its single-file historical gate. Deleted rows and gitlinks omit them.
+
+The model captures exact bytes at the selected pinned revision with the existing
+repository security-scope check. Open With presents a native application-bundle
+chooser; cancellation does not create a preview. The default action uses the macOS
+file association, and alternative editing uses the same saved TextEdit/custom-app
+preferences as Commit. Explicit chosen apps retain their selected resource scope
+until the workspace callback completes.
+
+`HistoricalFilePreview` creates a unique private directory (0700) and read-only
+regular copy (0444), preserving the filename extension and including the short
+revision hash. Historical symlink blobs remain literal target text; targets are
+never followed. Working-tree, empty-tree, unpinned, non-blob and malformed preview
+inputs are rejected. Copies stay alive for the application session, including
+after Log closes. Failed launches discard their copies, and normal application
+termination discards all retained previews. External edits cannot change the
+repository through these copies.
+
+Two new regressions check exact text/binary/symlink contents, literal Unicode and
+newline filenames, distinct private copies, read-only modes, disposal, invalid
+inputs and raw index/HEAD/working preservation. The comparison suites passed 20
+tests; alternative-editor preferences passed two more. Debug and unsigned App Store
+builds and both bundle/runtime audits pass. The expanded SwiftUI menu is factored
+into a separate view-builder expression to avoid the Xcode type-checking limit.
+
+Native QA verified all three commands in the first historical-file context menu
+and invoked the alternative-editor action. A temporary `source-e9cae95.txt` copy
+was created for the selected revision and retained during the session. TextEdit
+presented an Open chooser, so an actual historical document in the editor was
+not verified. UI automation then returned a ScreenCaptureKit invalid-parameter
+error; that observation is not evidence of a TurtleGit launch failure or success.
+The same QA process subsequently quit normally, the preview directory disappeared,
+and exact HEAD, raw index and original working bytes remained unchanged. No
+TurtleGit test processes remained. No new screenshot is claimed for this run.
+
+Native default-association document acceptance, Open With selection/cancel,
+custom-editor errors, binary/symlink/rename and deleted/gitlink menu variants,
+read-only document behavior, repeated-session cleanup and signed sandbox handoff
+remain pending. This is a partial port of historical opening, not full native
+editor or file-context-menu parity.

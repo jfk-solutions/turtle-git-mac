@@ -2,6 +2,42 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonTests: XCTestCase {
+    func testHistoricalPreviewCopiesArePrivateReadOnlyAndKeepExactBlobBytes() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let binary = ":(glob)* binary 雪\n.dat", link = "historical-link"
+        let bytes = Data([0, 255, 13, 10, 1])
+        try bytes.write(to: root.appendingPathComponent(binary))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent(link).path, withDestinationPath: "/missing/outside/target")
+        try await repo.stage([binary, link]); _ = try await repo.commit(message: "preview blobs")
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        try Data("later working contents".utf8).write(to: root.appendingPathComponent(path))
+        for name in [path, binary, link] {
+            let content = try await repo.historicalFile(revision: head, path: name)
+            let first = try HistoricalFilePreview.create(content), second = try HistoricalFilePreview.create(content)
+            defer { first.discard(); second.discard() }
+            XCTAssertNotEqual(first.directory, second.directory)
+            XCTAssertEqual(try Data(contentsOf: first.file), content.bytes)
+            XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: first.file.path)[.type] as? FileAttributeType, .typeRegular)
+            XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: first.file.path)[.posixPermissions] as? Int, 0o444)
+            XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: first.directory.path)[.posixPermissions] as? Int, 0o700)
+            XCTAssertTrue(first.file.lastPathComponent.contains(String(head.prefix(7))))
+            if name == binary { XCTAssertTrue(first.file.lastPathComponent.hasSuffix(".dat")); XCTAssertTrue(first.file.lastPathComponent.contains("雪\n")) }
+            first.discard(); XCTAssertFalse(FileManager.default.fileExists(atPath: first.directory.path))
+            XCTAssertEqual(try Data(contentsOf: second.file), content.bytes)
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("later working contents".utf8))
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(finalHead, head)
+    }
+    func testHistoricalPreviewRejectsUnpinnedAbsentAndNonBlobContents() {
+        for (revision, mode, path) in [(ComparisonRevision.workingTree, "100644", "file.txt"), (.emptyTree, "100644", "file.txt"), (.revision("HEAD"), "100644", "file.txt"), (.revision(String(repeating: "a", count: 40)), "160000", "module"), (.revision(String(repeating: "a", count: 40)), "100644", "bad\0file")] {
+            let content = ComparisonFileContent(path: path, revision: revision, bytes: Data(), mode: mode)
+            do { let preview = try HistoricalFilePreview.create(content); preview.discard(); XCTFail("Reject non-blob preview") } catch {}
+        }
+    }
     func testWorkingFilePairUsesLiteralWorkingBytesAndPinnedDeletedSides() async throws {
         let (root, repo, tracked) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

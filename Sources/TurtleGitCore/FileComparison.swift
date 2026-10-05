@@ -20,6 +20,32 @@ public struct FileComparisonDocument: Sendable {
     public let base: ComparisonFileContent
     public let destination: ComparisonFileContent
 }
+/// A private, read-only regular-file copy for opening a historical blob in an
+/// external application. A symlink blob is copied as target text, never followed.
+public struct HistoricalFilePreview: Sendable {
+    public let directory: URL
+    public let file: URL
+    private init(directory: URL, file: URL) { self.directory = directory; self.file = file }
+    public static func create(_ content: ComparisonFileContent) throws -> HistoricalFilePreview {
+        guard case .revision(let hash) = content.revision, [40, 64].contains(hash.count),
+              hash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) || (65...70).contains($0) }),
+              ["100644", "100755", "120000"].contains(content.mode ?? "") else { throw RevisionComparisonFailure.selection }
+        let name = (content.path as NSString).lastPathComponent as NSString
+        guard name.length > 0, ![".", ".."].contains(name as String), !content.path.utf8.contains(0) else { throw RevisionComparisonFailure.selection }
+        let ext = name.pathExtension
+        let filename = name.deletingPathExtension + "-" + hash.prefix(7) + (ext.isEmpty ? "" : "." + ext)
+        let manager = FileManager.default
+        let directory = manager.temporaryDirectory.appendingPathComponent("TurtleGitHistoricalPreview-" + UUID().uuidString, isDirectory: true)
+        try manager.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        do {
+            let file = directory.appendingPathComponent(filename)
+            try content.bytes.write(to: file, options: .withoutOverwriting)
+            try manager.setAttributes([.posixPermissions: 0o444], ofItemAtPath: file.path)
+            return HistoricalFilePreview(directory: directory, file: file)
+        } catch { try? manager.removeItem(at: directory); throw error }
+    }
+    public func discard() { try? FileManager.default.removeItem(at: directory) }
+}
 public struct FileComparisonRow: Sendable {
     public let base: MergeSourceCell
     public let destination: MergeSourceCell

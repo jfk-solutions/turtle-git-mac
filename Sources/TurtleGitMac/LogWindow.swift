@@ -3,6 +3,15 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
+enum HistoricalOpenAction { case open, openWith, alternativeEditor }
+
+@MainActor enum HistoricalPreviewFiles {
+    private static var previews: [URL: HistoricalFilePreview] = [:]
+    static func retain(_ preview: HistoricalFilePreview) { previews[preview.file] = preview }
+    static func discard(_ file: URL) { previews.removeValue(forKey: file)?.discard() }
+    static func discardAll() { for preview in previews.values { preview.discard() }; previews.removeAll() }
+}
+
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
     let model: LogWindowModel
     var onClosed: () -> Void = {}
@@ -30,7 +39,39 @@ import UniformTypeIdentifiers
             // Let the originating context-menu tracking finish before presenting AppKit UI.
             DispatchQueue.main.async { [weak self] in self?.saveHistoricalFile(content, short: short) }
         }
+        model.presentHistoricalOpen = { [weak self] content, action in
+            DispatchQueue.main.async { [weak self] in self?.openHistoricalFile(content, action: action) }
+        }
         model.reload()
+    }
+    private func openHistoricalFile(_ content: ComparisonFileContent, action: HistoricalOpenAction) {
+        guard let window, window.attachedSheet == nil else { return }
+        if action == .openWith {
+            let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
+            panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+            panel.beginSheetModal(for: window) { [weak self] response in
+                guard response == .OK, let app = panel.url else { return }
+                self?.launchHistoricalFile(content, action: action, application: app)
+            }
+        } else { launchHistoricalFile(content, action: action) }
+    }
+    private func launchHistoricalFile(_ content: ComparisonFileContent, action: HistoricalOpenAction, application: URL? = nil) {
+        do {
+            let preview = try HistoricalFilePreview.create(content)
+            HistoricalPreviewFiles.retain(preview)
+            let failed: (String?) -> Void = { [weak model] error in
+                if let error { HistoricalPreviewFiles.discard(preview.file); model?.error = error }
+            }
+            if action == .alternativeEditor { AlternativeEditor.open(preview.file, completion: failed) }
+            else if let application {
+                let scoped = application.startAccessingSecurityScopedResource()
+                NSWorkspace.shared.open([preview.file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                    if scoped { application.stopAccessingSecurityScopedResource() }
+                    DispatchQueue.main.async { failed(error?.localizedDescription) }
+                }
+            } else if !NSWorkspace.shared.open(preview.file) { failed("Could not open the historical file. Choose an application using Open With.") }
+        } catch { model.error = error.localizedDescription }
     }
     private func saveHistoricalFile(_ content: ComparisonFileContent, short: String) {
         guard let window, window.attachedSheet == nil else { return }
@@ -114,6 +155,7 @@ struct LogCommandRequest: Identifiable {
     var onReset: (String) -> Void = { _ in }
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
+    var presentHistoricalOpen: (ComparisonFileContent, HistoricalOpenAction) -> Void = { _, _ in }
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
     var onBlame: ((String, String) -> Void)?
@@ -281,6 +323,18 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
+    func openHistoricalFile(_ ids: Set<String>, action: HistoricalOpenAction) {
+        guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
+              let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        busy = true
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let content = try await repository.historicalFile(revision: revision.hash, path: file.path)
+                busy = false; presentHistoricalOpen(content, action)
+            } catch { self.error = error.localizedDescription; busy = false }
+        }
+    }
     func compareFiles(_ ids: Set<String>, workingTree: Bool = false) {
         guard !busy, let onFileCompare, let revision, !workingTree || !bare else { return }
         let paths = files.filter { ids.contains($0.id) }.map(\.path)
@@ -334,8 +388,7 @@ struct LogDialog: View {
                             Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
                         }
                         if !file.isSubmodule && !file.action.hasPrefix("D") {
-                            Button { if let revision = model.revision { model.onBlame?(file.path, revision.hash) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(model.busy || model.onBlame == nil)
-                            Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy)
+                            historicalFileActions(ids, file: file)
                         }
                         Divider()
                     }
@@ -381,6 +434,13 @@ struct LogDialog: View {
                 HStack { Spacer(); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }
             }.padding(12)
         }
+    }
+    @ViewBuilder private func historicalFileActions(_ ids: Set<String>, file: CommitFile) -> some View {
+        Button { if let revision = model.revision { model.onBlame?(file.path, revision.hash) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(model.busy || model.onBlame == nil)
+        Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy)
+        Button { model.openHistoricalFile(ids, action: .alternativeEditor) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy)
+        Button { model.openHistoricalFile(ids, action: .open) } label: { CommandLabel(title: "Open", icon: .open) }.disabled(model.busy)
+        Button { model.openHistoricalFile(ids, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(model.busy)
     }
     func fileDiff(workingTree: Bool = false) {
         guard let path = model.selectedFiles.first else { return }
