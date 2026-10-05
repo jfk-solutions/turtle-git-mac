@@ -49,6 +49,7 @@
 		5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B58726A94B9B4799C06DE /* RemoveWindow.swift */; };
 		5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4B370EB64932B2909A8228 /* CloneWindow.swift */; };
 		5F4478C2B26B372096688B52 /* Pull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD299C13A57D2632BB2467B /* Pull.swift */; };
+		603768B96A855B625D7D5E0C /* MessageURLFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */; };
 		61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */; };
 		68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */; };
 		697C21F466069759F260EF25 /* WorkingFileDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */; };
@@ -281,6 +282,7 @@
 		DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchWindow.swift; sourceTree = "<group>"; };
 		E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertWindow.swift; sourceTree = "<group>"; };
 		E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRuntime.swift; sourceTree = "<group>"; };
+		E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageURLFinder.swift; sourceTree = "<group>"; };
 		EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeInlineComparison.swift; sourceTree = "<group>"; };
 		F01FB406B12CA9FED59A3121 /* FinderCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderCache.swift; sourceTree = "<group>"; };
 		F2E43773297420C7FDAE9748 /* GitRepository.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitRepository.swift; sourceTree = "<group>"; };
@@ -424,6 +426,7 @@
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
 				5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */,
 				F7809458AF943456197C0AC7 /* MergeWhitespace.swift */,
+				E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */,
 				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
 				2FD299C13A57D2632BB2467B /* Pull.swift */,
 				7A48D22D1E6D22153CBA3744 /* Push.swift */,
@@ -693,6 +696,7 @@
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,
 				FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */,
 				AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */,
+				603768B96A855B625D7D5E0C /* MessageURLFinder.swift in Sources */,
 				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,
 				5F4478C2B26B372096688B52 /* Pull.swift in Sources */,
 				D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */,

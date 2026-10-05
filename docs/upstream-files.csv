@@ -2815,8 +2815,8 @@ src/Utils/MiscUI/RegexEdit.h,Utils,blob,67a730b23357e4258150d3bce1c2dba589bbc5d3
 src/Utils/MiscUI/ResString.h,Utils,blob,fe2f1de1b41385fc6eaedfd01967d9d694dae6f6,pending-review,,
 src/Utils/MiscUI/SVG.cpp,Utils,blob,dd5281004d10d1d13f530562938c45071ad19c6d,pending-review,,
 src/Utils/MiscUI/SVG.h,Utils,blob,d1ed505a17a58335e6abee5f1d5a940fa8de845b,pending-review,,
-src/Utils/MiscUI/SciEdit.cpp,Utils,blob,5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e,partial,Sources/TurtleGitIssueRegex/main.cpp; Sources/TurtleGitCore/IssueMessageStyle.swift; Sources/TurtleGitMac/CommitMessageEditor.swift,"Verified pinned blob; UTF-8 issue styling, native tracker links, history ID updates and Undo acceptance. Full incremental styles, generic URL/email links, spell checking, snippets and remaining editor behavior pending. See docs/ISSUE-TRACKER-PARITY.md."
-src/Utils/MiscUI/SciEdit.h,Utils,blob,0c26375d84d7d27b111a5759af820d9058da9b6e,partial,Sources/TurtleGitIssueRegex/main.cpp; Sources/TurtleGitCore/IssueMessageStyle.swift; Sources/TurtleGitMac/CommitMessageEditor.swift,"Verified pinned blob; UTF-8 issue styling, native tracker links, history ID updates and Undo acceptance. Full incremental styles, generic URL/email links, spell checking, snippets and remaining editor behavior pending. See docs/ISSUE-TRACKER-PARITY.md."
+src/Utils/MiscUI/SciEdit.cpp,Utils,blob,5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e,partial,Sources/TurtleGitIssueRegex/main.cpp; Sources/TurtleGitCore/IssueMessageStyle.swift; Sources/TurtleGitMac/CommitMessageEditor.swift,"Verified pinned blob; UTF-8 issue styling, native tracker links, history ID updates and Undo acceptance. Ordinary URL/email scanning and style precedence also mapped. Full incremental styles, spell checking, snippets and remaining editor behavior pending. See docs/ISSUE-TRACKER-PARITY.md."
+src/Utils/MiscUI/SciEdit.h,Utils,blob,0c26375d84d7d27b111a5759af820d9058da9b6e,partial,Sources/TurtleGitIssueRegex/main.cpp; Sources/TurtleGitCore/IssueMessageStyle.swift; Sources/TurtleGitMac/CommitMessageEditor.swift,"Verified pinned blob; UTF-8 issue styling, native tracker links, history ID updates and Undo acceptance. Ordinary URL/email scanning and style precedence also mapped. Full incremental styles, spell checking, snippets and remaining editor behavior pending. See docs/ISSUE-TRACKER-PARITY.md."
 src/Utils/MiscUI/ScrollTool.cpp,Utils,blob,6d2b06b711211029d239fcd253294424729431d3,pending-review,,
 src/Utils/MiscUI/ScrollTool.h,Utils,blob,0215acd3b4b07f47466a78a354fa42aaf5ad9578,pending-review,,
 src/Utils/MiscUI/SplitterControl.cpp,Utils,blob,d554209a22c06d62626e66b48a6ce02b778e93de,pending-review,,
@@ -2877,7 +2877,7 @@ src/Utils/TreePropSheet/PropPageFrameDefault.cpp,Utils,blob,b5541d27aba5f529ac97
 src/Utils/TreePropSheet/PropPageFrameDefault.h,Utils,blob,4493e6408195b54a321c1b3a3d8ecaa80389d67a,pending-review,,
 src/Utils/TreePropSheet/TreePropSheet.cpp,Utils,blob,155c92024c42be1d2fa24a0975be5e688ff57cbb,pending-review,,
 src/Utils/TreePropSheet/TreePropSheet.h,Utils,blob,c42116a21da3fc90dea6b3f7b9b40450ed48998a,pending-review,,
-src/Utils/URLFinder.h,Utils,blob,069cadee1eacb70a6d46ebeaf0933e76c8a3430d,pending-review,,
+src/Utils/URLFinder.h,Utils,blob,069cadee1eacb70a6d46ebeaf0933e76c8a3430d,partial,Sources/TurtleGitCore/MessageURLFinder.swift,"Verified pinned blob; native scalar scanner, punctuation/bracket handling, prefixes/email gates, upstream range fixtures and native Commit link/Undo acceptance. Exact unusual PathIsURL and non-ASCII CRT classification pending. See docs/ISSUE-TRACKER-PARITY.md."
 src/Utils/UnicodeUtils.cpp,Utils,blob,3b2c5c97935acdcb139f28e9a6c7c1a17e41b41d,pending-review,,
 src/Utils/UnicodeUtils.h,Utils,blob,62073de87b79c1e6d9594453dbf37b4ba84f4f78,pending-review,,
 src/Utils/UniqueQueue.h,Utils,blob,73dba4a4ac7cc5b4aa3abdeea7de308a365656fb,pending-review,,

@@ -229,7 +229,7 @@ import UniformTypeIdentifiers
     private func scheduleIssueStyling() {
         issueStyleTask?.cancel(); issueMessageStyles = []
         let text = message, properties = issueProperties, worker = issueStyler
-        guard !properties.checkExpression.isEmpty, !text.isEmpty else { return }
+        guard !text.isEmpty else { return }
         issueStyleTask = Task { [weak self] in
             do {
                 try await Task.sleep(nanoseconds: 150_000_000)

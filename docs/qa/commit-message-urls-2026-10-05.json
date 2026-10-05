@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-05",
+  "scope": "Ordinary Commit message URL/email scanning; full SciEdit and Windows scheme classification remain partial.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "URLFinder.h": "069cadee1eacb70a6d46ebeaf0933e76c8a3430d",
+    "AppUtilsTest.cpp": "c2db167dc2893395ba497ba030d1a0e78b22bf6c"
+  },
+  "tests": {
+    "command": "swift test --filter 'MessageURLFinderTests|IssueMessageStyleTests|IssueRegexTests'",
+    "count": 11,
+    "failures": 0,
+    "cases": [
+      "Pinned upstream complete range fixtures",
+      "Unicode/bracket/EOF behavior",
+      "Punctuation, email/SSH and case gates",
+      "Ordinary URL overrides and splits issue hotspot ranges"
+    ],
+    "log_sha256": "b73e3f7d91e70e75351fb0b744e2130c8e651e79c9a5e09147208157cef3db8e"
+  },
+  "native": {
+    "fixture": "/tmp/TurtleGitMessageURLQA-repository",
+    "baseline": {
+      "head": "91f6f6ce459486619977df75a5eb8d7a99ad4458",
+      "index_sha256": "01f3f729e6f7b0d3087c2fd892ecc6aeeda5ad8ec8b27dd8bda0d4a6c8e25e86",
+      "working_sha256": "0e442b07e3772e8f5622478242ddf5f9f197bbd6a0402cd71471db4081abb291"
+    },
+    "head_index_working_unchanged": true,
+    "no_tracker_configuration": true,
+    "link_count": 4,
+    "links": [
+      "https://example.invalid/path",
+      "mailto:mail@example.invalid",
+      "https://example.invalid/with space?",
+      "file:///tmp/TurtleGitMessageURLQA-target%20file.txt"
+    ],
+    "plain_ssh": "git@example.invalid:repository",
+    "undo": "Appended newline/text then Undo restored exact 202-character message and links.",
+    "local_target": "Normal native click opened TurtleGitMessageURLQA-target file.txt in TextEdit with exact known content; only QA document closed.",
+    "replacement": "Plain message without a URL removed all four links.",
+    "lifecycle": "One QA app, normally quit through draft-cancel confirmation; final process scan empty.",
+    "screenshot": {
+      "path": "docs/site/assets/commit-message-urls.png",
+      "sha256": "ec9a0f67419d351979e190eb157eb2cf5fe9e5c3d36c48b97df786eef7ffa5d8"
+    }
+  },
+  "builds": {
+    "Debug": "Unsigned build and full resource audit passed",
+    "AppStore": "Unsigned build and full resource/Git audit passed after build completion",
+    "note": "An audit ran before the AppStore embedding step finished and saw a missing Git manifest; the original build completed successfully, then the final audit passed.",
+    "GitHub Pages": "Local site build and native PNG validation passed; publication pending"
+  },
+  "remaining": [
+    "Exact unusual PathIsURL and non-ASCII CRT classification",
+    "Full incremental Scintilla styling, spell checking, snippets and other editor behavior",
+    "Signed App Store acceptance and full Commit parity",
+    "Fresh GitHub verification after publication; authentication unavailable"
+  ],
+  "build_log_sha256": {
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "store": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  }
+}

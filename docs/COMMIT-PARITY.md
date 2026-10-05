@@ -1205,5 +1205,17 @@ retention for messages with no ID, and unchanged issue fields after revision
 insertion. Light/dark captures and preserved HEAD/index/working contents are
 recorded in [link acceptance](qa/commit-issue-links-2026-10-05.json).
 See [algorithm mapping and remaining editor gaps](ISSUE-TRACKER-PARITY.md).
-Generic URL/email detection, full incremental SciEdit behavior, provider plugins
-and signed sandbox invocation remain pending; this is partial Commit parity.
+Full incremental SciEdit behavior, provider plugins and signed sandbox
+invocation remain pending; this is partial Commit parity.
+
+## Ordinary message links
+
+URLFinder's punctuation/bracket scanner and its upstream fixtures are now
+ported for ordinary URLs and email addresses. URLs override issue styles in
+the same order as SciEdit, splitting any affected ID hotspots. Native checks
+without tracker configuration verified regular-font links, email targets,
+plain SSH addresses, Undo, replacement clearing and exact local file opening.
+See [source mapping and limitations](ISSUE-TRACKER-PARITY.md) and
+[recorded native acceptance](qa/commit-message-urls-2026-10-05.json).
+Unusual Windows scheme classification, incremental styles and full editor
+parity remain pending.

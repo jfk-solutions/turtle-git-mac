@@ -62,7 +62,7 @@ private final class MessageTextView: NSTextView {
         for key in [NSAttributedString.Key.link, .toolTip, .underlineStyle] { storage.removeAttribute(key, range: whole) }
         storage.addAttributes([.font: base, .foregroundColor: NSColor.textColor], range: whole)
         for style in styles where style.range.location >= 0 && style.range.location <= storage.length && style.range.length <= storage.length - style.range.location {
-            var styledFont = NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask)
+            var styledFont = style.kind == .url ? base : NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask)
             if style.kind == .identifier { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .italicFontMask) }
             var attributes: [NSAttributedString.Key: Any] = [.font: styledFont, .foregroundColor: NSColor.linkColor]
             if let url = style.url { attributes[.link] = url; attributes[.toolTip] = url }

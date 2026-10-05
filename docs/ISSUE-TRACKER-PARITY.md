@@ -135,17 +135,54 @@ all were closed after testing. See [recorded evidence](qa/commit-issue-links-202
 ![Actual native issue links in dark mode](site/assets/commit-issue-links-dark.png)
 
 Full-message native restyling does not yet reproduce every incremental
-Scintilla anchor/styling state. Generic URL/email links, tracker providers,
-spell checking, snippets and the remaining SciEdit functionality are pending.
+Scintilla anchor/styling state. Tracker providers, spell checking, snippets
+and the remaining SciEdit functionality are pending. URL/email matching
+is described below.
 Signed inherited-helper invocation remains unverified. Native link dispatch
 uses Apple's [NSTextView delegate](https://developer.apple.com/documentation/appkit/nstextviewdelegate/textview(_:clickedonlink:at:)).
+
+## Ordinary URL and email links
+
+The verified `src/Utils/URLFinder.h` blob is
+`069cadee1eacb70a6d46ebeaf0933e76c8a3430d`. Its `FindURLMatches` scanner is
+ported in `MessageURLFinder.swift`, using the same ASCII delimiter set,
+trailing punctuation removal, angle-bracket mode and supported case-sensitive
+prefixes: HTTP, HTTPS, Git, FTP, file and mailto (their lowercase spellings).
+Email targets receive `mailto:`. Git SSH addresses containing a colon after
+`@` are not email links. Bracketed URLs retain spaces and Unicode, with native
+UTF-16 ranges advanced by complete scalars, matching SciEdit's byte traversal.
+The scanner retains the upstream bracket-at-end-of-text quirk.
+
+The Windows `PathIsURL` gate is adapted using scheme syntax before the original
+prefix whitelist. Microsoft's [API documentation](https://learn.microsoft.com/en-us/windows/win32/api/shlwapi/nf-shlwapi-pathisurla)
+describes URL-format testing but does not define every unusual scheme case.
+Those cross-platform classification edge cases and non-ASCII CRT character
+classification remain unverified; Foundation link guessing is disabled.
+
+`SciEdit::StyleURLs` follows issue styling. Native composition therefore
+splits issue runs at ordinary URL boundaries and resolves any remaining ID
+hotspot from its actual visible substring. Ordinary links use the regular
+font and dynamic link color; issue context and IDs keep bold/italic styles.
+When issue matching fails during typing, ordinary links can still appear,
+while Commit validation continues reporting configuration failures.
+
+The upstream `AppUtilsTest.cpp` fixtures were verified at blob
+`c2db167dc2893395ba497ba030d1a0e78b22bf6c`. Their complete URL range examples,
+plus Unicode, punctuation, email/SSH gates and issue-style overlap tests pass.
+Native acceptance without any tracker configuration verifies plain-font links,
+Undo, removal of stale links, and a normal click opening the exact local file
+with a percent-escaped space. HEAD, raw index and working contents remained
+unchanged. The sole QA app quit normally; only its TextEdit QA document was
+closed. See [URL acceptance](qa/commit-message-urls-2026-10-05.json).
+
+![Actual native ordinary message links](site/assets/commit-message-urls.png)
 
 ## Remaining Commit behavior
 
 - Validate XDG/system includes, conditional includes and scoped ancestor access
   in a signed app, and review CLI versus libgit2 precedence differences.
-- Verify exact Windows natural ID ordering, incremental styling anchors, generic
-  URL/email detection, spell checking and other SciEdit editor behavior.
+- Verify exact Windows natural ID ordering, incremental styling anchors, unusual
+  Windows scheme classification, spell checking and other SciEdit editor behavior.
 - Audit Windows tracker-provider plugins and define the macOS equivalent.
 - Compare native light/dark Commit layouts and all controls with upstream;
   exercise scoped/signed builds, hooks, message-only and ReCommit/Push combinations.
