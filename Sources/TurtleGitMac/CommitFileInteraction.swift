@@ -11,6 +11,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     let delete: ([StatusEntry], StatusEntry, Bool) -> Void
     let copy: ([StatusEntry], Bool) -> Void
     let copyColumn: ([StatusEntry], StatusListColumn) -> Void
+    let toggleCheck: ([StatusEntry], StatusEntry) -> Void
 
     func makeNSView(context: Context) -> Probe { Probe() }
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: Probe, context: Context) -> CGSize? {
@@ -18,7 +19,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     }
     func updateNSView(_ view: Probe, context: Context) {
         view.rows = rows; view.focusedPath = $focusedPath
-        view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn
+        view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn; view.toggleCheck = toggleCheck
     }
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
 
@@ -31,6 +32,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         var delete: ([StatusEntry], StatusEntry, Bool) -> Void = { _, _, _ in }
         var copy: ([StatusEntry], Bool) -> Void = { _, _ in }
         var copyColumn: ([StatusEntry], StatusListColumn) -> Void = { _, _ in }
+        var toggleCheck: ([StatusEntry], StatusEntry) -> Void = { _, _ in }
         private var monitor: Any?
         private var menuObserver: NSObjectProtocol?
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
@@ -104,6 +106,11 @@ struct CommitFileInteraction: NSViewRepresentable {
             guard let table = window.firstResponder as? NSTableView, contains(table) else { return event }
             let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
             contextColumn = nil; contextEntries = []
+            if event.keyCode == 49, flags.isEmpty, enabled {
+                let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
+                let mark = selected.first { $0.path == focusedPath?.wrappedValue } ?? selected.first
+                if let mark { toggleCheck(selected, mark); return nil }
+            }
             // Headers are presentation rows. Skip them for ordinary navigation,
             // retaining AppKit's range selection and modifier behavior.
             if flags.isEmpty, rows.contains(where: { $0.group != nil }), [125, 126, 115, 119].contains(event.keyCode) {

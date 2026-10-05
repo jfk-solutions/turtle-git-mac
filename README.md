@@ -74,7 +74,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   and leading-dot extensions match the upstream display. Changelist creation,
   assignment, ignored-file checks and optional successful-commit cleanup are
   available, with status/changelist group headings and group check/unstage actions. Broader selection and
-  signed sandbox checks remain under audit.
+  signed sandbox checks remain under audit. Highlighted checkbox changes and Space
+  apply to the highlight; F5 refreshes while retaining the message and checks.
 - Dedicated Revert window with scoped file checks, Select/deselect all, counts,
   F5 refresh and light/dark appearance; Finder and app-menu routing.
   [Revert parity details](docs/REVERT-PARITY.md) record the remaining workflows.

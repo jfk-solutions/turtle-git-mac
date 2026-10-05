@@ -1052,3 +1052,45 @@ the QA app quit normally and no test instances remained.
 capture. Native unversioned/deleted/symlink/binary pair variants, alternative diff
 tools, historical status-list integration and signed sandbox execution remain
 pending. This is a partial port of the status-list action, not full dialog parity.
+
+
+## Highlighted checkbox changes and keyboard refresh
+
+Pinned `GitStatusListCtrl.cpp::OnLvnItemchanged` applies a clicked row's new check
+state to all highlighted rows when that row is highlighted, and changes only the
+clicked row otherwise. The native ordinary and three-state staging checkboxes now
+follow this rule. `StatusListSelection.checkboxEntries` resolves only actual file
+IDs from the displayed list, excluding stale selections and presentation headings.
+Table-focused Space applies the focused highlighted row's next checkbox state to
+the highlight; mixed staging state stages remaining changes, and fully staged state
+unstages. Message-editor Space continues inserting ordinary spaces.
+
+The pinned file context menu contains no Check selected files, Uncheck selected
+files, Stage selected files or Unstage selected files items. Those native additions
+were removed now that checkbox selection works directly. Upstream group-header
+Check group and Uncheck group remain available. Commit's native window handles F5
+through the same reload path as Refresh, including message-editor focus, with busy,
+quit-confirmation and attached-sheet gates. Command-Return remains the macOS
+adaptation of upstream Control-Return.
+
+A regression covers highlighted/unhighlighted checkbox targets, literal Unicode
+and newline paths, stale IDs and group IDs. Together with revision comparisons,
+file comparisons and groups, 22 focused tests pass. Debug and unsigned App Store
+builds and both resource/bundled-Git audits pass.
+
+Native QA verified one checkbox unchecked both highlighted tracked files; checking
+an unhighlighted untracked file preserved those highlights and checks. Space
+checked the two highlighted files; message-editor Space remained ordinary text.
+Creating a disposable untracked file outside the app and pressing F5 in the message
+editor refreshed the list while preserving `message preserved` and all checks.
+The first selected-file menu omitted the four extra commands. These checks left
+HEAD, the raw index and original working bytes unchanged.
+
+In staging mode, Space staged two highlighted untracked files with their exact
+working blobs. Clicking either highlighted staging checkbox then unstaged both,
+restoring the original index entries while preserving unrelated staged contents,
+HEAD and every working file. The test app quit normally and no instances remained.
+`site/assets/commit-checkbox-selection.png` is the inspected original 2000 × 1584
+ordinary checkbox/F5 capture. Native conflict/dirty-submodule and mixed-state bulk
+variants, alternate input devices, full accessibility and signed sandbox workflows
+remain pending; this does not establish full checkbox or Commit parity.

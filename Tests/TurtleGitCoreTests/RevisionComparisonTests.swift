@@ -67,6 +67,14 @@ final class RevisionComparisonTests: XCTestCase {
         let retained = StatusEntry.parse(Data("D  file\0?? file\0".utf8))[0]
         XCTAssertTrue(retained.hasUnversionedCopy); XCTAssertFalse(retained.canCompareWithBaseFromStatusList)
     }
+    func testCheckboxTargetsPreserveHighlightAndExcludeStaleAndHeaderIDs() {
+        let entries = StatusEntry.parse(Data(" M a\0?? new 雪\n.txt\0 M other\0".utf8))
+        let highlighted: Set<String> = [entries[0].id, entries[1].id, "\0group:modified", "stale"]
+        XCTAssertEqual(StatusListSelection.checkboxEntries(entry: entries[0], entries: entries, highlighted: highlighted).map(\.path), ["a", "new 雪\n.txt"])
+        XCTAssertEqual(StatusListSelection.checkboxEntries(entry: entries[2], entries: entries, highlighted: highlighted).map(\.path), ["other"])
+        XCTAssertEqual(StatusListSelection.checkboxEntries(entry: entries[0], entries: entries, highlighted: []).map(\.path), ["a"])
+        XCTAssertTrue(StatusListSelection.checkboxEntries(entry: entries[0], entries: [entries[2]], highlighted: highlighted).isEmpty)
+    }
     func testFirstRequestContextMarkUsesClickedRowAndPreservesExistingMixedAnchor() {
         let entries = StatusEntry.parse(Data("?? new\0 M tracked\0 M other\0".utf8))
         let clicked = StatusListSelection.mark(entries: entries, requested: ["tracked"], highlighted: ["new"], focusedPath: "new")

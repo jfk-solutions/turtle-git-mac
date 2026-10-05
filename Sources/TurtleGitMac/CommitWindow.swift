@@ -3,6 +3,16 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
+@MainActor private final class CommitNativeWindow: NSWindow {
+    weak var model: CommitWindowModel?
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.keyCode == 96, attachedSheet == nil, let model, !model.busy, !model.confirmingQuit {
+            model.reload(); return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
 @MainActor final class CommitWindowController: NSWindowController, NSWindowDelegate {
     let model: CommitWindowModel
     var onClosed: () -> Void = {}
@@ -12,12 +22,12 @@ import UniformTypeIdentifiers
     private var logPicker: LogWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = CommitWindowModel(repository: repository, access: access)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
+        let window = CommitNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Commit – TurtleGit"
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model))
-        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
+        super.init(window: window); window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.close = { [weak window] in window?.close() }
         model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
         model.showViewPatch = { [weak self] in self?.showPartial(staged: false, readOnly: true) }
@@ -525,6 +535,14 @@ import UniformTypeIdentifiers
         else if value { checked.formUnion(paths) }
         else { checked.subtract(paths) }
     }
+    func setFileChecked(_ entry: StatusEntry, files: [StatusEntry], highlighted: Set<String>, checked value: Bool) {
+        guard !busy, !confirmingQuit, entry.state != .conflicted else { return }
+        let targets = StatusListSelection.checkboxEntries(entry: entry, entries: files, highlighted: highlighted)
+        let paths = Set(targets.map(\.id))
+        if stagingEnabled { moveToStage(paths, staged: value) }
+        else if value { checked.formUnion(paths) }
+        else { checked.subtract(paths) }
+    }
     func uncheckAll() {
         if stagingEnabled { moveToStage(Set(visibleEntries.filter(\.staged).map(\.id)), staged: false) }
         else { checked.subtract(visibleEntries.map(\.id)) }
@@ -852,9 +870,9 @@ GroupBox("Changes made (double-click on file for diff):") {
             TableColumn("") { (row: StatusListRow) in
                 if let entry = row.entry {
                     if staged != nil {
-                        StagingCheckbox(entry: entry, enabled: !model.busy) { model.moveToStage([entry.id], staged: $0) }.frame(width: 20, height: 20)
+                        StagingCheckbox(entry: entry, enabled: !model.busy && !model.confirmingQuit) { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }.frame(width: 20, height: 20)
                     } else {
-                        Toggle("Include \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.id) }, set: { if $0 { model.checked.insert(entry.id) } else { model.checked.remove(entry.id) } }))
+                        Toggle("Include \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.id) }, set: { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }))
                             .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
                     }
                 }
@@ -918,13 +936,6 @@ GroupBox("Changes made (double-click on file for diff):") {
                     Button { model.onCompareTwoFiles(rows.compactMap(\.entry).filter { ids.contains($0.id) }.map(\.path)) } label: { CommandLabel(title: "Compare two files", icon: .compare) }
                         .disabled(model.busy || model.confirmingQuit)
                     Divider()
-                }
-                if staged != nil {
-                    Button { model.moveToStage(ids, staged: true) } label: { CommandLabel(title: "Stage selected files", icon: .add) }.disabled(ids.isEmpty)
-                    Button { model.moveToStage(ids, staged: false) } label: { CommandLabel(title: "Unstage selected files", icon: .revert) }.disabled(ids.isEmpty)
-                } else {
-                    Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
-                    Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
                 }
                 if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) {
                     Button { model.revertFiles(selected) } label: { CommandLabel(title: "Revert", icon: .revert) }
@@ -1010,7 +1021,10 @@ GroupBox("Changes made (double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }))
+        .background(CommitFileInteraction(rows: rows, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
+            let next = model.stagingEnabled ? !(mark.staged && mark.worktree == " ") : !model.checked.contains(mark.id)
+            model.setFileChecked(mark, files: files, highlighted: Set(files.map(\.id)), checked: next)
+        }))
         .onChange(of: selection.wrappedValue) { ids in
             let files = ids.intersection(Set(entries.map(\.id)))
             if files.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = files.first }
