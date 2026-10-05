@@ -30,50 +30,12 @@ import TurtleGitCore
         FIFinderSyncController.default().setBadgeIdentifier(snapshot?.states[url.path]?.rawValue ?? "", for: url)
     }
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
-        let menu = NSMenu(title: "TurtleGit")
-        let submenu = NSMenu(title: "TurtleGit")
         let controller = FIFinderSyncController.default()
         let selection = controller.selectedItemURLs() ?? []
         let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
-        submenu.autoenablesItems = false
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
-            let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
-            item.image = action.icon.image()
-            if action == .formatPatch || action == .worktreeCreate || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
-            if action == .revert { item.isEnabled = snapshot?.canRevert(paths) == true }
-            if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }
-            if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
-            if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
-            item.target = self; item.representedObject = action.rawValue; submenu.addItem(item)
-        }
-        for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true {
-            let ignore = NSMenuItem(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", action: nil, keyEquivalent: "")
-            ignore.image = MenuIcon.ignore.image()
-            let choices = NSMenu(title: ignore.title); choices.autoenablesItems = false
-            let name = paths.count == 1 ? paths[0].lastPathComponent : "Ignore \(paths.count) items by name"
-            let named = NSMenuItem(title: name, action: #selector(openAction(_:)), keyEquivalent: "")
-            named.target = self; named.image = MenuIcon.ignore.image(); named.representedObject = (deleting ? RepositoryAction.ignoreDelete : .ignore).rawValue
-            choices.addItem(named)
-            let singleDirectory = paths.count == 1 && snapshot?.states.keys.contains(where: { $0.hasPrefix(paths[0].path + "/") }) == true
-            if !singleDirectory && paths.contains(where: { !$0.pathExtension.isEmpty }) {
-                let title = paths.count == 1 ? "*." + paths[0].pathExtension : "Ignore \(paths.count) items by extension"
-                let mask = NSMenuItem(title: title, action: #selector(openAction(_:)), keyEquivalent: "")
-                mask.target = self; mask.image = MenuIcon.ignore.image(); mask.representedObject = (deleting ? RepositoryAction.ignoreDeleteMask : .ignoreMask).rawValue
-                choices.addItem(mask)
-            }
-            ignore.submenu = choices; submenu.addItem(ignore)
-        }
-        if paths.count == 1, (try? paths[0].resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == false {
-            let marked = try? WorkingComparisonMarkSnapshot.read()
-            let title = marked.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title
-            let item = NSMenuItem(title: title, action: #selector(openAction(_:)), keyEquivalent: "")
-            item.target = self; item.image = MenuIcon.compare.image(); item.representedObject = RepositoryAction.diffLater.rawValue
-            submenu.addItem(.separator()); submenu.addItem(item)
-        }
-        let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
-        parent.image = MenuIcon.turtle.image()
-        parent.submenu = submenu; menu.addItem(parent)
-        return menu
+        return FinderMenuBuilder.make(paths: paths, snapshot: snapshot,
+            settings: FinderMenuSettings.read(), comparisonMark: try? WorkingComparisonMarkSnapshot.read(),
+            target: self, actionSelector: #selector(openAction(_:)))
     }
     @objc private func openAction(_ sender: NSMenuItem) {
         let controller = FIFinderSyncController.default()
@@ -84,5 +46,54 @@ import TurtleGitCore
         if action == .diffLater, NSEvent.modifierFlags.contains(.control) { action = .clearComparisonMark }
         guard let url = FinderRequest(action: action, paths: paths).url else { return }
         NSWorkspace.shared.open(url)
+    }
+}
+
+/// Builds the same menu used by the extension without requiring a live Finder controller.
+enum FinderMenuBuilder {
+    static func make(paths: [URL], snapshot: FinderSnapshot?, settings: FinderMenuSettings,
+                     comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector) -> NSMenu {
+        func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
+        let menu = NSMenu(title: "TurtleGit")
+        let submenu = NSMenu(title: "TurtleGit")
+        submenu.autoenablesItems = false
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
+            let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
+            item.image = image(action.icon)
+            if action == .formatPatch || action == .worktreeCreate || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
+            if action == .revert { item.isEnabled = snapshot?.canRevert(paths) == true }
+            if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }
+            if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
+            if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
+            item.target = target; item.representedObject = action.rawValue; submenu.addItem(item)
+        }
+        for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true {
+            let ignore = NSMenuItem(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", action: nil, keyEquivalent: "")
+            ignore.image = image(.ignore)
+            let choices = NSMenu(title: ignore.title); choices.autoenablesItems = false
+            let name = paths.count == 1 ? paths[0].lastPathComponent : "Ignore \(paths.count) items by name"
+            let named = NSMenuItem(title: name, action: actionSelector, keyEquivalent: "")
+            named.target = target; named.image = image(.ignore); named.representedObject = (deleting ? RepositoryAction.ignoreDelete : .ignore).rawValue
+            choices.addItem(named)
+            let singleDirectory = paths.count == 1 && snapshot?.states.keys.contains(where: { $0.hasPrefix(paths[0].path + "/") }) == true
+            if !singleDirectory && paths.contains(where: { !$0.pathExtension.isEmpty }) {
+                let title = paths.count == 1 ? "*." + paths[0].pathExtension : "Ignore \(paths.count) items by extension"
+                let mask = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
+                mask.target = target; mask.image = image(.ignore); mask.representedObject = (deleting ? RepositoryAction.ignoreDeleteMask : .ignoreMask).rawValue
+                choices.addItem(mask)
+            }
+            ignore.submenu = choices; submenu.addItem(ignore)
+        }
+        if paths.count == 1, (try? paths[0].resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == false {
+            let marked = comparisonMark
+            let title = marked.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title
+            let item = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
+            item.target = target; item.image = image(.compare); item.representedObject = RepositoryAction.diffLater.rawValue
+            submenu.addItem(.separator()); submenu.addItem(item)
+        }
+        let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
+        parent.image = image(.turtle)
+        parent.submenu = submenu; menu.addItem(parent)
+        return menu
     }
 }

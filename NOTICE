@@ -250,5 +250,13 @@ Copyright (C) 2008-2009, 2011 TortoiseSVN (IconMenu.cpp);
 Copyright (C) 2010, 2013, 2023, 2025 TortoiseGit;
 Copyright (C) 2008-2009, 2011 TortoiseSVN
 (IconMenu.h). Native menu image policy replaces Win32 bitmap/menu ownership.
-This ports ShowAppContextMenuIcons; separate Finder ShowContextMenuIcons, full
+This ports ShowAppContextMenuIcons. Finder ShowContextMenuIcons now uses a
+separate atomic App Group presentation cache and native menu image policy. Full
 menu parity, native popup gestures and signed acceptance remain pending.
+
+Finder presentation preference and menu builder partially adapt
+TortoiseShell/ContextMenu.cpp under GPL version 2 or later. Copyright
+(C) 2008-2026 TortoiseGit;
+Copyright (C) 2003-2012, 2014-2016, 2018 TortoiseSVN.
+Native Finder menu construction replaces Win32 menu insertion; the complete
+command conditions and signed Finder behavior remain pending.

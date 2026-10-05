@@ -15,6 +15,27 @@ public enum FinderIntegration {
     }
     public static var snapshotURL: URL? { container?.appendingPathComponent("status.json") }
 }
+/// Presentation preferences are independent of repository status and app menus.
+public struct FinderMenuSettings: Codable, Equatable, Sendable {
+    public var showIcons: Bool
+    public init(showIcons: Bool = true) { self.showIcons = showIcons }
+    public static var sharedURL: URL? { FinderIntegration.container?.appendingPathComponent("menu-settings.json") }
+    public static func from(defaults: UserDefaults = .standard) -> Self {
+        Self(showIcons: (defaults.object(forKey: "ShowContextMenuIcons") as? NSNumber)?.boolValue ?? true)
+    }
+    public static func read(from url: URL? = sharedURL) -> Self {
+        guard let url, let data = try? Data(contentsOf: url),
+              let settings = try? JSONDecoder().decode(Self.self, from: data) else { return Self() }
+        return settings
+    }
+    @discardableResult public func write(to url: URL? = sharedURL) throws -> Bool {
+        guard let url else { return false }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try JSONEncoder().encode(self).write(to: url, options: .atomic)
+        return true
+    }
+}
+
 public struct FinderSnapshot: Codable, Sendable {
     public var roots: [String]
     public var states: [String: FileState]

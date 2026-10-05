@@ -4,12 +4,16 @@ import TurtleGitCore
 
 @MainActor final class AdvancedSettingsModel: ObservableObject {
     let store: AdvancedSettingsStore
+    private let defaults: UserDefaults
+    private let publishFinderMenu: (FinderMenuSettings) throws -> Void
     @Published var values: [String: String]
     @Published var error: String?
     @Published private var original: [String: String]
     var onApplied: () -> Void = {}
     var modified: Bool { values != original }
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard,
+         publishFinderMenu: @escaping (FinderMenuSettings) throws -> Void = { _ = try $0.write() }) {
+        self.defaults = defaults; self.publishFinderMenu = publishFinderMenu
         store = AdvancedSettingsStore(defaults: defaults); let initial = store.values(); original = initial; values = initial
     }
     func edit(_ name: String, text: String) -> Bool {
@@ -17,7 +21,14 @@ import TurtleGitCore
         values[name] = text; return true
     }
     func apply() {
-        do { try store.apply(values.filter { original[$0.key] != $0.value }); original = values; onApplied() }
+        do {
+            let changes = values.filter { original[$0.key] != $0.value }
+            try store.apply(changes); original = values; error = nil; onApplied()
+            if changes["ShowContextMenuIcons"] != nil {
+                do { try publishFinderMenu(FinderMenuSettings.from(defaults: defaults)) }
+                catch { self.error = "Settings saved, but Finder menu preferences could not be updated: " + error.localizedDescription }
+            }
+        }
         catch { self.error = error.localizedDescription }
     }
     func cancel() { original = store.values(); values = original; error = nil }
@@ -82,7 +93,7 @@ struct AdvancedSettingsTable: NSViewRepresentable {
         func tableView(_ tableView: NSTableView, toolTipFor cell: NSCell, rect: NSRectPointer, tableColumn: NSTableColumn?, row: Int, mouseLocation: NSPoint) -> String {
             guard AdvancedSettingDefinition.all.indices.contains(row) else { return "" }
             let setting = AdvancedSettingDefinition.all[row]
-            let effective: Set<String> = ["AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons"]
+            let effective: Set<String> = ["AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons"]
             return effective.contains(setting.name) ? setting.name : "This preference has no effect on TurtleGit yet."
         }
         @objc func beginEdit() {

@@ -172,7 +172,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Original TortoiseGit command icons in app context menus and the Finder submenu;
   original XPStyle status artwork for Finder badges and app file status.
   Advanced Settings → ShowAppContextMenuIcons controls app menu artwork while
-  retaining button and status icons. Its separate Finder preference is pending;
+  retaining button and status icons. ShowContextMenuIcons separately controls
+  Finder artwork through the shared cache; signed handoff remains unverified;
   see [context-menu icon audit](docs/CONTEXT-MENU-ICONS-PARITY.md).
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.

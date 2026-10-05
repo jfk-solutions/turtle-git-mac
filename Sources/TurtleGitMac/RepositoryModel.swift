@@ -90,6 +90,8 @@ import TurtleGitCore
     }
 
     init() {
+        do { _ = try FinderMenuSettings.from().write() }
+        catch { finderStatus = "Finder menu preferences unavailable: " + error.localizedDescription }
         do { workingComparisonMark = try comparisonMarkStore.snapshot() } catch { self.error = error.localizedDescription }
         do {
             let store = try RepositoryAccessStore(storageURL: RepositoryAccessStore.defaultStorageURL)

@@ -53,8 +53,9 @@ repaint callback avoid retaining the settings window/view through the model.
 Apply invalidates open native views so the implemented list-background preference
 can redraw. Existing consumers also read completion minimum/parse size/
 unversioned parsing/extension removal, commit-message styling and app context-menu
-icons. The app menu preference is independent of the still-pending Finder icon
-preference; see [menu audit](CONTEXT-MENU-ICONS-PARITY.md). Other settings
+icons and separate Finder menu icons. Finder settings publish on Apply and app
+startup through an independent presentation cache; signed handoff remains pending.
+See [menu audit](CONTEXT-MENU-ICONS-PARITY.md). Other settings
 are stored for subsequent ports; their row tooltips state that they have no
 effect yet. Storage/editor parity is not proof of their runtime behavior.
 
@@ -63,7 +64,9 @@ effect yet. Storage/editor parity is not proof of their runtime behavior.
 Four core tests compare the entire catalogue with the pinned fixture, then cover
 strict boolean input, invalid batches without mutation, blank deletion, absent
 unchanged defaults, numeric equivalence, zero, leading zeros, overflow and signed
-stored DWORD presentation. The full core suite passes: 460 tests, zero failures.
+stored DWORD presentation. The most recent full core run, before the menu icon
+follow-ups, passed 460 tests with zero failures. Focused follow-up verification
+is recorded in the menu audit.
 
 The Swift 6/macOS 13 standalone driver instantiates the actual native table/model
 without displaying a window. It verifies all 52 rows, Name/Value order,

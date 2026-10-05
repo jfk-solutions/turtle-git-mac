@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-06",
+  "scope": "Finder ShowContextMenuIcons independent preference cache and actual menu builder; signed integration/full shell menu parity pending",
+  "baseCommit": "d1acc00171d4b709ff5dc0a7704ac720acad4e93",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "ContextMenu.cpp": "0b31f963e73ff71cd9cdb0861972a671236ae20f"
+  },
+  "focusedCoreTests": {
+    "count": 11,
+    "failures": 0,
+    "newTests": 2,
+    "scope": "Finder requests, app menu policy, independent Finder defaults/nonzero/reset, atomic handoff, fallback, status bytes unchanged and write failure"
+  },
+  "fullCoreTests": "Not rerun for this presentation change; prior 460-test full run predates both menu follow-ups",
+  "actualNativeReceivers": [
+    "Actual extension source compiled with Swift 6/macOS 13 into a standalone menu builder driver; no Finder controller instantiated",
+    "Six selection cases preserve titles/enabled states/represented actions/target and selector routing",
+    "All parent/action/nested ignore/marked-compare images toggle; cache false/true read on separate builds and badge artwork available",
+    "Actual Advanced model draft Cancel/no publication, Apply, blank reset, independent app key and publication failure retaining saved settings"
+  ],
+  "startupPublication": "RepositoryModel init publishes saved Finder preference; source path audited and compiled, real entitled startup/handoff not exercised",
+  "cache": "Separate menu-settings.json; status snapshot schema/roots/states/timestamps unchanged; no preferences written to standard application domain by extension",
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App/Finder extension, unchanged 75 original icons, current NOTICE/licenses, universal helper runtimes and Store Git 2.55.0 verified",
+  "nativeUI": "No app windows or popups displayed; no extension activated; no gesture/screenshot acceptance claim",
+  "appProcesses": "Standalone driver fixtures/default suites cleaned; no TurtleGit app or test receiver process remained at audit",
+  "logs": {
+    "core": {
+      "path": "/tmp/turtlegit-finder-icons-core.log",
+      "sha256": "98cfaba6bca9b080fe93b682ecaba61afc11899458894ac5aaca4544776fd612",
+      "exitCode": 0
+    },
+    "menu": {
+      "path": "/tmp/turtlegit-finder-icons-menu.log",
+      "sha256": "9b7a2481deeddd6d90df0740fc639f7e916d669b3c31479f9e99080b5cdc67be",
+      "exitCode": 0
+    },
+    "advanced": {
+      "path": "/tmp/turtlegit-finder-icons-advanced.log",
+      "sha256": "7f2945ee8f7c359afe185b1c97a02238866c0fcd222c3ddf318dd7d16b8909fe",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-icons-debug.log",
+      "sha256": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-icons-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-finder-icons-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-finder-icons-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-icons-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    ".github/workflows/macos.yml": "50c557711eedeee89aa745fa9554898757367ed1b7103f6f1098fa239525c7e4",
+    "FinderSync/FinderSync.swift": "0e938a6c0b20f824a4535a837e46e2bc251bac79a6da029e80bef24e8339ce80",
+    "NOTICE": "e5ce7e58a1625d69d720d54b485e96ff47190bd17908a64526ff9a6956e6039b",
+    "README.md": "03d4b4c279a343ca25b046fd838ea8bf942c8aef62f68187ce539820a35871b6",
+    "Sources/TurtleGitCore/FinderCache.swift": "17c80d1897ebc80e353d57c26b62adc2f89f71c966646addfd4e85aa8352cff8",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "3cf7769e2b48069a08cc7f2f045e706d3e08248b592a93de855795bd702583be",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "8ecf788f88a46a2f249b2c665c899753be312d8f280446b24ffac24dd66a030b",
+    "docs/ADVANCED-SETTINGS-PARITY.md": "85dc9edc93337651371dfd682dc9148a054f4f1645785de4b2762d13a0468180",
+    "docs/CONTEXT-MENU-ICONS-PARITY.md": "2c9ae1b5ed8bd33b93c82625b8b99a40a7f733308e32296fc3c0b3cb35a590c2",
+    "docs/upstream-files.csv": "a0d7855e3ffdbf8d55bf7f6b969cad10f78e84d7f38fdfe1c44aa84d3f06b19f",
+    "scripts/test-advanced-settings.py": "c838ebf64c9c7693829b087fce5374ec46dd4967e51008f251f8b5f7b81aade8",
+    "Tests/TurtleGitCoreTests/FinderMenuSettingsTests.swift": "dd784a862b4252680f4a7ecd9ae088d3533db419638259a17c0e4cb5ae406e4f",
+    "scripts/test-finder-menu.py": "c3c68617216ea7644bf9477c5f9570e6af9506a130ffc76234b585f8b871ee2c"
+  },
+  "pending": [
+    "Real signed app-to-Finder App Group handoff and restart/Apply/default-reset acceptance",
+    "Activated Finder popup composition, selection routing and badge behavior",
+    "Complete shell command conditions and full native dialog parity",
+    "Signed sandbox/distribution acceptance",
+    "GitHub publication/execution; existing authentication blocker"
+  ]
+}

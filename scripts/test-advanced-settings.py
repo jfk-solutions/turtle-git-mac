@@ -48,6 +48,22 @@ import TurtleGitCore
         precondition(model.values["AutoCompleteMinChars"] == String(repeating: "9", count: 200), "Apply preserves the source editor's input until reopening")
         precondition(model.edit("AutoCompleteMinChars", text: "")); model.apply(); model.cancel()
         precondition(defaults.object(forKey: "AutoCompleteMinChars") == nil && model.values["AutoCompleteMinChars"] == "3")
+        var published: [FinderMenuSettings] = []
+        let finder = AdvancedSettingsModel(defaults: defaults, publishFinderMenu: { published.append($0) })
+        precondition(finder.edit("ShowContextMenuIcons", text: "false")); finder.cancel()
+        precondition(published.isEmpty && defaults.object(forKey: "ShowContextMenuIcons") == nil)
+        precondition(finder.edit("ShowContextMenuIcons", text: "false")); finder.apply()
+        precondition(published == [FinderMenuSettings(showIcons: false)] && !finder.modified)
+        precondition(finder.edit("ShowContextMenuIcons", text: "")); finder.apply()
+        precondition(published.last == FinderMenuSettings() && defaults.object(forKey: "ShowContextMenuIcons") == nil)
+        let count = published.count
+        precondition(finder.edit("ShowAppContextMenuIcons", text: "false")); finder.apply()
+        precondition(published.count == count, "App icon changes must not publish Finder settings")
+        struct PublicationError: Error {}
+        let failure = AdvancedSettingsModel(defaults: defaults, publishFinderMenu: { _ in throw PublicationError() })
+        precondition(failure.edit("ShowContextMenuIcons", text: "false")); failure.apply()
+        precondition(!failure.modified && !defaults.bool(forKey: "ShowContextMenuIcons") && failure.error!.contains("Settings saved"))
+        print("Actual Advanced receiver: Finder drafts/Cancel/Apply/default reset, separate app preference and saved-but-publication-failed error passed. Signed handoff remains pending.")
         print("Actual native Advanced receiver: 52 Name/Value rows, editing/read-only columns, geometry, deferred Apply, default deletion, Cancel, unchanged-page preservation, zero/overflow and source input retention passed. Native F2/double-click/field editor/window close remain pending.")
     }
 }
