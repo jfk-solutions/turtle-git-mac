@@ -579,3 +579,10 @@ for a regular file outside the repository. Only that working pane becomes
 editable. The selected historical revision remains pinned. See
 [comparison mark parity](COMPARISON-MARK-PARITY.md) for tests, the native screenshot
 and remaining signed/tool/path variants. This does not establish full Log parity.
+
+
+Native mixed-comparison Save now has exact UTF-16/BOM/CRLF and 0755 acceptance,
+including external-change refusal and Reload Cancel/discard behavior. A native
+prompt bug was fixed so Reload/Close/Quit name the actual edited file, and all
+three corrected labels were checked. See [comparison mark parity](COMPARISON-MARK-PARITY.md)
+for the QA record and remaining active-pane/signed sandbox limitations.

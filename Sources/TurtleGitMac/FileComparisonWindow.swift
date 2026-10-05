@@ -44,7 +44,7 @@ import TurtleGitCore
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard sender.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return false }
         guard model.dirty else { return true }
-        let alert = NSAlert(); alert.messageText = "Save changes to “\(model.path)” before closing?"
+        let alert = NSAlert(); alert.messageText = "Save changes to “\(model.editedFilePath)” before closing?"
         alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
         switch alert.runModal() {
         case .alertFirstButtonReturn: model.save { [weak self] saved in if saved { self?.window?.performClose(nil) } }; return false
@@ -140,6 +140,8 @@ import TurtleGitCore
             let panel = NSSavePanel(); panel.nameFieldStringValue = (content.path as NSString).lastPathComponent; panel.canCreateDirectories = true; panel.directoryURL = snapshot.root
             panel.beginSheetModal(for: window) { [weak self] response in
                 guard response == .OK, let url = panel.url else { return }
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                 do { try bytes.write(to: url, options: .atomic) } catch { self?.error = error.localizedDescription }
             }
         } catch { self.error = error.localizedDescription }
@@ -148,6 +150,10 @@ import TurtleGitCore
         guard let document else { return nil }
         for (base, content) in [(true, document.base), (false, document.destination)] where content.revision == .workingTree && ["100644", "100755"].contains(content.mode ?? "") && content.text != nil { return base }
         return nil
+    }
+    var editedFilePath: String {
+        guard let document, let base = editableBase else { return path }
+        return base ? document.base.path : document.destination.path
     }
     var dirty: Bool { guard let document, let base = editableBase else { return false }; return annotations.marked != savedMarked || !editedText.utf8.elementsEqual((base ? document.base.text! : document.destination.text!).utf8) }
     var resetHistory: () -> Void = {}
@@ -176,7 +182,7 @@ import TurtleGitCore
     func load() {
         guard !busy, !confirmingQuit else { return }
         if dirty {
-            let alert = NSAlert(); alert.messageText = "Save changes to “\(path)” before reloading?"
+            let alert = NSAlert(); alert.messageText = "Save changes to “\(editedFilePath)” before reloading?"
             alert.addButton(withTitle: "Save and Reload"); alert.addButton(withTitle: "Reload Without Saving"); alert.addButton(withTitle: "Cancel")
             switch alert.runModal() {
             case .alertFirstButtonReturn: save { [weak self] saved in if saved { self?.load() } }; return
@@ -214,6 +220,21 @@ import TurtleGitCore
         let b = editableBase == false ? editedText : document.destination.text
         alignment = a.flatMap { old in b.map { FileComparisonAlignment(base: old, destination: $0) } }
     }
+    /// Replacement uses a temporary sibling. A file bookmark alone is retained
+    /// for reads; ask for its folder only when the user explicitly saves.
+    private func authorizeWorkingReplacement(at file: URL) throws -> Bool {
+        guard GitRuntime.isAppStoreBuild else { return true }
+        let parent = file.deletingLastPathComponent()
+        if workingPermissions.contains(where: { $0.hasSecurityScope && $0.contains(file) && $0.contains(parent) }) { return true }
+        let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
+        panel.directoryURL = parent; panel.prompt = "Allow Save"
+        panel.message = "Choose the folder containing “" + file.lastPathComponent + "” to allow TurtleGit to replace the edited file."
+        guard panel.runModal() == .OK, let folder = panel.url else { return false }
+        let permission = RepositoryAccessLease(url: folder)
+        guard permission.hasSecurityScope, permission.contains(file), permission.contains(parent) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        workingPermissions.append(permission)
+        return true
+    }
     func save(completion: ((Bool) -> Void)? = nil) {
         guard !busy, let document, let base = editableBase else { completion?(false); return }
         let text = editedText; busy = true
@@ -223,10 +244,12 @@ import TurtleGitCore
             do {
                 if let historicalWorkingComparison {
                     try validateHistoricalWorkingAccess(historicalWorkingComparison)
+                    guard try authorizeWorkingReplacement(at: historicalWorkingComparison.workingFile) else { return }
                     guard base else { throw FileComparisonEditFailure.unsupported }
                     self.document = try historicalWorkingComparison.saveBase(document, text: text)
                 } else if let workingComparison {
                     try validateWorkingAccess(workingComparison)
+                    guard try authorizeWorkingReplacement(at: base ? workingComparison.base : workingComparison.destination) else { return }
                     self.document = try workingComparison.save(document, base: base, text: text)
                 } else if let repository {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }

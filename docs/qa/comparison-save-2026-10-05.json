@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-05",
+  "base_commit": "a03e1f8",
+  "configuration": "Debug with local scope/prompt changes; two sequential ad-hoc previews; no sandbox",
+  "fixture": "External UTF-16 LE/BOM/CRLF file, permissions 0755; historical right.txt at pinned commit",
+  "native_save": {
+    "initial_bytes": 32,
+    "saved_bytes": 30,
+    "saved_sha256": "369e8cdfd2a2945ad94334854fd198fc761d4564e1a6c21685aa7dab854695ee",
+    "encoding": "UTF-16 LE with BOM",
+    "line_endings": "CRLF",
+    "permissions": "0755",
+    "only_external_file_changed": true
+  },
+  "external_change": {
+    "draft": "stale draft\r\n",
+    "simulated_disk_text": "changed elsewhere\r\n",
+    "save_error": "The working file or its permissions changed. Reload before saving.",
+    "external_bytes_not_overwritten": true
+  },
+  "reload": {
+    "cancel_kept_draft": true,
+    "without_saving_loaded": "changed elsewhere\r\n",
+    "loaded_bytes": 40,
+    "pinned_historical_text": "selected right\n",
+    "pinned_historical_bytes": 15,
+    "historical_revision": "3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c"
+  },
+  "prompt_fix": {
+    "observed_problem": "Reload named historical right.txt while editing external marked.txt",
+    "corrected_native_prompts": [
+      "Reload",
+      "Close",
+      "Quit"
+    ],
+    "corrected_path": "/tmp/TurtleGitComparisonSaveQA-other/marked.txt",
+    "cancel_kept_draft": true,
+    "quit_without_save_preserved_disk": true
+  },
+  "preserved_repository": {
+    "head": "3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c",
+    "index_sha256": "983b6a1c7c0596c06f84fdeb5fd40bc327a72458222c76277ab9b59174c46497",
+    "working_sha256": "756d1682624a699ea7fee6834e7b6923ee1fa406b19beeace8981b6cc2fc5485",
+    "left_absent": true
+  },
+  "final_external_sha256": "300205ecb4863d79cef3bf9ef18e0ebfd1b683c9039ed913e75338ed7e8a8bb6",
+  "temporary_siblings_remaining": false,
+  "shutdown": "At most one QA app alive. First clean app needed a second normal Quit; corrected-prompt app quit through Don\u2019t Save. Process absence verified after each. No observation after final Quit.",
+  "pending": [
+    "signed App Store folder authorization and cancellation",
+    "native Save As scoped destination",
+    "both-working-file active-pane editing",
+    "additional encodings, symlinks and modes",
+    "Save and Reload route"
+  ],
+  "screenshot_created": false
+}

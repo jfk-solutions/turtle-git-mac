@@ -155,3 +155,52 @@ working/external bytes and deleted-file absence were verified.
 route. Signed Finder/app sandbox handoff, native Save/Reload, alternate tools,
 compacted labels, new-mark/local-mark precedence variants and additional native
 file types remain pending. Full Log/Finder parity is still incomplete.
+
+
+## Native Save/Reload and correct file prompts (2026-10-05)
+
+Native QA compared an external UTF-16 LE/BOM/CRLF executable file with pinned
+historical `right.txt`. Editing through the text view and Save produced the exact
+30-byte UTF-16 output, preserving BOM, CRLF and 0755. Only the external file
+changed. A later independent edit made the working file differ from the loaded
+document: Save refused it with the changed-file error and preserved those bytes.
+Reload Cancel retained the draft; Reload Without Saving read the current 40-byte
+external file and kept the historical 15-byte contents at the pinned hash.
+Exact HEAD/raw index/repository working bytes and deleted-file absence remained
+unchanged, and no temporary sibling remained.
+
+The native run exposed a mislabeled Reload prompt: it named the historical
+comparison path instead of the edited external path. Reload, window Close and
+application Quit now use the document's actual editable path. A second sequential
+preview verified all three corrected prompts, cancellation retaining the draft,
+and Quit without Save leaving disk bytes untouched. The first clean QA process
+needed a second normal Quit; both launches were individually checked terminal,
+with no remaining app process. [Recorded evidence](qa/comparison-save-2026-10-05.json)
+details this coverage. No new screenshot is claimed.
+
+Save As now starts and balances destination scope through its write. For an
+App Store working-file Save, the app checks access to the parent needed by the
+existing temporary-sibling replacement. If only a file grant is retained, it
+asks for that containing folder when Save is explicitly requested; cancellation
+keeps the draft. The granted scope remains held through the write and window
+lifetime. This follows the app's replacement strategy and macOS user-selected
+access model; [Apple's sandbox documentation](https://developer.apple.com/documentation/security/accessing-files-from-the-macos-app-sandbox)
+and [read/write entitlement reference](https://developer.apple.com/documentation/BundleResources/Entitlements/com.apple.security.files.user-selected.read-write)
+provide the platform access context. The folder-authorization branch and Save As
+scope still require signed native acceptance. Debug and unsigned App Store builds
+and both bundle/runtime audits pass; the new scope and prompt code does not
+change the previously tested core save algorithm.
+
+## Active-pane editing remains incomplete
+
+Additional audit of `TortoiseProc/GitDiff.cpp:361–482` and
+`TortoiseProc/AppUtils.cpp:466–521` confirms the saved comparison file is the Base
+side and the current file is Mine. Historical blobs are read-only temporary files.
+`TortoiseMerge/MainFrm.cpp:918–939` makes the left pane's writability changeable
+and the right pane the target; `OnEditEnable` at 2482–2507 applies to the active
+view. TurtleGit currently chooses one eligible working text pane, starts with
+explicit editing disabled, and labels the right pane Theirs. Active-pane editing,
+independent drafts/history/save per pane, appropriate Mine labeling/defaults and
+historical-copy editing/Save As behavior still need to match the upstream model.
+The verified single-working-pane Save/Reload route does not establish two-working-
+file editing parity. Full TortoiseGit dialog parity remains the goal.
