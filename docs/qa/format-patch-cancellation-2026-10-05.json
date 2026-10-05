@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-05",
+  "scope": "Format Patch process-group cancellation and native progress controls; full app goal incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": {
+    "ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090"
+  },
+  "tests": {
+    "full": {
+      "count": 432,
+      "failures": 0,
+      "duration_seconds": 240.165,
+      "scope": "All current Swift package tests; not native UI or signed sandbox acceptance"
+    },
+    "new_cancellation_cases": {
+      "count": 3,
+      "failures": 0,
+      "coverage": [
+        "Pre-cancelled export produces no output directory or repository mutation",
+        "Cancellable real Git success and ordinary failure preserve output/diagnostics",
+        "Owned leader and child share a new group and disappear after cancellation",
+        "Partial patch and stdout/stderr survive cancellation",
+        "HEAD/index/working bytes unchanged"
+      ]
+    },
+    "native_phase": "Final native mail-active guard and Escape routing compiled after the full suite executable was built; no Core implementation changed after that suite build"
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "bundle_audits": {
+    "Debug": "passed, 72 original icons",
+    "AppStore_require_git": "passed, 72 original icons and universal Git runtime"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "log_sha256": {
+    "full": "b8cb21c6952b8761719d8067c7b476f5b2ba74ee0eb19385316fcaabc6d37fde",
+    "focused_before_final_fd_duplication": "1479fe5e69760cbaf20b86809f8cae615af0dde8c02be23225f8320b3fc3b681",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "gui_apps_launched": 0,
+  "native_verification": "Unverified; previous computer-control native pipe failure is recorded in format-patch-native-2026-10-05.json",
+  "adaptations": [
+    "POSIX process group instead of Windows child enumeration",
+    "SIGINT then 100 ms then SIGTERM then 100 ms then SIGKILL before reaping the leader",
+    "Partial patches remain; cancellation suppresses success/mail and refreshes output status",
+    "Other commands retain Foundation runner unless explicitly opting into cancellation"
+  ],
+  "remaining": [
+    "Native Cancel/Escape/output-refresh/mail-active UI verification",
+    "Signed App Store process spawning/signaling and scope acceptance",
+    "Helpers that detach into separate sessions",
+    "Full progress streaming/settings and other dialogs",
+    "Complete Send Mail workflow parity",
+    "Shift alternative unified viewer"
+  ],
+  "github": "Local changes not tested remotely"
+}

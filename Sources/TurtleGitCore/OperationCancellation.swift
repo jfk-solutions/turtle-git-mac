@@ -6,7 +6,8 @@ public enum OperationCancellationFailure: LocalizedError {
 }
 
 /// Cooperative cancellation shared by a native window and the repository actor.
-/// Current Git commands finish before the next operation boundary is checked.
+/// Operations check boundaries; GitRepository.run can also opt into terminating
+/// its owned child process group when this token is cancelled.
 public final class OperationCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false

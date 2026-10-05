@@ -7,7 +7,8 @@ public actor GitRepository {
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git")) {
         self.root = root.standardizedFileURL; self.executable = executable
     }
-    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil) throws -> GitResult {
+        try cancellation?.check()
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
@@ -29,10 +30,16 @@ public actor GitRepository {
         process.standardInput = FileHandle.nullDevice
         process.standardOutput = output; process.standardError = error
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
-        try process.run(); process.waitUntilExit()
-        let result = GitResult(exitCode: process.terminationStatus, stdout: try Data(contentsOf: out), stderr: try Data(contentsOf: err))
-        guard successfulExitCodes.contains(process.terminationStatus) else {
-            throw GitFailure(arguments: arguments, code: process.terminationStatus, message: result.text)
+        let status: Int32
+        if let cancellation {
+            status = try CancellableGitProcess.run(executable: executable, arguments: process.arguments ?? [], environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, cancellation: cancellation)
+        } else {
+            try process.run(); process.waitUntilExit(); status = process.terminationStatus
+        }
+        let result = GitResult(exitCode: status, stdout: try Data(contentsOf: out), stderr: try Data(contentsOf: err))
+        if cancellation?.isCancelled == true { throw GitCommandCancellationFailure(result: result) }
+        guard successfulExitCodes.contains(status) else {
+            throw GitFailure(arguments: arguments, code: status, message: result.text)
         }
         return result
     }

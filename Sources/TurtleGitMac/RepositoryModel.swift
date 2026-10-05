@@ -778,7 +778,7 @@ import TurtleGitCore
         let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset)
         if existing != nil { controller.model.apply(preset) }
         controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
-        controller.model.onExported = { [weak self] output in
+        controller.model.onOutputChanged = { [weak self] output in
             self?.statusWindows[rootKey]?.model.reload()
             if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }
         }

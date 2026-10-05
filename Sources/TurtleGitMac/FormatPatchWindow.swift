@@ -8,7 +8,7 @@ import TurtleGitCore
     private var picker: LogWindowController?
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
-    var activeOperation: Bool { model.busy || mail != nil }
+    var activeOperation: Bool { model.busy || model.composingMail }
     init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil) {
         model = FormatPatchWindowModel(repository: repository, access: access)
         model.apply(preset)
@@ -65,11 +65,11 @@ import TurtleGitCore
     private func composeMail(_ files: [URL]) {
         guard !files.isEmpty else { model.error = "No patches were created to attach."; return }
         guard let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: files) else { model.error = "No mail composition service is available. The patches were saved to the output directory."; return }
-        mail = service; service.delegate = self; service.subject = "Patch series"
+        mail = service; model.composingMail = true; service.delegate = self; service.subject = "Patch series"
         service.perform(withItems: files)
     }
-    func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) { mail = nil; model.close() }
-    func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) { mail = nil; model.error = error.localizedDescription }
+    func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) { mail = nil; model.composingMail = false; model.close() }
+    func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) { mail = nil; model.composingMail = false; model.error = error.localizedDescription }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -87,6 +87,7 @@ import TurtleGitCore
     @Published var sendMail: Bool
     @Published var noPrefix: Bool
     @Published var busy = false
+    @Published var composingMail = false
     @Published var hasHead = false
     @Published var bare = false
     @Published var references: [String] = []
@@ -94,6 +95,9 @@ import TurtleGitCore
     @Published var progress = false
     @Published var output = ""
     @Published var success = false
+    @Published var cancelRequested = false
+    @Published var cancelled = false
+    private var cancellation: OperationCancellation?
     private var files: [URL] = []
     private var exportSendMail = false
     var close: () -> Void = {}
@@ -101,9 +105,9 @@ import TurtleGitCore
     var chooseRevision: (Mode) -> Void = { _ in }
     var showPatch: (String) -> Void = { _ in }
     var composeMail: ([URL]) -> Void = { _ in }
-    var onExported: (String) -> Void = { _ in }
+    var onOutputChanged: (String) -> Void = { _ in }
     func apply(_ preset: FormatPatchPreset?) {
-        guard let preset, !busy, !progress else { return }
+        guard let preset, !busy, !progress, !composingMail else { return }
         from = preset.from; to = preset.to
         switch preset.selection {
         case .since(let value): since = value; mode = .since
@@ -144,8 +148,13 @@ import TurtleGitCore
         UserDefaults.standard.set(Array(([value] + old.filter { $0 != value }).prefix(25)), forKey: key)
     }
     var valid: Bool { hasHead && !directory.isEmpty && (mode == .number || (mode == .since ? !since.isEmpty : !from.isEmpty && !to.isEmpty)) }
+    var progressStatus: String {
+        if busy { return cancelRequested ? "Stopping Git…" : "Creating patches…" }
+        if cancelled { return "Cancelled" }
+        return success ? "Finished" : "Failed"
+    }
     func export() {
-        guard !busy, valid else { return }
+        guard !busy, !composingMail, valid else { return }
         let folder = URL(fileURLWithPath: directory).standardizedFileURL
         if GitRuntime.isAppStoreBuild && !((access?.hasSecurityScope == true && access?.contains(folder) == true) || (outputAccess?.hasSecurityScope == true && outputAccess?.contains(folder) == true)) { chooseDirectory(); return }
         let selection: FormatPatchSelection = mode == .since ? .since(since) : mode == .number ? .number(count) : .range(from: from, to: to)
@@ -154,11 +163,17 @@ import TurtleGitCore
         if mode == .since { UserDefaults.standard.set(since, forKey: sinceKey) }
         UserDefaults.standard.set(sendMail, forKey: "FormatPatchSendMail"); UserDefaults.standard.set(prefix, forKey: "FormatPatchNoPrefix")
         busy = true; progress = true; success = false; output = "Creating patch series…"; files = []
+        cancelRequested = false; cancelled = false
+        let token = OperationCancellation(); cancellation = token
         Task {
-            defer { busy = false }
+            defer { busy = false; cancellation = nil; onOutputChanged(output) }
             do {
                 try checkAccess()
-                let result = try await repository.formatPatch(selection: selection, to: folder, noPrefix: prefix)
+                let result = try await repository.formatPatch(selection: selection, to: folder, noPrefix: prefix, cancellation: token)
+                guard !token.isCancelled else {
+                    cancelled = true; output = result.text + "\nOperation cancelled. Any patches written before cancellation remain in the output directory."
+                    return
+                }
                 output = result.text.isEmpty ? "No patches created for this selection." : result.text
                 // Git sanitizes subject filenames. Split at the complete directory
                 // prefix so a newline inside the chosen directory remains literal.
@@ -169,9 +184,18 @@ import TurtleGitCore
                     let file = resolved.appendingPathComponent(name)
                     return FileManager.default.fileExists(atPath: file.path) ? file : nil
                 }
-                success = true; onExported(output)
+                success = true
+            } catch let failure as GitCommandCancellationFailure {
+                cancelled = true
+                output = failure.result.text + "\nOperation cancelled. Any patches written before cancellation remain in the output directory."
+            } catch is OperationCancellationFailure {
+                cancelled = true; output = "Operation cancelled. Any patches written before cancellation remain in the output directory."
             } catch { output = error.localizedDescription }
         }
+    }
+    func cancelExport() {
+        guard busy, let cancellation, !cancelRequested else { return }
+        cancelRequested = true; cancellation.cancel()
     }
     func finish() {
         guard !busy else { return }; progress = false
@@ -182,7 +206,7 @@ import TurtleGitCore
         }
     }
     func unifiedDiff() {
-        guard !busy, hasHead, !bare else { return }
+        guard !busy, !composingMail, hasHead, !bare else { return }
         let prefix = noPrefix
         UserDefaults.standard.set(prefix, forKey: "FormatPatchNoPrefix"); busy = true
         Task {
@@ -238,7 +262,7 @@ private struct FormatPatchDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
             }
-        }.padding(16).disabled(model.busy)
+        }.padding(16).disabled(model.busy || model.composingMail)
         .alert("Format Patch", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $browseSince) {
             VStack(alignment: .leading, spacing: 12) {
@@ -253,9 +277,12 @@ private struct FormatPatchDialog: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack { Text("Format Patch").font(.headline); Spacer(); if model.busy { ProgressView().controlSize(.small) } }
                 ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(minHeight: 220)
-                HStack { Text(model.busy ? "Creating patches…" : model.success ? "Finished" : "Failed").foregroundStyle(model.success ? Color.green : Color.secondary); Spacer()
+                HStack { Text(model.progressStatus).foregroundStyle(model.success ? Color.green : model.cancelled ? .orange : .secondary); Spacer()
+                    if model.busy { Button("Cancel") { model.cancelExport() }.keyboardShortcut(.cancelAction).disabled(model.cancelRequested) }
                     Button("Close") { model.finish() }.keyboardShortcut(.defaultAction).disabled(model.busy) }
-            }.padding(16).frame(width: 620)
+            }.padding(16).frame(width: 620).disabled(false)
+                .interactiveDismissDisabled()
+                .onExitCommand { if model.busy { model.cancelExport() } else { model.finish() } }
         }
     }
 }

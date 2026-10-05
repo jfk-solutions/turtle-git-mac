@@ -109,3 +109,8 @@ Format Patch Log presets adapt GitLogListAction.cpp ID_CREATE_PATCH and
 GitLogListBase.cpp selection eligibility, under GPL version 2 or later.
 Copyright (C) 2008-2026 TortoiseGit and (C) 2005-2007 Marco Costalba.
 Original menupatch.ico is retained unchanged for the Log context command.
+
+Native Format Patch cancellation follows ProgressDlg.cpp's interrupt then stop
+child-process workflow under GPL version 2 or later. Copyright (C) 2008-2020,
+2022-2026 TortoiseGit. CancellableGitProcess.swift uses a
+macOS POSIX spawn process group instead of Windows process-tree enumeration.

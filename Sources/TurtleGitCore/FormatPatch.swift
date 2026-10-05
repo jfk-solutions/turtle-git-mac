@@ -47,7 +47,8 @@ extension GitRepository {
     /// Adapted from FormatPatchCommand.cpp, GPL-2.0-or-later. Preserve Git's
     /// numbering, naming, configuration, binary patches and empty-range behavior.
     /// Existing patch files can be replaced, just as in the upstream command.
-    public func formatPatch(selection: FormatPatchSelection, to folder: URL, noPrefix: Bool = false) throws -> GitResult {
+    public func formatPatch(selection: FormatPatchSelection, to folder: URL, noPrefix: Bool = false, cancellation: OperationCancellation? = nil) throws -> GitResult {
+        try cancellation?.check()
         func valid(_ revision: String) -> Bool { !revision.isEmpty && !revision.contains("\0") }
         let version: [String]
         switch selection {
@@ -57,7 +58,7 @@ extension GitRepository {
             // record, rather than Git's first record (which can be not-for-merge).
             let since: String
             if revision == "FETCH_HEAD" {
-                var data = try run(["rev-parse", "--git-path", "FETCH_HEAD"]).stdout
+                var data = try run(["rev-parse", "--git-path", "FETCH_HEAD"], cancellation: cancellation).stdout
                 if data.last == 10 { data.removeLast() }
                 let path = String(decoding: data, as: UTF8.self)
                 let location = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
@@ -83,12 +84,12 @@ extension GitRepository {
         // Bare repositories and linked worktrees can store metadata outside a
         // directory named .git. Never allow an export into either admin root.
         for option in ["--absolute-git-dir", "--git-common-dir"] {
-            var data = try run(["rev-parse", option]).stdout
+            var data = try run(["rev-parse", option], cancellation: cancellation).stdout
             if data.last == 10 { data.removeLast() }
             let path = String(decoding: data, as: UTF8.self)
             let metadata = (path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)).standardizedFileURL.resolvingSymlinksInPath()
             guard !RepositoryAccessLease.pathIsContained(destination, by: metadata) else { throw FormatPatchFailure.outputDirectory }
         }
-        return try run(["format-patch"] + (noPrefix ? ["--no-prefix"] : []) + ["-o", destination.path] + version + ["--"])
+        return try run(["format-patch"] + (noPrefix ? ["--no-prefix"] : []) + ["-o", destination.path] + version + ["--"], cancellation: cancellation)
     }
 }

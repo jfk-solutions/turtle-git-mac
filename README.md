@@ -41,6 +41,10 @@ Log's Format Patch command presets Since for one selected revision or an inclusi
 Range for multiple revisions, using the original patch icon. Selection rules and
 generated patch subjects are tested; native activation remains unverified.
 
+Format Patch cancellation now stops its owned Git process group and preserves
+partial patches and diagnostics. Process tests verify leader/child cleanup;
+native Cancel/Escape interaction and signed sandbox behavior remain unverified.
+
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
 icons. It browses pinned nested revisions, including bare repositories and tags,

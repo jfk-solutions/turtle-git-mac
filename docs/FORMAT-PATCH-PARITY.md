@@ -14,6 +14,7 @@ dialog port.
 | `src/Git/Git.cpp` | `43dee91dbf94e46564b4cc1a139717fcbd8f6803` | Sole for-merge FETCH_HEAD record selection only |
 | `src/TortoiseProc/GitLogListAction.cpp` | `88c255c4c80578c099bbcd4604f6e088f2f9d40a` | Log command start/end presets |
 | `src/TortoiseProc/GitLogListBase.cpp` | `19518f37689e19b7e913c9ff8cc9d65ec223c187` | Patch selection eligibility |
+| `src/TortoiseProc/ProgressDlg.cpp` | `557988a1303dc86b11c9c74d29be4797aa7e6090` | Native interrupt/stop workflow, partial |
 
 The operation uses the source's `git format-patch [--no-prefix] -o directory`
 with one of `--end-of-options since --`, `-count --`, or
@@ -80,6 +81,28 @@ blocks closing/Quit while Git is active. Optional mail uses the native compose-e
 service with exported patch attachments, retaining the controller and output
 grant until its callback. No message was sent during testing.
 
+Format Patch now passes an explicit cancellation token to its Git commands,
+including metadata preflight. The optional Git runner spawns an owned POSIX
+process group with explicit standard streams and environment. Cancel interrupts
+that group, allows 100 ms, sends termination, allows another 100 ms, then forces
+the group to stop before reaping its leader. This replaces upstream's Ctrl-C,
+Windows descendant enumeration and potentially long waits. Other operations
+keep the existing Foundation runner unless they explicitly opt into this path;
+this is not a claim of cancellation parity for every dialog. Helpers that detach
+into separate sessions would need additional handling and are not covered by
+the group test.
+
+The native sheet has Cancel while busy, Stopping Git after a request, Cancelled
+after it stops, and Close/Retry through the parent dialog. Escape is routed to
+cancel or finish; implicit sheet dismissal is blocked. Partial patches are kept
+and diagnostics are displayed, as in the source's interrupted command. Cancellation
+does not report success or open mail composition, including a cancellation
+accepted just before the awaited result returns to the UI. The output refresh
+callback now runs after success, failure or cancellation so partial files can be
+seen in status. The parent dialog also blocks editing/export/preset replacement
+while its mail composition service is active. These native interactions are
+implemented but remain unverified through actual UI control.
+
 The Debug preview launched once, but the computer-control connection failed with
 “Sky Computer Use native pipe closed before response” twice. No accessibility
 state or screenshot was obtained, so no layout or native interaction pass is
@@ -100,10 +123,17 @@ the presets. The one-row case exports only the later commit; two and three rows
 produce the source's inclusive oldest-to-newest series. Export leaves HEAD and
 index unchanged. Native Log menu activation and preset fields remain unverified.
 
+Three `GitProcessCancellationTests` cover an already-cancelled export with no
+output directory, ordinary success/failure using the cancellable runner, and a
+slow owned helper that writes a partial patch plus stdout/stderr and starts a
+sleeping child. Both PIDs share the owned group and disappear after cancellation;
+the partial patch, diagnostics, HEAD, index and working bytes are checked. The
+helper uses disposable test data; no user Git operation is terminated.
+
 Remaining: verify native light/dark layout and keyboard interaction, successful
 export through the dialog, failure/retry, output-folder grants, unborn/bare states,
 mail attachments and service failure/cancel callbacks. Verify searchable reference
 browsing, source command startrev/endrev presets and Log export entry points;
-add Shift alternative diff viewer and upstream progress cancellation. Complete the
+add Shift alternative diff viewer and verify native progress cancellation. Complete the
 source Send Mail dialog/options rather than treating native composition alone as
 full parity. Signed Finder and App Store testing and screenshots remain pending.
