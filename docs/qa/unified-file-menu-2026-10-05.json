@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-05",
+  "scope": "Unified diff shared File commands and native print sheet acceptance",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "src/TortoiseUDiff/TortoiseUDiff.rc IDC_TORTOISEUDIFF menu/accelerators",
+  "native_verified": [
+    "Save As/Print disabled when Log is key",
+    "Save As/Print enabled when unified diff is key",
+    "File Save As opens native save sheet; Cancel returns unchanged text",
+    "File Print opens native print sheet",
+    "File Save As/Print disabled while print sheet is active",
+    "Print Cancel restores usable viewer buttons",
+    "Command-A then Command-P selects print-selection accessory by default",
+    "Accessory checkbox switches to whole diff with preview refresh",
+    "Normal Command-Q after Cancel exits"
+  ],
+  "preview": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitPatchMenuQA-t6b2tyhc/TurtleGit Patch Menu QA.app",
+  "log_revision": "cc4ec2840a76b97fe6f7c46debd7a0288c11913c",
+  "physical_output": "Not attempted; No Printer Selected",
+  "remaining_app_processes": 0,
+  "screenshot": "None captured",
+  "core_tests": "Not rerun; no Core or print-helper changes. Previous PDF integration checks remain applicable.",
+  "debug_build_exit": 0,
+  "unsigned_appstore_build_exit": 0,
+  "bundle_audits": "Both passed, all 72 original icons",
+  "pending": [
+    "Multiple diff/Settings focus transitions",
+    "Native queued busy state and Quit while print sheet active",
+    "Partial-selection preview content",
+    "Page Setup margin parity",
+    "Signed sandbox and physical printer acceptance",
+    "Remaining UDiff File commands"
+  ],
+  "logs": [
+    {
+      "path": "/tmp/turtlegit-patch-menu-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-patch-menu-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-patch-menu-debug-audit.log",
+      "sha256": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0"
+    },
+    {
+      "path": "/tmp/turtlegit-patch-menu-store-audit.log",
+      "sha256": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+    }
+  ]
+}

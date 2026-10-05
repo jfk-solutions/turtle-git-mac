@@ -303,3 +303,25 @@ Print sheet Cancel/completion, preview switching, paper variants, colors/fonts,
 physical printers, signed sandbox access and File-menu exposure remain pending.
 No native UI verification is claimed while the computer-use pipe is unavailable.
 This does not complete UDiff's editable document, Open or all print behavior.
+
+## Shared File-menu commands and native print acceptance
+
+`PatchFileCommands` exposes Save As and Print in the macOS File menu, with the
+source's Command-Shift-S/Command-P accelerator adaptations. `PatchMenuContext`
+observes the key window and its model, disables both actions outside a diff or
+during an operation/sheet, and rechecks the active controller when dispatching.
+It holds no strong reference to a closed/background diff controller.
+
+Native acceptance on a single isolated preview verified disabled commands in
+Log, enabled commands in the active diff, File-menu Save As and Cancel, File-menu
+Print and Cancel, disabled File commands while the print sheet is active, and
+usable viewer controls after printing is cancelled. Command-A then Command-P
+checked that the Unified Diff print accessory defaults to selected text; its
+checkbox switched to whole diff and refreshed the preview. There was no printer
+selected, so physical output was not attempted. The app quit normally and no
+TurtleGit process remained. No new screenshot was captured in this check.
+
+This advances the earlier print-sheet acceptance status. Page Setup's four
+persistent margins, physical printers, partial-selection preview content,
+multiple diff windows, Settings focus, queued busy transitions and signed
+sandbox acceptance remain pending. See [native record](qa/unified-file-menu-2026-10-05.json).

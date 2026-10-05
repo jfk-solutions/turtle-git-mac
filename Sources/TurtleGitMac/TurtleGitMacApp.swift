@@ -6,6 +6,7 @@ import TurtleGitCore
     @NSApplicationDelegateAdaptor(TurtleGitApplicationDelegate.self) private var applicationDelegate
     @StateObject private var model = RepositoryModel()
     @StateObject private var appearance = AppAppearance()
+    @StateObject private var patchMenuContext = PatchMenuContext()
     init() {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
     }
@@ -30,6 +31,7 @@ import TurtleGitCore
                 #endif
         }
         .commands {
+            PatchFileCommands(context: patchMenuContext)
             CommandGroup(after: .newItem) {
                 Button("Open Repository…") { model.chooseRepository() }.keyboardShortcut("o")
                 Menu("Open Recent") {

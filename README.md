@@ -68,7 +68,8 @@ color wells are verified; full layout and live Apply acceptance remain pending. 
 Unified diffs now offer Print through Command-P, toolbar and context menu, with
 whole-diff/selected-text choices in a native print sheet. Snapshot isolation and
 actual one-page selection/five-page whole-diff PDF output are verified;
-native print sheet and signed printer acceptance remain pending.
+Native File-menu Save As/Print, print-sheet Cancel, selection defaults and
+whole-diff toggling are verified. Signed printer acceptance remains pending.
 
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode

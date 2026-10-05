@@ -114,6 +114,7 @@
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
 		C23CCEFA7DA0A805EFCE94C7 /* GitBlamePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C02E4063D7394453CC537A /* GitBlamePreferences.swift */; };
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
+		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
 		D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */; };
 		D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A48D22D1E6D22153CBA3744 /* Push.swift */; };
 		D346F92FAD1A13414F11CBB9 /* AlternativeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1461AE9BD8BFDBA1939F33FF /* AlternativeEditorPreferences.swift */; };
@@ -316,6 +317,7 @@
 		D975B1620A435727724213D1 /* Merge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Merge.swift; sourceTree = "<group>"; };
 		DA1D2D9DD08218C53951382F /* StatusListGroups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListGroups.swift; sourceTree = "<group>"; };
 		DAA057A2776BAA8F4BE538EE /* Ignore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ignore.swift; sourceTree = "<group>"; };
+		DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMenuCommands.swift; sourceTree = "<group>"; };
 		DE3C7BF5278D5807BDDF4B21 /* Reset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reset.swift; sourceTree = "<group>"; };
 		DF6352B22FB03878FC59F470 /* CommitHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitHistory.swift; sourceTree = "<group>"; };
 		DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchWindow.swift; sourceTree = "<group>"; };
@@ -380,6 +382,7 @@
 				63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */,
 				326985003F83908822D7B91E /* MergeWindow.swift */,
 				65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */,
+				DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */,
 				07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */,
 				DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */,
 				1491F4A59F19B27A3FCCF966 /* PushWindow.swift */,
@@ -828,6 +831,7 @@
 				78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */,
 				1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */,
 				8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */,
+				CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */,
 				591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */,
 				241DD127E807673880A95899 /* PatchWindow.swift in Sources */,
 				8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */,
