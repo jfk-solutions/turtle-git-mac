@@ -220,9 +220,34 @@ import UniformTypeIdentifiers
     @Published var branch = ""
     @Published var createBranch = false
     @Published var newBranch = ""
-    @Published var message = ""
-    @Published var issueProperties = IssueTrackerProperties()
+    @Published var message = "" { didSet { if message != oldValue { scheduleIssueStyling() } } }
+    @Published var issueProperties = IssueTrackerProperties() { didSet { if issueProperties != oldValue { scheduleIssueStyling() } } }
+    @Published private(set) var issueMessageStyles: [IssueMessageStyle] = []
+    private let issueStyler = IssueMessageStyler()
+    private var issueStyleTask: Task<Void, Never>?
     @Published var issueID = ""
+    private func scheduleIssueStyling() {
+        issueStyleTask?.cancel(); issueMessageStyles = []
+        let text = message, properties = issueProperties, worker = issueStyler
+        guard !properties.checkExpression.isEmpty, !text.isEmpty else { return }
+        issueStyleTask = Task { [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: 150_000_000)
+                let styles = try await worker.styles(properties: properties, message: text)
+                guard !Task.isCancelled, let self, self.message == text, self.issueProperties == properties else { return }
+                self.issueMessageStyles = styles
+            } catch { /* Invalid/stale styling does not interrupt text entry. Commit validation reports configuration failures. */ }
+        }
+    }
+    func updateIssueFromHistory(_ selectedMessage: String, insertedInto text: String) {
+        let properties = issueProperties, previousID = issueID
+        guard properties.showsIssueField else { return }
+        Task { [weak self, repository] in
+            guard let id = try? await repository.issueFieldValue(properties: properties, message: selectedMessage), !id.isEmpty,
+                  let self, self.message == text, self.issueID == previousID, self.issueProperties == properties else { return }
+            self.issueID = id
+        }
+    }
     private var loadedMessage = false
     private(set) var messageTemplate = ""
     private(set) var messageHistory: CommitMessageHistory?

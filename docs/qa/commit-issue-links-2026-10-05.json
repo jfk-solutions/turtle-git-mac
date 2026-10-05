@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-05",
+  "scope": "Commit issue-message styling, configured tracker links and history field updates; full Commit/SciEdit parity remains partial.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": {
+    "SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e",
+    "SciEdit.h": "0c26375d84d7d27b111a5759af820d9058da9b6e",
+    "CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3"
+  },
+  "tests": {
+    "command": "swift test",
+    "count": 377,
+    "failures": 0,
+    "log_sha256": "014c84fc990b3130ec2bc8985b8d3f0244205d5bb2fad11abb976af9ad1630f1",
+    "new_cases": [
+      "UTF-8 byte to UTF-16 scalar boundaries after emoji",
+      "single capture versus complete inner matches and context",
+      "partial scalar omission, Unicode literals and adjacent hotspot merging",
+      "wide history matching, natural ordering, deduplication and template fallback"
+    ]
+  },
+  "native": {
+    "fixture": "/tmp/TurtleGitIssueLinksQA-repository",
+    "head": "cbe2fc95f713c5b380cb344fb531eba940483a4a",
+    "raw_index_sha256": "6131c7831cb6bdbcae89ab193ccc9eed3cbcbc7ea751cc7ca877314bfc093ff1",
+    "head_index_working_unchanged": true,
+    "message": "雪🦎 issues #42 and #73",
+    "link_activation": "Normal native click opened the exact local QA file TurtleGitIssueLinksQA-#42.txt in TextEdit using URL file:///tmp/TurtleGitIssueLinksQA-%2342.txt; only that QA document was closed.",
+    "undo": "Appending text and Undo restored the exact styled message and retained the manually set issue field.",
+    "recent_message": "Recent issues #99 inserted, field updated to #99. No tracker reference inserted, field retained #99, stale links removed.",
+    "revision_picker": "Revision issues #31 inserted through native Log picker, field retained #99 as upstream does.",
+    "appearance": "Actual light and dark native captures inspected; readable links and full layout.",
+    "lifecycle": "At most one disposable QA app running. Appearance-menu automation became stale in the light preview; normal Quit attempts did not close it, so its known disposable PID was terminated. Dark preview quit normally through the cancel-draft confirmation. Final process scan empty.",
+    "screenshots": [
+      {
+        "path": "docs/site/assets/commit-issue-links.png",
+        "sha256": "41f7871ca8e567a00c9537b34b74b1a0c8ac662d1ffe32eb943e8932a5da173c"
+      },
+      {
+        "path": "docs/site/assets/commit-issue-links-dark.png",
+        "sha256": "9481faaf7b65f45b6af4462dc902a6b981bab85fbc7f209416d7b2d6686b5b5f"
+      }
+    ]
+  },
+  "runtime": {
+    "source_reconstruction": "Rebuilt from packaged Sources/build in a separate temporary directory; validation passed for arm64 and x86_64 (Rosetta).",
+    "signing": "Debug ad-hoc hardened signing and AppStore inherited entitlements/signature branches passed; signed app invocation remains unverified.",
+    "source_sha256": "f8c348360229315c10fd0c0d9e86d834923b90df520bf93c1b82ac03012ee5df",
+    "binary_sha256": "ecb223e23d33ce4bcfee5fb5b3dc94f9ffbc37d076c43534dc9bd3a8a0fb352e"
+  },
+  "remaining": [
+    "Full incremental Scintilla anchor/styling state, generic URL/email links, spell checking and snippets",
+    "Exact StrCmpLogicalW locale/punctuation ordering and malformed cached regex state",
+    "Tracker provider plugins and full Commit operation combinations",
+    "Signed App Store inherited-helper and scoped URL/configuration acceptance; actual Intel/macOS 13 execution",
+    "GitHub verification of this change after publication; authentication currently unavailable"
+  ],
+  "builds": {
+    "Debug": "Final unsigned build and complete bundle audit passed",
+    "AppStore": "Final unsigned build and complete bundle/Git audit passed",
+    "GitHub Pages": "Local site build and native PNG validation passed; publication pending"
+  },
+  "build_log_sha256": {
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "store": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  }
+}

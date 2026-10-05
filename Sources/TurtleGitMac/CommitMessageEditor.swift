@@ -9,6 +9,8 @@ struct CommitMessageEditor: NSViewRepresentable {
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.borderType = .noBorder
         let editor = MessageTextView(frame: NSRect(x: 0, y: 0, width: 600, height: 120))
         editor.isRichText = false; editor.allowsUndo = true
+        editor.isAutomaticLinkDetectionEnabled = false
+        editor.linkTextAttributes = [.foregroundColor: NSColor.linkColor, .cursor: NSCursor.pointingHand]
         editor.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
         editor.textContainerInset = NSSize(width: 5, height: 5)
         editor.isVerticallyResizable = true; editor.isHorizontallyResizable = false
@@ -27,6 +29,7 @@ struct CommitMessageEditor: NSViewRepresentable {
             editor.string = model.message
             editor.setSelectedRange(NSRange(location: min(range.location, (model.message as NSString).length), length: 0))
         }
+        editor.applyIssueStyles(model.issueMessageStyles)
     }
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -35,11 +38,41 @@ struct CommitMessageEditor: NSViewRepresentable {
         func textDidChange(_ notification: Notification) {
             if let editor = notification.object as? NSTextView { model.message = editor.string }
         }
+        func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+            guard let value = link as? String, let url = URL(string: value) else { return true }
+            NSWorkspace.shared.open(url)
+            return true
+        }
     }
 }
 
 private final class MessageTextView: NSTextView {
     weak var model: CommitWindowModel?
+    private var appliedStyles: [IssueMessageStyle] = []
+    private var styledText = ""
+    func applyIssueStyles(_ styles: [IssueMessageStyle]) {
+        guard styles != appliedStyles || string != styledText, let storage = textStorage else { return }
+        appliedStyles = styles; styledText = string
+        let base = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        let selection = selectedRanges
+        let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
+        if undoEnabled { undoManager?.disableUndoRegistration() }
+        storage.beginEditing()
+        let whole = NSRange(location: 0, length: storage.length)
+        for key in [NSAttributedString.Key.link, .toolTip, .underlineStyle] { storage.removeAttribute(key, range: whole) }
+        storage.addAttributes([.font: base, .foregroundColor: NSColor.textColor], range: whole)
+        for style in styles where style.range.location >= 0 && style.range.location <= storage.length && style.range.length <= storage.length - style.range.location {
+            var styledFont = NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask)
+            if style.kind == .identifier { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .italicFontMask) }
+            var attributes: [NSAttributedString.Key: Any] = [.font: styledFont, .foregroundColor: NSColor.linkColor]
+            if let url = style.url { attributes[.link] = url; attributes[.toolTip] = url }
+            storage.addAttributes(attributes, range: style.range)
+        }
+        storage.endEditing()
+        if undoEnabled { undoManager?.enableUndoRegistration() }
+        selectedRanges = selection
+        typingAttributes = [.font: base, .foregroundColor: NSColor.textColor]
+    }
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let menu = super.menu(for: event), isEditable else { return super.menu(for: event) }
         menu.addItem(.separator())
@@ -73,10 +106,11 @@ private final class MessageTextView: NSTextView {
     @objc private func recentMessages() {
         model?.showMessageHistory { [weak self] message in
             guard let self, let model = self.model else { return }
-            if !self.string.hasPrefix(message) {
+            if !self.string.utf16.starts(with: message.utf16) {
                 if self.string == model.messageTemplate {
                     self.insertText(message, replacementRange: NSRange(location: 0, length: (self.string as NSString).length))
                 } else { self.insertText(message + (self.string.isEmpty ? "" : "\n"), replacementRange: self.selectedRange()) }
+                model.updateIssueFromHistory(message, insertedInto: self.string)
             }
             self.window?.makeFirstResponder(self)
         }

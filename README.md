@@ -66,8 +66,10 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   The configured issue-ID field uses TortoiseGit's top-right layout, repository/
   `.tgitconfig` precedence, numeric validation, issue-line insertion and ordered
   missing-issue/template/sign-off warnings. Native cancellation and checked-file
-  commit acceptance preserve unchecked changes. Tracker links, provider plugins
-  and signed scope acceptance remain pending; see [issue audit](docs/ISSUE-TRACKER-PARITY.md).
+  commit acceptance preserve unchecked changes. Configured tracker links use
+  bold/italic message highlights in both appearances; Recent messages updates
+  the issue field using upstream rules. Provider plugins and signed scope
+  acceptance remain pending; see [issue audit](docs/ISSUE-TRACKER-PARITY.md).
   ![Native issue-ID Commit controls](docs/site/assets/commit-issue.png)
   ![Native selected-file merge Commit](docs/site/assets/commit-merge.png)
   An attached right-hand patch window stages/unstages selected lines or hunks in

@@ -27,21 +27,7 @@ public enum IssueRegexRuntime {
     /// Uses C++ ECMAScript matching with Windows UTF-16 offsets. Call off the UI thread.
     public static func match(message: String, check: String, extract: String = "", executable: URL? = nil, bundle: Bundle = .main) throws -> IssueRegexMatch {
         guard !check.isEmpty else { return IssueRegexMatch(hasMatch: false, ranges: []) }
-        let parser = try executable ?? Self.executable(bundle: bundle)
-        guard FileManager.default.isExecutableFile(atPath: parser.path) else { throw IssueRegexFailure.runtimeMissing }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitIssueRegex-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let inputs = [check, extract, message]
-        let files = try inputs.enumerated().map { index, value -> URL in
-            let file = directory.appendingPathComponent(String(index))
-            try Data(value.utf16.flatMap { [UInt8(truncatingIfNeeded: $0), UInt8(truncatingIfNeeded: $0 >> 8)] }).write(to: file)
-            return file
-        }
-        let output: Data
-        do { output = try BundledTextHelper.capture(executable: parser, arguments: files.map(\.path)) }
-        catch BundledTextHelperFailure.timedOut { throw IssueRegexFailure.timedOut }
-        catch BundledTextHelperFailure.failed(let message) { throw IssueRegexFailure.failed(message) }
+        let output = try capture(message: message, check: check, extract: extract, executable: executable, bundle: bundle)
         guard let text = String(data: output, encoding: .utf8) else { throw IssueRegexFailure.failed("Invalid helper output.") }
         let rows = text.split(separator: "\n")
         guard let first = rows.first, first == "matched\t0" || first == "matched\t1" else { throw IssueRegexFailure.failed("Invalid helper output.") }
@@ -54,5 +40,23 @@ public enum IssueRegexRuntime {
             ranges.append(NSRange(location: location, length: size))
         }
         return IssueRegexMatch(hasMatch: first == "matched\t1", ranges: ranges)
+    }
+    static func capture(message: String, check: String, extract: String, executable: URL?, bundle: Bundle = .main, mode: [String] = []) throws -> Data {
+        let parser = try executable ?? Self.executable(bundle: bundle)
+        guard FileManager.default.isExecutableFile(atPath: parser.path) else { throw IssueRegexFailure.runtimeMissing }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitIssueRegex-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let inputs = [check, extract, message]
+        let files = try inputs.enumerated().map { index, value -> URL in
+            let file = directory.appendingPathComponent(String(index))
+            try Data(value.utf16.flatMap { [UInt8(truncatingIfNeeded: $0), UInt8(truncatingIfNeeded: $0 >> 8)] }).write(to: file)
+            return file
+        }
+        let output: Data
+        do { output = try BundledTextHelper.capture(executable: parser, arguments: files.map(\.path) + mode) }
+        catch BundledTextHelperFailure.timedOut { throw IssueRegexFailure.timedOut }
+        catch BundledTextHelperFailure.failed(let message) { throw IssueRegexFailure.failed(message) }
+        return output
     }
 }

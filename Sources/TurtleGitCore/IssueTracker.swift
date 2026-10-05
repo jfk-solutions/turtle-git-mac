@@ -121,7 +121,7 @@ public struct IssueTrackerProperties: Sendable, Equatable {
         let ids = try match?.identifiers(in: message) ?? identifiers(in: message, executable: executable)
         // Foundation's numeric comparison supplies natural numeric ordering.
         // Full StrCmpLogicalW punctuation/locale parity is still under audit.
-        let existing = Set(ids).sorted { $0.compare($1, options: [.numeric, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX")) == .orderedAscending }.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+        let existing = Self.naturalIssueIDs(ids)
         guard id != existing else { return IssueCommitPreparation(message: message, requiresIssueWarning: warning) }
         let normalized = id.replacingOccurrences(of: ", ", with: ",").replacingOccurrences(of: " ,", with: ",")
         let line = messageTemplate.replacingOccurrences(of: "%BUGID%", with: normalized)
@@ -187,6 +187,9 @@ extension GitRepository {
     }
     public func prepareIssueCommit(properties: IssueTrackerProperties, message: String, issueID: String) throws -> IssueCommitPreparation {
         try properties.prepareCommit(message: message, issueID: issueID)
+    }
+    public func issueFieldValue(properties: IssueTrackerProperties, message: String) throws -> String {
+        try properties.issueFieldValue(in: message)
     }
     public func commitSignOffLine() throws -> String {
         let name = try run(["config", "user.name"]).text.replacingOccurrences(of: "\n", with: "")

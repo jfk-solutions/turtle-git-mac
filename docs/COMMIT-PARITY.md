@@ -1194,3 +1194,16 @@ Checked-file Message only now excludes checked paths from changelist removal;
 staging mode still commits indexed paths and uses them for cleanup. Native
 changelist cleanup combinations remain under audit. A preflight rejection no
 longer offers saved-copy restoration before a commit has been attempted.
+
+## Issue links and Recent-message field updates
+
+The editor now uses the upstream UTF-8 byte regex styling algorithm separately
+from Commit's UTF-16 ID validation. Matched context is bold, IDs bold italic,
+and configured tracker targets open through native link clicks. Native checks
+verified Undo, no stale links after replacement, Recent-message issue updates,
+retention for messages with no ID, and unchanged issue fields after revision
+insertion. Light/dark captures and preserved HEAD/index/working contents are
+recorded in [link acceptance](qa/commit-issue-links-2026-10-05.json).
+See [algorithm mapping and remaining editor gaps](ISSUE-TRACKER-PARITY.md).
+Generic URL/email detection, full incremental SciEdit behavior, provider plugins
+and signed sandbox invocation remain pending; this is partial Commit parity.

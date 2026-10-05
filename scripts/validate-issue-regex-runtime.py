@@ -61,4 +61,13 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitIssueRegexAudit-') as folder:
         inputs[0].write_bytes(r'(?<=#)(\d+)'.encode('utf-16-le'))
         invalid = subprocess.run(prefix + [str(binary)] + [str(file) for file in inputs], capture_output=True, timeout=6)
         assert invalid.returncode == 1 and invalid.stderr, 'ECMAScript lookbehind unexpectedly accepted'
+        for check, extract, message, expected in [
+            (r'issue #(\d+)', '', '🦎 issue #42', 'styles\tutf8\ncontext\t5\t7\nidentifier\t12\t2\n'),
+            (r'issues.*', r'#(\d+)', '雪🦎 issues #42 and #73 done', 'styles\tutf8\ncontext\t8\t7\nidentifier\t15\t3\ncontext\t18\t5\nidentifier\t23\t3\ncontext\t26\t5\n'),
+            (r'(雪)', '', '🦎雪', 'styles\tutf8\nidentifier\t4\t3\n'),
+        ]:
+            for file, value in zip(inputs, (check, extract, message)):
+                file.write_bytes(value.encode('utf-16-le'))
+            output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--styles-utf8'], text=True, timeout=6)
+            assert output == expected, (prefix, message, output, expected)
 print('IssueRegex: universal macOS 13 matcher, UTF-16 offsets, extraction, source and system linkage verified.')

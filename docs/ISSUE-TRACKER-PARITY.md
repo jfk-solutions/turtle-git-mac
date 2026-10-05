@@ -75,7 +75,7 @@ Numeric IDs accept only ASCII digits, commas and spaces. Template extraction
 uses UTF-16 positions and trims only LF, including leaving CR from CRLF intact.
 Message insertion trims the field, performs the upstream comma-space
 replacement, avoids duplicate IDs and honors append/prepend. URL component
-escaping is implemented and tested, but clickable native links remain pending.
+escaping is implemented and tested; native tracker links are described below.
 Foundation supplies numeric comparison for natural ID ordering; full
 `StrCmpLogicalW` locale/punctuation/equivalent-ID behavior is not proven.
 
@@ -97,12 +97,55 @@ See [control acceptance](qa/commit-issue-controls-2026-10-05.json).
 ![Actual native issue field](site/assets/commit-issue.png)
 ![Actual native seeded issue field in dark mode](site/assets/commit-issue-dark.png)
 
+## Message highlighting, links and history
+
+`SciEdit.cpp` and its header were verified against inventory blobs
+`5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e` and
+`0c26375d84d7d27b111a5759af820d9058da9b6e`. `MarkEnteredBugID` uses
+narrow C++ ECMAScript regexes over UTF-8 bytes, unlike the UTF-16 validation
+matcher. The bundled helper now retains that separate styling algorithm.
+Single-expression capture 1 becomes the identifier; its preceding matched
+context is bold. Two-expression matching styles complete inner matches and
+surrounding context. Identifiers are bold italic hotspots. Adjacent equal
+styles merge before resolving the link, matching Scintilla's contiguous style
+scan. No simple-template styling fallback is invented.
+
+AppKit maps complete UTF-8 scalar boundaries to UTF-16 attributed ranges,
+using dynamic link colors and plain base typing attributes. Partial UTF-8
+scalar ranges cannot be represented by AppKit and are omitted. Styling is
+serialized off the main thread, debounced and canceled when superseded; stale
+results do not replace newer text. Attribute updates preserve selection and
+Undo registration. Native link activation follows the configured URL with
+UTF-8 component escaping, and tooltips contain the resolved URL.
+
+Recent messages matches `CommitDlg.cpp`'s prefix gate and updates a visible
+issue field only when the chosen message yields nonempty IDs. A message with
+no IDs retains the prior field. Pick commit message and ordinary typing only
+insert text; they do not update the issue field. History matching uses the
+wide validation algorithm, not the editor's byte matcher.
+
+Native acceptance verified bold/italic ranges after Unicode prefixes, ordinary
+link clicks opening the exact percent-escaped local QA target, retained Undo,
+Recent-message field updates, no-ID retention, revision-picker retention and
+removal of stale link attributes. Actual light and dark captures are below.
+HEAD, raw index and working contents were unchanged. One QA app ran at a time;
+all were closed after testing. See [recorded evidence](qa/commit-issue-links-2026-10-05.json).
+
+![Actual native issue links in light mode](site/assets/commit-issue-links.png)
+![Actual native issue links in dark mode](site/assets/commit-issue-links-dark.png)
+
+Full-message native restyling does not yet reproduce every incremental
+Scintilla anchor/styling state. Generic URL/email links, tracker providers,
+spell checking, snippets and the remaining SciEdit functionality are pending.
+Signed inherited-helper invocation remains unverified. Native link dispatch
+uses Apple's [NSTextView delegate](https://developer.apple.com/documentation/appkit/nstextviewdelegate/textview(_:clickedonlink:at:)).
+
 ## Remaining Commit behavior
 
 - Validate XDG/system includes, conditional includes and scoped ancestor access
   in a signed app, and review CLI versus libgit2 precedence differences.
-- Complete clickable tracker links, exact Windows natural ID ordering,
-  history-selection field updates and native message highlighting.
+- Verify exact Windows natural ID ordering, incremental styling anchors, generic
+  URL/email detection, spell checking and other SciEdit editor behavior.
 - Audit Windows tracker-provider plugins and define the macOS equivalent.
 - Compare native light/dark Commit layouts and all controls with upstream;
   exercise scoped/signed builds, hooks, message-only and ReCommit/Push combinations.
