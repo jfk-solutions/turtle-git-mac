@@ -114,3 +114,12 @@ Native Format Patch cancellation follows ProgressDlg.cpp's interrupt then stop
 child-process workflow under GPL version 2 or later. Copyright (C) 2008-2020,
 2022-2026 TortoiseGit. CancellableGitProcess.swift uses a
 macOS POSIX spawn process group instead of Windows process-tree enumeration.
+
+UnifiedDiffViewer.swift and UnifiedDiffViewerSettings.swift adapt the separate
+GNU patch viewer preference and Shift inversion from AppUtils.cpp and
+SettingsProgsDiff.cpp under GPL version 2 or later. AppUtils: Copyright (C)
+2008-2026 TortoiseGit and (C) 2003-2011, 2013-2014 TortoiseSVN. SettingsProgsDiff:
+Copyright (C) 2008-2011, 2013-2016 TortoiseGit and (C) 2003-2007, 2011 TortoiseSVN.
+macOS application bundles, document opening and security bookmarks replace the
+Windows viewer command for this partial replacement; command templates remain
+pending. External viewers receive an exact read-only temporary byte copy.

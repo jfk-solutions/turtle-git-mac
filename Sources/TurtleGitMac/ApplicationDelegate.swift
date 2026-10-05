@@ -3,7 +3,7 @@ import AppKit
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
     weak var repositoryModel: RepositoryModel?
     private var confirmingQuit = false
-    func applicationWillTerminate(_ notification: Notification) { HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if confirmingQuit { return .terminateLater }
         if RepositoryBrowserExportFiles.activeLoads > 0 { return .terminateCancel }

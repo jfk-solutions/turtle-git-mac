@@ -1,0 +1,51 @@
+import XCTest
+@testable import TurtleGitCore
+
+final class UnifiedDiffViewerTests: XCTestCase {
+    func testShiftInvertsConfiguredExternalChoiceAndEmptyAlwaysUsesBuiltin() throws {
+        let app = URL(fileURLWithPath: "/Applications/Viewer 雪.app", isDirectory: true)
+        for enabled in [false, true] {
+            let preferences = UnifiedDiffViewerPreferences(enabled: enabled, applicationPath: app.path)
+            XCTAssertEqual(try preferences.choice(), enabled ? .external(app) : .builtin)
+            XCTAssertEqual(try preferences.choice(alternate: true), enabled ? .builtin : .external(app))
+            let empty = UnifiedDiffViewerPreferences(enabled: enabled)
+            XCTAssertEqual(try empty.choice(), .builtin); XCTAssertEqual(try empty.choice(alternate: true), .builtin)
+        }
+        for invalid in ["relative.app", "/Applications/tool", "/Applications/tool.app\0"] {
+            let active = UnifiedDiffViewerPreferences(enabled: true, applicationPath: invalid)
+            XCTAssertFalse(active.valid); XCTAssertThrowsError(try active.choice())
+            XCTAssertEqual(try active.choice(alternate: true), .builtin)
+            let disabled = UnifiedDiffViewerPreferences(enabled: false, applicationPath: invalid)
+            XCTAssertEqual(try disabled.choice(), .builtin); XCTAssertThrowsError(try disabled.choice(alternate: true))
+        }
+    }
+    func testDisabledViewerRetainsApplicationAndBookmarkIndependentlyOfEditor() throws {
+        let suite = "TurtleGitUnifiedDiffViewerTests-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let editor = AlternativeEditorPreferences(custom: true, applicationPath: "/Applications/Editor.app", bookmark: Data([1, 2]))
+        editor.save(to: defaults)
+        var preferences = UnifiedDiffViewerPreferences(enabled: true, applicationPath: "/Applications/Viewer.app", bookmark: Data([3, 4]))
+        preferences.save(to: defaults); preferences.enabled = false; preferences.save(to: defaults)
+        XCTAssertEqual(UnifiedDiffViewerPreferences.load(from: defaults), preferences)
+        XCTAssertEqual(AlternativeEditorPreferences.load(from: defaults), editor)
+        XCTAssertEqual(try UnifiedDiffViewerPreferences.load(from: defaults).choice(alternate: true), .external(URL(fileURLWithPath: preferences.applicationPath, isDirectory: true)))
+    }
+    func testPreviewPreservesRawBytesPrivatePermissionsAndIndependentLifetime() throws {
+        let bytes = Data([0, 255, 13, 10]) + Data("diff --git a/雪 b/雪\n".utf8)
+        let first = try UnifiedDiffPreview.create(bytes)
+        defer { first.discard() }
+        let second = try UnifiedDiffPreview.create(Data("other".utf8))
+        defer { second.discard() }
+        XCTAssertNotEqual(first.directory, second.directory)
+        XCTAssertEqual(try Data(contentsOf: first.file), bytes)
+        XCTAssertEqual(first.file.lastPathComponent, "diff.patch")
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: first.directory.path)[.posixPermissions] as? NSNumber)?.intValue, 0o700)
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: first.file.path)[.posixPermissions] as? NSNumber)?.intValue, 0o444)
+        second.discard()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: second.directory.path))
+        XCTAssertEqual(try Data(contentsOf: first.file), bytes)
+        first.discard()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: first.directory.path))
+    }
+}

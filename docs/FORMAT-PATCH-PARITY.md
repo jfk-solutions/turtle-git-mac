@@ -47,6 +47,13 @@ adaptation. Output directories can be created by Git.
 
 ## Evidence and remaining work
 
+The unified-diff button now honors the dedicated Unified Diff Viewer preference
+and source's Shift inversion, with exact read-only bytes for an external macOS
+application. The preference retains a disabled application for Shift use and is
+independent of Alternative Editor. The settings/launch/keyboard implementation
+compiles; native and signed acceptance remain pending. See
+[UNIFIED-DIFF-VIEWER-PARITY.md](UNIFIED-DIFF-VIEWER-PARITY.md).
+
 The native dialog uses the original Output Directory and Version groups, editable
 AppKit history fields, AppKit radio buttons, commit-count field and stepper, From/To
 Log selection sheets, both options and the four footer actions. The Since chooser
@@ -134,6 +141,6 @@ Remaining: verify native light/dark layout and keyboard interaction, successful
 export through the dialog, failure/retry, output-folder grants, unborn/bare states,
 mail attachments and service failure/cancel callbacks. Verify searchable reference
 browsing, source command startrev/endrev presets and Log export entry points;
-add Shift alternative diff viewer and verify native progress cancellation. Complete the
+verify Shift viewer selection and native progress cancellation. Complete the
 source Send Mail dialog/options rather than treating native composition alone as
 full parity. Signed Finder and App Store testing and screenshots remain pending.

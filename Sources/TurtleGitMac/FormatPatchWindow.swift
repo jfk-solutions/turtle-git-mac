@@ -8,7 +8,7 @@ import TurtleGitCore
     private var picker: LogWindowController?
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
-    var activeOperation: Bool { model.busy || model.composingMail }
+    var activeOperation: Bool { model.busy || model.composingMail || model.openingViewer }
     init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil) {
         model = FormatPatchWindowModel(repository: repository, access: access)
         model.apply(preset)
@@ -23,11 +23,11 @@ import TurtleGitCore
         model.close = { [weak self] in guard let self, !self.activeOperation else { return }; self.window?.close() }
         model.chooseDirectory = { [weak self] in self?.chooseDirectory() }
         model.chooseRevision = { [weak self] target in self?.chooseRevision(target) }
-        model.showPatch = { [weak self] text in self?.showPatch(text) }
+        model.showPatch = { [weak self] bytes, alternate in self?.showPatch(bytes, alternate: alternate) }
         model.composeMail = { [weak self] files in self?.composeMail(files) }
         model.load()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && mail == nil && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { patch?.close(); onClosed() }
     private func chooseDirectory() {
         guard let window, window.attachedSheet == nil else { return }
@@ -52,12 +52,27 @@ import TurtleGitCore
         picker = controller; controller.model.reload()
         if let child = controller.window { window.beginSheet(child) }
     }
-    private func showPatch(_ text: String) {
+    private func showPatch(_ bytes: Data, alternate: Bool) {
+        let preferences = UnifiedDiffViewerPreferences.load()
+        do {
+            if case .external(let application) = try preferences.choice(alternate: alternate) {
+                let preview = try UnifiedDiffPreview.create(bytes)
+                UnifiedDiffPreviewFiles.retain(preview)
+                model.openingViewer = true
+                UnifiedDiffApplication.open(preview.file, application: application, bookmark: preferences.bookmark) { [weak model] error in
+                    model?.openingViewer = false
+                    if let error { UnifiedDiffPreviewFiles.discard(preview.file); model?.error = error }
+                }
+                return
+            }
+        } catch { model.error = error.localizedDescription; return }
         let controller = patch ?? PatchWindowController(repository: model.repository, access: model.access)
-        controller.model.readOnly = true; controller.model.document = GitPatch(text: text)
+        controller.model.readOnly = true; controller.model.document = GitPatch(text: String(decoding: bytes, as: UTF8.self))
         controller.model.comparisonTitle = "HEAD → Working tree"
         controller.model.readOnlyInformation = "Unified diff since HEAD. Right-click to save the patch."
-        controller.model.customRefresh = { [weak model = model] in model?.unifiedDiff() }
+        controller.model.customRefresh = { [weak model = model, weak controller] in
+            model?.unifiedDiff(onResult: { [weak controller] bytes in controller?.model.document = GitPatch(text: String(decoding: bytes, as: UTF8.self)) })
+        }
         controller.window?.title = "Unified Diff – TurtleGit"
         controller.onClosed = { [weak self] in self?.patch = nil }
         patch = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -88,6 +103,7 @@ import TurtleGitCore
     @Published var noPrefix: Bool
     @Published var busy = false
     @Published var composingMail = false
+    @Published var openingViewer = false
     @Published var hasHead = false
     @Published var bare = false
     @Published var references: [String] = []
@@ -103,11 +119,11 @@ import TurtleGitCore
     var close: () -> Void = {}
     var chooseDirectory: () -> Void = {}
     var chooseRevision: (Mode) -> Void = { _ in }
-    var showPatch: (String) -> Void = { _ in }
+    var showPatch: (Data, Bool) -> Void = { _, _ in }
     var composeMail: ([URL]) -> Void = { _ in }
     var onOutputChanged: (String) -> Void = { _ in }
     func apply(_ preset: FormatPatchPreset?) {
-        guard let preset, !busy, !progress, !composingMail else { return }
+        guard let preset, !busy, !progress, !composingMail, !openingViewer else { return }
         from = preset.from; to = preset.to
         switch preset.selection {
         case .since(let value): since = value; mode = .since
@@ -154,7 +170,7 @@ import TurtleGitCore
         return success ? "Finished" : "Failed"
     }
     func export() {
-        guard !busy, !composingMail, valid else { return }
+        guard !busy, !composingMail, !openingViewer, valid else { return }
         let folder = URL(fileURLWithPath: directory).standardizedFileURL
         if GitRuntime.isAppStoreBuild && !((access?.hasSecurityScope == true && access?.contains(folder) == true) || (outputAccess?.hasSecurityScope == true && outputAccess?.contains(folder) == true)) { chooseDirectory(); return }
         let selection: FormatPatchSelection = mode == .since ? .since(since) : mode == .number ? .number(count) : .range(from: from, to: to)
@@ -205,8 +221,8 @@ import TurtleGitCore
             if self.exportSendMail { self.composeMail(self.files) } else { self.close() }
         }
     }
-    func unifiedDiff() {
-        guard !busy, !composingMail, hasHead, !bare else { return }
+    func unifiedDiff(alternate: Bool = false, onResult: ((Data) -> Void)? = nil) {
+        guard !busy, !composingMail, !openingViewer, hasHead, !bare else { return }
         let prefix = noPrefix
         UserDefaults.standard.set(prefix, forKey: "FormatPatchNoPrefix"); busy = true
         Task {
@@ -214,7 +230,7 @@ import TurtleGitCore
             do {
                 try checkAccess()
                 let result = try await repository.run(["diff", "--no-ext-diff", "--no-color", "--stat", "--patch"] + (prefix ? ["--no-prefix"] : []) + ["--end-of-options", "HEAD", "--"])
-                showPatch(String(decoding: result.stdout, as: UTF8.self))
+                if let onResult { onResult(result.stdout) } else { showPatch(result.stdout, alternate) }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -256,13 +272,13 @@ private struct FormatPatchDialog: View {
             Toggle("Send Mail after create", isOn: $model.sendMail)
             Toggle("No a/ and b/ prefixes", isOn: $model.noPrefix)
             HStack {
-                Button("Save unified diff since HEAD") { model.unifiedDiff() }.disabled(!model.hasHead || model.bare)
+                Button("Save unified diff since HEAD") { model.unifiedDiff(alternate: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.hasHead || model.bare)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
                 Button("OK") { model.export() }.keyboardShortcut(.defaultAction).disabled(!model.valid)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
             }
-        }.padding(16).disabled(model.busy || model.composingMail)
+        }.padding(16).disabled(model.busy || model.composingMail || model.openingViewer)
         .alert("Format Patch", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $browseSince) {
             VStack(alignment: .leading, spacing: 12) {

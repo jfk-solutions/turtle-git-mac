@@ -45,6 +45,12 @@ Format Patch cancellation now stops its owned Git process group and preserves
 partial patches and diagnostics. Process tests verify leader/child cleanup;
 native Cancel/Escape interaction and signed sandbox behavior remain unverified.
 
+Unified Diff Viewer settings preserve an external application independently of
+Alternative Editor. Shift reverses the saved viewer choice for Format Patch's
+unified diff. Preference rules and exact read-only preview bytes are tested;
+native launching and signed handoff remain unverified. See
+[viewer parity](docs/UNIFIED-DIFF-VIEWER-PARITY.md).
+
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
 icons. It browses pinned nested revisions, including bare repositories and tags,

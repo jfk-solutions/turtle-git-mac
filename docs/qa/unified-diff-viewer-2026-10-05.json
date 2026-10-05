@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-05",
+  "scope": "Unified diff viewer preference and Format Patch Shift selection; full app goal incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "SettingsProgsDiff.cpp": "9cd5e7c658477fd8120a7f521c8ce0f16cc10175",
+    "FormatPatchDlg.cpp": "b8ad0c02bb27397700a6aee773d87ce7656d62c8"
+  },
+  "focused_tests": {
+    "count": 3,
+    "failures": 0,
+    "coverage": [
+      "Enabled/disabled/unconfigured ordinary and alternate viewer choices",
+      "Invalid external app paths",
+      "Disabled configuration retains path/bookmark independently of Alternative Editor",
+      "Exact non-UTF-8 bytes, private directory, read-only file, independent copies and cleanup"
+    ]
+  },
+  "full_suite": "Last 432-test pass predates this viewer change; no current full-suite claim",
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "bundle_audits": {
+    "Debug": "passed, 72 original icons",
+    "AppStore_require_git": "passed, 72 original icons and universal Git runtime"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "log_sha256": {
+    "focused": "8466257b57980d72c6436f508b4b4df4c5fe45a7c67a8815b5e16c5c0e33c7a0",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "native_qa": {
+    "inventory": "responded",
+    "owned_preview_instances": 1,
+    "window_inspection_attempts": 2,
+    "result": "Both failed: Sky Computer Use native pipe closed before response",
+    "accessibility_state_returned": false,
+    "screenshot_created": false,
+    "external_viewer_launched": false,
+    "settings_changed": false,
+    "cleanup": "Exact owned PID 81575/executable rechecked and SIGTERM sent after normal Quit unavailable; process list empty afterwards"
+  },
+  "adaptations": [
+    "Native app bundle/document opening and security bookmark replace Windows command string",
+    "Exact owned preview retained until app termination",
+    "Format Patch close/Quit guarded during native open callback"
+  ],
+  "remaining": [
+    "Native settings geometry/light-dark/keyboard/Shift verification",
+    "Actual receiver and signed sandbox document handoff",
+    "Failed/stale bookmark and missing app acceptance",
+    "Command argument templates and %1/%title substitution",
+    "Other unified-diff callers",
+    "Complete TortoiseGitUDiff and other Diff Viewer settings groups"
+  ],
+  "github": "Local change not tested remotely; published macOS and Pages runs successful at 44d3e523a6272f9879597cd54585c98cffea04cd"
+}

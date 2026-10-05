@@ -43,7 +43,7 @@ src/Resources/TortoiseProcENG.rc,IDD_REVERT,Revert,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_LFS_LOCKS,LFS Locks,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_STATGRAPH,Statistics,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETOVERLAYICONS,Icon Set,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSDIFF,Diff Viewer,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSDIFF,Diff Viewer,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSPROGSMERGE,Merge Tool,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSLOOKANDFEEL,Context Menu,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSDIALOGS,Dialogs 1,pending-review
