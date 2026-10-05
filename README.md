@@ -307,3 +307,9 @@ Show changes as unified diff in Log now accepts multiple selected files, appends
 patches in displayed order and includes both names of a rename. Selected-path,
 root and rename regressions pass; native multi-file patch acceptance and merge
 parent variants remain under audit.
+
+Log's Reveal in Finder now selects the current disk item or opens its nearest
+existing parent if the historical path has disappeared. Native file selection
+and missing-file folder fallback were verified without checkout or repository
+changes; six resolver/restore tests and both builds pass. Signed sandbox and
+additional native path variants remain pending.

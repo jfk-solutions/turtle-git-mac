@@ -478,3 +478,37 @@ an automation `noWindowsAvailable` error when opening the context menu. Its one
 QA app quit normally; exact repository state and process absence were checked.
 No native pair handoff or new screenshot is claimed. This does not block the
 remaining source port, and full Log parity remains incomplete.
+
+## Reveal in Finder (2026-10-05)
+
+Upstream `GitStatusListCtrl.cpp` Explore eligibility (1898–1899), dispatch
+(2151–2153), and `CommonAppUtils.cpp::ExploreTo` (467–489) were audited. Log now
+includes Reveal in Finder after Open With, with the original Explorer icon.
+A single non-deleted historical row and a working-tree repository are required;
+gitlink directories remain eligible. The command selects the current disk item.
+If it no longer exists, it opens the nearest existing parent directory inside
+the repository. It does not check out the historical blob. The App Store route
+checks the retained repository grant before resolving the path.
+
+The core resolver handles literal paths and broken symlink items, rejects bare
+repositories, Git metadata and escaping parent aliases, and performs no Git or
+filesystem mutation. Six WorkingFileRestore tests pass, including two new reveal
+regressions for normal/broken-link selection, missing nested/root fallback,
+unsafe paths and exact raw index/HEAD preservation. Debug and unsigned App Store
+builds and both icon/runtime audits pass (64 icons, 11 universal Mach-O files).
+
+Native QA invoked Reveal on a modified file in Log. Finder selected `right.txt`
+and displayed its later working contents, which differ from both selected and
+staged bytes. The first menu showed Show log/Blame, Export, Save, editor, Open,
+Open With and Reveal in that relative order. Selecting the older root commit's
+`left.txt`, absent from the current disk, opened the current repository folder
+without restoring the file. A transient activation interruption was refreshed
+and the missing-file handoff retried before acceptance was recorded. Only the
+QA repository Finder window was closed; TurtleGit quit normally. Exact HEAD,
+raw index, working bytes and deleted-file absence were preserved, with no QA
+process remaining. [Native evidence](qa/log-reveal-2026-10-05.json) records this
+coverage. No new screenshot is claimed.
+
+Native nested missing-parent, symlink, gitlink/bare/deleted menu variants and
+signed sandbox handoff remain pending. Full Log menus, marked-row semantics and
+historical comparison acceptance are still incomplete.

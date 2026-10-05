@@ -77,3 +77,26 @@ extension GitRepository {
         return location
     }
 }
+
+public enum FileRevealDestination: Equatable, Sendable {
+    case select(URL)
+    case openDirectory(URL)
+}
+
+extension GitRepository {
+    /// Historical Explore selects the current disk item, or opens the nearest
+    /// existing parent when that item has since disappeared. No checkout occurs.
+    public func fileRevealDestination(path: String) throws -> FileRevealDestination {
+        guard try !isBare() else { throw RevisionComparisonFailure.selection }
+        let location = try restoreLocation(path)
+        let manager = FileManager.default
+        if (try? manager.attributesOfItem(atPath: location.path)) != nil { return .select(location) }
+        var parent = location.deletingLastPathComponent()
+        while parent.path == root.path || parent.path.hasPrefix(root.path + "/") {
+            if (try? parent.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { return .openDirectory(parent) }
+            if parent == root { break }
+            parent.deleteLastPathComponent()
+        }
+        throw WorkingFileRestoreFailure.location
+    }
+}

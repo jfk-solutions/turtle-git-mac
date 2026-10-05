@@ -2,6 +2,32 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingFileRestoreTests: XCTestCase {
+    func testRevealSelectsLiteralFilesAndLinksOrOpensNearestExistingFolderWithoutCheckout() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let manager = FileManager.default
+        try manager.createDirectory(at: root.appendingPathComponent("nested"), withIntermediateDirectories: true)
+        try manager.createSymbolicLink(atPath: root.appendingPathComponent("broken-link").path, withDestinationPath: "/missing/target")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let selected = try await repo.fileRevealDestination(path: path); XCTAssertEqual(selected, .select(root.appendingPathComponent(path)))
+        let linked = try await repo.fileRevealDestination(path: "broken-link"); XCTAssertEqual(linked, .select(root.appendingPathComponent("broken-link")))
+        let missing = try await repo.fileRevealDestination(path: "nested/gone/deleted.txt"); XCTAssertEqual(missing, .openDirectory(root.appendingPathComponent("nested")))
+        let rootFallback = try await repo.fileRevealDestination(path: "gone/deleted.txt"); XCTAssertEqual(rootFallback, .openDirectory(URL(fileURLWithPath: root.path, isDirectory: true)))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(finalHead, head)
+        XCTAssertFalse(manager.fileExists(atPath: root.appendingPathComponent("gone").path))
+    }
+    func testRevealRejectsMetadataEscapingParentAndBareRepository() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("escape").path, withDestinationPath: "/tmp")
+        for path in ["../outside", ".git/index", "escape/missing", "bad\0path"] {
+            do { _ = try await repo.fileRevealDestination(path: path); XCTFail("Unsafe reveal accepted") } catch {}
+        }
+        let bare = root.appendingPathComponent("bare.git")
+        _ = try await repo.run(["init", "--bare", bare.path])
+        do { _ = try await GitRepository(root: bare).fileRevealDestination(path: "file"); XCTFail("Bare reveal accepted") } catch RevisionComparisonFailure.selection {}
+    }
     func testRestoreBinaryCopyAfterCommitPreservesCommittedIndexAndPermissions() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

@@ -388,6 +388,21 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
+    func revealFile(_ ids: Set<String>) {
+        guard !busy, !bare, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), !file.action.hasPrefix("D") else { return }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let destination = try await repository.fileRevealDestination(path: file.path)
+                switch destination {
+                case .select(let url): NSWorkspace.shared.activateFileViewerSelecting([url])
+                case .openDirectory(let url): if !NSWorkspace.shared.open(url) { self.error = "Could not open the file's containing folder in Finder." }
+                }
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     func selectedFileDiff(_ ids: Set<String>) {
         guard !busy, let revision else { return }
         let chosen = visibleFiles.filter { ids.contains($0.id) }
@@ -514,6 +529,9 @@ struct LogDialog: View {
             .disabled(model.busy || model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule && !file.action.hasPrefix("D") {
             historicalFileActions(ids)
+        }
+        if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.action.hasPrefix("D"), !model.bare {
+            Button { model.revealFile(ids) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }.disabled(model.busy)
         }
         Menu {
             ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in

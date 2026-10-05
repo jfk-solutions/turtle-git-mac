@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-05",
+  "base_commit": "a0727b2",
+  "configuration": "Debug, ad-hoc disposable preview, no sandbox",
+  "native_existing_file": "Log selected commit > right.txt context menu > Reveal in Finder; Finder selected right.txt and displayed later working text",
+  "native_missing_file": "Log older commit > absent left.txt > Reveal in Finder; Finder opened the current repository folder, without checkout",
+  "menu_order": [
+    "Show log",
+    "Blame",
+    "Export",
+    "Save revision",
+    "alternative editor",
+    "Open",
+    "Open With",
+    "Reveal in Finder"
+  ],
+  "preserved": {
+    "head": "3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c",
+    "index_sha256": "983b6a1c7c0596c06f84fdeb5fd40bc327a72458222c76277ab9b59174c46497",
+    "working_sha256": "756d1682624a699ea7fee6834e7b6923ee1fa406b19beeace8981b6cc2fc5485",
+    "left_absent": true
+  },
+  "shutdown": "QA Finder window closed, TurtleGit normal Quit, no QA process remained",
+  "pending": [
+    "signed sandbox handoff",
+    "nested missing-parent native variant",
+    "gitlink/bare/deleted menu native gates",
+    "symlink native reveal"
+  ],
+  "screenshot_created": false
+}
