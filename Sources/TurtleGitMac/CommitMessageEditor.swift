@@ -133,14 +133,14 @@ private final class MessageTextView: NSTextView {
         menu.addItem(.separator())
         for (title, action) in [("Pick commit hash…", #selector(pickHash)), ("Pick commit message…", #selector(pickMessage))] {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-            item.target = self; item.image = MenuIcon.log.image(); menu.addItem(item)
+            item.target = self; item.image = MenuIcon.log.contextImage(); menu.addItem(item)
         }
         let fileList = NSMenuItem(title: "Paste file list", action: #selector(pasteFileList), keyEquivalent: "")
-        fileList.target = self; fileList.image = MenuIcon.copy.image(); menu.addItem(fileList)
+        fileList.target = self; fileList.image = MenuIcon.copy.contextImage(); menu.addItem(fileList)
         if model?.messageHistory?.entries.isEmpty == false {
             for (title, action) in [("Paste last message", #selector(pasteLastMessage)), ("Recent messages…", #selector(recentMessages))] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-                item.target = self; item.image = (title == "Paste last message" ? MenuIcon.copy : MenuIcon.log).image(); menu.addItem(item)
+                item.target = self; item.image = (title == "Paste last message" ? MenuIcon.copy : MenuIcon.log).contextImage(); menu.addItem(item)
             }
         }
         return menu

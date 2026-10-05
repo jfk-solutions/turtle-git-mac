@@ -12,6 +12,7 @@ sources = [root / 'Sources/TurtleGitMac' / name for name in (
 driver = r'''
 import Foundation
 import AppKit
+import SwiftUI
 import TurtleGitCore
 
 // Policy simulation only: these do not provide real macOS sandbox grants.
@@ -237,6 +238,22 @@ struct TestScopes: RepositoryBookmarkProvider {
         let suite = "TurtleGit.WorktreeColumns.Test." + UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
+        func labelWidth(context: Bool) -> CGFloat {
+            let view = NSHostingView(rootView: CommandLabel(title: "Lock", icon: .lock)
+                .environment(\.turtleGitContextMenu, context).defaultAppStorage(defaults))
+            view.layoutSubtreeIfNeeded()
+            return view.fittingSize.width
+        }
+        defaults.set(true, forKey: "ShowAppContextMenuIcons")
+        let contextWithIcon = labelWidth(context: true)
+        let ordinaryWithIcon = labelWidth(context: false)
+        defaults.set(false, forKey: "ShowAppContextMenuIcons")
+        let contextWithoutIcon = labelWidth(context: true)
+        let ordinaryAfterDisable = labelWidth(context: false)
+        precondition(contextWithIcon > contextWithoutIcon + 10, "Disabled context label must remove the icon slot")
+        precondition(abs(ordinaryWithIcon - ordinaryAfterDisable) < 0.1, "Ordinary labels must retain their icons")
+        defaults.removeObject(forKey: "ShowAppContextMenuIcons")
+        print("Actual SwiftUI hosting receiver: context icon slot toggles; ordinary label keeps its icon. No popup displayed.")
         let coordinator = WorktreeListTable.Coordinator(model: model, defaults: defaults)
         let scroll = coordinator.makeScrollView()
         let table = scroll.documentView as! NSTableView
@@ -296,6 +313,10 @@ struct TestScopes: RepositoryBookmarkProvider {
         precondition(restoredTable.selectedRowIndexes == IndexSet([1, 2]))
         let rowMenu = NSMenu(); restored.menuNeedsUpdate(rowMenu)
         precondition(rowMenu.items.map(\.title) == ["Lock", "Unlock", "Remove", "Force remove"] && rowMenu.items.allSatisfy { $0.image != nil })
+        defaults.set(false, forKey: "ShowAppContextMenuIcons"); restored.menuNeedsUpdate(rowMenu)
+        precondition(rowMenu.items.map(\.title) == ["Lock", "Unlock", "Remove", "Force remove"] && rowMenu.items.allSatisfy { $0.image == nil }, "Disable only native context images, preserving commands")
+        defaults.removeObject(forKey: "ShowAppContextMenuIcons"); restored.menuNeedsUpdate(rowMenu)
+        precondition(rowMenu.items.allSatisfy { $0.image != nil })
         model.selection = [model.rows[0].id]; restored.menuNeedsUpdate(rowMenu)
         precondition(rowMenu.items.map(\.title) == ["Explore to", "Lock"])
         model.busy = true; restored.update(); restored.menuNeedsUpdate(rowMenu)

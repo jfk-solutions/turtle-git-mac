@@ -130,13 +130,15 @@ private struct ReferenceLogDialog: View {
                 TableColumn("Message") { entry in Text(entry.message).help(entry.subject) }.width(min: 160, ideal: 360)
                 TableColumn("Date") { entry in if let date = entry.date { Text(date.formatted(date: .numeric, time: .standard)) } }.width(min: 140, ideal: 175)
             }.contextMenu(forSelectionType: String.self) { ids in
-                Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1)
-                if !model.selecting && model.reference == "refs/stash" {
-                    Button { model.apply(ids) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }.disabled(ids.count != 1)
-                    Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty)
+                TurtleGitContextMenu {
+                    Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1)
+                    if !model.selecting && model.reference == "refs/stash" {
+                        Button { model.apply(ids) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }.disabled(ids.count != 1)
+                        Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty)
+                    }
+                    Divider()
+                    Button { model.copy(ids) } label: { CommandLabel(title: "Copy hash", icon: .copy) }.disabled(ids.isEmpty)
                 }
-                Divider()
-                Button { model.copy(ids) } label: { CommandLabel(title: "Copy hash", icon: .copy) }.disabled(ids.isEmpty)
             } primaryAction: { ids in if model.selecting { model.selection = ids; model.accept() } else { model.inspect(ids) } }
             HStack {
                 Button("Search…") { model.showFind = true }.keyboardShortcut("f")

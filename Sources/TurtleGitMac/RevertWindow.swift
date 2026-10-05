@@ -128,10 +128,12 @@ private struct RevertDialog: View {
                 TableColumn("Lines added") { (row: StatusEntry) in Text(lineCount(row.path, added: true)) }.width(80)
                 TableColumn("Lines removed") { (row: StatusEntry) in Text(lineCount(row.path, added: false)) }.width(95)
             }.contextMenu(forSelectionType: String.self) { ids in
-                Button { model.diff(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
-                Button { model.checked.formUnion(ids) } label: { CommandLabel(title: "Check selected files", icon: .add) }.disabled(ids.isEmpty)
-                Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }.disabled(ids.isEmpty)
-                if ids.count == 1, let path = ids.first { Button { model.onFileLog(path) } label: { CommandLabel(title: "Show log", icon: .log) } }
+                TurtleGitContextMenu {
+                    Button { model.diff(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
+                    Button { model.checked.formUnion(ids) } label: { CommandLabel(title: "Check selected files", icon: .add) }.disabled(ids.isEmpty)
+                    Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }.disabled(ids.isEmpty)
+                    if ids.count == 1, let path = ids.first { Button { model.onFileLog(path) } label: { CommandLabel(title: "Show log", icon: .log) } }
+                }
             } primaryAction: { model.diff($0) }
             HStack {
                 SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.frame(width: 190, height: 22)

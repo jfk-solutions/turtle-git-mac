@@ -284,13 +284,15 @@ private struct RevisionComparisonDialog: View {
                 TableColumn("Lines added", value: \.sortAdded) { file in Text(file.addedText) }.width(85)
                 TableColumn("Lines deleted", value: \.sortRemoved) { file in Text(file.removedText) }.width(95)
             }.contextMenu(forSelectionType: String.self) { ids in
-                Button { model.compare(ids) } label: { CommandLabel(title: "Compare revisions", icon: .compare) }.disabled(ids.isEmpty)
-                Button { model.showPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
-                Button { model.logFiles(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
-                Divider()
-                Button { model.saveList(ids) } label: { CommandLabel(title: "Save list of selected files…", icon: .saveAs) }.disabled(ids.isEmpty)
-                Button { model.copyPaths(ids, extended: true) } label: { CommandLabel(title: "Copy all columns to clipboard", icon: .copy) }.disabled(ids.isEmpty)
-                Button { model.copyPaths(ids) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(ids.isEmpty)
+                TurtleGitContextMenu {
+                    Button { model.compare(ids) } label: { CommandLabel(title: "Compare revisions", icon: .compare) }.disabled(ids.isEmpty)
+                    Button { model.showPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
+                    Button { model.logFiles(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
+                    Divider()
+                    Button { model.saveList(ids) } label: { CommandLabel(title: "Save list of selected files…", icon: .saveAs) }.disabled(ids.isEmpty)
+                    Button { model.copyPaths(ids, extended: true) } label: { CommandLabel(title: "Copy all columns to clipboard", icon: .copy) }.disabled(ids.isEmpty)
+                    Button { model.copyPaths(ids) } label: { CommandLabel(title: "Copy paths to clipboard", icon: .copy) }.disabled(ids.isEmpty)
+                }
             } primaryAction: { model.compare($0) }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text("\(model.visibleFiles.count) changed file(s)").font(.caption).foregroundStyle(.secondary); Spacer(); Button(model.showingPatch ? "Hide Patch<<" : "View Patch>>") { model.togglePatch() }.buttonStyle(.link).disabled(model.snapshot == nil) }
         }.padding(12).disabled(model.busy || model.confirmingQuit).onAppear { model.load() }

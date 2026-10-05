@@ -176,7 +176,7 @@ struct WorktreeListTable: NSViewRepresentable {
             let ids = model.selection
             func add(_ title: String, _ icon: MenuIcon, _ action: Selector) {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-                item.image = icon.image(); item.target = self; item.isEnabled = !model.busy; menu.addItem(item)
+                item.image = icon.contextImage(defaults: defaults); item.target = self; item.isEnabled = !model.busy; menu.addItem(item)
             }
             if ids.count == 1 { add("Explore to", .explore, #selector(explore)) }
             if model.showLock(ids) { add("Lock", .lock, #selector(lock)) }

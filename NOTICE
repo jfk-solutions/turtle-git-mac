@@ -231,8 +231,7 @@ Copyright (C) 2003-2008, 2010, 2020 TortoiseSVN, under GPL version 2 or later.
 RepoBrowserBackground.ico is retained unchanged with pinned provenance under
 the existing GPL resource license choice. Native viewport drawing replaces the
 Win32 alpha-blended lower-right list watermark. Its enabled-by-default preference
-uses the upstream ShowListBackgroundImage name. The Advanced Settings editor and
-other background-image consumers remain pending; composed window appearance and
+uses the upstream ShowListBackgroundImage name. Other background-image consumers remain pending; composed window appearance and
 signed acceptance have not been verified.
 
 AdvancedSettings.swift (core and native page) adapts SettingsAdvanced.cpp/.h under
@@ -244,3 +243,12 @@ editing and UserDefaults replace Win32 label editing and registry storage.
 The native editor and storage have receiver tests. Many setting consumers,
 native editing/window gestures, source locale digit validation and signed
 acceptance remain pending; the editor is not complete application parity.
+
+Application context-menu icon preference adapts IconMenu.cpp/.h under GPL
+version 2 or later. Copyright (C) 2010-2011, 2013, 2016, 2019, 2025 TortoiseGit;
+Copyright (C) 2008-2009, 2011 TortoiseSVN (IconMenu.cpp);
+Copyright (C) 2010, 2013, 2023, 2025 TortoiseGit;
+Copyright (C) 2008-2009, 2011 TortoiseSVN
+(IconMenu.h). Native menu image policy replaces Win32 bitmap/menu ownership.
+This ports ShowAppContextMenuIcons; separate Finder ShowContextMenuIcons, full
+menu parity, native popup gestures and signed acceptance remain pending.

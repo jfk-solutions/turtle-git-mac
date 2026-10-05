@@ -678,7 +678,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
         model.updateSelection(selectedRange(), cells: sourceCells)
         let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
         func add(_ title: String, _ action: Selector, _ icon: NSImage?, _ enabled: Bool) {
-            let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon; item.isEnabled = enabled; menu.addItem(item)
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = MenuPresentationSettings.applicationContextIcons() ? icon : nil; item.isEnabled = enabled; menu.addItem(item)
         }
         let block = model.canTransfer(toBase: false) && model.transferRows != nil
         add(baseSide ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)

@@ -271,20 +271,20 @@ struct PatchTextView: NSViewRepresentable {
             }
             let menu = NSMenu()
             let save = NSMenuItem(title: "Save As…", action: #selector(savePatch(_:)), keyEquivalent: "")
-            save.target = self; save.image = MenuIcon.unifiedDiff.image(); menu.addItem(save)
+            save.target = self; save.image = MenuIcon.unifiedDiff.contextImage(); menu.addItem(save)
             let print = NSMenuItem(title: "Print…", action: #selector(printPatch(_:)), keyEquivalent: "")
-            print.target = self; print.image = NSImage(systemSymbolName: "printer", accessibilityDescription: "Print")
+            print.target = self; print.image = MenuPresentationSettings.applicationContextIcons() ? NSImage(systemSymbolName: "printer", accessibilityDescription: "Print") : nil
             menu.addItem(print)
             menu.addItem(.separator())
             if !coordinator.model.readOnly {
                 for (title, selector, enabled) in [("selected hunks", #selector(Coordinator.hunks(_:)), coordinator.model.canApplyHunks), ("selected lines", #selector(Coordinator.lines(_:)), coordinator.model.canApplyLines)] {
                     let item = NSMenuItem(title: (coordinator.model.staged ? "Unstage " : "Stage ") + title, action: selector, keyEquivalent: "")
-                    item.target = coordinator; item.image = (coordinator.model.staged ? MenuIcon.revert : .add).image(); item.isEnabled = enabled; menu.addItem(item)
+                    item.target = coordinator; item.image = (coordinator.model.staged ? MenuIcon.revert : .add).contextImage(); item.isEnabled = enabled; menu.addItem(item)
                 }
                 menu.addItem(.separator())
             }
             let copy = NSMenuItem(title: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "")
-            copy.target = self; copy.image = MenuIcon.copy.image(); menu.addItem(copy)
+            copy.target = self; copy.image = MenuIcon.copy.contextImage(); menu.addItem(copy)
             menu.addItem(NSMenuItem(title: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: ""))
             let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
             find.target = self; menu.addItem(find)

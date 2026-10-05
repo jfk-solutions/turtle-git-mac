@@ -1,5 +1,11 @@
 import AppKit
 
+public enum MenuPresentationSettings {
+    public static func applicationContextIcons(defaults: UserDefaults = .standard) -> Bool {
+        (defaults.object(forKey: "ShowAppContextMenuIcons") as? NSNumber)?.boolValue ?? true
+    }
+}
+
 /// Original upstream artwork. Ribbon BMP alpha is decoded explicitly; ICO retains
 /// its multiple sizes and alpha masks. AppKit
 /// chooses a representation for the display scale. Monochrome Log, Help and
@@ -45,6 +51,9 @@ public enum MenuIcon: String, CaseIterable {
               let image = isRibbon ? Self.ribbonImage(at: url) : NSImage(contentsOf: url) else { return nil }
         image.size = NSSize(width: size, height: size); image.isTemplate = [.cherryPick, .log, .help].contains(self)
         return image
+    }
+    public func contextImage(size: CGFloat = 16, defaults: UserDefaults = .standard) -> NSImage? {
+        MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? image(size: size) : nil
     }
     /// The upstream ribbon uses BI_RGB 32-bit BMPs with straight BGRA alpha.
     /// AppKit treats their fourth byte as padding, rendering transparent areas black.

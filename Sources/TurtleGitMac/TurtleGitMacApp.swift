@@ -198,26 +198,28 @@ struct RepositoryWindow: View {
             }
             .frame(minHeight: 140)
             .contextMenu {
-                Button { model.showDiff() } label: { CommandLabel(title: "Diff", icon: .compare) }
-                Button { model.stage() } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(model.selection.isEmpty)
-                Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
-                Button { model.activate(.revert) } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canRevertSelection)
-                Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
-                if model.canResolveSelection && !model.selectedPaths.isEmpty {
-                    ResolveSelectionMenu(paths: model.selectedPaths, rebase: model.conflictRebase, canEdit: model.selection.count == 1 && model.entries.contains(where: { model.selection.contains($0.id) && $0.state == .conflicted })) { action, paths in model.activate(action, paths: paths) }
+                TurtleGitContextMenu {
+                    Button { model.showDiff() } label: { CommandLabel(title: "Diff", icon: .compare) }
+                    Button { model.stage() } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(model.selection.isEmpty)
+                    Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
+                    Button { model.activate(.revert) } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canRevertSelection)
+                    Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
+                    if model.canResolveSelection && !model.selectedPaths.isEmpty {
+                        ResolveSelectionMenu(paths: model.selectedPaths, rebase: model.conflictRebase, canEdit: model.selection.count == 1 && model.entries.contains(where: { model.selection.contains($0.id) && $0.state == .conflicted })) { action, paths in model.activate(action, paths: paths) }
+                    }
+                    if model.canIgnoreSelection(.ignore) {
+                        IgnoreSelectionMenu(paths: model.selectedPaths) { action, paths in model.activate(action, paths: paths) }
+                    }
+                    if model.canIgnoreSelection(.ignoreDelete) {
+                        IgnoreSelectionMenu(paths: model.selectedPaths, deleting: true) { action, paths in model.activate(action, paths: paths) }
+                    }
+                    Divider()
+                    if model.selectedPaths.count == 1 {
+                        Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
+                    }
+                    Button { model.activate(.remove) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(!model.canRemoveSelection)
+                    Button { model.activate(.removeKeep) } label: { CommandLabel(title: "Delete (keep local)", icon: .remove) }.disabled(!model.canRemoveSelection)
                 }
-                if model.canIgnoreSelection(.ignore) {
-                    IgnoreSelectionMenu(paths: model.selectedPaths) { action, paths in model.activate(action, paths: paths) }
-                }
-                if model.canIgnoreSelection(.ignoreDelete) {
-                    IgnoreSelectionMenu(paths: model.selectedPaths, deleting: true) { action, paths in model.activate(action, paths: paths) }
-                }
-                Divider()
-                if model.selectedPaths.count == 1 {
-                    Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
-                }
-                Button { model.activate(.remove) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(!model.canRemoveSelection)
-                Button { model.activate(.removeKeep) } label: { CommandLabel(title: "Delete (keep local)", icon: .remove) }.disabled(!model.canRemoveSelection)
             }
             HStack {
                 Button("Add / Stage selected") { model.stage() }.disabled(model.selection.isEmpty || model.busy)

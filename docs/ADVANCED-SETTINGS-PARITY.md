@@ -52,7 +52,9 @@ repaint callback avoid retaining the settings window/view through the model.
 
 Apply invalidates open native views so the implemented list-background preference
 can redraw. Existing consumers also read completion minimum/parse size/
-unversioned parsing/extension removal and commit-message styling. Other settings
+unversioned parsing/extension removal, commit-message styling and app context-menu
+icons. The app menu preference is independent of the still-pending Finder icon
+preference; see [menu audit](CONTEXT-MENU-ICONS-PARITY.md). Other settings
 are stored for subsequent ports; their row tooltips state that they have no
 effect yet. Storage/editor parity is not proof of their runtime behavior.
 

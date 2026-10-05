@@ -126,7 +126,9 @@ private struct RevertProgressDialog: View {
                 TableColumn("Path") { row in Text(row.path).lineLimit(1).help(row.path) }.width(min: 330, ideal: 530)
                 TableColumn("Status") { row in Text(row.status).foregroundStyle(color(row.status)) }.width(115)
             }.contextMenu {
-                Button { model.copyOutput() } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
+                TurtleGitContextMenu {
+                    Button { model.copyOutput() } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
+                }
             }
             HStack {
                 Text(model.current).lineLimit(1).help(model.current).foregroundStyle(model.failed ? Color.red : model.cancelled ? Color.orange : Color.primary)

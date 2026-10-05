@@ -1,0 +1,110 @@
+{
+  "date": "2026-10-06",
+  "scope": "Application context-menu icon preference; full menu/native popup/Finder parity pending",
+  "baseCommit": "2e58033ec2b2b3541cbb825e1c676a1c27d8d7ee",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "IconMenu.cpp": "35f66245c6176381bbf7355c92065c10b25dedd1",
+    "IconMenu.h": "a773bcb909beba53ddaea65b9cb53dd83659bb4f"
+  },
+  "focusedCoreTests": {
+    "count": 3,
+    "failures": 0,
+    "newTests": 2,
+    "scope": "Default/nonzero/reset, independent shell preference, all 75 context images disabled with ordinary artwork retained"
+  },
+  "fullCoreTests": "Previous 460-test run passed before this change; not rerun for this presentation change",
+  "actualNativeReceivers": [
+    "Worktree management titles preserved with nil images when disabled and original images after resetting override",
+    "SwiftUI hosting fitting width removes context icon slot; ordinary CommandLabel width unchanged",
+    "Existing Worktree model/column/backdrop/scope/cancellation receiver suite passes"
+  ],
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App/Finder extension, unchanged 75 original icons, current NOTICE/licenses, universal helper runtimes; Store embedded Git 2.55.0",
+  "nativeUI": "No windows or popups displayed; no gesture or composed screenshot acceptance claim",
+  "appProcesses": "No app launched; standalone driver and isolated preference suites cleaned; no TurtleGit process at audit",
+  "logs": {
+    "core": {
+      "path": "/tmp/turtlegit-context-icons-core.log",
+      "sha256": "a41cbc6f000cc17b0408ced6dafce7b86cf2bc7acc3514a2cb5cbed37d08c73d",
+      "result": "passed"
+    },
+    "model": {
+      "path": "/tmp/turtlegit-context-icons-model.log",
+      "sha256": "60a542b456cb851538d33502ecf08cd63c1a2d410f8b8215a23877316434fcb0",
+      "result": "passed",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-context-icons-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "result": "passed",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-context-icons-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "result": "passed",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-context-icons-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95",
+      "result": "passed",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-context-icons-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd",
+      "result": "passed",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-context-icons-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "result": "passed",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    "NOTICE": "9388b6ac9ec0fd9c66ba2a7a639078cb964865c796aa3a94a8ba59b3cfb8e998",
+    "README.md": "bcf030f36b24092ef47dd70e7d30427f935481586cbee4c2e7dfcb29b71fe83e",
+    "Sources/TurtleGitCore/MenuIcons.swift": "4bc1958cbbffb0201415ba2f892d65786e2f562cf3fc2d329f5592bae2a42365",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "9573d35f04120635832e941f9dc040bfd9a08a1cec20b16167e435b233460ffe",
+    "Sources/TurtleGitMac/BlameWindow.swift": "17df192f912c5aa138752e7dd46ea4893827cd2b5431ee5f323ec6719645c39b",
+    "Sources/TurtleGitMac/CommandLabel.swift": "3871823a232569055bc7c01db0d2c3c3c0d3e64480da63bf8dfacf1e56fde380",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "9a12e33b5a8e120a4638c88f74a76727bec5e272cdb958e1c400cf3377d68b8d",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "fce09c09175e22649cf715d9d53636d079e7ff4fb5b0b9396bd10d4980372a08",
+    "Sources/TurtleGitMac/CommitWindow.swift": "60a87006d5e393db70142fcf59b3c42d6fabb0aa4bbee2691ed876ac9ab45c1f",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "8be9a6e34534714537d834bc245e446fae0201689c2e57ab1c7040db66b8f153",
+    "Sources/TurtleGitMac/LogWindow.swift": "585866e53b85c2e46a601aa0aef7832743c4fed3eab38c09287c59fa0e067cc5",
+    "Sources/TurtleGitMac/PatchWindow.swift": "1f5939854955373f2af124e8bbc3633b8e3b4cb62e8d2a6f006644ccf5178afe",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "16be8b081b1982ac263ff8c8aec7026f51877ff0313f51ad5f45f49370515d0a",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "348bbdefc83b50ae0e04b046f0e1adde67019382bf812a6b1803406065c0dc39",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "e13e55225460a45bee490563956eb16d74b7a356ee950ea30eeda0b3286c0910",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "22591c2a6bd1b29b71fb2a35b160b828ab636b449520051a748b69f9c335d1a0",
+    "Sources/TurtleGitMac/RevertProgressWindow.swift": "d9fd2049c6811d1c3655fe36ee098ae8c6af0f83187ae4f587bf7df17a2f9485",
+    "Sources/TurtleGitMac/RevertWindow.swift": "2d934a0d9d5c3b0aa5c969f9a38cd20fd26aa41eea59867ebcfcf7e17afd579b",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "a58fe78c5e7e9a57edfd064b5a220463f63b8b445e31c09cc3e958ed7c2dc038",
+    "Sources/TurtleGitMac/StatusWindow.swift": "a4a487781a9620c8bcefe601f124dc791040844bef56624937338754f583ed46",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "c627749bf85e77d9aa6d820ad16014788d7de37c9535a1bb526b85bb9a233b34",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "db64fc50b941568c3e7839147fb54967a7e8dfdfa06545917b2ac2e2520b98bc",
+    "Sources/TurtleGitMac/WorktreeListTable.swift": "3a1b6350525ef98a6dc5547b93165dc370efa30944d4eafacb6b66fbba4073fd",
+    "docs/ADVANCED-SETTINGS-PARITY.md": "74ac7afa0f148635434b05ba485dcce5b1925bd31d5d018d61ef3f6332d873ec",
+    "docs/upstream-files.csv": "ad01a7b46741c2d7f3f9739a769de046e853d526f81c571bfa93d20bffa6483e",
+    "scripts/test-worktree-dialog.py": "12d0425af92811f4120cd7a98cfb3aad6c167c49902c953200b2181e714ac709",
+    "Tests/TurtleGitCoreTests/MenuPresentationTests.swift": "7597e15369cfca6ee2990181b249bba2b95394838939b30433f0c3c9ce6cc8c8",
+    "docs/CONTEXT-MENU-ICONS-PARITY.md": "45645a10a3e3796361a5ec7b7ecba4ad4c4b1b8d6fa92e9db14b0c0785f089bc"
+  },
+  "pending": [
+    "ShowContextMenuIcons Finder consumer/shared preference handoff",
+    "Actual SwiftUI popup composition/gestures and AppKit popup acceptance",
+    "Live changes to existing/cached menus",
+    "Full menu/dialog content and appearance parity",
+    "Signed sandbox/distribution acceptance",
+    "Publication and GitHub execution; existing authentication blocker"
+  ]
+}

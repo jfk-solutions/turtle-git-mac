@@ -171,6 +171,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   to omit changed paths and support for multiple selected revisions.
 - Original TortoiseGit command icons in app context menus and the Finder submenu;
   original XPStyle status artwork for Finder badges and app file status.
+  Advanced Settings → ShowAppContextMenuIcons controls app menu artwork while
+  retaining button and status icons. Its separate Finder preference is pending;
+  see [context-menu icon audit](docs/CONTEXT-MENU-ICONS-PARITY.md).
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Commit’s file menu adds unversioned paths explicitly; Shift reveals upstream

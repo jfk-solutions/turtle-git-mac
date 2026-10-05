@@ -180,7 +180,11 @@ private struct RebaseDialog: View {
                         TableColumn("Author") { entry in Text(entry.commit.author) }.width(130)
                         TableColumn("Date") { entry in Text(entry.commit.date) }.width(150)
                         TableColumn("Hash") { entry in Text(String(entry.id.prefix(9))).font(.system(.caption, design: .monospaced)) }.width(95)
-                    }.contextMenu(forSelectionType: String.self) { ids in ForEach(RebaseAction.allCases, id: \.self) { action in Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }.disabled(ids.isEmpty || !model.editable || model.options.preserveMerges) } }
+                    }.contextMenu(forSelectionType: String.self) { ids in
+                        TurtleGitContextMenu {
+     ForEach(RebaseAction.allCases, id: \.self) { action in Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }.disabled(ids.isEmpty || !model.editable || model.options.preserveMerges) }
+                        }
+                    }
                     HStack {
                         Menu("Select all options") {
                             ForEach(RebaseAction.allCases.filter { $0 != .skip }, id: \.self) { action in Button("Select all: " + (action == .skip ? "Skip" : action.rawValue.capitalized)) { model.setAction(action, ids: Set(model.entries.map(\.id))) } }

@@ -513,7 +513,9 @@ struct LogDialog: View {
                     TableColumn("Lines removed") { file in Text(file.removedText).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue) }.width(105)
                 }.frame(minHeight: 130, idealHeight: 180)
                 .contextMenu(forSelectionType: String.self) { ids in
-                    fileContextActions(ids)
+                    TurtleGitContextMenu {
+                        fileContextActions(ids)
+                    }
                 } primaryAction: { ids in
                     model.selectedFiles = ids; model.compareFiles(ids)
                 }
@@ -677,7 +679,7 @@ struct RevisionTable: NSViewRepresentable {
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems()
             func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) {
-                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.image(); item.target = self; item.isEnabled = enabled; menu.addItem(item)
+                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(); item.target = self; item.isEnabled = enabled; menu.addItem(item)
             }
             menu.autoenablesItems = false
             let one = model.revision != nil, two = model.revisions.count == 2
@@ -702,11 +704,11 @@ struct RevisionTable: NSViewRepresentable {
                 ("Authors", #selector(copyAuthors)), ("Author names", #selector(copyAuthorNames)),
                 ("Author emails", #selector(copyAuthorEmails)), ("Subjects", #selector(copySubjects)), ("Messages", #selector(copyMessages))] {
                 let child = NSMenuItem(title: title, action: selector, keyEquivalent: "")
-                child.target = self; child.image = MenuIcon.copy.image(); child.isEnabled = !model.selected.isEmpty
+                child.target = self; child.image = MenuIcon.copy.contextImage(); child.isEnabled = !model.selected.isEmpty
                 clipboard.addItem(child)
             }
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
-            parent.image = MenuIcon.copy.image(); parent.submenu = clipboard; menu.addItem(parent)
+            parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
         }
         @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }
         @objc func formatPatch() { if let preset = model.formatPatchPreset, !model.busy { model.onFormatPatch?(preset) } }

@@ -622,18 +622,18 @@ private final class MergeTextView: NSTextView {
         let menu = super.menu(for: event) ?? NSMenu()
         menu.addItem(.separator())
         let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
-        find.target = self; find.image = MenuIcon.mergeFind.image(); menu.addItem(find)
+        find.target = self; find.image = MenuIcon.mergeFind.contextImage(); menu.addItem(find)
         if let sourceSide {
             menu.addItem(.separator())
             let useFile = NSMenuItem(title: "Use this whole file", action: #selector(useSourceFile(_:)), keyEquivalent: "")
-            useFile.target = self; useFile.image = sourceSide.icon.image(); menu.addItem(useFile)
+            useFile.target = self; useFile.image = sourceSide.icon.contextImage(); menu.addItem(useFile)
         }
         guard mergeEditable, let model else { return menu }
         if selectedRange().length == 0 { setSelectedRange(NSRange(location: characterIndexForInsertion(at: convert(event.locationInWindow, from: nil)), length: 0)) }
         menu.addItem(.separator())
         for (index, choice) in MergeBlockChoice.allCases.enumerated() {
             let item = NSMenuItem(title: choice.rawValue, action: #selector(useBlock(_:)), keyEquivalent: "")
-            item.tag = index; item.target = self; item.image = choice.icon.image()
+            item.tag = index; item.target = self; item.image = choice.icon.contextImage()
             item.isEnabled = !model.busy && model.blocks.contains { NSIntersectionRange($0.range, selectedRange()).length > 0 || NSLocationInRange(selectedRange().location, $0.range) }
             menu.addItem(item)
         }

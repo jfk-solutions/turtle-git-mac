@@ -487,7 +487,9 @@ private struct BlamePropertiesPane: View {
                         let subject = history.first(where: { $0.hash == hash }).map { GitBlameRevisionProperties(entry: $0).subject } ?? ""
                         property(String(hash.prefix(7)), subject).help("\(hash)\n\(subject)")
                             .contextMenu {
-                                Button { copy(hash) } label: { CommandLabel(title: "Copy SHA-1 to clipboard", icon: .copy) }
+                                TurtleGitContextMenu {
+                                    Button { copy(hash) } label: { CommandLabel(title: "Copy SHA-1 to clipboard", icon: .copy) }
+                                }
                             }
                     }
                 }.font(.system(size: 11)).padding(10).frame(maxWidth: .infinity, alignment: .leading)
@@ -578,7 +580,7 @@ private struct BlameHistoryTable: NSViewRepresentable {
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems(); menu.autoenablesItems = false
             for (title, action, icon) in [("Show log", #selector(showLog), MenuIcon.log), ("Copy SHA-1 to clipboard", #selector(copyHash), MenuIcon.copy), ("Copy log message", #selector(copyLog), MenuIcon.copy)] {
-                let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.image()
+                let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage()
                 item.isEnabled = !model.busy && model.selectedHistoryEntry != nil && (action != #selector(showLog) || model.onLog != nil)
                 menu.addItem(item)
             }
@@ -731,13 +733,13 @@ private struct BlameTable: NSViewRepresentable {
                 func addCommand(title: String, action: Selector, icon: MenuIcon, enabled: Bool) {
                     func item(_ choice: GitBlameParentComparison, title: String) -> NSMenuItem {
                         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
-                        item.target = self; item.image = icon.image()
+                        item.target = self; item.image = icon.contextImage()
                         item.representedObject = BlameParentMenuTarget(choice: choice, originalLine: originalLine, options: model.appliedOptions)
                         item.isEnabled = enabled; return item
                     }
                     if model.parentChoices.count == 1 { menu.addItem(item(model.parentChoices[0], title: title)) }
                     else {
-                        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: ""); parent.image = icon.image()
+                        let parent = NSMenuItem(title: title, action: nil, keyEquivalent: ""); parent.image = icon.contextImage()
                         let submenu = NSMenu(); submenu.autoenablesItems = false
                         for choice in model.parentChoices { submenu.addItem(item(choice, title: "Parent \(choice.parentNumber) (\(choice.revision.prefix(8)))")) }
                         parent.submenu = submenu; menu.addItem(parent)
@@ -747,10 +749,10 @@ private struct BlameTable: NSViewRepresentable {
                 addCommand(title: "Show changes", action: #selector(showChanges(_:)), icon: .compare, enabled: model.onChanges != nil)
             }
             let log = NSMenuItem(title: "Show log", action: #selector(showLog), keyEquivalent: "")
-            log.target = self; log.image = MenuIcon.log.image(); log.isEnabled = model.onLog != nil; menu.addItem(log)
+            log.target = self; log.image = MenuIcon.log.contextImage(); log.isEnabled = model.onLog != nil; menu.addItem(log)
             menu.addItem(.separator())
             for (title, action, icon) in [("Copy revision", #selector(copyRevision), MenuIcon.copy), ("Copy log message", #selector(copyLogMessage(_:)), .copy), ("Copy source line", #selector(copySource), .copy)] {
-                let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.image()
+                let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage()
                 item.representedObject = selectedLine.hash; menu.addItem(item)
             }
         }

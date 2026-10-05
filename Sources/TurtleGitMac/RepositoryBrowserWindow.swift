@@ -295,46 +295,48 @@ private struct RepositoryBrowserDialog: View {
                 } rows: {
                     ForEach(model.entries) { entry in TableRow(entry).itemProvider { model.dragProvider(entry) } }
                 }.contextMenu(forSelectionType: String.self) { ids in
-                    let values = model.entries.filter { ids.contains($0.id) }
-                    if values.count == 1, let entry = values.first, let revision = model.snapshot?.objectID {
-                        Button { model.open(entry) } label: { CommandLabel(title: "Open", icon: .open) }
-                        if entry.kind != .directory {
-                            Button { model.open(entry, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }
-                            Button { model.open(entry, action: .alternativeEditor) } label: { CommandLabel(title: "View revision with alternative editor", icon: .editor) }
-                        }
-                        Divider()
-                        if entry.kind != .directory && model.snapshot?.bare == false {
-                            Button { model.onCompare(entry.path, revision) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }
-                            Divider()
-                        }
-                        Button { model.onLog(entry.path, revision) } label: { CommandLabel(title: "Show log", icon: .log) }
-                        if entry.kind == .submodule {
-                            Button { model.showSubmoduleLog(entry) } label: { CommandLabel(title: "Show submodule log", icon: .log) }
-                        }
-                        if ![.directory, .submodule].contains(entry.kind) {
-                            if model.snapshot?.bare == false {
-                                Button { model.onBlame(entry.path, revision) } label: { CommandLabel(title: "Blame", icon: .blame) }
+                    TurtleGitContextMenu {
+                        let values = model.entries.filter { ids.contains($0.id) }
+                        if values.count == 1, let entry = values.first, let revision = model.snapshot?.objectID {
+                            Button { model.open(entry) } label: { CommandLabel(title: "Open", icon: .open) }
+                            if entry.kind != .directory {
+                                Button { model.open(entry, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }
+                                Button { model.open(entry, action: .alternativeEditor) } label: { CommandLabel(title: "View revision with alternative editor", icon: .editor) }
                             }
                             Divider()
-                            Button { model.open(entry, action: .save) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }
+                            if entry.kind != .directory && model.snapshot?.bare == false {
+                                Button { model.onCompare(entry.path, revision) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }
+                                Divider()
+                            }
+                            Button { model.onLog(entry.path, revision) } label: { CommandLabel(title: "Show log", icon: .log) }
+                            if entry.kind == .submodule {
+                                Button { model.showSubmoduleLog(entry) } label: { CommandLabel(title: "Show submodule log", icon: .log) }
+                            }
+                            if ![.directory, .submodule].contains(entry.kind) {
+                                if model.snapshot?.bare == false {
+                                    Button { model.onBlame(entry.path, revision) } label: { CommandLabel(title: "Blame", icon: .blame) }
+                                }
+                                Divider()
+                                Button { model.open(entry, action: .save) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }
 
+                            }
+                            Divider()
                         }
-                        Divider()
-                    }
-                    if !values.isEmpty && model.snapshot?.bare == false && values.allSatisfy({ ![.directory, .submodule].contains($0.kind) }) {
-                        Button { model.revert(values) } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }
-                        Divider()
-                    }
-                    if values.count == 1, let entry = values.first, ![.directory, .submodule].contains(entry.kind) {
-                        Button { model.markForComparison(entry) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }
-                        if let mark = model.comparisonMark {
-                            Button { model.compareWithMarkedFile(entry) } label: { CommandLabel(title: "Compare with " + mark.label(for: entry.path), icon: .compare) }.disabled(model.onPreparedFileCompare == nil)
+                        if !values.isEmpty && model.snapshot?.bare == false && values.allSatisfy({ ![.directory, .submodule].contains($0.kind) }) {
+                            Button { model.revert(values) } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }
+                            Divider()
                         }
-                        Divider()
-                    }
-                    if !values.isEmpty {
-                        Button { model.selection = ids; model.copy() } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }
-                        Button { model.selection = ids; model.copy(hashes: true) } label: { CommandLabel(title: "Copy hash", icon: .copy) }
+                        if values.count == 1, let entry = values.first, ![.directory, .submodule].contains(entry.kind) {
+                            Button { model.markForComparison(entry) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }
+                            if let mark = model.comparisonMark {
+                                Button { model.compareWithMarkedFile(entry) } label: { CommandLabel(title: "Compare with " + mark.label(for: entry.path), icon: .compare) }.disabled(model.onPreparedFileCompare == nil)
+                            }
+                            Divider()
+                        }
+                        if !values.isEmpty {
+                            Button { model.selection = ids; model.copy() } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }
+                            Button { model.selection = ids; model.copy(hashes: true) } label: { CommandLabel(title: "Copy hash", icon: .copy) }
+                        }
                     }
                 } primaryAction: { ids in
                     if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }) { model.open(entry) }
@@ -380,11 +382,13 @@ private struct RepositoryFolderRow: View {
                     Text(verbatim: name).lineLimit(1)
                 }.padding(3).background(model.snapshot?.directory == path ? Color.accentColor.opacity(0.2) : Color.clear)
             }.buttonStyle(.plain).onDrag { model.dragProvider(directory: path) ?? NSItemProvider() }.contextMenu {
-                if let revision = model.snapshot?.objectID {
-                    Button { model.onLog(path, revision) } label: { CommandLabel(title: "Show log", icon: .log) }
-                    Button {
-                        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(name, forType: .string)
-                    } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }
+                TurtleGitContextMenu {
+                    if let revision = model.snapshot?.objectID {
+                        Button { model.onLog(path, revision) } label: { CommandLabel(title: "Show log", icon: .log) }
+                        Button {
+                            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(name, forType: .string)
+                        } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }
+                    }
                 }
             }
         }

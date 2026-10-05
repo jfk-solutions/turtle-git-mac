@@ -151,10 +151,12 @@ private struct ResolveDialog: View {
                         TableColumn("Extension") { Text(($0.path as NSString).pathExtension) }.width(70)
                         TableColumn("Status") { _ in Text("Conflicted").foregroundStyle(FileState.conflicted.textColor) }.width(95)
                     }.contextMenu(forSelectionType: String.self) { ids in
-                        Button { model.compare(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
-                        Divider()
-                        ResolveSelectionMenu(paths: Array(ids), rebase: model.rebase, canEdit: ids.count == 1 && model.entries.contains(where: { ids.contains($0.id) })) { action, paths in
-                            if action == .editConflict, let path = paths.first { model.onEdit(path) } else { model.request(action.resolveChoice ?? .current, ids: Set(paths)) }
+                        TurtleGitContextMenu {
+                            Button { model.compare(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
+                            Divider()
+                            ResolveSelectionMenu(paths: Array(ids), rebase: model.rebase, canEdit: ids.count == 1 && model.entries.contains(where: { ids.contains($0.id) })) { action, paths in
+                                if action == .editConflict, let path = paths.first { model.onEdit(path) } else { model.request(action.resolveChoice ?? .current, ids: Set(paths)) }
+                            }
                         }
                     } primaryAction: { ids in model.editOrCompare(ids) }
                     HStack {

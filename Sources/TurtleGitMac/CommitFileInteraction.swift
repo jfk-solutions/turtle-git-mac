@@ -62,7 +62,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             if let previous = submenu.items.first(where: { $0.identifier == identifier }) { submenu.removeItem(previous) }
             let item = NSMenuItem(title: "column '\(column.rawValue)'", action: #selector(copyCurrentColumn(_:)), keyEquivalent: "")
             item.identifier = identifier; item.target = self
-            if let image = MenuIcon.copy.image()?.copy() as? NSImage { image.size = NSSize(width: 16, height: 16); item.image = image }
+            if let image = MenuIcon.copy.contextImage()?.copy() as? NSImage { image.size = NSSize(width: 16, height: 16); item.image = image }
             submenu.addItem(item)
         }
         @objc private func copyCurrentColumn(_ sender: NSMenuItem) {

@@ -2796,8 +2796,8 @@ src/Utils/MiscUI/HyperLink.cpp,Utils,blob,a903ebddbc453f1ac5df8d7f0ef389f7d77bbf
 src/Utils/MiscUI/HyperLink.h,Utils,blob,c17c0264fb124886290a4a50f8aeb3886f6a7d97,pending-review,,
 src/Utils/MiscUI/IconBitmapUtils.cpp,Utils,blob,9626653805e2f63ea313b3a7f0cc7ce4623db7c4,pending-review,,
 src/Utils/MiscUI/IconBitmapUtils.h,Utils,blob,c0a87a1a2f7e47b35fd14a334cdcd7bb3ff49a93,pending-review,,
-src/Utils/MiscUI/IconMenu.cpp,Utils,blob,35f66245c6176381bbf7355c92065c10b25dedd1,pending-review,,
-src/Utils/MiscUI/IconMenu.h,Utils,blob,a773bcb909beba53ddaea65b9cb53dd83659bb4f,pending-review,,
+src/Utils/MiscUI/IconMenu.cpp,Utils,blob,35f66245c6176381bbf7355c92065c10b25dedd1,partial,Sources/TurtleGitCore/MenuIcons.swift; Sources/TurtleGitMac/CommandLabel.swift,"ShowAppContextMenuIcons default/nonzero behavior and native menu image policy ported; app contexts use original artwork and ordinary labels retain images. Core/receiver checks; full popup gestures, remaining Win32 menu behavior and Finder preference pending. See CONTEXT-MENU-ICONS-PARITY.md."
+src/Utils/MiscUI/IconMenu.h,Utils,blob,a773bcb909beba53ddaea65b9cb53dd83659bb4f,partial,Sources/TurtleGitCore/MenuIcons.swift; Sources/TurtleGitMac/CommandLabel.swift,"ShowAppContextMenuIcons default/nonzero behavior and native menu image policy ported; app contexts use original artwork and ordinary labels retain images. Core/receiver checks; full popup gestures, remaining Win32 menu behavior and Finder preference pending. See CONTEXT-MENU-ICONS-PARITY.md."
 src/Utils/MiscUI/LineColors.h,Utils,blob,4f9f9436558068c2cf7e508cf425aae93b7866aa,pending-review,,
 src/Utils/MiscUI/LinkControl.cpp,Utils,blob,b0b034c90025bf1830d717d3d49f6128cbd8f537,pending-review,,
 src/Utils/MiscUI/LinkControl.h,Utils,blob,ba8505501b4de47df1f4bd24bcc6bf29daf57b7c,pending-review,,
