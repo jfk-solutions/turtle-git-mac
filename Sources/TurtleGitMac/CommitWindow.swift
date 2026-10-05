@@ -203,6 +203,7 @@ import UniformTypeIdentifiers
     var pickRevision: (Bool, @escaping (String) -> Void) -> Void = { _, _ in }
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var onCompare: ([String], Bool) -> Void = { _, _ in }
+    var onCompareTwoFiles: ([String]) -> Void = { _ in }
     var onFileLog: (String) -> Void = { _ in }
     var onFileBlame: (String) -> Void = { _ in }
     var onResolve: (RepositoryAction, [String]) -> Void = { _, _ in }
@@ -911,6 +912,11 @@ GroupBox("Changes made (double-click on file for diff):") {
                     if model.hasHead {
                         Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }
                     }
+                    Divider()
+                }
+                if selected.count == 2, selected.allSatisfy({ !model.submodules.contains($0.path) }) {
+                    Button { model.onCompareTwoFiles(rows.compactMap(\.entry).filter { ids.contains($0.id) }.map(\.path)) } label: { CommandLabel(title: "Compare two files", icon: .compare) }
+                        .disabled(model.busy || model.confirmingQuit)
                     Divider()
                 }
                 if staged != nil {

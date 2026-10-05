@@ -64,6 +64,31 @@ public struct FileComparisonAlignment: Sendable {
     }
 }
 extension GitRepository {
+    /// Status-list Compare two files uses each working path independently,
+    /// falling back to the same pinned HEAD for files deleted from disk.
+    public func workingFilePairComparison(paths: [String]) throws -> RevisionComparisonSnapshot {
+        guard paths.count == 2, paths[0] != paths[1] else { throw RevisionComparisonFailure.selection }
+        var head: ComparisonRevision?
+        func side(_ path: String) throws -> ComparisonRevision {
+            let location = try restoreLocation(path)
+            do {
+                let type = try FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType
+                guard type == .typeRegular || type == .typeSymbolicLink else { throw RevisionComparisonFailure.selection }
+                return .workingTree
+            } catch let error as NSError where error.domain == NSCocoaErrorDomain && [NSFileNoSuchFileError, NSFileReadNoSuchFileError].contains(error.code) {
+                if let head { return head }
+                let hash = try run(["rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines)
+                let pinned = ComparisonRevision.revision(hash); head = pinned
+                return pinned
+            }
+        }
+        let from = try side(paths[0]), to = try side(paths[1])
+        let file = CommitFile(path: paths[1], oldPath: paths[0], action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        // Reject missing historical paths, directories and gitlinks before opening.
+        _ = try comparisonFile(snapshot, path: paths[1])
+        return snapshot
+    }
     /// Read exact bytes from a pinned commit for Save As; no checkout or index write.
     public func historicalFile(revision: String, path: String) throws -> ComparisonFileContent {
         let snapshot = try revisionFileComparison(from: .emptyTree, to: .revision(revision), paths: [path])

@@ -1024,3 +1024,31 @@ native viewer capture. Native ignored/binary/symlink/cached-removal preview vari
 unborn menu acceptance, mixed selections, alternative tools and signed sandbox
 handoff remain pending; this capture establishes only the tested untracked text
 workflow, not full comparison parity.
+
+
+## Compare two selected files
+
+The pinned `GitStatusListCtrl.cpp` menu and dispatch at lines 1795–1811 and
+2260–2280 enable Compare two files for two selected non-directory rows. Commit's
+context mask includes this action. Each path independently uses working contents
+when present or HEAD when deleted; this is distinct from two separate base diffs.
+
+Commit now exposes the original Diff icon action and sends the two paths in visible
+table order to one native two-pane viewer. The core reads exact working bytes,
+including literal Unicode/newline paths, binary and broken symlinks, and pins HEAD
+for missing sides. Directories, gitlinks, duplicate paths, metadata paths and invalid
+selections are rejected. Viewer reuse includes both paths to prevent a different
+left-hand file from reusing an unrelated comparison window.
+
+Four file-comparison tests pass, including a new real Git regression covering both
+deleted-side directions, pinned history after HEAD advances, staged versus working
+bytes, symlinks and invalid paths. Debug and unsigned App Store builds and both
+bundle audits pass. Native QA selected two tracked rows, invoked the first context
+menu action, and verified the actual working contents and colored inline differences
+on opposite sides. HEAD, raw index and all working file bytes remained identical;
+the QA app quit normally and no test instances remained.
+
+`site/assets/commit-file-pair.png` is the inspected original 2240 × 1504 native
+capture. Native unversioned/deleted/symlink/binary pair variants, alternative diff
+tools, historical status-list integration and signed sandbox execution remain
+pending. This is a partial port of the status-list action, not full dialog parity.

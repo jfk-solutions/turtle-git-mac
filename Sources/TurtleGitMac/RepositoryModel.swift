@@ -282,6 +282,9 @@ import TurtleGitCore
             controller.model.onCompare = { [weak self] paths, amendToParent in
                 self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent)
             }
+            controller.model.onCompareTwoFiles = { [weak self] paths in
+                self?.showWorkingFilePair(repository: repository, access: access, paths: paths)
+            }
             controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
             controller.model.onFileBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
             controller.model.onResolve = { [weak self] action, paths in
@@ -596,6 +599,17 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription }
         }
     }
+    private func showWorkingFilePair(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        guard !busy, !confirmingQuit else { return }; busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let snapshot = try await repository.workingFilePairComparison(paths: paths)
+                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     private func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String]) {
         guard !busy, !confirmingQuit else { return }; busy = true
         Task {
@@ -614,7 +628,7 @@ import TurtleGitCore
                 showSubmoduleDiff(repository: repository, access: access, path: file.path, from: snapshot.from == .emptyTree ? "" : snapshot.from.label, to: snapshot.to == .workingTree ? nil : snapshot.to == .emptyTree ? "" : snapshot.to.label)
                 continue
             }
-            let key = repository.root.path + "\0" + file.path + "\0" + snapshot.from.label + "\0" + snapshot.to.label
+            let key = repository.root.path + "\0" + file.path + "\0" + (file.oldPath ?? file.path) + "\0" + snapshot.from.label + "\0" + snapshot.to.label
             let controller = fileComparisonWindows[key] ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
             controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
             fileComparisonWindows[key] = controller
