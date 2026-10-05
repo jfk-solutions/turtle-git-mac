@@ -63,6 +63,12 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   three-state staging checkboxes and commits the index, preserving unstaged edits.
   Checked-file mode now completes resolved merges, cherry-picks and reverts using
   the selected tree, retaining operation metadata and unchecked index entries.
+  The configured issue-ID field uses TortoiseGit's top-right layout, repository/
+  `.tgitconfig` precedence, numeric validation, issue-line insertion and ordered
+  missing-issue/template/sign-off warnings. Native cancellation and checked-file
+  commit acceptance preserve unchecked changes. Tracker links, provider plugins
+  and signed scope acceptance remain pending; see [issue audit](docs/ISSUE-TRACKER-PARITY.md).
+  ![Native issue-ID Commit controls](docs/site/assets/commit-issue.png)
   ![Native selected-file merge Commit](docs/site/assets/commit-merge.png)
   An attached right-hand patch window stages/unstages selected lines or hunks in
   ordinary tracked UTF-8 text files. Restore after commit saves working contents and

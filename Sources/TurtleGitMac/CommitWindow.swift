@@ -83,8 +83,8 @@ import UniformTypeIdentifiers
                 choose(response == .alertSecondButtonReturn)
             }
         }
-        model.confirmUneditedTemplate = { [weak window] proceed in
-            guard let window else { return }
+        model.confirmUneditedTemplate = { [weak window] choose in
+            guard let window else { choose(false); return }
             let alert = NSAlert()
             alert.alertStyle = .warning
             alert.messageText = "The commit message template has not been edited."
@@ -94,9 +94,24 @@ import UniformTypeIdentifiers
             alert.beginSheetModal(for: window) { response in
                 if response == .alertFirstButtonReturn {
                     if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "Commit.TemplateNotEdited.Proceed") }
-                    proceed()
                 }
+                choose(response == .alertFirstButtonReturn)
             }
+        }
+        model.confirmMissingIssue = { [weak window] choose in
+            guard let window else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .warning
+            alert.messageText = "You have not entered an issue ID."
+            alert.informativeText = "Do you want to commit without an issue ID?"
+            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
+        model.confirmMissingSignOff = { [weak window] choose in
+            guard let window else { choose(.abort); return }
+            let alert = NSAlert(); alert.alertStyle = .warning
+            alert.messageText = "The commit message has no Signed-off-by line for your Git identity."
+            alert.addButton(withTitle: "Add Signed-off-by"); alert.addButton(withTitle: "Commit without Signed-off-by"); alert.addButton(withTitle: "Abort")
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn ? .add : $0 == .alertSecondButtonReturn ? .proceed : .abort) }
         }
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
@@ -206,6 +221,8 @@ import UniformTypeIdentifiers
     @Published var createBranch = false
     @Published var newBranch = ""
     @Published var message = ""
+    @Published var issueProperties = IssueTrackerProperties()
+    @Published var issueID = ""
     private var loadedMessage = false
     private(set) var messageTemplate = ""
     private(set) var messageHistory: CommitMessageHistory?
@@ -223,7 +240,10 @@ import UniformTypeIdentifiers
     var chooseExportFolder: ([String]) -> Void = { _ in }
     var confirmCancel: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     private var originalAmendMessage = ""
-    var confirmUneditedTemplate: (@escaping () -> Void) -> Void = { _ in }
+    var confirmUneditedTemplate: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
+    var confirmMissingIssue: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
+    enum SignOffChoice { case add, proceed, abort }
+    var confirmMissingSignOff: (@escaping (SignOffChoice) -> Void) -> Void = { choose in choose(.abort) }
     @Published var operation: CommitOperation?
     @Published var hasHead = false
     @Published var hasParent = false
@@ -460,7 +480,7 @@ import UniformTypeIdentifiers
         let origin = entry.originalPath.map { "Renamed from " + $0 } ?? entry.path
         return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
     }
-    var canCommit: Bool { !busy && !confirmingQuit && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checked.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var canCommit: Bool { !busy && !confirmingQuit && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checked.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -505,12 +525,16 @@ import UniformTypeIdentifiers
                 }
                 hasLoaded = true; refreshPartial()
                 if !loadedMessage {
+                    issueProperties = try await repository.issueTrackerProperties()
                     let identity = try await repository.commitMessageHistoryIdentity()
                     let storedLimit = UserDefaults.standard.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
                     messageHistory = CommitMessageHistory(repositoryIdentity: identity, limit: storedLimit)
                     let seed = try await repository.commitMessageSeed()
                     messageTemplate = seed.template
-                    if message.isEmpty && !amend { message = seed.message }
+                    if message.isEmpty && !amend {
+                        let separated = issueProperties.separateIssueLine(from: seed.message)
+                        message = separated.message; issueID = separated.issueID
+                    }
                     loadedMessage = true
                     if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
                 }
@@ -601,10 +625,8 @@ import UniformTypeIdentifiers
     func addSignOff() {
         Task {
             do {
-                let name = try await repository.run(["config", "user.name"]).text.trimmingCharacters(in: .newlines)
-                let email = try await repository.run(["config", "user.email"]).text.trimmingCharacters(in: .newlines)
-                let trailer = "Signed-off-by: \(name) <\(email)>"
-                if !message.components(separatedBy: .newlines).contains(trailer) { message += (message.isEmpty ? "" : "\n\n") + trailer }
+                let trailer = try await repository.commitSignOffLine()
+                message = IssueTrackerProperties.addingSignOff(trailer, to: message)
             } catch { self.error = "Configure your Git user name and email before adding a sign-off.\n" + error.localizedDescription }
         }
     }
@@ -630,14 +652,10 @@ import UniformTypeIdentifiers
             } catch { self.error = error.localizedDescription }
         }
     }
-    func commit(_ action: CompletionAction = .commit, templateConfirmed: Bool = false) {
+    func commit(_ action: CompletionAction = .commit) {
         guard canCommit else { return }
-        if !templateConfirmed && !messageTemplate.isEmpty && message == messageTemplate && !UserDefaults.standard.bool(forKey: "Commit.TemplateNotEdited.Proceed") {
-            confirmUneditedTemplate { [weak self] in self?.commit(action, templateConfirmed: true) }
-            return
-        }
-        let text = message, paths = checked, staging = stagingEnabled
-        let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : paths
+        let rawMessage = message, rawIssueID = issueID, properties = issueProperties, paths = checked, staging = stagingEnabled
+        let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : messageOnly ? Set<String>() : paths
         let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
         let pruningScope = showWholeProject ? [] : scopePaths
         let preserveChangelists = keepChangelists
@@ -645,8 +663,30 @@ import UniformTypeIdentifiers
         options.authorDate = setAuthorDate ? authorDate : nil; options.resetAuthorDate = amend && setAuthorDate && resetAuthorDate; options.messageOnly = messageOnly; options.newBranch = createBranch ? newBranch : nil
         busy = true
         Task {
+            var commitAttempted = false
             do {
+                let validation = try await repository.prepareIssueCommit(properties: properties, message: rawMessage, issueID: rawIssueID)
+                if validation.requiresIssueWarning {
+                    let proceed = await withCheckedContinuation { continuation in confirmMissingIssue { continuation.resume(returning: $0) } }
+                    guard proceed else { busy = false; return }
+                }
+                if !messageTemplate.isEmpty && rawMessage == messageTemplate && !UserDefaults.standard.bool(forKey: "Commit.TemplateNotEdited.Proceed") {
+                    let proceed = await withCheckedContinuation { continuation in confirmUneditedTemplate { continuation.resume(returning: $0) } }
+                    guard proceed else { busy = false; return }
+                }
+                var text = rawMessage
+                if properties.warnNoSignedOffBy {
+                    let line = try await repository.commitSignOffLine()
+                    if !text.contains(line) {
+                        let choice = await withCheckedContinuation { continuation in confirmMissingSignOff { continuation.resume(returning: $0) } }
+                        if choice == .abort { busy = false; return }
+                        if choice == .add { text = IssueTrackerProperties.addingSignOff(line, to: text) }
+                    }
+                }
+                let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID: rawIssueID)
+                text = prepared.message; message = text
                 let output: String
+                commitAttempted = true
                 if staging { output = try await repository.commitIndex(message: text, options: options) }
                 else { output = try await repository.commitSelected(message: text, paths: paths, options: options) }
                 messageHistory?.add(text)
@@ -667,7 +707,9 @@ import UniformTypeIdentifiers
                 if action == .recommit {
                     do {
                         let seed = try await repository.commitMessageSeed(includeOperationMessages: false)
-                        messageTemplate = seed.template; message = seed.template
+                        messageTemplate = seed.template
+                        let separated = properties.separateIssueLine(from: seed.template)
+                        message = separated.message; issueID = separated.issueID
                         if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
                     } catch { messageTemplate = ""; message = ""; self.error = error.localizedDescription }
                     createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
@@ -678,7 +720,7 @@ import UniformTypeIdentifiers
             } catch {
                 let commitError = error.localizedDescription
                 var failureMessage = commitError
-                if !restoreCopies.isEmpty, await chooseSavedCopies(allowCancel: false) == .restore {
+                if commitAttempted && !restoreCopies.isEmpty, await chooseSavedCopies(allowCancel: false) == .restore {
                     do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
                     catch { failureMessage = commitError + "\n\nRestoring saved working copies failed: " + error.localizedDescription }
                 }
@@ -727,6 +769,8 @@ struct CommitDialog: View {
     @ObservedObject var model: CommitWindowModel
     @AppStorage("Commit.MessagePaneHeight") private var messagePaneHeight = 300.0
     @State private var dividerStart: Double?
+    @FocusState private var issueFieldFocused: Bool
+    @State private var initialIssueFocusApplied = false
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -734,7 +778,12 @@ struct CommitDialog: View {
                 if model.createBranch { TextField("New branch name", text: $model.newBranch).frame(width: 250) }
                 else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
                 Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil)
-                Spacer(); if model.busy { ProgressView().controlSize(.small) }
+                Spacer()
+                if model.issueProperties.showsIssueField {
+                    Text(model.issueProperties.label)
+                    TextField("", text: $model.issueID).textFieldStyle(.roundedBorder).frame(width: 140).accessibilityLabel(model.issueProperties.label).focused($issueFieldFocused)
+                }
+                if model.busy { ProgressView().controlSize(.small) }
             }
             if let operation = model.operation {
                 CommandLabel(title: operation.title, icon: operation == .merge ? .merge : operation == .cherryPick ? .cherryPick : .revert).font(.callout).foregroundStyle(.orange)
@@ -785,6 +834,11 @@ struct CommitDialog: View {
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
             }
         }.padding(12).disabled(model.busy || model.confirmingQuit)
+        .onChange(of: model.busy) { loading in
+            if !loading, model.issueProperties.showsIssueField, !initialIssueFocusApplied {
+                initialIssueFocusApplied = true; issueFieldFocused = true
+            }
+        }
         .onChange(of: model.amendDiffToLastCommit) { _ in model.comparisonChanged() }
         .onChange(of: model.setAuthor) { _ in model.authorChanged() }
         .onChange(of: model.setAuthorDate) { _ in model.dateChanged() }

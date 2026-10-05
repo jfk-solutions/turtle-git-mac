@@ -1,6 +1,6 @@
 # Commit dialog parity
 
-Issue-matching runtime preparation and remaining property/field/warning work
+Issue-matching runtime, native property/field/warning behavior and remaining work
 are tracked in [issue tracker parity](ISSUE-TRACKER-PARITY.md).
 
 The reference is `src/TortoiseProc/CommitDlg.cpp` and `IDD_COMMITDLG` in
@@ -1177,3 +1177,20 @@ See [recorded acceptance](qa/commit-operation-2026-10-05.json). Native cherry-pi
 revert and hook-failure UI, operation changes while open, dark/narrow layouts,
 linked worktrees, octopus merges, multi-step sequencers and signed sandbox execution
 remain pending. This is not proof of full Commit dialog parity.
+
+## Issue field and preflight warnings
+
+The configured issue label/field now occupy the upper-right branch row, matching
+IDD_COMMITDLG's BUGIDLABEL/BUGID placement. Configuration precedence, simple
+template extraction/insertion, C++ regex detection, numeric validation, and
+missing-issue/template/sign-off warning order are mapped. Native cancellation
+preserves HEAD/index; native commit acceptance verifies the inserted issue line,
+sign-off, selected working contents and retained unchecked index/working edits.
+Dark-mode acceptance verifies seeded ID extraction and initial issue focus.
+See [full audit and remaining gaps](ISSUE-TRACKER-PARITY.md) and
+[control evidence](qa/commit-issue-controls-2026-10-05.json).
+
+Checked-file Message only now excludes checked paths from changelist removal;
+staging mode still commits indexed paths and uses them for cleanup. Native
+changelist cleanup combinations remain under audit. A preflight rejection no
+longer offers saved-copy restoration before a commit has been attempted.

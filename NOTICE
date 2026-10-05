@@ -36,3 +36,6 @@ TortoiseGit src/TortoiseProc/ProjectProperties.cpp, copyright (C) 2003-2021,
 is implemented for macOS. Corresponding source, reconstruction and validation
 scripts, and the GPL license are bundled under Contents/Helpers/IssueRegex/.
 See docs/ISSUE-TRACKER-PARITY.md for the pinned upstream audit and limitations.
+Sources/TurtleGitCore/IssueTracker.swift adapts the same project's configuration,
+issue-template, validation, URL-escaping and sign-off behavior, retaining its
+copyright attribution and GPL version 2 or later notice.

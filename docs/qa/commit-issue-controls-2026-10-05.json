@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-05",
+  "scope": "Native Commit issue controls; full Commit and tracker integration remain partial.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_references": {
+    "CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "ProjectProperties.cpp": "116ee4436d5a6df8e3cfaecf03fe7277cc8f18fc",
+    "Git.cpp_LoadTextFile": "43dee91dbf94e46564b4cc1a139717fcbd8f6803"
+  },
+  "tests": {
+    "focused_suites": [
+      "IssueTrackerTests",
+      "IssueRegexTests",
+      "CommitMessageTests",
+      "CommitSelectionTests",
+      "CommitAmendTests"
+    ],
+    "count": 28,
+    "failures": 0,
+    "cases": [
+      "system/global/project/local precedence and relative includes",
+      "bare HEAD config and linked worktree working config",
+      "ASCII numeric/comma/space validation",
+      "UTF-16 template extraction, LF-only trimming and CRLF regex split",
+      "append/prepend, duplicate ID avoidance and missing issue detection",
+      "captureless/two-pattern C++ matching",
+      "UTF-8 URL component escaping",
+      "sign-off identity/trailer placement",
+      "read-only preparation retaining HEAD/index/working bytes"
+    ]
+  },
+  "native": {
+    "fixture": "/tmp/TurtleGitIssueControlsQA-repository",
+    "before_head": "77867548ecab3c2dace79d673cabd5dfeeb99976",
+    "before_index_sha256": "fc88181dea2c4c17266a4043da8272bbdd2250c9692851a8d9df2aea1a44f17a",
+    "configured_label": "Ticket:",
+    "field_placement": "upper right in branch row, matching upstream BUGIDLABEL/BUGID resource",
+    "cancel_checks": "Missing-issue No, unchanged-template No, sign-off Abort, and numeric rejection preserved HEAD and raw index.",
+    "final_warning_sequence": [
+      "missing issue ID (Yes action-button-1)",
+      "unchanged template (Proceed anyway)",
+      "missing configured sign-off (Abort)"
+    ],
+    "final_sequence_mutation": "HEAD and raw index remained unchanged after Abort",
+    "successful_commit": {
+      "head": "3f72afe81208f0b2ca1242b4388c50e0f0666f5d",
+      "message": "Commit issue test\n\nSigned-off-by: Issue QA <issue@example.invalid>\n\nRefs: 42\n\n",
+      "unchecked_index_preserved": true,
+      "unchecked_working_preserved": true
+    },
+    "selected_file": "tracked.txt latest working contents committed",
+    "unchecked_file": "unchecked.txt HEAD remains base; staged and later working contents preserved",
+    "seeded_issue": "73 extracted from template, issue line removed, initial issue focus/selection accepted in dark mode",
+    "final_validation_alert": "Plain numeric error accepted; raw index unchanged",
+    "screenshots": [
+      {
+        "path": "docs/site/assets/commit-issue.png",
+        "sha256": "c3cb94bf919a4ec0d684015988f6caa091197f63c92f8d1aacb2688ab4ba2b45"
+      },
+      {
+        "path": "docs/site/assets/commit-issue-dark.png",
+        "sha256": "80d34d413c2d1afa8aacc73971974c64e3687f71d97111637032ff1e396c47e8"
+      }
+    ],
+    "app_lifecycle": "Three disposable QA apps used sequentially, at most one running. All quit normally; final TurtleGitMac process scan empty."
+  },
+  "builds": {
+    "Debug": "passed unsigned build and full bundle audit",
+    "AppStore": "passed unsigned build and full bundle/Git runtime audit",
+    "note": "A shared Xcode database lock occurred during an overlapping build; both processes were verified terminal and final builds were rerun sequentially."
+  },
+  "remaining": [
+    "Signed sandbox configuration/include access and inherited helper invocation",
+    "Exact StrCmpLogicalW natural ordering and locale/character-class parity",
+    "Native links, message highlighting, history field updates, tracker provider integration",
+    "Malformed regex cached state and CLI/libgit2 config/include equivalence",
+    "ReCommit/Push/amend/hooks/saved-copy/message-only/changelist combinations",
+    "Fresh GitHub verification after publication; local push authentication unavailable"
+  ]
+}

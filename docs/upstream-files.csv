@@ -2479,8 +2479,8 @@ src/TortoiseProc/ProgressCommands/SendMailProgressCommand.cpp,TortoiseProc,blob,
 src/TortoiseProc/ProgressCommands/SendMailProgressCommand.h,TortoiseProc,blob,eb1eaec7fee878134466144614c47d62914f5684,pending-review,,
 src/TortoiseProc/ProgressDlg.cpp,TortoiseProc,blob,557988a1303dc86b11c9c74d29be4797aa7e6090,pending-review,,
 src/TortoiseProc/ProgressDlg.h,TortoiseProc,blob,c21856cbed61b28586faaf5f37b9ef051e31bb52,pending-review,,
-src/TortoiseProc/ProjectProperties.cpp,TortoiseProc,blob,116ee4436d5a6df8e3cfaecf03fe7277cc8f18fc,partial,Sources/TurtleGitIssueRegex/main.cpp; Sources/TurtleGitCore/IssueRegex.swift,"Partial: C++ ECMAScript matching and UTF-16 ranges; issue config, template extraction/insertion, warning order, URL links and provider integration pending. See docs/ISSUE-TRACKER-PARITY.md."
-src/TortoiseProc/ProjectProperties.h,TortoiseProc,blob,883ebd4189b716775b89327e924e407a7343fdba,partial,Sources/TurtleGitCore/IssueRegex.swift,Partial: match presence and UTF-16 range interface; complete project properties and callers pending. See docs/ISSUE-TRACKER-PARITY.md.
+src/TortoiseProc/ProjectProperties.cpp,TortoiseProc,blob,116ee4436d5a6df8e3cfaecf03fe7277cc8f18fc,partial,Sources/TurtleGitIssueRegex/main.cpp; Sources/TurtleGitCore/IssueRegex.swift; Sources/TurtleGitCore/IssueTracker.swift,"Partial: C++ ECMAScript/UTF-16 matching, config precedence, Commit issue template/field/validation/warnings and URL escaping; native links, exact natural order, history updates, provider and signed scopes pending. See docs/ISSUE-TRACKER-PARITY.md."
+src/TortoiseProc/ProjectProperties.h,TortoiseProc,blob,883ebd4189b716775b89327e924e407a7343fdba,partial,Sources/TurtleGitCore/IssueRegex.swift; Sources/TurtleGitCore/IssueTracker.swift,"Partial: Commit-facing properties and UTF-16 match interface; complete project hooks, providers, log properties and callers pending."
 src/TortoiseProc/PromptDlg.cpp,TortoiseProc,blob,f458d3e078f00a0ea7d027237e783d9a23475008,pending-review,,
 src/TortoiseProc/PromptDlg.h,TortoiseProc,blob,0aad1a00befa0c408fc388269b013ba281ed98fb,pending-review,,
 src/TortoiseProc/PullFetchDlg.cpp,TortoiseProc,blob,261e75446acd8f6c3a14ed29dd57dd56d92a449a,partial-native,Sources/TurtleGitMac/FetchWindow.swift; Sources/TurtleGitCore/Pull.swift; Sources/TurtleGitCore/Fetch.swift; Sources/TurtleGitMac/RepositoryModel.swift,"Native Pull/Fetch merge options and narrow workflows verified; interactive rebase, progress/full recovery/settings parity pending; see PULL-PARITY.md and FETCH-PARITY.md."
@@ -2942,7 +2942,7 @@ test/UnitTests/LruCacheTest.cpp,test,blob,a7e5cc1bc4b1aa641c510f74c7de612c0f5928
 test/UnitTests/PatchTest.cpp,test,blob,61450b552e40735621c0298a96cb522c96a322f4,pending-review,,
 test/UnitTests/PathUtilsTest.cpp,test,blob,9cc6b016c2871dcc02302e2d3b30d7c74527f9be,pending-review,,
 test/UnitTests/PersonalDictionaryTest.cpp,test,blob,04a3c0dc1834bfd770e9e6182ac2810aa1a1a3ef,pending-review,,
-test/UnitTests/ProjectPropertiesTest.cpp,test,blob,d9b93fc241b50a9aa74c1d68fac19f80e1ea15e6,partial,Tests/TurtleGitCoreTests/IssueRegexTests.swift,"Partial: pinned single/two-expression, captureless, padded/bracketed ID examples plus UTF-16 transport tests; natural ID ordering and URL escaping pending."
+test/UnitTests/ProjectPropertiesTest.cpp,test,blob,d9b93fc241b50a9aa74c1d68fac19f80e1ea15e6,partial,Tests/TurtleGitCoreTests/IssueRegexTests.swift; Tests/TurtleGitCoreTests/IssueTrackerTests.swift,"Partial: captureless/single/two-expression examples, numeric IDs, issue templates and URL escaping; exact Windows natural ordering and full URL suite pending."
 test/UnitTests/RepositoryFixtures.h,test,blob,df4a4b4a78a53ae87ed897daf5a05853e53b03b4,pending-review,,
 test/UnitTests/SerialPatchTest.cpp,test,blob,dc5e69442e2116a97f9c2a772440a8e77b5f3a8c,pending-review,,
 test/UnitTests/StagingTest.cpp,test,blob,d0197214464e380e0954ad69f0d47d702d230ed4,pending-review,,
