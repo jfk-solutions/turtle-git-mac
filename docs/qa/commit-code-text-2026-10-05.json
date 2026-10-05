@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-05",
+  "scope": "Isolated Commit scanner detector/decode-filter unit port; no changed-file traversal or native popup integration",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "FileTextLines.cpp": "e9ac66ef889687750921f09d4ccafce7f843e996",
+    "FileTextLines.h": "ec857cb501cd1331aeb0b4e9d5dcf6ef6f405f6a"
+  },
+  "tests": {
+    "count": 19,
+    "new_decoder_cases": 7,
+    "failures": 0,
+    "command": "swift test --filter 'MessageCodeTextTests|MessageCodeSymbolsTests|MessageCompletionTests|MessageSnippetTests'",
+    "log_sha256": "50cea2fd7b1aca8073ae8aa5bf0b8cdee31c691653d2673086807fc076f36f0e"
+  },
+  "differential": {
+    "count": 12010,
+    "mismatches": 0,
+    "command": "python3 scripts/check-message-code-text.py",
+    "corpus_sha256": "5992111495d76efd8dc0f983347bf6ee40753e9f13bab730d905c2ae6ff479c4",
+    "log_sha256": "f737967eff469cdd4ffd680747ab0cf5c7ac4500becb805072213b31db0fa794",
+    "reference": "Original pinned CheckUnicodeType C++ body, portable typedef/registry shim; native Swift source compiled separately",
+    "coverage": "Deterministic random/BOM/NUL/structural UTF8 corpus, both UseUTF8 values; detector only"
+  },
+  "preserved": [
+    "Aligned zero dwords rejected before BOMs",
+    "BOM order and retention",
+    "NUL threshold/parity and short inputs",
+    "Structural UTF8 classification quirks",
+    "UTF16 odd tail/raw surrogate units",
+    "UTF32 input-scalar-count output prefix"
+  ],
+  "native_adaptations_pending": [
+    "CP_ACP equivalent and user-facing selection",
+    "Windows MB_PRECOMPOSED behavior",
+    "Malformed UTF8 replacement",
+    "Lossless raw-unit capture integration"
+  ],
+  "native": {
+    "QA_apps_launched": 0,
+    "UI_acceptance": "Not applicable to isolated detector; scanner integration and earlier keyboard dispatch acceptance remain pending"
+  },
+  "builds": {
+    "Debug": "Unsigned build and complete resource/helper audit passed",
+    "AppStore": "Unsigned build and packaged Git/helper/resource audit passed",
+    "GitHub Pages": "Local site build passed; publication pending"
+  },
+  "remaining": [
+    "Changed-file traversal and source gates/cache",
+    "Code icon/native popup integration",
+    "Signed sandbox and App Store acceptance",
+    "Complete application port",
+    "Fresh GitHub verification after publication"
+  ],
+  "build_log_sha256": {
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "store": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  }
+}

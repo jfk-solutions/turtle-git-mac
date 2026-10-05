@@ -1,7 +1,8 @@
 # Commit code-symbol completion audit
 
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
-This work implements the definition parser and capture engine. **Scanning changed
+This work implements the definition parser, capture engine and isolated text
+detection/decoding. **Scanning changed
 files and showing code symbols in the native Commit popup are not implemented
 yet.** The whole application and Commit editor remain partial ports.
 
@@ -68,8 +69,9 @@ See [recorded evidence](qa/commit-code-symbol-engine-2026-10-05.json).
 4. Apply AutocompleteParseTimeout (default five seconds) across traversal and
    AutocompleteParseMaxSize (default 300000 bytes). Empty files and files at least
    INT_MAX bytes are skipped. Decode only the source-supported text encodings.
-5. Port CFileTextLines::CheckUnicodeType plus the ASCII/UTF-8/UTF-16/UTF-32 filters,
-   including binary rejection and Windows code-page decisions. The existing
+5. Integrate the isolated CFileTextLines detector/filter port, resolve Windows
+   ACP and malformed UTF-8 behavior, and feed raw UTF-16 units into capture
+   transport without a lossy String conversion. The existing
    Blame decoder is not evidence for these distinct scanner rules. The pinned
    FileTextLines.cpp blob is `e9ac66ef889687750921f09d4ccafce7f843e996`:
    CheckUnicodeType first rejects aligned zero dwords, before testing BOMs,
@@ -85,3 +87,45 @@ See [recorded evidence](qa/commit-code-symbol-engine-2026-10-05.json).
 The existing helper process has bounded execution, output capture and input
 sizes. Those native safeguards do not substitute for the source's traversal
 settings or the still-unimplemented file scanner.
+
+## Isolated scanner encoding and decode-filter port
+
+MessageCodeText.swift adapts FileTextLines.cpp::CheckUnicodeType and its decode
+filters, with declarations from FileTextLines.h (blob
+`ec857cb501cd1331aeb0b4e9d5dcf6ef6f405f6a`). It returns raw UTF-16 units rather
+than normalizing through a Swift String. This module is not connected to changed
+file scanning yet; it does not change Blame or merge-editor decoding.
+
+The detector preserves aligned zero-dword rejection before BOM checks,
+UTF-32/UTF-16/UTF-8 BOM ordering, minimum input lengths, the NUL-count threshold
+and parity heuristic, structural UTF-8 continuation checks and default-false
+UseUTF8 behavior. That structural check can classify overlong/surrogate UTF-8
+sequences as UTF-8; modern scalar validation is deliberately not substituted.
+
+Scanner decode filters retain the BOM as input text. UTF-16 LE/BE expose complete
+16-bit units and ignore an incomplete trailing byte, retaining unpaired
+surrogates. UTF-32 expands valid supplementary values to pairs, replaces values
+at least 0x110000, ignores incomplete dword tails, and preserves the source's
+length quirk: GetStringView exposes the input scalar count after pair expansion,
+which can truncate later content or leave a final unpaired high surrogate.
+The native decoder exposes that exact unit prefix.
+
+Windows CP_ACP has no automatic macOS equivalent. The isolated API currently
+accepts a caller-supplied Foundation legacy encoding, defaulting to Windows-1252.
+UTF-8 decode uses native replacement decoding. Exact Windows ACP selection,
+MB_PRECOMPOSED behavior, malformed UTF-8 replacement and user-facing settings
+remain unproven and are required before complete scanner parity is claimed.
+
+Seven tests verify binary alignment/BOM priority, short inputs/preferences,
+NUL threshold/parity, structural UTF-8 quirks, UTF-16 raw/BOM/odd-tail behavior,
+UTF-32 truncation/invalid values and explicit legacy adaptation. Nineteen focused
+completion/code/snippet tests pass in total. The reproducible differential check
+`scripts/check-message-code-text.py` extracts the pinned upstream detector,
+compiles it with a minimal registry/type shim, and compares 12,010 generated
+cases with Swift. Both UseUTF8 values and deterministic BOM/NUL/random-byte
+inputs produced zero differences. This verifies those tested detector inputs;
+it does not establish Windows decode-API equivalence or native UI acceptance.
+
+See [decoder evidence](qa/commit-code-text-2026-10-05.json). No QA app was launched.
+The complete file scanner, raw-unit capture integration, file-size/time gates,
+regex cache and native popup/keyboard/signed sandbox acceptance remain pending.
