@@ -80,7 +80,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, resolve, bisect, clean, export |
 | Patch workflows | Native Format Patch dialog and three repository export modes; progress and mail handoff compile | Native export/mail acceptance, apply patches, am continuation/abort, full review and email workflows |
 | Repository Browser | Native lazy folder tree, pinned revisions, sortable Name/Extension/Size, historical file menus, marked comparisons and historical Revert, pinned child Log and historical drag representations | Multi-file Revert acceptance, actual Finder drops, broader submodule acceptance, dark/native action coverage and signed scopes; see REPOSITORY-BROWSER-PARITY.md |
-| Advanced repositories | Native New Worktree and Worktree List with create/lock/unlock/remove/prune; partial submodule workflows | Worktree column customization, Finder drop creation, native/signed acceptance, full submodules, git-svn and LFS |
+| Advanced repositories | Native New Worktree and Worktree List with create/lock/unlock/remove/prune; partial submodule workflows | Native column gestures/appearance, Finder drop creation, native/signed acceptance, full submodules, git-svn and LFS |
 | Helper apps | Partial native Blame, text Merge and unified Diff windows | Full helper parity, image diff, revision graph, askpass and revision/template tools |
 
 ## Porting method

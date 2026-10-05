@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-05",
+  "scope": "Native Worktree List column customization and actual AppKit receiver verification; native gestures/appearance and signed acceptance remain pending",
+  "baseCommit": "ba3f141686c2fbbb9c4287cb359de60609b4ada4",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "ColumnManager.cpp": "6776d4d47a80a9af042223ebd5f8589cd48b57f3",
+    "ColumnManager.h": "bd12076609badaecb865f168ebefd1e235a7315b",
+    "ResizableColumnsListCtrl.h": "84350420f3d5dfd6eb685f21415559487dd59611"
+  },
+  "actualAppKitReceiver": [
+    "Five native columns, source initial widths, usable header/table geometry, native folder cell and right-aligned Reason/header",
+    "Checked header menu omits protected Path; save/reopen visibility, order and manually adjusted widths",
+    "Normal fit persists adjusted width; Shift fit clears adjusted persistence; confirmed Reset restores order/visibility and reopen defaults",
+    "Declined Reset preserves state; malformed preferences cannot hide Path, duplicate IDs or create invalid widths",
+    "Stable ID-based multi-selection, native context menu icons, main-only menu and disabled actions/column changes while busy"
+  ],
+  "retainedModelChecks": "All New Worktree/Worktree List creation, batch Continue/Abort, removal/Force/Close/Cancel, missing identity, bare/detached main labels, grant policy/POSIX denial and active owned-process cancellation checks pass",
+  "coreBaseline": {
+    "count": 456,
+    "failures": 0,
+    "record": "worktree-list-2026-10-05.json",
+    "scope": "Previous full core suite; no core sources changed by this column port. Not rerun."
+  },
+  "nativeUI": "Standalone driver instantiates AppKit table with prohibited activation policy; displays no windows. Native mouse/keyboard gestures and screenshots not verified.",
+  "appProcesses": "No TurtleGit app launched; completed standalone driver and fixtures cleaned up; no TurtleGit/test-driver processes remain",
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App, Finder extension, 74 unchanged upstream icons, updated NOTICE/licenses, universal EditorConfig/IssueRegex and Store Git 2.55.0 validated",
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-worktree-columns-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-worktree-columns-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "exitCode": 0
+    },
+    "model": {
+      "path": "/tmp/turtlegit-worktree-columns-model.log",
+      "sha256": "3e04ab9cc0614634ab79f42d81073f6d97a0ee4a1ea266557f2959ee7fe82921",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-worktree-columns-debug-audit.log",
+      "sha256": "be2036eadb27fe83d365ce6a4247b00fc3a5da1bcaee25eb7523e1c410410a05",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-worktree-columns-store-audit.log",
+      "sha256": "49551eb58565dcd55d49fc484512a1a2a8a015c0807700254272947622c560e1",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-worktree-columns-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    "Sources/TurtleGitMac/WorktreeListTable.swift": "4b5c593960bf4b50c78b6b9eb62292b43e6047e7d3048813e50069a3cc51ddfb",
+    "Sources/TurtleGitMac/WorktreeListWindow.swift": "837be7cddec2fe97ab9c098886f7c8fa2f13cea86f5a7fb536192d681fb622d4",
+    "scripts/test-worktree-dialog.py": "2131046e16b019839ea09c01cb5dcacbd0728015ea55d87acfbb7847231c0a8f"
+  },
+  "pending": [
+    "Actual native header menu, divider/Shift fitting, drag order and window reopen gestures",
+    "Native light/dark screenshots and source list background artwork",
+    "Add/progress/nested sheets, Finder/F5 and whole-app Quit acceptance",
+    "Signed macOS sandbox and Finder integration",
+    "Other shared ColumnManager consumers/property columns",
+    "GitHub execution of these local changes"
+  ]
+}

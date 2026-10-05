@@ -8,9 +8,10 @@ import tempfile
 root = pathlib.Path(__file__).resolve().parent.parent
 frameworks = root / 'build/Build/Products/Debug'
 sources = [root / 'Sources/TurtleGitMac' / name for name in (
-    'CommandLabel.swift', 'SwitchWindow.swift', 'BranchTagWindow.swift', 'WorktreeCreateWindow.swift', 'WorktreeListWindow.swift')]
+    'CommandLabel.swift', 'SwitchWindow.swift', 'BranchTagWindow.swift', 'WorktreeCreateWindow.swift', 'WorktreeListWindow.swift', 'WorktreeListTable.swift')]
 driver = r'''
 import Foundation
+import AppKit
 import TurtleGitCore
 
 // Policy simulation only: these do not provide real macOS sandbox grants.
@@ -85,6 +86,7 @@ struct TestScopes: RepositoryBookmarkProvider {
         let list = WorktreeListWindowModel(repository: repo, access: nil)
         list.reload(); try await waitList(list)
         precondition(list.error == nil && list.rows.count == 4)
+        try await verifyColumns(list)
         let main = list.rows.first!; let linked = Array(list.rows.dropFirst())
         precondition(main.isMain && !list.showRemove([main.id]) && list.showLock([main.id]))
         let batch: Set<String> = [main.id, linked[0].id, linked[1].id]
@@ -229,6 +231,72 @@ struct TestScopes: RepositoryBookmarkProvider {
         let bare = WorktreeCreateWindowModel(repository: GitRepository(root: folder.appendingPathComponent("source.git")), access: nil)
         precondition(bare.directory == folder.appendingPathComponent("source").path)
         print("Actual native model: defaults, local/remote/tag/commit suggestions, forced detach, mutual exclusion and creation callback passed.")
+    }
+    @MainActor static func verifyColumns(_ model: WorktreeListWindowModel) async throws {
+        NSApplication.shared.setActivationPolicy(.prohibited)
+        let suite = "TurtleGit.WorktreeColumns.Test." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let coordinator = WorktreeListTable.Coordinator(model: model, defaults: defaults)
+        let scroll = coordinator.makeScrollView()
+        let table = scroll.documentView as! NSTableView
+        scroll.frame = NSRect(x: 0, y: 0, width: 700, height: 200)
+        scroll.tile(); table.tile()
+        precondition(table.headerView!.frame.height > 0 && table.headerView!.headerRect(ofColumn: 0).width > 0, "Custom headers must retain usable native geometry")
+        precondition(table.frame.width > 0 && table.frame.height >= CGFloat(model.rows.count) * table.rowHeight)
+        precondition(table.tableColumns.map { $0.identifier.rawValue } == ["path", "hash", "branch", "locked", "reason"])
+        precondition(table.tableColumns.map { $0.width } == [150, 100, 100, 100, 100])
+        precondition(table.tableColumns.last!.headerCell.alignment == .right && table.numberOfRows == model.rows.count)
+        let menu = coordinator.columnMenu()
+        precondition(menu.items.map(\.title) == ["Reset columns", "", "Hash", "Branch", "Locked", "Reason"])
+        coordinator.toggleColumn(menu.items[2]); precondition(table.tableColumns[1].isHidden)
+        let attemptHidePath = NSMenuItem(); attemptHidePath.representedObject = "path"
+        coordinator.toggleColumn(attemptHidePath); precondition(!table.tableColumns[0].isHidden)
+        let branch = table.tableColumns[2]; branch.width = 231
+        table.moveColumn(2, toColumn: 0)
+        coordinator.tableViewColumnDidMove(Notification(name: NSTableView.columnDidMoveNotification, object: table))
+        coordinator.tableViewColumnDidResize(Notification(name: NSTableView.columnDidResizeNotification, object: table, userInfo: ["NSTableColumn": branch]))
+        let restored = WorktreeListTable.Coordinator(model: model, defaults: defaults)
+        let restoredScroll = restored.makeScrollView(), restoredTable = restoredScroll.documentView as! NSTableView
+        precondition(restoredTable.tableColumns.first!.identifier.rawValue == "branch" && restoredTable.tableColumns.first!.width == 231)
+        precondition(restoredTable.tableColumns.first(where: { $0.identifier.rawValue == "hash" })!.isHidden)
+        model.selection = [model.rows[1].id, model.rows[2].id]; restored.update()
+        precondition(restoredTable.selectedRowIndexes == IndexSet([1, 2]))
+        let rowMenu = NSMenu(); restored.menuNeedsUpdate(rowMenu)
+        precondition(rowMenu.items.map(\.title) == ["Lock", "Unlock", "Remove", "Force remove"] && rowMenu.items.allSatisfy { $0.image != nil })
+        model.selection = [model.rows[0].id]; restored.menuNeedsUpdate(rowMenu)
+        precondition(rowMenu.items.map(\.title) == ["Explore to", "Lock"])
+        model.busy = true; restored.update(); restored.menuNeedsUpdate(rowMenu)
+        precondition(rowMenu.items.allSatisfy { !$0.isEnabled })
+        precondition(!restoredTable.isEnabled && !restoredTable.allowsColumnReordering && !restoredTable.allowsColumnResizing)
+        model.busy = false; restored.update()
+        let pathCell = restored.tableView(restoredTable, viewFor: restoredTable.tableColumns.first(where: { $0.identifier.rawValue == "path" }), row: 0) as! NSTableCellView
+        precondition(pathCell.imageView?.image != nil && pathCell.textField?.stringValue == model.rows[0].path.path)
+        let reasonCell = restored.tableView(restoredTable, viewFor: restoredTable.tableColumns.first(where: { $0.identifier.rawValue == "reason" }), row: 0) as! NSTextField
+        precondition(reasonCell.alignment == .right && reasonCell.stringValue.isEmpty)
+        let fit = restored.fittedWidth(restoredTable.tableColumns[0], includeHeader: false)
+        precondition(fit > 24 && restored.fittedWidth(restoredTable.tableColumns[0], includeHeader: true) >= fit)
+        model.confirmResetColumns = { false }; restored.confirmReset(); try await waitList(model)
+        precondition(restoredTable.tableColumns.first!.identifier.rawValue == "branch")
+        model.confirmResetColumns = { true }; restored.confirmReset(); try await waitList(model)
+        precondition(restoredTable.tableColumns.map { $0.identifier.rawValue } == ["path", "hash", "branch", "locked", "reason"])
+        precondition(restoredTable.tableColumns.allSatisfy { !$0.isHidden })
+        let resetReload = WorktreeListTable.Coordinator(model: model, defaults: defaults)
+        let resetScroll = resetReload.makeScrollView(), resetTable = resetScroll.documentView as! NSTableView
+        precondition(resetTable.tableColumns.map { $0.width } == [150, 100, 100, 100, 100], "Reset widths are unadjusted and reopen with upstream initial defaults")
+        resetReload.fitColumn(0, useDefault: false)
+        precondition((defaults.dictionary(forKey: WorktreeListTable.Coordinator.settingsKey)!["widths"] as! [String: Double])["path"] != nil)
+        resetReload.fitColumn(0, useDefault: true)
+        precondition((defaults.dictionary(forKey: WorktreeListTable.Coordinator.settingsKey)!["widths"] as! [String: Double])["path"] == nil, "Shift fit returns the width to unadjusted persistence")
+        defaults.set(["order": ["unknown", "reason", "reason", "hash"], "hidden": ["path", "reason"], "widths": ["hash": -1.0, "branch": 100_000.0]], forKey: WorktreeListTable.Coordinator.settingsKey)
+        let malformed = WorktreeListTable.Coordinator(model: model, defaults: defaults)
+        let malformedScroll = malformed.makeScrollView(), malformedTable = malformedScroll.documentView as! NSTableView
+        precondition(malformedTable.tableColumns.count == 5 && Set(malformedTable.tableColumns.map { $0.identifier.rawValue }).count == 5)
+        precondition(!malformedTable.tableColumns.first(where: { $0.identifier.rawValue == "path" })!.isHidden)
+        precondition(malformedTable.tableColumns.first(where: { $0.identifier.rawValue == "hash" })!.width == 24)
+        precondition(malformedTable.tableColumns.first(where: { $0.identifier.rawValue == "branch" })!.width == 10_000)
+        model.selection = []; model.confirmResetColumns = { false }
+        print("Actual AppKit receiver: native columns and menus, protected Path, saved visibility/order/widths, fitting, Yes/No reset, selection and malformed preferences passed. No window displayed; native gestures remain pending.")
     }
     @MainActor static func wait(_ model: WorktreeCreateWindowModel) async throws {
         let deadline = Date().addingTimeInterval(20)

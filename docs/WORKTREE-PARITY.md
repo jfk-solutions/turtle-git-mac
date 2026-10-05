@@ -12,12 +12,15 @@ native visual/interaction and signed acceptance remain pending.
 | `CreateWorktreeDlg.cpp` | `e15ff43dcc0a6bf4c09429792dd644919dcf0f1a` | Directory, revision, Checkout, Force, Detach, Create New Branch; native implementation and revision-dependent model checks, visual acceptance pending |
 | `CreateWorktreeDlg.h` | `cdc58bd112fec3d4a3f35953202928997235436a` | Checkout enabled by default; Force, Detach and New Branch disabled |
 | `WorktreeListDlg.cpp` | `701eaacccef376c67f0816246939e9801d8f856e` | List, Add, Prune, Explore, Lock, Unlock, Remove and Remove with Force; main repository excluded from lock/removal |
-| `WorktreeListDlg.h` | `8111e8605867ff3dcf6a9ee50018bd1e1f9e8e83` | Native five-column list implemented; visual acceptance and column customization pending |
+| `WorktreeListDlg.h` | `8111e8605867ff3dcf6a9ee50018bd1e1f9e8e83` | Native five-column list and column customization implemented; visual acceptance pending |
 | `Commands/WorktreeCommand.cpp` | `9a0e2c343b5b99ba372ec0ecec4222e78b46e1f6` | Create/list entry points implemented; Finder drag/drop creation pending |
 | `AppUtils.cpp` | `ad5cf29edc933f6469fb9a961b84e8251f5fc563` | CreateWorktree argument construction and post-create submodule action |
 | `ChooseVersion.h` | `9bc3080bd557ba11f814e6d9221aa322b1414f1c` | Short branch/tag labels unless names conflict; remote labels and picker dispatch |
 | `TortoiseShell/MenuInfo.cpp` | `aee7f91ad1111fe03ab85b390855885ca940a27f` | Worktrees uses the same original copy/branch icon |
 | `ProgressDlg.cpp` | `557988a1303dc86b11c9c74d29be4797aa7e6090` | Close returns IDOK; Cancel returns IDCANCEL; post-action runs then returns IDOK to resume the caller's batch |
+| `ColumnManager.cpp` | `6776d4d47a80a9af042223ebd5f8589cd48b57f3` | Saved visibility/order/adjusted widths, confirmed Reset columns and header fitting |
+| `ColumnManager.h` | `bd12076609badaecb865f168ebefd1e235a7315b` | Path omitted from visibility menu; divider double-click and Shift behavior |
+| `ResizableColumnsListCtrl.h` | `84350420f3d5dfd6eb685f21415559487dd59611` | Header context/drag/resize routing and saved columns |
 
 `CAppUtils::CreateWorktree` supplies the actual creation argument construction.
 HEAD is omitted from the command, leaving Git's directory-name branch behavior
@@ -189,6 +192,39 @@ These tests establish
 repository/model behavior within their fixtures, not complete app/UI parity.
 
 No app was launched in this manager check: the previous native controller failure
-remains unresolved. Column visibility/order/width persistence, source list
-background artwork, native light/dark screenshots and all native/signed
+remains unresolved. Source list background artwork, native light/dark screenshots and all native/signed
 acceptance remain pending. See [verification record](qa/worktree-list-2026-10-05.json).
+
+## Native column controls
+
+`WorktreeListTable.swift` now uses an AppKit `NSTableView` with five native columns
+in source order and initial widths of 150/100/100/100/100 points. Path includes
+the folder icon; hash uses a fixed-pitch font; Reason and its header align right.
+It preserves the manager's multi-selection menus and original colorful icons,
+double-click Explore dispatch, and F5 receiver. No sort action is added: the
+source Worktree List has no column-sort handler.
+
+The header context menu offers Reset columns followed by checked Hash, Branch,
+Locked and Reason items. Path remains visible, matching the source menu's omission
+of column zero. Header dragging changes order; resize notifications save adjusted
+widths. Settings use a versioned UserDefaults entry shared by Worktree List windows.
+Unknown/duplicate saved IDs are ignored, Path cannot be hidden by malformed saved
+settings, and invalid widths are bounded to native usable limits.
+
+Divider double-click fits the column's contents and saves that adjusted width.
+Shift-double-click includes the header and clears its adjusted-width persistence,
+following the source's default-sizing mode. Reset asks the upstream Yes/No question,
+restores natural order/visibility and fits the displayed columns; reopening then
+uses the unadjusted initial widths. AppKit text measurement replaces Win32 text/
+header sizing. Source Path's header-fill sizing is adapted to measured native
+content/header width. Resize handling uses the documented `NSTableColumn` payload
+of [AppKit's resize notification](https://developer.apple.com/documentation/appkit/nstableview/columndidresizenotification).
+
+The expanded Swift 6/macOS 13 driver instantiates the actual AppKit table without
+displaying a window. It checks columns/default widths, usable header/table geometry, folder/text row cells, menu icons,
+selection, disabled actions, hide/reopen/order/width state, protected Path,
+normal/default fitting, both reset decisions and malformed preferences using an
+isolated defaults suite. It retains all creation/management/scope/cancellation
+tests. These are receiver/state tests: actual divider gestures, dragging, header
+menus, native light/dark appearance and signed sandbox remain unverified. See
+[column verification record](qa/worktree-columns-2026-10-05.json).

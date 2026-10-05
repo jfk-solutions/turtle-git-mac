@@ -25,6 +25,9 @@ import TurtleGitCore
         model.continueAfterError = { [weak self] message in
             await self?.ask(title: "Worktree operation failed", message: message, buttons: ["Continue", "Abort"]) == .alertFirstButtonReturn
         }
+        model.confirmResetColumns = { [weak self] in
+            await self?.ask(title: "Reset columns", message: "Are you sure to reset columns?", buttons: ["Yes", "No"]) == .alertFirstButtonReturn
+        }
         model.authorizeWorktrees = { [weak self] paths, purpose in
             guard let self else { throw RepositoryAccessFailure.securityScopeUnavailable }
             return try await self.authorizeWorktrees(paths, purpose: purpose)
@@ -97,6 +100,7 @@ import TurtleGitCore
     var close: () -> Void = {}
     var add: () -> Void = {}
     var explore: (URL) -> Void = { _ in }
+    var confirmResetColumns: () async -> Bool = { false }
     var confirmRemoval: ([GitWorktree], Bool) async -> Bool = { _, _ in false }
     var continueAfterError: (String) async -> Bool = { _ in false }
     var authorizeWorktrees: @MainActor ([URL], AccessPurpose) async throws -> [RepositoryAccessLease] = { _, _ in
@@ -254,21 +258,7 @@ private struct WorktreeListDialog: View {
     @ObservedObject var model: WorktreeListWindowModel
     var body: some View {
         VStack(spacing: 12) {
-            Table(model.rows, selection: $model.selection) {
-                TableColumn("Path") { row in HStack { Image(nsImage: NSWorkspace.shared.icon(forFile: row.path.path)).resizable().frame(width: 16, height: 16); Text(row.path.path).help(row.path.path) } }.width(min: 200, ideal: 330)
-                TableColumn("Hash") { row in Text(model.hashLabel(row)).font(.system(.body, design: .monospaced)).help(model.hashLabel(row)) }.width(min: 100, ideal: 160)
-                TableColumn("Branch") { row in Text(model.branchLabel(row)) }.width(min: 100, ideal: 160)
-                TableColumn("Locked") { row in Text(row.isMain ? "" : row.lockReason == nil ? "Unlocked" : "Locked") }.width(min: 75, ideal: 90)
-                TableColumn("Reason") { row in Text(row.lockReason ?? "").frame(maxWidth: .infinity, alignment: .trailing) }.width(min: 100, ideal: 160)
-            }.contextMenu(forSelectionType: String.self) { ids in
-                if ids.count == 1 { Button { model.open(ids) } label: { CommandLabel(title: "Explore to", icon: .explore) } }
-                if model.showLock(ids) { Button { model.modify(.lock, ids: ids) } label: { CommandLabel(title: "Lock", icon: .lock) } }
-                if model.showUnlock(ids) { Button { model.modify(.unlock, ids: ids) } label: { CommandLabel(title: "Unlock", icon: .unlock) } }
-                if model.showRemove(ids) {
-                    Button { model.modify(.remove, ids: ids) } label: { CommandLabel(title: "Remove", icon: .remove) }
-                    Button { model.modify(.removeForce, ids: ids) } label: { CommandLabel(title: "Force remove", icon: .remove) }
-                }
-            } primaryAction: { ids in model.open(ids) }
+            WorktreeListTable(model: model)
             HStack {
                 Button("Add") { model.add() }; Button("Prune") { model.prune() }
                 if model.busy { ProgressView().controlSize(.small) }
