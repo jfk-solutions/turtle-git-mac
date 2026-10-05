@@ -47,7 +47,8 @@ See [recorded acceptance](qa/commit-completion-2026-10-05.json).
 
 - Shipped/user autolist.txt definitions, code-symbol regex extraction and file
   decoding, parse timeout/size limits and unversioned-content parsing preference.
-- Shipped/user snippet.txt loading, snippet icons and expansion semantics.
+- Exact Windows ANSI decoding and embedded-NUL snippet behavior; native snippet
+  loading, icons and expansion are accepted in the section below.
 - Spelling dictionaries, custom words, Ctrl-Tab suggestions and dictionary-aware
   completion behavior.
 - Exact Windows locale casing/word classification, arbitrary DWORD minimums,
@@ -60,3 +61,53 @@ catalog is computed from current visible rows rather than the source's timed
 background scan. Remaining scanner and full settings work must preserve the
 source behavior before full parity can be claimed. GitHub verification of these
 local changes is pending publication.
+
+## Shipped and user snippet definitions
+
+`MessageSnippets.swift` adapts CommitDlg.cpp::ParseSnippetFile and HandleSnippet.
+The original shipped sample file remains unchanged; all sample definitions are
+commented out. Resource provenance pins its Git blob
+`301f52c0a1aacdcf53775677ec24b0be949b70d8`. The original snippet icon's blob is
+`ceb1ca48619cea69a46d15e114b24d6fb4054f38`.
+
+Create `snippet.txt` in `~/Library/Application Support/TurtleGit/` for an ordinary
+build. A sandboxed distribution uses its private Application Support container.
+Definitions are read off the main thread when the Commit file list loads or
+refreshes. Press F5 after editing the file. User keys override shipped keys;
+snippet keys win collisions with filename candidates, matching source insertion
+order. Unreadable/missing definition files are skipped, as upstream does.
+
+```text
+fix=Fixed issue #42\nSecond line\tDetail
+```
+
+Only a '#' in the first position makes a comment. The first '=' separates a
+nonempty key from its value. Neither side is trimmed; values can be empty or
+contain additional '=' signs. Recognized escapes are `\t`, `\n`, `\r` and
+`\\`. Unknown escapes remain literal, and a trailing unpaired backslash is
+lost, preserving the source parser behavior. Keys retain literal UTF-16 identity.
+
+The native loader accepts UTF-8 with optional BOM, UTF-16 LE/BE with BOM, and
+Windows-1252 fallback. This is a deliberate macOS decoding adaptation; exact
+Windows CStdioFile locale/ANSI behavior, embedded NULs and malformed encodings
+remain under audit.
+
+Selection displays the original colored snippet icon and replaces the current
+word with the expanded value without an extra newline. Unlike a filename,
+a snippet recomputes the styled word selection even if completion matched the
+raw marker-prefixed key. Thus `_Spe` selecting `_Special` retains the leading
+underscore and inserts the expansion after it, following HandleSnippet.
+Expansion is one Undo operation and retains editor focus.
+
+The full local suite passed 393 tests with zero failures. Unsigned Debug and
+App Store builds, snippet-resource provenance and all 66 original icons passed
+bundle audits. Four snippet tests cover escapes/whitespace/comments/overrides, empty values,
+literal Unicode keys and filename collisions, marker-aware selection and
+missing/custom UTF-8/UTF-16 files. Native checks verified multiline/tab expansion,
+Undo to `fix`, filename collision priority, `_Special` replacement and changed
+file reload. Actual expanded-message and light/dark popup screenshots were
+inspected. The sole QA app quit normally and repository state remained identical.
+See [snippet acceptance](qa/commit-snippets-2026-10-05.json).
+
+Code-symbol extraction, spelling, full popup lifecycle/keyboard parity,
+accessibility and signed sandbox workflows are still outstanding.

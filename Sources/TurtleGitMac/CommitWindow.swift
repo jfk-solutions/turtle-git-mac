@@ -228,6 +228,8 @@ import UniformTypeIdentifiers
     @Published var formattingEnabled = UserDefaults.standard.object(forKey: "StyleCommitMessages") as? Bool ?? true {
         didSet { if formattingEnabled != oldValue { scheduleIssueStyling() } }
     }
+    private(set) var messageSnippets = MessageSnippets()
+    private let snippetLoader = MessageSnippetLoader()
     @Published var issueID = ""
     private func scheduleIssueStyling() {
         issueStyleTask?.cancel(); issueMessageStyles = []
@@ -532,6 +534,8 @@ import UniformTypeIdentifiers
                 if amend && !hasParent { amendDiffToLastCommit = true }
                 comparisonBase = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : nil
                 entries = try await repository.commitDialogStatus(amendToParent: amendToParent); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
+                let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
+                messageSnippets = await snippetLoader.load(userURL: snippetURL)
                 changelistsLoaded = false
                 changelists = try await repository.changelists(); changelistsLoaded = true
                 indexFlagFiles = try await repository.workingTreeStatus()

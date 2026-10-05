@@ -73,8 +73,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   `^italic^` and `_underlined_` marker formatting follows upstream precedence, with
   a saved Style commit messages preference. Filename completion includes displayed
   unchecked files and path suffixes, with Ctrl-Space, original file icons and
-  saved enable/minimum/extension preferences. Code completion, snippets and
-  spelling remain pending; see [completion audit](docs/COMMIT-COMPLETION-PARITY.md).
+  saved enable/minimum/extension preferences. Shipped/user snippet definitions
+  expand multiline text with original snippet icons, source escape rules and Undo.
+  Code-symbol completion and spelling remain pending; see [completion audit](docs/COMMIT-COMPLETION-PARITY.md).
   Provider plugins and signed scope
   acceptance remain pending; see [issue audit](docs/ISSUE-TRACKER-PARITY.md).
   ![Native issue-ID Commit controls](docs/site/assets/commit-issue.png)

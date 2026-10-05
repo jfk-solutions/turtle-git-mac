@@ -24,6 +24,11 @@ manifest = json.loads((root / 'Sources/TurtleGitCore/Resources/Icons/provenance.
 for asset in manifest['assets']:
     assert hashlib.sha256((icons / asset['asset']).read_bytes()).hexdigest() == asset['sha256'], asset['asset']
 assert (icons / 'UPSTREAM-ICON-LICENSE.txt').is_file()
+completion = framework / 'Resources/Completion'
+completion_manifest = json.loads((root / 'Sources/TurtleGitCore/Resources/Completion/provenance.json').read_text())
+assert json.loads((completion / 'provenance.json').read_text()) == completion_manifest
+for asset in completion_manifest['assets']:
+    assert hashlib.sha256((completion / asset['asset']).read_bytes()).hexdigest() == asset['sha256'], asset['asset']
 extension = app / 'Contents/PlugIns/TurtleGitFinder.appex'
 with (extension / 'Contents/Info.plist').open('rb') as stream:
     finder = plistlib.load(stream)

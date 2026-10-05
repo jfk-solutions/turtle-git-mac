@@ -26,6 +26,9 @@ targets:
       - path: Sources/TurtleGitCore/Resources/Icons
         type: folder
         buildPhase: resources
+      - path: Sources/TurtleGitCore/Resources/Completion
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.turtlegit.macos.core

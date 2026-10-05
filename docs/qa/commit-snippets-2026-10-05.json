@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-05",
+  "scope": "Commit snippets; full editor and signed distribution remain partial",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/Resources/snippet.ico": "ceb1ca48619cea69a46d15e114b24d6fb4054f38",
+    "src/TortoiseGitSetup/include/snippet.txt": "301f52c0a1aacdcf53775677ec24b0be949b70d8",
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/Utils/MiscUI/SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e"
+  },
+  "focused_tests": {
+    "count": 8,
+    "failures": 0,
+    "command": "swift test --filter 'MessageCompletionTests|MessageSnippetTests'",
+    "log_sha256": "7531f15d0f4f111f114272aec37347066567010f44eca3418948484bef94864f"
+  },
+  "native": {
+    "fixture": "/tmp/TurtleGitCompletionQA-repository",
+    "baseline": {
+      "head": "f5ee44fd4101f16ec9e31ff417c0508d62237e94",
+      "index_sha256": "7768dc6d5bd6dd3dd05a3eb97f63daa0ade5790759981c200e6f9d6ddfbb64c6",
+      "working_sha256": "0e442b07e3772e8f5622478242ddf5f9f197bbd6a0402cd71471db4081abb291"
+    },
+    "final_HEAD_raw_index_tracked_working_unchanged": true,
+    "cases": [
+      "Ctrl-Space fix offers original snippet icon",
+      "Tab inserts Fixed issue #42 newline Second line tab Detail, 34 characters",
+      "Undo restores fix",
+      "Wid accepts Widget.swift snippet over filename with Return",
+      "Mouse accepts _Special after _Spe, retaining underscore before expansion",
+      "F5 reloads changed user definition; Ctrl-Space/Return inserts Refreshed user definition",
+      "Actual expanded/light-popup/dark-popup PNGs inspected"
+    ],
+    "lifecycle": "One QA app; Cmd-Q/Yes quit normally; final process scan empty",
+    "fixture_correction": "Initial user file was placed under /tmp instead of Foundation temporaryDirectory. Copied only private QA definitions to actual directory; F5 refreshed the same instance. No product restart inferred from initial absent candidate.",
+    "screenshots": [
+      {
+        "path": "docs/site/assets/commit-snippets.png",
+        "sha256": "316bfd127bbf24b5bc1078c6af662673eea20cc16d99e30713fbbf9a9497d94d",
+        "dimensions": [
+          2000,
+          1584
+        ]
+      },
+      {
+        "path": "docs/site/assets/commit-snippets-popup.png",
+        "sha256": "69672310406aa01cecf10298f7e971c7cc497252fc18edbef8e84225d65fa192",
+        "dimensions": [
+          2076,
+          1584
+        ]
+      },
+      {
+        "path": "docs/site/assets/commit-snippets-dark.png",
+        "sha256": "6492d715d53be6aab524c85c3a26151f549fd03d0595ff446aefb730d6d449d1",
+        "dimensions": [
+          2076,
+          1584
+        ]
+      }
+    ]
+  },
+  "builds": {
+    "Debug": "Unsigned build and resource/helper audit passed",
+    "AppStore": "Unsigned build, bundled Git/helper and resource audit passed",
+    "resources": "66 original icons plus unchanged snippet sample and pinned manifest audited",
+    "GitHub Pages": "Local build and native PNG checks passed; publication pending"
+  },
+  "build_log_sha256": {
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "store": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "remaining": [
+    "Exact Windows file decoding, NUL and malformed text",
+    "Code-symbol scanning and spelling",
+    "Complete keyboard/IME/accessibility/popup lifecycle",
+    "Signed sandbox and App Store acceptance",
+    "GitHub verification after publication"
+  ],
+  "full_tests": {
+    "count": 393,
+    "failures": 0,
+    "command": "swift test",
+    "log_sha256": "a9f463ab218f5f3c91ddec9b4307519426eca59b80098c43ee010519d6037182"
+  }
+}

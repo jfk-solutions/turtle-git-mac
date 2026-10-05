@@ -1,0 +1,11 @@
+{
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "assets": [
+    {
+      "asset": "snippet.txt",
+      "source": "src/TortoiseGitSetup/include/snippet.txt",
+      "blob": "301f52c0a1aacdcf53775677ec24b0be949b70d8",
+      "sha256": "0acd18c714b539545af178eda7159d0eab45de3c723f2cfb9330054a7cc5d7da"
+    }
+  ]
+}

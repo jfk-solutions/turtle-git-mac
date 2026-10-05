@@ -11,6 +11,16 @@ public enum MessageCompletion {
         public let candidates: [String]
     }
     public static func request(message: String, selection: NSRange, candidates: [String], minimum: Int, styling: Bool) -> Request? {
+        guard let full = wordRange(message: message, selection: selection, styling: false),
+              let trimmed = wordRange(message: message, selection: selection, styling: styling) else { return nil }
+        let text = message as NSString
+        for range in [trimmed, full] {
+            let found = matches(prefix: text.substring(with: range), candidates: candidates, minimum: minimum)
+            if !found.isEmpty { return Request(range: range, candidates: found) }
+        }
+        return nil
+    }
+    public static func wordRange(message: String, selection: NSRange, styling: Bool) -> NSRange? {
         let units = Array(message.utf16), end = selection.location
         func word(_ unit: UInt16) -> Bool {
             if [39, 45, 95].contains(unit) { return true }
@@ -29,12 +39,7 @@ public enum MessageCompletion {
                 if trimmed.length > 0 && units[trimmed.location] == marker { trimmed.location += 1; trimmed.length -= 1 }
             }
         }
-        let text = message as NSString
-        for range in [trimmed, full] {
-            let found = matches(prefix: text.substring(with: range), candidates: candidates, minimum: minimum)
-            if !found.isEmpty { return Request(range: range, candidates: found) }
-        }
-        return nil
+        return trimmed
     }
     public static func fileCandidates(paths: [String], removeExtensions: Bool = false) -> [String] {
         var values = Set<[UInt16]>()

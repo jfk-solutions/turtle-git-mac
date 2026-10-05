@@ -56,3 +56,8 @@ catalog generation and SciEdit.cpp completion matching under GPL version 2 or
 later, retaining their TortoiseGit/TortoiseSVN copyright notices. The native
 popup reuses the upstream file.ico unchanged; its provenance is recorded in
 Sources/TurtleGitCore/Resources/Icons/provenance.json.
+
+Sources/TurtleGitCore/MessageSnippets.swift adapts CommitDlg.cpp snippet parsing
+and selection expansion, under GPL version 2 or later with its TortoiseGit
+copyright notice. The original shipped snippet.txt and snippet.ico are retained
+unchanged, with pinned source and SHA-256 provenance in their resource folders.

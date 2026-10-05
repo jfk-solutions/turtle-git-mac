@@ -1241,3 +1241,8 @@ unchecked unversioned candidates, saved preferences, extension-free names and
 Undo have native acceptance evidence. See [completion audit](COMMIT-COMPLETION-PARITY.md)
 for source mapping, screenshots and the remaining code/snippet/spelling work.
 This does not establish complete SciEdit or Commit parity.
+
+User/shipped snippets now use the original snippet icon and source parsing,
+priority and word-expansion rules. Native multiline/Undo/collision/refresh
+acceptance is recorded in the [completion audit](COMMIT-COMPLETION-PARITY.md).
+Code-symbol extraction, spelling and full editor behavior remain pending.

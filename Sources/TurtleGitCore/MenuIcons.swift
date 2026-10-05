@@ -5,7 +5,7 @@ import AppKit
 /// chooses a representation for the display scale. Monochrome Log, Help and
 /// cherry-pick glyphs use template tinting to remain visible in both appearances.
 public enum MenuIcon: String, CaseIterable {
-    case completionFile = "file"
+    case completionFile = "file", completionSnippet = "snippet"
     case turtle = "TortoiseSmall", status = "menushowchanged", commit = "menucommit", log = "menulog"
     case blame = "TortoiseGitBlame"
     case compare = "menucompare", unifiedDiff = "menudiff", pull = "pull1", push = "Push", fetch = "menuupdate"

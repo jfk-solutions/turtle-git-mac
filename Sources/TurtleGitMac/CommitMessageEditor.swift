@@ -68,17 +68,21 @@ private final class MessageTextView: NSTextView {
         guard isEditable, let model else { return }
         guard UserDefaults.standard.object(forKey: "Autocompletion") as? Bool ?? true else { completionPopup.close(); return }
         let stripExtensions = UserDefaults.standard.bool(forKey: "AutocompleteRemovesExtensions")
-        let candidates = MessageCompletion.fileCandidates(paths: model.visibleEntries.map(\.path), removeExtensions: stripExtensions)
+        let snippets = model.messageSnippets
+        let files = MessageCompletion.fileCandidates(paths: model.visibleEntries.map(\.path), removeExtensions: stripExtensions)
+        let candidates = snippets.candidates(files: files)
         guard let request = MessageCompletion.request(message: string, selection: selectedRange(), candidates: candidates, minimum: minimum, styling: model.formattingEnabled) else { completionPopup.close(); return }
         completionRange = request.range
         completionPopup.accept = { [weak self] value in
-            guard let self, let range = self.completionRange, range.location <= (self.string as NSString).length, range.length <= (self.string as NSString).length - range.location else { return }
+            guard let self, let prefixRange = self.completionRange, prefixRange.location <= (self.string as NSString).length, prefixRange.length <= (self.string as NSString).length - prefixRange.location else { return }
             self.breakUndoCoalescing()
-            self.insertText(value, replacementRange: range)
+            let expansion = snippets.expansion(for: value)
+            let range = expansion == nil ? prefixRange : MessageCompletion.wordRange(message: self.string, selection: self.selectedRange(), styling: model.formattingEnabled) ?? prefixRange
+            self.insertText(expansion ?? value, replacementRange: range)
             self.breakUndoCoalescing()
             self.window?.makeFirstResponder(self)
         }
-        completionPopup.show(request.candidates, in: self)
+        completionPopup.show(request.candidates, snippets: snippets.keys, in: self)
     }
     override func resignFirstResponder() -> Bool { completionPopup.close(); return super.resignFirstResponder() }
     private var appliedStyles: [IssueMessageStyle] = []
