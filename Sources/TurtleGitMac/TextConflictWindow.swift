@@ -79,8 +79,12 @@ struct MergeTabControls: View {
     let changeWidth: (Int) -> Void
     let changeSpaces: (Bool) -> Void
     let changeSmart: (Bool) -> Void
+    var editorConfigEnabled = false
+    var editorConfigLoaded = false
+    var changeEditorConfig: ((Bool) -> Void)? = nil
+    private var settingsTitle: String { "\(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")\(editorConfigEnabled && editorConfigLoaded ? " EC" : "")" }
     var body: some View {
-        Menu("\(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")") {
+        Menu(settingsTitle) {
             Button { changeSpaces(false) } label: {
                 if !useSpaces { Label("Tab", systemImage: "checkmark") } else { Text("Tab") }
             }
@@ -95,7 +99,11 @@ struct MergeTabControls: View {
                     if width == tabWidth { Label("\(width)", systemImage: "checkmark") } else { Text("\(width)") }
                 }
             }
-        }.fixedSize().accessibilityLabel("\(label) tab settings: \(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")")
+            if let changeEditorConfig {
+                Divider()
+                Toggle("EditorConfig", isOn: Binding(get: { editorConfigEnabled }, set: changeEditorConfig))
+            }
+        }.fixedSize().accessibilityLabel("\(label) tab settings: \(settingsTitle)")
     }
 }
 private enum MergeSourceSide {
@@ -196,6 +204,38 @@ private enum MergeSourceSide {
     @Published var spacePanes: [String: Bool] = [:]
     @Published var smartTabPanes: [String: Bool] = [:]
     @Published var editorPreferences = MergeEditorPreferences.load()
+    @Published var editorConfigEnabled: [String: Bool] = [:]
+    @Published var editorConfigLoaded: [String: Bool] = [:]
+    @Published var editorConfigLoading: Set<String> = []
+    private var editorConfigRequests: [String: UUID] = [:]
+    func setEditorConfig(_ enabled: Bool, pane: String) {
+        guard document != nil, !confirmingQuit else { return }
+        let request = UUID(); editorConfigRequests[pane] = request
+        editorConfigEnabled[pane] = enabled; editorConfigLoaded[pane] = false
+        tabWidths[pane] = editorPreferences.tabWidth
+        spacePanes[pane] = editorPreferences.useSpaces
+        smartTabPanes[pane] = editorPreferences.smartTab
+        editorConfigLoading.remove(pane)
+        guard enabled else { return }
+        editorConfigLoading.insert(pane)
+        let file = repository.root.appendingPathComponent(path)
+        Task {
+            let resolved = await Task.detached { Result { try EditorConfigRuntime.resolve(file: file) } }.value
+            guard editorConfigRequests[pane] == request else { return }
+            editorConfigLoading.remove(pane)
+            switch resolved {
+            case .success(let values):
+                editorConfigLoaded[pane] = values.loaded
+                let settings = values.applying(to: editorPreferences)
+                tabWidths[pane] = settings.tabWidth; spacePanes[pane] = settings.useSpaces
+            case .failure(let failure): error = failure.localizedDescription
+            }
+        }
+    }
+    private func reloadEditorConfig() {
+        for pane in editorConfigEnabled.keys where editorConfigEnabled[pane] == true { setEditorConfig(true, pane: pane) }
+    }
+
     private var preferencesSubscription: AnyCancellable?
     var applyBlock: ((NSRange, String) -> Void)?
     var replaceEntireResult: ((String) -> Void)?
@@ -238,8 +278,9 @@ private enum MergeSourceSide {
             let next = MergeEditorPreferences.load()
             if next.tabWidth != self.editorPreferences.tabWidth || next.useSpaces != self.editorPreferences.useSpaces || next.smartTab != self.editorPreferences.smartTab {
                 self.tabWidths = [:]; self.spacePanes = [:]; self.smartTabPanes = [:]
-            }
-            self.editorPreferences = next
+                self.editorPreferences = next
+                self.reloadEditorConfig()
+            } else { self.editorPreferences = next }
         }
     }
     func load() {
@@ -269,6 +310,7 @@ private enum MergeSourceSide {
         document = next; sourceComparison = comparison; result = next.initialResult; encoding = next.encoding
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
         selectConflict(0)
+        reloadEditorConfig()
     }
     func selectConflict(_ index: Int) {
         let blocks = blocks; guard !blocks.isEmpty else { return }
@@ -367,7 +409,7 @@ private struct TextConflictDialog: View {
             HStack {
                 MergeFormatControls(label: title, encoding: encoding, text: text, editable: editable && !model.busy && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding)
                 Spacer()
-                MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.tabWidths[title] = $0 }, changeSpaces: { model.spacePanes[title] = $0 }, changeSmart: { model.smartTabPanes[title] = $0 }).disabled(model.busy || model.confirmingQuit)
+                MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.tabWidths[title] = $0 }, changeSpaces: { model.spacePanes[title] = $0 }, changeSmart: { model.smartTabPanes[title] = $0 }, editorConfigEnabled: model.editorConfigEnabled[title] == true, editorConfigLoaded: model.editorConfigLoaded[title] == true, changeEditorConfig: { model.setEditorConfig($0, pane: title) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(title))
             }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))
         }
     }

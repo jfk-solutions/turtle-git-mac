@@ -76,6 +76,52 @@ import TurtleGitCore
     @Published var tabWidths: [Bool: Int] = [:]
     @Published var spacePanes: [Bool: Bool] = [:]
     @Published var smartTabPanes: [Bool: Bool] = [:]
+    @Published var editorConfigEnabled: [Bool: Bool] = [:]
+    @Published var editorConfigLoaded: [Bool: Bool] = [:]
+    @Published var editorConfigLoading: Set<Bool> = []
+    private var editorConfigRequests: [Bool: UUID] = [:]
+    func setEditorConfig(_ enabled: Bool, base: Bool) {
+        guard let document, !confirmingQuit else { return }
+        let content = base ? document.base : document.destination
+        let file = content.path.hasPrefix("/") ? URL(fileURLWithPath: content.path) : snapshot.root.appendingPathComponent(content.path)
+        if enabled, GitRuntime.isAppStoreBuild {
+            let parent = file.deletingLastPathComponent()
+            let permissions = workingPermissions + [access].compactMap { $0 }
+            if !permissions.contains(where: { $0.hasSecurityScope && $0.contains(parent) }) {
+                let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
+                panel.directoryURL = parent; panel.prompt = "Read EditorConfig"
+                panel.message = "Choose the folder containing “" + file.lastPathComponent + "” to read its EditorConfig settings."
+                guard panel.runModal() == .OK, let folder = panel.url else { return }
+                let permission = RepositoryAccessLease(url: folder)
+                guard permission.hasSecurityScope, permission.contains(parent) else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+                workingPermissions.append(permission)
+            }
+        }
+        let request = UUID(); editorConfigRequests[base] = request
+        editorConfigEnabled[base] = enabled; editorConfigLoaded[base] = false
+        tabWidths[base] = editorPreferences.tabWidth
+        spacePanes[base] = editorPreferences.useSpaces
+        smartTabPanes[base] = editorPreferences.smartTab
+        editorConfigLoading.remove(base)
+        guard enabled else { return }
+        editorConfigLoading.insert(base)
+        Task {
+            let resolved = await Task.detached { Result { try EditorConfigRuntime.resolve(file: file) } }.value
+            guard editorConfigRequests[base] == request else { return }
+            editorConfigLoading.remove(base)
+            switch resolved {
+            case .success(let values):
+                editorConfigLoaded[base] = values.loaded
+                let settings = values.applying(to: editorPreferences)
+                tabWidths[base] = settings.tabWidth; spacePanes[base] = settings.useSpaces
+            case .failure(let failure): error = failure.localizedDescription
+            }
+        }
+    }
+    private func reloadEditorConfig() {
+        for base in editorConfigEnabled.keys where editorConfigEnabled[base] == true { setEditorConfig(true, base: base) }
+    }
+
     func tabWidth(base: Bool) -> Int { tabWidths[base] ?? editorPreferences.tabWidth }
     func useSpaces(base: Bool) -> Bool { spacePanes[base] ?? editorPreferences.useSpaces }
     func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
@@ -83,6 +129,8 @@ import TurtleGitCore
         let next = MergeEditorPreferences.load()
         if next.tabWidth != editorPreferences.tabWidth || next.useSpaces != editorPreferences.useSpaces || next.smartTab != editorPreferences.smartTab {
             tabWidths = [:]; spacePanes = [:]; smartTabPanes = [:]
+            editorPreferences = next
+            reloadEditorConfig()
         }
         editorPreferences = next; showLineNumbers = next.showLineNumbers
     }
@@ -277,6 +325,7 @@ import TurtleGitCore
                 selectEditorActions()
                 rebuildAlignment(); resetHistory(); selectionRequest = nil
                 difference = -1
+                reloadEditorConfig()
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -384,7 +433,7 @@ private struct FileComparisonDialog: View {
             HStack {
                 MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) })
                 Spacer()
-                MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.tabWidths[base] = $0 }, changeSpaces: { model.spacePanes[base] = $0 }, changeSmart: { model.smartTabPanes[base] = $0 }).disabled(model.busy || model.confirmingQuit)
+                MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.tabWidths[base] = $0 }, changeSpaces: { model.spacePanes[base] = $0 }, changeSmart: { model.smartTabPanes[base] = $0 }, editorConfigEnabled: model.editorConfigEnabled[base] == true, editorConfigLoaded: model.editorConfigLoaded[base] == true, changeEditorConfig: { model.setEditorConfig($0, base: base) }).disabled(model.busy || model.confirmingQuit || model.editorConfigLoading.contains(base))
                 Text("\(content?.mode ?? "Absent") · \(content?.bytes.count ?? 0) saved bytes").font(.caption).foregroundStyle(.secondary)
             }
         }.padding(8).frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)

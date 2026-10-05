@@ -22,3 +22,10 @@ licensed under GPL v2. Its corresponding source archive, COPYING, retained
 third-party notices and reconstruction scripts are included under
 Contents/Helpers/Git/share/licenses/git/. Configuration/GitRuntime.json records
 the version, source URL and checksum. macOS system libraries are not redistributed.
+
+The app bundles EditorConfig C Core and statically linked PCRE2. Their original
+license texts, pinned source/test archives and reconstruction script are retained
+under Contents/Helpers/EditorConfig/. Configuration/EditorConfigRuntime.json
+records source versions and checksums. EditorConfig includes Simplified/New/
+Revised BSD and per-file notices; PCRE2 retains its BSD license and exceptions.
+Consult the included license texts and complete corresponding sources.

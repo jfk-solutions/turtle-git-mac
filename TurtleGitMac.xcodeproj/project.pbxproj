@@ -482,6 +482,7 @@
 				F6F8AC92E0CCCF7FF9CECD59 /* Frameworks */,
 				ED03DD8CA52381A434D18935 /* Embed Foundation Extensions */,
 				C0FA93121C7653B8CED80394 /* Embed Frameworks */,
+				05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */,
 				C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */,
 			);
 			buildRules = (
@@ -578,6 +579,25 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		05E9103FE147A460078548D0 /* Embed pinned EditorConfig runtime */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Embed pinned EditorConfig runtime";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "/usr/bin/python3 \"$SRCROOT/scripts/embed-editorconfig-runtime.py\" \"$SRCROOT/build/editorconfig-runtime/EditorConfig\" \"$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME\"\n";
+		};
 		C45E6CCF59E8F543668B15BE /* Embed pinned Git runtime for App Store */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

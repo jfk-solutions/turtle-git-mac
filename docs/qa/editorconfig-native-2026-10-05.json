@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-05",
+  "feature": "Native per-pane EditorConfig tab settings and packaged official runtime",
+  "local_tests": {
+    "count": 358,
+    "failures": 0,
+    "log": "/tmp/turtlegit-ci-check-tests.log",
+    "scope": "Core suite passed before native UI integration; latest native sources compiled in both configurations"
+  },
+  "builds": {
+    "Debug": "passed",
+    "AppStore_unsigned": "passed",
+    "resource_audits": "both passed"
+  },
+  "signing": {
+    "Debug_ad_hoc_helper": "signature, hash and parser behavior passed",
+    "AppStore_ad_hoc_helper": "signature, hash and exact sandbox/inherit entitlements passed",
+    "signed_app_invocation": "pending"
+  },
+  "native": {
+    "conflict": "Merged Space 7 EC independent from sources; Mine independently enabled; select-all Tab prefixes seven spaces; Undo returns clean; disabled Merged returns Tab 4; changed config Reload updates Mine Space 5 EC",
+    "comparison": "ordinary untracked UTF8 Unicode file; Mine Space 5 EC independent from Base Tab 4; select-all Tab prefixes five spaces; Undo returns clean"
+  },
+  "preservation": [
+    "HEAD unchanged",
+    "raw index unchanged",
+    "conflict working bytes unchanged",
+    "conflict mode 0755 unchanged",
+    "comparison working bytes unchanged after Undo"
+  ],
+  "lifecycle": "one QA instance at a time; normal CmdQ; final process scan has no TurtleGitMac",
+  "pending": [
+    "Signed App Store invocation and ancestor scopes",
+    "Persistent global EnableEditorConfig",
+    "Native failure/timeout/race acceptance",
+    "Dark and narrow layout",
+    "Save-time EOL/charset/whitespace/final-newline mapping",
+    "Full preference reload acceptance",
+    "Actual Intel/macOS13 execution"
+  ],
+  "focused_regression": {
+    "count": 20,
+    "failures": 0,
+    "log": "/tmp/turtlegit-editorconfig-final-tests.log",
+    "scope": "EditorConfig, saved merge preferences and comparison editing; compiled latest Swift Package app sources"
+  },
+  "preview_packaging": "Fresh ad-hoc Debug preview creation, deep strict signature and parser provenance/behavior audits passed after final script changes"
+}

@@ -17,13 +17,15 @@ Requires Xcode with its macOS SDK and command-line tools, plus Git. The generate
 Xcode project is checked in; XcodeGen is optional unless changing `project.yml`.
 
 ```sh
+python3 scripts/build-editorconfig-runtime.py
 swift test
 ./scripts/build.sh
 open build/Build/Products/Debug/TurtleGitMac.app
 ```
 
 For a quick app-only build: `swift run TurtleGitMac`. That does not bundle or
-activate the Finder extension. The unsigned Xcode build verifies compilation and
+activate the Finder extension or embed the EditorConfig helper; use the Xcode
+build for those features. The unsigned Xcode build verifies compilation and
 bundle structure; it is not a signed distribution.
 
 ## Implemented first pass
@@ -190,7 +192,12 @@ cancellation and live streaming progress are not implemented. Conflicts remain
 visible in the status list. Regular Unicode text conflicts can be resolved in the
 native three-pane editor; unsupported formats still require another tool. The
 merged result offers the upstream nine-style line-ending conversion submenu
-with Undo/Redo, plus UTF-8/UTF-16/UTF-32 output choices and explicit Windows-1252 export. Legacy input code pages and full diff/merge parity remain in progress.
+with Undo/Redo, plus UTF-8/UTF-16/UTF-32 output choices and explicit Windows-1252 export.
+Each pane has an optional EditorConfig toggle that reads the bundled official
+parser and applies tab width and Tab/Space settings with an EC status indicator.
+Signed sandbox acceptance and save-time properties remain in progress; see
+[EditorConfig audit](docs/EDITORCONFIG-PARITY.md). Legacy input code pages and
+full diff/merge parity remain in progress.
 
 The future [user manual](docs/MANUAL-PLAN.md) follows TortoiseGit’s structure and
 terminology with macOS-specific instructions and real TurtleGit screenshots.

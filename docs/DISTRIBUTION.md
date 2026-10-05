@@ -15,6 +15,7 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 | App Store preparation | AppStore / TurtleGitAppStore | Sandbox, user-selected read/write folders, app-scoped bookmarks, network client | Requires `Contents/Helpers/Git/bin/git`; missing runtime is an error |
 
 ```sh
+python3 scripts/build-editorconfig-runtime.py
 python3 scripts/build-git-runtime.py
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
   -configuration AppStore -destination 'platform=macOS' \
@@ -175,3 +176,15 @@ Apple's [Mac App Store review requirements](https://developer.apple.com/app-stor
 require appropriate sandboxing and a self-contained Xcode-packaged app. Therefore
 successful compilation and the presence of an AppStore scheme are insufficient
 release evidence. Nothing has been submitted to Apple or uploaded as a release.
+
+## EditorConfig helper
+
+All configurations embed the pinned universal EditorConfig C Core/PCRE2 parser
+with source archives, reconstruction script and original licenses. Preparation
+is mandatory before direct Xcode builds. AppStore signing adds the inherited
+sandbox entitlements; other configurations sign the helper without inheritance.
+The embedding audit verifies the prepared unsigned runtime before signing and
+checks the signed binary hash, signature and exact sandbox entitlements after.
+An inherited helper cannot execute from an unsandboxed Python build validator.
+Signed app invocation, security scopes and ancestors outside a chosen repository
+remain unverified; see [EditorConfig parity](EDITORCONFIG-PARITY.md).

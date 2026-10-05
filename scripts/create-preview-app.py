@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Make an independent ad-hoc-signed Debug app for documentation; never replace the user's running app."""
 import argparse
+import hashlib
+import json
 import pathlib
 import plistlib
 import shutil
@@ -66,6 +68,19 @@ legacy_resources = args.destination / 'TurtleGitMac_TurtleGitCore.bundle'
 if legacy_resources.exists():
     shutil.rmtree(legacy_resources)
 subprocess.run(['codesign', '--force', '--deep', '--sign', '-', str(args.destination)], check=True)
+# Deep signing changes the bundled parser bytes. Update its provenance and
+# then reseal only the containing app so the helper signature stays intact.
+parser_runtime = args.destination / 'Contents/Helpers/EditorConfig'
+if parser_runtime.is_dir():
+    manifest_path = parser_runtime / 'provenance.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest.setdefault('unsigned_binary_sha256', manifest['binary_sha256'])
+    manifest['binary_sha256'] = hashlib.sha256((parser_runtime / 'editorconfig').read_bytes()).hexdigest()
+    manifest['signed'] = True
+    manifest['sandbox_inherited'] = False  # This script creates Debug previews.
+    manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+    subprocess.run(['codesign', '--force', '--sign', '-', str(manifest_path)], check=True)
+    subprocess.run(['codesign', '--force', '--sign', '-', str(args.destination)], check=True)
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(args.destination)], check=True)
 
 print(args.destination.resolve())

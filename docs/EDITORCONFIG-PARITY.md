@@ -15,8 +15,8 @@ for all these properties still needs review.
 PCRE2 10.49 and the exact official core-test submodule revision. Run
 `python3 scripts/build-editorconfig-runtime.py` to build an arm64/x86_64 CLI
 with static parser/PCRE2 archives and macOS 13 deployment target. The generated
-package is `build/editorconfig-runtime/EditorConfig`, not yet embedded in the
-application. It includes licenses, full unmodified source/test archives, the
+package is `build/editorconfig-runtime/EditorConfig`, embedded in every Xcode
+app configuration at `Contents/Helpers/EditorConfig`. It includes licenses, full unmodified source/test archives, the
 reconstruction script and a provenance manifest. Archive extraction rejects
 links and escaping paths; checksums are verified before extraction. Packaging
 checks both architecture slices, declared minimum OS and system-only dynamic
@@ -34,14 +34,50 @@ archives because upstream's fully-static executable option adds Linux's
 to the unchanged official test wrappers. JIT is disabled; no Homebrew runtime
 dependency is introduced.
 
-## Remaining integration
+## Native integration
 
-The native menu toggle, pane settings mapping, loaded indicator and bundled
-helper are not wired yet. App Store embedding/signing, asynchronous reads and
-error/cancellation handling, ancestor-file security scopes, native editing and
-preference reload acceptance remain necessary. Save-time charset/EOL/whitespace/
-final-newline behavior needs its own upstream audit. A passing standalone core
-suite does not establish EditorConfig feature parity or App Store readiness.
+The shared per-pane tab menu now has EditorConfig after the width presets, off
+by default. Both comparison and conflict editors resolve the reflected original
+file path, reset width/mode/Smart to saved defaults on each toggle, then apply
+only resolved tab_width and indent_style. Matching properties add the upstream
+EC suffix. Read-only source panes have independent view settings. Toggling or
+reloading settings does not rewrite text, encoding, line endings or Undo history.
+Reload re-reads enabled panes; changing indentation preferences resets them and
+re-applies EditorConfig. Line-number-only changes retain tab overrides.
+
+The Swift reader runs the pinned CLI off the main thread, uses file-backed
+output, rejects missing/malformed parsers and bounds execution to five seconds
+plus a one-second termination grace. Per-pane request IDs discard stale reads.
+Pane menus are disabled while a read is in progress. App Store comparisons
+request a selected containing folder if a file bookmark cannot cover config
+reads. Scopes stay held while the model's read completes. Ancestors outside the
+selected scope remain inaccessible; full ancestor permission UI and signed
+scope acceptance are still pending.
+
+Build signing uses an inherited sandbox entitlement only for AppStore. Debug
+and Release helpers use normal hardened-runtime signing. Both ad-hoc signing
+branches were exercised: hashes, signatures, universal slices, pins and resources
+passed. An inherited helper traps when launched from an unsandboxed build tool;
+the validator therefore executes the unsigned package before signing and checks
+the signed helper's exact entitlements afterwards. This is not proof of a signed
+App Store app invocation. Debug preview signing updates parser provenance and
+reseals the modified manifest and app.
+
+Native QA verified independent conflict Mine/Merged settings, Space 7 EC,
+seven-space indentation and Undo, disabling to Tab 4, and a changed rule becoming
+Space 5 EC after Reload. A two-pane comparison independently loaded Space 5 EC
+in Mine, indented by five spaces and returned clean after Undo. Source/working
+bytes, HEAD, raw index and executable mode stayed unchanged. All QA app instances
+were closed. See [acceptance](qa/editorconfig-native-2026-10-05.json).
+
+## Remaining parity
+
+Persistent EnableEditorConfig settings, full preference reload acceptance,
+native failure/timeout and race acceptance, signed sandbox reads with folder
+bookmarks, ancestor permissions, dark/narrow layouts and actual Intel/macOS13
+execution remain pending. Save-time charset/EOL/whitespace/final-newline behavior
+needs its own upstream caller audit. The 358 local tests and unsigned app builds
+do not establish full EditorConfig parity or App Store readiness.
 
 Sources: [TortoiseMerge wrapper](https://raw.githubusercontent.com/TortoiseGit/TortoiseGit/master/src/TortoiseMerge/EditorConfigWrapper.cpp),
 [official C core](https://github.com/editorconfig/editorconfig-core-c),

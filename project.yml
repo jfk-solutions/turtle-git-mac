@@ -59,6 +59,10 @@ targets:
           - CFBundleURLName: org.turtlegit.macos.action
             CFBundleURLSchemes: [turtlegit]
     postBuildScripts:
+      - name: Embed pinned EditorConfig runtime
+        script: |
+          /usr/bin/python3 "$SRCROOT/scripts/embed-editorconfig-runtime.py" "$SRCROOT/build/editorconfig-runtime/EditorConfig" "$TARGET_BUILD_DIR/$FULL_PRODUCT_NAME"
+        basedOnDependencyAnalysis: false
       - name: Embed pinned Git runtime for App Store
         script: |
           if [ "$CONFIGURATION" = "AppStore" ]; then
