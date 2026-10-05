@@ -71,6 +71,33 @@ struct MergeFormatControls: View {
         }.font(.caption).foregroundStyle(.secondary)
     }
 }
+struct MergeTabControls: View {
+    let label: String
+    let tabWidth: Int
+    let useSpaces: Bool
+    let smartTab: Bool
+    let changeWidth: (Int) -> Void
+    let changeSpaces: (Bool) -> Void
+    let changeSmart: (Bool) -> Void
+    var body: some View {
+        Menu("\(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")") {
+            Button { changeSpaces(false) } label: {
+                if !useSpaces { Label("Tab", systemImage: "checkmark") } else { Text("Tab") }
+            }
+            Button { changeSpaces(true) } label: {
+                if useSpaces { Label("Space", systemImage: "checkmark") } else { Text("Space") }
+            }
+            Divider()
+            Toggle("Smart tab char", isOn: Binding(get: { smartTab }, set: changeSmart))
+            Divider()
+            ForEach([1, 2, 4, 8], id: \.self) { width in
+                Button { changeWidth(width) } label: {
+                    if width == tabWidth { Label("\(width)", systemImage: "checkmark") } else { Text("\(width)") }
+                }
+            }
+        }.fixedSize().accessibilityLabel("\(label) tab settings: \(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")")
+    }
+}
 private enum MergeSourceSide {
     case mine, theirs
     var icon: MenuIcon { self == .mine ? .mergeUseMine : .mergeUseTheirs }
@@ -340,23 +367,7 @@ private struct TextConflictDialog: View {
             HStack {
                 MergeFormatControls(label: title, encoding: encoding, text: text, editable: editable && !model.busy && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding)
                 Spacer()
-                Menu("\(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")") {
-                    Button { model.spacePanes[title] = false } label: {
-                        if !useSpaces { Label("Tab", systemImage: "checkmark") } else { Text("Tab") }
-                    }
-                    Button { model.spacePanes[title] = true } label: {
-                        if useSpaces { Label("Space", systemImage: "checkmark") } else { Text("Space") }
-                    }
-                    Divider()
-                    Toggle("Smart tab char", isOn: Binding(get: { smartTab }, set: { model.smartTabPanes[title] = $0 }))
-                    Divider()
-                    ForEach([1, 2, 4, 8], id: \.self) { width in
-                        Button { model.tabWidths[title] = width } label: {
-                            if width == tabWidth { Label("\(width)", systemImage: "checkmark") }
-                            else { Text("\(width)") }
-                        }
-                    }
-                }.fixedSize().accessibilityLabel("\(title) tab width")
+                MergeTabControls(label: title, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab, changeWidth: { model.tabWidths[title] = $0 }, changeSpaces: { model.spacePanes[title] = $0 }, changeSmart: { model.smartTabPanes[title] = $0 }).disabled(model.busy || model.confirmingQuit)
             }.padding(.horizontal, 7).padding(.vertical, 3).background(Color(nsColor: .controlBackgroundColor))
         }
     }

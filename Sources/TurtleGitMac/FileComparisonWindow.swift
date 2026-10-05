@@ -72,6 +72,20 @@ import TurtleGitCore
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
     @Published var showInlineDiff = true
     @Published var inlineWordDiff = false
+    @Published var editorPreferences = MergeEditorPreferences.load()
+    @Published var tabWidths: [Bool: Int] = [:]
+    @Published var spacePanes: [Bool: Bool] = [:]
+    @Published var smartTabPanes: [Bool: Bool] = [:]
+    func tabWidth(base: Bool) -> Int { tabWidths[base] ?? editorPreferences.tabWidth }
+    func useSpaces(base: Bool) -> Bool { spacePanes[base] ?? editorPreferences.useSpaces }
+    func smartTab(base: Bool) -> Bool { smartTabPanes[base] ?? editorPreferences.smartTab }
+    func refreshPreferences() {
+        let next = MergeEditorPreferences.load()
+        if next.tabWidth != editorPreferences.tabWidth || next.useSpaces != editorPreferences.useSpaces || next.smartTab != editorPreferences.smartTab {
+            tabWidths = [:]; spacePanes = [:]; smartTabPanes = [:]
+        }
+        editorPreferences = next; showLineNumbers = next.showLineNumbers
+    }
     @Published private var drafts: FileComparisonDrafts?
     @Published private(set) var activeBase = false
     var editingEnabled: Bool {
@@ -141,8 +155,17 @@ import TurtleGitCore
     }
     func changeWhitespace(_ command: MergeWhitespaceCommand, base: Bool) {
         guard canTransfer(toBase: base) else { return }
-        let text = MergeWhitespace.applying(command, to: draftText(base: base), tabWidth: MergeEditorPreferences.load().tabWidth)
+        let text = MergeWhitespace.applying(command, to: draftText(base: base), tabWidth: tabWidth(base: base))
         editorActions[base]?.replace(text, 0, nil)
+    }
+    func indent(_ range: NSRange, cells: [MergeSourceCell], base: Bool, remove: Bool) -> NSRange? {
+        guard activeBase == base, canTransfer(toBase: base) else { return nil }
+        do {
+            guard let edit = try FileComparisonEditing.indentation(range, cells: cells, tabWidth: tabWidth(base: base), useSpaces: useSpaces(base: base), smart: smartTab(base: base), remove: remove) else { return nil }
+            editorActions[base]?.type(edit.text, edit.selection.location)
+            selectionRequest = nil
+            return edit.selection
+        } catch { self.error = error.localizedDescription; return nil }
     }
     func changeLineEnding(_ ending: MergeLineEnding, base: Bool) {
         guard canTransfer(toBase: base) else { return }
@@ -182,6 +205,7 @@ import TurtleGitCore
         var undo: () -> Void
         var redo: () -> Void
         var replace: (String, Int, Range<Int>?) -> Void
+        var type: (String, Int) -> Void
         var annotate: (FileComparisonEditing.Annotations) -> Void
         var keep: (String) -> Void
     }
@@ -360,6 +384,7 @@ private struct FileComparisonDialog: View {
             HStack {
                 MergeFormatControls(label: base ? "Base" : "Mine", encoding: model.encoding(base: base) ?? content?.encoding, text: content?.text == nil ? nil : model.draftText(base: base), editable: model.canTransfer(toBase: base), changeEncoding: { model.changeEncoding($0, base: base) }, changeEnding: { model.changeLineEnding($0, base: base) })
                 Spacer()
+                MergeTabControls(label: base ? "Base" : "Mine", tabWidth: model.tabWidth(base: base), useSpaces: model.useSpaces(base: base), smartTab: model.smartTab(base: base), changeWidth: { model.tabWidths[base] = $0 }, changeSpaces: { model.spacePanes[base] = $0 }, changeSmart: { model.smartTabPanes[base] = $0 }).disabled(model.busy || model.confirmingQuit)
                 Text("\(content?.mode ?? "Absent") · \(content?.bytes.count ?? 0) saved bytes").font(.caption).foregroundStyle(.secondary)
             }
         }.padding(8).frame(minWidth: 300, maxWidth: .infinity, maxHeight: .infinity)
@@ -402,7 +427,7 @@ private struct FileComparisonDialog: View {
                 Spacer(); Text(model.dirty ? "Modified · working file not saved" : model.editingEnabled && model.editableBase != nil ? "Editing working file" : "Read-only comparison").font(.caption).foregroundStyle(.secondary)
             }.padding(8)
         }.onAppear { model.load() }
-        .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.showLineNumbers = MergeEditorPreferences.load().showLineNumbers }
+        .onReceive(NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged)) { _ in model.refreshPreferences() }
         .alert("Comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
@@ -435,6 +460,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
             undo: { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.undo(); coordinator.updateUndoState() },
             redo: { [weak coordinator = context.coordinator] in guard let coordinator, !coordinator.model.busy, !coordinator.model.confirmingQuit else { return }; coordinator.history.redo(); coordinator.updateUndoState() },
             replace: { [weak coordinator = context.coordinator] text, caret, cleared in coordinator?.replace(text, caret: caret, cleared: cleared) },
+            type: { [weak coordinator = context.coordinator] text, caret in coordinator?.replace(text, caret: caret, typing: true) },
             annotate: { [weak coordinator = context.coordinator] value in guard let coordinator else { return }; coordinator.replace(coordinator.model.draftText(base: coordinator.base), caret: 0, restored: value) },
             keep: { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true) }
         ))
@@ -478,7 +504,7 @@ private struct FileComparisonEditor: NSViewRepresentable {
     }
     static func attributed(_ cells: [MergeSourceCell], font: NSFont, model: FileComparisonWindowModel, base: Bool) -> NSAttributedString {
         let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
-        paragraph.defaultTabInterval = CGFloat(MergeEditorPreferences.load().tabWidth) * (" " as NSString).size(withAttributes: [.font: font]).width
+        paragraph.defaultTabInterval = CGFloat(model.tabWidth(base: base)) * (" " as NSString).size(withAttributes: [.font: font]).width
         let value = NSMutableAttributedString(string: "")
         for (index, cell) in cells.enumerated() {
             let diff = inline(index, model: model, base: base), offset = value.length
@@ -583,6 +609,14 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
         }
     }
     override var undoManager: UndoManager? { history ?? super.undoManager }
+    override func insertTab(_ sender: Any?) { indent(remove: false) }
+    override func insertBacktab(_ sender: Any?) { indent(remove: true) }
+    private func indent(remove: Bool) {
+        guard isEditable, let model, let selection = model.indent(selectedRange(), cells: sourceCells, base: baseSide, remove: remove) else { return }
+        let start = FileComparisonEditing.displayOffset(sourceOffset: selection.location, cells: sourceCells)
+        let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection), cells: sourceCells)
+        setSelectedRange(NSRange(location: start, length: max(0, end - start)))
+    }
     override func copy(_ sender: Any?) {
         guard let text = try? FileComparisonEditing.selectedText(selectedRange(), cells: sourceCells), !text.isEmpty else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
@@ -620,7 +654,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
         }
         if model.canTransfer(toBase: baseSide) {
             menu.addItem(.separator())
-            let text = model.draftText(base: baseSide), width = MergeEditorPreferences.load().tabWidth
+            let text = model.draftText(base: baseSide), width = model.tabWidth(base: baseSide)
             for (index, command) in MergeWhitespaceCommand.allCases.enumerated() {
                 let item = NSMenuItem(title: command.rawValue, action: #selector(changeWhitespace(_:)), keyEquivalent: "")
                 item.target = self; item.tag = index

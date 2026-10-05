@@ -2,6 +2,23 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testPaneIndentationMapsGapsUnicodeCRLFAndUnterminatedEOF() throws {
+        let original = "雪🦎\r\nlast"
+        let cells = FileComparisonAlignment(base: "base only\r\n" + original, destination: original).rows.map(\.destination)
+        let offset = FileComparisonEditing.displayOffset(sourceOffset: 3, cells: cells)
+        let inserted = try XCTUnwrap(FileComparisonEditing.indentation(NSRange(location: offset, length: 0), cells: cells, tabWidth: 8, useSpaces: true, smart: false))
+        XCTAssertEqual(inserted.text, "雪🦎     \r\nlast")
+        XCTAssertEqual(inserted.selection, NSRange(location: 8, length: 0))
+        let displayLength = cells.reduce(0) { $0 + ($1.displayText as NSString).length + 1 }
+        let indented = try XCTUnwrap(FileComparisonEditing.indentation(NSRange(location: 0, length: displayLength), cells: cells, tabWidth: 2, useSpaces: true, smart: false))
+        XCTAssertEqual(indented.text, "  雪🦎\r\n  last")
+        XCTAssertEqual(indented.selection, NSRange(location: 0, length: (indented.text as NSString).length))
+        let next = FileComparisonAlignment(base: "base only\r\n" + original, destination: indented.text).rows.map(\.destination)
+        let nextLength = next.reduce(0) { $0 + ($1.displayText as NSString).length + 1 }
+        let removed = try XCTUnwrap(FileComparisonEditing.indentation(NSRange(location: 0, length: nextLength), cells: next, tabWidth: 2, useSpaces: false, smart: false, remove: true))
+        XCTAssertEqual(removed.text, original)
+        XCTAssertNil(try FileComparisonEditing.indentation(NSRange(location: 0, length: 0), cells: cells, tabWidth: 2, useSpaces: false, smart: false, remove: true))
+    }
     func testExplicitEncodingBytesBOMsAndLosslessRejection() throws {
         let fixtures: [(ComparisonTextEncoding, [UInt8])] = [
             (.windows1252, [0x41,0xe9,13,10]), (.utf8, [0x41,0xc3,0xa9,13,10]), (.utf8BOM, [0xef,0xbb,0xbf,0x41,0xc3,0xa9,13,10]),

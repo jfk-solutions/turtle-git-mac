@@ -175,6 +175,19 @@ public enum FileComparisonEditing {
         let source = try sourceRange(range, cells: cells)
         return (cells.filter { $0.lineNumber != nil }.map(\.text).joined() as NSString).substring(with: source)
     }
+    public static func indentation(_ range: NSRange, cells: [MergeSourceCell], tabWidth: Int, useSpaces: Bool, smart: Bool, remove: Bool = false) throws -> (text: String, selection: NSRange)? {
+        let selection = try sourceRange(range, cells: cells)
+        let original = cells.filter { $0.lineNumber != nil }.map(\.text).joined()
+        if let edit = MergeWhitespace.indentSelection(in: original, selection: selection, tabWidth: tabWidth, useSpaces: useSpaces, smart: smart, remove: remove) {
+            let result = (original as NSString).replacingCharacters(in: edit.range, with: edit.replacement)
+            guard !result.utf8.elementsEqual(original.utf8) else { return nil }
+            return (result, NSRange(location: edit.range.location, length: (edit.replacement as NSString).length))
+        }
+        guard !remove else { return nil }
+        let remaining = (original as NSString).replacingCharacters(in: selection, with: "")
+        let insertion = MergeWhitespace.tabInsertion(in: remaining, utf16Offset: selection.location, tabWidth: tabWidth, useSpaces: useSpaces, smart: smart)
+        return ((remaining as NSString).replacingCharacters(in: NSRange(location: selection.location, length: 0), with: insertion), NSRange(location: selection.location + (insertion as NSString).length, length: 0))
+    }
     public static func selectedRows(_ range: NSRange, cells: [MergeSourceCell]) throws -> Range<Int>? {
         _ = try sourceRange(range, cells: cells)
         guard range.length > 0, !cells.isEmpty else { return nil }

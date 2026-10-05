@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-05",
+  "feature": "Independent comparison tab settings and source-mapped Tab editing",
+  "preview": "/tmp/TurtleGitComparisonTabsQA.app",
+  "native_verified": [
+    "Base remains Tab 4 while Mine selects Space 8; settings changes do not dirty files",
+    "Mine footer menu shows selected mode/width checkmarks",
+    "Tab after UTF16 three-unit Chinese/emoji text inserts 5 spaces to column8",
+    "Save writes exact 30-byte UTF16LE BOM output with CRLF/no-final-newline/0755",
+    "Selected-line Tab adds eight leading spaces to each real line; aligned display gap excluded",
+    "Selection retained after indentation; Shift-Tab removes indentation and returns clean state",
+    "Keyboard Undo/Redo of removal preserves text and returns to saved state",
+    "Mine smart-mode indicator changes independently; Tab chooses literal tab from surrounding content; Undo restores saved text",
+    "Base bytes and bootstrap repository HEAD/raw index/working file unchanged",
+    "Only sequential launches; normal Quit and process absence verified"
+  ],
+  "verification": {
+    "focused_comparison_whitespace_preferences_conflict_tests": 36,
+    "failures": 0,
+    "Debug_build": "passed",
+    "unsigned_AppStore_build": "passed",
+    "both_bundle_runtime_audits": "passed"
+  },
+  "pending": [
+    "Native Base editing, settings Apply/reset and line-number-only override retention variants",
+    "Blank lines, range boundary variants and Undo selection-state parity",
+    "Full arbitrary-width picker and EditorConfig behavior",
+    "Dark/narrow footer layout and refactored three-pane tab menu native checks",
+    "Default insertion ending metadata and full upstream state parity",
+    "Signed sandbox acceptance",
+    "Native Tab-edited annotation retention with Leave only marked blocks after final manual-edit dispatch wiring"
+  ]
+}

@@ -512,3 +512,9 @@ Dark/narrow layout, remaining native formats, absent/binary sources, upstream
 read-only-source format interaction, insertion defaults and signed sandbox
 acceptance still need work. Mixed-ending paste normalization is existing editor
 behavior; this change does not establish paste or full status/view parity.
+
+The tab footer now uses a shared `MergeTabControls` component with two-pane
+comparisons. Its Tab/Space, Smart and 1/2/4/8 choices are retained; the label now
+includes current settings for accessibility. Native re-acceptance of this
+refactored three-pane menu remains pending. See
+[comparison tab acceptance](qa/comparison-tabs-2026-10-05.json).

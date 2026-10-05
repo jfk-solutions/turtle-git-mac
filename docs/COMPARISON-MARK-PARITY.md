@@ -365,3 +365,37 @@ Dark/narrow layout, remaining native formats, absent/binary sources, upstream
 read-only-source format interaction, insertion defaults and signed sandbox
 acceptance still need work. Mixed-ending paste normalization is existing editor
 behavior; this change does not establish paste or full status/view parity.
+
+## Independent tab settings and source-mapped indentation
+
+`BaseView.cpp:254–267,3873–3877,6332–6401` provides the tab-mode label and
+selected-line Tab/Shift-Tab behavior. Comparison Base and Mine now retain
+independent tab width, Tab/Space and smart-mode overrides initialized from
+saved merge preferences. The same native menu component is used in three-pane
+footers. Rendering, insertion and whole-file indentation conversions use the
+selected pane's width. Formatting preferences reset pane overrides when changed;
+line-number-only changes retain them. View settings do not dirty the file.
+
+Tab commands map display selections to the real source before editing, excluding
+alignment gaps and preserving source endings. Multi-line Tab and Shift-Tab
+retain the edited source selection, share the existing pane Undo history, and
+keep absent EOF newlines intact. Keyboard indentation uses the existing manual-edit
+annotation path; its Leave-only-marked interaction still needs native acceptance.
+Single-line Tab uses the existing UTF-16 tab
+stop/smart algorithm. A collapsed Shift-Tab currently makes no change, matching
+the existing partial three-pane selected-block implementation.
+
+Native acceptance kept Base at Tab 4 while selecting Mine Space 8. Tab after
+Chinese/emoji text inserted five spaces; Save produced exact 30-byte UTF-16LE
+BOM output with CRLF, missing final newline and 0755. Selected-line indentation
+and removal skipped the display gap; keyboard Undo/Redo returned to saved text.
+Smart mode chose a literal tab from surrounding content and Undo restored the
+file. Base and repository HEAD/raw index/working bytes stayed unchanged. All QA
+apps quit normally and process absence was checked. The 36 focused comparison,
+whitespace, preferences and conflict tests, both builds and audits passed. See
+[acceptance](qa/comparison-tabs-2026-10-05.json).
+
+Base editing, native preference Apply/reset variants, full Undo selection state,
+blank/end-boundary variants, arbitrary widths, EditorConfig, dark/narrow layouts,
+refactored three-pane menu acceptance, insertion ending metadata and signed
+sandbox acceptance remain pending. This is partial tab/view behavior parity.
