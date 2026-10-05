@@ -123,3 +123,6 @@ Copyright (C) 2008-2011, 2013-2016 TortoiseGit and (C) 2003-2007, 2011 TortoiseS
 macOS application bundles, document opening and security bookmarks replace the
 Windows viewer command for this partial replacement; command templates remain
 pending. External viewers receive an exact read-only temporary byte copy.
+Log revision and selected-file unified diffs share this preference and Shift
+dispatch, following GitLogListAction.cpp ID_GNUDIFF1/ID_GNUDIFF2. Copyright (C)
+2008-2026 TortoiseGit and (C) 2005-2007 Marco Costalba, GPL version 2 or later.

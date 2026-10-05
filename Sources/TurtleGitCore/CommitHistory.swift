@@ -226,8 +226,12 @@ extension GitRepository {
     /// Upstream status-list unified diff concatenates each selected file's
     /// patch in visible list order, without including unselected changes.
     public func revisionFileDiff(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false) throws -> String {
+        String(decoding: try revisionFileDiffData(entry, files: files, workingTree: workingTree), as: UTF8.self)
+    }
+    /// Preserve Git's patch bytes for external unified-diff viewers.
+    public func revisionFileDiffData(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false) throws -> Data {
         guard !files.isEmpty else { throw RevisionComparisonFailure.selection }
-        var seen = Set<String>(), patches: [String] = []
+        var seen = Set<String>(), patch = Data()
         for file in files where seen.insert(file.path).inserted {
             guard !file.path.isEmpty, !file.path.contains("\0") else { throw RevisionComparisonFailure.selection }
             if let oldPath = file.oldPath {
@@ -236,17 +240,20 @@ extension GitRepository {
                 else if let parent = entry.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
                 else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
                 args += ["--", oldPath, file.path]
-                patches.append(try run(args).text)
-            } else { patches.append(try revisionDiff(entry, path: file.path, workingTree: workingTree)) }
+                patch.append(try run(args).stdout)
+            } else { patch.append(try revisionDiffData(entry, path: file.path, workingTree: workingTree)) }
         }
-        return patches.joined()
+        return patch
     }
     public func revisionDiff(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false) throws -> String {
+        String(decoding: try revisionDiffData(entry, path: path, workingTree: workingTree), as: UTF8.self)
+    }
+    public func revisionDiffData(_ entry: LogEntry, path: String? = nil, workingTree: Bool = false) throws -> Data {
         var args: [String]
         if workingTree { args = ["diff", "--no-ext-diff", "--no-color", entry.hash] }
         else if let parent = entry.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
         else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
         args.append("--"); if let path { args.append(path) }
-        return try run(args).text
+        return try run(args).stdout
     }
 }

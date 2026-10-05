@@ -11,6 +11,22 @@ import TurtleGitCore
 }
 
 @MainActor enum UnifiedDiffApplication {
+    private(set) static var activeRequests = 0
+    /// Returns false when the caller should use its built-in viewer.
+    static func openExternal(_ bytes: Data, alternate: Bool) async throws -> Bool {
+        let preferences = UnifiedDiffViewerPreferences.load()
+        guard case .external(let application) = try preferences.choice(alternate: alternate) else { return false }
+        let preview = try UnifiedDiffPreview.create(bytes)
+        UnifiedDiffPreviewFiles.retain(preview)
+        let error: String? = await withCheckedContinuation { continuation in
+            open(preview.file, application: application, bookmark: preferences.bookmark) { continuation.resume(returning: $0) }
+        }
+        if let error {
+            UnifiedDiffPreviewFiles.discard(preview.file)
+            throw NSError(domain: "TurtleGit.UnifiedDiffViewer", code: 1, userInfo: [NSLocalizedDescriptionKey: error])
+        }
+        return true
+    }
     static func open(_ file: URL, application: URL, bookmark: Data?, completion: @escaping (String?) -> Void) {
         var target = application
         if let bookmark {
@@ -21,9 +37,10 @@ import TurtleGitCore
         }
         let scoped = target.startAccessingSecurityScopedResource()
         guard !GitRuntime.isAppStoreBuild || scoped else { completion("Choose the viewer using Browse in Settings → Unified Diff Viewer to grant access."); return }
+        activeRequests += 1
         NSWorkspace.shared.open([file], withApplicationAt: target, configuration: NSWorkspace.OpenConfiguration()) { _, error in
             if scoped { target.stopAccessingSecurityScopedResource() }
-            DispatchQueue.main.async { completion(error?.localizedDescription) }
+            DispatchQueue.main.async { activeRequests -= 1; completion(error?.localizedDescription) }
         }
     }
 }
@@ -47,7 +64,7 @@ struct UnifiedDiffViewerSettings: View {
                     if !draft.valid { Text("Choose an application (.app) using its full path.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
-            Text("Hold Shift when opening Format Patch’s unified diff to reverse the viewer choice. A saved external application remains available while the built-in viewer is selected.").font(.caption).foregroundStyle(.secondary)
+            Text("Hold Shift when opening a unified diff from Format Patch or Log to reverse the viewer choice. A saved external application remains available while the built-in viewer is selected.").font(.caption).foregroundStyle(.secondary)
             Spacer()
             HStack { Spacer()
                 Button("Cancel") { draft = saved; NSApp.keyWindow?.performClose(nil) }

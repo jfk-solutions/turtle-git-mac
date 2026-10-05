@@ -592,3 +592,11 @@ including external-change refusal and Reload Cancel/discard behavior. A native
 prompt bug was fixed so Reload/Close/Quit name the actual edited file, and all
 three corrected labels were checked. See [comparison mark parity](COMPARISON-MARK-PARITY.md)
 for the QA record and remaining active-pane/signed sandbox limitations.
+
+
+Log revision and selected-file unified-diff actions now use the shared external
+viewer preference and Shift inversion. Exact non-UTF-8 patch bytes are preserved
+through the external preview, with a real Git apply-check regression. The
+built-in sheet remains available through the same choice. Native launches and
+Shift interaction remain unverified; merge-parent/combined variants and full Log
+parity are still pending. See [unified diff viewer parity](UNIFIED-DIFF-VIEWER-PARITY.md).

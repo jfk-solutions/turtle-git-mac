@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-05",
+  "scope": "Log revision and selected-file unified viewer dispatch and byte preservation; full app goal incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": {
+    "GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a"
+  },
+  "focused_tests": {
+    "suite": "CommitHistoryTests",
+    "count": 6,
+    "failures": 0,
+    "duration_seconds": 2.841,
+    "new_regression": "Real Git non-UTF-8 revision/selected-file/working-tree patches; duplicate selection suppressed; exact preview passes reverse apply check; index unchanged"
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "bundle_audits": {
+    "Debug": "passed, 72 original icons",
+    "AppStore_require_git": "passed, 72 original icons and universal runtime"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "log_sha256": {
+    "CommitHistoryTests": "a1ae80e16bdaa81ac2416578d3419df9ae4c73a026ae799ec5a802f76bf79254",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "Debug_audit": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0",
+    "AppStore_audit": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+  },
+  "native_qa": {
+    "gui_apps_launched": 0,
+    "external_viewers_launched": 0,
+    "screenshot_created": false,
+    "verification": "Unverified; preceding single-preview native pipe failures recorded in unified-diff-viewer-2026-10-05.json"
+  },
+  "behavior": [
+    "Ordinary/Shift Log revision and selected-file actions use shared unified viewer preference",
+    "Read-only exact external preview retained until Quit; failed handoff cleans up its own preview",
+    "Built-in Log sheet retained",
+    "Log diff generation/open busy guards close and Quit; shared pending-open count protects handoff"
+  ],
+  "remaining": [
+    "Actual native Shift/menu/receiver acceptance",
+    "Signed sandbox/bookmark handoff",
+    "Merge-parent/combined variants and rename-follow scope variants",
+    "Other unified-diff callers and command templates",
+    "Full Log and full application parity"
+  ],
+  "full_suite": "Previous 432-test pass predates these changes; this record covers focused CommitHistory tests only",
+  "github": "Local changes not tested remotely"
+}

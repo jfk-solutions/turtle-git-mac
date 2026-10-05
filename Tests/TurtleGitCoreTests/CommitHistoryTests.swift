@@ -2,6 +2,32 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testUnifiedDiffBytesRemainApplicableForNonUTF8Text() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = "raw.txt", before = Data([0xff, 0x0a]), after = Data([0xfe, 0x0a])
+        try before.write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "non-UTF8 base")
+        try after.write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "non-UTF8 change")
+        let history = try await repo.history(), entry = try XCTUnwrap(history.first)
+        let files = try await repo.files(in: entry)
+        let bytes = try await repo.revisionDiffData(entry)
+        let selected = try await repo.revisionFileDiffData(entry, files: files + files)
+        XCTAssertEqual(bytes, selected)
+        XCTAssertNotNil(bytes.range(of: Data([0x2d, 0xff, 0x0a])))
+        XCTAssertNotNil(bytes.range(of: Data([0x2b, 0xfe, 0x0a])))
+        let preview = try UnifiedDiffPreview.create(selected)
+        defer { preview.discard() }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        _ = try await repo.run(["apply", "--reverse", "--check", "--", preview.file.path])
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), after)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        try before.write(to: root.appendingPathComponent(path))
+        let working = try await repo.revisionDiffData(entry, path: path, workingTree: true)
+        XCTAssertNotNil(working.range(of: Data([0x2b, 0xff, 0x0a])))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
     func testSelectedUnifiedDiffKeepsOrderRootRenameAndLiteralScopeWithoutMutations() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

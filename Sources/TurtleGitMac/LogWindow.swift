@@ -293,17 +293,22 @@ struct LogCommandRequest: Identifiable {
         clipboardGeneration += 1; copyingDetails = false
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
-    func diff(workingTree: Bool = false, path: String? = nil) {
-        guard !workingTree || !bare else { return }
+    func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false) {
+        guard !busy, !workingTree || !bare else { return }
         let revisions = self.revisions
-        guard !revisions.isEmpty else { return }
+        guard (1...2).contains(revisions.count) else { return }
+        busy = true
         Task {
+            defer { busy = false }
             do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let bytes: Data
                 if revisions.count == 2, !workingTree {
                     var args = ["diff", "--no-ext-diff", "--no-color", revisions[1].hash, revisions[0].hash, "--"]
                     if let path { args.append(path) }
-                    patch = try await repository.run(args).text
-                } else { patch = try await repository.revisionDiff(revisions[0], path: path, workingTree: workingTree) }
+                    bytes = try await repository.run(args).stdout
+                } else { bytes = try await repository.revisionDiffData(revisions[0], path: path, workingTree: workingTree) }
+                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) { patch = String(decoding: bytes, as: UTF8.self) }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -436,7 +441,7 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription }
         }
     }
-    func selectedFileDiff(_ ids: Set<String>) {
+    func selectedFileDiff(_ ids: Set<String>, alternate: Bool = false) {
         guard !busy, let revision else { return }
         let chosen = visibleFiles.filter { ids.contains($0.id) }
         guard !chosen.isEmpty else { return }; busy = true
@@ -444,7 +449,8 @@ struct LogCommandRequest: Identifiable {
             defer { busy = false }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                patch = try await repository.revisionFileDiff(revision, files: chosen)
+                let bytes = try await repository.revisionFileDiffData(revision, files: chosen)
+                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) { patch = String(decoding: bytes, as: UTF8.self) }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -542,7 +548,7 @@ struct LogDialog: View {
     }
     @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
         Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
-        Button { model.selectedFileDiff(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.revision == nil || model.busy)
+        Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.revision == nil || model.busy)
         Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.bare || model.onFileCompare == nil || model.busy)
         if model.canCompareFilePair(ids) {
             Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || model.revision == nil || model.onFilePairCompare == nil)
@@ -677,7 +683,7 @@ struct RevisionTable: NSViewRepresentable {
             let one = model.revision != nil, two = model.revisions.count == 2
             item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one && !model.bare && !model.busy && model.onCompare != nil)
             item(two ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (one || two) && !model.busy && model.onCompare != nil)
-            item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: one || two)
+            item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: (one || two) && !model.busy)
             menu.addItem(.separator())
             item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: one && !model.busy && model.onBrowseRepository != nil)
             item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
@@ -711,7 +717,7 @@ struct RevisionTable: NSViewRepresentable {
         @objc func tag() { model.request(.tag) }
         @objc func revert() { model.request(.revert) }
         @objc func cherryPick() { model.request(.cherryPick) }
-        @objc func showDiff() { model.diff() }
+        @objc func showDiff() { model.diff(alternate: NSEvent.modifierFlags.contains(.shift)) }
         @objc func compare() { model.compare() }
         @objc func workingDiff() { model.compare(workingTree: true) }
         @objc func copyAuthors() { model.copy(model.revisions.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n")) }

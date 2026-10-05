@@ -2,15 +2,16 @@
 
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 
-This is a partial port of the unified patch viewer setting and Format Patch's
-Shift action. It does not complete TortoiseGitUDiff, external revision comparison
-tools, extension-specific tools or all unified-diff callers.
+This is a partial port of the unified patch viewer setting and the Shift actions
+in Format Patch and Log. It does not complete TortoiseGitUDiff, external revision
+comparison tools, extension-specific tools or all unified-diff callers.
 
 | Source | Blob | Native replacement |
 | --- | --- | --- |
 | `src/TortoiseProc/AppUtils.cpp`, StartUnifiedDiffViewer | `ad5cf29edc933f6469fb9a961b84e8251f5fc563` | `UnifiedDiffViewer.swift`, Format Patch viewer dispatch |
 | `src/TortoiseProc/Settings/SettingsProgsDiff.cpp`, GNU patch viewer controls | `9cd5e7c658477fd8120a7f521c8ce0f16cc10175` | `UnifiedDiffViewerSettings.swift` |
 | `src/TortoiseProc/FormatPatchDlg.cpp`, unified diff button | `b8ad0c02bb27397700a6aee773d87ce7656d62c8` | `FormatPatchWindow.swift` |
+| `src/TortoiseProc/GitLogListAction.cpp`, ID_GNUDIFF1/ID_GNUDIFF2 | `88c255c4c80578c099bbcd4604f6e088f2f9d40a` | `LogWindow.swift`, byte-preserving `CommitHistory.swift` APIs |
 
 ## Selection rules
 
@@ -44,6 +45,17 @@ without a lossy text conversion. A failed launch discards only that owned previe
 a successful launch retains it until TurtleGit exits. Output files in the user's
 repository are unaffected.
 
+Log revision and selected-file context actions also sample Shift before their
+asynchronous diff request, and share the external launch/preview lifetime. A
+single revision retains first-parent/root behavior; two revisions retain the
+older-to-newer comparison. Selected files retain visible order, duplicate
+suppression and both paths for renames. Core now exposes Data-returning diff
+APIs; existing String callers keep their prior UTF-8 presentation. Native Log
+keeps its existing built-in diff sheet. Close and Quit are blocked while Log's
+diff request/open callback is busy, and all external viewer callbacks have a
+shared pending-request Quit guard. Merge-parent/combined variants and other
+callers remain pending.
+
 The selected application's bookmark is resolved and scoped for the native open
 request. Store builds require successful scoped access; the error directs the
 user to Browse when needed. The Format Patch controller blocks close, Quit and
@@ -67,6 +79,13 @@ disabled configuration, independence from Alternative Editor preferences, exact
 non-UTF-8 preview bytes, private/read-only modes, independent copies and cleanup.
 These tests do not verify NSWorkspace launch, security bookmarks, actual Shift
 clicks, settings geometry or signed App Store behavior.
+
+The six CommitHistoryTests also pass after the byte-preserving refactor. A new
+real-Git regression generates a patch containing invalid UTF-8 text bytes,
+verifies selected-file output and duplicate suppression, and passes Git's
+reverse-apply check on the exact external preview. HEAD-relative working-tree
+output also retains those bytes; generation/checking leave the index unchanged.
+No GUI app or external viewer was launched for this Log follow-up.
 
 Remaining: native settings/application-launch and Shift QA; failed/stale bookmark
 and missing-app acceptance; signed document handoff; command argument templates;
