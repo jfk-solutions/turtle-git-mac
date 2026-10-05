@@ -203,3 +203,13 @@ Its revision-label selection adapts ChooseVersion.h, Copyright (C) 2008-2020,
 AppKit/SwiftUI controls and scoped folder access replace Win32 controls and the
 Windows folder picker. Native visual/click and signed sandbox acceptance remain
 pending; the actual dialog model has isolated state/creation verification.
+
+WorktreeListWindow.swift adapts WorktreeListDlg.cpp/.h under GPL version 2 or
+later. Copyright (C) 2022-2026 TortoiseGit. Native table/context menus, scoped
+removal access and modal progress replace Win32 list/libgit2 management UI.
+Removal progress Close/Cancel and Force post-action continuation follow
+ProgressDlg.cpp, Copyright (C) 2008-2020, 2022-2026 TortoiseGit, under the same
+GPL version 2 or later license.
+Original menulock.ico and menuunlock.ico are retained unchanged with pinned
+provenance under the existing GPL icon license choice. Native visual/click,
+sheet/picker interaction and signed sandbox acceptance remain pending.

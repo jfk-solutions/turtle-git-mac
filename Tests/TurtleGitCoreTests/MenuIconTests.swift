@@ -33,7 +33,9 @@ final class MenuIconTests: XCTestCase {
         XCTAssertEqual(RepositoryAction.submoduleUpdate.icon, RepositoryAction.fetch.icon)
         XCTAssertEqual(RepositoryAction.diffLater.icon, RepositoryAction.diff.icon)
         XCTAssertEqual(RepositoryAction.clearComparisonMark.icon, RepositoryAction.diff.icon)
-        let distinctActions = RepositoryAction.allCases.filter { ![.diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
+        XCTAssertEqual(RepositoryAction.worktreeCreate.icon, RepositoryAction.branch.icon)
+        XCTAssertEqual(RepositoryAction.worktreeList.icon, RepositoryAction.branch.icon)
+        let distinctActions = RepositoryAction.allCases.filter { ![.worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

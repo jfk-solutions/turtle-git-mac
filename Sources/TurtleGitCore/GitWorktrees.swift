@@ -12,7 +12,10 @@ public struct GitWorktree: Equatable, Sendable, Identifiable {
     /// nil means unlocked; an empty string means locked without a reason.
     public var lockReason: String?
     public var pruneReason: String?
-    public var id: String { path.path }
+    // Foundation can change /var to /private/var when a checkout disappears.
+    // Keep Git's registered path as row identity across that filesystem change.
+    private var registeredPath: String?
+    public var id: String { registeredPath ?? path.path }
 
     public static func parse(_ data: Data) -> [GitWorktree] {
         var records: [GitWorktree] = []
@@ -30,6 +33,7 @@ public struct GitWorktree: Equatable, Sendable, Identifiable {
             if key == "worktree" {
                 if let current { records.append(current) }
                 current = GitWorktree(path: URL(fileURLWithPath: value, isDirectory: true).standardizedFileURL)
+                current?.registeredPath = value
             } else {
                 switch key {
                 case "HEAD": current?.head = value
@@ -106,7 +110,7 @@ extension GitRepository {
     private func linkedWorktreePath(_ path: URL) throws -> String {
         let normalized = canonicalWorktreePath(path)
         guard path.isFileURL, let record = try worktrees().first(where: {
-            canonicalWorktreePath($0.path) == normalized
+            canonicalWorktreePath($0.path).path == normalized.path
         }), !record.isMain else { throw WorktreeFailure.notLinkedWorktree }
         return record.path.path
     }
@@ -125,24 +129,24 @@ extension GitRepository {
         return resolved.standardizedFileURL
     }
 
-    public func lockWorktree(at path: URL, reason: String? = nil) throws -> String {
+    public func lockWorktree(at path: URL, reason: String? = nil, cancellation: OperationCancellation? = nil) throws -> String {
         let registered = try linkedWorktreePath(path)
         var args = ["worktree", "lock"]
         if let reason { args += ["--reason", reason] }
-        return try run(args + ["--", registered]).text
+        return try run(args + ["--", registered], cancellation: cancellation).text
     }
 
-    public func unlockWorktree(at path: URL) throws -> String {
-        try run(["worktree", "unlock", "--", linkedWorktreePath(path)]).text
+    public func unlockWorktree(at path: URL, cancellation: OperationCancellation? = nil) throws -> String {
+        try run(["worktree", "unlock", "--", linkedWorktreePath(path)], cancellation: cancellation).text
     }
 
-    public func removeWorktree(at path: URL, force: Bool = false) throws -> String {
+    public func removeWorktree(at path: URL, force: Bool = false, cancellation: OperationCancellation? = nil) throws -> String {
         let registered = try linkedWorktreePath(path)
-        return try run(["worktree", "remove"] + (force ? ["--force"] : []) + ["--", registered]).text
+        return try run(["worktree", "remove"] + (force ? ["--force"] : []) + ["--", registered], cancellation: cancellation).text
     }
 
-    public func pruneWorktrees() throws -> String {
+    public func pruneWorktrees(cancellation: OperationCancellation? = nil) throws -> String {
         // Use exactly Git's default prune command, as TortoiseGit does.
-        try run(["worktree", "prune"]).text
+        try run(["worktree", "prune"], cancellation: cancellation).text
     }
 }

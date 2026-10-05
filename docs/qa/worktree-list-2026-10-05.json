@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-05",
+  "scope": "Native Worktree List implementation and actual model verification; native visual/click and signed acceptance pending",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "fullCoreTests": {
+    "count": 456,
+    "failures": 0
+  },
+  "focusedTests": {
+    "count": 12,
+    "failures": 0,
+    "scope": "Eleven worktree tests, including directory URL hint regression, and one all-menu-icon decoder test"
+  },
+  "actualNativeModel": "Swift 6/macOS 13 driver compiles real native views/models and exercises menus, main skipping, lock/unlock batch counts, Continue/Abort, declined removal, dirty failure, Force retry with original-mode batch resumption, Close continuation, Cancel stopping remaining work, missing row identity/presentation, prune, Explore dispatch and bare HEAD; creation checks retained; detached main HEAD; injected scope policy retains ungranted metadata, blocks absent/wrong/cancelled grants and actual POSIX denial, accepts parent grants while exempting locked worktrees; active owned-process cancellation preserves checkout and registration",
+  "logs": {
+    "focusedCoreAndIcons": {
+      "path": "/tmp/turtlegit-worktree-list-core.log",
+      "sha256": "8bc1856f1bf4f2ad98c125677581b12075fc5274e4e0f27a5b102282a8a84392",
+      "exitCode": 0
+    },
+    "fullCore": {
+      "path": "/tmp/turtlegit-worktree-list-full-core.log",
+      "sha256": "84a79ab390784267ec84fcb132f915d7d955773bdefea3f2b633ce352425cc1d",
+      "exitCode": 0
+    },
+    "nativeModel": {
+      "path": "/tmp/turtlegit-worktree-list-model.log",
+      "sha256": "ab439ca418eb8efbc493889cfb1c047b24aa7bb4286f6ec35a5c5b3cbb67902a",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-worktree-list-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    },
+    "debugBuild": {
+      "path": "/tmp/turtlegit-worktree-list-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "storeBuild": {
+      "path": "/tmp/turtlegit-worktree-list-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "exitCode": 0
+    },
+    "debugBundleAudit": {
+      "path": "/tmp/turtlegit-worktree-list-debug-audit.log",
+      "sha256": "be2036eadb27fe83d365ce6a4247b00fc3a5da1bcaee25eb7523e1c410410a05",
+      "exitCode": 0
+    },
+    "storeBundleAudit": {
+      "path": "/tmp/turtlegit-worktree-list-store-audit.log",
+      "sha256": "49551eb58565dcd55d49fc484512a1a2a8a015c0807700254272947622c560e1",
+      "exitCode": 0
+    }
+  },
+  "nativeUI": "Not attempted; previous computer-use native pipe failure remains unresolved",
+  "appProcesses": "No TurtleGit app launched in this turn; standalone test driver exits and its UUID fixtures are removed",
+  "icons": "74 unchanged pinned resources; Worktrees shares original branch/copy icon; lock/unlock originals imported and decoded",
+  "pending": [
+    "Column visibility/order/width persistence and source list background",
+    "Native table, Add/progress/nested confirmation sheets, directory grants, Finder and F5 interaction",
+    "Native progress/whole-app Quit cancellation acceptance",
+    "Full Finder drag-create workflow and shared revision-browser/Log picker parity",
+    "Screenshots in light/dark, signed sandbox/common-directory/multi-directory grants",
+    "GitHub execution of these local changes"
+  ],
+  "scopeEvidence": "Bundled Git 2.55.0 worktree.c should_prune_worktree treats inaccessible .git like absence; builtin/worktree.c defaults expiry to TIME_MAX. Signed macOS sandbox remains unverified."
+}

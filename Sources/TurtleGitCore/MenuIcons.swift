@@ -19,6 +19,7 @@ public enum MenuIcon: String, CaseIterable {
     case open = "open", explore = "explorer", export = "menuexport", editor = "notepad"
     case rename = "menurename"
     case remove = "menudelete"
+    case lock = "menulock", unlock = "menuunlock"
     case ignore = "menuignore"
     case restore = "restore", restoreOverlay = "restoreovl"
     case resolve = "menuresolve", editConflict = "menuconflict"
@@ -86,7 +87,7 @@ extension RepositoryAction {
         case .pull: return .pull
         case .push: return .push
         case .fetch, .submoduleUpdate: return .fetch
-        case .branch, .worktreeCreate: return .branch
+        case .branch, .worktreeCreate, .worktreeList: return .branch
         case .tag: return .tag
         case .switchBranch: return .checkout
         case .merge: return .merge

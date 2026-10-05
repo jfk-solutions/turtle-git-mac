@@ -74,6 +74,22 @@ final class GitWorktreeTests: XCTestCase {
         records = try await repo.worktrees(); XCTAssertEqual(records.count, 1)
     }
 
+    func testManagementAcceptsPathsWithoutDirectoryURLHint() async throws {
+        let (base, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        let path = URL(fileURLWithPath: base.appendingPathComponent("directory-hint").path, isDirectory: false)
+        _ = try await repo.createWorktree(at: path)
+        let records = try await repo.worktrees()
+        let registered = try XCTUnwrap(records.first(where: { !$0.isMain }))
+        XCTAssertTrue(registered.path.hasDirectoryPath)
+        XCTAssertFalse(path.hasDirectoryPath)
+        _ = try await repo.lockWorktree(at: path)
+        _ = try await repo.unlockWorktree(at: path)
+        _ = try await repo.removeWorktree(at: path)
+        let remaining = try await repo.worktrees()
+        XCTAssertEqual(remaining.count, 1)
+        XCTAssertTrue(remaining[0].isMain)
+    }
+
     func testDirtyRemovalRequiresForceAndMainAndUnregisteredPathsAreProtected() async throws {
         let (base, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
         let path = base.appendingPathComponent("dirty")
@@ -96,9 +112,12 @@ final class GitWorktreeTests: XCTestCase {
         let locked = base.appendingPathComponent("locked"), missing = base.appendingPathComponent("missing")
         _ = try await repo.createWorktree(at: locked); _ = try await repo.createWorktree(at: missing)
         _ = try await repo.lockWorktree(at: locked)
+        let before = try await repo.worktrees()
+        let lockedID = try XCTUnwrap(before.first(where: { $0.path.lastPathComponent == "locked" })).id
         try FileManager.default.removeItem(at: locked); try FileManager.default.removeItem(at: missing)
         _ = try await repo.pruneWorktrees()
         var records = try await repo.worktrees(); XCTAssertEqual(records.count, 2)
+        XCTAssertEqual(records.last?.id, lockedID, "Registered identity must survive Foundation's missing-path alias change")
         XCTAssertEqual(records.last?.lockReason, "")
         _ = try await repo.unlockWorktree(at: locked); _ = try await repo.pruneWorktrees()
         records = try await repo.worktrees(); XCTAssertEqual(records.count, 1)
@@ -140,6 +159,21 @@ final class GitWorktreeTests: XCTestCase {
         let records = try await repo.worktrees(); XCTAssertEqual(records.count, 1)
         let exists = try await repo.run(["show-ref", "--verify", "--quiet", "refs/heads/cancelled"], successfulExitCodes: 0...1).exitCode
         XCTAssertEqual(exists, 1)
+    }
+
+    func testCancelledManagementLeavesCheckoutAndLockStateIntact() async throws {
+        let (base, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        let path = base.appendingPathComponent("managed")
+        _ = try await repo.createWorktree(at: path)
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.lockWorktree(at: path, cancellation: token); XCTFail("Cancelled lock") } catch OperationCancellationFailure.cancelled {}
+        _ = try await repo.lockWorktree(at: path)
+        do { _ = try await repo.unlockWorktree(at: path, cancellation: token); XCTFail("Cancelled unlock") } catch OperationCancellationFailure.cancelled {}
+        do { _ = try await repo.removeWorktree(at: path, force: true, cancellation: token); XCTFail("Cancelled removal") } catch OperationCancellationFailure.cancelled {}
+        do { _ = try await repo.pruneWorktrees(cancellation: token); XCTFail("Cancelled prune") } catch OperationCancellationFailure.cancelled {}
+        let rows = try await repo.worktrees()
+        XCTAssertEqual(rows.count, 2); XCTAssertEqual(rows.last?.lockReason, "")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: path.path))
     }
 
     func testBareRepositoryCanCreateAndManageLinkedCheckout() async throws {

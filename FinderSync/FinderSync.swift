@@ -39,7 +39,7 @@ import TurtleGitCore
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
             let item = NSMenuItem(title: action.title, action: #selector(openAction(_:)), keyEquivalent: "")
             item.image = action.icon.image()
-            if action == .formatPatch || action == .worktreeCreate { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
+            if action == .formatPatch || action == .worktreeCreate || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
             if action == .revert { item.isEnabled = snapshot?.canRevert(paths) == true }
             if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }
             if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }

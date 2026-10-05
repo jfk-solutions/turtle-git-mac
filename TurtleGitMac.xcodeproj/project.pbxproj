@@ -78,6 +78,7 @@
 		7DF22EAE12F58CFE9D5C5D47 /* CommitMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1559DC3926805ADF57166DCE /* CommitMessage.swift */; };
 		8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */; };
 		8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB86EFEBCB6909C206458540 /* LogWindow.swift */; };
+		83F67572608DE1A6E12AC47E /* WorktreeListWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */; };
 		86578F215A688D810DC90ED6 /* IssueRegex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */; };
 		885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */; };
 		889A5713EF2EFE553723715F /* FormatPatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72211FE8450E694C1BC89AB3 /* FormatPatchWindow.swift */; };
@@ -222,6 +223,7 @@
 		152D20910797F40A39CBF1A8 /* LICENSE */ = {isa = PBXFileReference; path = LICENSE; sourceTree = "<group>"; };
 		1559DC3926805ADF57166DCE /* CommitMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessage.swift; sourceTree = "<group>"; };
 		15C11C6126548BD0E66453DA /* BundledTextHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledTextHelper.swift; sourceTree = "<group>"; };
+		1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeListWindow.swift; sourceTree = "<group>"; };
 		181B9FE19CD19EA7DAB1E824 /* Fetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fetch.swift; sourceTree = "<group>"; };
 		1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitMacApp.swift; sourceTree = "<group>"; };
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -422,6 +424,7 @@
 				4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */,
 				2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */,
 				5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */,
+				1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */,
 			);
 			name = TurtleGitMac;
 			path = Sources/TurtleGitMac;
@@ -878,6 +881,7 @@
 				3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */,
 				1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */,
 				37FF0ADA08C102C423B8A3C0 /* WorktreeCreateWindow.swift in Sources */,
+				83F67572608DE1A6E12AC47E /* WorktreeListWindow.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

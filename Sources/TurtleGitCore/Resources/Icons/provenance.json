@@ -362,6 +362,16 @@
       "asset": "menupatch.ico",
       "source": "src/Resources/menupatch.ico",
       "sha256": "b2c22f64ad14ac45e87db75fb4ff700388c9fdedc3551f9f8a950715f8cf9e2c"
+    },
+    {
+      "asset": "menulock.ico",
+      "source": "src/Resources/menulock.ico",
+      "sha256": "66d1728defb5b14c1fd3d46a800fd6ede761f1fc607f7483038f2f6d2872014d"
+    },
+    {
+      "asset": "menuunlock.ico",
+      "source": "src/Resources/menuunlock.ico",
+      "sha256": "1513c4c0b7ac27423bcf6834755ad0084038bd2042c033ca2b31d45c995421a5"
     }
   ]
 }

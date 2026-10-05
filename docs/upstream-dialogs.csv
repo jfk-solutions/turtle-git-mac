@@ -120,7 +120,7 @@ src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_LANGUAGE,First Start Wizar
 src/Resources/TortoiseProcENG.rc,IDD_SELECTREMOTEREF,Select remote ref - TortoiseGit,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSWIN11CONTEXTMENU,Windows 11 Context Menu,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_CREATE,New Worktree,partial
-src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_LIST,Worktree List,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_LIST,Worktree List,partial
 src/SshAskPass/SshAskPass.rc,IDD_ASK_PASSWORD,TortoiseGit -  git CLI stdin wrapper,pending-review
 src/TortoiseIDiff/TortoiseIDiff.rc,IDD_OPEN,Load Images,pending-review
 src/TortoiseIDiff/TortoiseIDiff.rc,IDD_ABOUT,TortoiseGitIDiff,pending-review

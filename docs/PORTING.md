@@ -17,8 +17,9 @@ and signed sandbox verification remain pending. See
 
 Worktree creation, listing, locking, unlocking, removal and pruning now have a
 repository-layer port with disposable-repository tests. New Worktree has a native
-dialog and create routing with actual model verification. Worktree List,
-management menus and native/signed acceptance remain pending. See
+dialog and create routing with actual model verification. Worktree List and
+management menus now have native implementation and actual model verification;
+full native/signed acceptance remains pending. See
 [WORKTREE-PARITY.md](WORKTREE-PARITY.md).
 
 Upstream: https://github.com/TortoiseGit/TortoiseGit
@@ -43,7 +44,7 @@ require review; a dialog count is not a count of all upstream UI.
 | TortoiseMerge | Native three-pane UTF-8 conflict editor | Partial stage extraction, block choices and guarded saves; full view/menu parity pending. See TEXT-MERGE-PARITY.md |
 | TortoiseGitBlame | Historical annotation reader and native annotated source window | Partial columns, age colors, Find/Go To Line and origin-aware Log; full menus, syntax, encodings and signed acceptance pending. See BLAME-PARITY.md |
 | TortoiseIDiff | Native image comparison window | Pending |
-| TortoiseUDiff | Native syntax-highlighted patch window | Plain patch output only |
+| TortoiseUDiff | Native patch window with highlighted text, find, appearance settings and printing | Partial File/View/menu behavior; full parity and signed acceptance pending |
 | SshAskPass / TortoisePlink | Git helpers, Keychain and OpenSSH | Existing helper configuration only |
 | GitWCRev / COM | Portable revision/template CLI and macOS automation | Pending; COM must be replaced |
 | TortoiseGitSetup | Signed app, extension registration, notarized distribution | Pinned universal Git build/embedding added; signed runtime and distribution acceptance pending |
@@ -77,10 +78,10 @@ require review; a dialog count is not a count of all upstream UI.
 | Delete/modify conflict | Native fourteen-control conflict layout, keep/delete/Abort and side Log; exact Git effects and native keep/comparison/history verified | Full diff editor, Created/rebase/error/native Delete QA, parent restoration and signed scope; see DELETE-CONFLICT-PARITY.md |
 | Resolve | Native checked list, current/mine/theirs, original icon and app/Finder dispatch; real Git and native checked-current/Cancel verified | Full conflict editor, remaining submodule chooser edge cases, progress, signed Finder and broader QA pending; see RESOLVE-PARITY.md |
 | Other commands | Log-selected reset, revert without commit and cherry-pick | Full options, conflict continuation/abort, resolve, bisect, clean, export |
-| Patch workflows | Not yet implemented | Format/apply patches, am continuation/abort, review, email integration |
+| Patch workflows | Native Format Patch dialog and three repository export modes; progress and mail handoff compile | Native export/mail acceptance, apply patches, am continuation/abort, full review and email workflows |
 | Repository Browser | Native lazy folder tree, pinned revisions, sortable Name/Extension/Size, historical file menus, marked comparisons and historical Revert, pinned child Log and historical drag representations | Multi-file Revert acceptance, actual Finder drops, broader submodule acceptance, dark/native action coverage and signed scopes; see REPOSITORY-BROWSER-PARITY.md |
-| Advanced repositories | Linked-worktree discovery and partial submodule workflows | Complete submodule/worktree management, git-svn and LFS |
-| Helper apps | Not yet implemented | Blame, image diff, merge, revision graph, askpass, revision/template tools |
+| Advanced repositories | Native New Worktree and Worktree List with create/lock/unlock/remove/prune; partial submodule workflows | Worktree column customization, Finder drop creation, native/signed acceptance, full submodules, git-svn and LFS |
+| Helper apps | Partial native Blame, text Merge and unified Diff windows | Full helper parity, image diff, revision graph, askpass and revision/template tools |
 
 ## Porting method
 
