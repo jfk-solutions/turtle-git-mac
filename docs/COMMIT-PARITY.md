@@ -1245,9 +1245,21 @@ This does not establish complete SciEdit or Commit parity.
 User/shipped snippets now use the original snippet icon and source parsing,
 priority and word-expansion rules. Native multiline/Undo/collision/refresh
 acceptance is recorded in the [completion audit](COMMIT-COMPLETION-PARITY.md).
-Code-symbol extraction, spelling and full editor behavior remain pending.
+Code symbols are now integrated as described below; complete decoding, spelling
+and full editor behavior remain pending.
 
 Keyboard dispatch now gates automatic completion on typed insertions, with
 native Tab/Shift-Tab focus routing. Builds and completion/snippet regressions
-pass; native keyboard acceptance is pending because the Mac locked before QA.
+pass. Initial keyboard QA was interrupted by a locked Mac; subsequent native
+arrow/deletion/typing/paste and Tab/Shift-Tab checks passed during code-scanner
+QA. Complete keyboard, spelling and input-method acceptance remains pending.
 See the [completion audit](COMMIT-COMPLETION-PARITY.md).
+
+## Code-symbol completion in the message editor
+
+The changed-file scanner now feeds the Commit popup alongside filenames and
+snippets, using original code.ico artwork. Source definition loading, file gates,
+raw UTF-16 decoding/capture transport and row insertion priority are implemented.
+Native Tab/mouse acceptance, snippet collision, Undo, unchecked-file contribution
+and F5 rescanning were verified. See [code-symbol audit](COMMIT-CODE-SYMBOL-PARITY.md)
+for evidence and remaining visual, decoder and signed sandbox acceptance.

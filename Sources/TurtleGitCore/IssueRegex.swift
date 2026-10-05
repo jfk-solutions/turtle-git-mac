@@ -41,16 +41,16 @@ public enum IssueRegexRuntime {
         }
         return IssueRegexMatch(hasMatch: first == "matched\t1", ranges: ranges)
     }
-    static func capture(message: String, check: String, extract: String, executable: URL?, bundle: Bundle = .main, mode: [String] = []) throws -> Data {
+    static func capture(message: String, check: String, extract: String, executable: URL?, bundle: Bundle = .main, mode: [String] = [], messageUnits: [UInt16]? = nil) throws -> Data {
         let parser = try executable ?? Self.executable(bundle: bundle)
         guard FileManager.default.isExecutableFile(atPath: parser.path) else { throw IssueRegexFailure.runtimeMissing }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitIssueRegex-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
-        let inputs = [check, extract, message]
+        let inputs = [Array(check.utf16), Array(extract.utf16), messageUnits ?? Array(message.utf16)]
         let files = try inputs.enumerated().map { index, value -> URL in
             let file = directory.appendingPathComponent(String(index))
-            try Data(value.utf16.flatMap { [UInt8(truncatingIfNeeded: $0), UInt8(truncatingIfNeeded: $0 >> 8)] }).write(to: file)
+            try Data(value.flatMap { [UInt8(truncatingIfNeeded: $0), UInt8(truncatingIfNeeded: $0 >> 8)] }).write(to: file)
             return file
         }
         let output: Data

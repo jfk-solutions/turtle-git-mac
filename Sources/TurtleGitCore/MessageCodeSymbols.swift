@@ -32,19 +32,21 @@ public enum MessageCodeSymbols {
     /// All nonempty capture groups, using the upstream icase ECMAScript engine.
     /// Run off the main actor. The bounded helper contains pathological regexes.
     public static func captures(in text: String, pattern: String, executable: URL? = nil) throws -> [String] {
+        try captureUnits(in: Array(text.utf16), pattern: pattern, executable: executable).map { String(decoding: $0, as: UTF16.self) }
+    }
+    public static func captureUnits(in units: [UInt16], pattern: String, executable: URL? = nil) throws -> [[UInt16]] {
         guard !pattern.isEmpty else { return [] }
-        let data = try IssueRegexRuntime.capture(message: text, check: pattern, extract: "", executable: executable, mode: ["--code-captures"])
+        let data = try IssueRegexRuntime.capture(message: "", check: pattern, extract: "", executable: executable, mode: ["--code-captures"], messageUnits: units)
         guard let output = String(data: data, encoding: .utf8) else { throw IssueRegexFailure.failed("Invalid code capture output.") }
         let lines = output.split(separator: "\n")
         guard lines.first == "captures\tutf16" else { throw IssueRegexFailure.failed("Invalid code capture header.") }
         var values = Set<[UInt16]>()
-        let units = Array(text.utf16)
         for line in lines.dropFirst() {
             let columns = line.split(separator: "\t")
             guard columns.count == 2, let start = Int(columns[0]), let length = Int(columns[1]), start >= 0, length >= 0,
                   start <= units.count, length <= units.count - start else { throw IssueRegexFailure.failed("Invalid code capture range.") }
             values.insert(Array(units[start..<(start + length)]))
         }
-        return values.sorted { $0.lexicographicallyPrecedes($1) }.map { String(decoding: $0, as: UTF16.self) }
+        return values.sorted { $0.lexicographicallyPrecedes($1) }
     }
 }

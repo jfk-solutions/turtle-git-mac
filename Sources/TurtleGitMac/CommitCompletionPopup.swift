@@ -4,7 +4,7 @@ import TurtleGitCore
 
 @MainActor private final class CompletionChoicesModel: ObservableObject {
     @Published var candidates: [String] = []
-    var snippetKeys = Set<[UInt16]>()
+    var catalog = MessageCompletionCatalog()
     @Published var selected = 0
     @Published var width: CGFloat = 420
 }
@@ -15,10 +15,10 @@ import TurtleGitCore
     private let popover = NSPopover()
     var isShown: Bool { popover.isShown }
     init() { popover.behavior = .semitransient; popover.animates = false }
-    func show(_ values: [String], snippets: [String], in editor: NSTextView) {
+    func show(_ values: [String], catalog: MessageCompletionCatalog, in editor: NSTextView) {
         guard editor.window != nil else { return }
         let prior = state.candidates.indices.contains(state.selected) ? state.candidates[state.selected] : nil
-        state.snippetKeys = Set(snippets.map { Array($0.utf16) })
+        state.catalog = catalog
         state.candidates = values; state.selected = prior.flatMap { value in values.firstIndex { $0.utf16.elementsEqual(value.utf16) } } ?? 0
         let textWidth = values.map { ($0 as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]).width }.max() ?? 0
         state.width = min(600, max(160, ceil(textWidth + 36)))
@@ -46,6 +46,13 @@ import TurtleGitCore
 private struct CompletionChoices: View {
     @ObservedObject var model: CompletionChoicesModel
     let choose: (Int) -> Void
+    private func icon(for candidate: String) -> MenuIcon {
+        switch model.catalog.kind(for: candidate) {
+        case .snippet: return .completionSnippet
+        case .code: return .completionCode
+        default: return .completionFile
+        }
+    }
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -55,7 +62,7 @@ private struct CompletionChoices: View {
                             choose(index)
                         } label: {
                             HStack(spacing: 6) {
-                                if let icon = (model.snippetKeys.contains(Array(model.candidates[index].utf16)) ? MenuIcon.completionSnippet : .completionFile).image() { Image(nsImage: icon).resizable().frame(width: 16, height: 16) }
+                                if let icon = icon(for: model.candidates[index]).image() { Image(nsImage: icon).resizable().frame(width: 16, height: 16) }
                                 Text(verbatim: model.candidates[index]).lineLimit(1).truncationMode(.middle).help(model.candidates[index])
                                 Spacer(minLength: 0)
                             }.padding(.horizontal, 6).frame(height: 26)

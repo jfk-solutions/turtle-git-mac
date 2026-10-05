@@ -75,7 +75,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   unchecked files and path suffixes, with Ctrl-Space, original file icons and
   saved enable/minimum/extension preferences. Shipped/user snippet definitions
   expand multiline text with original snippet icons, source escape rules and Undo.
-  Code-symbol completion and spelling remain pending; see [completion audit](docs/COMMIT-COMPLETION-PARITY.md).
+  Code-symbol completion scans displayed files using shipped/private definitions,
+  with source size/time gates and snippet priority. Windows decoder equivalence,
+  complete editor behavior and spelling remain pending; see [code-symbol audit](docs/COMMIT-CODE-SYMBOL-PARITY.md).
   Provider plugins and signed scope
   acceptance remain pending; see [issue audit](docs/ISSUE-TRACKER-PARITY.md).
   ![Native issue-ID Commit controls](docs/site/assets/commit-issue.png)

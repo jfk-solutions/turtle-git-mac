@@ -24,6 +24,7 @@ struct CommitMessageEditor: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? MessageTextView else { return }
         editor.isEditable = enabled; editor.model = model
+        model.prepareMessageCompletions()
         if editor.string != model.message {
             let range = editor.selectedRange()
             editor.string = model.message
@@ -82,10 +83,9 @@ private final class MessageTextView: NSTextView {
     private func showCompletions(minimum: Int) {
         guard isEditable, let model else { return }
         guard UserDefaults.standard.object(forKey: "Autocompletion") as? Bool ?? true else { completionPopup.close(); return }
-        let stripExtensions = UserDefaults.standard.bool(forKey: "AutocompleteRemovesExtensions")
         let snippets = model.messageSnippets
-        let files = MessageCompletion.fileCandidates(paths: model.visibleEntries.map(\.path), removeExtensions: stripExtensions)
-        let candidates = snippets.candidates(files: files)
+        let catalog = model.messageCompletionCatalog
+        let candidates = catalog.candidates
         guard let request = MessageCompletion.request(message: string, selection: selectedRange(), candidates: candidates, minimum: minimum, styling: model.formattingEnabled) else { completionPopup.close(); return }
         completionRange = request.range
         completionPopup.accept = { [weak self] value in
@@ -97,7 +97,7 @@ private final class MessageTextView: NSTextView {
             self.breakUndoCoalescing()
             self.window?.makeFirstResponder(self)
         }
-        completionPopup.show(request.candidates, snippets: snippets.keys, in: self)
+        completionPopup.show(request.candidates, catalog: catalog, in: self)
     }
     override func resignFirstResponder() -> Bool { completionPopup.close(); return super.resignFirstResponder() }
     private var appliedStyles: [IssueMessageStyle] = []
@@ -185,7 +185,7 @@ struct CommitEditorSettings: View {
             Toggle("Enable auto-completion", isOn: $autocompletion)
             Stepper("Complete after \(completionMinimum) characters", value: $completionMinimum, in: 1...100).disabled(!autocompletion)
             Toggle("Include file names without extensions", isOn: $removeExtensions).disabled(!autocompletion)
-            Text("File completions come from the displayed changes. Press Ctrl-Space or Option-Escape to request them after one character.").font(.caption).foregroundStyle(.secondary)
+            Text("File and code completions come from the displayed changes. Press Ctrl-Space or Option-Escape to request them after one character.").font(.caption).foregroundStyle(.secondary)
         }.padding(20)
     }
 }

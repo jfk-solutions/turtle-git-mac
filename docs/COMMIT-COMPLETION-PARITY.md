@@ -45,8 +45,9 @@ See [recorded acceptance](qa/commit-completion-2026-10-05.json).
 
 ## Still outstanding
 
-- Shipped/user autolist.txt definitions, code-symbol regex extraction and file
-  decoding, parse timeout/size limits and unversioned-content parsing preference.
+- Complete Windows decoder equivalence and native acceptance of scanner
+  settings, interruptions, icon appearance and signed file/helper access.
+  Definitions, extraction and content gates are implemented in the audit below.
 - Exact Windows ANSI decoding and embedded-NUL snippet behavior; native snippet
   loading, icons and expansion are accepted in the section below.
 - Spelling dictionaries, custom words, Ctrl-Tab suggestions and dictionary-aware
@@ -56,10 +57,10 @@ See [recorded acceptance](qa/commit-completion-2026-10-05.json).
 - Large catalogs, input methods, accessibility navigation, signed sandbox
   acceptance and the remaining Commit/settings controls.
 
-The native minimum editor currently offers 1–100 characters. The filename
-catalog is computed from current visible rows rather than the source's timed
-background scan. Remaining scanner and full settings work must preserve the
-source behavior before full parity can be claimed. GitHub verification of these
+The native minimum editor currently offers 1–100 characters. A filename/snippet
+fallback is available while the source-style timed background scanner builds
+the combined catalog. Complete settings and scanner acceptance remain required
+before full parity can be claimed. GitHub verification of these
 local changes is pending publication.
 
 ## Shipped and user snippet definitions
@@ -128,8 +129,10 @@ Tab continues to accept an active popup. Ctrl-Tab spelling suggestions remain
 unported, and input-method composition/full popup lifecycle still need acceptance.
 
 Unsigned Debug/App Store builds, bundle audits and eight completion/snippet
-regression tests passed. **Native acceptance of this keyboard change is pending:**
-the Mac locked before controls could be inspected. The single disposable preview
+regression tests passed. At that stage, native acceptance was pending because
+the Mac locked before controls could be inspected. The later code-scanner QA
+verified arrows, Backspace, typed reopening, paste/explicit request and Tab focus;
+input methods, forward Delete and complete lifecycle acceptance remain pending. The single disposable preview
 was identified by its exact executable path and stopped with SIGTERM because
 normal UI Quit was unavailable; the final process scan was empty.
 
@@ -151,6 +154,16 @@ See [build and pending acceptance record](qa/commit-completion-keys-2026-10-05.j
 ## Code-symbol scanner groundwork
 
 The upstream definition parser and icase ECMAScript capture engine are now
-ported and tested in isolation. Changed-file scanning and popup integration
-remain pending. See the [code-symbol audit](COMMIT-CODE-SYMBOL-PARITY.md) for
+ported and tested. Changed-file scanning and popup integration now use them,
+as recorded in the following section. See the [code-symbol audit](COMMIT-CODE-SYMBOL-PARITY.md) for
 source semantics, retained quirks and required decoding/gating/native acceptance.
+
+## Changed-file code catalog integration
+
+The Commit popup now combines filenames, snippets and code captures from the
+changed-file scanner. It records candidate kind during source-order insertion
+and selects original file/code/snippet artwork accordingly. Shipped/private
+definitions, raw decoding, cache and content gates are implemented. Native code
+acceptance, snippet collision, Undo, unchecked rows and F5 rescanning are recorded
+in the [code-symbol audit](COMMIT-CODE-SYMBOL-PARITY.md). Complete decoding, visual,
+keyboard-focus and signed sandbox acceptance remain partial.

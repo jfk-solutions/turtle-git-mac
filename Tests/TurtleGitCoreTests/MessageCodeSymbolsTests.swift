@@ -16,6 +16,7 @@ final class MessageCodeSymbolsTests: XCTestCase {
         XCTAssertEqual(try MessageCodeSymbols.captures(in: "雪🦎 Foo", pattern: "(Foo)", executable: helper), ["Foo"])
         XCTAssertEqual(try MessageCodeSymbols.captures(in: "before\0after", pattern: "(after)", executable: helper), ["after"])
         XCTAssertEqual(try MessageCodeSymbols.captures(in: "a\0b", pattern: "(a\\x00b)", executable: helper), ["a"])
+        XCTAssertEqual(try MessageCodeSymbols.captureUnits(in: [0xfeff, 0xd800], pattern: "(\\uD800)", executable: helper), [[0xd800]])
     }
     func testInvalidECMAScriptRejectedAndEmptyDefinitionSkipped() throws {
         XCTAssertEqual(try MessageCodeSymbols.captures(in: "anything", pattern: "", executable: helper), [])

@@ -332,6 +332,11 @@
       "asset": "snippet.ico",
       "source": "src/Resources/snippet.ico",
       "sha256": "69db33aeca7b9890ae633d10c00aac2b1f1ebe0ff25c0c043fd4bca63c4d2fda"
+    },
+    {
+      "asset": "code.ico",
+      "source": "src/Resources/code.ico",
+      "sha256": "d057904db3f8f0dafe387b8317cf7f9bb19abe1adce98eab7c998bbad2f55d58"
     }
   ]
 }

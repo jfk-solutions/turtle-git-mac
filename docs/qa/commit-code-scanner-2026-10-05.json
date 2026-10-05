@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-05",
+  "scope": "Changed-file code scanner, raw UTF16 transport and native Commit popup catalog integration; partial application/editor port",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "code.ico": "3cb22fb0a67188f87463b25bcc1bdee75b4bd2ea"
+  },
+  "tests": {
+    "full": {
+      "count": 410,
+      "failures": 0,
+      "phase": "Core scanner/transport implementation, before final UI integration"
+    },
+    "focused": {
+      "count": 32,
+      "failures": 0,
+      "phase": "Final Core scanner, native catalog, grouped row-order wiring and disabled autocomplete gate"
+    },
+    "new_scanner_cases": 6,
+    "coverage": [
+      "Row-order code/filename collisions and snippet priority",
+      "Unversioned, ignored, empty, binary and maximum-size gates",
+      "Invalid regex not cached; first valid extension pattern retained; current empty definition disables cached pattern",
+      "Raw unpaired UTF16 units, symlink target size/read, FIFO and missing-file skipping",
+      "Deterministic strict timeout before rows and partial catalog",
+      "Pre-cancelled scan rejected"
+    ]
+  },
+  "native": {
+    "apps_launched_sequentially": 2,
+    "maximum_concurrent_QA_apps": 1,
+    "fixture": {
+      "root": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitCodeQA-k6o3_izy",
+      "head": "3035c0a28b83113ccfbb7f43b5e274966e561740",
+      "index_sha256": "aaa67c1681f6a95b6ece940b9fbbff9087590d8e514dde491b03b8a11fd29d94",
+      "files": {
+        "Window.test": "2b9af4e243c3df7a2f280690330bf9d7e4ba296894c87768d0c5177ba5e6ca48",
+        "src/Widget.test": "424e9ac65478ace450f4ab80f5ab192741fbd72e16416fbad08b2d7d863fc34a"
+      }
+    },
+    "accepted": [
+      "Typed and Ctrl-Space code candidates",
+      "Tab inserts SymbolAlpha",
+      "Down/Return expands SymbolBeta snippet rather than colliding code",
+      "One Undo restores selected Sym prefix",
+      "Unchecked tracked file still contributes symbols",
+      "Default unversioned contents do not contribute UntrackedSymbol",
+      "F5 rescans changed contents, removes SymbolAlpha and offers SymbolRefreshed",
+      "Mouse inserts SymbolRefreshed",
+      "Left/Right and Backspace do not automatically reopen popup",
+      "Typing reopens popup",
+      "Paste leaves popup closed; Ctrl-Space opens it",
+      "Tab transfers focus to file list; Shift-Tab returns to editor without message changes",
+      "Hidden unversioned row removes Window.test completion"
+    ],
+    "screenshots": "Native capture failed twice with SCStreamErrorDomain -3811/audio-video stream error; CUA main-window image clips external popover. No new PNG/visual icon or dark-popup acceptance claimed.",
+    "cleanup": {
+      "first": "Normal Quit/menu cancellation actions failed through stale automation menu state. Sample showed event-loop waits. SIGTERM only after exact path/PID25577 recheck.",
+      "second": "Normal CmdQ plus dirty draft Yes; final process scan empty."
+    },
+    "git_preservation": {
+      "head_unchanged": true,
+      "raw_index_unchanged": true,
+      "untracked_unchanged": true,
+      "tracked_text_changed_by_QA_for_refresh": "SymbolRefreshed SymbolBeta\n",
+      "git_commits_made": 0
+    },
+    "last_source_changes_after_UI_acceptance": [
+      "Use grouped displayed file order for insertion (second QA process covered this version)",
+      "Disabled autocomplete scan gate (compiled; native setting switch pending)",
+      "Read measured regular-file length rather than configured maximum (scanner focused tests passed)"
+    ]
+  },
+  "builds": {
+    "Debug": "Unsigned build and complete bundle audit passed, 67 icons",
+    "AppStore": "Unsigned build and complete bundle audit passed, 67 icons; bundled Git/helper universal slices audited; signed sandbox acceptance remains pending",
+    "site": "Local site build passed; publication pending"
+  },
+  "limitations": [
+    "Windows ACP/MB_PRECOMPOSED and malformed UTF8 decode equivalence",
+    "Raw surrogate display conversion uses native replacement",
+    "Code-icon/dark-popup visual capture acceptance",
+    "Native scanner settings and interrupted/stale scan acceptance",
+    "Cache publication after successful helper differs on helper timeout/cancellation edges",
+    "Native helper bounded input/output/execution and regular-file safeguards",
+    "Signed sandbox access/helper inheritance and both architecture acceptance",
+    "Complete whole-app port and App Store distribution acceptance",
+    "Fresh GitHub verification after publication"
+  ],
+  "log_sha256": {
+    "full": "b2892da483f253b7d64b4302e3c74c9edf9844d8ae729671c04fb15b651ca093",
+    "focused": "7169b5bc6d294a071636f95aab759dbef24ae7d792c0e1992ded4dec4e7c38cb",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "debug_audit": "1c827051e466dc7099d7274af8b30cf21e26bd6a67e3085c714ec94f189c2082",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "store_audit": "29ca2aa196ea04b8398d45ea7d65a02ecda9e531443fabd135e2de920100491a"
+  }
+}

@@ -229,6 +229,44 @@ import UniformTypeIdentifiers
         didSet { if formattingEnabled != oldValue { scheduleIssueStyling() } }
     }
     private(set) var messageSnippets = MessageSnippets()
+    @Published private(set) var messageCompletionCatalog = MessageCompletionCatalog()
+    private var completionTask: Task<Void, Never>?
+    private var completionGeneration = UUID()
+    private var completionSources: [MessageCodeScanner.Source] = []
+    private var completionOptions: MessageCodeScanner.Options?
+    private var completionEnabled: Bool?
+    deinit { completionTask?.cancel(); issueStyleTask?.cancel() }
+    func prepareMessageCompletions(force: Bool = false) {
+        var options = MessageCodeScanner.Options()
+        let defaults = UserDefaults.standard
+        let enabled = defaults.object(forKey: "Autocompletion") as? Bool ?? true
+        options.removeExtensions = defaults.bool(forKey: "AutocompleteRemovesExtensions")
+        options.parseUnversioned = defaults.bool(forKey: "AutocompleteParseUnversioned")
+        options.maximumBytes = defaults.object(forKey: "AutocompleteParseMaxSize") as? Int ?? 300000
+        options.timeoutSeconds = UInt32(clamping: defaults.object(forKey: "AutocompleteParseTimeout") as? Int ?? 5)
+        options.useUTF8 = defaults.bool(forKey: "Merge.UseUTF8")
+        let locallyIgnored = Set(indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
+        let rows = StatusListGroups.rows(entries: visibleEntries, changelists: changelists, locallyIgnored: locallyIgnored)
+        let sources = rows.compactMap(\.entry).map { MessageCodeScanner.Source(path: $0.path, state: $0.state) }
+        guard force || sources != completionSources || options != completionOptions || enabled != completionEnabled else { return }
+        completionTask?.cancel()
+        completionSources = sources; completionOptions = options; completionEnabled = enabled
+        let generation = UUID(); completionGeneration = generation
+        let snippets = messageSnippets, root = repository.root, lease = access
+        let userDefinitions = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("autolist.txt")
+        completionTask = Task { [weak self] in
+            guard !Task.isCancelled, self?.completionGeneration == generation else { return }
+            self?.messageCompletionCatalog = MessageCompletionCatalog(snippets: snippets, paths: sources.map(\.path), removeExtensions: options.removeExtensions)
+            guard enabled else { return }
+            do {
+                if GitRuntime.isAppStoreBuild && (lease?.hasSecurityScope != true || lease?.contains(root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let result = try await MessageCodeScanner.shared.scan(root: root, sources: sources, snippets: snippets, userDefinitions: userDefinitions, options: options)
+                guard !Task.isCancelled, let self, self.completionGeneration == generation else { return }
+                self.messageCompletionCatalog = result.catalog
+            } catch { /* Filename/snippet fallback remains available after cancellation or inaccessible contents. */ }
+            withExtendedLifetime(lease) {}
+        }
+    }
     private let snippetLoader = MessageSnippetLoader()
     @Published var issueID = ""
     private func scheduleIssueStyling() {
@@ -570,6 +608,7 @@ import UniformTypeIdentifiers
                     loadedMessage = true
                     if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
                 }
+                prepareMessageCompletions(force: true)
                 if restorePatch { if stagingEnabled { showPartial(false) } else { showViewPatch() } }
             } catch { self.error = error.localizedDescription }
         }

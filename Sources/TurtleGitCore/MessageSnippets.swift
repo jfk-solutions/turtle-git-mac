@@ -55,7 +55,7 @@ public actor MessageSnippetLoader {
         }
         return result
     }
-    private static func decode(_ data: Data) -> String? {
+    static func decode(_ data: Data) -> String? {
         if data.starts(with: [0xff, 0xfe]) { return String(data: data.dropFirst(2), encoding: .utf16LittleEndian) }
         if data.starts(with: [0xfe, 0xff]) { return String(data: data.dropFirst(2), encoding: .utf16BigEndian) }
         let bytes = data.starts(with: [0xef, 0xbb, 0xbf]) ? data.dropFirst(3) : data[...]
