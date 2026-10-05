@@ -110,27 +110,36 @@ import TurtleGitCore
     var replaceText: (String, Int, Range<Int>?) -> Void = { _, _, _ in }
     var replaceAnnotations: (FileComparisonEditing.Annotations) -> Void = { _ in }
     var replaceKeepingEdits: (String) -> Void = { _ in }
-    var canTransfer: Bool { editingEnabled && editableBase != nil && alignment != nil && !busy && !confirmingQuit }
+    var canTransfer: Bool { canTransfer(toBase: activeBase) }
+    func canTransfer(toBase base: Bool) -> Bool { drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !confirmingQuit }
     var transferRows: Range<Int>? { selectedRows ?? alignment.flatMap { $0.differences.indices.contains(difference) ? $0.differences[difference] : nil } }
-    func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other) {
-        guard canTransfer, let alignment, let base = editableBase, let rows = transferRows else { return }
+    func useOtherBlock(_ choice: FileComparisonEditing.BlockChoice = .other, targetBase: Bool? = nil) {
+        let base = targetBase ?? activeBase
+        guard canTransfer(toBase: base), let alignment, let rows = transferRows else { return }
+        activatePane(base: base)
         do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: rows, targetBase: base, choice: choice); replaceText(edit.text, edit.caret, choice == .other ? rows : nil) }
         catch { self.error = error.localizedDescription }
     }
-    func useOtherFile() {
-        guard canTransfer, let alignment, let base = editableBase else { return }
+    func useOtherFile(targetBase: Bool? = nil) {
+        let base = targetBase ?? activeBase
+        guard canTransfer(toBase: base), let alignment else { return }
+        activatePane(base: base)
         if alignment.rows.isEmpty { replaceText("", 0, nil); return }
         do { let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: base); replaceText(edit.text, 0, alignment.rows.indices) }
         catch { self.error = error.localizedDescription }
     }
-    func markBlock(_ marked: Bool) {
-        guard canTransfer, let rows = transferRows else { return }
+    func markBlock(_ marked: Bool, targetBase: Bool? = nil) {
+        let base = targetBase ?? activeBase
+        guard canTransfer(toBase: base), let rows = transferRows else { return }
+        activatePane(base: base)
         var value = annotations
         if marked { value.marked.formUnion(rows) } else { value.marked.subtract(rows) }
         replaceAnnotations(value)
     }
-    func leaveOnlyMarked() {
-        guard canTransfer, let alignment, let base = editableBase else { return }
+    func leaveOnlyMarked(targetBase: Bool? = nil) {
+        let base = targetBase ?? activeBase
+        guard canTransfer(toBase: base), let alignment else { return }
+        activatePane(base: base)
         do { replaceKeepingEdits(try FileComparisonEditing.leavingOnlyMarked(alignment, targetBase: base, annotations: annotations)) }
         catch { self.error = error.localizedDescription }
     }
@@ -528,6 +537,10 @@ private final class FileComparisonTextView: NSTextView {
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
     var missingOffsets: [Int] = []
+    override func mouseDown(with event: NSEvent) {
+        model?.activatePane(base: baseSide)
+        super.mouseDown(with: event)
+    }
     @objc(undo:) func undoComparison(_ sender: Any?) { model?.undo() }
     @objc(redo:) func redoComparison(_ sender: Any?) { model?.redo() }
     override func validateMenuItem(_ item: NSMenuItem) -> Bool {
@@ -563,20 +576,30 @@ private final class FileComparisonTextView: NSTextView {
         func add(_ title: String, _ action: Selector, _ icon: NSImage?, _ enabled: Bool) {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon; item.isEnabled = enabled; menu.addItem(item)
         }
-        let source = model.editableBase != baseSide
-        let block = model.canTransfer && model.transferRows != nil
-        add(source ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)
+        let block = model.canTransfer(toBase: false) && model.transferRows != nil
+        add(baseSide ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)
         add("Use both blocks, this one first", #selector(useThisFirst), MenuIcon.mergeMineThenTheirs.image(), block)
         add("Use both blocks, this one last", #selector(useThisLast), MenuIcon.mergeTheirsThenMine.image(), block)
-        if !source {
+        if model.canTransfer(toBase: true) {
+            menu.addItem(.separator())
+            let leftBlock = model.transferRows != nil
+            add(baseSide ? "Prepend right block" : "Prepend this block to left", #selector(prependRight), MenuIcon.mergeTheirsThenMine.image(), leftBlock)
+            add(baseSide ? "Use right block" : "Use this block on left", #selector(replaceByRight), MenuIcon.mergeUseTheirs.image(), leftBlock)
+            add(baseSide ? "Append right block" : "Append this block to left", #selector(appendRight), MenuIcon.mergeMineThenTheirs.image(), leftBlock)
+        }
+        if !baseSide {
             menu.addItem(.separator())
             if let rows = model.transferRows {
-                if rows.count > 1 || !model.annotations.marked.contains(rows.lowerBound) { add("Mark block", #selector(markBlock), MenuIcon.mergeMarked.image(), block) }
-                if rows.count > 1 || model.annotations.marked.contains(rows.lowerBound) { add("Unmark block", #selector(unmarkBlock), MenuIcon.mergeMarked.image(), block) }
+                let marks = model.annotations(base: false).marked
+                if rows.count > 1 || !marks.contains(rows.lowerBound) { add("Mark block", #selector(markBlock), MenuIcon.mergeMarked.image(), block) }
+                if rows.count > 1 || marks.contains(rows.lowerBound) { add("Unmark block", #selector(unmarkBlock), MenuIcon.mergeMarked.image(), block) }
             }
-            add("Leave only marked blocks", #selector(leaveOnlyMarked), MenuIcon.mergeMarked.image(), model.canTransfer)
+            add("Leave only marked blocks", #selector(leaveOnlyMarked), MenuIcon.mergeMarked.image(), model.canTransfer(toBase: false))
         }
-        add(source ? "Use this whole file" : "Use other file", #selector(useFile), MenuIcon.mergeUseTheirs.image(), model.canTransfer)
+        add(baseSide ? "Use this whole file" : "Use other file", #selector(useFile), MenuIcon.mergeUseTheirs.image(), model.canTransfer(toBase: false))
+        if model.canTransfer(toBase: true) {
+            add(baseSide ? "Use other file" : "Use this whole file", #selector(useRightFile), MenuIcon.mergeUseTheirs.image(), true)
+        }
         menu.addItem(.separator())
         add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
         add("Undo", #selector(undoEdit), MenuIcon.mergeUndo.image(), model.canUndo && !model.busy && !model.confirmingQuit)
@@ -587,13 +610,17 @@ private final class FileComparisonTextView: NSTextView {
         add("Paste", #selector(paste(_:)), NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil), isEditable && NSPasteboard.general.string(forType: .string) != nil)
         return menu
     }
-    @objc private func useBlock() { model?.useOtherBlock() }
-    @objc private func useThisFirst() { model?.useOtherBlock(model?.editableBase == baseSide ? .currentThenOther : .otherThenCurrent) }
-    @objc private func useThisLast() { model?.useOtherBlock(model?.editableBase == baseSide ? .otherThenCurrent : .currentThenOther) }
-    @objc private func useFile() { model?.useOtherFile() }
-    @objc private func markBlock() { model?.markBlock(true) }
-    @objc private func unmarkBlock() { model?.markBlock(false) }
-    @objc private func leaveOnlyMarked() { model?.leaveOnlyMarked() }
+    @objc private func useBlock() { model?.useOtherBlock(targetBase: false) }
+    @objc private func useThisFirst() { model?.useOtherBlock(baseSide ? .otherThenCurrent : .currentThenOther, targetBase: false) }
+    @objc private func useThisLast() { model?.useOtherBlock(baseSide ? .currentThenOther : .otherThenCurrent, targetBase: false) }
+    @objc private func useFile() { model?.useOtherFile(targetBase: false) }
+    @objc private func prependRight() { model?.useOtherBlock(.otherThenCurrent, targetBase: true) }
+    @objc private func replaceByRight() { model?.useOtherBlock(targetBase: true) }
+    @objc private func appendRight() { model?.useOtherBlock(.currentThenOther, targetBase: true) }
+    @objc private func useRightFile() { model?.useOtherFile(targetBase: true) }
+    @objc private func markBlock() { model?.markBlock(true, targetBase: false) }
+    @objc private func unmarkBlock() { model?.markBlock(false, targetBase: false) }
+    @objc private func leaveOnlyMarked() { model?.leaveOnlyMarked(targetBase: false) }
     @objc private func exportPane() { model?.export(base: baseSide) }
     @objc private func undoEdit() { model?.undo() }
     @objc private func redoEdit() { model?.redo() }

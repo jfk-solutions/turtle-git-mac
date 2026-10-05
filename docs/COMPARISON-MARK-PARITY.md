@@ -229,3 +229,28 @@ not verified: its accessibility snapshot reported disabled actions despite
 successful editor keyboard and toolbar history operations. The source routes
 Undo/Redo selectors to the active history, but that alone does not prove native
 menu acceptance. Full TortoiseGit dialog parity remains the goal.
+
+## Two-pane context-menu destinations
+
+`LeftView.cpp::AddContextItems` and `RightView.cpp::AddContextItems`, together
+with `BaseView.cpp:2524–2565`, distinguish two command sets. The primary
+Use-this/Use-other/both-block commands always write to Mine. If Base is writable,
+both menus additionally offer prepend, replace and append into Base, plus the
+reverse whole-file command. These destinations do not follow whichever pane was
+last active. English labels for the added commands are taken from
+`Resources/TortoiseMergeENG.rc:894–899`.
+
+TurtleGit now dispatches context commands to those explicit destinations and
+checks each destination's own editing state. Right-pane mark/leave-marked
+commands also target Mine; toolbar commands continue to operate on the active
+pane. Native acceptance verified Base's whole-file command writing only Mine,
+its Undo, and Base's prepend-right-block command plus independent keyboard Undo.
+Core coverage uses both pending drafts and verifies incoming line endings match
+the chosen destination. Both blocks/order variants, reverse whole-file native
+acceptance, historical-copy editing and complete upstream state transitions
+remain pending. See [acceptance record](qa/comparison-transfer-2026-10-05.json).
+
+Cross-pane keyboard-focus synchronization remains incomplete: native commands
+write the correct destination and select its model history, but accessibility
+focus can remain on the source. The pending record explicitly preserves this
+issue; automatic focus handoff and subsequent typing are not verified.

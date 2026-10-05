@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-05",
+  "feature": "Explicit two-pane context command destinations",
+  "preview": "/tmp/TurtleGitTransferTargetQA.app",
+  "native_verified": [
+    "Base menu whole-file command modifies Mine only, including when Base is read-only",
+    "Enable Base editing exposes prepend/use-right/append-right and reverse whole-file commands",
+    "Selected Base block prepend-right inserts Mine before Base",
+    "Toolbar Undo restores Mine whole-file transfer; keyboard Undo restores Base prepend",
+    "No writes to either comparison file during acceptance; exact final bytes preserved",
+    "Bootstrap repository HEAD/raw index/working bytes preserved",
+    "All preview launches sequential with normal Quit/process-absence checks"
+  ],
+  "focused_pane_issue": "Cross-pane command makes destination active in the model while accessibility focus can remain at the source; automatic focus handoff and subsequent typing need further native work. No focus parity claim.",
+  "core_tests": {
+    "count": 23,
+    "failures": 0,
+    "new_test": "testTransfersUseBothPendingDraftsAndExplicitDestination"
+  },
+  "pending": [
+    "Cross-pane keyboard focus/active editing synchronization",
+    "Native replace/append/both-order and reverse whole-file variants",
+    "Historical-copy editing",
+    "Full TortoiseMerge state transitions, menus and layout",
+    "Signed sandbox acceptance"
+  ],
+  "upstream_sources": [
+    "src/TortoiseMerge/LeftView.cpp::AddContextItems",
+    "src/TortoiseMerge/RightView.cpp::AddContextItems",
+    "src/TortoiseMerge/BaseView.cpp:2524-2565",
+    "src/Resources/TortoiseMergeENG.rc:894-899"
+  ],
+  "builds": {
+    "Debug": "passed",
+    "unsigned AppStore": "passed"
+  },
+  "bundle_audits": {
+    "Debug": "passed, 64 upstream icons and embedded extension",
+    "AppStore": "passed, 64 icons and 11 universal embedded Git Mach-O files, runtime checks"
+  },
+  "cleanup": "Final process absence verified after a second normal Quit; no UI observation after exit."
+}

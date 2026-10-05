@@ -2,6 +2,24 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testTransfersUseBothPendingDraftsAndExplicitDestination() throws {
+        let base = ComparisonFileContent(path: "base", revision: .workingTree, bytes: Data("base original\n".utf8), mode: "100644")
+        let mine = ComparisonFileContent(path: "mine", revision: .workingTree, bytes: Data("mine original\r\n".utf8), mode: "100644")
+        var drafts = FileComparisonDrafts(FileComparisonDocument(base: base, destination: mine))
+        drafts.setEditing(true, base: true)
+        try drafts.update(text: "base pending\n", base: true)
+        try drafts.update(text: "mine pending\r\n", base: false)
+        let alignment = FileComparisonAlignment(base: try XCTUnwrap(drafts.text(base: true)), destination: try XCTUnwrap(drafts.text(base: false)))
+        for (choice, expected) in [(FileComparisonEditing.BlockChoice.otherThenCurrent, "mine pending\nbase pending\n"), (.other, "mine pending\n"), (.currentThenOther, "base pending\nmine pending\n")] {
+            let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: true, choice: choice)
+            XCTAssertEqual(edit.text, expected)
+        }
+        let edit = try FileComparisonEditing.takingOtherRows(alignment, rows: alignment.rows.indices, targetBase: false)
+        try drafts.update(text: edit.text, base: false)
+        XCTAssertEqual(drafts.text(base: false), "base pending\r\n")
+        XCTAssertEqual(drafts.text(base: true), "base pending\n")
+        XCTAssertEqual(drafts.dirtySides, [false, true])
+    }
     func testIndependentDraftsSaveOneSideAndExportOtherWithoutIndexMutation() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
