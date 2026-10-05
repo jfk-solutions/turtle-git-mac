@@ -62,3 +62,19 @@ struct UnifiedDiffAppearanceSettings: View {
         }.padding(20).onAppear { saved = .load(); draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize) }
     }
 }
+
+/// Settings scenes promote nested TabViews into their toolbar. Keep the viewer
+/// subpages inside the Unified Diff page so Appearance cannot select the global tab.
+struct UnifiedDiffSettingsPage: View {
+    @State private var appearance = false
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("Unified diff settings", selection: $appearance) {
+                Text("Viewer").tag(false)
+                Text("Appearance").tag(true)
+            }.pickerStyle(.segmented).padding(.horizontal, 20).padding(.top, 16)
+            if appearance { UnifiedDiffAppearanceSettings() }
+            else { UnifiedDiffViewerSettings() }
+        }
+    }
+}

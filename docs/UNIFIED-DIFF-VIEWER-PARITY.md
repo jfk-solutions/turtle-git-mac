@@ -243,3 +243,15 @@ light/dark rendering, high contrast and full-width line backgrounds still need
 acceptance. Font size preset dropdown and owner-drawn font preview remain pending.
 Existing viewer screenshots precede these palette changes. Lexer
 folding, editable UDiff, printing and full encoding controls remain incomplete.
+
+### Native settings navigation acceptance
+
+Native testing exposed Settings toolbar promotion of the inner TabView: its
+Appearance entry selected the global Appearance page. Unified Diff now uses an
+in-page segmented selector. The corrected preview showed all twelve default
+color wells and font/tab controls while retaining the Unified Diff toolbar tab.
+The [actual settings capture](qa/unified-appearance-settings-light.png) was
+inspected. Full footer geometry and live Apply remain pending; a Settings-close
+AX timeout prevented those checks. Both isolated previews quit normally and no
+TurtleGit process remained. No Core code changed in this navigation fix.
+See [acceptance record](qa/unified-appearance-navigation-2026-10-05.json).

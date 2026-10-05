@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-05",
+  "scope": "Native settings navigation acceptance",
+  "previous_commit": "4b8b58c",
+  "finding": "Nested SwiftUI TabView entries merged into the Settings toolbar. Inner Appearance selected global Appearance, leaving color settings unreachable.",
+  "fix": "Replace inner TabView with an in-page segmented Picker and conditional subpage.",
+  "verified": [
+    "Unified Diff toolbar remains selected while Appearance subpage is shown",
+    "All twelve color wells expose expected default RGB values",
+    "All six source labels, font picker, font size, tab size, Restore Default and Apply controls reachable",
+    "Viewer subpage remains available",
+    "Both preview instances terminated normally; no SIGTERM needed; no TurtleGitMac processes remain"
+  ],
+  "preview_app": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitAppearanceFixedQA-xk1bua1v/TurtleGit Appearance Fixed QA.app",
+  "screenshot": {
+    "path": "docs/qa/unified-appearance-settings-light.png",
+    "sha256": "7aba98fd422672e71512e7050d7294cad93d5d5e50d2dddb88a114261a0369a4",
+    "inspected": true,
+    "geometry_note": "Footer is close to the capture lower edge; full geometry acceptance remains pending."
+  },
+  "observation_limitation": "Settings close and subsequent AX observation timed out (-10005). Normal Command-Q terminated the owned instance. Live Apply was not tested.",
+  "core_tests": "Not rerun; native navigation only, Core unchanged from 13 passing focused tests at 4b8b58c.",
+  "debug_build_exit": 0,
+  "unsigned_appstore_build_exit": 0,
+  "bundle_audits": "Both pass, all 72 upstream icons",
+  "pending": [
+    "Footer geometry and native Save/Cancel interaction",
+    "Live Apply rendering",
+    "Dark palette display and actual viewer appearance",
+    "Font-size preset dropdown and owner-drawn font preview",
+    "Signed sandbox and complete UDiff parity"
+  ]
+}

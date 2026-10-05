@@ -62,8 +62,8 @@ Other routes, native non-UTF-8 exports and signed sandbox acceptance remain unve
 The unified viewer now has appearance settings for all six foreground/background
 color pairs, separate light/dark palettes, font and tab sizes, and restoring the
 selected palette. Defaults follow TortoiseUDiff, with Menlo as the native font.
-Focused persistence/style tests pass; native layout and live Apply acceptance
-remain pending. The screenshot above predates these appearance changes.
+Focused persistence/style tests pass. Native settings navigation and all twelve
+color wells are verified; full layout and live Apply acceptance remain pending. The screenshot above predates these appearance changes.
 
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
