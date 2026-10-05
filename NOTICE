@@ -47,3 +47,6 @@ Sources/TurtleGitCore/MessageURLFinder.swift adapts URLFinder.h's URL/email
 scanning algorithm, copyright (C) 2009-2023 TortoiseGit and (C) 2003-2008,
 2013, 2018, 2020 TortoiseSVN, under GPL version 2 or later. The native scheme
 gate and UTF-16 scalar traversal are described in the issue-tracker audit.
+Sources/TurtleGitCore/MessageFormatting.swift adapts SciEdit.cpp's marker
+formatting, retaining the TortoiseGit/TortoiseSVN notices above and GPL version
+2 or later attribution. Marker text remains unchanged in committed messages.

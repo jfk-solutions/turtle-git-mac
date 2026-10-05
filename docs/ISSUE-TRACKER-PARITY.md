@@ -177,6 +177,44 @@ closed. See [URL acceptance](qa/commit-message-urls-2026-10-05.json).
 
 ![Actual native ordinary message links](site/assets/commit-message-urls.png)
 
+## Marker formatting and preference
+
+`SciEdit::StyleEnteredText` and `FindStyleChars` now map to
+`MessageFormatting.swift`. Only the contents of valid `*bold*`, `^italic^`
+and `_underlined_` spans receive formatting; marker characters remain literal.
+Matching is per line, requires alphanumeric text beside the marker, and rejects
+markers inside ordinary words. Bold, italic and underline passes overwrite
+rather than combine traits, following the source order. Issue styles precede
+these passes; ordinary URL styles follow them. Overwritten issue hotspots are
+split before resolving their visible identifier text.
+
+`StyleCommitMessages` is enabled by default, as in the pinned
+`SettingsAdvanced.cpp` blob `1b222ebf9053e0e902f79413899dc92d35071464`.
+The macOS Commit settings tab exposes it and restyles open drafts when changed.
+Disabling it leaves issue/URL links active and does not change the draft or its
+Undo history. The native setting is saved in the app's defaults; the remaining
+upstream Advanced settings are not implied complete by this one mapping.
+
+The source increments a scalar counter while indexing a UTF-16 CString for
+word classification. That supplementary-character boundary quirk is retained:
+`雪 *标题*` styles its BMP text, while `🦎 *bold*` can remain plain. Native ranges
+still use actual UTF-16 offsets. Null terminators and line boundaries stop a
+match. Windows [IsCharAlphaNumericW](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-ischaralphanumericw)
+uses the user's language semantics. Native letters/decimal-digit character
+sets are an adaptation; exact locale-dependent Windows classification needs
+cross-platform acceptance. Incremental Scintilla state is still pending.
+
+Fifteen focused formatting/URL/issue tests pass, including nested precedence,
+word boundaries, CR/LF, BMP/supplementary text, null termination, disabled
+formatting and URL overrides. Native preference toggling, retained Undo and
+both appearances passed. Editor/preference changes preserved HEAD/index/working
+contents, and a subsequent real disposable commit retained the entire literal
+message and selected working contents. The QA app quit normally. See
+[formatting acceptance](qa/commit-message-format-2026-10-05.json).
+
+![Actual native light marker formatting](site/assets/commit-message-format.png)
+![Actual native dark marker formatting](site/assets/commit-message-format-dark.png)
+
 ## Remaining Commit behavior
 
 - Validate XDG/system includes, conditional includes and scoped ancestor access

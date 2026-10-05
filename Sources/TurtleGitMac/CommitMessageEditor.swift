@@ -62,9 +62,12 @@ private final class MessageTextView: NSTextView {
         for key in [NSAttributedString.Key.link, .toolTip, .underlineStyle] { storage.removeAttribute(key, range: whole) }
         storage.addAttributes([.font: base, .foregroundColor: NSColor.textColor], range: whole)
         for style in styles where style.range.location >= 0 && style.range.location <= storage.length && style.range.length <= storage.length - style.range.location {
-            var styledFont = style.kind == .url ? base : NSFontManager.shared.convert(base, toHaveTrait: .boldFontMask)
-            if style.kind == .identifier { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .italicFontMask) }
-            var attributes: [NSAttributedString.Key: Any] = [.font: styledFont, .foregroundColor: NSColor.linkColor]
+            var styledFont = base
+            if [.context, .identifier, .bold].contains(style.kind) { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .boldFontMask) }
+            if [.identifier, .italic].contains(style.kind) { styledFont = NSFontManager.shared.convert(styledFont, toHaveTrait: .italicFontMask) }
+            let color = [.bold, .italic, .underlined].contains(style.kind) ? NSColor.textColor : NSColor.linkColor
+            var attributes: [NSAttributedString.Key: Any] = [.font: styledFont, .foregroundColor: color]
+            if style.kind == .underlined { attributes[.underlineStyle] = NSUnderlineStyle.single.rawValue }
             if let url = style.url { attributes[.link] = url; attributes[.toolTip] = url }
             storage.addAttributes(attributes, range: style.range)
         }
@@ -114,6 +117,17 @@ private final class MessageTextView: NSTextView {
             }
             self.window?.makeFirstResponder(self)
         }
+    }
+}
+
+struct CommitEditorSettings: View {
+    @AppStorage("StyleCommitMessages") private var styleMessages = true
+    var body: some View {
+        Form {
+            Toggle("Style commit messages", isOn: $styleMessages)
+            Text(verbatim: "Use *bold*, ^italic^ and _underlined_ text. Markers remain in the commit message. Issue and URL links stay enabled.")
+                .font(.caption).foregroundStyle(.secondary)
+        }.padding(20)
     }
 }
 

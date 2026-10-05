@@ -225,16 +225,19 @@ import UniformTypeIdentifiers
     @Published private(set) var issueMessageStyles: [IssueMessageStyle] = []
     private let issueStyler = IssueMessageStyler()
     private var issueStyleTask: Task<Void, Never>?
+    @Published var formattingEnabled = UserDefaults.standard.object(forKey: "StyleCommitMessages") as? Bool ?? true {
+        didSet { if formattingEnabled != oldValue { scheduleIssueStyling() } }
+    }
     @Published var issueID = ""
     private func scheduleIssueStyling() {
         issueStyleTask?.cancel(); issueMessageStyles = []
-        let text = message, properties = issueProperties, worker = issueStyler
+        let text = message, properties = issueProperties, worker = issueStyler, formatting = formattingEnabled
         guard !text.isEmpty else { return }
         issueStyleTask = Task { [weak self] in
             do {
                 try await Task.sleep(nanoseconds: 150_000_000)
-                let styles = try await worker.styles(properties: properties, message: text)
-                guard !Task.isCancelled, let self, self.message == text, self.issueProperties == properties else { return }
+                let styles = try await worker.styles(properties: properties, message: text, formattingEnabled: formatting)
+                guard !Task.isCancelled, let self, self.message == text, self.issueProperties == properties, self.formattingEnabled == formatting else { return }
                 self.issueMessageStyles = styles
             } catch { /* Invalid/stale styling does not interrupt text entry. Commit validation reports configuration failures. */ }
         }
@@ -793,6 +796,7 @@ import UniformTypeIdentifiers
 struct CommitDialog: View {
     @ObservedObject var model: CommitWindowModel
     @AppStorage("Commit.MessagePaneHeight") private var messagePaneHeight = 300.0
+    @AppStorage("StyleCommitMessages") private var styleCommitMessages = true
     @State private var dividerStart: Double?
     @FocusState private var issueFieldFocused: Bool
     @State private var initialIssueFocusApplied = false
@@ -859,6 +863,8 @@ struct CommitDialog: View {
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
             }
         }.padding(12).disabled(model.busy || model.confirmingQuit)
+        .onAppear { model.formattingEnabled = styleCommitMessages }
+        .onChange(of: styleCommitMessages) { model.formattingEnabled = $0 }
         .onChange(of: model.busy) { loading in
             if !loading, model.issueProperties.showsIssueField, !initialIssueFocusApplied {
                 initialIssueFocusApplied = true; issueFieldFocused = true

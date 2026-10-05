@@ -69,7 +69,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   commit acceptance preserve unchecked changes. Configured tracker links use
   bold/italic message highlights in both appearances; Recent messages updates
   the issue field using upstream rules. Ordinary URLs and email addresses use
-  the upstream punctuation/bracket scanner and native links. Provider plugins and signed scope
+  the upstream punctuation/bracket scanner and native links. Per-line `*bold*`,
+  `^italic^` and `_underlined_` marker formatting follows upstream precedence, with
+  a saved Style commit messages preference. Provider plugins and signed scope
   acceptance remain pending; see [issue audit](docs/ISSUE-TRACKER-PARITY.md).
   ![Native issue-ID Commit controls](docs/site/assets/commit-issue.png)
   ![Native selected-file merge Commit](docs/site/assets/commit-merge.png)

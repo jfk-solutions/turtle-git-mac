@@ -1,7 +1,7 @@
 import Foundation
 
 public struct IssueMessageStyle: Sendable, Equatable {
-    public enum Kind: String, Sendable { case context, identifier, url }
+    public enum Kind: String, Sendable { case context, identifier, url, bold, italic, underlined }
     public let kind: Kind
     public let range: NSRange
     public let url: String?
@@ -11,12 +11,12 @@ public struct IssueMessageStyle: Sendable, Equatable {
 /// requests observe cancellation before starting another bounded helper.
 public actor IssueMessageStyler {
     public init() {}
-    public func styles(properties: IssueTrackerProperties, message: String) throws -> [IssueMessageStyle] {
+    public func styles(properties: IssueTrackerProperties, message: String, formattingEnabled: Bool = true) throws -> [IssueMessageStyle] {
         try Task.checkCancellation()
-        do { return try properties.messageStyles(in: message) }
+        do { return try properties.messageStyles(in: message, formattingEnabled: formattingEnabled) }
         catch is IssueRegexFailure {
             // SciEdit's URL pass still runs after an invalid issue expression.
-            return MessageURLFinder.styles(in: message)
+            return try IssueTrackerProperties().messageStyles(in: message, formattingEnabled: formattingEnabled)
         }
     }
 }
@@ -24,9 +24,8 @@ public actor IssueMessageStyler {
 extension IssueTrackerProperties {
     /// SciEdit uses narrow ECMAScript regexes over UTF-8 bytes, unlike
     /// ProjectProperties' UTF-16 matcher. Call off the main thread.
-    public func messageStyles(in message: String, executable: URL? = nil) throws -> [IssueMessageStyle] {
-        guard !checkExpression.isEmpty, !message.isEmpty else { return MessageURLFinder.styles(in: message) }
-        let links = MessageURLFinder.ranges(in: message)
+    public func messageStyles(in message: String, executable: URL? = nil, formattingEnabled: Bool = true) throws -> [IssueMessageStyle] {
+        guard !checkExpression.isEmpty, !message.isEmpty else { return resolvedStyles(in: message, ranges: [], formattingEnabled: formattingEnabled) }
         let output = try IssueRegexRuntime.capture(message: message, check: checkExpression, extract: extractionExpression, executable: executable, mode: ["--styles-utf8"])
         guard let text = String(data: output, encoding: .utf8) else { throw IssueRegexFailure.failed("Invalid styling output.") }
         let rows = text.split(separator: "\n")
@@ -57,24 +56,19 @@ extension IssueTrackerProperties {
                 ranges[ranges.count - 1] = (kind, NSRange(location: last.1.location, length: NSMaxRange(range) - last.1.location))
             } else { ranges.append((kind, range)) }
         }
-        // StyleURLs runs after issue styling in SciEdit and overwrites it.
-        // Split issue runs at URL boundaries before resolving remaining ID
-        // hotspots, so a partially overwritten ID uses its visible substring.
-        var composed: [(IssueMessageStyle.Kind, NSRange)] = [], linkIndex = 0
-        for (kind, range) in ranges {
-            var start = range.location
-            let end = NSMaxRange(range)
-            while linkIndex < links.count && NSMaxRange(links[linkIndex]) <= start { linkIndex += 1 }
-            var index = linkIndex
-            while index < links.count && links[index].location < end {
-                let link = links[index]
-                if link.location > start { composed.append((kind, NSRange(location: start, length: min(end, link.location) - start))) }
-                start = max(start, NSMaxRange(link)); index += 1
+        return resolvedStyles(in: message, ranges: ranges, formattingEnabled: formattingEnabled)
+    }
+    private func resolvedStyles(in message: String, ranges: [(IssueMessageStyle.Kind, NSRange)], formattingEnabled: Bool) -> [IssueMessageStyle] {
+        var composed = ranges
+        if formattingEnabled {
+            // Scintilla styles overwrite each other, rather than accumulating
+            // font traits. Preserve its bold, italic, underline pass order.
+            let passes: [(IssueMessageStyle.Kind, UInt16)] = [(.bold, 42), (.italic, 94), (.underlined, 95)]
+            for (kind, marker) in passes {
+                composed = Self.overlay(composed, with: MessageFormatting.ranges(in: message, marker: marker).map { (kind, $0) })
             }
-            if start < end { composed.append((kind, NSRange(location: start, length: end - start))) }
         }
-        composed += links.map { (.url, $0) }
-        composed.sort { $0.1.location < $1.1.location }
+        composed = Self.overlay(composed, with: MessageURLFinder.ranges(in: message).map { (.url, $0) })
         var merged: [(IssueMessageStyle.Kind, NSRange)] = []
         for (kind, range) in composed {
             if let last = merged.last, last.0 == kind, NSMaxRange(last.1) == range.location {
@@ -86,6 +80,24 @@ extension IssueTrackerProperties {
             let link = kind == .url ? MessageURLFinder.target(for: id) : kind == .identifier ? issueURL(for: id) : ""
             return IssueMessageStyle(kind: kind, range: range, url: link.isEmpty ? nil : link)
         }
+    }
+    private static func overlay(_ lower: [(IssueMessageStyle.Kind, NSRange)], with upper: [(IssueMessageStyle.Kind, NSRange)]) -> [(IssueMessageStyle.Kind, NSRange)] {
+        var result: [(IssueMessageStyle.Kind, NSRange)] = [], index = 0
+        for (kind, range) in lower {
+            var start = range.location
+            let end = NSMaxRange(range)
+            while index < upper.count && NSMaxRange(upper[index].1) <= start { index += 1 }
+            var scan = index
+            while scan < upper.count && upper[scan].1.location < end {
+                let above = upper[scan].1
+                if above.location > start { result.append((kind, NSRange(location: start, length: min(end, above.location) - start))) }
+                start = max(start, NSMaxRange(above)); scan += 1
+            }
+            if start < end { result.append((kind, NSRange(location: start, length: end - start))) }
+        }
+        result += upper
+        result.sort { $0.1.location < $1.1.location }
+        return result
     }
     public func issueFieldValue(in message: String, executable: URL? = nil) throws -> String {
         try Self.naturalIssueIDs(identifiers(in: message, executable: executable))

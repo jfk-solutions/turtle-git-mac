@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-05",
+  "scope": "Commit marker formatting and preference; full editor and Advanced settings remain partial.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e",
+    "SettingsAdvanced.cpp": "1b222ebf9053e0e902f79413899dc92d35071464"
+  },
+  "tests": {
+    "count": 15,
+    "failures": 0,
+    "command": "swift test --filter 'MessageFormattingTests|MessageURLFinderTests|IssueMessageStyleTests|IssueRegexTests'",
+    "log_sha256": "c2ed28fc7a6476ea1722df6b3c0f94ed69e5c4cd5804d79ba076b69e8f967106",
+    "cases": [
+      "Marker contents, word and line boundaries",
+      "Nested overwrite order",
+      "BMP and supplementary source quirk, null termination",
+      "Preference and issue/format/URL precedence"
+    ]
+  },
+  "native": {
+    "fixture": "/tmp/TurtleGitMessageURLQA-repository",
+    "baseline": {
+      "head": "91f6f6ce459486619977df75a5eb8d7a99ad4458",
+      "index_sha256": "01f3f729e6f7b0d3087c2fd892ecc6aeeda5ad8ec8b27dd8bda0d4a6c8e25e86",
+      "working_sha256": "0e442b07e3772e8f5622478242ddf5f9f197bbd6a0402cd71471db4081abb291"
+    },
+    "precommit_head_index_working_unchanged": true,
+    "preference": "Default true; native Commit settings toggled false and true, immediately restyling open draft and keeping URL links. Final private QA defaults value 1.",
+    "undo": "Append and Undo after disabling formatting retained the exact 149-character draft.",
+    "appearance": "Actual active-window light/dark captures inspected.",
+    "successful_commit": {
+      "head": "94c50a33305423aabbeca10e8d87807caaf6101c",
+      "message": "Formatting parity\n*bold text* ^italic text^ _underlined text_\n*bold ^italic _under_ end^ bold*\n^https://example.invalid/path^\n雪 *标题*\n🦎 *source quirk*\n",
+      "tracked_bytes": "working\\n",
+      "index_sha256": "8881d728d924a5c93220382d91666765a437cd24c7b65a424a03e58db02023b7",
+      "message_verified_from": "git cat-file commit HEAD, raw body after headers"
+    },
+    "lifecycle": "One disposable QA app. Commit closed its final window; process was verified alive and Cmd-Q quit normally. Final TurtleGitMac process scan empty.",
+    "capture_note": "A transient ScreenCaptureKit error occurred during paste observation; the same binding was inspected afterward and showed the completed input.",
+    "screenshots": [
+      {
+        "path": "docs/site/assets/commit-message-format.png",
+        "sha256": "58a984bf17695f4360a353174c48bd3c458b70cea0388c9b9a5bb77040472130"
+      },
+      {
+        "path": "docs/site/assets/commit-message-format-dark.png",
+        "sha256": "ab6f5111dc071acd6d7e30c39d847ba48748a58342ef154e5ef3de4e6cb5595f"
+      }
+    ]
+  },
+  "builds": {
+    "Debug": "Unsigned build and full resource audit passed",
+    "AppStore": "Unsigned build and full resource/Git runtime audit passed",
+    "GitHub Pages": "Local site build and native PNG checks passed; publication pending"
+  },
+  "build_log_sha256": {
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "store": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "remaining": [
+    "Exact Windows language-dependent alphanumeric classification",
+    "Incremental Scintilla state, spelling/snippets and complete editor behavior",
+    "Remaining Advanced settings, full Commit parity and signed App Store acceptance",
+    "Fresh GitHub verification after publication; authentication unavailable"
+  ]
+}

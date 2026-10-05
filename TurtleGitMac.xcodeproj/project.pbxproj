@@ -102,6 +102,7 @@
 		D346F92FAD1A13414F11CBB9 /* AlternativeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1461AE9BD8BFDBA1939F33FF /* AlternativeEditorPreferences.swift */; };
 		D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */; };
 		D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = B16F443B326FDAB1414D334B /* Appearance.swift */; };
+		D79AA5AC341AC1D837C2E155 /* MessageFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 876D19E7421E1EB603F7DAD0 /* MessageFormatting.swift */; };
 		DB59BAE5F3CCA439B5A6C388 /* CreateRepositoryWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */; };
 		DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CFEE049A0098A0212AD01DA /* ResetWindow.swift */; };
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
@@ -241,6 +242,7 @@
 		83395323FFA0860A52795F9F /* Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stash.swift; sourceTree = "<group>"; };
 		85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleDiffWindow.swift; sourceTree = "<group>"; };
 		870D95A7EC384863F1C04342 /* RevisionComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionComparison.swift; sourceTree = "<group>"; };
+		876D19E7421E1EB603F7DAD0 /* MessageFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageFormatting.swift; sourceTree = "<group>"; };
 		8927431F95C0127D9B66489A /* TextConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflict.swift; sourceTree = "<group>"; };
 		9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonFileList.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
@@ -426,6 +428,7 @@
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
 				5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */,
 				F7809458AF943456197C0AC7 /* MergeWhitespace.swift */,
+				876D19E7421E1EB603F7DAD0 /* MessageFormatting.swift */,
 				E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */,
 				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
 				2FD299C13A57D2632BB2467B /* Pull.swift */,
@@ -696,6 +699,7 @@
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,
 				FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */,
 				AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */,
+				D79AA5AC341AC1D837C2E155 /* MessageFormatting.swift in Sources */,
 				603768B96A855B625D7D5E0C /* MessageURLFinder.swift in Sources */,
 				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,
 				5F4478C2B26B372096688B52 /* Pull.swift in Sources */,

@@ -1219,3 +1219,16 @@ See [source mapping and limitations](ISSUE-TRACKER-PARITY.md) and
 [recorded native acceptance](qa/commit-message-urls-2026-10-05.json).
 Unusual Windows scheme classification, incremental styles and full editor
 parity remain pending.
+
+## Marker formatting
+
+TortoiseGit's per-line `*bold*`, `^italic^` and `_underlined_` scanner and
+its overwrite order are now mapped to native attributed text. The default-on
+Style commit messages preference appears in the native Commit settings tab;
+changing it restyles open drafts, retains Undo and leaves links enabled.
+Native light/dark acceptance and a real commit verify that literal markers and
+message contents remain intact. See [source mapping and classification gaps](ISSUE-TRACKER-PARITY.md)
+and [recorded evidence](qa/commit-message-format-2026-10-05.json).
+The source supplementary-character boundary quirk is retained. Exact Windows
+locale classification, incremental editor state, spelling/snippets and full
+Advanced settings remain pending.

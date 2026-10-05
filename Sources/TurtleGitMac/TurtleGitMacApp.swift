@@ -63,6 +63,7 @@ import TurtleGitCore
         Settings {
             TabView {
                 AppearanceSettings(appearance: appearance).tabItem { Label("Appearance", systemImage: "circle.lefthalf.filled") }
+                CommitEditorSettings().tabItem { Label("Commit", systemImage: "checkmark.circle") }
                 MergeEditorSettings().tabItem { Label("Merge Editor", systemImage: "arrow.triangle.merge") }
                 BlameSettings().tabItem { Label("Blame", systemImage: "text.alignleft") }
                 AlternativeEditorSettings().tabItem { Label("Alternative Editor", systemImage: "pencil") }
