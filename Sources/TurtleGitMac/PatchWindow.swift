@@ -10,6 +10,9 @@ import UniformTypeIdentifiers
         if modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "s" {
             (patchText as? PatchTextView.PatchText)?.savePatch(nil); return true
         }
+        if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "p" {
+            (patchText as? PatchTextView.PatchText)?.printPatch(nil); return true
+        }
         if modifiers == .command, event.charactersIgnoringModifiers == "f" {
             find(.showFindInterface); return true
         }
@@ -48,6 +51,7 @@ import UniformTypeIdentifiers
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: width, height: 760))
         model.saveAs = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.savePatch(nil) }
+        model.printDiff = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.printPatch(nil) }
     }
     func windowWillClose(_ notification: Notification) {
         if let window { UserDefaults.standard.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
@@ -67,6 +71,7 @@ import UniformTypeIdentifiers
     @Published var readOnly = false { didSet { if !readOnly { originalDiff = nil } } }
     @Published var refreshAvailable = true
     var saveAs: () -> Void = {}
+    var printDiff: () -> Void = {}
     @Published var comparisonTitle = "HEAD → Working tree"
     var customRefresh: (() -> Void)?
     var readOnlyInformation: String?
@@ -132,6 +137,7 @@ struct PatchDialog: View {
                 Text(model.readOnly ? model.comparisonTitle : model.staged ? (model.base == nil ? "HEAD → Index" : "Parent → Index") : "Index → Working tree").font(.headline)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
                 Button { model.saveAs() } label: { CommandLabel(title: "Save As…", icon: .saveAs) }.disabled(model.busy)
+                Button { model.printDiff() } label: { Label("Print…", systemImage: "printer") }.disabled(model.busy)
                 if model.refreshAvailable { Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy) }
             }
             PatchTextView(model: model).frame(minWidth: 430, minHeight: 360)
@@ -221,6 +227,18 @@ struct PatchTextView: NSViewRepresentable {
     }
     final class PatchText: NSTextView {
         weak var coordinator: Coordinator?
+        private var printSession: PatchPrintSession?
+        @objc func printPatch(_ sender: Any?) {
+            guard let window, window.attachedSheet == nil, let model = coordinator?.model,
+                  !model.busy, !model.confirmingQuit, printSession == nil else { return }
+            let snapshot = NSAttributedString(attributedString: attributedString())
+            model.busy = true
+            printSession = PatchPrintSession(snapshot: snapshot, selection: selectedRange(), title: window.title) { [weak self, weak model] in
+                model?.busy = false; self?.printSession = nil
+            }
+            printSession?.run(for: window)
+        }
+        override func printView(_ sender: Any?) { printPatch(sender) }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); (window as? PatchNSWindow)?.patchText = self
         }
@@ -246,6 +264,9 @@ struct PatchTextView: NSViewRepresentable {
             let menu = NSMenu()
             let save = NSMenuItem(title: "Save As…", action: #selector(savePatch(_:)), keyEquivalent: "")
             save.target = self; save.image = MenuIcon.unifiedDiff.image(); menu.addItem(save)
+            let print = NSMenuItem(title: "Print…", action: #selector(printPatch(_:)), keyEquivalent: "")
+            print.target = self; print.image = NSImage(systemSymbolName: "printer", accessibilityDescription: "Print")
+            menu.addItem(print)
             menu.addItem(.separator())
             if !coordinator.model.readOnly {
                 for (title, selector, enabled) in [("selected hunks", #selector(Coordinator.hunks(_:)), coordinator.model.canApplyHunks), ("selected lines", #selector(Coordinator.lines(_:)), coordinator.model.canApplyLines)] {

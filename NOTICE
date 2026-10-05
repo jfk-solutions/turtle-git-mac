@@ -173,3 +173,10 @@ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS,
 WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
 TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE
 OR PERFORMANCE OF THIS SOFTWARE.
+
+PatchPrinting.swift adapts TortoiseUDiff/MainWindow.cpp ID_FILE_PRINT's
+whole-document/selected-text printing and selection default under GPL version
+2 or later. Copyright (C) 2012-2021, 2023, 2025-2026 TortoiseGit and (C)
+2003-2014, 2020 TortoiseSVN. Native AppKit print sheets, pagination and a separate
+attributed snapshot replace Windows PrintDlgEx and Scintilla FORMATRange.
+Print panel interaction and signed sandbox/printer acceptance remain pending.

@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-05",
+  "scope": "Partial native unified diff printing",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "src/TortoiseUDiff/MainWindow.cpp ID_FILE_PRINT",
+  "source_blob": "fc1d4053019e4b8bc5c2a1c08837d19c7c506751",
+  "routes": [
+    "Command-P",
+    "Toolbar Print",
+    "Context Print",
+    "Native print responder"
+  ],
+  "pdf_test": {
+    "command": "python3 scripts/test-patch-printing.py",
+    "exit": 0,
+    "selected_pages": 1,
+    "whole_diff_pages": 5,
+    "checks": [
+      "Selection default and whole-diff toggle",
+      "Selected PDF excludes first/last whole-document markers",
+      "Whole PDF includes first and last markers",
+      "Caller mutation cannot change print snapshot",
+      "Empty selection defaults to whole diff"
+    ],
+    "operation_lifetime": "Independent operation for each PDF; no reuse after completed print",
+    "gui": "No app or print sheet opened"
+  },
+  "debug_build_exit": 0,
+  "unsigned_appstore_build_exit": 0,
+  "bundle_audits": "Both passed; all 72 original icon resources and bundled NOTICE",
+  "core_tests": "Not rerun: no Core source changes; actual PDF integration test added.",
+  "native_ui_acceptance": "Pending; last known computer-use native pipe closed. No new UI launch attempted.",
+  "pending": [
+    "Native print sheet Cancel/completion and busy guards",
+    "Accessory preview selection switching",
+    "Paper size/orientation/scaling variants",
+    "Print colors/font acceptance",
+    "Physical printer and signed sandbox acceptance",
+    "File-menu exposure",
+    "Full editable UDiff and other commands"
+  ],
+  "logs": [
+    {
+      "path": "/tmp/turtlegit-patch-print-tests.log",
+      "sha256": "50b01804fcecafa679962cc52af61888db00ca0268c8fae9c6147dc1045c9699"
+    },
+    {
+      "path": "/tmp/turtlegit-patch-print-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-patch-print-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-patch-print-debug-audit.log",
+      "sha256": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0"
+    },
+    {
+      "path": "/tmp/turtlegit-patch-print-store-audit.log",
+      "sha256": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+    }
+  ]
+}

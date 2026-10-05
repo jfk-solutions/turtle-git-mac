@@ -272,3 +272,34 @@ no app process remained. No fresh screenshot, geometry acceptance, preset
 selection, dark rendering or live Apply pass is claimed. The prior screenshot
 precedes this scroll/preset change. Owner-drawn font preview remains pending.
 See [verification record](qa/unified-appearance-footer-2026-10-05.json).
+
+## Native Print command (partial port)
+
+`PatchPrinting.swift` adapts MainWindow.cpp `ID_FILE_PRINT` at blob
+`fc1d4053019e4b8bc5c2a1c08837d19c7c506751`. Command-P replaces the source
+Control-P accelerator from TortoiseUDiff.rc. Toolbar and context Print actions
+share the same handler, including the native responder `print:` action.
+
+Printing captures an independent attributed snapshot and the current selection.
+The native sheet's Unified Diff accessory selects printed text by default when
+a nonempty range is selected; without a selection it prints the whole diff and
+disables the selection choice. The accessory can switch to the whole diff.
+Native copies, page range, paper size, orientation, scaling, preview and PDF
+output replace the Windows printing interfaces. A retained operation and busy
+state block Close, Quit, staging, refresh and duplicate printing until its
+callback finishes. The displayed diff, selection and original Save As bytes are
+not passed to pagination as mutable storage.
+
+The implementation uses Apple's [print sheet callback](https://developer.apple.com/documentation/appkit/nsprintoperation/runmodal%28for%3Adelegate%3Adidrun%3Acontextinfo%3A%29)
+and [native print responder action](https://developer.apple.com/documentation/appkit/nsview/printview%28_%3A%29).
+`python3 scripts/test-patch-printing.py` compiles the real print helper and checks
+PDF output without opening TurtleGit or a print sheet: a one-page selected
+snippet excludes whole-document markers; a fresh whole-diff operation produces
+five pages retaining the first and last markers; changing the caller's mutable
+source after Print cannot alter the snapshot. Each real print request creates a
+new operation; the test also uses independent operations for its saved PDFs.
+
+Print sheet Cancel/completion, preview switching, paper variants, colors/fonts,
+physical printers, signed sandbox access and File-menu exposure remain pending.
+No native UI verification is claimed while the computer-use pipe is unavailable.
+This does not complete UDiff's editable document, Open or all print behavior.

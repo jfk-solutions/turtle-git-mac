@@ -52,6 +52,7 @@
 		52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */; };
 		53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33C40A99A3883800E7C6431 /* ResolveWindow.swift */; };
 		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
+		591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */; };
 		5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */; };
 		5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B58726A94B9B4799C06DE /* RemoveWindow.swift */; };
 		5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4B370EB64932B2909A8228 /* CloneWindow.swift */; };
@@ -198,6 +199,7 @@
 		0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflictWindow.swift; sourceTree = "<group>"; };
 		0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserWindow.swift; sourceTree = "<group>"; };
 		0657423D5C68D66703C2BB5C /* GitPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitPatch.swift; sourceTree = "<group>"; };
+		07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchPrinting.swift; sourceTree = "<group>"; };
 		0750171C26BC3934BA091775 /* FormatPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPatch.swift; sourceTree = "<group>"; };
 		0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffAppearance.swift; sourceTree = "<group>"; };
 		08425BF4A91945D52E0F6D99 /* Clone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clone.swift; sourceTree = "<group>"; };
@@ -378,6 +380,7 @@
 				63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */,
 				326985003F83908822D7B91E /* MergeWindow.swift */,
 				65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */,
+				07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */,
 				DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */,
 				1491F4A59F19B27A3FCCF966 /* PushWindow.swift */,
 				A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */,
@@ -825,6 +828,7 @@
 				78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */,
 				1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */,
 				8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */,
+				591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */,
 				241DD127E807673880A95899 /* PatchWindow.swift in Sources */,
 				8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */,
 				9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */,

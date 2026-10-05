@@ -65,6 +65,11 @@ selected palette. Defaults follow TortoiseUDiff, with Menlo as the native font.
 Focused persistence/style tests pass. Native settings navigation and all twelve
 color wells are verified; full layout and live Apply acceptance remain pending. The screenshot above predates these appearance changes.
 
+Unified diffs now offer Print through Command-P, toolbar and context menu, with
+whole-diff/selected-text choices in a native print sheet. Snapshot isolation and
+actual one-page selection/five-page whole-diff PDF output are verified;
+native print sheet and signed printer acceptance remain pending.
+
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
 icons. It browses pinned nested revisions, including bare repositories and tags,
