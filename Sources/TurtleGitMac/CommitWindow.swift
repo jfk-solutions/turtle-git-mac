@@ -517,6 +517,13 @@ import UniformTypeIdentifiers
         let paths = Set(visibleEntries.filter { $0.state != .conflicted && predicate($0) }.map(\.id))
         if stagingEnabled { moveToStage(paths, staged: true) } else { checked.formUnion(paths) }
     }
+    func setGroupChecked(_ files: [StatusEntry], checked value: Bool) {
+        guard !busy, !confirmingQuit else { return }
+        let paths = Set(files.map(\.id))
+        if stagingEnabled { moveToStage(paths, staged: value) }
+        else if value { checked.formUnion(paths) }
+        else { checked.subtract(paths) }
+    }
     func uncheckAll() {
         if stagingEnabled { moveToStage(Set(visibleEntries.filter(\.staged).map(\.id)), staged: false) }
         else { checked.subtract(visibleEntries.map(\.id)) }
@@ -838,130 +845,175 @@ GroupBox("Changes made (double-click on file for diff):") {
         let statistics = staged.map { $0 ? model.stagedStatistics : model.unstagedStatistics } ?? model.statistics
         let focusKey = staged.map { $0 ? "staged" : "unstaged" } ?? "checkbox"
         let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
-        return Table(entries, selection: selection) {
-            TableColumn("") { entry in
-                if staged != nil {
-                    StagingCheckbox(entry: entry, enabled: !model.busy) { model.moveToStage([entry.id], staged: $0) }.frame(width: 20, height: 20)
-                } else {
-                    Toggle("Include \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.id) }, set: { if $0 { model.checked.insert(entry.id) } else { model.checked.remove(entry.id) } }))
-                        .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
+        let ignored = Set(model.indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
+        let rows = StatusListGroups.rows(entries: entries, changelists: model.changelists, locallyIgnored: ignored)
+        return Table(rows, selection: selection) {
+            TableColumn("") { (row: StatusListRow) in
+                if let entry = row.entry {
+                    if staged != nil {
+                        StagingCheckbox(entry: entry, enabled: !model.busy) { model.moveToStage([entry.id], staged: $0) }.frame(width: 20, height: 20)
+                    } else {
+                        Toggle("Include \(entry.path)", isOn: Binding(get: { model.checked.contains(entry.id) }, set: { if $0 { model.checked.insert(entry.id) } else { model.checked.remove(entry.id) } }))
+                            .labelsHidden().toggleStyle(.checkbox).disabled(entry.state == .conflicted)
+                    }
                 }
             }.width(24)
-            TableColumn("Path") { entry in HStack { Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay { if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) } }; Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor) }.help(model.fileHelp(entry)) }.width(min: 260, ideal: 420)
-            TableColumn("Extension") { entry in Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path))) }.width(75)
-            TableColumn("Status") { entry in Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }.width(90)
-            TableColumn("Lines added") { entry in Text(statistics[entry.path]?.added.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(80)
-            TableColumn("Lines removed") { entry in Text(statistics[entry.path]?.removed.map(String.init) ?? "–").foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : Color.blue) }.width(95)
-        }.contextMenu(forSelectionType: String.self) { ids in
-            let selected = entries.filter { ids.contains($0.id) }
-            let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
-            let selectionMark = entries.first { $0.path == focus.wrappedValue } ?? (selected.count == 1 ? selected.first : nil)
-            if !selected.isEmpty && selected.allSatisfy({ [.untracked, .ignored].contains($0.state) }) {
-                Button { model.addFiles(selected, mode: .normal) } label: { CommandLabel(title: WorkingFileAddMode.normal.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
-                if NSEvent.modifierFlags.contains(.shift), selected.allSatisfy({ !model.submodules.contains($0.path) }) {
-                    ForEach([WorkingFileAddMode.executable, .symlink], id: \.self) { mode in
-                        Button { model.addFiles(selected, mode: mode) } label: { CommandLabel(title: mode.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
-                    }
+            TableColumn("Path") { (row: StatusListRow) in
+                if let entry = row.entry {
+                    HStack {
+                        Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
+                            if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
+                        }
+                        Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor)
+                    }.help(model.fileHelp(entry))
+                } else if let group = row.group {
+                    HStack {
+                        Text(group.title).font(.headline).foregroundStyle(Color.accentColor)
+                        Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1)
+                    }.accessibilityLabel(group.title)
                 }
-                Divider()
-            }
-            Button { model.compare(paths: ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
-            Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
-            Divider()
-            if staged != nil {
-                Button { model.moveToStage(ids, staged: true) } label: { CommandLabel(title: "Stage selected files", icon: .add) }.disabled(ids.isEmpty)
-                Button { model.moveToStage(ids, staged: false) } label: { CommandLabel(title: "Unstage selected files", icon: .revert) }.disabled(ids.isEmpty)
+            }.width(min: 260, ideal: 420)
+            TableColumn("Extension") { (row: StatusListRow) in
+                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path))) }
+                else { groupRule }
+            }.width(75)
+            TableColumn("Status") { (row: StatusListRow) in
+                if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }
+                else { groupRule }
+            }.width(90)
+            TableColumn("Lines added") { (row: StatusListRow) in
+                lineCount(row, statistics: statistics, selected: selection.wrappedValue, added: true)
+            }.width(80)
+            TableColumn("Lines removed") { (row: StatusListRow) in
+                lineCount(row, statistics: statistics, selected: selection.wrappedValue, added: false)
+            }.width(95)
+        }.contextMenu(forSelectionType: String.self) { requested in
+            let ids = requested.intersection(Set(entries.map(\.id)))
+            if requested.count == 1, let group = rows.first(where: { requested.contains($0.id) })?.group {
+                let files = StatusListGroups.files(in: group, rows: rows)
+                Button("Check group") { model.setGroupChecked(files, checked: true) }.disabled(model.busy || model.confirmingQuit)
+                Button("Uncheck group") { model.setGroupChecked(files, checked: false) }.disabled(model.busy || model.confirmingQuit)
             } else {
-                Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
-                Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
-            }
-            if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) {
-                Button { model.revertFiles(selected) } label: { CommandLabel(title: "Revert", icon: .revert) }
-            }
-            if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) && !model.submodules.contains($0.path) }) {
-                if let first = selected.first, model.restoreCopies[first.path] != nil {
-                    Button { model.restoreNow(ids) } label: { CommandLabel(title: "Restore", icon: .restore) }
-                } else {
-                    Button { model.markForRestore(ids) } label: { CommandLabel(title: "Restore after commit", icon: .restore) }
-                }
-            }
-            if flagFiles.count == selected.count { IndexFlagsMenu(files: flagFiles) { model.setFlags($0, files: flagFiles) } }
-            if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
-                Divider()
-                ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onResolve)
-            }
-            if selected.count == 1, let entry = selected.first {
-                Divider()
-                if entry.state != .untracked && entry.state != .ignored {
-                    Button { model.onFileLog(entry.path) } label: { CommandLabel(title: "Show log", icon: .log) }
-                    if entry.state != .deleted {
-                        Button { model.onRename(entry.path) } label: { CommandLabel(title: "Rename…", icon: .rename) }
+                let selected = entries.filter { ids.contains($0.id) }
+                let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
+                let selectionMark = entries.first { $0.path == focus.wrappedValue } ?? (selected.count == 1 ? selected.first : nil)
+                if !selected.isEmpty && selected.allSatisfy({ [.untracked, .ignored].contains($0.state) }) {
+                    Button { model.addFiles(selected, mode: .normal) } label: { CommandLabel(title: WorkingFileAddMode.normal.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
+                    if NSEvent.modifierFlags.contains(.shift), selected.allSatisfy({ !model.submodules.contains($0.path) }) {
+                        ForEach([WorkingFileAddMode.executable, .symlink], id: \.self) { mode in
+                            Button { model.addFiles(selected, mode: mode) } label: { CommandLabel(title: mode.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
+                        }
                     }
-                    if let oldPath = entry.originalPath {
-                        Button { model.onFileLog(oldPath) } label: { CommandLabel(title: "Show log of old name", icon: .log) }
-                    }
-                    if entry.state != .added && entry.state != .deleted && !model.submodules.contains(entry.path) {
-                        Button { model.onFileBlame(entry.path) } label: { CommandLabel(title: "Blame", icon: .blame) }
-                    }
-                }
-            }
-            if !selected.isEmpty && selected.allSatisfy({ $0.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent($0.path).path) }) {
-                Button { model.chooseExportFolder(selected.map(\.path)) } label: { CommandLabel(title: "Export…", icon: .export) }.disabled(model.busy || model.confirmingQuit)
-            }
-            if selected.count == 1, let entry = selected.first {
-                if entry.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent(entry.path).path) {
-                    if !model.submodules.contains(entry.path) {
-                        Button { model.openInEditor(entry.path) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy || model.confirmingQuit)
-                        Button { model.openFile(entry.path) } label: { CommandLabel(title: "Open", icon: .open) }
-                        Button { model.chooseApplication(entry.path) } label: { CommandLabel(title: "Open With…", icon: .open) }
-                    }
-                    Button { NSWorkspace.shared.activateFileViewerSelecting([model.repository.root.appendingPathComponent(entry.path)]) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
-                }
-            }
-            if !selected.isEmpty && selectionMark?.canDeleteFromStatusList == true {
-                Button { model.deleteFiles(selected, selectionMark: selectionMark, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(model.busy || model.confirmingQuit)
-            }
-            if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
-                Divider()
-                IgnoreSelectionMenu(paths: selected.map(\.path), action: model.onIgnore)
-            }
-            if !selected.isEmpty {
-                Divider()
-                Menu {
-                    ForEach(CommitWindowModel.CopyFileInformation.allCases, id: \.self) { information in
-                        Button { model.copyFiles(selected, information: information, staged: staged) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
-                    }
-                } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
-            }
-            // The pinned upstream gate compares legacy status values to action
-            // bits: only a pure Added action (1) is excluded, not UNVER (0x80000000).
-            if !selected.isEmpty, let mark = selectionMark, !(mark.index == "A" && mark.worktree == " ") {
-                Divider()
-                if selected.contains(where: { model.changelists.assignments[$0.path] != nil }) {
-                    Button("Remove from changelist") { model.moveToChangelist(selected.map(\.path), name: nil) }
-                }
-                Menu("Move to changelist") {
-                    Button("<new changelist>") { model.newChangelist(selected) }
                     Divider()
-                    Button(GitChangelists.ignored) { model.moveToChangelist(selected.map(\.path), name: GitChangelists.ignored) }
-                    let names = model.changelists.names.filter { $0 != GitChangelists.ignored }
-                    if !names.isEmpty {
-                        Divider()
-                        ForEach(names, id: \.self) { name in Button(name) { model.moveToChangelist(selected.map(\.path), name: name) } }
+                }
+                Button { model.compare(paths: ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
+                Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
+                Divider()
+                if staged != nil {
+                    Button { model.moveToStage(ids, staged: true) } label: { CommandLabel(title: "Stage selected files", icon: .add) }.disabled(ids.isEmpty)
+                    Button { model.moveToStage(ids, staged: false) } label: { CommandLabel(title: "Unstage selected files", icon: .revert) }.disabled(ids.isEmpty)
+                } else {
+                    Button { model.check { ids.contains($0.id) } } label: { CommandLabel(title: "Check selected files", icon: .add) }
+                    Button { model.checked.subtract(ids) } label: { CommandLabel(title: "Uncheck selected files", icon: .revert) }
+                }
+                if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) {
+                    Button { model.revertFiles(selected) } label: { CommandLabel(title: "Revert", icon: .revert) }
+                }
+                if !selected.isEmpty && selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) && !model.submodules.contains($0.path) }) {
+                    if let first = selected.first, model.restoreCopies[first.path] != nil {
+                        Button { model.restoreNow(ids) } label: { CommandLabel(title: "Restore", icon: .restore) }
+                    } else {
+                        Button { model.markForRestore(ids) } label: { CommandLabel(title: "Restore after commit", icon: .restore) }
                     }
                 }
-                Toggle("Keep changelists", isOn: Binding(get: { model.keepChangelists }, set: { model.saveKeepChangelists($0) }))
+                if flagFiles.count == selected.count { IndexFlagsMenu(files: flagFiles) { model.setFlags($0, files: flagFiles) } }
+                if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
+                    Divider()
+                    ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onResolve)
+                }
+                if selected.count == 1, let entry = selected.first {
+                    Divider()
+                    if entry.state != .untracked && entry.state != .ignored {
+                        Button { model.onFileLog(entry.path) } label: { CommandLabel(title: "Show log", icon: .log) }
+                        if entry.state != .deleted {
+                            Button { model.onRename(entry.path) } label: { CommandLabel(title: "Rename…", icon: .rename) }
+                        }
+                        if let oldPath = entry.originalPath {
+                            Button { model.onFileLog(oldPath) } label: { CommandLabel(title: "Show log of old name", icon: .log) }
+                        }
+                        if entry.state != .added && entry.state != .deleted && !model.submodules.contains(entry.path) {
+                            Button { model.onFileBlame(entry.path) } label: { CommandLabel(title: "Blame", icon: .blame) }
+                        }
+                    }
+                }
+                if !selected.isEmpty && selected.allSatisfy({ $0.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent($0.path).path) }) {
+                    Button { model.chooseExportFolder(selected.map(\.path)) } label: { CommandLabel(title: "Export…", icon: .export) }.disabled(model.busy || model.confirmingQuit)
+                }
+                if selected.count == 1, let entry = selected.first {
+                    if entry.state != .deleted && FileManager.default.fileExists(atPath: model.repository.root.appendingPathComponent(entry.path).path) {
+                        if !model.submodules.contains(entry.path) {
+                            Button { model.openInEditor(entry.path) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy || model.confirmingQuit)
+                            Button { model.openFile(entry.path) } label: { CommandLabel(title: "Open", icon: .open) }
+                            Button { model.chooseApplication(entry.path) } label: { CommandLabel(title: "Open With…", icon: .open) }
+                        }
+                        Button { NSWorkspace.shared.activateFileViewerSelecting([model.repository.root.appendingPathComponent(entry.path)]) } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }
+                    }
+                }
+                if !selected.isEmpty && selectionMark?.canDeleteFromStatusList == true {
+                    Button { model.deleteFiles(selected, selectionMark: selectionMark, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }.disabled(model.busy || model.confirmingQuit)
+                }
+                if !selected.isEmpty && selected.allSatisfy({ [.untracked, .deleted].contains($0.state) }) {
+                    Divider()
+                    IgnoreSelectionMenu(paths: selected.map(\.path), action: model.onIgnore)
+                }
+                if !selected.isEmpty {
+                    Divider()
+                    Menu {
+                        ForEach(CommitWindowModel.CopyFileInformation.allCases, id: \.self) { information in
+                            Button { model.copyFiles(selected, information: information, staged: staged) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
+                        }
+                    } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
+                }
+                // The pinned upstream gate compares legacy status values to action
+                // bits: only a pure Added action (1) is excluded, not UNVER (0x80000000).
+                if !selected.isEmpty, let mark = selectionMark, !(mark.index == "A" && mark.worktree == " ") {
+                    Divider()
+                    if selected.contains(where: { model.changelists.assignments[$0.path] != nil }) {
+                        Button("Remove from changelist") { model.moveToChangelist(selected.map(\.path), name: nil) }
+                    }
+                    Menu("Move to changelist") {
+                        Button("<new changelist>") { model.newChangelist(selected) }
+                        Divider()
+                        Button(GitChangelists.ignored) { model.moveToChangelist(selected.map(\.path), name: GitChangelists.ignored) }
+                        let names = model.changelists.names.filter { $0 != GitChangelists.ignored }
+                        if !names.isEmpty {
+                            Divider()
+                            ForEach(names, id: \.self) { name in Button(name) { model.moveToChangelist(selected.map(\.path), name: name) } }
+                        }
+                    }
+                    Toggle("Keep changelists", isOn: Binding(get: { model.keepChangelists }, set: { model.saveKeepChangelists($0) }))
+                }
             }
-        } primaryAction: { ids in
+        } primaryAction: { requested in
+            let ids = requested.intersection(Set(entries.map(\.id)))
             selection.wrappedValue = ids
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(entries: entries, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }))
+        .background(CommitFileInteraction(rows: rows, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }))
         .onChange(of: selection.wrappedValue) { ids in
-            if ids.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = ids.first }
+            let files = ids.intersection(Set(entries.map(\.id)))
+            if files.count == 1 && NSEvent.modifierFlags.intersection([.command, .shift]).isEmpty { focus.wrappedValue = files.first }
         }
     }
+    @ViewBuilder private func lineCount(_ row: StatusListRow, statistics: [String: CommitFile], selected: Set<String>, added: Bool) -> some View {
+        if let entry = row.entry {
+            let count: Int? = added ? statistics[entry.path]?.added : statistics[entry.path]?.removed
+            let label = count.map { String($0) } ?? "–"
+            Text(label).foregroundStyle(selected.contains(entry.id) ? Color.primary : Color.blue)
+        } else { groupRule }
+    }
+    private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }
     func checkButton(_ title: String, enabled: Bool = true, action: @escaping () -> Void) -> some View { Button(title, action: action).buttonStyle(.plain).foregroundStyle(enabled ? Color.blue : Color.secondary).disabled(!enabled) }
 }
 

@@ -91,9 +91,9 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   submodule toggle and broader Commit action combinations remain.
 - Message-history native workflow QA, template native workflow QA and other text encodings,
   completion, spelling, issue IDs and tracker plugins.
-- Changelist group rows, group actions and drag/drop, dirty-submodule commit prompts, unversioned file preview,
+- Broader grouped-list selection and conditional workflows, dirty-submodule commit prompts, unversioned file preview,
   file counts for untracked paths, staged/unstaged rename interactions.
-- Remaining file context command audit, including changelist groups and broader clipboard verification, plus broader Delete selection verification. File Blame/log/open/reveal
+- Remaining file context command audit, including broader grouped-list and clipboard verification, plus broader Delete selection verification. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
 - Progress window with cancellation, interactive hooks/editors/signing and
   authentication prompts; remaining persistent dialog preferences.
@@ -908,8 +908,65 @@ committing with Keep enabled retained its assignment. All QA instances were
 closed after testing. `site/assets/commit-changelist.png` is the inspected actual
 Create Changelist sheet, captured before dismissal.
 
-This is partial changelist parity. The file table currently shows membership in
-path tooltips; upstream group headers, group check/context actions, drag/drop,
-staging-mode native acceptance, dark appearance, ReCommit and broader signed
-sandbox workflows remain pending. The current screenshot does not demonstrate
-those missing group rows.
+The initial Create Changelist screenshot predates grouped rows. The grouped-list
+work and its separate native captures are described below. ReCommit, scoped,
+restore-after-commit and broader signed sandbox changelist workflows still need
+native acceptance.
+
+
+## Status/changelist group layout and actions
+
+`PrepareGroups`, `GetChangeListIdForPath`, `SetItemGroup` and
+`OnContextMenuGroup` now have native Commit counterparts. Grouping activates
+when there are changelist assignments or displayed unversioned/ignored/locally
+ignored paths. Explicit changelist membership takes precedence over status and
+index flags. Unassigned files appear in Modified Files, Not Versioned Files,
+Ignored Files or Local changes ignored; named changelists follow in name order,
+and `ignore-on-commit` is last. Empty headings are omitted. The upstream
+`(no changelist)` heading is inserted but `SetItemGroup` routes unassigned files
+to their status categories; the native list follows that effective placement.
+
+Headers appear within the original columned file list with accent-colored names
+and horizontal rules in light and dark modes. Their context menu has the upstream
+Check group and Uncheck group commands. Checkbox mode changes the group's checks;
+staging mode stages or unstages its paths. These actions retain other groups,
+working contents and unrelated staged edits. Membership tooltips remain available.
+
+Headers have IDs containing NUL, which cannot be Git paths. Every file command
+filters header IDs, and the AppKit interaction bridge maps actual table row
+positions through the grouped row model. This prevents extra headings from
+shifting the files targeted by keyboard Delete and clicked-column clipboard
+commands. Plain header clicks are consumed; ordinary Up/Down and Home/End skip
+headers. Range selection retains native AppKit behavior and may highlight a
+header, while file commands resolve only the real file rows.
+
+Four model tests cover category precedence, name ordering, ignore-last placement,
+hidden memberships, empty groups, duplicate-looking heading names, literal newline
+filenames, index-based file target resolution and nonwrapping navigation. Together
+with clipboard/Delete regression coverage, 15 focused tests pass. Both app build
+configurations and bundle audits pass.
+
+Native QA verified the status/Alpha/Beta/ignored order, Check and Uncheck changing
+only the two Alpha files, initial Down and Home skipping headings, selection of
+both Alpha files and exact Command-C path output. Staging-mode Check group staged
+both Alpha files; Uncheck group restored their original index blobs, retaining the
+unrelated staged `a-modified.txt` blob, HEAD and all working bytes. Keyboard Trash
+showed a one-file prompt for the untracked row; No preserved it and Yes removed
+only that file while leaving the exact raw index, HEAD and all other files intact.
+The unversioned heading disappeared when its last row was removed.
+
+`site/assets/commit-groups-light.png` and `commit-groups-dark.png` are inspected
+actual 2000 × 1584 captures after that disposable Trash check. Dark appearance was
+verified in a fresh preview after an appearance-menu automation failure; this does
+not establish native menu-switch acceptance. QA instances ran sequentially and
+were closed. The stuck menu instance required SIGTERM of its identified disposable
+process after normal Quit failed; no system services were terminated.
+
+Audit correction: changelist drag/drop is disabled behind `#if 0` in the pinned
+`CGitStatusListCtrlDropTarget::OnDrop`, and `DragOver` rejects drops on group
+headers. We do not count disabled group movement as an active upstream workflow.
+Normal file-drop behavior remains under audit. Merge-parent grouping belongs to
+historical comparison views and is not implemented here. Broader range selection,
+first-request grouped clipboard-column acceptance, ignored/local-flag native
+variants, accessibility group semantics and signed sandbox workflows remain
+partial.

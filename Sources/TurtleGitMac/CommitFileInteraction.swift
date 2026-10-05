@@ -5,7 +5,7 @@ import TurtleGitCore
 /// Observe the public AppKit table underlying a SwiftUI Table without replacing
 /// its selection, accessibility, checkbox or context-menu implementations.
 struct CommitFileInteraction: NSViewRepresentable {
-    let entries: [StatusEntry]
+    let rows: [StatusListRow]
     @Binding var focusedPath: String?
     let enabled: Bool
     let delete: ([StatusEntry], StatusEntry, Bool) -> Void
@@ -17,13 +17,13 @@ struct CommitFileInteraction: NSViewRepresentable {
         CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
     }
     func updateNSView(_ view: Probe, context: Context) {
-        view.entries = entries; view.focusedPath = $focusedPath
+        view.rows = rows; view.focusedPath = $focusedPath
         view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn
     }
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
 
     final class Probe: NSView {
-        var entries: [StatusEntry] = []
+        var rows: [StatusListRow] = []
         var focusedPath: Binding<String?>?
         private var contextColumn: StatusListColumn?
         private var contextEntries: [StatusEntry] = []
@@ -86,34 +86,46 @@ struct CommitFileInteraction: NSViewRepresentable {
                 guard let content = window.contentView,
                       let table = table(at: event.locationInWindow, in: content) else { return event }
                 let row = table.row(at: table.convert(event.locationInWindow, from: nil))
-                if event.type == .rightMouseDown && entries.indices.contains(row) {
+                if event.type == .rightMouseDown && rows.indices.contains(row), rows[row].entry != nil {
                     let column = table.column(at: table.convert(event.locationInWindow, from: nil))
                     contextColumn = StatusListColumn.nativeColumn(column)
                     let rows = table.selectedRowIndexes.contains(row) ? table.selectedRowIndexes : IndexSet(integer: max(0, row))
-                    contextEntries = rows.compactMap { entries.indices.contains($0) ? entries[$0] : nil }
+                    contextEntries = StatusListGroups.files(at: rows, in: self.rows)
                 }
-                guard entries.indices.contains(row) else { return event }
+                guard rows.indices.contains(row) else { return event }
+                guard let entry = rows[row].entry else { return event.type == .leftMouseDown ? nil : event }
                 // Right-clicking a selected row preserves the selection mark;
                 // Shift extends the range from the existing mark.
                 let preserve = event.type == .rightMouseDown && table.selectedRowIndexes.contains(row)
                     || event.modifierFlags.contains(.shift)
-                if !preserve || focusedPath?.wrappedValue == nil { focusedPath?.wrappedValue = entries[row].path }
+                if !preserve || focusedPath?.wrappedValue == nil { focusedPath?.wrappedValue = entry.path }
                 return event
             }
             guard let table = window.firstResponder as? NSTableView, contains(table) else { return event }
             let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
             contextColumn = nil; contextEntries = []
+            // Headers are presentation rows. Skip them for ordinary navigation,
+            // retaining AppKit's range selection and modifier behavior.
+            if flags.isEmpty, rows.contains(where: { $0.group != nil }), [125, 126, 115, 119].contains(event.keyCode) {
+                let forward = event.keyCode == 125 || event.keyCode == 115
+                let endpoint = event.keyCode == 115 || event.keyCode == 119
+                let current = endpoint || table.selectedRow < 0 ? nil : Optional(table.selectedRow)
+                guard let target = StatusListGroups.nextFileRow(after: current, forward: forward, in: rows), let entry = rows[target].entry else { return nil }
+                table.selectRowIndexes(IndexSet(integer: target), byExtendingSelection: false)
+                table.scrollRowToVisible(target); focusedPath?.wrappedValue = entry.path
+                return nil
+            }
             let commandCopy = event.keyCode == 8 && flags.contains(.command) && !flags.contains(.control) && !flags.contains(.option)
             let controlInsert = event.keyCode == 114 && flags.contains(.control)
             if commandCopy || controlInsert {
-                let selected = table.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0] : nil }
+                let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
                 guard !selected.isEmpty else { return event }
                 copy(selected, flags.contains(.shift)); return nil
             }
             if event.keyCode == 51 || event.keyCode == 117 {
                 guard enabled else { return event }
-                let selected = table.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0] : nil }
-                let mark = entries.first { $0.path == focusedPath?.wrappedValue } ?? (selected.count == 1 ? selected.first : nil)
+                let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
+                let mark = rows.compactMap(\.entry).first { $0.path == focusedPath?.wrappedValue } ?? (selected.count == 1 ? selected.first : nil)
                 guard !selected.isEmpty, let mark, mark.canDeleteWithKeyboard else { return event }
                 delete(selected, mark, flags.contains(.shift))
                 return nil
@@ -123,8 +135,8 @@ struct CommitFileInteraction: NSViewRepresentable {
             if [123, 124, 125, 126, 115, 119].contains(event.keyCode), !flags.contains(.shift) {
                 DispatchQueue.main.async { [weak self, weak table] in
                     guard let self, let table, table.selectedRowIndexes.count == 1,
-                          self.entries.indices.contains(table.selectedRow) else { return }
-                    self.focusedPath?.wrappedValue = self.entries[table.selectedRow].path
+                          self.rows.indices.contains(table.selectedRow), let entry = self.rows[table.selectedRow].entry else { return }
+                    self.focusedPath?.wrappedValue = entry.path
                 }
             }
             return event
