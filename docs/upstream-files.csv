@@ -2276,7 +2276,7 @@ src/TortoiseProc/Commands/FetchCommand.cpp,TortoiseProc,blob,f4c60bae0c5c297c249
 src/TortoiseProc/Commands/FetchCommand.h,TortoiseProc,blob,49d248173f9f6df1d04ee9f7155fe7bdf5c5dedd,partial-native,Sources/TurtleGitMac/FetchWindow.swift; Sources/TurtleGitCore/Fetch.swift; Sources/TurtleGitMac/RepositoryModel.swift,"Native Fetch layout and narrow workflows verified; Pull mode, rebase launch, progress/settings parity pending; see FETCH-PARITY.md."
 src/TortoiseProc/Commands/FirstStartWizardCommand.cpp,TortoiseProc,blob,fe9a488b26eb83d9e95dc2fd248805e4b353e484,pending-review,,
 src/TortoiseProc/Commands/FirstStartWizardCommand.h,TortoiseProc,blob,cf012fbc7758d8f6ff8b464ebfa05d42474da6e4,pending-review,,
-src/TortoiseProc/Commands/FormatPatchCommand.cpp,TortoiseProc,blob,0e05626d7c64c484276c45d5a004d2d9f3d668d3,pending-review,,
+src/TortoiseProc/Commands/FormatPatchCommand.cpp,TortoiseProc,blob,0e05626d7c64c484276c45d5a004d2d9f3d668d3,partial-native-replacement,Sources/TurtleGitCore/FormatPatch.swift,Since/count/range and no-prefix repository operation; five integration tests; native dialog/progress/mail/action routing pending. See docs/FORMAT-PATCH-PARITY.md.
 src/TortoiseProc/Commands/FormatPatchCommand.h,TortoiseProc,blob,68193c94e6f64616e74012d789910e5e56bc2680,pending-review,,
 src/TortoiseProc/Commands/HelpCommand.h,TortoiseProc,blob,9bbc80e67728a03c3ae3f2c7e28dd09ab8269bdf,pending-review,,
 src/TortoiseProc/Commands/IgnoreCommand.cpp,TortoiseProc,blob,b88a003fa0cbe0b5f1011bf09fd03b358ac1f68f,partial,Sources/TurtleGitCore/Ignore.swift; Sources/TurtleGitMac/IgnoreWindow.swift,Native rule scope/destination dialog and Ignore/Delete-ignore orchestration; broader menu/recovery/signed QA pending. See docs/IGNORE-PARITY.md.

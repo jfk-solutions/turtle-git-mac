@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-05",
+  "scope": "Format Patch repository operation only; native dialog and mail workflow pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "tests": {
+    "suite": "FormatPatchTests",
+    "count": 5,
+    "failures": 0,
+    "coverage": [
+      "since/count/range and empty range",
+      "binary mail patch git am round trip",
+      "HEAD/index/working bytes unchanged",
+      "no-prefix and existing patch replacement",
+      "invalid selection and option-shaped revision",
+      "metadata output and symlink alias rejection",
+      "bare export and metadata guard",
+      "sole for-merge FETCH_HEAD selection and ambiguity rejection"
+    ]
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "bundle_audits": {
+    "Debug": "passed",
+    "AppStore_require_git": "passed"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "log_sha256": {
+    "FormatPatchTests": "7cf9cdf4a6559edb705dc1208cbd9ec60b580beeaea97ffdad749ebf584fa723",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "gui_apps_launched": 0,
+  "limitations": [
+    "Native dialog and action/menu routing pending",
+    "Progress/cancellation and optional mail composition pending",
+    "Output leases and signed sandbox verification pending",
+    "GitHub has not run this local commit"
+  ]
+}

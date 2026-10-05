@@ -12,6 +12,7 @@
 		02B318481C48E5ACC8497EF9 /* MessageSnippets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81E52787ACF6315F812EA290 /* MessageSnippets.swift */; };
 		04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 147C1880748CAF195D6A19CA /* BlameWindow.swift */; };
 		05736B77F7D781FD78B2665B /* WorkingFileExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */; };
+		08649F1E93CBDC2DE8ADD500 /* FormatPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0750171C26BC3934BA091775 /* FormatPatch.swift */; };
 		0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */; };
 		0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */; };
 		0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FB406B12CA9FED59A3121 /* FinderCache.swift */; };
@@ -190,6 +191,7 @@
 		0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflictWindow.swift; sourceTree = "<group>"; };
 		0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserWindow.swift; sourceTree = "<group>"; };
 		0657423D5C68D66703C2BB5C /* GitPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitPatch.swift; sourceTree = "<group>"; };
+		0750171C26BC3934BA091775 /* FormatPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPatch.swift; sourceTree = "<group>"; };
 		08425BF4A91945D52E0F6D99 /* Clone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clone.swift; sourceTree = "<group>"; };
 		0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rebase.swift; sourceTree = "<group>"; };
 		0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLabel.swift; sourceTree = "<group>"; };
@@ -434,6 +436,7 @@
 				FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */,
 				F01FB406B12CA9FED59A3121 /* FinderCache.swift */,
 				BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */,
+				0750171C26BC3934BA091775 /* FormatPatch.swift */,
 				4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */,
 				50C02E4063D7394453CC537A /* GitBlamePreferences.swift */,
 				3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */,
@@ -712,6 +715,7 @@
 				7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */,
 				0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */,
 				AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */,
+				08649F1E93CBDC2DE8ADD500 /* FormatPatch.swift in Sources */,
 				39DF8589F3A2226D095F7C2E /* GitBlame.swift in Sources */,
 				C23CCEFA7DA0A805EFCE94C7 /* GitBlamePreferences.swift in Sources */,
 				EFF9A599551FEE689010B300 /* GitBlamePresentation.swift in Sources */,

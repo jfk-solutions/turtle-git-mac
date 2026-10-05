@@ -94,3 +94,9 @@ TortoiseSVN. Native table-row item providers replace Windows OLE for this consum
 other GitDataObject consumers, Finder drop acceptance and signed transfer remain
 under development. Symlink blobs export as regular target text; gitlinks are
 skipped. Native export copies preserve executable permission as a macOS adaptation.
+
+FormatPatch.swift adapts the command construction in FormatPatchCommand.cpp
+and the sole-for-merge FETCH_HEAD choice in Git.cpp, under GPL version 2 or later.
+Copyright (C) 2009, 2015-2016, 2018-2019, 2023, 2026 TortoiseGit and (C) 2007-2008
+TortoiseSVN (FormatPatchCommand); Copyright (C) 2008-2026 TortoiseGit (Git.cpp).
+The native Format Patch dialog and mail composition workflow remain pending.

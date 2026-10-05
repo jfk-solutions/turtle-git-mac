@@ -7,6 +7,11 @@ integration. This first implementation establishes the architecture and common
 workflows. It does **not** represent the complete port or reproduce all upstream
 windows. No item is complete merely because its underlying Git command runs.
 
+Format Patch's three export modes and no-prefix command are implemented in the
+repository layer with five integration tests, including binary mail patch
+application. Its native dialog and mail workflow remain pending; see
+[FORMAT-PATCH-PARITY.md](FORMAT-PATCH-PARITY.md) for the audited controls and scope.
+
 ## Audited baseline
 
 Upstream: https://github.com/TortoiseGit/TortoiseGit
