@@ -111,3 +111,39 @@ See [snippet acceptance](qa/commit-snippets-2026-10-05.json).
 
 Code-symbol extraction, spelling, full popup lifecycle/keyboard parity,
 accessibility and signed sandbox workflows are still outstanding.
+
+## Keyboard dispatch follow-up
+
+The original native key handler requested completion after any nonempty key
+character. Arrow and delete keys can have such characters despite inserting no
+text. It now records actual NSTextView insertText calls during an ordinary typed
+key event, matching SciEdit's SCN_CHARADDED trigger more closely. Navigation,
+deletions, clipboard commands and programmatic snippet acceptance do not by
+themselves request automatic completion.
+
+With no active popup, Tab/Shift-Tab call the native window's next/previous key
+view selection rather than inserting a tab in the message. This maps the source
+WM_NEXTDLGCTL rule to macOS focus order and keyboard-navigation preferences.
+Tab continues to accept an active popup. Ctrl-Tab spelling suggestions remain
+unported, and input-method composition/full popup lifecycle still need acceptance.
+
+Unsigned Debug/App Store builds, bundle audits and eight completion/snippet
+regression tests passed. **Native acceptance of this keyboard change is pending:**
+the Mac locked before controls could be inspected. The single disposable preview
+was identified by its exact executable path and stopped with SIGTERM because
+normal UI Quit was unavailable; the final process scan was empty.
+
+When the Mac is available, verify the following against the same disposable
+checked Widget.swift / unchecked Window.swift fixture:
+
+1. Type Wid and verify automatic completion, then Right/Left without reopening.
+2. Type a matching longer prefix, dismiss, then Backspace/Delete without reopening;
+   type another character and verify completion returns.
+3. Paste a matching prefix without opening automatic completion, then Ctrl-Space
+   and Tab acceptance, followed by Undo to the prefix.
+4. With no popup, Tab and Shift-Tab change native focus without changing the draft;
+   with a popup, Tab accepts the candidate instead.
+5. Verify HEAD, raw index and working bytes remain unchanged, and quit the sole
+   preview normally after testing.
+
+See [build and pending acceptance record](qa/commit-completion-keys-2026-10-05.json).

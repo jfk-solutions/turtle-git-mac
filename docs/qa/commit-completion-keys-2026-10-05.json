@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-05",
+  "scope": "Commit completion key dispatch; native keyboard acceptance pending",
+  "source": "SciEdit.cpp SCN_CHARADDED and PreTranslateMessage VK_TAB",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e",
+  "changes": [
+    "Automatic completion only after actual typed insertions",
+    "Tab/Shift-Tab with no popup use native key-view focus order"
+  ],
+  "tests": {
+    "count": 8,
+    "failures": 0,
+    "command": "swift test --filter 'MessageCompletionTests|MessageSnippetTests'",
+    "log_sha256": "b99e4c4ef3bf19bf64d159b7a60f19a49914cb8f7ed69a0d07b1a818a415886e",
+    "coverage": "Core completion and snippet regressions; does not establish native keyboard acceptance"
+  },
+  "builds": {
+    "Debug": "Unsigned build and full bundle audit passed",
+    "AppStore": "Unsigned build and Git/helper/resource audit passed"
+  },
+  "build_log_sha256": {
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "store": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "native": {
+    "status": "pending",
+    "reason": "Computer-use tool reported Mac locked before keyboard acceptance; user unlock requested",
+    "fixture": "/tmp/TurtleGitCompletionQA-repository",
+    "baseline": {
+      "head": "f5ee44fd4101f16ec9e31ff417c0508d62237e94",
+      "index_sha256": "7768dc6d5bd6dd3dd05a3eb97f63daa0ade5790759981c200e6f9d6ddfbb64c6",
+      "working_sha256": "0e442b07e3772e8f5622478242ddf5f9f197bbd6a0402cd71471db4081abb291"
+    },
+    "HEAD_raw_index_tracked_working_unchanged": true,
+    "lifecycle": "One owned QA PID 99725, executable /private/tmp/TurtleGitKeysQA.app/Contents/MacOS/TurtleGitMac. Initial cgWindowNotFound did not imply termination; ps verified process alive. Locked Mac prevented normal Quit. Exact-path PID rechecked before SIGTERM; final process scan empty."
+  },
+  "remaining": [
+    "Native arrow/delete/paste/Tab/Shift-Tab acceptance",
+    "Ctrl-Tab spelling suggestions",
+    "IME and full popup keyboard behavior",
+    "Signed sandbox/App Store acceptance"
+  ]
+}

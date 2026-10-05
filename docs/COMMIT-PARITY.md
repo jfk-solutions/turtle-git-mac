@@ -1246,3 +1246,8 @@ User/shipped snippets now use the original snippet icon and source parsing,
 priority and word-expansion rules. Native multiline/Undo/collision/refresh
 acceptance is recorded in the [completion audit](COMMIT-COMPLETION-PARITY.md).
 Code-symbol extraction, spelling and full editor behavior remain pending.
+
+Keyboard dispatch now gates automatic completion on typed insertions, with
+native Tab/Shift-Tab focus routing. Builds and completion/snippet regressions
+pass; native keyboard acceptance is pending because the Mac locked before QA.
+See the [completion audit](COMMIT-COMPLETION-PARITY.md).

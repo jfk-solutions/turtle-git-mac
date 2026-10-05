@@ -50,6 +50,8 @@ private final class MessageTextView: NSTextView {
     weak var model: CommitWindowModel?
     private let completionPopup = CommitCompletionPopup()
     private var completionRange: NSRange?
+    private var processingTypedKey = false
+    private var insertedTypedText = false
     override func keyDown(with event: NSEvent) {
         if completionPopup.isShown {
             if event.keyCode == 53 { completionPopup.close(); return }
@@ -60,8 +62,21 @@ private final class MessageTextView: NSTextView {
         if modifiers == .control && event.keyCode == 49 { showCompletions(minimum: 1); return }
         if modifiers == .option && event.keyCode == 53 { showCompletions(minimum: 1); return }
         completionPopup.close()
+        if event.keyCode == 48 && !modifiers.contains(.control) && !modifiers.contains(.command) {
+            if event.modifierFlags.contains(.shift) { window?.selectPreviousKeyView(self) }
+            else { window?.selectNextKeyView(self) }
+            return
+        }
+        processingTypedKey = modifiers.isEmpty
+        insertedTypedText = false
         super.keyDown(with: event)
-        if modifiers.isEmpty, event.characters?.isEmpty == false { showCompletions(minimum: UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? Int ?? 3) }
+        processingTypedKey = false
+        if insertedTypedText { showCompletions(minimum: UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? Int ?? 3) }
+    }
+    override func insertText(_ insertString: Any, replacementRange: NSRange) {
+        super.insertText(insertString, replacementRange: replacementRange)
+        let text = (insertString as? String) ?? (insertString as? NSAttributedString)?.string ?? ""
+        if processingTypedKey && !text.isEmpty { insertedTypedText = true }
     }
     override func complete(_ sender: Any?) { showCompletions(minimum: 1) }
     private func showCompletions(minimum: Int) {
