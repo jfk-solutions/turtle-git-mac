@@ -268,3 +268,8 @@ TortoiseGit; Copyright (C) 2003-2008 TortoiseSVN), under GPL version 2 or later.
 Windows folder/extended-menu flags use native cached status and metadata;
 Finder's targetless toolbar opens existing native creation/picker workflows.
 Full shell classification, multiple-folder creation and signed acceptance remain pending.
+
+Finder command snapshots adapt ContextMenu.cpp's retained selection/path command
+dispatch: native menu items hold immutable FinderRequest values, and Control
+changes only comparison-mark commands at activation. Backend permission and
+selection validation remains required; activated/signed handoff remains pending.

@@ -30,7 +30,7 @@ import TurtleGitCore
             menu.items.flatMap { [$0] + ($0.submenu.map(items) ?? []) }
         }
         func signatures(_ menu: NSMenu) -> [String] {
-            items(menu).map { "\($0.title)|\($0.isEnabled)|\($0.representedObject as? String ?? "")|\($0.state.rawValue)" }
+            items(menu).map { "\($0.title)|\($0.isEnabled)|\(($0.representedObject as? FinderMenuCommand)?.url()?.absoluteString ?? "")|\($0.state.rawValue)" }
         }
         func make(_ paths: [URL], settings: FinderMenuSettings, mark: WorkingComparisonMarkSnapshot? = nil) -> NSMenu {
             FinderMenuBuilder.make(paths: paths, snapshot: snapshot, settings: settings,
@@ -44,7 +44,7 @@ import TurtleGitCore
             precondition(items(disabled).allSatisfy { $0.image == nil }, "Parent, nested ignore and ordinary action icons must all be disabled")
             // AppKit installs its own actions on submenu headers; only command
             // metadata items route to the extension's openAction selector.
-            for item in items(disabled) where item.representedObject is String {
+            for item in items(disabled) where item.representedObject is FinderMenuCommand {
                 precondition(item.target === target && item.action == selector)
             }
         }
@@ -52,9 +52,9 @@ import TurtleGitCore
         precondition(ignoring.contains { $0.title == "Add to ignore list" && $0.submenu?.items.count == 2 })
         let versioned = items(make([tracked], settings: FinderMenuSettings()))
         precondition(versioned.contains { $0.title == "Delete and add to ignore list" && $0.submenu?.items.count == 2 })
-        precondition(versioned.contains { $0.representedObject as? String == RepositoryAction.remove.rawValue && $0.isEnabled })
+        precondition(versioned.contains { ($0.representedObject as? FinderMenuCommand)?.request.action == .remove && $0.isEnabled })
         let conflicted = items(make([conflict], settings: FinderMenuSettings()))
-        precondition(conflicted.contains { $0.representedObject as? String == RepositoryAction.resolve.rawValue && $0.isEnabled })
+        precondition(conflicted.contains { ($0.representedObject as? FinderMenuCommand)?.request.action == .resolve && $0.isEnabled })
         let mark = WorkingComparisonMarkSnapshot(id: UUID(), path: "/other/marked.txt")
         let marked = items(make([tracked], settings: FinderMenuSettings(showIcons: false), mark: mark))
         precondition(marked.contains { $0.title == "Compare with /other/marked.txt" && $0.image == nil })
@@ -74,18 +74,47 @@ import TurtleGitCore
             let commands = creation(directory, toolbar: toolbar).filter { !$0.isSeparatorItem && $0.submenu == nil }
             precondition(commands.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title])
             for item in commands {
-                let request = item.representedObject as! FinderCreationRequest
-                precondition(request.directory == directory && item.target === target && item.action == selector)
-                let url = FinderRequest(action: request.action, paths: request.directory.map { [$0] } ?? []).url!
+                let command = item.representedObject as! FinderMenuCommand
+                let request = command.request
+                precondition(request.paths.map(\.path) == directory.map { [$0.standardizedFileURL.path] } ?? [] && item.target === target && item.action == selector)
+                let url = command.url()!
                 precondition(FinderRequest(url: url)?.action == request.action)
                 precondition(FinderRequest(url: url)?.paths.map(\.path) == directory.map { [$0.standardizedFileURL.path] } ?? [])
             }
         }
+        var selection = [untracked, tracked]
+        let captured = items(make(selection, settings: FinderMenuSettings()))
+        selection = [conflict]
+        for item in captured {
+            guard let command = item.representedObject as? FinderMenuCommand else { continue }
+            precondition(command.request.paths.map(\.path) == FinderRequest(action: command.request.action, paths: [untracked, tracked]).paths.map(\.path))
+            precondition(FinderRequest(url: command.url()!)?.paths.map(\.path) == command.request.paths.map(\.path))
+            precondition(FinderRequest(url: command.url(control: true)!)?.action == command.request.action, "Control must not change unrelated actions")
+        }
+        let containerPaths = FinderMenuBuilder.paths(kind: .contextualMenuForContainer, selection: [tracked], target: folder)
+        for item in items(make(containerPaths, settings: FinderMenuSettings())) {
+            if let command = item.representedObject as? FinderMenuCommand {
+                precondition(command.request.paths.map(\.path) == [folder.standardizedFileURL.path])
+            }
+        }
+        let ignoredCommands = ignoring.compactMap { $0.representedObject as? FinderMenuCommand }.filter { $0.request.action.isIgnore }
+        precondition(ignoredCommands.count == 2 && ignoredCommands.allSatisfy { $0.request.paths.map(\.path) == FinderRequest(action: .ignore, paths: [untracked]).paths.map(\.path) })
+        let compare = marked.compactMap { $0.representedObject as? FinderMenuCommand }.first { $0.request.action == .diffLater }!
+        precondition(FinderRequest(url: compare.url()!)?.action == .diffLater)
+        precondition(FinderRequest(url: compare.url(control: true)!)?.action == .clearComparisonMark)
+        precondition(FinderRequest(url: compare.url(control: true)!)?.paths.map(\.path) == compare.request.paths.map(\.path))
+        let unusual = folder.appendingPathComponent("literal 雪\n&?.txt")
+        let literal = FinderMenuCommand(action: .removeKeep, paths: [unusual, tracked, unusual])
+        let decoded = FinderRequest(url: literal.url()!)!
+        precondition(decoded.action == .removeKeep && decoded.paths.count == 2)
+        precondition(decoded.paths.first?.lastPathComponent == "literal 雪\n&?.txt")
+        precondition(decoded.paths.map(\.path) == literal.request.paths.map(\.path))
+        print("Actual command receiver: ordinary/multi-file/container/nested-ignore/comparison requests retain menu-time selection; Control only clears the comparison mark. No activation/handoff performed.")
         let toolbarMenu = FinderMenuBuilder.make(paths: [], snapshot: snapshot, settings: FinderMenuSettings(),
             comparisonMark: nil, target: target, actionSelector: selector, toolbar: true)
         precondition(toolbarMenu.items.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title], "Toolbar commands should appear directly")
-        precondition(creation(folder).allSatisfy { !($0.representedObject is FinderCreationRequest) })
-        precondition(creation(folder, extended: true).compactMap { ($0.representedObject as? FinderCreationRequest)?.action } == [.clone])
+        precondition(creation(folder).allSatisfy { !(($0.representedObject as? FinderMenuCommand).map { [.clone, .initialize].contains($0.request.action) } ?? false) })
+        precondition(creation(folder, extended: true).compactMap { ($0.representedObject as? FinderMenuCommand).flatMap { [.clone, .initialize].contains($0.request.action) ? $0.request.action : nil } } == [.clone])
         let admin = folder.appendingPathComponent(".git", isDirectory: true)
         try FileManager.default.createDirectory(at: admin, withIntermediateDirectories: true)
         precondition(creation(admin, extended: true).isEmpty)

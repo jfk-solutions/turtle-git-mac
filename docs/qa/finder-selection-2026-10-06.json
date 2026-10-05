@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-06",
+  "scope": "Retained primary menu selection for all existing Finder commands; activated/signed handoff and full shell parity pending",
+  "baseCommit": "cc424250131ed449a4945a6db72fc7ba6379a94a",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "ContextMenu.cpp": "0b31f963e73ff71cd9cdb0861972a671236ae20f"
+  },
+  "sourceEvidence": "InvokeCommand receives retained paths/folder; Commit/Revert/Ignore use that list; DiffLater reads Control at invocation",
+  "actualNativeReceivers": [
+    "Actual extension source compiled Swift 6 with macOS 13 minimum without creating Finder controller/extension",
+    "Ordinary multi-file packets keep menu-time paths after test selection changes",
+    "Container packets keep folder rather than selected child",
+    "Nested Ignore name/extension and comparison commands retain paths and actions",
+    "Control changes only DiffLater into clearComparisonMark with same selected file",
+    "Literal Unicode/newline/ampersand/question-mark filename and duplicate paths round-trip in order",
+    "Icon-on/off signatures compare full request URLs as well as title/enabled/state",
+    "Existing six-case menu/icons/cache/badge-artwork and folder/targetless toolbar creation checks pass"
+  ],
+  "activation": "openAction resolves the captured command URL without reading Finder selection; source compiled/audited, NSWorkspace not called in receiver",
+  "coreTests": "Core unchanged; prior 12-test creation/request/settings run passed at base commit; not repeated for this native dispatch change",
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App/Finder extension, unchanged 75 original icons, current NOTICE/licenses, universal helper runtimes and Store Git 2.55.0 verified",
+  "nativeUI": "No windows/menus displayed or extension activated; no gesture/screenshot/signed acceptance claim",
+  "appProcesses": "No app launched; receiver fixture cleaned; no TurtleGit main app or test receiver process at final audit",
+  "logs": {
+    "menu": {
+      "path": "/tmp/turtlegit-finder-selection-menu.log",
+      "sha256": "6d067dfb39e4661dc3de6b6a57eb1840fa90e49387d0020fd157ae780633e8f9",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-selection-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-selection-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-finder-selection-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-finder-selection-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-selection-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    "FinderSync/FinderSync.swift": "53b2f88cef098d2ae2ee213144141f73c4dab924972f2aeace261fb528183f28",
+    "NOTICE": "92a50faa5cb883e736cce5c768668c3a0f1c9099b0d028318fbc7b46faf469d3",
+    "README.md": "737e003b8b56866863e3587501c4d2c856d544b9d6bae39edf485b89d1e4a0c4",
+    "docs/FINDER-CREATION-PARITY.md": "3c4d3a4c7524bebd1994f0ec908bb71f994aa7acf326331f4e0ebc2af261e2ce",
+    "docs/upstream-files.csv": "b8cb2c782e78e5b72fcc84de517fafd8157bf4fd957023d974918c5a37b2d9f8",
+    "scripts/test-finder-menu.py": "c0f880f8891f2187ee70eb5c82ad66d388cd11ecafd70115277573173720c8e3",
+    "docs/FINDER-SELECTION-PARITY.md": "f697e0f2da4e8b02c698cccba46bdedee20ed4c434d7a11d6007255de8d7aebd"
+  },
+  "pending": [
+    "Activated Finder item/container/sidebar/toolbar acceptance and actual URL-to-dialog handoff",
+    "Signed scope renewal and stale-file recovery",
+    "Comparison mark metadata changes while a popup remains open",
+    "Full shell command availability/order/configuration and cache classification",
+    "Signed App Group/distribution acceptance",
+    "GitHub publication/execution; existing authentication blocker"
+  ]
+}

@@ -26,8 +26,8 @@ menu, following `ContextMenu.cpp`'s early exclusion.
 Finder container menus use the targeted folder rather than selected child files.
 Item menus retain the selected paths. Existing repository commands require a
 cached repository target, so an unrelated folder does not offer those commands.
-A creation item captures its folder at menu construction and routes that exact
-folder when activated. Clone/Create use the existing native dialogs and permission
+All actionable items capture their paths at menu construction and route that
+selection when activated; see [selection audit](FINDER-SELECTION-PARITY.md). Clone/Create use the existing native dialogs and permission
 pickers; a Finder URL still supplies no security scope.
 
 The Finder toolbar retains original turtle artwork, name and tooltip. The installed

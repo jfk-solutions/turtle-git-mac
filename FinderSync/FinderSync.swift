@@ -44,25 +44,22 @@ import TurtleGitCore
             extended: NSEvent.modifierFlags.contains(.shift), toolbar: menuKind == .toolbarItemMenu)
     }
     @objc private func openAction(_ sender: NSMenuItem) {
-        let controller = FIFinderSyncController.default()
-        let selection = controller.selectedItemURLs() ?? []
-        let command = (sender.representedObject as? FinderCreationRequest)?.action.rawValue ?? sender.representedObject as? String
-        guard let command, var action = RepositoryAction(rawValue: command) else { return }
-        let paths: [URL]
-        if let folder = sender.representedObject as? FinderCreationRequest {
-            action = folder.action; paths = folder.directory.map { [$0] } ?? []
-        } else { paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection }
-        if action == .diffLater, NSEvent.modifierFlags.contains(.control) { action = .clearComparisonMark }
-        guard let url = FinderRequest(action: action, paths: paths).url else { return }
+        guard let command = sender.representedObject as? FinderMenuCommand,
+              let url = command.url(control: NSEvent.modifierFlags.contains(.control)) else { return }
         NSWorkspace.shared.open(url)
     }
 }
 
 /// Builds the same menu used by the extension without requiring a live Finder controller.
-final class FinderCreationRequest: NSObject {
-    let action: RepositoryAction
-    let directory: URL?
-    init(action: RepositoryAction, directory: URL?) { self.action = action; self.directory = directory }
+final class FinderMenuCommand: NSObject {
+    let request: FinderRequest
+    init(action: RepositoryAction, paths: [URL]) { request = FinderRequest(action: action, paths: paths) }
+    func url(control: Bool = false) -> URL? {
+        if control && request.action == .diffLater {
+            return FinderRequest(action: .clearComparisonMark, paths: request.paths).url
+        }
+        return request.url
+    }
 }
 
 enum FinderMenuBuilder {
@@ -84,7 +81,7 @@ enum FinderMenuBuilder {
         for action in creationActions {
             let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon); item.target = target
-            item.representedObject = FinderCreationRequest(action: action, directory: creationDirectory); submenu.addItem(item)
+            item.representedObject = FinderMenuCommand(action: action, paths: creationDirectory.map { [$0] } ?? []); submenu.addItem(item)
         }
         let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
@@ -97,7 +94,7 @@ enum FinderMenuBuilder {
             if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }
             if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
             if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
-            item.target = target; item.representedObject = action.rawValue; submenu.addItem(item)
+            item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths); submenu.addItem(item)
         }
         for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true {
             let ignore = NSMenuItem(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", action: nil, keyEquivalent: "")
@@ -105,13 +102,13 @@ enum FinderMenuBuilder {
             let choices = NSMenu(title: ignore.title); choices.autoenablesItems = false
             let name = paths.count == 1 ? paths[0].lastPathComponent : "Ignore \(paths.count) items by name"
             let named = NSMenuItem(title: name, action: actionSelector, keyEquivalent: "")
-            named.target = target; named.image = image(.ignore); named.representedObject = (deleting ? RepositoryAction.ignoreDelete : .ignore).rawValue
+            named.target = target; named.image = image(.ignore); named.representedObject = FinderMenuCommand(action: deleting ? .ignoreDelete : .ignore, paths: paths)
             choices.addItem(named)
             let singleDirectory = paths.count == 1 && snapshot?.states.keys.contains(where: { $0.hasPrefix(paths[0].path + "/") }) == true
             if !singleDirectory && paths.contains(where: { !$0.pathExtension.isEmpty }) {
                 let title = paths.count == 1 ? "*." + paths[0].pathExtension : "Ignore \(paths.count) items by extension"
                 let mask = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
-                mask.target = target; mask.image = image(.ignore); mask.representedObject = (deleting ? RepositoryAction.ignoreDeleteMask : .ignoreMask).rawValue
+                mask.target = target; mask.image = image(.ignore); mask.representedObject = FinderMenuCommand(action: deleting ? .ignoreDeleteMask : .ignoreMask, paths: paths)
                 choices.addItem(mask)
             }
             ignore.submenu = choices; submenu.addItem(ignore)
@@ -120,7 +117,7 @@ enum FinderMenuBuilder {
             let marked = comparisonMark
             let title = marked.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title
             let item = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")
-            item.target = target; item.image = image(.compare); item.representedObject = RepositoryAction.diffLater.rawValue
+            item.target = target; item.image = image(.compare); item.representedObject = FinderMenuCommand(action: .diffLater, paths: paths)
             submenu.addItem(.separator()); submenu.addItem(item)
         }
         if toolbar { return submenu }

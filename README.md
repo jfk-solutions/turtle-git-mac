@@ -178,6 +178,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Finder folder creation menus and a toolbar entry point route Clone/Create
   repository to native dialogs/pickers. Targetless toolbar requests are supported;
   signed activation remains unverified. See [creation audit](docs/FINDER-CREATION-PARITY.md).
+  Finder commands retain the menu's file/folder selection through activation,
+  including container and nested Ignore entries; see [selection audit](docs/FINDER-SELECTION-PARITY.md).
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Commit’s file menu adds unversioned paths explicitly; Shift reveals upstream
