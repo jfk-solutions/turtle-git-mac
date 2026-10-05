@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-05",
+  "scope": "Native Commit cancellation and Log built-in unified viewer acceptance follow-up; full app goal incomplete",
+  "tested_commit": "07e8895",
+  "preview_instances": 1,
+  "native_acceptance": [
+    "Commit Cancel shows confirmation with default No and unchecked suppression",
+    "No keeps Commit open with empty message and unchanged file list",
+    "Yes closes Commit and returns to main repository window",
+    "Main Show log opens Log",
+    "Double-click Add the repository model revision opens shared colored read-only unified viewer",
+    "Viewer contains expected newly added Sources/Repository.swift patch",
+    "Normal Command-Q exits with Log and viewer open; no TurtleGitMac process remains"
+  ],
+  "log_revision": "cc4ec2840a76b97fe6f7c46debd7a0288c11913c",
+  "cancellation_case": {
+    "changed_files": 3,
+    "message_characters": 0,
+    "staging": false,
+    "restored_copies": 0,
+    "suppression_toggled": false
+  },
+  "repository_preserved": {
+    "HEAD": true,
+    "raw_index": true,
+    "working_bytes": true,
+    "comparison_scope": "Against preceding owned fixture before-save snapshot, also checked after the earlier QA cleanup"
+  },
+  "cleanup": {
+    "normal_quit": true,
+    "force_termination": false,
+    "remaining_app_processes": 0
+  },
+  "previous_timeout": "Did not reproduce in this controlled fresh preview. No source-code defect or cause established; no speculative fix applied.",
+  "code_changes": false,
+  "tests_builds": "Not repeated; existing built Debug artifact of 07e8895 used. This is native acceptance, not additional Core test coverage.",
+  "screenshots_created": false,
+  "remaining": [
+    "Commit unified-diff menu activation",
+    "Log explicit menu/two-revision and selected-file variants",
+    "Changed-message cancellation, restored-copy decisions, suppression and cancel during Quit",
+    "Previous intermittent observation/close timeout cause",
+    "Signed sandbox and distribution readiness",
+    "Full app parity"
+  ],
+  "github": "Local acceptance record not yet published"
+}

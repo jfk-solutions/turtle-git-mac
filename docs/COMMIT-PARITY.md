@@ -1263,3 +1263,12 @@ raw UTF-16 decoding/capture transport and row insertion priority are implemented
 Native Tab/mouse acceptance, snippet collision, Undo, unchecked-file contribution
 and F5 rescanning were verified. See [code-symbol audit](COMMIT-CODE-SYMBOL-PARITY.md)
 for evidence and remaining visual, decoder and signed sandbox acceptance.
+
+
+Native cancellation follow-up at `07e8895`: No retained the unchanged dialog;
+Yes closed it normally for an empty message with three changed files, staging off
+and no restore copies. Normal Quit also passed later with a Log unified viewer
+open. The previous intermittent close/inspection timeout did not reproduce; no
+root cause or speculative code fix is claimed. See
+[acceptance record](qa/commit-close-log-unified-2026-10-05.json) for exact scope
+and remaining changed-message, restore-copy, suppression and signed cases.

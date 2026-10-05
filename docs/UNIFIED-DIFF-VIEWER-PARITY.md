@@ -191,3 +191,17 @@ confirmation inspection then timed out. Normal Quit did not end the process;
 the exact owned PID/executable was rechecked and SIGTERM sent. No preview remains.
 Log/Commit route activation, dark mode, Find matching, repeated-viewer reuse,
 non-UTF-8 native Save and signed sandbox acceptance remain unverified.
+
+
+A fresh single-instance acceptance retry at `07e8895` verified Commit Cancel’s
+No keeps the dialog open and Yes closes it normally (three changed files, empty
+message, staging off, no restore copies). The earlier close/inspection timeout
+did not reproduce, and no cause or code defect was established. In that same
+instance, Log double-click on `cc4ec2840a76b97fe6f7c46debd7a0288c11913c` opened
+the shared read-only viewer with the expected newly added Repository.swift patch.
+Normal Command-Q exited with Log/viewer open; no process remained and no signal
+was needed. Exact HEAD/index/working state still matched the preceding owned
+fixture snapshot. [Acceptance record](qa/commit-close-log-unified-2026-10-05.json).
+This verifies the double-click route only; explicit Log/Commit menus, multi-row
+variants, changed-message/restore/suppression cancellation and signed acceptance
+remain pending. The earlier timeout record remains valid historical evidence.
