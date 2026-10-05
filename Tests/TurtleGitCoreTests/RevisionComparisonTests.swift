@@ -28,6 +28,57 @@ final class RevisionComparisonTests: XCTestCase {
         let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(after, head)
         do { _ = try await repo.workingFileComparison(paths: ["../outside"]); XCTFail() } catch {}
     }
+    func testExplicitIgnoredFilesAndCachedRemovalReadActualWorkingBytesWithoutIndexWrites() async throws {
+        let (root, repo, tracked) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = try Data(contentsOf: root.appendingPathComponent(tracked))
+        try Data("ignored-dir/\n*.ignored\n".utf8).write(to: root.appendingPathComponent(".gitignore"))
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("ignored-dir"), withIntermediateDirectories: false)
+        let ignored = "ignored-dir/:(glob)* 雪\n.txt", binary = "bytes.ignored", link = "link.ignored"
+        let text = Data([239, 187, 191]) + Data("ignored source\r\n".utf8), bytes = Data([0, 255, 13, 10, 128])
+        try text.write(to: root.appendingPathComponent(ignored)); try bytes.write(to: root.appendingPathComponent(binary))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent(link).path, withDestinationPath: "missing target 雪")
+        _ = try await repo.run(["rm", "--cached", "--", tracked])
+        let working = Data("kept on disk\n".utf8); try working.write(to: root.appendingPathComponent(tracked))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let snapshot = try await repo.workingFileComparison(paths: [ignored, binary, link, tracked])
+        XCTAssertEqual(Set(snapshot.files.map(\.path)), [ignored, binary, link, tracked])
+        XCTAssertEqual(snapshot.files.first { $0.path == tracked }?.action, "M")
+        for (path, expected) in [(ignored, text), (binary, bytes), (link, Data("missing target 雪".utf8))] {
+            let document = try await repo.comparisonFile(snapshot, path: path)
+            XCTAssertTrue(document.base.bytes.isEmpty); XCTAssertEqual(document.destination.bytes, expected)
+        }
+        let kept = try await repo.comparisonFile(snapshot, path: tracked)
+        XCTAssertEqual(kept.base.bytes, original); XCTAssertEqual(kept.destination.bytes, working)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, head)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(ignored)), text)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(binary)), bytes)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(tracked)), working)
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: root.appendingPathComponent(link).path), "missing target 雪")
+    }
+    func testStatusListBaseComparisonGateSeparatesUnversionedPreviewFromTrackedMenu() {
+        for code in ["??", "!!"] {
+            XCTAssertFalse(StatusEntry.parse(Data((code + " file\0").utf8))[0].canCompareWithBaseFromStatusList)
+        }
+        for code in [" M", "M ", "A ", " D", "D ", "UU", "MM"] {
+            XCTAssertTrue(StatusEntry.parse(Data((code + " file\0").utf8))[0].canCompareWithBaseFromStatusList)
+        }
+        let retained = StatusEntry.parse(Data("D  file\0?? file\0".utf8))[0]
+        XCTAssertTrue(retained.hasUnversionedCopy); XCTAssertFalse(retained.canCompareWithBaseFromStatusList)
+    }
+    func testFirstRequestContextMarkUsesClickedRowAndPreservesExistingMixedAnchor() {
+        let entries = StatusEntry.parse(Data("?? new\0 M tracked\0 M other\0".utf8))
+        let clicked = StatusListSelection.mark(entries: entries, requested: ["tracked"], highlighted: ["new"], focusedPath: "new")
+        XCTAssertEqual(clicked?.path, "tracked"); XCTAssertTrue(clicked?.canCompareWithBaseFromStatusList == true)
+        let untracked = StatusListSelection.mark(entries: entries, requested: ["new"], highlighted: ["tracked"], focusedPath: "tracked")
+        XCTAssertEqual(untracked?.path, "new"); XCTAssertFalse(untracked?.canCompareWithBaseFromStatusList == true)
+        let mixed = StatusListSelection.mark(entries: entries, requested: ["new", "tracked"], highlighted: ["new", "tracked"], focusedPath: "tracked")
+        XCTAssertEqual(mixed?.path, "tracked")
+        let outside = StatusListSelection.mark(entries: entries, requested: ["tracked"], highlighted: ["tracked"], focusedPath: "new")
+        XCTAssertEqual(outside?.path, "new")
+        XCTAssertNil(StatusListSelection.mark(entries: entries, requested: [], highlighted: [], focusedPath: nil))
+    }
     func testOrdinaryDiffUnbornAndUnchangedSelection() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

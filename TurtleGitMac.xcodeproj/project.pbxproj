@@ -42,6 +42,7 @@
 		4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */; };
 		510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870D95A7EC384863F1C04342 /* RevisionComparison.swift */; };
 		53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D33C40A99A3883800E7C6431 /* ResolveWindow.swift */; };
+		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
 		5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */; };
 		5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A35B58726A94B9B4799C06DE /* RemoveWindow.swift */; };
 		5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A4B370EB64932B2909A8228 /* CloneWindow.swift */; };
@@ -201,6 +202,7 @@
 		396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflictWindow.swift; sourceTree = "<group>"; };
 		3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePresentation.swift; sourceTree = "<group>"; };
 		3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuIcons.swift; sourceTree = "<group>"; };
+		48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListSelection.swift; sourceTree = "<group>"; };
 		4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageEditor.swift; sourceTree = "<group>"; };
 		4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlame.swift; sourceTree = "<group>"; };
 		4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertDialogSelection.swift; sourceTree = "<group>"; };
@@ -426,6 +428,7 @@
 				83395323FFA0860A52795F9F /* Stash.swift */,
 				29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */,
 				DA1D2D9DD08218C53951382F /* StatusListGroups.swift */,
+				48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */,
 				6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */,
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
 				C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */,
@@ -650,6 +653,7 @@
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
 				92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */,
+				566929EB924A146E09618757 /* StatusListSelection.swift in Sources */,
 				4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */,
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
 				61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */,

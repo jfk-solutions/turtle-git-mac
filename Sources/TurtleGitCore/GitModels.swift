@@ -35,6 +35,11 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
         if code.contains("A") { return .added }
         return .modified
     }
+    /// The status-list menu gates base/unified comparisons by the marked row.
+    /// Unversioned and ignored rows still support their double-click preview.
+    public var canCompareWithBaseFromStatusList: Bool {
+        ![FileState.untracked, .ignored].contains(state) && !hasUnversionedCopy
+    }
     /// Porcelain v1 -z uses NUL-terminated raw paths and destination before source for renames.
     public static func parse(_ data: Data) -> [StatusEntry] {
         let records = data.split(separator: 0, omittingEmptySubsequences: false)

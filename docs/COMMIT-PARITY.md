@@ -91,7 +91,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   submodule toggle and broader Commit action combinations remain.
 - Message-history native workflow QA, template native workflow QA and other text encodings,
   completion, spelling, issue IDs and tracker plugins.
-- Broader grouped-list selection and conditional workflows, dirty-submodule commit prompts, unversioned file preview,
+- Broader grouped-list selection and conditional workflows, dirty-submodule commit prompts, broader binary/ignored preview acceptance,
   file counts for untracked paths, staged/unstaged rename interactions.
 - Remaining file context command audit, including broader grouped-list and clipboard verification, plus broader Delete selection verification. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
@@ -970,3 +970,57 @@ historical comparison views and is not implemented here. Broader range selection
 first-request grouped clipboard-column acceptance, ignored/local-flag native
 variants, accessibility group semantics and signed sandbox workflows remain
 partial.
+
+
+## Unversioned preview and first-request comparison menu gates
+
+The pinned `OnNMDblclk` routes unversioned/ignored rows to `StartDiffWC`.
+`CGitDiff::Diff` permits an absent repository blob (`mustExist` is false), while
+retaining the working file. The native two-pane viewer follows that behavior:
+explicit untracked and ignored selections have an empty base when the path is
+absent from the chosen revision. The existing Commit double-click route was
+verified natively with a Unicode untracked filename and exact working text.
+
+`workingFileComparison` now reuses the selected-file mode lookup. This handles
+ignored files below an ignored directory, ignored binary content and symlink
+contents without staging them. A file removed from the index with `git rm --cached`
+but retained on disk uses its actual working bytes; a cached deletion is no longer
+misrepresented as an absent destination. The status-list route continues to omit
+clean tracked files, and ordinary staged/working, renamed, amend-to-first-parent
+and root/empty-base behavior retains its regression coverage.
+
+Commit's Compare with base and unified-diff menu entries now follow the marked
+row's tracked/unversioned gate. Unversioned/ignored marks and retained unversioned
+copies omit those tracked-only menu commands. Double-click preview remains
+available. Unified diff is omitted without HEAD, matching the upstream init-repo
+gate. Full raw missing/action-mask and alternative-tool variants remain under audit.
+
+Native QA exposed a first-request context bug: right-clicking an unselected tracked
+row could use the previously highlighted untracked row's gates, hiding Compare and
+showing Delete. `StatusListSelection` resolves the requested clicked row immediately
+when it differs from the existing highlight; existing mixed-selection marks,
+including a mark outside the highlight, remain available. The interaction bridge
+preserves the real highlighted selection's anchor during contextual clicks, so
+canceling another row's menu does not silently move that anchor.
+
+Three additional tests cover ignored text/binary/broken-symlink and cached-removal
+bytes with raw index/HEAD preservation, comparison state gates, and first-request
+mark resolution while retaining existing mixed/outside anchors. Together with file
+comparison, grouped rows and Delete regressions, 28 focused tests pass. Both build
+configurations and bundle audits pass.
+
+Native checks verified the first untracked menu omits tracked-only diffs and
+Double-click opens an empty left side with the two original working lines on the
+right. After the fix, the first tracked menu with a prior untracked highlight
+shows Compare/unified diff and omits Delete. Canceling it leaves the prior selection
+intact, whose untracked menu still has its own gates. The reverse first-request
+case, an unselected untracked file with a tracked highlight, also has the expected
+Add/Delete and comparison omission. Exact HEAD, raw index, working files and the
+unrelated staged/later edits remained unchanged throughout. Both QA apps were
+closed normally and no TurtleGit test processes remained.
+
+`site/assets/commit-unversioned-preview.png` is the inspected actual 2240 × 1504
+native viewer capture. Native ignored/binary/symlink/cached-removal preview variants,
+unborn menu acceptance, mixed selections, alternative tools and signed sandbox
+handoff remain pending; this capture establishes only the tested untracked text
+workflow, not full comparison parity.

@@ -94,10 +94,10 @@ struct CommitFileInteraction: NSViewRepresentable {
                 }
                 guard rows.indices.contains(row) else { return event }
                 guard let entry = rows[row].entry else { return event.type == .leftMouseDown ? nil : event }
-                // Right-clicking a selected row preserves the selection mark;
-                // Shift extends the range from the existing mark.
-                let preserve = event.type == .rightMouseDown && table.selectedRowIndexes.contains(row)
-                    || event.modifierFlags.contains(.shift)
+                // Native contextual clicks do not replace the highlighted rows.
+                // Keep their anchor; StatusListSelection resolves an unselected
+                // clicked row for that menu request without moving this anchor.
+                let preserve = event.type == .rightMouseDown || event.modifierFlags.contains(.shift)
                 if !preserve || focusedPath?.wrappedValue == nil { focusedPath?.wrappedValue = entry.path }
                 return event
             }

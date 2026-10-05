@@ -67,7 +67,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   a separate Shift confirmation supports permanent deletion. Mixed selections use
   the marked row to enable Delete; table-focused Delete keys preserve normal text
   editing. The clipboard submenu copies the clicked column with the original icon;
-  Command-C copies relative paths and Shift-Command-C adds status. Renamed paths
+  Command-C copies relative paths and Shift-Command-C adds status. Double-click
+  previews untracked files against an empty base without staging them. Renamed paths
   and leading-dot extensions match the upstream display. Changelist creation,
   assignment, ignored-file checks and optional successful-commit cleanup are
   available, with status/changelist group headings and group check/unstage actions. Broader selection and

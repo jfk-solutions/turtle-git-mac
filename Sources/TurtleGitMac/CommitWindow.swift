@@ -896,7 +896,7 @@ GroupBox("Changes made (double-click on file for diff):") {
             } else {
                 let selected = entries.filter { ids.contains($0.id) }
                 let flagFiles = model.indexFlagFiles.filter { ids.contains($0.id) }
-                let selectionMark = entries.first { $0.path == focus.wrappedValue } ?? (selected.count == 1 ? selected.first : nil)
+                let selectionMark = StatusListSelection.mark(entries: entries, requested: ids, highlighted: selection.wrappedValue, focusedPath: focus.wrappedValue)
                 if !selected.isEmpty && selected.allSatisfy({ [.untracked, .ignored].contains($0.state) }) {
                     Button { model.addFiles(selected, mode: .normal) } label: { CommandLabel(title: WorkingFileAddMode.normal.rawValue, icon: .add) }.disabled(model.busy || model.confirmingQuit)
                     if NSEvent.modifierFlags.contains(.shift), selected.allSatisfy({ !model.submodules.contains($0.path) }) {
@@ -906,9 +906,13 @@ GroupBox("Changes made (double-click on file for diff):") {
                     }
                     Divider()
                 }
-                Button { model.compare(paths: ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty)
-                Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
-                Divider()
+                if !selected.isEmpty, selectionMark?.canCompareWithBaseFromStatusList == true {
+                    Button { model.compare(paths: ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }
+                    if model.hasHead {
+                        Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }
+                    }
+                    Divider()
+                }
                 if staged != nil {
                     Button { model.moveToStage(ids, staged: true) } label: { CommandLabel(title: "Stage selected files", icon: .add) }.disabled(ids.isEmpty)
                     Button { model.moveToStage(ids, staged: false) } label: { CommandLabel(title: "Unstage selected files", icon: .revert) }.disabled(ids.isEmpty)

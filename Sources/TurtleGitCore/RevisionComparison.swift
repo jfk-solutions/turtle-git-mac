@@ -56,13 +56,11 @@ extension GitRepository {
             from = .emptyTree
         }
         let snapshot = try revisionComparison(from: from, to: .workingTree)
-        var files = snapshot.files.filter { paths.contains($0.path) || $0.oldPath.map(paths.contains) == true }
-        let changes = try status(refreshIndex: false)
-        for path in Set(paths).sorted() where !files.contains(where: { $0.path == path }) {
-            if changes.contains(where: { $0.path == path && $0.state == .untracked }) {
-                files.append(CommitFile(path: path, oldPath: nil, action: "A", added: nil, removed: nil, hasStatistics: false, isSubmodule: false))
-            }
-        }
+        let selected = try selectedFileComparison(snapshot, paths: paths)
+        // Keep this status-list route limited to changes, while explicit files
+        // absent from the base (including ignored paths) use an empty side.
+        let changed = Set(snapshot.files.map(\.path))
+        let files = selected.files.filter { changed.contains($0.path) || $0.action == "A" }
         return RevisionComparisonSnapshot(root: root, from: snapshot.from, to: snapshot.to, fromDetails: snapshot.fromDetails, toDetails: snapshot.toDetails, files: files, options: snapshot.options)
     }
     /// Selected-file comparisons also display unchanged files. Working bytes
@@ -70,7 +68,9 @@ extension GitRepository {
     public func revisionFileComparison(from: ComparisonRevision, to: ComparisonRevision, paths: [String]) throws -> RevisionComparisonSnapshot {
         guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
         for path in paths { _ = try restoreLocation(path) }
-        let snapshot = try revisionComparison(from: from, to: to)
+        return try selectedFileComparison(revisionComparison(from: from, to: to), paths: paths)
+    }
+    private func selectedFileComparison(_ snapshot: RevisionComparisonSnapshot, paths: [String]) throws -> RevisionComparisonSnapshot {
         func mode(_ revision: ComparisonRevision, _ path: String) throws -> String? {
             if revision == .emptyTree { return nil }
             if revision == .workingTree {
