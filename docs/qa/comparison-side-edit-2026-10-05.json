@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-05",
+  "feature": "Side-specific comparison editor updates without activating the destination",
+  "preview": "/tmp/TurtleGitSideEditQA.app",
+  "native_verified": [
+    "Use this whole file from Base changes Mine while Base remains active/read-only and focused",
+    "Enabling Base and subsequent keyboard typing changes Base while Mine retains its transferred draft",
+    "Base keyboard Undo restores its typing without undoing the Mine transfer",
+    "Selecting Mine exposes its independent Undo, which restores its original draft",
+    "Prepend this block to left from Mine changes Base while Mine stays active/editable and focused",
+    "Clicking Mine and typing changes Mine while the Base prepend remains; independent Mine and Base Undo restore both originals",
+    "Both comparison-file bytes/modes and bootstrap repository HEAD/index/working bytes preserved",
+    "Two sequential launches; normal Quit followed by process absence with no UI query after final Quit"
+  ],
+  "pending": [
+    "Keyboard-only typing immediately after reverse context command: paste did not change text until Mine was clicked",
+    "Other block/order/native selection variants",
+    "Signed sandbox acceptance",
+    "Historical-copy editing and full source-state/layout parity"
+  ],
+  "verification": {
+    "Debug_build": "passed",
+    "unsigned_AppStore_build": "passed",
+    "Debug_bundle_audit": "passed",
+    "AppStore_bundle_and_universal_Git_runtime_audit": "passed",
+    "site_build": "passed",
+    "comparison_core_regressions": "23 passed in prior transfer slice; no core algorithm change in this slice"
+  }
+}

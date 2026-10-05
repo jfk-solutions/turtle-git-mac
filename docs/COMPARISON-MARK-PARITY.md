@@ -250,7 +250,24 @@ the chosen destination. Both blocks/order variants, reverse whole-file native
 acceptance, historical-copy editing and complete upstream state transitions
 remain pending. See [acceptance record](qa/comparison-transfer-2026-10-05.json).
 
-Cross-pane keyboard-focus synchronization remains incomplete: native commands
-write the correct destination and select its model history, but accessibility
-focus can remain on the source. The pending record explicitly preserves this
-issue; automatic focus handoff and subsequent typing are not verified.
+Earlier cross-pane acceptance exposed a mismatch: commands selected the
+destination model while accessibility focus remained on the source. The original
+record preserves that observation; the side-specific update below addresses
+model activation and documents the remaining keyboard-only reverse-menu case.
+
+## Side-specific editor updates
+
+The editor coordinator now reads, writes and records Undo for its own side.
+Context commands dispatch directly to that side's editor instead of temporarily
+activating it. Inactive-side edits do not set the active caret or move its
+selection. Native acceptance now shows Base staying read-only and focused when
+its whole-file command writes Mine. Enabling Base and typing edits Base without
+changing the Mine draft, and independent Undo restores each side. A reverse
+prepend from Mine similarly leaves Mine active while updating Base.
+
+Keyboard-only typing immediately after that reverse menu action remains under
+investigation: the paste did not change text until Mine was explicitly clicked.
+Typing and independent Undo then worked, with both disk files and the bootstrap
+repository unchanged. This narrows the earlier focus gap without establishing
+complete keyboard/context-menu parity. See the
+[side-specific acceptance record](qa/comparison-side-edit-2026-10-05.json).
