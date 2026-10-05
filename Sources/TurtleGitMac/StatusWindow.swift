@@ -35,16 +35,17 @@ struct StatusRow: Identifiable {
         model.close = { [weak window] in window?.close() }
         model.savePatch = { [weak self] text in self?.savePatch(text) }
     }
-    private func savePatch(_ text: String) {
+    private func savePatch(_ bytes: Data) {
         guard let window else { return }
         let panel = NSSavePanel(); panel.nameFieldStringValue = "working-tree.patch"
         panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText]
         panel.beginSheetModal(for: window) { [weak model] response in
             guard response == .OK, let url = panel.url else { return }
-            do { try Data(text.utf8).write(to: url, options: .atomic) }
+            do { try bytes.write(to: url, options: .atomic) }
             catch { model?.error = error.localizedDescription }
         }
     }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -63,7 +64,7 @@ struct StatusRow: Identifiable {
     @Published var error: String?
     @Published var patch: String?
     var close: () -> Void = {}
-    var savePatch: (String) -> Void = { _ in }
+    var savePatch: (Data) -> Void = { _ in }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onChanged: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
@@ -121,8 +122,24 @@ struct StatusRow: Identifiable {
         Task {
             defer { busy = false }
             do {
-                let text = try await repository.workingTreeDiff(paths: paths)
-                if saving { savePatch(text) } else { patch = text.isEmpty ? "No diff is available for these paths." : text }
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let bytes = try await repository.workingTreeDiffData(paths: paths)
+                savePatch(bytes)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    func unifiedDiff(_ ids: Set<String>, alternate: Bool) {
+        guard !busy else { return }
+        let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.id)
+        guard !paths.isEmpty else { return }; busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let bytes = try await repository.workingTreeDiffData(paths: paths)
+                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    patch = bytes.isEmpty ? "No diff is available for these paths." : String(decoding: bytes, as: UTF8.self)
+                }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -162,6 +179,7 @@ struct StatusDialog: View {
             }
             .contextMenu(forSelectionType: String.self) { ids in
                 Button { model.diff(ids) } label: { CommandLabel(title: "Diff", icon: .compare) }.disabled(ids.isEmpty)
+                Button { model.unifiedDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy)
                 Button { model.stage(ids, staged: true) } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(ids.isEmpty)
                 Button { model.stage(ids, staged: false) } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(ids.isEmpty)
                 if ids.count == 1, let path = ids.first, let row = model.files.first(where: { $0.id == path }), ![FileState.untracked, .ignored, .deleted].contains(row.state) {

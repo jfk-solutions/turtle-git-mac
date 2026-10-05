@@ -115,9 +115,13 @@ extension GitRepository {
         return GitPatch(text: text)
     }
     public func patch(paths: [String], staged: Bool, base: String? = nil) throws -> GitPatch {
-        let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3"] + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : []) + ["--"] + paths
-        guard let text = String(data: try run(args).stdout, encoding: .utf8) else { throw PatchFailure.encoding }
+        guard let text = String(data: try patchData(paths: paths, staged: staged, base: base), encoding: .utf8) else { throw PatchFailure.encoding }
         return GitPatch(text: text)
+    }
+    /// Unified viewers receive original bytes; partial staging still requires UTF-8.
+    public func patchData(paths: [String], staged: Bool, base: String? = nil) throws -> Data {
+        let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3"] + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : []) + ["--"] + paths
+        return try run(args).stdout
     }
     public func applyPatchSelection(_ document: GitPatch, paths: [String], staged: Bool, lines: Set<Int>, entireHunks: Bool, base: String? = nil) throws {
         guard try patch(paths: paths, staged: staged, base: base).text == document.text else { throw PatchFailure.changed }

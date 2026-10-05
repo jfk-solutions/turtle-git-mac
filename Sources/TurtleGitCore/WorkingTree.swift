@@ -56,8 +56,11 @@ extension GitRepository {
         }.sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
     }
     public func workingTreeDiff(paths: [String]) throws -> String {
+        String(decoding: try workingTreeDiffData(paths: paths), as: UTF8.self)
+    }
+    public func workingTreeDiffData(paths: [String]) throws -> Data {
         let head = try? run(["rev-parse", "--verify", "HEAD"])
-        return try run(["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : ["HEAD"]) + ["--"] + paths).text
+        return try run(["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : ["HEAD"]) + ["--"] + paths).stdout
     }
 }
 

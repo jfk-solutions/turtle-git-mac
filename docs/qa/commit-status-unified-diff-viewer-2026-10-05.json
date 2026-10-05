@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-05",
+  "scope": "Commit and Working Tree unified diff viewer routing and raw saved patches; full app goal incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": {
+    "GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15"
+  },
+  "focused_tests": {
+    "suites": [
+      "UnifiedDiffViewerTests",
+      "GitPatchTests",
+      "WorkingTreeTests"
+    ],
+    "count": 17,
+    "failures": 0,
+    "duration_seconds": 10.485,
+    "new_regression": [
+      "Distinct staged/unstaged/whole-working-tree invalid-UTF-8 patch bytes",
+      "Exact staged preview passes Git reverse cached apply check",
+      "Partial staging retains encoding refusal",
+      "Raw HEAD/index/working state preserved"
+    ],
+    "existing_coverage": [
+      "Staged partial hunks",
+      "Unborn working-tree diff",
+      "Scoped working-tree status",
+      "Index flag operations"
+    ]
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "bundle_audits": {
+    "Debug": "passed, 72 original icons",
+    "AppStore_require_git": "passed, 72 original icons and universal Git runtime"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "log_sha256": {
+    "focused": "a8a98665325b3d6c7e5248b355db0af09a6bff802c2e5f58b05b2dd1151e3d94",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "Debug_audit": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0",
+    "AppStore_audit": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+  },
+  "native_qa": {
+    "apps_launched": 0,
+    "screenshots_created": false,
+    "verification": "Menu/Shift/Save panel and actual external receiver unverified; earlier native pipe failures recorded in unified-diff-viewer-2026-10-05.json"
+  },
+  "behavior": [
+    "Commit explicit unified action retains staging/amend base and routes via shared preference/Shift",
+    "Working Tree explicit unified action added with original icon; ordinary Diff route retained",
+    "Working Tree Save patch writes Data unchanged",
+    "Busy Commit/status guards retained through async receiver; status attached sheet blocks Close/Quit"
+  ],
+  "remaining": [
+    "Native Commit/status menu and Shift acceptance",
+    "Actual Save-panel non-UTF-8 saved-file acceptance",
+    "Native row-order/rename variants",
+    "Signed security scope/bookmark document handoff",
+    "Revision comparison and other unified callers",
+    "Full TortoiseGitUDiff and full app parity"
+  ],
+  "full_suite": "Previous full 432-test pass predates this change; focused tests only here",
+  "github": "Local change not tested remotely"
+}

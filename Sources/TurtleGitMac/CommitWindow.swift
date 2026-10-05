@@ -706,20 +706,26 @@ import UniformTypeIdentifiers
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }; onCompare(paths, amendToParent)
     }
-    func diff(paths selected: Set<String>, staged: Bool? = nil) {
+    func diff(paths selected: Set<String>, staged: Bool? = nil, alternate: Bool = false) {
+        guard !busy, !confirmingQuit else { return }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }
+        busy = true
         Task {
+            defer { busy = false }
             do {
-                let text: String
-                if let staged { text = try await repository.patch(paths: paths, staged: staged, base: amendToParent && staged ? try await repository.commitComparisonBase(amendToParent: true) : nil).text }
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let bytes: Data
+                if let staged { bytes = try await repository.patchData(paths: paths, staged: staged, base: amendToParent && staged ? try await repository.commitComparisonBase(amendToParent: true) : nil) }
                 else {
                     let head = try? await repository.run(["rev-parse", "--verify", "HEAD"])
                     let base = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : "HEAD"
                     let args = ["diff", "--no-ext-diff", "--no-color"] + (head == nil ? ["--cached"] : [base]) + ["--"] + paths
-                    text = try await repository.run(args).text
+                    bytes = try await repository.run(args).stdout
                 }
-                patch = text.isEmpty ? "No diff is available. Unversioned files have no Git base revision." : text
+                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    patch = bytes.isEmpty ? "No diff is available. Unversioned files have no Git base revision." : String(decoding: bytes, as: UTF8.self)
+                }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -1063,7 +1069,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                 if !selected.isEmpty, selectionMark?.canCompareWithBaseFromStatusList == true {
                     Button { model.compare(paths: ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }
                     if model.hasHead {
-                        Button { model.diff(paths: ids, staged: staged) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }
+                        Button { model.diff(paths: ids, staged: staged, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(model.busy || model.confirmingQuit)
                     }
                     Divider()
                 }

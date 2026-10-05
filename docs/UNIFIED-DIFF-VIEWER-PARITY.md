@@ -3,7 +3,7 @@
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 This is a partial port of the unified patch viewer setting and the Shift actions
-in Format Patch and Log. It does not complete TortoiseGitUDiff, external revision
+in Format Patch, Log, Commit and Working Tree. It does not complete TortoiseGitUDiff, external revision
 comparison tools, extension-specific tools or all unified-diff callers.
 
 | Source | Blob | Native replacement |
@@ -12,6 +12,7 @@ comparison tools, extension-specific tools or all unified-diff callers.
 | `src/TortoiseProc/Settings/SettingsProgsDiff.cpp`, GNU patch viewer controls | `9cd5e7c658477fd8120a7f521c8ce0f16cc10175` | `UnifiedDiffViewerSettings.swift` |
 | `src/TortoiseProc/FormatPatchDlg.cpp`, unified diff button | `b8ad0c02bb27397700a6aee773d87ce7656d62c8` | `FormatPatchWindow.swift` |
 | `src/TortoiseProc/GitLogListAction.cpp`, ID_GNUDIFF1/ID_GNUDIFF2 | `88c255c4c80578c099bbcd4604f6e088f2f9d40a` | `LogWindow.swift`, byte-preserving `CommitHistory.swift` APIs |
+| `src/Git/GitStatusListCtrl.cpp`, IDGITLC_GNUDIFF1 | `bb3424966659715269d38fca610c8d46810b0b15` | `CommitWindow.swift`, `StatusWindow.swift`, raw patch/working-tree diff APIs |
 
 ## Selection rules
 
@@ -56,6 +57,17 @@ diff request/open callback is busy, and all external viewer callbacks have a
 shared pending-request Quit guard. Merge-parent/combined variants and other
 callers remain pending.
 
+Commit's explicit unified-diff menu now shares this dispatch, including its
+staged/unstaged and amend-to-parent comparisons. Working Tree adds the explicit
+unified-diff menu next to Diff, which continues to open the ordinary comparison
+viewer. Both unified actions sample Shift before async Git and retain a busy
+guard through the external receiver callback. Working Tree Close/Quit also
+blocks while busy or a save sheet is open. Its Save unified diff writes the
+original Data to the selected file rather than decoding/re-encoding it. Existing
+partial-staging previews still reject non-UTF-8 patches, avoiding lossy editable
+patch application. Native menu activation, chooser/receiver completion, row-order
+and rename variants remain unverified.
+
 The selected application's bookmark is resolved and scoped for the native open
 request. Store builds require successful scoped access; the error directs the
 user to Browse when needed. The Format Patch controller blocks close, Quit and
@@ -86,6 +98,14 @@ verifies selected-file output and duplicate suppression, and passes Git's
 reverse-apply check on the exact external preview. HEAD-relative working-tree
 output also retains those bytes; generation/checking leave the index unchanged.
 No GUI app or external viewer was launched for this Log follow-up.
+
+A further 17 focused tests (UnifiedDiffViewer, GitPatch and WorkingTree) pass.
+The new real-Git test distinguishes staged, unstaged and complete working-tree
+changes containing invalid UTF-8 bytes, verifies exact preview applicability
+against the index, checks partial-staging's encoding refusal, and preserves
+HEAD/index/working bytes. Existing unborn working-tree and staged-hunk cases also
+pass. This proves the Core byte routes, not native Commit/status menu or Save
+panel acceptance. No GUI app or external viewer was launched for this follow-up.
 
 Remaining: native settings/application-launch and Shift QA; failed/stale bookmark
 and missing-app acceptance; signed document handoff; command argument templates;

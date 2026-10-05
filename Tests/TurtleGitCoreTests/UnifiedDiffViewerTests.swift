@@ -2,6 +2,33 @@ import XCTest
 @testable import TurtleGitCore
 
 final class UnifiedDiffViewerTests: XCTestCase {
+    func testStagedUnstagedAndWholeWorkingPatchKeepNonUTF8Bytes() async throws {
+        let (root, repository, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let base = Data([0xff, 0x0a]), stagedBytes = Data([0xfe, 0x0a]), workingBytes = Data([0xfd, 0x0a])
+        try base.write(to: root.appendingPathComponent(path))
+        try await repository.stage([path]); _ = try await repository.commit(message: "Raw text base")
+        try stagedBytes.write(to: root.appendingPathComponent(path)); try await repository.stage([path])
+        try workingBytes.write(to: root.appendingPathComponent(path))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repository.run(["rev-parse", "HEAD"]).stdout
+        let staged = try await repository.patchData(paths: [path], staged: true)
+        let unstaged = try await repository.patchData(paths: [path], staged: false)
+        let whole = try await repository.workingTreeDiffData(paths: [path])
+        for (patch, old, new) in [(staged, UInt8(0xff), UInt8(0xfe)), (unstaged, UInt8(0xfe), UInt8(0xfd)), (whole, UInt8(0xff), UInt8(0xfd))] {
+            XCTAssertNotNil(patch.range(of: Data([0x2d, old, 0x0a])))
+            XCTAssertNotNil(patch.range(of: Data([0x2b, new, 0x0a])))
+        }
+        let preview = try UnifiedDiffPreview.create(staged)
+        defer { preview.discard() }
+        _ = try await repository.run(["apply", "--cached", "--reverse", "--check", "--", preview.file.path])
+        do { _ = try await repository.patch(paths: [path], staged: true); XCTFail("Partial staging must retain its UTF-8 restriction") }
+        catch PatchFailure.encoding {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), workingBytes)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let finalHead = try await repository.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(head, finalHead)
+    }
     func testShiftInvertsConfiguredExternalChoiceAndEmptyAlwaysUsesBuiltin() throws {
         let app = URL(fileURLWithPath: "/Applications/Viewer 雪.app", isDirectory: true)
         for enabled in [false, true] {
