@@ -18,13 +18,14 @@ Xcode project is checked in; XcodeGen is optional unless changing `project.yml`.
 
 ```sh
 python3 scripts/build-editorconfig-runtime.py
+python3 scripts/build-issue-regex-runtime.py
 swift test
 ./scripts/build.sh
 open build/Build/Products/Debug/TurtleGitMac.app
 ```
 
 For a quick app-only build: `swift run TurtleGitMac`. That does not bundle or
-activate the Finder extension or embed the EditorConfig helper; use the Xcode
+activate the Finder extension or embed the EditorConfig and issue-matching helpers; use the Xcode
 build for those features. The unsigned Xcode build verifies compilation and
 bundle structure; it is not a signed distribution.
 

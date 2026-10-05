@@ -1,5 +1,8 @@
 # Commit dialog parity
 
+Issue-matching runtime preparation and remaining property/field/warning work
+are tracked in [issue tracker parity](ISSUE-TRACKER-PARITY.md).
+
 The reference is `src/TortoiseProc/CommitDlg.cpp` and `IDD_COMMITDLG` in
 `src/Resources/TortoiseProcENG.rc`, pinned to the commit in `upstream.json`.
 `PrepareIndexForCommitWithoutStagingSupport` implements checked whole-file commits;

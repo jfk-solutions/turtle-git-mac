@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-05",
+  "scope": "Issue-matching runtime foundation; native Commit issue controls are not implemented by this change.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "verified_upstream_sources": [
+    {
+      "path": "src/TortoiseProc/ProjectProperties.cpp",
+      "git_blob": "116ee4436d5a6df8e3cfaecf03fe7277cc8f18fc",
+      "sha256": "e2af3989f6a3e5db924437f61b617d30bb14739c4d58566fa60eeadce97f7898"
+    },
+    {
+      "path": "src/TortoiseProc/ProjectProperties.h",
+      "git_blob": "883ebd4189b716775b89327e924e407a7343fdba",
+      "sha256": "051e03a23665bfe869e063afac5edf354535ea77baee254d988df4e94acf3ec3"
+    },
+    {
+      "path": "test/UnitTests/ProjectPropertiesTest.cpp",
+      "git_blob": "d9b93fc241b50a9aa74c1d68fac19f80e1ea15e6",
+      "sha256": "4c2102f0ad28f6c6ba956fa3a85d1c60cec512409e3e007969722802965c07d0"
+    }
+  ],
+  "runtime": {
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "deployment_target": "13.0",
+    "source_sha256": "e7a522a0819b94057cde948f154ad539de91fbb0d0111cfcb749942430d193c0",
+    "binary_sha256": "7459b7b59dd83c1dabd457469f694922dd3d29cbc1c24a91106c9737cc0e90a9",
+    "engine": "C++ std::wregex ECMAScript, one UTF-16 unit per wchar_t"
+  },
+  "checks": {
+    "native_and_rosetta_slices": "passed: single capture, captureless presence, complete second-expression match, nonmatch, surrogate escape/UTF-16 offsets, embedded NUL, invalid ECMAScript lookbehind",
+    "corresponding_source_reconstruction": "passed: copied bundled Sources/build to independent temporary directory; rebuilt and executed both slices",
+    "focused_swift_tests": {
+      "count": 8,
+      "failures": 0,
+      "suites": [
+        "IssueRegexTests",
+        "EditorConfigTests",
+        "BundledTextHelperTests"
+      ]
+    },
+    "helper_timeout": "passed: helper ignored SIGTERM, was killed after bounded grace and reaped; PID no longer existed",
+    "large_diagnostics": "passed: simultaneous large stdout/stderr produced no pipe deadlock; error excerpt was 1024 bytes",
+    "debug_and_appstore_unsigned_builds": "passed",
+    "debug_and_appstore_bundle_audits": "passed: original icons, Finder packaging, licenses, text helpers; AppStore universal Git smoke checks",
+    "ad_hoc_debug_helper_signing": "passed: signature, updated hash and matcher execution",
+    "ad_hoc_appstore_helper_signing": "passed: signature, updated hash and exact sandbox/inherit entitlements; unsigned runtime executed before signing",
+    "signed_debug_preview": "passed: strict deep verification, resealed both helper manifests, executed both matcher slices and EditorConfig parser",
+    "qa_app_lifecycle": "No app was launched for these process/build checks; process inventory confirmed no TurtleGitMac instances."
+  },
+  "remaining": [
+    "Native issue field, property precedence, template manipulation, validation/warning order, tracker URLs and provider integration",
+    "Signed sandboxed app invocation and security scopes",
+    "Actual Intel Mac and macOS 13 execution",
+    "MSVC/libc++ locale, character classes and malformed-regex cached state parity",
+    "Fresh GitHub run after publication; local pushes currently unavailable because GitHub authentication is missing"
+  ]
+}

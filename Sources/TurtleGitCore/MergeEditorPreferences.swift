@@ -52,29 +52,11 @@ public enum EditorConfigRuntime {
         try Task.checkCancellation()
         let parser = try executable ?? Self.executable(bundle: bundle)
         guard FileManager.default.isExecutableFile(atPath: parser.path) else { throw EditorConfigFailure.runtimeMissing }
-        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitEditorConfig-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: temporary) }
-        let outputURL = temporary.appendingPathComponent("stdout"), errorURL = temporary.appendingPathComponent("stderr")
-        try Data().write(to: outputURL); try Data().write(to: errorURL)
-        let output = try FileHandle(forWritingTo: outputURL), error = try FileHandle(forWritingTo: errorURL)
-        defer { try? output.close(); try? error.close() }
-        let process = Process(), finished = DispatchSemaphore(value: 0)
-        process.executableURL = parser; process.arguments = [file.path]
-        process.standardInput = FileHandle.nullDevice; process.standardOutput = output; process.standardError = error
-        process.terminationHandler = { _ in finished.signal() }
-        try process.run()
-        if finished.wait(timeout: .now() + 5) == .timedOut {
-            if process.isRunning { process.terminate() }
-            if finished.wait(timeout: .now() + 1) == .timedOut, process.isRunning { Darwin.kill(process.processIdentifier, SIGKILL) }
-            process.waitUntilExit()
-            throw EditorConfigFailure.timedOut
-        }
-        try Task.checkCancellation()
-        guard process.terminationStatus == 0 else {
-            throw EditorConfigFailure.failed(String(decoding: try Data(contentsOf: errorURL).prefix(1024), as: UTF8.self))
-        }
-        guard let text = String(data: try Data(contentsOf: outputURL), encoding: .utf8) else { throw EditorConfigFailure.failed("Invalid parser output.") }
+        let data: Data
+        do { data = try BundledTextHelper.capture(executable: parser, arguments: [file.path]) }
+        catch BundledTextHelperFailure.timedOut { throw EditorConfigFailure.timedOut }
+        catch BundledTextHelperFailure.failed(let message) { throw EditorConfigFailure.failed(message) }
+        guard let text = String(data: data, encoding: .utf8) else { throw EditorConfigFailure.failed("Invalid parser output.") }
         var properties: [String: String] = [:]
         for line in text.split(separator: "\n") {
             guard let separator = line.firstIndex(of: "=") else { throw EditorConfigFailure.failed("Invalid parser output.") }

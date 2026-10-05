@@ -37,3 +37,4 @@ if args.require_git:
 
 import subprocess
 subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-editorconfig-runtime.py'), str(app / 'Contents/Helpers/EditorConfig')], check=True)
+subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-issue-regex-runtime.py'), str(app / 'Contents/Helpers/IssueRegex')], check=True)

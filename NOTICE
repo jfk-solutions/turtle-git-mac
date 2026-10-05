@@ -29,3 +29,10 @@ under Contents/Helpers/EditorConfig/. Configuration/EditorConfigRuntime.json
 records source versions and checksums. EditorConfig includes Simplified/New/
 Revised BSD and per-file notices; PCRE2 retains its BSD license and exceptions.
 Consult the included license texts and complete corresponding sources.
+
+The issue-matching helper adapts the std::wregex matching algorithm from
+TortoiseGit src/TortoiseProc/ProjectProperties.cpp, copyright (C) 2003-2021,
+2023-2025 TortoiseGit, under GPL version 2 or later. Its UTF-16 process transport
+is implemented for macOS. Corresponding source, reconstruction and validation
+scripts, and the GPL license are bundled under Contents/Helpers/IssueRegex/.
+See docs/ISSUE-TRACKER-PARITY.md for the pinned upstream audit and limitations.

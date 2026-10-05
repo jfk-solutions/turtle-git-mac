@@ -188,3 +188,13 @@ checks the signed binary hash, signature and exact sandbox entitlements after.
 An inherited helper cannot execute from an unsandboxed Python build validator.
 Signed app invocation, security scopes and ancestors outside a chosen repository
 remain unverified; see [EditorConfig parity](EDITORCONFIG-PARITY.md).
+
+## Issue-matching helper
+
+All configurations also embed the universal C++ ECMAScript matcher, its complete
+source, reconstruction/validation scripts and GPL license. Prepare it with
+`python3 scripts/build-issue-regex-runtime.py`. The signing paths follow the
+EditorConfig helper's sandbox inheritance rules. Both CPU slices and both
+ad-hoc helper signing branches are checked; signed native App Store invocation,
+actual Intel/macOS 13 execution and complete issue-control parity remain pending.
+See [issue tracker parity](ISSUE-TRACKER-PARITY.md).
