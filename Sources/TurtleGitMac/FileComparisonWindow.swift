@@ -76,7 +76,10 @@ import TurtleGitCore
     @Published var tabWidths: [Bool: Int] = [:]
     @Published var spacePanes: [Bool: Bool] = [:]
     @Published var smartTabPanes: [Bool: Bool] = [:]
-    @Published var editorConfigEnabled: [Bool: Bool] = [:]
+    @Published var editorConfigEnabled: [Bool: Bool] = {
+        let enabled = MergeEditorPreferences.load().enableEditorConfig
+        return [true: enabled, false: enabled]
+    }()
     @Published var editorConfigLoaded: [Bool: Bool] = [:]
     @Published var editorConfigLoading: Set<Bool> = []
     private var editorConfigRequests: [Bool: UUID] = [:]

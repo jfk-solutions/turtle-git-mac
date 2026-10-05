@@ -195,7 +195,9 @@ merged result offers the upstream nine-style line-ending conversion submenu
 with Undo/Redo, plus UTF-8/UTF-16/UTF-32 output choices and explicit Windows-1252 export.
 Each pane has an optional EditorConfig toggle that reads the bundled official
 parser and applies tab width and Tab/Space settings with an EC status indicator.
-Signed sandbox acceptance and save-time properties remain in progress; see
+Merge Editor Settings can enable it by default for new windows. It applies
+indentation settings; saving retains the chosen pane format, matching the pinned
+upstream callers. Signed sandbox acceptance remains in progress; see
 [EditorConfig audit](docs/EDITORCONFIG-PARITY.md). Legacy input code pages and
 full diff/merge parity remain in progress.
 

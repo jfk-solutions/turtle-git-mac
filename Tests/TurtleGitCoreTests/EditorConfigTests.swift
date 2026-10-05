@@ -25,6 +25,24 @@ final class EditorConfigTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: child.appendingPathComponent(".editorconfig")), before)
         XCTAssertFalse(FileManager.default.fileExists(atPath: child.appendingPathComponent("part2.txt").path))
     }
+    func testUpstreamNumericWidthCoercionAndUnusedSaveProperties() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitEditorConfigWidth-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let defaults = MergeEditorPreferences(tabWidth: 4, smartTab: true, enableEditorConfig: true)
+        for (value, expected) in [("unset", 1), ("0", 1), ("-4", 1), ("1200", 1000), ("12suffix", 12)] {
+            let configuration = "root=true\n[*.txt]\ntab_width=\(value)\nindent_style=space\ncharset=utf-16le\nend_of_line=crlf\ntrim_trailing_whitespace=true\ninsert_final_newline=true\n"
+            try Data(configuration.utf8).write(to: root.appendingPathComponent(".editorconfig"))
+            let resolved = try EditorConfigRuntime.resolve(file: root.appendingPathComponent("file.txt"), executable: parser)
+            XCTAssertEqual(resolved.tabWidth, expected, value)
+            let settings = resolved.applying(to: defaults)
+            XCTAssertEqual(settings.tabWidth, expected); XCTAssertTrue(settings.useSpaces)
+            XCTAssertTrue(settings.smartTab); XCTAssertTrue(settings.enableEditorConfig)
+            XCTAssertEqual(resolved.properties["charset"], "utf-16le")
+            XCTAssertEqual(resolved.properties["end_of_line"], "crlf")
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("file.txt").path))
+        }
+    }
     func testMissingParserAndMalformedConfigurationFailWithoutWrites() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitEditorConfigFailure-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

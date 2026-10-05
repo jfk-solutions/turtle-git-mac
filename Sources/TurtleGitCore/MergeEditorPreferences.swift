@@ -18,8 +18,11 @@ public struct MergeEditorConfigProperties: Equatable, Sendable {
     public init(properties: [String: String]) { self.properties = properties }
     public var loaded: Bool { !properties.isEmpty }
     public var tabWidth: Int? {
-        guard let value = properties["tab_width"], let width = Int(value), width > 0 else { return nil }
-        return min(1000, width)
+        guard let value = properties["tab_width"] else { return nil }
+        // TortoiseMerge's wrapper uses atoi, then BaseView clamps to 1...1000.
+        // Retain that behavior for unset, nonnumeric and numeric-prefix values.
+        let width = value.withCString { Int(atoi($0)) }
+        return min(1000, max(1, width))
     }
     public var useSpaces: Bool? {
         switch properties["indent_style"] {
@@ -86,19 +89,22 @@ public struct MergeEditorPreferences: Equatable, Sendable {
     public var useSpaces: Bool
     public var smartTab: Bool
     public var showLineNumbers: Bool
-    public init(tabWidth: Int = 4, useSpaces: Bool = false, smartTab: Bool = false, showLineNumbers: Bool = true) {
+    public var enableEditorConfig: Bool
+    public init(tabWidth: Int = 4, useSpaces: Bool = false, smartTab: Bool = false, showLineNumbers: Bool = true, enableEditorConfig: Bool = false) {
         self.tabWidth = min(1000, max(1, tabWidth)); self.useSpaces = useSpaces; self.smartTab = smartTab
-        self.showLineNumbers = showLineNumbers
+        self.showLineNumbers = showLineNumbers; self.enableEditorConfig = enableEditorConfig
     }
     public static func load(from defaults: UserDefaults = .standard) -> Self {
         Self(tabWidth: defaults.object(forKey: "TurtleGitMerge.TabSize") == nil ? 4 : defaults.integer(forKey: "TurtleGitMerge.TabSize"),
              useSpaces: defaults.bool(forKey: "TurtleGitMerge.UseSpaces"), smartTab: defaults.bool(forKey: "TurtleGitMerge.SmartTab"),
-             showLineNumbers: defaults.object(forKey: "TurtleGitMerge.ShowLineNumbers") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.ShowLineNumbers"))
+             showLineNumbers: defaults.object(forKey: "TurtleGitMerge.ShowLineNumbers") == nil ? true : defaults.bool(forKey: "TurtleGitMerge.ShowLineNumbers"),
+             enableEditorConfig: defaults.bool(forKey: "TurtleGitMerge.EnableEditorConfig"))
     }
     public func save(to defaults: UserDefaults = .standard) {
         defaults.set(min(1000, max(1, tabWidth)), forKey: "TurtleGitMerge.TabSize")
         defaults.set(useSpaces, forKey: "TurtleGitMerge.UseSpaces")
         defaults.set(smartTab, forKey: "TurtleGitMerge.SmartTab")
         defaults.set(showLineNumbers, forKey: "TurtleGitMerge.ShowLineNumbers")
+        defaults.set(enableEditorConfig, forKey: "TurtleGitMerge.EnableEditorConfig")
     }
 }

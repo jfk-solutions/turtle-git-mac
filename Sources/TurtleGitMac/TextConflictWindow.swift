@@ -208,6 +208,7 @@ private enum MergeSourceSide {
     @Published var editorConfigLoaded: [String: Bool] = [:]
     @Published var editorConfigLoading: Set<String> = []
     private var editorConfigRequests: [String: UUID] = [:]
+    private let initialEditorConfigDefault = MergeEditorPreferences.load().enableEditorConfig
     func setEditorConfig(_ enabled: Bool, pane: String) {
         guard document != nil, !confirmingQuit else { return }
         let request = UUID(); editorConfigRequests[pane] = request
@@ -233,7 +234,13 @@ private enum MergeSourceSide {
         }
     }
     private func reloadEditorConfig() {
-        for pane in editorConfigEnabled.keys where editorConfigEnabled[pane] == true { setEditorConfig(true, pane: pane) }
+        guard let document else { return }
+        let panes = ["Base", document.mineStage == 3 ? "Mine — Branch being rebased" : "Mine",
+                     document.theirsStage == 2 ? "Theirs — Branch being rebased onto" : "Theirs", "Merged · \(path)"]
+        for pane in panes {
+            if editorConfigEnabled[pane] == nil { editorConfigEnabled[pane] = initialEditorConfigDefault }
+            if editorConfigEnabled[pane] == true { setEditorConfig(true, pane: pane) }
+        }
     }
 
     private var preferencesSubscription: AnyCancellable?

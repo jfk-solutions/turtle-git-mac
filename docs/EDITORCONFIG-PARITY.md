@@ -37,7 +37,7 @@ dependency is introduced.
 ## Native integration
 
 The shared per-pane tab menu now has EditorConfig after the width presets, off
-by default. Both comparison and conflict editors resolve the reflected original
+unless the saved Enable EditorConfig default is enabled. Both comparison and conflict editors resolve the reflected original
 file path, reset width/mode/Smart to saved defaults on each toggle, then apply
 only resolved tab_width and indent_style. Matching properties add the upstream
 EC suffix. Read-only source panes have independent view settings. Toggling or
@@ -70,13 +70,41 @@ in Mine, indented by five spaces and returned clean after Undo. Source/working
 bytes, HEAD, raw index and executable mode stayed unchanged. All QA app instances
 were closed. See [acceptance](qa/editorconfig-native-2026-10-05.json).
 
+## Saved default and save-call audit
+
+The General page now includes upstream's Enable EditorConfig checkbox. Its
+false default and saved key are mapped to UserDefaults. New comparison/conflict
+views capture that default, including hidden Base. Changing it in Settings does
+not override open panes' session toggles, matching BaseView constructor reads
+and MainFrm OnViewOptions/DocumentUpdated. Native Apply, restart persistence and
+enabling/disabling defaults were accepted. Full upstream settings reload and
+save-prompt behavior remains partial.
+
+A scan of all 71 root TortoiseMerge implementation/header files at the inventory
+commit verified every Git blob hash. The only wrapper construction is in
+BaseView.SetEditorConfigEnabled, which consumes tab_width and indent_style.
+Parsed indent_size, charset, end_of_line, trim_trailing_whitespace and
+insert_final_newline have no other consumer in that source scope. Save callers
+use the selected pane encoding/endings. Native Save confirmed exact UTF16LE BOM,
+CRLF, trailing whitespace and no final newline despite differing config values;
+HEAD/index and mode stayed intact. These unused fields are retained as raw
+properties and do not trigger extra save transformations. This resolves the
+previous save-property audit question for the pinned baseline.
+
+Numeric width follows the wrapper's atoi and BaseView's 1...1000 clamp, including
+unset/nonnumeric values becoming one and numeric prefixes being accepted. This
+is explicit upstream behavior rather than stricter property validation. See
+[default/save acceptance and source hashes](qa/editorconfig-defaults-2026-10-05.json).
+
 ## Remaining parity
 
-Persistent EnableEditorConfig settings, full preference reload acceptance,
+Full preference reload/save-prompt acceptance,
 native failure/timeout and race acceptance, signed sandbox reads with folder
 bookmarks, ancestor permissions, dark/narrow layouts and actual Intel/macOS13
-execution remain pending. Save-time charset/EOL/whitespace/final-newline behavior
-needs its own upstream caller audit. The 358 local tests and unsigned app builds
+execution remain pending. Exact writable/loaded menu availability still differs:
+upstream gates menu commands by view writability and the EditorConfig loaded
+state; native read-only panes currently allow view-setting changes. Full source
+editing and those gates remain partial. The 358 local tests and unsigned app builds
 do not establish full EditorConfig parity or App Store readiness.
 
 Sources: [TortoiseMerge wrapper](https://raw.githubusercontent.com/TortoiseGit/TortoiseGit/master/src/TortoiseMerge/EditorConfigWrapper.cpp),

@@ -16,7 +16,7 @@ struct MergeEditorSettings: View {
     }
     private var changed: Bool {
         guard let width = validWidth else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers) != .load()
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig) != .load()
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -34,10 +34,11 @@ struct MergeEditorSettings: View {
                         Stepper("", value: Binding(get: { validWidth ?? draft.tabWidth }, set: { tabSize = String($0) }), in: 1...1000).labelsHidden()
                         Spacer()
                     }
+                    Toggle("Enable EditorConfig", isOn: $draft.enableEditorConfig)
                     if validWidth == nil { Text("Enter a tab size from 1 to 1000.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
-            Text("Apply these defaults to open merge panes and new merge windows. Pane menus can override them for the current session.")
+            Text("Apply indentation defaults to open panes and new windows. Enable EditorConfig sets the default for new windows; open panes retain their individual toggles.")
                 .font(.caption).foregroundStyle(.secondary)
             Spacer()
             HStack {

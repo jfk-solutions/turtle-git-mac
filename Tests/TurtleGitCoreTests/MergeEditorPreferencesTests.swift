@@ -7,9 +7,11 @@ final class MergeEditorPreferencesTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: name))
         defer { defaults.removePersistentDomain(forName: name) }
         XCTAssertEqual(MergeEditorPreferences.load(from: defaults), MergeEditorPreferences())
-        let saved = MergeEditorPreferences(tabWidth: 7, useSpaces: true, smartTab: true, showLineNumbers: false)
+        let saved = MergeEditorPreferences(tabWidth: 7, useSpaces: true, smartTab: true, showLineNumbers: false, enableEditorConfig: true)
         saved.save(to: defaults)
         XCTAssertEqual(MergeEditorPreferences.load(from: try XCTUnwrap(UserDefaults(suiteName: name))), saved)
+        defaults.removeObject(forKey: "TurtleGitMerge.EnableEditorConfig")
+        XCTAssertFalse(MergeEditorPreferences.load(from: defaults).enableEditorConfig)
         defaults.removeObject(forKey: "TurtleGitMerge.ShowLineNumbers")
         XCTAssertTrue(MergeEditorPreferences.load(from: defaults).showLineNumbers)
         defaults.set(-5, forKey: "TurtleGitMerge.TabSize")
