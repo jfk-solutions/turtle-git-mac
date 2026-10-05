@@ -273,3 +273,9 @@ Finder command snapshots adapt ContextMenu.cpp's retained selection/path command
 dispatch: native menu items hold immutable FinderRequest values, and Control
 changes only comparison-mark commands at activation. Backend permission and
 selection validation remains required; activated/signed handoff remains pending.
+
+Finder command ordering and deferred group separators adapt MenuInfo.cpp's
+command table and ContextMenu.cpp's separator insertion, using the existing GPL
+version 2 or later source attribution above. The native menu projects implemented
+commands into upstream order; omitted commands/conditions/configuration remain
+pending. Worktree creation is reached through the Worktrees manager.

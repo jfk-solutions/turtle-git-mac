@@ -18,6 +18,22 @@ import TurtleGitCore
 @main struct FinderMenuVerification {
     @MainActor static func main() throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        struct SourceOrder: Decodable { let groups: [[String]] }
+        let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
+        let mapping: [RepositoryAction: String] = [
+            .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
+            .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .reflog: "RefLog", .repositoryBrowser: "RepoBrowse",
+            .status: "ShowChanged", .rebase: "Rebase", .stash: "StashSave", .stashApply: "StashApply",
+            .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .rename: "Rename",
+            .remove: "Remove", .removeKeep: "RemoveKeep", .revert: "Revert", .switchBranch: "Switch",
+            .merge: "Merge", .branch: "Branch", .tag: "Tag", .initialize: "CreateRepo",
+            .ignore: "IgnoreSub", .ignoreDelete: "DeleteIgnoreSub", .worktreeList: "Worktree",
+            .submoduleUpdate: "SubmoduleUpdate", .formatPatch: "FormatPatch"
+        ]
+        let nativeBySource = Dictionary(uniqueKeysWithValues: mapping.map { ($0.value, $0.key) })
+        let projected = sourceOrder.groups.map { $0.compactMap { nativeBySource[$0] } }.filter { !$0.isEmpty }
+        precondition(FinderShellMenuLayout.groups == projected, "Every implemented root command must preserve pinned MenuInfo order/group")
+        precondition(Set(projected.flatMap { $0 }) == Set(mapping.keys))
         let folder = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let untracked = folder.appendingPathComponent("new.txt"), tracked = folder.appendingPathComponent("tracked.txt")
@@ -32,6 +48,19 @@ import TurtleGitCore
         func signatures(_ menu: NSMenu) -> [String] {
             items(menu).map { "\($0.title)|\($0.isEnabled)|\(($0.representedObject as? FinderMenuCommand)?.url()?.absoluteString ?? "")|\($0.state.rawValue)" }
         }
+        func verifyOrder(_ menu: NSMenu) {
+            let roots = menu.items.first?.submenu ?? menu
+            var actual: [[RepositoryAction]] = [[]]
+            for item in roots.items {
+                if item.isSeparatorItem { precondition(!actual.last!.isEmpty); actual.append([]) }
+                else { actual[actual.count - 1].append(FinderShellMenuLayout.action(item)!) }
+            }
+            if !roots.items.isEmpty { precondition(!actual.last!.isEmpty) }
+            let visible = Set(actual.flatMap { $0 })
+            let expected = projected.map { $0.filter { visible.contains($0) } }.filter { !$0.isEmpty }
+            precondition(actual.filter { !$0.isEmpty } == expected, "Visible menu groups must match independent source projection")
+            precondition(!visible.contains(.worktreeCreate), "New Worktree belongs in the manager")
+        }
         func make(_ paths: [URL], settings: FinderMenuSettings, mark: WorkingComparisonMarkSnapshot? = nil) -> NSMenu {
             FinderMenuBuilder.make(paths: paths, snapshot: snapshot, settings: settings,
                 comparisonMark: mark, target: target, actionSelector: selector)
@@ -39,6 +68,7 @@ import TurtleGitCore
         for paths in [[untracked], [tracked], [conflict], [folder], [untracked, tracked], []] {
             let enabled = make(paths, settings: FinderMenuSettings())
             let disabled = make(paths, settings: FinderMenuSettings(showIcons: false))
+            verifyOrder(enabled); verifyOrder(disabled)
             precondition(signatures(enabled) == signatures(disabled), "Preference must preserve command conditions/routing")
             precondition(items(enabled).filter { !$0.isSeparatorItem }.allSatisfy { $0.image != nil })
             precondition(items(disabled).allSatisfy { $0.image == nil }, "Parent, nested ignore and ordinary action icons must all be disabled")
@@ -112,7 +142,9 @@ import TurtleGitCore
         print("Actual command receiver: ordinary/multi-file/container/nested-ignore/comparison requests retain menu-time selection; Control only clears the comparison mark. No activation/handoff performed.")
         let toolbarMenu = FinderMenuBuilder.make(paths: [], snapshot: snapshot, settings: FinderMenuSettings(),
             comparisonMark: nil, target: target, actionSelector: selector, toolbar: true)
-        precondition(toolbarMenu.items.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title], "Toolbar commands should appear directly")
+        precondition(toolbarMenu.items.filter { !$0.isSeparatorItem }.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title], "Toolbar commands should appear directly")
+        verifyOrder(toolbarMenu)
+        precondition(toolbarMenu.items.count == 3 && toolbarMenu.items[1].isSeparatorItem)
         precondition(creation(folder).allSatisfy { !(($0.representedObject as? FinderMenuCommand).map { [.clone, .initialize].contains($0.request.action) } ?? false) })
         precondition(creation(folder, extended: true).compactMap { ($0.representedObject as? FinderMenuCommand).flatMap { [.clone, .initialize].contains($0.request.action) ? $0.request.action : nil } } == [.clone])
         let admin = folder.appendingPathComponent(".git", isDirectory: true)
@@ -122,6 +154,12 @@ import TurtleGitCore
         precondition(FinderMenuBuilder.paths(kind: .contextualMenuForItems, selection: [tracked], target: folder) == [tracked])
         precondition(FinderMenuBuilder.paths(kind: .toolbarItemMenu, selection: [tracked], target: nil).isEmpty)
         print("Actual creation menu receiver: outside folder and targetless toolbar Clone/Create only, captured target routing and URL round-trip, versioned Shift rules, admin exclusion and container/item/toolbar selection passed. Activated Finder and native dialog handoff remain pending.")
+        let unrelated = outside.appendingPathComponent("plain.txt"); try Data().write(to: unrelated)
+        let outsideFileMenu = FinderMenuBuilder.make(paths: [unrelated], snapshot: nil, settings: FinderMenuSettings(),
+            comparisonMark: nil, target: target, actionSelector: selector)
+        verifyOrder(outsideFileMenu)
+        precondition(outsideFileMenu.items[0].submenu!.items.count == 1, "A lone mark command needs no leading separator")
+        print("Actual layout receiver: all 31 implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")
         for state in FileState.allCases { precondition(state.icon.image() != nil, "Badge artwork stays available") }
         print("Actual Finder menu builder: parent/action/nested-ignore/marked-compare images toggle; six selection cases preserve titles, enabled states and routing; fresh cache reset and badge artwork pass. No Finder controller/extension/window activated; signed integration and gestures remain pending.")
     }
@@ -136,4 +174,4 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitFinderMenuTest-') as directory
                     '-F', str(frameworks), '-framework', 'TurtleGitCore', '-framework', 'FinderSync',
                     '-Xlinker', '-rpath', '-Xlinker', str(frameworks),
                     str(root / 'FinderSync/FinderSync.swift'), str(main), '-o', str(binary)], check=True)
-    subprocess.run([str(binary), str(folder / 'fixture')], check=True)
+    subprocess.run([str(binary), str(folder / 'fixture'), str(root / 'docs/upstream-shell-menu-order.json')], check=True)

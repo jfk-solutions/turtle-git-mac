@@ -62,6 +62,47 @@ final class FinderMenuCommand: NSObject {
     }
 }
 
+final class FinderMenuGroup: NSObject {
+    let action: RepositoryAction
+    init(_ action: RepositoryAction) { self.action = action }
+}
+
+/// Projection of pinned MenuInfo command order onto implemented Finder commands.
+enum FinderShellMenuLayout {
+    static let groups: [[RepositoryAction]] = [
+        [.clone, .pull, .fetch, .push],
+        [.commit],
+        [.diff, .diffLater],
+        [.log, .reflog, .repositoryBrowser, .status, .rebase, .stash, .stashApply, .stashPop, .stashList],
+        [.resolve, .rename, .remove, .removeKeep, .revert],
+        [.switchBranch, .merge, .branch, .tag],
+        [.initialize, .ignore, .ignoreDelete],
+        [.worktreeList, .submoduleUpdate],
+        [.formatPatch]
+    ]
+    static func action(_ item: NSMenuItem) -> RepositoryAction? {
+        (item.representedObject as? FinderMenuCommand)?.request.action ?? (item.representedObject as? FinderMenuGroup)?.action
+    }
+    static func arrange(_ menu: NSMenu) {
+        let ordered = menu.items.enumerated().filter { !$0.element.isSeparatorItem }.map { entry in
+            let action = action(entry.element)
+            let group = groups.firstIndex { action.map($0.contains) ?? false } ?? groups.count
+            let rank = action.flatMap { groups.indices.contains(group) ? groups[group].firstIndex(of: $0) : nil } ?? Int.max
+            return (item: entry.element, group: group, rank: rank, offset: entry.offset)
+        }.sorted {
+            if $0.group != $1.group { return $0.group < $1.group }
+            if $0.rank != $1.rank { return $0.rank < $1.rank }
+            return $0.offset < $1.offset
+        }
+        menu.removeAllItems()
+        var previous: Int?
+        for entry in ordered {
+            if let previous, previous != entry.group { menu.addItem(.separator()) }
+            menu.addItem(entry.item); previous = entry.group
+        }
+    }
+}
+
 enum FinderMenuBuilder {
     static func paths(kind: FIMenuKind, selection: [URL], target: URL?) -> [URL] {
         if kind == .contextualMenuForContainer || kind == .toolbarItemMenu { return target.map { [$0] } ?? [] }
@@ -85,11 +126,11 @@ enum FinderMenuBuilder {
         }
         let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
-        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
+        for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
             guard knownRepository else { continue }
             let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon)
-            if action == .formatPatch || action == .worktreeCreate || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
+            if action == .formatPatch || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
             if action == .revert { item.isEnabled = snapshot?.canRevert(paths) == true }
             if action == .resolve { item.isEnabled = snapshot?.canResolve(paths) == true }
             if action == .rename { item.isEnabled = snapshot?.canRename(paths) == true }
@@ -98,7 +139,7 @@ enum FinderMenuBuilder {
         }
         for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true {
             let ignore = NSMenuItem(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", action: nil, keyEquivalent: "")
-            ignore.image = image(.ignore)
+            ignore.image = image(.ignore); ignore.representedObject = FinderMenuGroup(deleting ? .ignoreDelete : .ignore)
             let choices = NSMenu(title: ignore.title); choices.autoenablesItems = false
             let name = paths.count == 1 ? paths[0].lastPathComponent : "Ignore \(paths.count) items by name"
             let named = NSMenuItem(title: name, action: actionSelector, keyEquivalent: "")
@@ -120,6 +161,7 @@ enum FinderMenuBuilder {
             item.target = target; item.image = image(.compare); item.representedObject = FinderMenuCommand(action: .diffLater, paths: paths)
             submenu.addItem(.separator()); submenu.addItem(item)
         }
+        FinderShellMenuLayout.arrange(submenu)
         if toolbar { return submenu }
         let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
         parent.image = image(.turtle)

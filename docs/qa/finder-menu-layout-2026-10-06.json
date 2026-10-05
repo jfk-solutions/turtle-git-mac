@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-06",
+  "scope": "Implemented Finder root command order and deferred separators; full shell command coverage/conditions/activated appearance pending",
+  "baseCommit": "ca982a50ea12ace5c6462a614888c61fd0421065",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "MenuInfo.cpp": "aee7f91ad1111fe03ab85b390855885ca940a27f",
+    "ContextMenu.cpp": "0b31f963e73ff71cd9cdb0861972a671236ae20f"
+  },
+  "upstreamVerification": "HEAD/blob pins match and source files have no working diff",
+  "fixture": "../upstream-shell-menu-order.json; complete source command groups through Settings/Help/About, excluding comments and resource-only submenu definitions",
+  "rootMappings": 31,
+  "actualNativeReceivers": [
+    "Actual extension source compiled Swift 6/macOS 13 minimum without constructing Finder controller/extension",
+    "All 31 implemented root entries compared against independent source order/group fixture",
+    "Six selection-case visible projections, separate nested Ignore parent positions and preserved requests/images/enabled states",
+    "Deferred separators: no leading/trailing/doubled separators, sparse outside-file mark and direct toolbar Clone/Create groups",
+    "Default direct New Worktree root absent; Worktrees manager remains",
+    "Existing captured-selection/Control/literal filenames/creation/cache/badge-artwork receiver checks pass"
+  ],
+  "worktreeCreation": "Existing manager model.add controller callback and Add button source audited/compiled; actual gesture not repeated",
+  "coreTests": "Core unchanged; no new core suite claimed",
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App/Finder extension, unchanged 75 original icons, current NOTICE/licenses, universal helper runtimes and Store Git 2.55.0 verified",
+  "nativeUI": "No windows/popups displayed or extension activated; no gesture/screenshot/signed acceptance claim",
+  "appProcesses": "No app launched; receiver fixture cleaned and no TurtleGit main app/receiver process at audit",
+  "logs": {
+    "menu": {
+      "path": "/tmp/turtlegit-finder-order-menu.log",
+      "sha256": "41e13f9c3b85100fdb56516db2b046f1c25988cf66da31bf9a74a5c13ab521cd",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-order-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-order-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-finder-order-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-finder-order-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-order-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    "FinderSync/FinderSync.swift": "809bfbc76f4de3fa16cbeb95b124b73db95b09a43aeea674cf213d1d2308fc02",
+    "NOTICE": "d8f5c967a34e1a9cb202f1ca76fb9ce8c04fcaca70bf24c456972012accf3e3b",
+    "README.md": "534c3c976d4cb0f088975053d4b0fdfd4c74c1c79bd12c2fe304e2f601b789e3",
+    "docs/WORKTREE-PARITY.md": "399d4580bab6aaedd91c595be97b1e8efdca8788f39c83aaea558005279d8dd1",
+    "docs/upstream-files.csv": "4445d2e9e07cbc8a040142e610e5081e25ee8f6e80e386e96faedf4fe1dd159d",
+    "scripts/test-finder-menu.py": "37bcd93c22b88a0f3ae7d3b618bf8409a669358f178d47b041f439925045c171",
+    "docs/FINDER-MENU-LAYOUT-PARITY.md": "0d892de7340918416b01c545872f26b99887d8bf93bc1160b729d47c10eda7a9",
+    "docs/upstream-shell-menu-order.json": "e0d38e3fee4a5fc1bce3e884350830c22013832753d3fa66875f3a4e989c30bf"
+  },
+  "pending": [
+    "Actual activated Finder context/toolbar appearance and manager Add gesture",
+    "Complete command set, eligibility and richer cached metadata",
+    "Source top-level placement/customization and unsupported commands/groups",
+    "Signed sandbox/App Group/distribution acceptance",
+    "GitHub publication/execution; existing authentication blocker"
+  ]
+}

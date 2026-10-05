@@ -180,6 +180,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   signed activation remains unverified. See [creation audit](docs/FINDER-CREATION-PARITY.md).
   Finder commands retain the menu's file/folder selection through activation,
   including container and nested Ignore entries; see [selection audit](docs/FINDER-SELECTION-PARITY.md).
+  Implemented Finder commands follow upstream order and separator groups;
+  Worktrees → Add opens New Worktree. Full conditions/coverage remain pending;
+  see [menu layout audit](docs/FINDER-MENU-LAYOUT-PARITY.md).
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Commit’s file menu adds unversioned paths explicitly; Shift reveals upstream

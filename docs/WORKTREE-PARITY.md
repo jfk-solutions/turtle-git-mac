@@ -76,9 +76,10 @@ forces Detach and disables its checkbox. Manually choosing Detach clears Create
 New Branch without clearing Detach again. HEAD remains the default, and `.git`
 directory names lose that suffix for the proposed destination.
 
-The app Git menu and directory-only Finder action dispatch New Worktree with
-original branch artwork. This direct create entry supplements the pending
-upstream Worktrees management entry; it does not replace that requirement.
+The app Git menu dispatches New Worktree with original branch artwork. Finder's
+default menu exposes the upstream Worktrees manager; its Add button opens New
+Worktree. The provisional direct Finder create entry was removed when the shell
+command order was ported; see [menu layout audit](FINDER-MENU-LAYOUT-PARITY.md).
 Browse is an AppKit folder panel that can create an empty directory. In Store
 builds, mutation requires scoped source and destination access. Typed destinations
 outside granted scope must be granted through Browse. Signed cross-directory and
