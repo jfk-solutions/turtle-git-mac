@@ -1,4 +1,5 @@
 import AppKit
+import TurtleGitCore
 
 /// Native counterpart of TortoiseUDiff MainWindow.cpp ID_FILE_PRINT.
 /// An independent attributed snapshot keeps pagination/selection out of the editor.
@@ -6,8 +7,15 @@ import AppKit
     private let text: NSTextView
     private let operation: NSPrintOperation
     private let completion: () -> Void
-    init(snapshot: NSAttributedString, selection: NSRange, title: String, completion: @escaping () -> Void) {
+    init(snapshot: NSAttributedString, selection: NSRange, title: String, margins: UnifiedDiffPrintMargins = .load(), completion: @escaping () -> Void) throws {
         let info = NSPrintInfo.shared.copy() as! NSPrintInfo
+        let paper = info.paperSize, printable = info.imageablePageBounds
+        info.leftMargin = max(margins.left, max(0, printable.minX))
+        info.rightMargin = max(margins.right, max(0, paper.width - printable.maxX))
+        info.topMargin = max(margins.top, max(0, paper.height - printable.maxY))
+        info.bottomMargin = max(margins.bottom, max(0, printable.minY))
+        guard margins.isValid, info.leftMargin + info.rightMargin < paper.width,
+              info.topMargin + info.bottomMargin < paper.height else { throw PatchPrintFailure.invalidMargins }
         info.horizontalPagination = .fit; info.verticalPagination = .automatic
         info.isHorizontallyCentered = false; info.isVerticallyCentered = false
         let width = max(1, info.paperSize.width - info.leftMargin - info.rightMargin)
@@ -69,4 +77,9 @@ import AppKit
         [[.itemName: "Content", .itemDescription: selectionOnly ? "Selected text" : "Whole diff"]]
     }
     func keyPathsForValuesAffectingPreview() -> Set<String> { ["selectionOnly"] }
+}
+
+private enum PatchPrintFailure: LocalizedError {
+    case invalidMargins
+    var errorDescription: String? { "The saved margins leave no printable area. Adjust them in Page Setup." }
 }

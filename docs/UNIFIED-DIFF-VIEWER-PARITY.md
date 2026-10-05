@@ -295,7 +295,7 @@ and [native print responder action](https://developer.apple.com/documentation/ap
 `python3 scripts/test-patch-printing.py` compiles the real print helper and checks
 PDF output without opening TurtleGit or a print sheet: a one-page selected
 snippet excludes whole-document markers; a fresh whole-diff operation produces
-five pages retaining the first and last markers; changing the caller's mutable
+six pages retaining the first and last markers; changing the caller's mutable
 source after Print cannot alter the snapshot. Each real print request creates a
 new operation; the test also uses independent operations for its saved PDFs.
 
@@ -325,3 +325,27 @@ This advances the earlier print-sheet acceptance status. Page Setup's four
 persistent margins, physical printers, partial-selection preview content,
 multiple diff windows, Settings focus, queued busy transitions and signed
 sandbox acceptance remain pending. See [native record](qa/unified-file-menu-2026-10-05.json).
+
+## Page Setup margins
+
+The native File → Page Setup sheet adapts MainWindow.cpp `ID_FILE_PAGESETUP`
+and its print-margin conversion at blob `fc1d4053019e4b8bc5c2a1c08837d19c7c506751`.
+Four saved margins start at one inch (25.4 mm / 72 points). Fields use the local
+measurement system and decimal separator. Preferences store print points so a
+locale change does not reinterpret the saved dimensions. Paper/orientation stay
+in Print, following the source Page Setup's disabled paper/orientation controls.
+OK persists valid margins; Cancel discards edits. Impossible/nonfinite/negative
+margins are rejected, and stored malformed data falls back to source defaults.
+
+Printing applies the saved margins and the current printer's minimum imageable
+bounds. The current PDF fixture produces six pages at the source defaults and
+eleven with larger top/bottom margins, retaining the first/last text markers.
+An impossible area fails before showing Print. The three margin tests and eight
+existing appearance/viewer tests pass. Both targets and bundle audits pass.
+
+Native acceptance verifies metric defaults, negative input disabling OK, Cancel
+preserving preferences, saving 12.7 mm, and reopening that value. The single
+isolated preview quit normally; no app process remained. No new screenshot was
+saved. Inch-locale UI, locale changes, native Print after a saved margin edit,
+paper/printer changes inside Print, physical printer minimums and signed sandbox
+acceptance remain pending. See [verification record](qa/unified-page-setup-2026-10-05.json).

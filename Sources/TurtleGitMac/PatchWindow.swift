@@ -72,6 +72,11 @@ import UniformTypeIdentifiers
     @Published var refreshAvailable = true
     var saveAs: () -> Void = {}
     var printDiff: () -> Void = {}
+    @Published var showPageSetup = false
+    func pageSetup() {
+        guard !busy, !confirmingQuit, !showPageSetup else { return }
+        busy = true; showPageSetup = true
+    }
     @Published var comparisonTitle = "HEAD → Working tree"
     var customRefresh: (() -> Void)?
     var readOnlyInformation: String?
@@ -149,6 +154,7 @@ struct PatchDialog: View {
                 }
             }
         }.padding(12).disabled(model.confirmingQuit)
+        .sheet(isPresented: $model.showPageSetup, onDismiss: { model.busy = false }) { PatchPageSetup(model: model) }
         .onReceive(NotificationCenter.default.publisher(for: .unifiedDiffAppearanceChanged)) { _ in model.objectWillChange.send() }
         .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
@@ -233,10 +239,12 @@ struct PatchTextView: NSViewRepresentable {
                   !model.busy, !model.confirmingQuit, printSession == nil else { return }
             let snapshot = NSAttributedString(attributedString: attributedString())
             model.busy = true
-            printSession = PatchPrintSession(snapshot: snapshot, selection: selectedRange(), title: window.title) { [weak self, weak model] in
-                model?.busy = false; self?.printSession = nil
-            }
-            printSession?.run(for: window)
+            do {
+                printSession = try PatchPrintSession(snapshot: snapshot, selection: selectedRange(), title: window.title) { [weak self, weak model] in
+                    model?.busy = false; self?.printSession = nil
+                }
+                printSession?.run(for: window)
+            } catch { model.busy = false; model.error = error.localizedDescription }
         }
         override func printView(_ sender: Any?) { printPatch(sender) }
         override func viewDidMoveToWindow() {

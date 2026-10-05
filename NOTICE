@@ -180,3 +180,10 @@ whole-document/selected-text printing and selection default under GPL version
 2003-2014, 2020 TortoiseSVN. Native AppKit print sheets, pagination and a separate
 attributed snapshot replace Windows PrintDlgEx and Scintilla FORMATRange.
 Print panel interaction and signed sandbox/printer acceptance remain pending.
+
+PatchPageSetup.swift and UnifiedDiffPrintMargins.swift adapt
+TortoiseUDiff/MainWindow.cpp ID_FILE_PAGESETUP and print-margin conversion under
+GPL version 2 or later. Copyright (C) 2012-2021, 2023, 2025-2026 TortoiseGit
+and (C) 2003-2014, 2020 TortoiseSVN. A native sheet and locale-independent
+point preferences replace PAGESETUPDLG and registry values. Printer minimum
+margins remain enforced through AppKit's imageable page bounds.

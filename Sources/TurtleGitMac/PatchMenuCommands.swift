@@ -33,6 +33,7 @@ import SwiftUI
     }
     func saveAs() { refresh(); guard available else { return }; current?.model.saveAs() }
     func printDiff() { refresh(); guard available else { return }; current?.model.printDiff() }
+    func pageSetup() { refresh(); guard available else { return }; current?.model.pageSetup() }
 }
 
 struct PatchFileCommands: Commands {
@@ -43,6 +44,7 @@ struct PatchFileCommands: Commands {
                 .keyboardShortcut("s", modifiers: [.command, .shift]).disabled(!context.available)
         }
         CommandGroup(replacing: .printItem) {
+            Button("Page Setup…") { context.pageSetup() }.disabled(!context.available)
             Button("Print…") { context.printDiff() }
                 .keyboardShortcut("p").disabled(!context.available)
         }

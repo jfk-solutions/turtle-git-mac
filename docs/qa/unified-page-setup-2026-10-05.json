@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-05",
+  "scope": "Partial UDiff Page Setup margin port",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "src/TortoiseUDiff/MainWindow.cpp ID_FILE_PAGESETUP and ID_FILE_PRINT margins",
+  "source_blob": "fc1d4053019e4b8bc5c2a1c08837d19c7c506751",
+  "core_tests": {
+    "count": 11,
+    "failures": 0,
+    "covers": [
+      "Three margin tests: default units, persistence/invalid edits/corrupt data, printable-area validation",
+      "Existing appearance/viewer rules"
+    ]
+  },
+  "pdf_checks": {
+    "exit": 0,
+    "selected_pages": 1,
+    "default_pages": 6,
+    "larger_margin_pages": 11,
+    "first_last_retained": true,
+    "invalid_area_rejected": true
+  },
+  "native_verified": [
+    "File Page Setup opens four-margin sheet",
+    "All defaults 25.4 mm displayed with decimal comma",
+    "Negative margin disables OK",
+    "Cancel leaves all defaults unchanged",
+    "Save 12.7 mm persists on reopening",
+    "Cancel restores usable diff controls",
+    "Normal Command-Q exits"
+  ],
+  "preview": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitPageSetupQA-iytf3s5w/TurtleGit Page Setup QA.app",
+  "remaining_app_processes": 0,
+  "debug_build_exit": 0,
+  "unsigned_appstore_build_exit": 0,
+  "bundle_audits": "Both passed; NOTICE copies match, all 72 icons",
+  "screenshot": "None saved",
+  "pending": [
+    "Inch locale UI and locale changes",
+    "Native Print with edited margins",
+    "Paper/printer changes after print sheet opens",
+    "Physical printer minimums and signed sandbox",
+    "Full UDiff editing/Open/Apply commands"
+  ],
+  "logs": [
+    {
+      "path": "/tmp/turtlegit-page-setup-core.log",
+      "sha256": "54592571a4a9ff657c05ba2aa52312196100e41bab3bd52755ecd903a5a03ca4"
+    },
+    {
+      "path": "/tmp/turtlegit-page-setup-pdf.log",
+      "sha256": "07c2b1825a5eb9c59f66e0cfcbd50450f1911e3f7f1de0f2b10a55ba33bef5d4"
+    },
+    {
+      "path": "/tmp/turtlegit-page-setup-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-page-setup-store.log",
+      "sha256": "c3317a93e73643be09045c50c69229cd4545aac229542d1968ba51680e6abb72"
+    },
+    {
+      "path": "/tmp/turtlegit-page-setup-debug-audit.log",
+      "sha256": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0"
+    },
+    {
+      "path": "/tmp/turtlegit-page-setup-store-audit.log",
+      "sha256": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+    }
+  ]
+}
