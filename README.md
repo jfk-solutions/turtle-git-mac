@@ -292,6 +292,8 @@ cherry-pick icons adapt to light/dark appearances.
 
 Log's selected-file menu now includes historical folder Export with the original
 icon, preserved subfolders, pinned committed bytes and Ignore/Abort failure
-choices. Core export regressions and both builds pass; native chooser/error
-acceptance and signed sandbox checks remain pending. See
+choices. Core regressions and both builds pass. Native three-file export,
+Ignore/Abort and chooser Cancel were verified with exact committed bytes and
+unchanged repository state; overwrite, precise menu gates and signed sandbox
+checks remain pending. See
 [Log parity](docs/LOG-PARITY.md) for the verification limits.

@@ -380,3 +380,28 @@ and exact fixture HEAD/index/working bytes were unchanged with no QA process
 remaining. Native overwrite/cancel/error continuation, signed sandbox grants,
 and exact upstream marked-row menu eligibility/order remain pending. Full Log
 and file-context parity remains incomplete.
+
+### Native Export acceptance follow-up at 35d4672
+
+A new single-instance QA session successfully invoked Export, chose a separate
+folder, and wrote all three selected files. Filesystem verification matched the
+selected commit's 30-byte UTF-8 BOM/CRLF/no-final-newline text, four-byte binary
+blob under `nested/`, and 14-byte broken symlink target as a regular file. The
+staged and working versions of the text file differed from the selected blob;
+neither was changed. Exact HEAD, raw index and working bytes were preserved.
+
+With the first destination (`link`) deliberately occupied by a directory, the
+native warning showed the file, full revision, destination and `Is a directory`
+error. Ignore retained that directory and exported both later files exactly.
+Abort retained the directory and wrote neither later file. No sibling temporary
+files remained. A subsequent chooser Cancel returned to Log without starting an
+export. The app quit normally and process absence was checked before any further
+UI observation. No code change was needed for these acceptance checks; the prior
+menu automation failure did not reproduce after explicitly raising Log.
+
+[Recorded hashes and native coverage](qa/historical-export-2026-10-05.json) are
+included with an [actual Log capture](site/assets/log-historical-export.png).
+The screenshot captures the underlying Log selection during export; it does not
+capture the separate AppKit warning sheet. Native overwrite, deleted/gitlink
+marked-row menu gates and ordering, dark-mode warning appearance and signed
+sandbox access remain pending. Full Log parity remains incomplete.

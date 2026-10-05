@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-05",
+  "tested_commit": "35d4672",
+  "revision": "081138ab5a4ae88a910dcfc070945d84b1d80fbd",
+  "native": {
+    "folder_chooser": true,
+    "three_file_export": true,
+    "ignore_continues": true,
+    "abort_stops": true,
+    "chooser_cancel": true,
+    "normal_quit": true
+  },
+  "files": [
+    {
+      "path": "source.txt",
+      "bytes": 30,
+      "sha256": "f94e9d6813f3564745f4b2a091d6b1e5e40967f6e1fc0ceb7a7117c1da9c1beb",
+      "regular_file": true
+    },
+    {
+      "path": "nested/binary.bin",
+      "bytes": 4,
+      "sha256": "e9489f37fb3051e9efa1dc916004d7274e7b63975e3209708947267f2393a9be",
+      "regular_file": true
+    },
+    {
+      "path": "link",
+      "bytes": 14,
+      "sha256": "b8abc156514f90734512db29fc73063a442613dc9aae4dce9a39470905fb6fc6",
+      "regular_file": true
+    }
+  ],
+  "repository_preserved": true,
+  "index_sha256": "c0b539e97c4987c0c8a1c1a582b1a9d7ee955964738708819ec7751b534aefe3",
+  "working_sha256": "8433db5ce631b9b904eccef7654337e4c97d7e3ace43ad25f9ee3a95e1a31cda",
+  "pending": [
+    "native overwrite",
+    "deleted/gitlink marked-row gates and command ordering",
+    "signed sandbox access",
+    "dark-mode failure sheet"
+  ],
+  "configuration": "Debug, ad-hoc disposable preview, no sandbox",
+  "screenshot": "docs/site/assets/log-historical-export.png",
+  "screenshot_description": "Actual underlying Log window during export; AppKit warning sheet is not included in the app window capture.",
+  "workflow": "Log > select all three changed files > Export > native directory chooser > successful export, Ignore and Abort destination conflicts, chooser Cancel > normal Quit"
+}
