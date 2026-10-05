@@ -21,6 +21,14 @@ final class FinderRequestTests: XCTestCase {
             XCTAssertEqual(action.icon, .compare)
         }
     }
+    func testRepositoryBrowserRequestPreservesSelectionAndSupportsBareRepositories() throws {
+        let paths = [URL(fileURLWithPath: "/repository 雪.git"), URL(fileURLWithPath: "/repository 雪.git/nested")]
+        let request = FinderRequest(action: .repositoryBrowser, paths: paths)
+        let decoded = try XCTUnwrap(FinderRequest(url: XCTUnwrap(request.url)))
+        XCTAssertEqual(decoded.action, .repositoryBrowser); XCTAssertEqual(decoded.paths, paths)
+        XCTAssertFalse(decoded.action.requiresWorkingTree); XCTAssertNil(decoded.action.arguments(value: ""))
+        XCTAssertEqual(decoded.action.icon, .repositoryBrowser)
+    }
     func testMalformedRequestsAreRejected() {
         for value in ["https://action?command=diff&path=/repo", "turtlegit://action?command=diff&command=log&path=/repo", "turtlegit://action?command=diff&path=relative", "turtlegit://action?command=diff&path=/repo%00file", "turtlegit://action?command=diff&path", "turtlegit://action?command=unknown&path=/repo"] {
             XCTAssertNil(FinderRequest(url: URL(string: value)!), value)

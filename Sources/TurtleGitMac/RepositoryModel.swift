@@ -30,6 +30,7 @@ import TurtleGitCore
     private var repository: GitRepository?
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
+    private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
     private var blameWindows: [String: BlameWindowController] = [:]
     private var rebaseWindows: [String: RebaseWindowController] = [:]
     private var fetchWindows: [String: FetchWindowController] = [:]
@@ -319,6 +320,9 @@ import TurtleGitCore
             commitWindows[root.path] = controller
             controller.model.reload(paths: paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        case .repositoryBrowser:
+            guard let repository else { return }
+            showRepositoryBrowser(repository: repository, access: activeAccess)
         case .log:
             guard let repository else { return }
             showLog(repository: repository, access: activeAccess, paths: paths)
@@ -756,6 +760,37 @@ import TurtleGitCore
         stashRestoreWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
+    private func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD") {
+        let key = repository.root.path + "\0" + revision
+        let controller = browserWindows[key] ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision)
+        controller.onClosed = { [weak self] in self?.browserWindows.removeValue(forKey: key) }
+        controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash) }
+        controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
+        controller.model.onCompare = { [weak self] path, hash in self?.showHistoricalFiles(repository: repository, access: access, from: .revision(hash), to: .workingTree, paths: [path]) }
+        controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
+        controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
+        controller.model.onSubmodule = { [weak self, weak model = controller.model, weak window = controller.window] path, parent, hash in
+            Task {
+                do {
+                    let module = try await repository.submoduleComparison(path: path, from: parent, to: parent)
+                    guard let checkout = module.checkout, module.from.available else {
+                        guard let window, window.attachedSheet == nil else { return }
+                        let alert = NSAlert(); alert.messageText = "Update submodule?"
+                        alert.informativeText = "Revision " + hash + " is unavailable in submodule “" + path + "”. Update the submodule to browse it."
+                        alert.addButton(withTitle: "Update"); alert.addButton(withTitle: "Cancel")
+                        alert.beginSheetModal(for: window) { [weak self] response in
+                            if response == .alertFirstButtonReturn { self?.showSubmoduleUpdate(repository: repository, access: access, scope: [], selected: [path]) }
+                        }
+                        return
+                    }
+                    let child = GitRepository(root: checkout, executable: repository.executable)
+                    _ = try await child.run(["rev-parse", "--verify", "--end-of-options", hash + "^{commit}"])
+                    self?.showRepositoryBrowser(repository: child, access: access, revision: hash)
+                } catch { model?.error = error.localizedDescription }
+            }
+        }
+        browserWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showBlame(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, line: Int? = nil, options: GitBlameOptions? = nil) {
         let key = repository.root.path + "\0" + path + "\0" + revision
         let controller = blameWindows[key] ?? BlameWindowController(repository: repository, access: access, path: path, revision: revision, options: options ?? GitBlamePreferences.load())
@@ -783,6 +818,7 @@ import TurtleGitCore
         controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
+        controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
         logWindows[key] = controller
         controller.model.endRevision = endRevision
         let location = paths.count == 1 ? root.lastPathComponent + "/" + paths[0] : root.lastPathComponent

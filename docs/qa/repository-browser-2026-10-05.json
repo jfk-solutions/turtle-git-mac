@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-05",
+  "scope": "Partial Repository Browser native replacement; complete app goal remains active",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/TortoiseProc/RepositoryBrowser.cpp": "ced08d910b48b8c261fe7d131a409d4dc44875ac",
+    "src/TortoiseProc/RepositoryBrowser.h": "7d315c6c04315e5251f5bceb1e6725f545bb67bf",
+    "src/TortoiseProc/Commands/RepositoryBrowserCommand.cpp": "bba0566a3673b25916b9edfcadd8a6ecb7377710",
+    "src/TortoiseProc/Commands/RepositoryBrowserCommand.h": "6bc4baecacb22d418706bacea7024531ab73ee44"
+  },
+  "tests": {
+    "full": {
+      "count": 415,
+      "failures": 0,
+      "log_sha256": "fd4b8a86978f5e7b9bc16901003a7f348d92547463b0f3564b60d6908961b31b",
+      "phase": "Final Core browser implementation before final native sizing/comparison wiring"
+    },
+    "focused": {
+      "count": 19,
+      "failures": 0,
+      "log_sha256": "adf68e470f285fc7181b24b24caa8060ca2b2992a616dfbf0a468d65d7fcef8d",
+      "suites": [
+        "RepositoryBrowserTests",
+        "FinderRequestTests",
+        "SubmoduleComparisonTests"
+      ]
+    }
+  },
+  "builds": {
+    "debug": {
+      "exit_code": 0,
+      "log_sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "bundle_audit": "passed, 71 upstream icons; Store includes universal Git"
+    },
+    "store": {
+      "exit_code": 0,
+      "log_sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "bundle_audit": "passed, 71 upstream icons; Store includes universal Git"
+    }
+  },
+  "native": {
+    "fixture": {
+      "root": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitBrowserQA-odhcqy6b",
+      "first": "91eeeccd94ef6172d325c16549c9b855efc927e4",
+      "head": "a6927772146fcad674fa6681e3618ef62f3d4f87",
+      "index_sha256": "5899dca52d59eac467d872c82ce1a4e328b31e3882b6f752f87a199c05783381",
+      "working_sha256": "7071e0870e0d1391f90f46628814f31bdb319e87d035b56010d4cb35184d9c43"
+    },
+    "maximum_concurrent_QA_apps": 1,
+    "accepted": [
+      "Return enters folders",
+      "Natural file2/file10 order",
+      "Corrected initial width makes all file columns visible",
+      "Root executable and symlink overlays inspected",
+      "Historical file menu actions present",
+      "Mark latest historical file and retain mark while selecting older commit",
+      "Log picker keyboard selection changes browser revision and exact file size",
+      "Compare marked file opens read-only exact Latest/First historical contents",
+      "Folder hierarchy expansion and light native screenshot"
+    ],
+    "head_unchanged": true,
+    "raw_index_unchanged": true,
+    "working_bytes_unchanged": true,
+    "cleanup": "Normal Quit after each QA session; final process scan empty",
+    "limitations": [
+      "Initial comparison preview used wrong documentation identifier; closed before replacement",
+      "Log row AX click did not select; keyboard focus/Down confirmed older row before OK",
+      "Transient coordinate observation error; same running process rebound without duplicate launch",
+      "Dark menu control could not be completed; dark acceptance pending"
+    ],
+    "screenshots": {
+      "docs/site/assets/repository-browser.png": "707e5a5535dc33e6a0410757c290f58b4d1c6e44996f9f29ff410a1aca3d224e"
+    }
+  },
+  "remaining": "See docs/REPOSITORY-BROWSER-PARITY.md; Revert, drag, complete submodule menus, signed scopes and full application parity remain pending",
+  "publication": "Local; GitHub main at 44d3e52. Previously verified git authentication unavailable; no push attempted."
+}

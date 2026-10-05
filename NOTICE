@@ -79,3 +79,10 @@ later, retaining its TortoiseGit notice. Raw decoded UTF-16 units are passed
 unchanged through the existing helper transport. The native Commit popup consumes this catalog with the original code.ico
 artwork. Complete editor parity and signed sandbox acceptance remain under
 development.
+
+RepositoryBrowser.swift and the native RepositoryBrowserWindow.swift adapt
+TortoiseGit RepositoryBrowser.cpp tree/list/revision workflows under GPL version
+2 or later. Copyright (C) 2009-2026 TortoiseGit and (C) 2003-2013 TortoiseSVN.
+Original menurepobrowse.ico and executable/symlink/external overlay artwork are
+retained unchanged with pinned provenance. Complete browser context commands,
+drag export and signed sandbox acceptance remain under development.

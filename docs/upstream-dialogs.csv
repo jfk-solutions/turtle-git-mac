@@ -26,7 +26,7 @@ src/Resources/TortoiseProcENG.rc,IDD_LOGMESSAGE,Log Messages,partial-workflow-re
 src/Resources/TortoiseProcENG.rc,IDD_COMMITDLG,Commit,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_PROMPT,Authentication,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_RENAME,Rename - TortoiseGit,partial-native-replacement
-src/Resources/TortoiseProcENG.rc,IDD_REPOSITORY_BROWSER,Repository Browser,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_REPOSITORY_BROWSER,Repository Browser,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSMAIN,General,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAY,Icon Overlays,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSOVERLAYHANDLERS,Overlay Handlers,pending-review

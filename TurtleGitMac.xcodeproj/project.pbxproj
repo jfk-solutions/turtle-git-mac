@@ -36,11 +36,13 @@
 		37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */; };
 		39DF8589F3A2226D095F7C2E /* GitBlame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */; };
 		3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */; };
+		3D0C04463435436A275FC33A /* RepositoryBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */; };
 		3E19A6945479711E0CDE3542 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = 5E600ADAA231E0E7D95C9827 /* Icons */; };
 		407EFF50D7678E3D7BB3F032 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
 		46F03179364D977A48FD1EC5 /* Changelists.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA08DAA6757DBD3FB0045BC5 /* Changelists.swift */; };
 		4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */; };
 		4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7428B46131B5378475891E94 /* FileComparison.swift */; };
+		4DADF6934B5B91754BD61031 /* RepositoryBrowser.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */; };
 		4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0657423D5C68D66703C2BB5C /* GitPatch.swift */; };
 		4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */; };
 		510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 870D95A7EC384863F1C04342 /* RevisionComparison.swift */; };
@@ -185,6 +187,7 @@
 /* Begin PBXFileReference section */
 		022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRepositoryWindow.swift; sourceTree = "<group>"; };
 		0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflictWindow.swift; sourceTree = "<group>"; };
+		0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserWindow.swift; sourceTree = "<group>"; };
 		0657423D5C68D66703C2BB5C /* GitPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitPatch.swift; sourceTree = "<group>"; };
 		08425BF4A91945D52E0F6D99 /* Clone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clone.swift; sourceTree = "<group>"; };
 		0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rebase.swift; sourceTree = "<group>"; };
@@ -282,6 +285,7 @@
 		C27AB4988402DE898554EF19 /* MessageCodeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeText.swift; sourceTree = "<group>"; };
 		C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileAdd.swift; sourceTree = "<group>"; };
 		C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdate.swift; sourceTree = "<group>"; };
+		C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowser.swift; sourceTree = "<group>"; };
 		CA08DAA6757DBD3FB0045BC5 /* Changelists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Changelists.swift; sourceTree = "<group>"; };
 		CC73279697B4174BE7ED4D66 /* StashWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashWindow.swift; sourceTree = "<group>"; };
 		D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueTracker.swift; sourceTree = "<group>"; };
@@ -360,6 +364,7 @@
 				2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */,
 				A35B58726A94B9B4799C06DE /* RemoveWindow.swift */,
 				D1F6087799A5783306A27CEE /* RenameWindow.swift */,
+				0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */,
 				6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */,
 				6CFEE049A0098A0212AD01DA /* ResetWindow.swift */,
 				D33C40A99A3883800E7C6431 /* ResolveWindow.swift */,
@@ -460,6 +465,7 @@
 				AA5AD057FE8CA1C91988DA6E /* Removal.swift */,
 				BA121F2E317F86B146016B4E /* Rename.swift */,
 				B0144901E0020C531A5D86FB /* RepositoryAccess.swift */,
+				C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */,
 				593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */,
 				DE3C7BF5278D5807BDDF4B21 /* Reset.swift */,
 				4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */,
@@ -737,6 +743,7 @@
 				A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */,
 				B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */,
 				199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */,
+				4DADF6934B5B91754BD61031 /* RepositoryBrowser.swift in Sources */,
 				5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */,
 				94D627C3502D8ACE734DD470 /* Reset.swift in Sources */,
 				F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */,
@@ -791,6 +798,7 @@
 				8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */,
 				5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */,
 				6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */,
+				3D0C04463435436A275FC33A /* RepositoryBrowserWindow.swift in Sources */,
 				37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */,
 				DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */,
 				53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */,

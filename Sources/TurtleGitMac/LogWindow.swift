@@ -186,6 +186,7 @@ struct LogCommandRequest: Identifiable {
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
+    var onBrowseRepository: ((String) -> Void)?
     var onReset: (String) -> Void = { _ in }
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
@@ -674,6 +675,7 @@ struct RevisionTable: NSViewRepresentable {
             item(two ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (one || two) && !model.busy && model.onCompare != nil)
             item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: one || two)
             menu.addItem(.separator())
+            item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: one && !model.busy && model.onBrowseRepository != nil)
             item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
             item("Switch/Checkout to this…", #selector(checkout), icon: .checkout, enabled: one && !model.busy && !model.bare)
             item("Create branch at this version…", #selector(branch), icon: .branch, enabled: one && !model.busy)
@@ -695,6 +697,7 @@ struct RevisionTable: NSViewRepresentable {
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             parent.image = MenuIcon.copy.image(); parent.submenu = clipboard; menu.addItem(parent)
         }
+        @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }
         @objc func reset() { model.request(.reset) }
         @objc func push() { model.request(.push) }
         @objc func checkout() { model.request(.checkout) }

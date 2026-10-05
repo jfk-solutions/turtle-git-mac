@@ -1,0 +1,111 @@
+# Repository Browser parity audit
+
+This is a partial native replacement, not complete TortoiseGit parity.
+The pinned source is TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
+The [upstream manual](https://tortoisegit.org/docs/tortoisegit/tgit-dug-repobrowser.html)
+and the source/resource controls were reviewed together.
+
+## Source and native mapping
+
+| Source | Pinned blob | Native replacement |
+| --- | --- | --- |
+| RepositoryBrowser.cpp | ced08d910b48b8c261fe7d131a409d4dc44875ac | RepositoryBrowser.swift, RepositoryBrowserWindow.swift |
+| RepositoryBrowser.h | 7d315c6c04315e5251f5bceb1e6725f545bb67bf | Snapshot, entry, lazy directory and window models |
+| Commands/RepositoryBrowserCommand.cpp | bba0566a3673b25916b9edfcadd8a6ecb7377710 | App/Finder action and Log-selected revision routing |
+| Commands/RepositoryBrowserCommand.h | 6bc4baecacb22d418706bacea7024531ab73ee44 | RepositoryAction.repositoryBrowser |
+| TortoiseProcENG.rc IDD_REPOSITORY_BROWSER | See upstream-files.csv resource pin | Read-only Path, revision button, folder tree, contents list, information, OK/Cancel/Help |
+
+Original menurepobrowse, executable, symlink and external overlay icons remain
+unchanged; exact source blobs are recorded in the icon provenance manifest.
+Normal macOS file-type and folder icons replace Windows shell file-type icons.
+Source notices and GPL-2.0-or-later attribution are retained.
+
+## Implemented behavior
+
+The native window follows the source tree-left/list-right arrangement. An AppKit
+split controller provides a draggable divider and autosave identifier. The list
+has Name, Extension and right-aligned Size columns. The initial 1000×650 content
+size was corrected after native testing exposed hidden names at the minimum size.
+The revision button opens a single-selection Log sheet; changing its revision
+retains the current directory if it exists. Return in the contents table opens
+one file or enters one folder; F5 refreshes without overriding an attached sheet.
+
+Directory contents load lazily using NUL-delimited `ls-tree -l`, with exact blob
+bytes fetched by object ID. A snapshot pins the peeled revision and root tree so
+moving HEAD cannot change an already displayed directory. Annotated tags, bare
+repositories, tree object IDs and unborn HEAD are handled. Executable, symlink
+and submodule modes remain distinct. Binary files, Unicode, tabs, newlines,
+colon-containing directories and pathspec-like filenames are tested. Size and
+object hashes come from the tree, not working files.
+
+Folders stay first in both sort directions. Numeric/case-insensitive names use
+native comparison. The upstream extension-sort name tie compares the right name
+with itself; its subsequent size/name tie order is retained explicitly. macOS
+locale comparison and byte-size formatting can differ from Windows.
+
+File menus use the original command icons: Open, Open With, alternative editor,
+working-tree comparison, Show log, Blame, Save revision to, Mark for comparison,
+Compare with marked file, copy names and copy hashes. Directory menus provide
+navigation, Log and copying. A marked historical file retains its path and peeled
+revision when the browser changes revision; comparison uses the existing native
+two-pane editor. An existing scoped working-file mark can also be imported.
+The upstream source copies basenames despite the manual describing full paths;
+native copying preserves basenames, using LF instead of Windows CRLF separators.
+
+Opening a submodule from a working repository resolves its initialized checkout
+and browses the recorded child revision, or offers the existing Update window
+when unavailable. Bare/submodule Open With produces the source-style plain text
+`Subproject commit <hash>` preview. Historical previews are read-only temporary
+files retained by the app; Save writes the exact selected blob bytes. Sandbox
+access checks and leases protect reads and historical comparison handoffs.
+
+## Verification on 2026-10-05
+
+Four RepositoryBrowserTests exercise tree modes and exact bytes, pinned nested
+reads after HEAD moves, annotated tags/bare/tree/unborn handling, sorting and
+malformed records. FinderRequestTests adds action/selection URL round-trip and
+bare-repository eligibility. The focused browser/Finder/submodule run passed
+19 tests; the complete Core suite passed 415 tests, zero failures. These are Core
+checks, not a claim that all native dialog behavior is covered. Final window
+sizing and comparison wiring were built and checked separately in the native app.
+
+Debug and App Store configuration builds succeeded. Both bundle audits passed:
+71 original icon resources, Finder extension and licenses, universal helpers;
+the Store bundle additionally includes the audited universal Git 2.55.0 runtime.
+This is unsigned build evidence, not App Store signing or acceptance.
+
+Native acceptance used an owned disposable repository with two revisions and a
+separate uncommitted file. Return entered src and nested directories; natural
+ordering showed file2 before file10. File context commands appeared. A file was
+marked at the latest revision, the Log picker selected the older revision by
+keyboard, and Compare with marked file opened exact Latest/First historical
+contents in the read-only two-pane editor. The mark survived revision changes.
+HEAD, raw index SHA-256 and working-file SHA-256 remained unchanged afterward.
+The initial pane-width problem was corrected and all columns became visible.
+Executable/symlink overlays were inspected in the root view. A real native light
+screenshot was saved and inspected; dark-mode acceptance remains pending.
+Every QA app was closed using normal Quit, with a final empty process scan.
+See [structured evidence](qa/repository-browser-2026-10-05.json).
+
+![Native Repository Browser at an older revision](site/assets/repository-browser.png)
+
+## Remaining parity work
+
+- Revert to this revision for one/multiple ordinary files, source error/continue
+  behavior, and native index/worktree effect acceptance.
+- Drag export and file-object clipboard interoperability.
+- Separate Show submodule log and full initialized/missing child-update acceptance.
+- Historical tree-object Log/Blame/compare handoffs: listing and blob reads accept
+  tree objects, while existing helpers generally expect commits.
+- Complete Open With, alternative editor, Save, Blame and working comparison
+  acceptance from this window, plus imported Finder comparison marks.
+- Persistent column choices, divider/frame restoration, full keyboard selection,
+  accessibility and large repositories. Known-empty folders still show disclosure
+  arrows; revision refresh can collapse ancestors of the retained current folder.
+- Native dark appearance, signed Finder invocation and Store security scopes.
+- Full cancellation of underlying Git reads; closed-window generation guards
+  prevent late results from publishing but do not terminate an in-flight command.
+- Invalid UTF-8 path bytes and nonstandard tree modes need a defined native policy.
+
+The source inventory keeps this dialog and command files partial. The complete
+application, all source commands and App Store distribution remain unfinished.

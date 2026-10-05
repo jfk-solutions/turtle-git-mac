@@ -31,6 +31,15 @@ bundle structure; it is not a signed distribution.
 
 ## Implemented first pass
 
+Repository Browser now has the upstream folder tree, revision picker, sortable
+Name/Extension/Size list and historical file menus with original command and mode
+icons. It browses pinned nested revisions, including bare repositories and tags,
+and compares marked files across revisions without checking them out. Revert,
+drag export, complete submodule commands and signed acceptance remain pending.
+See [Repository Browser parity](docs/REPOSITORY-BROWSER-PARITY.md).
+
+![Native Repository Browser](docs/site/assets/repository-browser.png)
+
 Native historical Blame opens from Log with annotation columns, age colors,
 revision/author highlighting, a modeless Find panel (Command-F), a native
 Go To Line sheet (Command-L), origin-aware Show log and

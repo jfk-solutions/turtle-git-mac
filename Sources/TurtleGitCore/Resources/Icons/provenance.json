@@ -337,6 +337,26 @@
       "asset": "code.ico",
       "source": "src/Resources/code.ico",
       "sha256": "d057904db3f8f0dafe387b8317cf7f9bb19abe1adce98eab7c998bbad2f55d58"
+    },
+    {
+      "asset": "menurepobrowse.ico",
+      "source": "src/Resources/menurepobrowse.ico",
+      "sha256": "d275acb8f70fc71b79d7fa835bb3c04d5dbddf01fb788856432f27cf5f713537"
+    },
+    {
+      "asset": "executableovl.ico",
+      "source": "src/Resources/executableovl.ico",
+      "sha256": "41741536a22393694e6f1d09f3a51a3ddd3f482e7c5298a43ee51e095aab2a52"
+    },
+    {
+      "asset": "symlinkovl.ico",
+      "source": "src/Resources/symlinkovl.ico",
+      "sha256": "992e71e3b29d3fd7473fa4b089130bb4770b46af2f023ccb90e83920b4a4c7b8"
+    },
+    {
+      "asset": "externalovl.ico",
+      "source": "src/Resources/externalovl.ico",
+      "sha256": "c7977691dc3e3f3d98d88b8a1780b353fbaa3381e4d2bf746325c96f2687eb2d"
     }
   ]
 }
