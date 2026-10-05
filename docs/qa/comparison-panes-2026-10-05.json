@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-05",
+  "feature": "Independent working-pane comparison drafts",
+  "previews": [
+    "/tmp/TurtleGitPaneDraftQA.app",
+    "/tmp/TurtleGitPaneKeysQA.app"
+  ],
+  "launch_policy": "Sequential launches only; normal Quit and process checks between launches; no remaining TurtleGitMac processes.",
+  "native_verified": [
+    "Right pane labeled Mine and editable by default; Base starts read-only",
+    "Click switches independent editing flag and active draft without losing either draft",
+    "Toolbar Undo/Redo for each pane changes only that pane",
+    "Save Base writes its draft and leaves unsaved Mine bytes intact",
+    "Close prompt names both dirty paths; Cancel retains both drafts",
+    "Close Save writes both drafts with original UTF-8 / UTF-16LE BOM CRLF and 0644 / 0755 modes",
+    "Command-Z and Shift-Command-Z via physical Y key on current keyboard layout undo/redo Mine",
+    "Final Quit default Save writes remaining Mine draft and process exits"
+  ],
+  "repository_baseline_preserved": true,
+  "final_files": {
+    "base.txt": {
+      "sha256": "72f73cce76435476cb2832038d62b4352a034644258559478963a229e9b29066",
+      "bytes": 18,
+      "mode": "0o644"
+    },
+    "mine.txt": {
+      "sha256": "36d5e2a2bfe371e40b4b107145a66681261542b62a2ca8c0280f126b6be949e5",
+      "bytes": 34,
+      "mode": "0o755"
+    }
+  },
+  "screenshot": {
+    "path": "docs/site/assets/comparison-pane-drafts.png",
+    "dimensions": [
+      2240,
+      1504
+    ],
+    "inspected": true,
+    "caption": "Native Mine draft after keyboard Redo; Base contains its previously saved draft."
+  },
+  "tests": {
+    "comparison_tests": 22,
+    "failures": 0,
+    "Debug_build": "passed",
+    "unsigned_AppStore_build": "passed"
+  },
+  "pending": [
+    "Historical-copy editing and Save As",
+    "Signed sandbox folder authorization and scope cancellation",
+    "Native Edit menu acceptance: AX snapshot disabled despite keyboard/toolbar success",
+    "Full TortoiseMerge layout and menu parity",
+    "Finder extension activation"
+  ],
+  "lifecycle_observation": "An observation after one clean Quit relaunched that isolated preview; it was quit again and process absence verified. Subsequent final Quit confirmations were followed only by process checks, with no UI observation."
+}

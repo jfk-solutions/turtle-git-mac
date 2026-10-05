@@ -29,11 +29,11 @@ import AppKit
             var allowQuit = true
             for controller in fileComparisons where controller.model.dirty {
                 controller.window?.makeKeyAndOrderFront(nil)
-                let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.editedFilePath)” before quitting?"
+                let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.unsavedFilesDescription)” before quitting?"
                 alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
                 switch alert.runModal() {
                 case .alertFirstButtonReturn:
-                    let saved = await withCheckedContinuation { continuation in controller.model.save { continuation.resume(returning: $0) } }
+                    let saved = await withCheckedContinuation { continuation in controller.model.saveAll { continuation.resume(returning: $0) } }
                     if !saved { allowQuit = false }
                 case .alertSecondButtonReturn: break
                 default: allowQuit = false

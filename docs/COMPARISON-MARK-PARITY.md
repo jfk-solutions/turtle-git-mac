@@ -191,16 +191,41 @@ scope still require signed native acceptance. Debug and unsigned App Store build
 and both bundle/runtime audits pass; the new scope and prompt code does not
 change the previously tested core save algorithm.
 
-## Active-pane editing remains incomplete
+## Independent working-pane drafts and Save
 
-Additional audit of `TortoiseProc/GitDiff.cpp:361–482` and
-`TortoiseProc/AppUtils.cpp:466–521` confirms the saved comparison file is the Base
-side and the current file is Mine. Historical blobs are read-only temporary files.
-`TortoiseMerge/MainFrm.cpp:918–939` makes the left pane's writability changeable
-and the right pane the target; `OnEditEnable` at 2482–2507 applies to the active
-view. TurtleGit currently chooses one eligible working text pane, starts with
-explicit editing disabled, and labels the right pane Theirs. Active-pane editing,
-independent drafts/history/save per pane, appropriate Mine labeling/defaults and
-historical-copy editing/Save As behavior still need to match the upstream model.
-The verified single-working-pane Save/Reload route does not establish two-working-
-file editing parity. Full TortoiseGit dialog parity remains the goal.
+The upstream audit of `TortoiseProc/GitDiff.cpp:361–482` and
+`TortoiseProc/AppUtils.cpp:466–521` identifies the saved comparison file as Base
+and the current file as Mine. `TortoiseMerge/MainFrm.cpp:918–939` permits changing
+the left pane's writability and makes the right pane the default target;
+`OnEditEnable` at 2482–2507 changes the active view.
+
+TurtleGit now labels the right pane Mine and enables editing there by default
+when it is a regular working text file. Clicking a pane selects its independent
+editing state, draft, annotations and Undo/Redo history. Base starts read-only
+and can be enabled explicitly. Both drafts participate in alignment; switching
+panes preserves them. Save writes only the active dirty pane. Close, Reload and
+Quit list all dirty file paths and their Save choice saves every dirty pane.
+If a later save fails, earlier successful saves remain saved and the unsaved
+pane remains dirty; the pair is not an atomic multi-file transaction.
+
+Native acceptance used two disposable files outside the repository: UTF-8 Base
+and UTF-16LE/BOM/CRLF Mine with executable permissions. Both drafts survived pane
+switches, each toolbar Undo/Redo changed only that pane, saving Base left Mine's
+original disk bytes untouched, and Close/Cancel retained both drafts. Close/Save
+wrote both exact drafts with their original encodings and modes. Command-Z and
+Shift-Command-Z were verified in a later sequential preview; on this machine's
+keyboard layout the automation's physical Y key sends Z. A final Quit/Save wrote
+the remaining UTF-16 draft and exited. No QA processes remained. HEAD, raw index
+and working bytes in the bootstrap repository matched the recorded baseline.
+
+Two new core regressions cover independent drafts and exports, one-side saves,
+immutable historical/binary panes, and annotation realignment without false
+changes. All 22 comparison tests, Debug/App Store compilation and both bundle
+checks passed. See [native evidence](qa/comparison-panes-2026-10-05.json).
+
+Historical-copy editing and Save As, signed security-scope acceptance, and full
+TortoiseMerge menu/layout parity remain incomplete. Edit-menu activation was
+not verified: its accessibility snapshot reported disabled actions despite
+successful editor keyboard and toolbar history operations. The source routes
+Undo/Redo selectors to the active history, but that alone does not prove native
+menu acceptance. Full TortoiseGit dialog parity remains the goal.

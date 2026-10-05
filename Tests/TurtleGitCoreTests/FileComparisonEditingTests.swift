@@ -2,6 +2,53 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testIndependentDraftsSaveOneSideAndExportOtherWithoutIndexMutation() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: outside) }
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        let right = outside.appendingPathComponent("right.txt"), initial = Data([0xff, 0xfe]) + "right\r\n".data(using: .utf16LittleEndian)!
+        try initial.write(to: right); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: right.path)
+        let pair = try WorkingFileComparison(base: root.appendingPathComponent(path), destination: right)
+        var document = try pair.read(), drafts = FileComparisonDrafts(document)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertFalse(drafts.preferredBase); XCTAssertTrue(drafts.editingEnabled(base: false)); XCTAssertFalse(drafts.editingEnabled(base: true))
+        try drafts.update(text: "left draft\n", base: true); drafts.setEditing(true, base: true)
+        try drafts.update(text: "right draft\r\n", base: false)
+        drafts.update(annotations: .init(marked: [0]), base: true)
+        XCTAssertEqual(drafts.dirtySides, [false, true]); XCTAssertEqual(drafts.text(base: true), "left draft\n")
+        XCTAssertEqual(try drafts.exported(base: false), Data([0xff, 0xfe]) + "right draft\r\n".data(using: .utf16LittleEndian)!)
+        document = try pair.save(document, base: true, text: XCTUnwrap(drafts.text(base: true)))
+        try drafts.didSave(document.base, base: true)
+        XCTAssertFalse(drafts.isDirty(base: true)); XCTAssertTrue(drafts.isDirty(base: false))
+        XCTAssertEqual(drafts.annotations(base: true).marked, [0]); XCTAssertEqual(drafts.annotations(base: false).marked, [])
+        XCTAssertEqual(try Data(contentsOf: right), initial)
+        document = try pair.save(document, base: false, text: XCTUnwrap(drafts.text(base: false)))
+        try drafts.didSave(document.destination, base: false)
+        XCTAssertTrue(drafts.dirtySides.isEmpty)
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: right.path)[.posixPermissions] as? NSNumber, 0o755)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, head)
+    }
+    func testImmutablePanesAndAnnotationRealignmentDoNotLoseIndependentDrafts() throws {
+        let historical = ComparisonFileContent(path: "old", revision: .revision(String(repeating: "a", count: 40)), bytes: Data("old\n".utf8), mode: "100644")
+        let working = ComparisonFileContent(path: "working", revision: .workingTree, bytes: Data("one\ntwo\n".utf8), mode: "100644", permissions: 0o644)
+        var drafts = FileComparisonDrafts(FileComparisonDocument(base: working, destination: historical))
+        XCTAssertTrue(drafts.preferredBase); XCTAssertFalse(drafts.editingEnabled(base: true))
+        XCTAssertThrowsError(try drafts.update(text: "changed history", base: false))
+        XCTAssertEqual(try drafts.exported(base: false), historical.bytes)
+        drafts.update(annotations: .init(marked: [1]), base: true)
+        try drafts.didSave(working, base: true)
+        let old = FileComparisonAlignment(base: "one\ntwo\n", destination: "one\ntwo\n")
+        let new = FileComparisonAlignment(base: "one\ntwo\n", destination: "extra\none\ntwo\n")
+        drafts.remapAnnotations(from: old, to: new, base: true)
+        XCTAssertFalse(drafts.isDirty(base: true)); XCTAssertEqual(drafts.annotations(base: true).marked, [2])
+        let binary = ComparisonFileContent(path: "binary", revision: .workingTree, bytes: Data([0, 255]), mode: "100644", permissions: 0o644)
+        var immutable = FileComparisonDrafts(FileComparisonDocument(base: binary, destination: historical))
+        immutable.setEditing(true, base: true); XCTAssertFalse(immutable.editingEnabled(base: true))
+        XCTAssertThrowsError(try immutable.update(text: "replacement", base: true)); XCTAssertEqual(try immutable.exported(base: true), binary.bytes)
+    }
     func testStandaloneWorkingPairReadsLiteralBytesAndSavesEitherSideWithoutIndexChanges() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

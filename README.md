@@ -309,7 +309,11 @@ a persisted-mark request and editing toggle were verified natively. Finder
 extension clicks, direct menu chooser handoff and signed sandbox checks remain
 pending. Log also imports an external mark and compares live working bytes with
 a pinned historical file, retaining the mark within the dialog after shared
-consumption. That native route and editing toggle were verified. See
+consumption. Native working-file comparisons now keep separate Base/Mine drafts
+and Undo histories. Save targets the active pane; Save on close writes both dirty
+files, preserving encodings and permissions. These routes were verified with
+repository state unchanged. Historical-copy editing and signed access remain
+pending. See
 [comparison mark parity](docs/COMPARISON-MARK-PARITY.md).
 
 Compare two files uses the selected commit's first parent independently for

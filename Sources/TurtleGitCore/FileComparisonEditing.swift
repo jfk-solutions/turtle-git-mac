@@ -198,3 +198,53 @@ extension FileComparisonEditing {
         return ComparisonFileContent(path: original.path, revision: original.revision, bytes: bytes, mode: original.mode, permissions: permissions)
     }
 }
+
+/// Independent working-pane drafts; historical/binary panes remain immutable.
+public struct FileComparisonDrafts {
+    private struct Pane {
+        var content: ComparisonFileContent
+        var text: String?
+        var annotations = FileComparisonEditing.Annotations()
+        var savedMarks = Set<Int>()
+        var enabled = false
+    }
+    private var panes: [Bool: Pane]
+    public init(_ document: FileComparisonDocument) {
+        panes = [true: Pane(content: document.base, text: document.base.text), false: Pane(content: document.destination, text: document.destination.text)]
+        if canEdit(base: false) { panes[false]?.enabled = true }
+    }
+    public func canEdit(base: Bool) -> Bool {
+        guard let pane = panes[base] else { return false }
+        return pane.content.revision == .workingTree && ["100644", "100755"].contains(pane.content.mode ?? "") && pane.text != nil
+    }
+    public var preferredBase: Bool { !canEdit(base: false) && canEdit(base: true) }
+    public func text(base: Bool) -> String? { panes[base]?.text }
+    public func annotations(base: Bool) -> FileComparisonEditing.Annotations { panes[base]?.annotations ?? .init() }
+    public func editingEnabled(base: Bool) -> Bool { canEdit(base: base) && panes[base]?.enabled == true }
+    public mutating func setEditing(_ enabled: Bool, base: Bool) { let eligible = canEdit(base: base); panes[base]?.enabled = enabled && eligible }
+    public mutating func update(text: String, base: Bool) throws {
+        guard canEdit(base: base) else { throw FileComparisonEditFailure.unsupported }
+        panes[base]?.text = text
+    }
+    public mutating func update(annotations: FileComparisonEditing.Annotations, base: Bool) { panes[base]?.annotations = annotations }
+    public func isDirty(base: Bool) -> Bool {
+        guard canEdit(base: base), let pane = panes[base], let text = pane.text, let original = pane.content.text else { return false }
+        return !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks
+    }
+    public var dirtySides: [Bool] { [false, true].filter { isDirty(base: $0) } }
+    public var dirtyPaths: [String] { dirtySides.compactMap { panes[$0]?.content.path } }
+    public mutating func didSave(_ content: ComparisonFileContent, base: Bool) throws {
+        guard let pane = panes[base], pane.content.path == content.path, pane.content.revision == content.revision else { throw RevisionComparisonFailure.selection }
+        panes[base]?.content = content
+        panes[base]?.savedMarks = pane.annotations.marked
+    }
+    public mutating func remapAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, base: Bool) {
+        guard let pane = panes[base] else { return }
+        panes[base]?.annotations = pane.annotations.remapped(from: old, to: new, targetBase: base, typing: false)
+        panes[base]?.savedMarks = FileComparisonEditing.Annotations(marked: pane.savedMarks).remapped(from: old, to: new, targetBase: base, typing: false).marked
+    }
+    public func exported(base: Bool) throws -> Data {
+        guard let pane = panes[base] else { throw RevisionComparisonFailure.selection }
+        return try FileComparisonEditing.exported(pane.content, editedText: canEdit(base: base) ? pane.text : nil)
+    }
+}
