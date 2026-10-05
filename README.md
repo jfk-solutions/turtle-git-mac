@@ -105,8 +105,10 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   comparisons follow the selected HEAD/first-parent amend mode.
   Log file-history actions open scoped native history; clipboard menus offer full
   paths, relative paths, names and displayed file information. Historical blob extraction
-  is byte-preserving; its new Save As panel still has a native validation issue
-  under investigation. See [Log parity](docs/LOG-PARITY.md).
+  is byte-preserving. Native Save As acceptance is verified for a committed text
+  blob with BOM and CRLF while retaining different staged and working contents.
+  Earlier intermittent panel failures and further export variants remain under
+  investigation. See [Log parity](docs/LOG-PARITY.md).
 - Native three-pane UTF-8 text conflict editor with Theirs/Mine/Merged, block choices,
   aligned source rows and colors, original line numbers, undoable whole-source
   selection, Reload and guarded Save/Mark as resolved. Full editor parity and native QA

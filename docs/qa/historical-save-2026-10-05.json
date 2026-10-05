@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-05",
+  "build_commit": "6c7be1a14687bceeb028633fe91e16f652f9a886",
+  "configuration": "Debug, ad-hoc disposable preview, no sandbox",
+  "workflow": "Log changed-file context menu > Save revision to > native NSSavePanel > Go to Folder > Save",
+  "repository": "TurtleGitHistoricalSaveQA-repository",
+  "revision": "e9cae955652bdec03056868d1c5fcbece5d66701",
+  "source_path": "source.txt",
+  "export_name": "source-e9cae95.txt",
+  "export_byte_count": 30,
+  "expected_blob_sha256": "f94e9d6813f3564745f4b2a091d6b1e5e40967f6e1fc0ceb7a7117c1da9c1beb",
+  "export_sha256": "f94e9d6813f3564745f4b2a091d6b1e5e40967f6e1fc0ceb7a7117c1da9c1beb",
+  "index_before_sha256": "b012894dcaba2231e7c51e309eb39c96a440b34b158e359c36860433e674cce5",
+  "index_after_sha256": "b012894dcaba2231e7c51e309eb39c96a440b34b158e359c36860433e674cce5",
+  "working_before_sha256": "b1ee9bc3adb756f9c0fdb8e93b4b80d8d8be7730063724dd60807b60e86c7c36",
+  "working_after_sha256": "b1ee9bc3adb756f9c0fdb8e93b4b80d8d8be7730063724dd60807b60e86c7c36",
+  "head_preserved": true,
+  "observed_controls": [
+    "Save enabled",
+    "correct suggested basename, short hash and extension",
+    "destination changed to a separate disposable folder"
+  ],
+  "coverage": [
+    "UTF-8 BOM",
+    "CRLF",
+    "no final newline",
+    "staged contents differ from working contents and selected revision"
+  ],
+  "screenshot_created": false,
+  "shutdown": "Normal Quit attempts were not confirmed through UI automation; only the identified disposable process was sent SIGTERM. Process absence verified.",
+  "pending": [
+    "Root cause of earlier disabled-panel failure",
+    "Native binary and symlink export",
+    "Overwrite and cancellation variants",
+    "Signed sandbox destination scope",
+    "Two-pane viewer Save As revalidation"
+  ]
+}

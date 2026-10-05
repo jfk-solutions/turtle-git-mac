@@ -170,7 +170,7 @@ symlink targets, current working-file preservation, pinned revision and exact
 index preservation. The submodule test additionally verifies gitlink file-row
 metadata and export rejection.
 
-Native Save acceptance remains **pending**: three sequential QA instances
+At that audit step, native Save acceptance remained **pending**: three sequential QA instances
 opened the panel with the correct suggested revision filename, but Save and
 New Folder remained disabled. Clearing the read busy state before panel display
 and explicitly allowing data/other file types did not establish a working save.
@@ -270,3 +270,28 @@ AppStore audit verified universal Git 2.55.0, 11 Mach-O files and local operatio
 The static documentation build passed, and the existing public Pages root returned
 HTTP 200 with the TurtleGit title. This verifies site availability, not deployment
 of this commit or signed App Store acceptance.
+
+
+## Historical Save As native acceptance recheck (2026-10-05)
+
+A fresh disposable preview of `6c7be1a` opened Log's selected-file Save revision to
+panel with Save enabled and the upstream basename/short-hash/extension suggestion.
+Go to Folder selected a separate existing output folder, and Save created
+`source-e9cae95.txt`. Its 30 bytes matched the pinned commit blob exactly, including
+UTF-8 BOM, CRLF and no final newline. Deliberately different staged and later
+working contents remained unchanged, as did HEAD and the complete raw index.
+The byte hashes and observed workflow are recorded in
+[the native QA result](qa/historical-save-2026-10-05.json).
+
+No application code change was needed to make this run succeed. The earlier
+disabled-panel observations remain valid historical failures; this acceptance
+recheck does not establish their root cause or prove they cannot recur. It resolves
+the current native text-file Save acceptance gap only. Binary, symlink, deleted/
+submodule gates, overwrite/cancel, old-name variants, signed sandbox destination
+scope and a fresh two-pane viewer Save As check remain pending.
+
+The documentation screenshot shortcut did not create an image, so no new screenshot
+is claimed. Normal Quit attempts through UI automation did not confirm termination;
+the single identified disposable process was sent SIGTERM after those attempts.
+Process absence and repository/output byte invariants were then verified. No other
+processes or system services were targeted.
