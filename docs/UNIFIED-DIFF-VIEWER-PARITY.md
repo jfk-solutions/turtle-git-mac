@@ -15,6 +15,7 @@ all unified-diff callers.
 | `src/TortoiseProc/GitLogListAction.cpp`, ID_GNUDIFF1/ID_GNUDIFF2 | `88c255c4c80578c099bbcd4604f6e088f2f9d40a` | `LogWindow.swift`, byte-preserving `CommitHistory.swift` APIs |
 | `src/Git/GitStatusListCtrl.cpp`, IDGITLC_GNUDIFF1 | `bb3424966659715269d38fca610c8d46810b0b15` | `CommitWindow.swift`, `StatusWindow.swift`, raw patch/working-tree diff APIs |
 | `src/TortoiseProc/FileDiffDlg.cpp`, ID_GNUDIFFCOMPARE/CheckMultipleDiffs | `fe4171a852023344cac5af1711873104393e1b0a` | `RevisionComparisonWindow.swift`, raw comparison patch API |
+| `src/TortoiseUDiff/MainWindow.cpp`, SaveFile | `fc1d4053019e4b8bc5c2a1c08837d19c7c506751` | `UnifiedDiffDocument`, read-only `PatchWindow` Save As |
 
 ## Selection rules
 
@@ -84,6 +85,18 @@ context viewers, which close with their parent; patch windows also guard their
 own busy/confirmation/sheet lifetime. These native behaviors compile but have
 not been interactively verified.
 
+Read-only patch windows retain a `UnifiedDiffDocument` containing original bytes
+separately from their UTF-8 display/parser text. Format Patch, Changed Files
+context viewers, View Patch and Commit's read-only preview now feed this data
+through refresh. Save As captures the document before showing the panel and
+writes that immutable snapshot atomically. Direct replacement of the displayed
+document invalidates the old raw snapshot; switching back to editable staging
+also drops it. Busy/confirmation/sheet guards prevent overlapping Save panels
+and protect Close/Quit. Invalid UTF-8 is still shown using replacement characters;
+encoding selection, editable UDiff behavior and exact native Save panel/refresh
+acceptance are pending. This ports byte-oriented read-only output, not the full
+upstream Save/Edit workflow.
+
 The selected application's bookmark is resolved and scoped for the native open
 request. Store builds require successful scoped access; the error directs the
 user to Browse when needed. The Format Patch controller blocks close, Quit and
@@ -129,6 +142,15 @@ reverse-apply checking, unchanged index/working bytes and a resolved snapshot
 that remains stable after HEAD advances. Paths absent from that snapshot are
 rejected. This does not verify native per-file ordering, warning, Shift, receiver
 handoff or context-viewer refresh. No GUI app was launched for this follow-up.
+
+Read-only Save follow-up: 25 focused UnifiedDiffViewer/GitPatch/RevisionComparison
+tests pass. A new filesystem test verifies empty content, UTF-8 BOM/CRLF/no final
+newline and invalid UTF-8 Save output, captured-document stability after a newer
+document replaces it, replacement of an existing saved file and directory-target
+failure without losing that file. The real-Git staged/working test also covers
+raw read-only working-tree patch bytes. These are portable Core checks; native
+model invalidation, panel Cancel, keyboard/menu invocation and signed output
+grants remain unverified. No GUI app was launched for this follow-up.
 
 Remaining: native settings/application-launch and Shift QA; failed/stale bookmark
 and missing-app acceptance; signed document handoff; command argument templates;

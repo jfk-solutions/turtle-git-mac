@@ -20,14 +20,14 @@ import TurtleGitCore
         window.setContentSize(NSSize(width: 680, height: 365))
         window.contentMinSize = NSSize(width: 650, height: 365); window.contentMaxSize = NSSize(width: 4000, height: 365)
         window.setFrameAutosaveName("FormatPatchDialog"); window.center()
-        model.close = { [weak self] in guard let self, !self.activeOperation else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.activeOperation else { return }; self.window?.performClose(nil) }
         model.chooseDirectory = { [weak self] in self?.chooseDirectory() }
         model.chooseRevision = { [weak self] target in self?.chooseRevision(target) }
         model.showPatch = { [weak self] bytes, alternate in self?.showPatch(bytes, alternate: alternate) }
         model.composeMail = { [weak self] files in self?.composeMail(files) }
         model.load()
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { patch?.close(); onClosed() }
     private func chooseDirectory() {
         guard let window, window.attachedSheet == nil else { return }
@@ -67,11 +67,11 @@ import TurtleGitCore
             }
         } catch { model.error = error.localizedDescription; return }
         let controller = patch ?? PatchWindowController(repository: model.repository, access: model.access)
-        controller.model.readOnly = true; controller.model.document = GitPatch(text: String(decoding: bytes, as: UTF8.self))
+        controller.model.setReadOnlyDiff(bytes)
         controller.model.comparisonTitle = "HEAD → Working tree"
         controller.model.readOnlyInformation = "Unified diff since HEAD. Right-click to save the patch."
         controller.model.customRefresh = { [weak model = model, weak controller] in
-            model?.unifiedDiff(onResult: { [weak controller] bytes in controller?.model.document = GitPatch(text: String(decoding: bytes, as: UTF8.self)) })
+            model?.unifiedDiff(onResult: { [weak controller] bytes in controller?.model.setReadOnlyDiff(bytes) })
         }
         controller.window?.title = "Unified Diff – TurtleGit"
         controller.onClosed = { [weak self] in self?.patch = nil }

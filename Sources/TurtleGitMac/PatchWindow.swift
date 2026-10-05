@@ -27,7 +27,7 @@ import UniformTypeIdentifiers
     override func cancelOperation(_ sender: Any?) {
         if patchText?.enclosingScrollView?.isFindBarVisible == true {
             find(.hideFindInterface); makeFirstResponder(patchText)
-        } else { close() }
+        } else { performClose(sender) }
     }
 }
 
@@ -56,10 +56,11 @@ import UniformTypeIdentifiers
 @MainActor final class PatchWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
-    @Published var document = GitPatch(text: "")
+    @Published var document = GitPatch(text: "") { didSet { originalDiff = nil } }
+    private var originalDiff: UnifiedDiffDocument?
     @Published var selectedLines = Set<Int>()
     @Published var staged = false
-    @Published var readOnly = false
+    @Published var readOnly = false { didSet { if !readOnly { originalDiff = nil } } }
     @Published var comparisonTitle = "HEAD → Working tree"
     var customRefresh: (() -> Void)?
     var readOnlyInformation: String?
@@ -72,6 +73,11 @@ import UniformTypeIdentifiers
     var onApplying: (Bool) -> Void = { _ in }
     var onApplied: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: Data(document.text.utf8)) : UnifiedDiffDocument(bytes: Data(document.text.utf8)) }
+    func setReadOnlyDiff(_ bytes: Data) {
+        let source = UnifiedDiffDocument(bytes: bytes)
+        readOnly = true; document = GitPatch(text: source.displayText); originalDiff = source
+    }
     var canApplyLines: Bool { !readOnly && !busy && !confirmingQuit && selectedLines.contains(where: { document.changedLine($0) }) }
     var canApplyHunks: Bool { !readOnly && !busy && !confirmingQuit && document.files.flatMap(\.hunks).contains { hunk in selectedLines.contains(hunk.header) || hunk.range.contains(where: { selectedLines.contains($0) }) } }
     var information: String {
@@ -89,12 +95,13 @@ import UniformTypeIdentifiers
         self.paths = paths; self.staged = staged; selectedLines = []; document = GitPatch(text: ""); busy = true
         Task {
             do {
-                let result: GitPatch
-                if paths.isEmpty { result = GitPatch(text: "") }
-                else if readOnly { result = try await repository.workingTreePatch(paths: paths, base: base) }
-                else { result = try await repository.patch(paths: paths, staged: staged, base: base) }
+                let bytes: Data
+                if paths.isEmpty { bytes = Data() }
+                else if readOnly { bytes = try await repository.workingTreePatchData(paths: paths, base: base) }
+                else { bytes = Data(try await repository.patch(paths: paths, staged: staged, base: base).text.utf8) }
                 guard request == generation else { return }
-                document = result; busy = false
+                if readOnly { setReadOnlyDiff(bytes) } else { document = GitPatch(text: String(decoding: bytes, as: UTF8.self)) }
+                busy = false
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
         }
     }
@@ -190,13 +197,13 @@ struct PatchTextView: NSViewRepresentable {
         }
         override func cancelOperation(_ sender: Any?) { window?.cancelOperation(sender) }
         @objc func savePatch(_ sender: Any?) {
-            guard let window, let model = coordinator?.model else { return }
-            let snapshot = model.document.text
+            guard let window, window.attachedSheet == nil, let model = coordinator?.model, !model.busy, !model.confirmingQuit else { return }
+            let snapshot = model.exportDocument
             let panel = NSSavePanel(); panel.nameFieldStringValue = "changes.patch"
             panel.allowedContentTypes = [UTType(filenameExtension: "patch") ?? .plainText]
             panel.beginSheetModal(for: window) { response in
                 guard response == .OK, let url = panel.url else { return }
-                do { try Data(snapshot.utf8).write(to: url, options: .atomic) }
+                do { try snapshot.write(to: url) }
                 catch { model.error = error.localizedDescription }
             }
         }

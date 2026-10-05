@@ -52,6 +52,10 @@ preview bytes, including non-UTF-8 Git patches, are tested;
 native launching and signed handoff remain unverified. See
 [viewer parity](docs/UNIFIED-DIFF-VIEWER-PARITY.md).
 
+Read-only patch windows retain original bytes for Save As, including non-UTF-8
+content, BOMs and line endings. Display decoding is separate from export; native
+Save-panel and signed sandbox acceptance remain unverified.
+
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
 icons. It browses pinned nested revisions, including bare repositories and tags,

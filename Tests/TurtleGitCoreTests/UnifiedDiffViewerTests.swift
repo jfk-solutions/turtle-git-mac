@@ -2,6 +2,24 @@ import XCTest
 @testable import TurtleGitCore
 
 final class UnifiedDiffViewerTests: XCTestCase {
+    func testReadOnlyDocumentSavePreservesBytesAndCapturedSnapshot() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let target = directory.appendingPathComponent("saved.patch")
+        for bytes in [Data(), Data([0xef, 0xbb, 0xbf]) + Data("diff --git a/a b/a\r\n+last line".utf8), Data("@@ -1 +1 @@\n-".utf8) + Data([0xff, 10, 43, 0xfe])] {
+            var current = UnifiedDiffDocument(bytes: bytes)
+            let captured = current
+            current = UnifiedDiffDocument(bytes: Data("refreshed while chooser open\n".utf8))
+            try captured.write(to: target)
+            XCTAssertEqual(try Data(contentsOf: target), bytes)
+            XCTAssertNotEqual(current.bytes, captured.bytes)
+            if bytes.contains(0xff) { XCTAssertNotEqual(Data(captured.displayText.utf8), captured.bytes) }
+        }
+        do { try UnifiedDiffDocument(bytes: Data("must fail".utf8)).write(to: directory); XCTFail("Saved over a directory") }
+        catch {}
+        XCTAssertEqual(try Data(contentsOf: target).last, 0xfe)
+    }
     func testStagedUnstagedAndWholeWorkingPatchKeepNonUTF8Bytes() async throws {
         let (root, repository, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -15,6 +33,8 @@ final class UnifiedDiffViewerTests: XCTestCase {
         let staged = try await repository.patchData(paths: [path], staged: true)
         let unstaged = try await repository.patchData(paths: [path], staged: false)
         let whole = try await repository.workingTreeDiffData(paths: [path])
+        let readOnly = try await repository.workingTreePatchData(paths: [path])
+        XCTAssertNotNil(readOnly.range(of: Data([0x2b, 0xfd, 0x0a])))
         for (patch, old, new) in [(staged, UInt8(0xff), UInt8(0xfe)), (unstaged, UInt8(0xfe), UInt8(0xfd)), (whole, UInt8(0xff), UInt8(0xfd))] {
             XCTAssertNotNil(patch.range(of: Data([0x2d, old, 0x0a])))
             XCTAssertNotNil(patch.range(of: Data([0x2b, new, 0x0a])))

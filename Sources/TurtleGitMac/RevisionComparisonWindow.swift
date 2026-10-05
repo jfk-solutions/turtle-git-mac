@@ -47,7 +47,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard sender.attachedSheet == nil, !model.busy, model.patchWindow?.model.busy != true, !model.unifiedWindows.values.contains(where: { $0.model.busy }), !model.comparisonWindows.values.contains(where: { $0.model.busy }) else { return false }
+        guard sender.attachedSheet == nil, !model.busy, model.patchWindow?.model.busy != true, model.patchWindow?.window?.attachedSheet == nil, !model.unifiedWindows.values.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !model.comparisonWindows.values.contains(where: { $0.model.busy }) else { return false }
         if let child = model.comparisonWindows.values.first(where: { $0.model.dirty }) {
             child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
         }
@@ -156,7 +156,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
     }
     func togglePatch() {
-        guard !busy, !confirmingQuit else { return }
+        guard !busy, !confirmingQuit, patchWindow?.model.busy != true, patchWindow?.window?.attachedSheet == nil else { return }
         if showingPatch { patchWindow?.close(); return }
         let controller = PatchWindowController(repository: repository, access: access)
         controller.window?.title = "\(repository.root.lastPathComponent) – Unified Diff – TurtleGit"
@@ -193,7 +193,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path])
                     if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
                         let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access)
-                        controller.model.readOnly = true; controller.model.document = GitPatch(text: String(decoding: bytes, as: UTF8.self))
+                        controller.model.setReadOnlyDiff(bytes)
                         controller.model.paths = [file.path]
                         controller.model.comparisonTitle = "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))"
                         controller.model.readOnlyInformation = "Read-only unified diff for \(file.path). Right-click to save the patch."
@@ -206,7 +206,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                                 do {
                                     try self.checkPatchAccess()
                                     let bytes = try await self.repository.revisionComparisonPatchData(snapshot, paths: [file.path])
-                                    controller.model.document = GitPatch(text: String(decoding: bytes, as: UTF8.self))
+                                    controller.model.setReadOnlyDiff(bytes)
                                 } catch { controller.model.error = error.localizedDescription }
                             }
                         }
@@ -229,9 +229,9 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         controller.model.paths = paths
         Task {
             do {
-                let text = paths.isEmpty ? "" : try await repository.revisionComparisonPatch(snapshot, paths: paths)
+                let bytes = paths.isEmpty ? Data() : try await repository.revisionComparisonPatchData(snapshot, paths: paths)
                 guard request == patchGeneration else { return }
-                controller.model.document = GitPatch(text: text); controller.model.busy = false
+                controller.model.setReadOnlyDiff(bytes); controller.model.busy = false
             } catch { if request == patchGeneration { controller.model.error = error.localizedDescription; controller.model.busy = false } }
         }
     }

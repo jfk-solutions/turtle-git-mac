@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-05",
+  "scope": "Read-only patch Save As original byte preservation and owned preview lifetime; full app goal incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": {
+    "TortoiseUDiff/MainWindow.cpp": "fc1d4053019e4b8bc5c2a1c08837d19c7c506751"
+  },
+  "focused_tests": {
+    "suites": [
+      "UnifiedDiffViewerTests",
+      "GitPatchTests",
+      "RevisionComparisonTests"
+    ],
+    "count": 25,
+    "failures": 0,
+    "duration_seconds": 12.412,
+    "coverage": [
+      "Exact empty/BOM/CRLF/no-final-newline/invalid-UTF-8 output",
+      "Captured document stable after newer replacement",
+      "Atomic saved-file replacement and directory-target failure retaining existing export",
+      "Raw read-only working-tree patch bytes",
+      "Existing staged/working and pinned comparison regressions"
+    ],
+    "limits": "Portable Core coverage; native model invalidation and panel behavior unverified"
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0,
+    "native_phase": "Final close/Escape/toggle guards compiled after focused tests; Core unchanged after tests"
+  },
+  "bundle_audits": {
+    "Debug": "passed, 72 original icons",
+    "AppStore_require_git": "passed, 72 original icons and universal runtime"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "log_sha256": {
+    "focused": "463685e613d15d3e6889bf16d6e340b4e28f9d378757b0f57980f51f08d70dba",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "Debug_audit": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0",
+    "AppStore_audit": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+  },
+  "native_qa": {
+    "apps_launched": 0,
+    "screenshots_created": false,
+    "verification": "Actual Save As/Cancel/refresh/model invalidation/Escape/parent-toggle/receiver/signed grant unverified; prior native control failures recorded separately"
+  },
+  "behavior": [
+    "Original read-only Data stored independently from UTF-8 display and GitPatch parser",
+    "Save captures immutable export before chooser",
+    "Display replacement and editable-mode switch invalidate old raw snapshot",
+    "Format Patch and Changed Files context/selection refresh preserve raw bytes",
+    "Commit read-only preview uses raw working-tree patch route",
+    "Editable staging keeps UTF-8 refusal",
+    "Own/parent Close, Quit, Escape and preview-toggle routes guard pending refresh/save sheet"
+  ],
+  "remaining": [
+    "Native Save As and Cancel acceptance",
+    "Native refresh/stale-data and close/toggle variants",
+    "Signed output security scopes",
+    "Display encoding selection and full editable TortoiseUDiff",
+    "Save keyboard/toolbar/print/menu parity",
+    "Full app parity and distribution readiness"
+  ],
+  "full_suite": "Previous full 432-test pass predates this change; focused tests only here",
+  "github": "Local changes not tested remotely"
+}

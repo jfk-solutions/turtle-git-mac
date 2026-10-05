@@ -108,11 +108,14 @@ public enum PatchFailure: LocalizedError {
 
 extension GitRepository {
     public func workingTreePatch(paths: [String], base: String? = nil) throws -> GitPatch {
+        guard let text = String(data: try workingTreePatchData(paths: paths, base: base), encoding: .utf8) else { throw PatchFailure.encoding }
+        return GitPatch(text: text)
+    }
+    public func workingTreePatchData(paths: [String], base: String? = nil) throws -> Data {
         let head = (try? run(["rev-parse", "--verify", "HEAD"])) != nil
         let comparison = base.map { [$0] } ?? (head ? ["HEAD"] : ["--cached"])
         let args = ["diff", "--no-ext-diff", "--no-color", "--no-textconv", "--unified=3", "-M"] + comparison + ["--"] + paths
-        guard let text = String(data: try run(args).stdout, encoding: .utf8) else { throw PatchFailure.encoding }
-        return GitPatch(text: text)
+        return try run(args).stdout
     }
     public func patch(paths: [String], staged: Bool, base: String? = nil) throws -> GitPatch {
         guard let text = String(data: try patchData(paths: paths, staged: staged, base: base), encoding: .utf8) else { throw PatchFailure.encoding }

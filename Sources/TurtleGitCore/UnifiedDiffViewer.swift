@@ -1,5 +1,14 @@
 import Foundation
 
+/// A read-only patch may contain bytes that cannot be represented in the
+/// display encoding. Saving uses the original data, never the display text.
+public struct UnifiedDiffDocument: Sendable {
+    public let bytes: Data
+    public init(bytes: Data) { self.bytes = bytes }
+    public var displayText: String { String(decoding: bytes, as: UTF8.self) }
+    public func write(to url: URL) throws { try bytes.write(to: url, options: .atomic) }
+}
+
 public enum UnifiedDiffViewerChoice: Equatable, Sendable {
     case builtin, external(URL)
 }

@@ -28,11 +28,17 @@ import UniformTypeIdentifiers
         window.minSize = NSSize(width: 900, height: 680); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model))
         super.init(window: window); window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak self, weak window] in
+            guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil else { return }
+            window?.close()
+        }
         model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
         model.showViewPatch = { [weak self] in self?.showPartial(staged: false, readOnly: true) }
         model.refreshPartial = { [weak self] in self?.reloadPartial() }
-        model.closePartial = { [weak self] in self?.partial?.close() }
+        model.closePartial = { [weak self] in
+            guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil else { return }
+            self.partial?.close()
+        }
         model.showMessageHistory = { [weak self] insert in self?.showHistory(insert: insert) }
         model.pickRevision = { [weak self] message, insert in self?.showRevisionPicker(message: message, insert: insert) }
         model.chooseApplication = { [weak self] path in
@@ -116,7 +122,10 @@ import UniformTypeIdentifiers
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) { closingCommit = true; logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; onClosed() }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { model.cancel(); return false }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard partial?.model.busy != true, partial?.window?.attachedSheet == nil else { return false }
+        model.cancel(); return false
+    }
     private func showHistory(insert: @escaping (String) -> Void) {
         guard let window, let history = model.messageHistory, historyWindow == nil else { return }
         let child = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 600, height: 320), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
@@ -140,7 +149,7 @@ import UniformTypeIdentifiers
         window.beginSheet(child)
     }
     private func showPartial(staged: Bool, readOnly: Bool = false) {
-        guard let window else { return }
+        guard let window, partial?.model.busy != true, partial?.window?.attachedSheet == nil else { return }
         if let partial, partial.model.readOnly == readOnly, partial.model.staged == staged { partial.close(); return }
         let controller = partial ?? PatchWindowController(repository: model.repository, access: model.access)
         partial = controller
