@@ -244,6 +244,38 @@ struct TestScopes: RepositoryBookmarkProvider {
         scroll.tile(); table.tile()
         precondition(table.headerView!.frame.height > 0 && table.headerView!.headerRect(ofColumn: 0).width > 0, "Custom headers must retain usable native geometry")
         precondition(table.frame.width > 0 && table.frame.height >= CGFloat(model.rows.count) * table.rowHeight)
+        let nativeTable = table as! WorktreeTableView
+        let viewport = NSRect(x: 20, y: 30, width: 300, height: 200)
+        precondition(nativeTable.backdropRect(in: viewport) == NSRect(x: 192, y: 102, width: 128, height: 128))
+        let scrolled = NSRect(x: 70, y: 90, width: 300, height: 200)
+        precondition(nativeTable.backdropRect(in: scrolled) == NSRect(x: 242, y: 162, width: 128, height: 128), "Watermark follows the viewport rather than the document origin")
+        defaults.set(false, forKey: "ShowListBackgroundImage"); precondition(nativeTable.backdropRect(in: viewport) == nil)
+        defaults.set(true, forKey: "ShowListBackgroundImage"); precondition(nativeTable.backdropRect(in: viewport) != nil)
+        defaults.removeObject(forKey: "ShowListBackgroundImage")
+        precondition(nativeTable.backdropRect(in: viewport) != nil, "Upstream background preference defaults to enabled")
+        precondition(nativeTable.backdropRect(in: .zero) == nil)
+        let oldColor = nativeTable.backgroundColor; nativeTable.backgroundColor = .magenta
+        func paint(_ enabled: Bool) -> NSColor {
+            defaults.set(enabled, forKey: "ShowListBackgroundImage")
+            let visible = nativeTable.visibleRect
+            let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: Int(ceil(visible.width)), pixelsHigh: Int(ceil(visible.height)), bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+            NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
+            let transform = NSAffineTransform(); transform.translateX(by: -visible.minX, yBy: -visible.minY); transform.concat()
+            nativeTable.drawBackground(inClipRect: visible)
+            NSGraphicsContext.restoreGraphicsState()
+            return bitmap.colorAt(x: Int(visible.width) - 64, y: 64)!.usingColorSpace(.deviceRGB)!
+        }
+        let disabled = paint(false); var enabled = paint(true)
+        precondition(disabled.greenComponent < 0.1 && enabled.greenComponent > 0.2, "Actual native background painting must draw the original silver icon only while enabled")
+        nativeTable.backgroundColor = .controlBackgroundColor
+        var light: NSColor!, dark: NSColor!
+        NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance { light = paint(false) }
+        NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance { dark = paint(false) }
+        precondition(light.greenComponent - dark.greenComponent > 0.2, "Native list background must follow light and dark drawing appearances")
+        NSAppearance(named: .darkAqua)!.performAsCurrentDrawingAppearance { enabled = paint(true) }
+        precondition(enabled.greenComponent > 0.2, "Original artwork must also paint in dark appearance")
+        nativeTable.backgroundColor = oldColor; defaults.removeObject(forKey: "ShowListBackgroundImage")
+        print("Actual native backdrop painter: 128-point bottom-right viewport anchor, scrolling, zero bounds, default/disabled preference, light/dark background and original icon pixels passed. Composed window appearance remains pending.")
         precondition(table.tableColumns.map { $0.identifier.rawValue } == ["path", "hash", "branch", "locked", "reason"])
         precondition(table.tableColumns.map { $0.width } == [150, 100, 100, 100, 100])
         precondition(table.tableColumns.last!.headerCell.alignment == .right && table.numberOfRows == model.rows.count)

@@ -372,6 +372,11 @@
       "asset": "menuunlock.ico",
       "source": "src/Resources/menuunlock.ico",
       "sha256": "1513c4c0b7ac27423bcf6834755ad0084038bd2042c033ca2b31d45c995421a5"
+    },
+    {
+      "asset": "RepoBrowserBackground.ico",
+      "source": "src/Resources/RepoBrowserBackground.ico",
+      "sha256": "174fc7929cafdec779da382cf56577ee1252992bbc6c8589625cd09811c674bd"
     }
   ]
 }

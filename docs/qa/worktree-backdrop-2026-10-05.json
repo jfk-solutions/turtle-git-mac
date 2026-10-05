@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-05",
+  "scope": "Original Worktree List watermark and native offscreen painter verification; composed native appearance remains pending",
+  "baseCommit": "6c0aefd8b5cd304648c9e2a887b40e0eea1dde87",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "RepoBrowserBackground.ico": "1a3dbbc55ec52cd0c349f3e2fd0cf1b820ec5fca",
+    "CommonAppUtils.cpp": "e238480c30808908b318d1f419c246ab0c116895",
+    "SettingsAdvanced.cpp": "1b222ebf9053e0e902f79413899dc92d35071464"
+  },
+  "resource": {
+    "sha256": "174fc7929cafdec779da382cf56577ee1252992bbc6c8589625cd09811c674bd",
+    "unchanged": true,
+    "logicalSize": [
+      128,
+      128
+    ],
+    "template": false,
+    "cornerAlpha": 0,
+    "centerAlpha": "128/255",
+    "manifestAssets": 75
+  },
+  "focusedTests": {
+    "count": 1,
+    "failures": 0,
+    "scope": "All 75 MenuIcon resources decode to AppKit pixels; original watermark transparent corner/translucent center; existing color/ribbon alpha/action mapping checks retained"
+  },
+  "actualNativePainter": [
+    "Bottom-right 128-point visible-viewport rectangle",
+    "Anchor follows scrolling; zero bounds produce no image",
+    "ShowListBackgroundImage defaults to true and stored false suppresses drawing",
+    "Actual offscreen pixel painting of original silver artwork against a diagnostic background",
+    "Native semantic backgrounds differ under Aqua/Dark Aqua drawing appearances; original icon also draws under Dark Aqua"
+  ],
+  "retainedNativeModel": "All creation/column/management, removal batch, directory grant/POSIX denial and active process cancellation checks pass",
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App, Finder extension, all 75 upstream resources, updated NOTICE/licenses, universal EditorConfig/IssueRegex and Store Git 2.55.0 validated",
+  "coreSuite": "Previous full 456-test baseline is recorded in worktree-list-2026-10-05.json; this change uses focused icon and actual native receiver/painter checks, not a new full core run",
+  "nativeUI": "Standalone AppKit driver displays no windows; offscreen painter checks are not native window screenshots",
+  "appProcesses": "No TurtleGit app launched; standalone driver exited and UUID fixture/defaults suite cleaned up",
+  "logs": {
+    "icons": {
+      "path": "/tmp/turtlegit-worktree-backdrop-icons.log",
+      "sha256": "03c6edd5f3fafc349ee86a514a0753dbde1c7ae929769f7342519c959d68fffe",
+      "exitCode": 0
+    },
+    "model": {
+      "path": "/tmp/turtlegit-worktree-backdrop-model.log",
+      "sha256": "eedb6ffacabfb3167979a7f9f7a80c124b2974483a9e4c41558286fe35efac5d",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-worktree-backdrop-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-worktree-backdrop-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-worktree-backdrop-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-worktree-backdrop-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-worktree-backdrop-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    "Sources/TurtleGitCore/MenuIcons.swift": "0e94a4b4bbec843c1c99fc4edc8012172cf6e535b6891e478c31268d8083d072",
+    "Sources/TurtleGitMac/WorktreeListTable.swift": "62a50f77701c0aadc4176c4eb8acb310ad629837d140aec79330148ea63742eb",
+    "Tests/TurtleGitCoreTests/MenuIconTests.swift": "cb3005da03f15895f2cf142a8b76f4921204de06ca1632c8273f6046fecba1fe",
+    "scripts/test-worktree-dialog.py": "39d7d63ea1be99e25eaa651ac886607c426a3e4e26b5ad8bf052d014f47b1b8b"
+  },
+  "pending": [
+    "Composed table appearance, row/selection overlap and high-DPI native light/dark screenshots",
+    "Native Advanced Settings editor for ShowListBackgroundImage and remaining settings",
+    "Repository Browser and other shared background-image consumers",
+    "Native worktree gestures/sheets/Finder/F5 and signed sandbox acceptance",
+    "Full Finder drag-create workflow",
+    "GitHub execution of local changes"
+  ]
+}

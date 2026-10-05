@@ -3,7 +3,7 @@ import AppKit
 @testable import TurtleGitCore
 
 final class MenuIconTests: XCTestCase {
-    func testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes() {
+    func testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes() throws {
         for icon in MenuIcon.allCases {
             guard let image = icon.image() else { XCTFail("Missing or unreadable icon: \(icon.rawValue)"); continue }
             XCTAssertEqual(image.size, NSSize(width: 16, height: 16))
@@ -15,6 +15,12 @@ final class MenuIconTests: XCTestCase {
             var proposed = rect
             XCTAssertNotNil(image.cgImage(forProposedRect: &proposed, context: nil, hints: nil), icon.rawValue)
         }
+        let backdrop = try XCTUnwrap(MenuIcon.repositoryBackdrop.image(size: 128))
+        var backdropRect = NSRect(x: 0, y: 0, width: 128, height: 128)
+        let backdropPixels = NSBitmapImageRep(cgImage: try XCTUnwrap(backdrop.cgImage(forProposedRect: &backdropRect, context: nil, hints: nil)))
+        XCTAssertTrue(backdropPixels.hasAlpha)
+        XCTAssertLessThan(try XCTUnwrap(backdropPixels.colorAt(x: 0, y: 0)).alphaComponent, 0.01, "Watermark corners must preserve the list background")
+        XCTAssertEqual(try XCTUnwrap(backdropPixels.colorAt(x: backdropPixels.pixelsWide / 2, y: backdropPixels.pixelsHigh / 2)).alphaComponent, 128.0 / 255.0, accuracy: 1.0 / 255.0, "Preserve the original watermark's translucent center")
         // BI_RGB ribbon bitmaps carry real alpha despite AppKit's default BMP
         // decoder discarding it. Their empty corners must remain transparent.
         for icon in [MenuIcon.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine] {

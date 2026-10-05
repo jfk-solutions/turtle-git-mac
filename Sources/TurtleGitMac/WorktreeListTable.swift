@@ -23,7 +23,7 @@ struct WorktreeListTable: NSViewRepresentable {
         private var adjusted = Set<String>()
         init(model: WorktreeListWindowModel, defaults: UserDefaults = .standard) { self.model = model; self.defaults = defaults }
         func makeScrollView() -> NSScrollView {
-            let table = WorktreeTableView()
+            let table = WorktreeTableView(defaults: defaults)
             table.rowHeight = 23; table.intercellSpacing = NSSize(width: 4, height: 0)
             table.allowsMultipleSelection = true; table.allowsColumnReordering = true
             table.allowsColumnResizing = true; table.columnAutoresizingStyle = .noColumnAutoresizing
@@ -191,7 +191,24 @@ struct WorktreeListTable: NSViewRepresentable {
     }
 }
 
-private final class WorktreeTableView: NSTableView {
+final class WorktreeTableView: NSTableView {
+    private let defaults: UserDefaults
+    private let backdrop = MenuIcon.repositoryBackdrop.image(size: 128)
+    init(defaults: UserDefaults) { self.defaults = defaults; super.init(frame: .zero) }
+    required init?(coder: NSCoder) { defaults = .standard; super.init(coder: coder) }
+    func backdropRect(in viewport: NSRect) -> NSRect? {
+        guard defaults.object(forKey: "ShowListBackgroundImage") as? Bool ?? true,
+              backdrop != nil, viewport.width > 0, viewport.height > 0 else { return nil }
+        return NSRect(x: viewport.maxX - 128, y: isFlipped ? viewport.maxY - 128 : viewport.minY, width: 128, height: 128)
+    }
+    override func drawBackground(inClipRect clipRect: NSRect) {
+        super.drawBackground(inClipRect: clipRect)
+        guard let rect = backdropRect(in: visibleRect), rect.intersects(clipRect) else { return }
+        NSGraphicsContext.saveGraphicsState()
+        NSBezierPath(rect: visibleRect.intersection(clipRect)).addClip()
+        backdrop?.draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        NSGraphicsContext.restoreGraphicsState()
+    }
     override func menu(for event: NSEvent) -> NSMenu? {
         let clicked = row(at: convert(event.locationInWindow, from: nil))
         if clicked >= 0 && !selectedRowIndexes.contains(clicked) { selectRowIndexes(IndexSet(integer: clicked), byExtendingSelection: false) }

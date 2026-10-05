@@ -192,7 +192,7 @@ These tests establish
 repository/model behavior within their fixtures, not complete app/UI parity.
 
 No app was launched in this manager check: the previous native controller failure
-remains unresolved. Source list background artwork, native light/dark screenshots and all native/signed
+remains unresolved. Native light/dark screenshots and all native/signed
 acceptance remain pending. See [verification record](qa/worktree-list-2026-10-05.json).
 
 ## Native column controls
@@ -228,3 +228,35 @@ isolated defaults suite. It retains all creation/management/scope/cancellation
 tests. These are receiver/state tests: actual divider gestures, dragging, header
 menus, native light/dark appearance and signed sandbox remain unverified. See
 [column verification record](qa/worktree-columns-2026-10-05.json).
+
+## Original list watermark
+
+Worktree List now draws the unchanged `RepoBrowserBackground.ico` resource used by
+upstream `IDI_REPOBROWSER_BKG`. Its pinned blob is
+`1a3dbbc55ec52cd0c349f3e2fd0cf1b820ec5fca`. The manifest now contains 75 original
+assets; bundle audits verify their hashes and the decoder test verifies actual
+AppKit pixels. The silver database icon preserves its transparent corners,
+original 128/255 center alpha and colors, without template tinting or added opacity.
+
+`CCommonAppUtils::SetListCtrlBackgroundImage` in `CommonAppUtils.cpp` (blob
+`e238480c30808908b318d1f419c246ab0c116895`) loads a DPI-scaled 128-pixel icon,
+uses alpha blending, and places it at 100% horizontal/vertical offsets. Native
+`WorktreeTableView.drawBackground(inClipRect:)` adapts this to a 128-point image
+anchored at the lower-right corner of the visible table viewport. Drawing clips
+to the viewport and dirty rectangle; scrolling changes the anchor with the
+viewport instead of leaving the image fixed to the document origin.
+
+It reads the saved `ShowListBackgroundImage` boolean, defaulting to true as
+`SettingsAdvanced.cpp` (blob `1b222ebf9053e0e902f79413899dc92d35071464`) does.
+The shared Advanced Settings editor and other list-background consumers remain
+pending. This preference plumbing is not a claim that the settings dialog has
+been ported. Native semantic background colors remain responsible for light/dark;
+the original artwork is drawn unchanged in either appearance.
+
+The standalone receiver driver now checks the actual background painter with
+offscreen bitmap contexts: original icon pixels, enabled/disabled preference,
+light/dark semantic background, 128-point bottom-right placement, scroll offsets,
+and zero bounds. All creation, column, management, scope and active cancellation
+checks are retained. These checks do not establish the composed window's
+appearance, row/selection overlap, high-DPI native screenshots, or signed behavior.
+See [watermark verification record](qa/worktree-backdrop-2026-10-05.json).
