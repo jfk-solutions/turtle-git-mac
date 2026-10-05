@@ -113,7 +113,7 @@ enum FinderMenuBuilder {
                      creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false) -> NSMenu {
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
         let menu = NSMenu(title: "TurtleGit")
-        if paths.count == 1 && paths[0].pathComponents.contains(".git") { return menu }
+        if paths.contains(where: { $0.pathComponents.contains(".git") }) { return menu }
         let submenu = NSMenu(title: "TurtleGit")
         submenu.autoenablesItems = false
         let creationActions = creationDirectory.map {
@@ -124,11 +124,11 @@ enum FinderMenuBuilder {
             item.image = image(action.icon); item.target = target
             item.representedObject = FinderMenuCommand(action: action, paths: creationDirectory.map { [$0] } ?? []); submenu.addItem(item)
         }
-        let repositoryMetadata = snapshot?.repositoryMetadata(for: paths)
+        let shellFlags = FinderShellRules.flags(paths: paths, snapshot: snapshot, extended: extended)
         let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
         if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .worktreeCreate && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
-            guard knownRepository, repositoryMetadata?.allows(action) != false else { continue }
+            guard knownRepository, FinderShellRules.allows(action, flags: shellFlags) else { continue }
             let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon)
             if action == .formatPatch || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
@@ -138,7 +138,7 @@ enum FinderMenuBuilder {
             if action == .remove || action == .removeKeep { item.isEnabled = snapshot?.canRemove(paths) == true }
             item.target = target; item.representedObject = FinderMenuCommand(action: action, paths: paths); submenu.addItem(item)
         }
-        for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true {
+        for deleting in [false, true] where snapshot?.canIgnore(paths, deleting: deleting) == true && FinderShellRules.allows(deleting ? .ignoreDelete : .ignore, flags: shellFlags) {
             let ignore = NSMenuItem(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", action: nil, keyEquivalent: "")
             ignore.image = image(.ignore); ignore.representedObject = FinderMenuGroup(deleting ? .ignoreDelete : .ignore)
             let choices = NSMenu(title: ignore.title); choices.autoenablesItems = false
@@ -155,7 +155,7 @@ enum FinderMenuBuilder {
             }
             ignore.submenu = choices; submenu.addItem(ignore)
         }
-        if paths.count == 1, (try? paths[0].resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == false {
+        if FinderShellRules.allows(.diffLater, flags: shellFlags), (try? paths[0].resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == false {
             let marked = comparisonMark
             let title = marked.map { "Compare with " + $0.path } ?? RepositoryAction.diffLater.title
             let item = NSMenuItem(title: title, action: actionSelector, keyEquivalent: "")

@@ -11,6 +11,8 @@ Create repository on ordinary outside folders or ignored folders. Shift's extend
 menu allows Clone in versioned folders; Create repository's extended clause
 excludes `ITEMIS_INGIT`. `ITEMIS_FOLDERINGIT` is represented independently:
 its presence suppresses the ordinary clause but does not exclude extended Create.
+Untracked folders inside cached worktrees retain this administrative folder flag;
+they offer creation through Shift rather than the ordinary menu.
 Bare/inaccessible folders suppress the ordinary clause.
 The directory classifier uses cached status, path-component boundaries and
 metadata; no Git process is launched in Finder. Cached status is not proof of
@@ -20,7 +22,7 @@ multiple-folder creation and all other shell conditions remain pending.
 The bare metadata probe retains the pinned `GitAdminDir.cpp`
 (`985eb4e063adf8cf8a59744c917b2c3ec4e780bd`) loose-reference checks for HEAD,
 config, with directories at objects, refs and refs/heads. This is a menu eligibility
-probe, not repository validation. Single administrative `.git` paths suppress the
+probe, not repository validation. Administrative `.git` paths, including mixed selections, suppress the
 menu, following `ContextMenu.cpp`'s early exclusion.
 
 Finder container menus use the targeted folder rather than selected child files.

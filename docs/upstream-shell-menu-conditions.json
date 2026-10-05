@@ -1,0 +1,859 @@
+{
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "blob": "aee7f91ad1111fe03ab85b390855885ca940a27f",
+  "rules": {
+    "clone": {
+      "command": "Clone",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDER"
+          ],
+          "no": [
+            "ITEMIS_INGIT",
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_BAREREPO",
+            "ITEMIS_INACCESSIBLE"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_IGNORED"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_EXTENDED"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "pull": {
+      "command": "Pull",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_WCROOT"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "fetch": {
+      "command": "Fetch",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_WCROOT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "push": {
+      "command": "Push",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_WCROOT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "commit": {
+      "command": "Commit",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "diff": {
+      "command": "Diff",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_TWO"
+          ],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "diffLater": {
+      "command": "DiffLater",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_FOLDER"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "log": {
+      "command": "Log",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_ADDED"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_ADDED"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_ADDED"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO"
+          ],
+          "no": []
+        }
+      ]
+    },
+    "reflog": {
+      "command": "RefLog",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "repositoryBrowser": {
+      "command": "RepoBrowse",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "status": {
+      "command": "ShowChanged",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_FOLDERINGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "rebase": {
+      "command": "Rebase",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "stash": {
+      "command": "StashSave",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "stashApply": {
+      "command": "StashApply",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_STASH"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "stashPop": {
+      "command": "StashPop",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_STASH"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "stashList": {
+      "command": "StashList",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_STASH"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "resolve": {
+      "command": "Resolve",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_CONFLICTED"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_FOLDER"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "rename": {
+      "command": "Rename",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_INVERSIONEDFOLDER"
+          ],
+          "no": [
+            "ITEMIS_WCROOT"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_WCROOT",
+            "ITEMIS_SUBMODULE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "remove": {
+      "command": "Remove",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_INVERSIONEDFOLDER"
+          ],
+          "no": [
+            "ITEMIS_ADDED",
+            "ITEMIS_WCROOT"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_WCROOT",
+            "ITEMIS_SUBMODULE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "removeKeep": {
+      "command": "RemoveKeep",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_INVERSIONEDFOLDER"
+          ],
+          "no": [
+            "ITEMIS_ADDED",
+            "ITEMIS_WCROOT"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "revert": {
+      "command": "Revert",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT"
+          ],
+          "no": [
+            "ITEMIS_NORMAL"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "switchBranch": {
+      "command": "Switch",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "merge": {
+      "command": "Merge",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "branch": {
+      "command": "Branch",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "tag": {
+      "command": "Tag",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "initialize": {
+      "command": "CreateRepo",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDER"
+          ],
+          "no": [
+            "ITEMIS_INGIT",
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_BAREREPO",
+            "ITEMIS_INACCESSIBLE"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_IGNORED"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_EXTENDED"
+          ],
+          "no": [
+            "ITEMIS_INGIT"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "ignore": {
+      "command": "IgnoreSub",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INVERSIONEDFOLDER"
+          ],
+          "no": [
+            "ITEMIS_IGNORED",
+            "ITEMIS_INGIT",
+            "ITEMIS_WCROOT"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "ignoreDelete": {
+      "command": "DeleteIgnoreSub",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INVERSIONEDFOLDER",
+            "ITEMIS_INGIT"
+          ],
+          "no": [
+            "ITEMIS_IGNORED",
+            "ITEMIS_WCROOT"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "worktreeList": {
+      "command": "Worktree",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "submoduleUpdate": {
+      "command": "SubmoduleUpdate",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_SUBMODULECONTAINER"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "formatPatch": {
+      "command": "FormatPatch",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    }
+  }
+}

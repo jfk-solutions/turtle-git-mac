@@ -42,7 +42,9 @@ final class FinderCreationMenuTests: XCTestCase {
         XCTAssertFalse(FinderCreationMenuContext.read(directory: bare, snapshot: snapshot, extended: true).bare, "Source directory probes must reject files")
         let other = root.appendingPathComponent("tracked-other", isDirectory: true)
         try FileManager.default.createDirectory(at: other, withIntermediateDirectories: true)
-        XCTAssertEqual(FinderCreationMenuContext.read(directory: other, snapshot: snapshot, extended: false).actions, [.clone, .initialize])
+        XCTAssertEqual(FinderCreationMenuContext.read(directory: other, snapshot: snapshot, extended: false).actions, [])
+        XCTAssertTrue(FinderCreationMenuContext.read(directory: other, snapshot: snapshot, extended: false).folderInGit)
+        XCTAssertEqual(FinderCreationMenuContext.read(directory: other, snapshot: snapshot, extended: true).actions, [.clone, .initialize])
         try Data().write(to: other.appendingPathComponent(".git"))
         XCTAssertTrue(FinderCreationMenuContext.read(directory: other, snapshot: nil, extended: false).inaccessible)
     }

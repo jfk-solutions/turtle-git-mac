@@ -78,7 +78,7 @@ public struct FinderCreationMenuContext: Sendable {
             fm.fileExists(atPath: url.appendingPathComponent($0).path)
         } && ["objects", "refs", "refs/heads"].allSatisfy(hasDirectory)
         let inaccessible = values == nil || (fm.fileExists(atPath: url.appendingPathComponent(".git").path) && !known)
-        return Self(directory: folder, versioned: versioned && !bare, bare: bare,
+        return Self(directory: folder, versioned: versioned && !bare, folderInGit: known && !bare, bare: bare,
                     ignored: ignored, inaccessible: inaccessible, extended: extended)
     }
 }
@@ -318,5 +318,109 @@ public struct WorkingComparisonMarkSnapshot: Codable, Equatable, Sendable {
             try JSONEncoder().encode(mark).write(to: url, options: .atomic)
         } else if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
         return true
+    }
+}
+
+public struct FinderShellFlags: OptionSet, Sendable {
+    public let rawValue: UInt32
+    public init(rawValue: UInt32) { self.rawValue = rawValue }
+    public static let folder = Self(rawValue: 1 << 0)
+    public static let inGit = Self(rawValue: 1 << 1)
+    public static let folderInGit = Self(rawValue: 1 << 2)
+    public static let bare = Self(rawValue: 1 << 3)
+    public static let inaccessible = Self(rawValue: 1 << 4)
+    public static let ignored = Self(rawValue: 1 << 5)
+    public static let extended = Self(rawValue: 1 << 6)
+    public static let onlyOne = Self(rawValue: 1 << 7)
+    public static let two = Self(rawValue: 1 << 8)
+    public static let workingTreeRoot = Self(rawValue: 1 << 9)
+    public static let bisect = Self(rawValue: 1 << 10)
+    public static let merge = Self(rawValue: 1 << 11)
+    public static let added = Self(rawValue: 1 << 12)
+    public static let normal = Self(rawValue: 1 << 13)
+    public static let conflicted = Self(rawValue: 1 << 14)
+    public static let inVersionedFolder = Self(rawValue: 1 << 15)
+    public static let submodule = Self(rawValue: 1 << 16)
+    public static let stash = Self(rawValue: 1 << 17)
+    public static let submoduleContainer = Self(rawValue: 1 << 18)
+}
+public struct FinderShellCondition: Sendable {
+    public let required: FinderShellFlags
+    public let excluded: FinderShellFlags
+    public init(_ required: FinderShellFlags, _ excluded: FinderShellFlags) { self.required = required; self.excluded = excluded }
+    public func matches(_ flags: FinderShellFlags) -> Bool {
+        (!required.isEmpty || !excluded.isEmpty) && flags.isSuperset(of: required) && flags.intersection(excluded).isEmpty
+    }
+}
+public enum FinderShellRules {
+    public static let conditions: [RepositoryAction: [FinderShellCondition]] = [
+        .clone: [.init([.folder], [.inGit, .folderInGit, .bare, .inaccessible]), .init([.folder, .ignored], []), .init([.folder, .extended], []), .init([], [])],
+        .pull: [.init([.folderInGit, .onlyOne], [.bisect, .merge]), .init([.workingTreeRoot], [.bisect, .merge]), .init([], []), .init([], [])],
+        .fetch: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([.workingTreeRoot], []), .init([], [])],
+        .push: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([.workingTreeRoot], []), .init([], [])],
+        .commit: [.init([.inGit], []), .init([.folderInGit], []), .init([], []), .init([], [])],
+        .diff: [.init([.inGit, .onlyOne], []), .init([.two], [.folder]), .init([], []), .init([], [])],
+        .diffLater: [.init([.onlyOne], [.folder]), .init([], []), .init([], []), .init([], [])],
+        .log: [.init([.inGit, .onlyOne], [.added]), .init([.folder, .folderInGit, .onlyOne], [.added]), .init([.folderInGit, .onlyOne], [.added]), .init([.bare], [])],
+        .reflog: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([], []), .init([], [])],
+        .repositoryBrowser: [.init([.folderInGit, .onlyOne], []), .init([.bare, .onlyOne], []), .init([], []), .init([], [])],
+        .status: [.init([.inGit], []), .init([.folder, .folderInGit], []), .init([], []), .init([], [])],
+        .rebase: [.init([.folderInGit, .onlyOne], [.bisect, .merge]), .init([], []), .init([], []), .init([], [])],
+        .stash: [.init([.inGit, .onlyOne], [.merge]), .init([], []), .init([], []), .init([], [])],
+        .stashApply: [.init([.folderInGit, .onlyOne, .stash], []), .init([], []), .init([], []), .init([], [])],
+        .stashPop: [.init([.folderInGit, .onlyOne, .stash], []), .init([], []), .init([], []), .init([], [])],
+        .stashList: [.init([.folderInGit, .onlyOne, .stash], []), .init([], []), .init([], []), .init([], [])],
+        .resolve: [.init([.inGit, .conflicted], []), .init([.inGit, .folder], []), .init([.folderInGit], []), .init([], [])],
+        .rename: [.init([.inGit, .onlyOne, .inVersionedFolder], [.workingTreeRoot]), .init([.workingTreeRoot, .submodule], []), .init([], []), .init([], [])],
+        .remove: [.init([.inGit, .inVersionedFolder], [.added, .workingTreeRoot]), .init([.folderInGit, .workingTreeRoot, .submodule], []), .init([], []), .init([], [])],
+        .removeKeep: [.init([.inGit, .inVersionedFolder], [.added, .workingTreeRoot]), .init([], []), .init([], []), .init([], [])],
+        .revert: [.init([.inGit], [.normal]), .init([.folderInGit], []), .init([], []), .init([], [])],
+        .switchBranch: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
+        .merge: [.init([.folderInGit, .onlyOne], [.bisect, .merge]), .init([], []), .init([], []), .init([], [])],
+        .branch: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
+        .tag: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
+        .initialize: [.init([.folder], [.inGit, .folderInGit, .bare, .inaccessible]), .init([.folder, .ignored], []), .init([.folder, .extended], [.inGit]), .init([], [])],
+        .ignore: [.init([.inVersionedFolder], [.ignored, .inGit, .workingTreeRoot]), .init([], []), .init([], []), .init([], [])],
+        .ignoreDelete: [.init([.inVersionedFolder, .inGit], [.ignored, .workingTreeRoot]), .init([], []), .init([], []), .init([], [])],
+        .worktreeList: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([], []), .init([], [])],
+        .submoduleUpdate: [.init([.folderInGit, .submoduleContainer], []), .init([], []), .init([], []), .init([], [])],
+        .formatPatch: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
+    ]
+    public static func allows(_ action: RepositoryAction, flags: FinderShellFlags) -> Bool {
+        conditions[action]?.contains { $0.matches(flags) } ?? false
+    }
+    /// Cached status plus directory metadata; never executes Git in Finder.
+    public static func flags(paths: [URL], snapshot: FinderSnapshot?, extended: Bool = false) -> FinderShellFlags {
+        var flags: FinderShellFlags = extended ? [.extended] : []
+        if paths.count == 1 { flags.insert(.onlyOne) }
+        if paths.count == 2 { flags.insert(.two) }
+        for path in paths {
+            let directory = (try? path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? path.hasDirectoryPath
+            if directory { flags.insert(.folder) }
+            let root = snapshot?.roots.sorted { $0.count > $1.count }.first { root in
+                path.path == root || path.path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
+            }
+            let metadata = root.flatMap { snapshot?.repositories[$0] }
+            let bare = metadata?.bare ?? root.map { FinderCreationMenuContext.read(directory: URL(fileURLWithPath: $0, isDirectory: true), snapshot: snapshot, extended: false).bare } ?? false
+            if let root, !bare {
+                flags.formUnion([.inGit, .inVersionedFolder])
+                if directory { flags.insert(.folderInGit) }
+                if path.path == root { flags.insert(.workingTreeRoot) }
+                if metadata?.hasStash != false { flags.insert(.stash) }
+                if metadata?.hasSubmoduleConfig != false { flags.insert(.submoduleContainer) }
+                if metadata?.mergeActive == true { flags.insert(.merge) }
+                if metadata?.bisectActive == true { flags.insert(.bisect) }
+            } else if let root, bare && path.path == root { flags.insert(.bare) }
+            switch snapshot?.states[path.path] {
+            case .normal: flags.insert(.normal)
+            case .modified: break
+            case .added: flags.insert(.added)
+            case .deleted: break
+            case .conflicted: flags.insert(.conflicted)
+            case .ignored: flags.remove(.inGit); flags.insert(.ignored)
+            case .untracked, nil: flags.remove(.inGit)
+            }
+        }
+        return flags
     }
 }

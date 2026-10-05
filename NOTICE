@@ -285,3 +285,9 @@ HasStashDir, Copyright (C) 2008-2023, 2025-2026 TortoiseGit and Copyright (C) 20
 2025 TortoiseSVN, under GPL version 2 or later. Git's ref resolver replaces loose/
 packed-ref parsing; per-worktree metadata and the original .gitmodules presence
 flag are cached by the app. Full path clauses and signed integration remain pending.
+
+Finder path/selection conditions adapt the four alternative required/excluded
+flag clauses in MenuInfo.cpp and ContextMenu.cpp ShouldEnableMenu, under the
+GPL version 2 or later source attributions above. Cached macOS path/status
+classification supplies a subset of TGitPath.cpp administrative flags. Full
+submodule, inaccessible, mixed-selection and signed Finder parity remain pending.

@@ -78,3 +78,7 @@ activated. Broader native/signed and stale-state acceptance remains pending.
 
 Build, regression and bundle evidence is recorded in
 [the verification record](qa/finder-repository-metadata-2026-10-06.json).
+
+The subsequent [path-condition audit](FINDER-PATH-CONDITIONS-PARITY.md) adds
+source selection/folder/status clauses to the production menu consumer. This
+record describes the earlier repository-only milestone.

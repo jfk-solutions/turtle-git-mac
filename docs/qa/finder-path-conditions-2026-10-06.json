@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-06",
+  "scope": "Source clauses for implemented Finder commands and partial native cached path classification; full app goal remains incomplete",
+  "baseCommit": "ec9f12d4b3243c8e264e302386dde9d0bff05040",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamMenuInfoBlob": "aee7f91ad1111fe03ab85b390855885ca940a27f",
+  "sourceFixture": "31 entries, four yes/no pairs each compared directly with pinned MenuInfo.cpp",
+  "newCoreTests": 3,
+  "initialFocusedFailure": "Existing creation fixture expected ordinary creation for a missing-status worktree folder; changed to upstream folderInGit behavior and added Shift assertions. Final full-suite result recorded separately.",
+  "nativeReceiver": "Actual extension source, Swift 6/macOS 13; exact unchanged/added/two-file command sets, untracked worktree folder, mixed admin exclusion, earlier icon/order/packet/repository checks; no Finder controller/extension or menus/windows activated",
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed; existing Locale.usesMetricSystem deprecation remains"
+  ],
+  "bundles": "Both audits and exact bundled NOTICE comparison passed; all 75 original icon assets and Store Git 2.55.0 retained",
+  "pending": [
+    "Registered submodule flag classification",
+    "git-svn and omitted commands",
+    "Cross-repository/mixed/background/container classification",
+    "Unrelated two-file Diff app handoff",
+    "Multiple-folder creation",
+    "Fresh background cache and monitoring",
+    "Signed Finder activation/native gestures/screenshots",
+    "GitHub publication authentication",
+    "Finder two-file Diff inside repositories still uses working-change comparisons rather than direct pair comparison"
+  ],
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "04454460d07b69be7bb1b0d8a69faff103f8bea8176c167eda339ae1296bdce3",
+    "FinderSync/FinderSync.swift": "1453ed893061715db41e95075e054a5054c482105e53c44d135105a0b6eeab0d",
+    "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift": "a3edd49ab3078b8076614f1d250e5f3feaee8b984e40ff9e645d3aa05f8837f6",
+    "Tests/TurtleGitCoreTests/FinderCreationMenuTests.swift": "790bfba81dc7c016e69772bbf6e0875f9351705260b26e36f26b59913e43694a",
+    "scripts/test-finder-menu.py": "9ba0002a05cfbdebaa30fc82068f159a46eaabe2109b2b9ae22efacac4b99bdc",
+    "docs/upstream-shell-menu-conditions.json": "6722631522c43f61872b2f8e0175cb150bad1c8c0d7033869ae07794a3348f61",
+    "NOTICE": "9e07b35bfb2ec0f0cd3793dd73ec01b26a562326fd098e1efbe3affc201a130f"
+  },
+  "logs": {
+    "rules": {
+      "path": "/tmp/turtlegit-finder-path-rules.log",
+      "sha256": "183a63b86afc0dc72b1e36f95c997ff8f5f99f58065f906fa64cc7fb366840e3"
+    },
+    "initialFocused": {
+      "path": "/tmp/turtlegit-finder-path-focused.log",
+      "sha256": "e2f4865668665c7aebc846d02d96380fae1abfc15addb0d87e8171baaaa8ba23"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-path-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-path-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "nativeReceiver": {
+      "path": "/tmp/turtlegit-finder-path-menu.log",
+      "sha256": "b58b8b77e382f829b6311777c1045e4814701c9c9467ab63436f38aaa7093262"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-finder-path-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-finder-path-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-path-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    },
+    "fullCore": {
+      "path": "/tmp/turtlegit-finder-path-full-core.log",
+      "sha256": "c4678e98a1eb38f16d96c9f26d46b3132004237c706bc55ea45b854ef7e5f1e3"
+    }
+  },
+  "fullCoreTests": {
+    "count": 474,
+    "failures": 0,
+    "durationSeconds": 273.331
+  },
+  "appProcesses": "No main app or Finder receiver process remained at final audit; none launched for these checks"
+}
