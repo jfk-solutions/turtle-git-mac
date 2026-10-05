@@ -55,7 +55,7 @@ single revision retains first-parent/root behavior; two revisions retain the
 older-to-newer comparison. Selected files retain visible order, duplicate
 suppression and both paths for renames. Core now exposes Data-returning diff
 APIs; existing String callers keep their prior UTF-8 presentation. Native Log
-keeps its existing built-in diff sheet. Close and Quit are blocked while Log's
+now uses the shared colored read-only patch window for its built-in choice. Close and Quit are blocked while Log's
 diff request/open callback is busy, and all external viewer callbacks have a
 shared pending-request Quit guard. Merge-parent/combined variants and other
 callers remain pending.
@@ -157,3 +157,37 @@ and missing-app acceptance; signed document handoff; command argument templates;
 other unified-diff entry points; full TortoiseGitUDiff behavior; the other groups
 and Advanced options in upstream's Diff Viewer settings page. See also
 [FORMAT-PATCH-PARITY.md](FORMAT-PATCH-PARITY.md).
+
+
+Built-in presentation follow-up: Log revision/selected-file, Commit and Working
+Tree explicit unified actions now use the shared syntax-colored patch window
+with Find and original-byte Save As instead of plain OutputView sheets. A parent
+retains one context viewer, reuses it for explicit new requests, and closes it on
+parent close. Active Save sheets guard parent close and replacement. These
+context windows keep their generated snapshot and hide Refresh, matching the
+upstream UDiff menu rather than silently following selection changes. Embedded
+staging/selection previews keep their existing Refresh behavior. Save As is
+visible with the existing original icon and responds to Command-Shift-S; the
+context action remains. Source accelerator pin: `TortoiseUDiff/TortoiseUDiff.rc`,
+blob `1a5c590842d2d99b38eb53a6f11aa640f0d1cbca`. Working Tree presentation and basic Save/Find/Escape acceptance are recorded
+below; the other routes, focus variants and dark mode remain unverified. Full
+File/Open/Save/editing/encoding/Print/Apply Patch and settings remain pending.
+The Core implementation is unchanged from the preceding 25-test acceptance;
+that evidence does not prove the new native routes.
+
+
+Native acceptance for this presentation follow-up: Working Tree unified menu
+opened the colored read-only viewer; green additions, blue hunk headers and the
+original Save As icon were visually inspected. Toolbar Save As and
+Command-Shift-S opened the native chooser; Cancel returned to the unchanged
+viewer. Keyboard filename editing was needed after AX setValue to trigger Save
+validation. Actual export matched Git output exactly (254 bytes, SHA-256
+`f6713365999ae746ec2c0d892ed86a4f7eb89cc416ec375cc12960b21b6d96dc`) and
+preserved HEAD/index/working bytes. Command-F opened Find; Escape closed Find,
+then the viewer. A transient ScreenCaptureKit -3811 error did not prevent later
+AX verification. [Actual native capture](site/assets/unified-diff-viewer-light.png).
+Commit menu appeared but activation did not establish a viewer; its close
+confirmation inspection then timed out. Normal Quit did not end the process;
+the exact owned PID/executable was rechecked and SIGTERM sent. No preview remains.
+Log/Commit route activation, dark mode, Find matching, repeated-viewer reuse,
+non-UTF-8 native Save and signed sandbox acceptance remain unverified.

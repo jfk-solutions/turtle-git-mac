@@ -7,6 +7,9 @@ import UniformTypeIdentifiers
     weak var patchText: NSTextView?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
+        if modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "s" {
+            (patchText as? PatchTextView.PatchText)?.savePatch(nil); return true
+        }
         if modifiers == .command, event.charactersIgnoringModifiers == "f" {
             find(.showFindInterface); return true
         }
@@ -44,6 +47,7 @@ import UniformTypeIdentifiers
         window.contentViewController = NSHostingController(rootView: PatchDialog(model: model))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: width, height: 760))
+        model.saveAs = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.savePatch(nil) }
     }
     func windowWillClose(_ notification: Notification) {
         if let window { UserDefaults.standard.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
@@ -61,6 +65,8 @@ import UniformTypeIdentifiers
     @Published var selectedLines = Set<Int>()
     @Published var staged = false
     @Published var readOnly = false { didSet { if !readOnly { originalDiff = nil } } }
+    @Published var refreshAvailable = true
+    var saveAs: () -> Void = {}
     @Published var comparisonTitle = "HEAD → Working tree"
     var customRefresh: (() -> Void)?
     var readOnlyInformation: String?
@@ -125,7 +131,8 @@ struct PatchDialog: View {
             HStack {
                 Text(model.readOnly ? model.comparisonTitle : model.staged ? (model.base == nil ? "HEAD → Index" : "Parent → Index") : "Index → Working tree").font(.headline)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
-                Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy)
+                Button { model.saveAs() } label: { CommandLabel(title: "Save As…", icon: .saveAs) }.disabled(model.busy)
+                if model.refreshAvailable { Button("Refresh") { model.reload(paths: model.paths, staged: model.staged) }.disabled(model.busy) }
             }
             PatchTextView(model: model).frame(minWidth: 430, minHeight: 360)
             Text(model.information).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)

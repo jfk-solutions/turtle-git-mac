@@ -1,0 +1,84 @@
+{
+  "date": "2026-10-05",
+  "scope": "Shared colored builtin unified viewer for Log/Commit/Working Tree and Save As controls; full app goal incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": {
+    "TortoiseUDiff.rc": "1a5c590842d2d99b38eb53a6f11aa640f0d1cbca"
+  },
+  "core_tests": {
+    "rerun": false,
+    "reason": "Core implementation unchanged; preceding 25-test evidence at readonly-patch-save-2026-10-05.json does not prove new native routes"
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "bundle_audits": {
+    "Debug": "passed, 72 original icons",
+    "AppStore_require_git": "passed, 72 original icons and universal Git runtime"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "log_sha256": {
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "Debug_audit": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0",
+    "AppStore_audit": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+  },
+  "native_qa": {
+    "preview_instances": 1,
+    "verified": [
+      "Working Tree context command opens shared viewer",
+      "Green additions/blue hunk headers/original Save As icon visually inspected",
+      "Toolbar Save As opens chooser",
+      "Cancel returns to unchanged viewer",
+      "Command-Shift-S opens chooser",
+      "Native Save output matches Git patch exactly",
+      "Command-F opens Find",
+      "Escape closes Find, then viewer"
+    ],
+    "saved_patch": {
+      "bytes": 254,
+      "sha256": "f6713365999ae746ec2c0d892ed86a4f7eb89cc416ec375cc12960b21b6d96dc"
+    },
+    "repository_preserved": {
+      "HEAD": true,
+      "raw_index": true,
+      "working_files": true,
+      "scope": "Snapshot taken before Save interactions; rechecked after Commit attempt and process cleanup"
+    },
+    "control_limitations": [
+      "AX setValue needed subsequent keyboard edit to trigger Save filename validation",
+      "Transient ScreenCaptureKit -3811 after Find; later AX proved Find opened",
+      "Commit menu visible but activation did not establish a viewer",
+      "Commit close confirmation inspection timed out; normal Quit did not finish"
+    ],
+    "cleanup": "Exact owned PID 89364/executable rechecked, SIGTERM sent after normal Quit unavailable; no TurtleGitMac process remains"
+  },
+  "screenshot": {
+    "path": "docs/site/assets/unified-diff-viewer-light.png",
+    "dimensions": [
+      1200,
+      1584
+    ],
+    "sha256": "a3fc3bd740895d0634021d2ce60ffb9bdfbb74481839a0999602a8694af75f1e",
+    "actual_native_capture": true,
+    "inspected": true
+  },
+  "behavior": [
+    "Builtin explicit actions use colored read-only patch window instead of OutputView sheets",
+    "One context viewer retained/reused by each parent",
+    "Context viewer hides Refresh and holds generated snapshot; embedded previews retain refresh",
+    "Original-byte Save As toolbar and Command-Shift-S",
+    "Parent guards active viewer save sheet and closes owned viewer"
+  ],
+  "remaining": [
+    "Native Log/Commit route activation and close confirmation cause",
+    "Dark mode and Find match/next/previous acceptance",
+    "Repeated viewer reuse/parent-close and pending-save guards",
+    "Native non-UTF-8 export",
+    "Signed sandbox and external receiver",
+    "Full UDiff menu/editing/encoding/Print/Apply Patch/settings and complete app parity"
+  ],
+  "github": "Local changes not tested remotely or published"
+}

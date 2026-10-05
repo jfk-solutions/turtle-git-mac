@@ -52,9 +52,12 @@ preview bytes, including non-UTF-8 Git patches, are tested;
 native launching and signed handoff remain unverified. See
 [viewer parity](docs/UNIFIED-DIFF-VIEWER-PARITY.md).
 
-Read-only patch windows retain original bytes for Save As, including non-UTF-8
-content, BOMs and line endings. Display decoding is separate from export; native
-Save-panel and signed sandbox acceptance remain unverified.
+Built-in Log, Commit and Working Tree unified diffs now share the colored patch
+viewer with Find and Save As (Command-Shift-S). Read-only patch windows retain
+original bytes for Save As, including non-UTF-8
+content, BOMs and line endings. Working Tree’s native toolbar/keyboard Save As,
+Cancel and exact UTF-8 export are verified, with an [actual screenshot](docs/site/assets/unified-diff-viewer-light.png).
+Other routes, native non-UTF-8 exports and signed sandbox acceptance remain unverified.
 
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode

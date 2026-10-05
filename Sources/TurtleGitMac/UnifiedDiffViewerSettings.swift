@@ -12,6 +12,18 @@ import TurtleGitCore
 
 @MainActor enum UnifiedDiffApplication {
     private(set) static var activeRequests = 0
+    static func presentBuiltin(_ bytes: Data, repository: GitRepository, access: RepositoryAccessLease?, existing: PatchWindowController?, title: String, onClosed: @escaping () -> Void) -> PatchWindowController {
+        let controller = existing ?? PatchWindowController(repository: repository, access: access)
+        controller.model.setReadOnlyDiff(bytes)
+        controller.model.refreshAvailable = false
+        controller.model.customRefresh = nil
+        controller.model.comparisonTitle = title
+        controller.model.readOnlyInformation = bytes.isEmpty ? "No changes in this comparison." : "Read-only unified diff. Use Save As to export the original patch bytes."
+        controller.window?.title = "\(repository.root.lastPathComponent) – Unified Diff – TurtleGit"
+        controller.onClosed = onClosed
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        return controller
+    }
     /// Returns false when the caller should use its built-in viewer.
     static func openExternal(_ bytes: Data, alternate: Bool) async throws -> Bool {
         let preferences = UnifiedDiffViewerPreferences.load()

@@ -42,7 +42,7 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
         window.center()
         model.close = { [weak self] in
             guard let self else { return }
-            if self.model.selecting { self.finishSelection(nil) } else { self.window?.close() }
+            if self.model.selecting { self.finishSelection(nil) } else { self.window?.performClose(nil) }
         }
         model.finishSelection = { [weak self] revision in self?.finishSelection(revision) }
         model.presentHistoricalSave = { [weak self] content, short in
@@ -120,17 +120,18 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
         }
     }
     private func finishSelection(_ revision: LogEntry?) {
+        guard !model.unifiedViewerBusy else { return }
         guard let completion = selectionCompletion else { return }; selectionCompletion = nil
         if let window { window.sheetParent?.endSheet(window); window.close() }
         completion(revision)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.busy, sender.attachedSheet == nil else { return false }
+        guard !model.busy, !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
         let completion = selectionCompletion; selectionCompletion = nil
-        model.invalidate(); completion?(nil); onClosed()
+        model.unifiedWindow?.close(); model.invalidate(); completion?(nil); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -176,7 +177,8 @@ struct LogCommandRequest: Identifiable {
     @Published var busy = false
     @Published var bare = true
     @Published var error: String?
-    @Published var patch: String?
+    var unifiedWindow: PatchWindowController?
+    var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     @Published var commandRequest: LogCommandRequest?
     private var generation = 0
     private var detailGeneration = 0
@@ -294,7 +296,7 @@ struct LogCommandRequest: Identifiable {
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false) {
-        guard !busy, !workingTree || !bare else { return }
+        guard !busy, !unifiedViewerBusy, !workingTree || !bare else { return }
         let revisions = self.revisions
         guard (1...2).contains(revisions.count) else { return }
         busy = true
@@ -308,7 +310,9 @@ struct LogCommandRequest: Identifiable {
                     if let path { args.append(path) }
                     bytes = try await repository.run(args).stdout
                 } else { bytes = try await repository.revisionDiffData(revisions[0], path: path, workingTree: workingTree) }
-                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) { patch = String(decoding: bytes, as: UTF8.self) }
+                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -442,7 +446,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func selectedFileDiff(_ ids: Set<String>, alternate: Bool = false) {
-        guard !busy, let revision else { return }
+        guard !busy, !unifiedViewerBusy, let revision else { return }
         let chosen = visibleFiles.filter { ids.contains($0.id) }
         guard !chosen.isEmpty else { return }; busy = true
         Task {
@@ -450,7 +454,9 @@ struct LogCommandRequest: Identifiable {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let bytes = try await repository.revisionFileDiffData(revision, files: chosen)
-                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) { patch = String(decoding: bytes, as: UTF8.self) }
+                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -538,13 +544,7 @@ struct LogDialog: View {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
         .sheet(item: $model.commandRequest) { request in LogRevisionDialog(model: model, request: request) }
-        .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) {
-            VStack {
-                Text("Unified Diff").font(.headline)
-                OutputView(text: model.patch ?? "").frame(minWidth: 850, minHeight: 520)
-                HStack { Spacer(); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }
-            }.padding(12)
-        }
+
     }
     @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
         Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)

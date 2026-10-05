@@ -29,7 +29,7 @@ import UniformTypeIdentifiers
         window.contentViewController = NSHostingController(rootView: CommitDialog(model: model))
         super.init(window: window); window.model = model; window.delegate = self; window.setContentSize(NSSize(width: 1000, height: 760)); window.center()
         model.close = { [weak self, weak window] in
-            guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil else { return }
+            guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
             window?.close()
         }
         model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
@@ -121,9 +121,9 @@ import UniformTypeIdentifiers
         }
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
-    func windowWillClose(_ notification: Notification) { closingCommit = true; logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { closingCommit = true; logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard partial?.model.busy != true, partial?.window?.attachedSheet == nil else { return false }
+        guard partial?.model.busy != true, partial?.window?.attachedSheet == nil, !model.unifiedViewerBusy else { return false }
         model.cancel(); return false
     }
     private func showHistory(insert: @escaping (String) -> Void) {
@@ -343,7 +343,8 @@ import UniformTypeIdentifiers
     @Published var busy = false
     @Published var confirmingQuit = false
     @Published var error: String?
-    @Published var patch: String?
+    var unifiedWindow: PatchWindowController?
+    var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     var showViewPatch: () -> Void = {}
     var showPartial: (Bool) -> Void = { _ in }
     var refreshPartial: () -> Void = {}
@@ -716,7 +717,7 @@ import UniformTypeIdentifiers
         guard !paths.isEmpty else { return }; onCompare(paths, amendToParent)
     }
     func diff(paths selected: Set<String>, staged: Bool? = nil, alternate: Bool = false) {
-        guard !busy, !confirmingQuit else { return }
+        guard !busy, !confirmingQuit, !unifiedViewerBusy else { return }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }
         busy = true
@@ -733,7 +734,7 @@ import UniformTypeIdentifiers
                     bytes = try await repository.run(args).stdout
                 }
                 if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                    patch = bytes.isEmpty ? "No diff is available. Unversioned files have no Git base revision." : String(decoding: bytes, as: UTF8.self)
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: staged == true ? "Index changes" : staged == false ? "Working tree changes" : "Commit changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
             } catch { self.error = error.localizedDescription }
         }
@@ -944,9 +945,7 @@ struct CommitDialog: View {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.creatingChangelist) { CreateChangelistSheet(model: model) }
-        .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) {
-            VStack { Text("Unified Diff").font(.headline); OutputView(text: model.patch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }.padding(12)
-        }
+
     }
     private var messageSection: some View {
 GroupBox("Message:") {

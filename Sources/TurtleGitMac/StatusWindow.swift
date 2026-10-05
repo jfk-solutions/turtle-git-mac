@@ -32,7 +32,7 @@ struct StatusRow: Identifiable {
         window.contentViewController = NSHostingController(rootView: StatusDialog(model: model))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 1100, height: 630)); window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak window] in window?.performClose(nil) }
         model.savePatch = { [weak self] text in self?.savePatch(text) }
     }
     private func savePatch(_ bytes: Data) {
@@ -45,8 +45,8 @@ struct StatusRow: Identifiable {
             catch { model?.error = error.localizedDescription }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.unifiedViewerBusy && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.unifiedWindow?.close(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -62,7 +62,8 @@ struct StatusRow: Identifiable {
     @Published var branch = ""
     @Published var busy = false
     @Published var error: String?
-    @Published var patch: String?
+    var unifiedWindow: PatchWindowController?
+    var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     var close: () -> Void = {}
     var savePatch: (Data) -> Void = { _ in }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
@@ -129,7 +130,7 @@ struct StatusRow: Identifiable {
         }
     }
     func unifiedDiff(_ ids: Set<String>, alternate: Bool) {
-        guard !busy else { return }
+        guard !busy, !unifiedViewerBusy else { return }
         let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.id)
         guard !paths.isEmpty else { return }; busy = true
         Task {
@@ -138,7 +139,7 @@ struct StatusRow: Identifiable {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let bytes = try await repository.workingTreeDiffData(paths: paths)
                 if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                    patch = bytes.isEmpty ? "No diff is available for these paths." : String(decoding: bytes, as: UTF8.self)
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "HEAD → Working tree", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
             } catch { self.error = error.localizedDescription }
         }
@@ -234,9 +235,7 @@ struct StatusDialog: View {
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
-        .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) {
-            VStack { Text("Unified Diff").font(.headline); OutputView(text: model.patch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }.padding(12)
-        }
+
     }
 }
 

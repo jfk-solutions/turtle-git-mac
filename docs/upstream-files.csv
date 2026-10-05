@@ -2695,7 +2695,7 @@ src/TortoiseUDiff/Readme.txt,TortoiseUDiff,blob,d2cc96bfe3cbcc19eb935782c2e542bc
 src/TortoiseUDiff/TortoiseUDiff.cpp,TortoiseUDiff,blob,4361c8187844778705e57635a34daad8c679f025,pending-review,,
 src/TortoiseUDiff/TortoiseUDiff.h,TortoiseUDiff,blob,a84da8ae81e5f66f4fb557290cb7ce5040a19846,pending-review,,
 src/TortoiseUDiff/TortoiseUDiff.ico,TortoiseUDiff,blob,18c711b1faa9eab1bdf9c8fc4d9bf6d189dccf0f,pending-review,,
-src/TortoiseUDiff/TortoiseUDiff.rc,TortoiseUDiff,blob,1a5c590842d2d99b38eb53a6f11aa640f0d1cbca,pending-review,,
+src/TortoiseUDiff/TortoiseUDiff.rc,TortoiseUDiff,blob,1a5c590842d2d99b38eb53a6f11aa640f0d1cbca,partial-native-replacement,Sources/TurtleGitMac/PatchWindow.swift,Native Save As toolbar/context action and Command-Shift-S accelerator only; colored read-only viewer/Find reused for Log/Commit/Working Tree. Full File/menu/Print/Open/encoding/editing and native interaction verification pending. See UNIFIED-DIFF-VIEWER-PARITY.md.
 src/TortoiseUDiff/TortoiseUDiff.rc2,TortoiseUDiff,blob,8262899e242522396abc543a88938480aeeb3b9c,pending-review,,
 src/TortoiseUDiff/TortoiseUDiff.vcxproj,TortoiseUDiff,blob,b07277d95363be421adc797136eeb2e08a5028a3,pending-review,,
 src/TortoiseUDiff/TortoiseUDiff.vcxproj.filters,TortoiseUDiff,blob,f8211cfc75cc5abddf8d84382d318e4257f1c7f2,pending-review,,
