@@ -297,3 +297,8 @@ Ignore/Abort and chooser Cancel were verified with exact committed bytes and
 unchanged repository state; overwrite, precise menu gates and signed sandbox
 checks remain pending. See
 [Log parity](docs/LOG-PARITY.md) for the verification limits.
+
+Log also offers Compare two files for a selected historical pair, using the
+selected commit's first parent independently for deleted sides. Exact blob and
+pinned-revision tests pass; native viewer and signed sandbox acceptance remain
+pending. The implemented file-menu commands now put Export before Save/Open.

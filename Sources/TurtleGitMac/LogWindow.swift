@@ -183,6 +183,7 @@ struct LogCommandRequest: Identifiable {
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
     var onBlame: ((String, String) -> Void)?
+    var onFilePairCompare: ((String, [CommitFile]) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
@@ -387,6 +388,16 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
+    func canCompareFilePair(_ ids: Set<String>) -> Bool {
+        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        return chosen.count == 2 && chosen.allSatisfy { !$0.isSubmodule }
+    }
+    func compareFilePair(_ ids: Set<String>) {
+        guard !busy, let revision, let onFilePairCompare else { return }
+        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        guard chosen.count == 2, chosen.allSatisfy({ !$0.isSubmodule }) else { return }
+        onFilePairCompare(revision.hash, chosen)
+    }
     func compareFiles(_ ids: Set<String>, workingTree: Bool = false) {
         guard !busy, let onFileCompare, let revision, !workingTree || !bare else { return }
         let paths = files.filter { ids.contains($0.id) }.map(\.path)
@@ -430,27 +441,7 @@ struct LogDialog: View {
                     TableColumn("Lines removed") { file in Text(file.removedText).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue) }.width(105)
                 }.frame(minHeight: 130, idealHeight: 180)
                 .contextMenu(forSelectionType: String.self) { ids in
-                    Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
-                    Button { model.selectedFiles = ids; fileDiff() } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1 || model.busy)
-                    Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.bare || model.onFileCompare == nil || model.busy)
-                    Divider()
-                    if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
-                        Button { model.fileLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
-                        if file.oldPath != nil {
-                            Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
-                        }
-                        if !file.isSubmodule && !file.action.hasPrefix("D") {
-                            historicalFileActions(ids, file: file)
-                        }
-                        Divider()
-                    }
-                    Button { model.chooseHistoricalExport(ids) } label: { CommandLabel(title: "Export…", icon: .export) }
-                        .disabled(model.busy || model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
-                    Menu {
-                        ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
-                            Button { model.copyFiles(ids, information: information) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
-                        }
-                    } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
+                    fileContextActions(ids)
                 } primaryAction: { ids in
                     model.selectedFiles = ids; model.compareFiles(ids)
                 }
@@ -489,8 +480,36 @@ struct LogDialog: View {
             }.padding(12)
         }
     }
-    @ViewBuilder private func historicalFileActions(_ ids: Set<String>, file: CommitFile) -> some View {
-        Button { if let revision = model.revision { model.onBlame?(file.path, revision.hash) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(model.busy || model.onBlame == nil)
+    @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
+        Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
+        Button { model.selectedFiles = ids; fileDiff() } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1 || model.busy)
+        Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.bare || model.onFileCompare == nil || model.busy)
+        if model.canCompareFilePair(ids) {
+            Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || model.revision == nil || model.onFilePairCompare == nil)
+        }
+        Divider()
+        if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
+            Button { model.fileLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
+            if file.oldPath != nil {
+                Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
+            }
+            if !file.isSubmodule && !file.action.hasPrefix("D") {
+                Button { if let revision = model.revision { model.onBlame?(file.path, revision.hash) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(model.busy || model.onBlame == nil)
+            }
+            Divider()
+        }
+        Button { model.chooseHistoricalExport(ids) } label: { CommandLabel(title: "Export…", icon: .export) }
+            .disabled(model.busy || model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
+        if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule && !file.action.hasPrefix("D") {
+            historicalFileActions(ids)
+        }
+        Menu {
+            ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
+                Button { model.copyFiles(ids, information: information) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
+            }
+        } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
+    }
+    @ViewBuilder private func historicalFileActions(_ ids: Set<String>) -> some View {
         Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy)
         Button { model.openHistoricalFile(ids, action: .alternativeEditor) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy)
         Button { model.openHistoricalFile(ids, action: .open) } label: { CommandLabel(title: "Open", icon: .open) }.disabled(model.busy)

@@ -414,3 +414,39 @@ had passed. The task now calls a separate async function with explicit result
 and message types; the failure message is assembled from a typed string array.
 This retains the verified export behavior while reducing inference complexity.
 The correction must pass a fresh GitHub run before CI compatibility is claimed.
+
+## Compare two historical files (2026-10-05)
+
+Upstream `GitStatusListCtrl.cpp` menu eligibility (1796–1811) and command
+implementation (2260–2285) were compared directly. Log now offers Compare two
+files for exactly two visible selected non-gitlink files. It preserves displayed
+row order, compares distinct paths in the selected revision, and independently
+uses that revision's first parent for each deleted side. Both revisions are
+resolved to commit hashes before a snapshot reaches the existing read-only
+comparison viewer. Identical paths, wrong selection counts, missing blobs and
+non-file/gitlink content are rejected. RepositoryModel applies the existing
+App Store repository-grant check before reading historical contents.
+
+A real Git regression verifies a deleted left side, reversed order/deleted right
+side, literal Unicode/newline/leading-magic filenames, symlink target blobs,
+exact raw index preservation and unchanged pinned bytes after HEAD advances.
+All seven FileComparison tests pass. Native QA selected a deleted/modified pair
+but context-menu automation returned `noWindowsAvailable` and invalidated-row
+errors before invocation. The process was still alive and its Log contents were
+observable; those errors do not establish a TurtleGit failure. Native menu/viewer
+acceptance is pending, with no new screenshot claimed. The one QA app quit
+normally; exact HEAD, raw index, later working bytes and the deleted path's
+absence were preserved, and no QA process remained.
+
+The file menu is now ordered Show log/old-name/Blame, Export, Save revision,
+alternative editor, Open and Open With for the implemented commands, matching
+the relative upstream order. A separate view-builder reduces Swift inference
+complexity after the earlier Swift 6.1 Export timeout. Exact marked-row gates,
+missing restore/prepare-diff/explore commands, alternative diff tools and signed
+sandbox validation still prevent full file-menu parity. Native binary/symlink,
+root/both-deleted/merge pair variants and reversed order remain pending.
+
+The previous compiler correction at 6b3d697 passed the full GitHub macOS workflow,
+including integration tests, Debug/Finder build, universal Git runtime and
+unsigned App Store build/audit. This does not prove the new pair change or signed
+distribution readiness.

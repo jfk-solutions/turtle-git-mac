@@ -115,6 +115,22 @@ extension GitRepository {
         _ = try comparisonFile(snapshot, path: paths[1])
         return snapshot
     }
+    /// Compare two selected historical paths in list order. Deleted sides use
+    /// the selected commit's first parent, matching upstream CompareTwoFiles.
+    public func historicalFilePairComparison(revision: String, files: [CommitFile]) throws -> RevisionComparisonSnapshot {
+        guard files.count == 2, files[0].path != files[1].path, files.allSatisfy({ !$0.isSubmodule }) else { throw RevisionComparisonFailure.selection }
+        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        var parent = hash
+        if files.contains(where: { $0.action.hasPrefix("D") }) {
+            parent = try run(["rev-parse", "--verify", hash + "^1^{commit}"]).text.trimmingCharacters(in: .newlines)
+        }
+        let from: ComparisonRevision = .revision(files[0].action.hasPrefix("D") ? parent : hash)
+        let to: ComparisonRevision = .revision(files[1].action.hasPrefix("D") ? parent : hash)
+        let file = CommitFile(path: files[1].path, oldPath: files[0].path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        _ = try comparisonFile(snapshot, path: file.path)
+        return snapshot
+    }
     /// Read exact bytes from a pinned commit for Save As; no checkout or index write.
     public func historicalFile(revision: String, path: String) throws -> ComparisonFileContent {
         let snapshot = try revisionFileComparison(from: .emptyTree, to: .revision(revision), paths: [path])

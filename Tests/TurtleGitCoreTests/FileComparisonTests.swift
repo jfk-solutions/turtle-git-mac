@@ -32,6 +32,40 @@ final class FileComparisonTests: XCTestCase {
         let finalHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         XCTAssertEqual(finalHead, head)
     }
+    func testHistoricalPairUsesEachDeletedSideParentAndPinnedLiteralBlobs() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let other = ":(glob)* pair 雪\n.bin", link = "link"
+        let binary = Data([0, 255, 13, 10])
+        try binary.write(to: root.appendingPathComponent(other))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent(link).path, withDestinationPath: "missing-target")
+        try await repo.stage([other, link]); _ = try await repo.commit(message: "pair base")
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let original = try Data(contentsOf: root.appendingPathComponent(path))
+        _ = try await repo.run(["rm", "--", path])
+        try Data([42]).write(to: root.appendingPathComponent(other)); try await repo.stage([other])
+        _ = try await repo.commit(message: "delete and modify")
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        func file(_ path: String, _ action: String = "M", module: Bool = false) -> CommitFile { CommitFile(path: path, oldPath: nil, action: action, added: nil, removed: nil, hasStatistics: false, isSubmodule: module) }
+        let snapshot = try await repo.historicalFilePairComparison(revision: "HEAD", files: [file(path, "D"), file(other)])
+        XCTAssertEqual(snapshot.from, .revision(base)); XCTAssertEqual(snapshot.to, .revision(head))
+        let value = try await repo.comparisonFile(snapshot, path: other)
+        XCTAssertEqual(value.base.path, path); XCTAssertEqual(value.base.bytes, original)
+        XCTAssertEqual(value.destination.path, other); XCTAssertEqual(value.destination.bytes, Data([42]))
+        let reversed = try await repo.historicalFilePairComparison(revision: head, files: [file(other), file(path, "D")])
+        let reverse = try await repo.comparisonFile(reversed, path: path)
+        XCTAssertEqual(reverse.base.bytes, Data([42])); XCTAssertEqual(reverse.destination.bytes, original)
+        let symlink = try await repo.historicalFilePairComparison(revision: head, files: [file(link), file(other)])
+        let linkValue = try await repo.comparisonFile(symlink, path: other)
+        XCTAssertEqual(linkValue.base.mode, "120000"); XCTAssertEqual(linkValue.base.bytes, Data("missing-target".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        try Data([99]).write(to: root.appendingPathComponent(other)); try await repo.stage([other]); _ = try await repo.commit(message: "advance")
+        let pinned = try await repo.comparisonFile(snapshot, path: other); XCTAssertEqual(pinned.destination.bytes, Data([42]))
+        for files in [[file(other)], [file(other), file(other)], [file(link, module: true), file(other)], [file("missing"), file(other)]] {
+            do { _ = try await repo.historicalFilePairComparison(revision: head, files: files); XCTFail("Invalid pair accepted") } catch {}
+        }
+    }
     func testHistoricalPreviewRejectsUnpinnedAbsentAndNonBlobContents() {
         for (revision, mode, path) in [(ComparisonRevision.workingTree, "100644", "file.txt"), (.emptyTree, "100644", "file.txt"), (.revision("HEAD"), "100644", "file.txt"), (.revision(String(repeating: "a", count: 40)), "160000", "module"), (.revision(String(repeating: "a", count: 40)), "100644", "bad\0file")] {
             let content = ComparisonFileContent(path: path, revision: revision, bytes: Data(), mode: mode)
