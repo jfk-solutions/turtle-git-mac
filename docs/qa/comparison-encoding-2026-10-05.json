@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-05",
+  "feature": "Working comparison File Encoding menu",
+  "preview": "/tmp/TurtleGitEncodingQA.app",
+  "native_verified": [
+    "Writable Mine context exposes all nine explicit formats",
+    "Windows-1252 rejects Chinese/emoji without changing draft, Save availability or disk",
+    "Encoding-only UTF-32BE change enables Save without a text edit",
+    "Save produces exact 64-byte UTF-32BE BOM output; Reload retains Unicode content",
+    "UTF-8 BOM Save As produces exact 23-byte export while working source remains UTF-32BE",
+    "Subsequent Save produces exact 23-byte UTF-8 BOM working file",
+    "CRLF and missing final newline preserved; working mode remains 0755",
+    "Base bytes and bootstrap repository HEAD/raw index/working bytes unchanged",
+    "Sequential launches only; normal Quit followed by process absence verification"
+  ],
+  "verification": {
+    "comparison_tests": 25,
+    "full_tests": 353,
+    "failures": 0,
+    "Debug_build": "passed",
+    "unsigned_AppStore_build": "passed",
+    "bundle_and_runtime_audits": "passed"
+  },
+  "pending": [
+    "Native checks for remaining encoding formats and menu checkmarks",
+    "Windows system ANSI code-page parity and legacy input selection",
+    "BOM-less non-Latin Unicode autodetection and empty-file format inference",
+    "Three-pane conflict editor encoding controls and historical-copy editing",
+    "Signed sandbox and full upstream loading/writing parity"
+  ]
+}

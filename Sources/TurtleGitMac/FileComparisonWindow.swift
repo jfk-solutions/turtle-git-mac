@@ -134,6 +134,11 @@ import TurtleGitCore
         do { editorActions[base]?.keep(try FileComparisonEditing.leavingOnlyMarked(alignment, targetBase: base, annotations: annotations(base: base))) }
         catch { self.error = error.localizedDescription }
     }
+    func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
+    func changeEncoding(_ value: ComparisonTextEncoding, base: Bool) {
+        guard canTransfer(toBase: base) else { return }
+        do { try drafts?.setEncoding(value, base: base) } catch { self.error = error.localizedDescription }
+    }
     func changeWhitespace(_ command: MergeWhitespaceCommand, base: Bool) {
         guard canTransfer(toBase: base) else { return }
         let text = MergeWhitespace.applying(command, to: draftText(base: base), tabWidth: MergeEditorPreferences.load().tabWidth)
@@ -292,14 +297,14 @@ import TurtleGitCore
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
                         guard base else { throw FileComparisonEditFailure.unsupported }
                         guard try authorizeWorkingReplacement(at: historicalWorkingComparison.workingFile) else { return }
-                        result = try historicalWorkingComparison.saveBase(document, text: text)
+                        result = try historicalWorkingComparison.saveBase(document, text: text, encoding: drafts?.encoding(base: base))
                     } else if let workingComparison {
                         try validateWorkingAccess(workingComparison)
                         guard try authorizeWorkingReplacement(at: base ? workingComparison.base : workingComparison.destination) else { return }
-                        result = try workingComparison.save(document, base: base, text: text)
+                        result = try workingComparison.save(document, base: base, text: text, encoding: drafts?.encoding(base: base))
                     } else if let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                        result = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text)
+                        result = try await repository.saveComparisonFile(snapshot, document: document, base: base, text: text, encoding: drafts?.encoding(base: base))
                     } else { throw RevisionComparisonFailure.selection }
                     self.document = result
                     try drafts?.didSave(base ? result.base : result.destination, base: base)
@@ -627,6 +632,15 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
             }
             let item = NSMenuItem(title: "End of Line Style", action: nil, keyEquivalent: "")
             item.submenu = endings; menu.addItem(item)
+            let encodings = NSMenu(title: "File Encoding"); encodings.autoenablesItems = false
+            for (index, encoding) in ComparisonTextEncoding.allCases.enumerated() {
+                let choice = NSMenuItem(title: encoding.rawValue, action: #selector(changeEncoding(_:)), keyEquivalent: "")
+                choice.target = self; choice.tag = index; choice.state = model.encoding(base: baseSide) == encoding ? .on : .off
+                encodings.addItem(choice)
+            }
+            let encodingItem = NSMenuItem(title: "File Encoding", action: nil, keyEquivalent: "")
+            encodingItem.submenu = encodings; menu.addItem(encodingItem)
+
         }
         menu.addItem(.separator())
         add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
@@ -646,6 +660,10 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
     @objc private func replaceByRight() { model?.useOtherBlock(targetBase: true) }
     @objc private func appendRight() { model?.useOtherBlock(.currentThenOther, targetBase: true) }
     @objc private func useRightFile() { model?.useOtherFile(targetBase: true) }
+    @objc private func changeEncoding(_ sender: NSMenuItem) {
+        guard ComparisonTextEncoding.allCases.indices.contains(sender.tag) else { return }
+        model?.changeEncoding(ComparisonTextEncoding.allCases[sender.tag], base: baseSide)
+    }
     @objc private func changeWhitespace(_ sender: NSMenuItem) {
         guard MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
         model?.changeWhitespace(MergeWhitespaceCommand.allCases[sender.tag], base: baseSide)

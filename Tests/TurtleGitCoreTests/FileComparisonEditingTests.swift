@@ -2,6 +2,53 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testExplicitEncodingBytesBOMsAndLosslessRejection() throws {
+        let fixtures: [(ComparisonTextEncoding, [UInt8])] = [
+            (.windows1252, [0x41,0xe9,13,10]), (.utf8, [0x41,0xc3,0xa9,13,10]), (.utf8BOM, [0xef,0xbb,0xbf,0x41,0xc3,0xa9,13,10]),
+            (.utf16LE, [0x41,0,0xe9,0,13,0,10,0]), (.utf16LEBOM, [0xff,0xfe,0x41,0,0xe9,0,13,0,10,0]),
+            (.utf16BE, [0,0x41,0,0xe9,0,13,0,10]), (.utf16BEBOM, [0xfe,0xff,0,0x41,0,0xe9,0,13,0,10]),
+            (.utf32LE, [0xff,0xfe,0,0,0x41,0,0,0,0xe9,0,0,0,13,0,0,0,10,0,0,0]),
+            (.utf32BE, [0,0,0xfe,0xff,0,0,0,0x41,0,0,0,0xe9,0,0,0,13,0,0,0,10])]
+        for (encoding, bytes) in fixtures {
+            XCTAssertEqual(try encoding.encode("Aé\r\n"), Data(bytes))
+            XCTAssertEqual(encoding.decode(Data(bytes)), "Aé\r\n")
+            if encoding != .windows1252 { XCTAssertEqual(ComparisonTextEncoding.detect(Data(bytes)), encoding) }
+        }
+        XCTAssertThrowsError(try ComparisonTextEncoding.windows1252.encode("雪🦎"))
+        XCTAssertThrowsError(try ComparisonTextEncoding.utf8.encode("nul\0"))
+        XCTAssertNil(ComparisonTextEncoding.detect(Data([0xff,0xfe,0,0xd8])))
+        XCTAssertNil(ComparisonTextEncoding.detect(Data([0xff,0xfe,0,0,0,0,0x11,0])))
+        XCTAssertNil(ComparisonTextEncoding.detect(Data([0,255])))
+        for encoding in ComparisonTextEncoding.allCases where encoding != .windows1252 {
+            XCTAssertEqual(encoding.decode(try encoding.encode("雪🦎e\u{301}\r\nEOF")), "雪🦎e\u{301}\r\nEOF")
+        }
+    }
+    func testEncodingOnlyDraftSaveExportAndStaleGuard() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let base = root.appendingPathComponent("base"), mine = root.appendingPathComponent("mine")
+        try Data("base\n".utf8).write(to: base); try Data("Aé\r\nlast".utf8).write(to: mine)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: mine.path)
+        let pair = try WorkingFileComparison(base: base, destination: mine), document = try pair.read()
+        var drafts = FileComparisonDrafts(document)
+        try drafts.setEncoding(.utf32BE, base: false)
+        XCTAssertEqual(drafts.dirtySides, [false]); XCTAssertEqual(drafts.text(base: false), "Aé\r\nlast")
+        let bytes = try drafts.exported(base: false)
+        XCTAssertTrue(bytes.starts(with: [0,0,0xfe,0xff]))
+        let saved = try pair.save(document, base: false, text: XCTUnwrap(drafts.text(base: false)), encoding: drafts.encoding(base: false))
+        try drafts.didSave(saved.destination, base: false)
+        XCTAssertFalse(drafts.isDirty(base: false)); XCTAssertEqual(saved.destination.encoding, .utf32BE)
+        XCTAssertEqual(saved.destination.text, "Aé\r\nlast"); XCTAssertEqual(try Data(contentsOf: mine), bytes)
+        XCTAssertEqual(try Data(contentsOf: base), Data("base\n".utf8))
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: mine.path)[.posixPermissions] as? NSNumber, 0o755)
+        try drafts.update(text: "雪", base: false)
+        XCTAssertThrowsError(try drafts.setEncoding(.windows1252, base: false))
+        XCTAssertEqual(drafts.encoding(base: false), .utf32BE); XCTAssertEqual(try Data(contentsOf: mine), bytes)
+        try Data("external".utf8).write(to: mine)
+        XCTAssertThrowsError(try pair.save(saved, base: false, text: "replace", encoding: .utf8BOM))
+        XCTAssertEqual(try Data(contentsOf: mine), Data("external".utf8))
+    }
     func testTransfersUseBothPendingDraftsAndExplicitDestination() throws {
         let base = ComparisonFileContent(path: "base", revision: .workingTree, bytes: Data("base original\n".utf8), mode: "100644")
         let mine = ComparisonFileContent(path: "mine", revision: .workingTree, bytes: Data("mine original\r\n".utf8), mode: "100644")

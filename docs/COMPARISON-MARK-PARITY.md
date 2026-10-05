@@ -315,3 +315,30 @@ need native acceptance. These commands do not establish per-pane tab-width or
 inserted-line default-ending metadata parity. File Encoding and historical-copy
 editing, locale-sensitive Unicode trimming and signed sandbox acceptance remain
 pending.
+
+## Working comparison File Encoding menu
+
+Upstream `FileTextLines.cpp:489–537,610–637` defines the Unicode output
+formats and BOM rules; `BaseView.cpp:6078–6087` marks encoding changes modified.
+Writable comparison panes now expose UTF-8 and UTF-16LE/BE with optional BOMs,
+and UTF-32LE/BE with BOMs. Encoding belongs to each draft independently. An
+encoding-only change enables Save; Save and Save As encode that pane's current
+text, and Save resets its baseline. Unrepresentable characters are rejected
+before changing the format. The explicit Windows-1252 choice is a macOS
+adaptation of upstream ASCII, which uses the Windows system ANSI code page.
+
+Native acceptance verified rejection without draft changes, exact 64-byte
+UTF-32BE Save and Reload, and exact 23-byte UTF-8 BOM Save As and Save. Chinese
+text and an emoji, CRLF, missing final newline and 0755 permissions survived.
+Base and bootstrap repository HEAD/raw index/working bytes remained unchanged.
+Both sequential previews quit normally and no app remained running. See the
+[encoding record](qa/comparison-encoding-2026-10-05.json). Literal-byte tests cover
+all nine formats, Unicode round trips, malformed data, encoding-only dirty
+state, independent export/save and stale-write refusal. All 353 tests, both
+builds and bundle/runtime audits passed.
+
+Remaining formats and menu checkmarks need native checks. Legacy input
+selection, Windows system code pages, BOM-less non-Latin Unicode detection,
+empty-file format inference, three-pane conflict controls, historical-copy
+editing and signed sandbox acceptance remain incomplete. This does not
+establish full upstream encoding/loading/writing parity.

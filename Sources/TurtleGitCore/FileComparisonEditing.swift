@@ -1,13 +1,72 @@
 import Foundation
 import Darwin
 
+/// Explicit output formats; UTF-32 choices include a BOM, as upstream does.
+public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
+    case windows1252 = "ASCII (Windows-1252)"
+    case utf8 = "UTF-8", utf8BOM = "UTF-8 BOM"
+    case utf16LE = "UTF-16LE", utf16LEBOM = "UTF-16LE BOM"
+    case utf16BE = "UTF-16BE", utf16BEBOM = "UTF-16BE BOM"
+    case utf32LE = "UTF-32LE", utf32BE = "UTF-32BE"
+    private var codec: String.Encoding {
+        switch self {
+        case .windows1252: return .windowsCP1252
+        case .utf8, .utf8BOM: return .utf8
+        case .utf16LE, .utf16LEBOM: return .utf16LittleEndian
+        case .utf16BE, .utf16BEBOM: return .utf16BigEndian
+        case .utf32LE: return .utf32LittleEndian
+        case .utf32BE: return .utf32BigEndian
+        }
+    }
+    private var bom: Data {
+        switch self {
+        case .utf8BOM: return Data([0xef, 0xbb, 0xbf])
+        case .utf16LEBOM: return Data([0xff, 0xfe])
+        case .utf16BEBOM: return Data([0xfe, 0xff])
+        case .utf32LE: return Data([0xff, 0xfe, 0, 0])
+        case .utf32BE: return Data([0, 0, 0xfe, 0xff])
+        default: return Data()
+        }
+    }
+    public func encode(_ text: String) throws -> Data {
+        guard !text.unicodeScalars.contains(where: { $0.value == 0 }),
+              let bytes = text.data(using: codec, allowLossyConversion: false),
+              let recovered = String(data: bytes, encoding: codec),
+              recovered.utf8.elementsEqual(text.utf8) else { throw FileComparisonEditFailure.encoding }
+        return bom + bytes
+    }
+    public func decode(_ bytes: Data) -> String? {
+        let body = !bom.isEmpty && bytes.starts(with: bom) ? Data(bytes.dropFirst(bom.count)) : bytes
+        guard let text = String(data: body, encoding: codec), !text.unicodeScalars.contains(where: { $0.value == 0 }),
+              text.data(using: codec, allowLossyConversion: false) == body else { return nil }
+        return text
+    }
+    public static func detect(_ bytes: Data) -> ComparisonTextEncoding? {
+        for value in [Self.utf32LE, .utf32BE, .utf16LEBOM, .utf16BEBOM, .utf8BOM] {
+            if bytes.starts(with: value.bom) { return value.decode(bytes) == nil ? nil : value }
+        }
+        if Self.utf8.decode(bytes) != nil { return .utf8 }
+        // Require zero-byte evidence before considering BOM-less UTF-16;
+        // arbitrary invalid UTF-8 remains binary until explicitly decoded.
+        guard bytes.count >= 4, bytes.count % 2 == 0 else { return nil }
+        let data = Array(bytes), count = data.count / 2
+        let little = stride(from: 1, to: data.count, by: 2).filter { data[$0] == 0 }.count
+        let big = stride(from: 0, to: data.count, by: 2).filter { data[$0] == 0 }.count
+        guard max(little, big) * 4 >= count * 3, little != big else { return nil }
+        let value: Self = little > big ? .utf16LE : .utf16BE
+        guard let text = value.decode(bytes), text.unicodeScalars.contains(where: { $0.value >= 32 && $0.value != 127 }) else { return nil }
+        return value
+    }
+}
+
 public enum FileComparisonEditFailure: LocalizedError {
-    case unsupported, changed, readOnly, range
+    case unsupported, changed, readOnly, range, encoding
     public var errorDescription: String? {
         switch self {
         case .unsupported: return "Choose a regular working-tree text file to edit."
         case .changed: return "The working file or its permissions changed. Reload before saving."
         case .readOnly: return "The working file is read-only."
+        case .encoding: return "The selected encoding cannot represent this text without losing characters."
         case .range: return "The selected text changed. Select it again."
         }
     }
@@ -157,19 +216,18 @@ public enum FileComparisonEditing {
         }
         return display
     }
-    public static func encoded(_ text: String, like content: ComparisonFileContent) throws -> Data {
-        guard content.text != nil, !text.utf8.contains(0) else { throw FileComparisonEditFailure.unsupported }
-        if content.bytes.starts(with: [0xff, 0xfe]) { return Data([0xff, 0xfe]) + text.data(using: .utf16LittleEndian)! }
-        if content.bytes.starts(with: [0xfe, 0xff]) { return Data([0xfe, 0xff]) + text.data(using: .utf16BigEndian)! }
-        return (content.bytes.starts(with: [0xef, 0xbb, 0xbf]) ? Data([0xef, 0xbb, 0xbf]) : Data()) + Data(text.utf8)
+    public static func encoded(_ text: String, like content: ComparisonFileContent, encoding: ComparisonTextEncoding? = nil) throws -> Data {
+        guard content.text != nil, let value = encoding ?? content.encoding else { throw FileComparisonEditFailure.unsupported }
+        return try value.encode(text)
     }
+
 }
 extension GitRepository {
-    public func saveComparisonFile(_ snapshot: RevisionComparisonSnapshot, document: FileComparisonDocument, base: Bool, text: String) throws -> FileComparisonDocument {
+    public func saveComparisonFile(_ snapshot: RevisionComparisonSnapshot, document: FileComparisonDocument, base: Bool, text: String, encoding: ComparisonTextEncoding? = nil) throws -> FileComparisonDocument {
         let original = base ? document.base : document.destination
         guard snapshot.root == root, snapshot.files.contains(where: { $0.path == document.destination.path }),
               original.revision == .workingTree, ["100644", "100755"].contains(original.mode ?? ""), original.permissions != nil else { throw FileComparisonEditFailure.unsupported }
-        let saved = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(original.path), original: original, text: text)
+        let saved = try FileComparisonEditing.saveWorkingContent(at: restoreLocation(original.path), original: original, text: text, encoding: encoding)
         return FileComparisonDocument(base: base ? saved : document.base, destination: base ? document.destination : saved)
     }
 }
@@ -177,7 +235,7 @@ extension GitRepository {
 
 extension FileComparisonEditing {
     /// Same byte/permission checks for repository and standalone working files.
-    public static func saveWorkingContent(at location: URL, original: ComparisonFileContent, text: String) throws -> ComparisonFileContent {
+    public static func saveWorkingContent(at location: URL, original: ComparisonFileContent, text: String, encoding: ComparisonTextEncoding? = nil) throws -> ComparisonFileContent {
         guard location.isFileURL, original.revision == .workingTree,
               ["100644", "100755"].contains(original.mode ?? ""), let permissions = original.permissions else { throw FileComparisonEditFailure.unsupported }
         let manager = FileManager.default
@@ -188,14 +246,14 @@ extension FileComparisonEditing {
             guard permissions & 0o222 != 0, manager.isWritableFile(atPath: location.path) else { throw FileComparisonEditFailure.readOnly }
         }
         try validate()
-        let bytes = try FileComparisonEditing.encoded(text, like: original)
+        let bytes = try FileComparisonEditing.encoded(text, like: original, encoding: encoding)
         let temporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitDiff-" + UUID().uuidString)
         defer { try? manager.removeItem(at: temporary) }
         try bytes.write(to: temporary, options: .withoutOverwriting)
         try manager.setAttributes([.posixPermissions: permissions], ofItemAtPath: temporary.path)
         try validate()
         guard Darwin.rename(temporary.path, location.path) == 0 else { throw CocoaError(.fileWriteUnknown) }
-        return ComparisonFileContent(path: original.path, revision: original.revision, bytes: bytes, mode: original.mode, permissions: permissions)
+        return ComparisonFileContent(path: original.path, revision: original.revision, bytes: bytes, mode: original.mode, permissions: permissions, encoding: encoding ?? original.encoding)
     }
 }
 
@@ -207,10 +265,11 @@ public struct FileComparisonDrafts {
         var annotations = FileComparisonEditing.Annotations()
         var savedMarks = Set<Int>()
         var enabled = false
+        var encoding: ComparisonTextEncoding?
     }
     private var panes: [Bool: Pane]
     public init(_ document: FileComparisonDocument) {
-        panes = [true: Pane(content: document.base, text: document.base.text), false: Pane(content: document.destination, text: document.destination.text)]
+        panes = [true: Pane(content: document.base, text: document.base.text, encoding: document.base.encoding), false: Pane(content: document.destination, text: document.destination.text, encoding: document.destination.encoding)]
         if canEdit(base: false) { panes[false]?.enabled = true }
     }
     public func canEdit(base: Bool) -> Bool {
@@ -218,6 +277,12 @@ public struct FileComparisonDrafts {
         return pane.content.revision == .workingTree && ["100644", "100755"].contains(pane.content.mode ?? "") && pane.text != nil
     }
     public var preferredBase: Bool { !canEdit(base: false) && canEdit(base: true) }
+    public func encoding(base: Bool) -> ComparisonTextEncoding? { panes[base]?.encoding }
+    public mutating func setEncoding(_ value: ComparisonTextEncoding, base: Bool) throws {
+        guard canEdit(base: base), let text = panes[base]?.text else { throw FileComparisonEditFailure.unsupported }
+        _ = try value.encode(text)
+        panes[base]?.encoding = value
+    }
     public func text(base: Bool) -> String? { panes[base]?.text }
     public func annotations(base: Bool) -> FileComparisonEditing.Annotations { panes[base]?.annotations ?? .init() }
     public func editingEnabled(base: Bool) -> Bool { canEdit(base: base) && panes[base]?.enabled == true }
@@ -229,7 +294,7 @@ public struct FileComparisonDrafts {
     public mutating func update(annotations: FileComparisonEditing.Annotations, base: Bool) { panes[base]?.annotations = annotations }
     public func isDirty(base: Bool) -> Bool {
         guard canEdit(base: base), let pane = panes[base], let text = pane.text, let original = pane.content.text else { return false }
-        return !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks
+        return !text.utf8.elementsEqual(original.utf8) || pane.annotations.marked != pane.savedMarks || pane.encoding != pane.content.encoding
     }
     public var dirtySides: [Bool] { [false, true].filter { isDirty(base: $0) } }
     public var dirtyPaths: [String] { dirtySides.compactMap { panes[$0]?.content.path } }
@@ -245,6 +310,7 @@ public struct FileComparisonDrafts {
     }
     public func exported(base: Bool) throws -> Data {
         guard let pane = panes[base] else { throw RevisionComparisonFailure.selection }
-        return try FileComparisonEditing.exported(pane.content, editedText: canEdit(base: base) ? pane.text : nil)
+        if canEdit(base: base), let text = pane.text { return try FileComparisonEditing.encoded(text, like: pane.content, encoding: pane.encoding) }
+        return pane.content.bytes
     }
 }
