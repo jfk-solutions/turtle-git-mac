@@ -70,6 +70,7 @@ import TurtleGitCore
                 BlameSettings().tabItem { Label("Blame", systemImage: "text.alignleft") }
                 AlternativeEditorSettings().tabItem { Label("Alternative Editor", systemImage: "pencil") }
                 UnifiedDiffSettingsPage().tabItem { Label("Unified Diff", systemImage: "doc.text") }
+                AdvancedSettingsPage().tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
             }.frame(width: 760, height: 700)
         }
     }

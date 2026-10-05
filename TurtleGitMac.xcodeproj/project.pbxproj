@@ -84,6 +84,7 @@
 		885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */; };
 		889A5713EF2EFE553723715F /* FormatPatchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72211FE8450E694C1BC89AB3 /* FormatPatchWindow.swift */; };
 		8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1491F4A59F19B27A3FCCF966 /* PushWindow.swift */; };
+		8DA2AEE022FFD2B386F6B6EF /* AdvancedSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AEC571DB776E587D10F568E9 /* AdvancedSettings.swift */; };
 		8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */; };
 		90A423E07A63281C4163EAD0 /* Merge.swift in Sources */ = {isa = PBXBuildFile; fileRef = D975B1620A435727724213D1 /* Merge.swift */; };
 		91E94E7DF08198646C691752 /* MessageCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3329485A1DA9D2066A853483 /* MessageCompletion.swift */; };
@@ -95,6 +96,7 @@
 		98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */; };
 		9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */; };
 		A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08425BF4A91945D52E0F6D99 /* Clone.swift */; };
+		A34C626DE662BD2D7FC24EC4 /* AdvancedSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */; };
 		A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FF59B2CF163D9481D39B5 /* CommitSelection.swift */; };
 		A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5AD057FE8CA1C91988DA6E /* Removal.swift */; };
 		A6773359488D79CCCCE0C7DE /* SubmoduleDiffWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */; };
@@ -308,6 +310,7 @@
 		AB86EFEBCB6909C206458540 /* LogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogWindow.swift; sourceTree = "<group>"; };
 		ADFF9F8C8624249F4AB965DF /* CommitFileInteraction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitFileInteraction.swift; sourceTree = "<group>"; };
 		AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffViewer.swift; sourceTree = "<group>"; };
+		AEC571DB776E587D10F568E9 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
 		B0144901E0020C531A5D86FB /* RepositoryAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryAccess.swift; sourceTree = "<group>"; };
 		B16F443B326FDAB1414D334B /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		B20E461B2D9629D0293A80EB /* WorkingTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTree.swift; sourceTree = "<group>"; };
@@ -316,6 +319,7 @@
 		BA121F2E317F86B146016B4E /* Rename.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rename.swift; sourceTree = "<group>"; };
 		BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetchWindow.swift; sourceTree = "<group>"; };
 		BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderRequest.swift; sourceTree = "<group>"; };
+		BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedSettings.swift; sourceTree = "<group>"; };
 		C27AB4988402DE898554EF19 /* MessageCodeText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeText.swift; sourceTree = "<group>"; };
 		C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileAdd.swift; sourceTree = "<group>"; };
 		C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdate.swift; sourceTree = "<group>"; };
@@ -371,6 +375,7 @@
 		0B0ED7640D942B979726B592 /* TurtleGitMac */ = {
 			isa = PBXGroup;
 			children = (
+				AEC571DB776E587D10F568E9 /* AdvancedSettings.swift */,
 				58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */,
 				B16F443B326FDAB1414D334B /* Appearance.swift */,
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
@@ -460,6 +465,7 @@
 		9216CD741C27CC93A27DDCBF /* TurtleGitCore */ = {
 			isa = PBXGroup;
 			children = (
+				BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */,
 				1461AE9BD8BFDBA1939F33FF /* AlternativeEditorPreferences.swift */,
 				15C11C6126548BD0E66453DA /* BundledTextHelper.swift */,
 				D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */,
@@ -744,6 +750,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A34C626DE662BD2D7FC24EC4 /* AdvancedSettings.swift in Sources */,
 				D346F92FAD1A13414F11CBB9 /* AlternativeEditorPreferences.swift in Sources */,
 				E41F368C58761603E031762B /* BundledTextHelper.swift in Sources */,
 				52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */,
@@ -829,6 +836,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8DA2AEE022FFD2B386F6B6EF /* AdvancedSettings.swift in Sources */,
 				338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */,
 				D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */,
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,

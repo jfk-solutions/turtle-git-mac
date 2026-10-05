@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native Advanced Settings registered catalogue, editor and storage; remaining consumers/full host/native gestures/signed acceptance pending",
+  "baseCommit": "46a916a383337cc76574d98bc13f708c864b3a4f",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "SettingsAdvanced.cpp": "1b222ebf9053e0e902f79413899dc92d35071464",
+    "SettingsAdvanced.h": "86f71b16237139ab46530d5ddbc988649f96ae31"
+  },
+  "catalogue": {
+    "registeredSettings": 52,
+    "fixture": "../upstream-advanced-settings.json",
+    "scope": "All source names/order/registered types/defaults compared by a core test; short hash default 8 audited separately in pinned Git.cpp"
+  },
+  "focusedCoreTests": {
+    "count": 4,
+    "failures": 0,
+    "scope": "Catalogue fixture, boolean/blank/unchanged defaults, invalid batch/no mutation, numeric equivalence/zero/leading zeros/overflow/signed display"
+  },
+  "fullCoreTests": {
+    "count": 460,
+    "failures": 0
+  },
+  "actualNativeReceiver": [
+    "52 Name/Value rows, read-only Name and editable Value, fixed column order and usable geometry",
+    "Cancelled label-edit receiver preserves value",
+    "Drafts do not store until Apply; Apply clears modified state and publishes a view update",
+    "Blank removes override while retaining source input text; Cancel restores stored values",
+    "Changes from another native settings page remain intact",
+    "Zero, overflow and original input retention until reopening"
+  ],
+  "currentConsumers": [
+    "AutoCompleteMinChars",
+    "AutocompleteParseMaxSize",
+    "AutocompleteParseUnversioned",
+    "AutocompleteRemovesExtensions",
+    "StyleCommitMessages",
+    "ShowListBackgroundImage"
+  ],
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App/Finder extension, 75 unchanged original icons, updated NOTICE/licenses, universal EditorConfig/IssueRegex and Store Git 2.55.0 verified",
+  "nativeUI": "Standalone AppKit driver displays no windows; F2/double-click/field-editor/window gestures not verified",
+  "appProcesses": "No TurtleGit app launched; standalone driver and isolated defaults suites cleaned up",
+  "logs": {
+    "core": {
+      "path": "/tmp/turtlegit-advanced-core.log",
+      "sha256": "3ff6d4a81996d28f45df2a0ccd518f20399f9eca772967b8616d318f4f44c612",
+      "exitCode": 0
+    },
+    "full-core": {
+      "path": "/tmp/turtlegit-advanced-full-core.log",
+      "sha256": "f3873f982dd75aac2823dfe2b94d1eacb805e18c0eb1177f7a8933fd57503f6c",
+      "exitCode": 0
+    },
+    "model": {
+      "path": "/tmp/turtlegit-advanced-model.log",
+      "sha256": "209815bb7b00215fed5b8219f1b62cbc36cbed9818d7c83f88e65a46db9d70c3",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-advanced-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-advanced-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-advanced-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-advanced-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-advanced-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    "Sources/TurtleGitCore/AdvancedSettings.swift": "909114eaeeb91e4082074649a9c1c772745232ae5784f445e6d2a762d0fb91bd",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "f41689719ed0de2a4bc0d36fcc3bdf4676c05b1d017aec677e67a95ede086b09",
+    "Tests/TurtleGitCoreTests/AdvancedSettingsTests.swift": "98742f42d27f3cfe5aca6f4bee59c14d75e5bbf73c594ad6104792651ad3c718",
+    "docs/upstream-advanced-settings.json": "2ffc239d7d870a4a80eb388ca6431c3858f34aff93b71de6e2d44106988322cf",
+    "scripts/test-advanced-settings.py": "b31b9c6e0ee2dd7b2ae8b1f3b781c755ae4c69ab0a3959d9242a764aaf326697"
+  },
+  "pending": [
+    "Most setting consumers, Windows-specific adaptations and unused StringSetting",
+    "Complete settings property-sheet/sidebar/page-icon parity",
+    "Source locale/non-ASCII digit comparison",
+    "Native F2/double-click/Escape/focus/Apply/Cancel/window close/reopen/cross-tab lifecycle",
+    "Actual repaint of open Worktree List and light/dark screenshots",
+    "Signed sandbox/distribution/Finder acceptance",
+    "GitHub execution of local changes"
+  ]
+}

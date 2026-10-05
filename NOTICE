@@ -234,3 +234,13 @@ Win32 alpha-blended lower-right list watermark. Its enabled-by-default preferenc
 uses the upstream ShowListBackgroundImage name. The Advanced Settings editor and
 other background-image consumers remain pending; composed window appearance and
 signed acceptance have not been verified.
+
+AdvancedSettings.swift (core and native page) adapts SettingsAdvanced.cpp/.h under
+GPL version 2 or later. SettingsAdvanced.cpp: Copyright (C) 2012-2026 TortoiseGit;
+Copyright (C) 2009-2011, 2013 TortoiseSVN. SettingsAdvanced.h: Copyright (C) 2023
+TortoiseGit; Copyright (C) 2009-2010, 2015 TortoiseSVN.
+The 52-setting catalogue retains source order, types and defaults; AppKit value
+editing and UserDefaults replace Win32 label editing and registry storage.
+The native editor and storage have receiver tests. Many setting consumers,
+native editing/window gestures, source locale digit validation and signed
+acceptance remain pending; the editor is not complete application parity.

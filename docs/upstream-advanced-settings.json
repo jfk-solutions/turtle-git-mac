@@ -1,0 +1,319 @@
+{
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source": "src/TortoiseProc/Settings/SettingsAdvanced.cpp",
+  "blob": "1b222ebf9053e0e902f79413899dc92d35071464",
+  "settings": [
+    {
+      "name": "AutoCompleteMinChars",
+      "type": "dword",
+      "default": 3,
+      "sourceDefault": "3"
+    },
+    {
+      "name": "AutocompleteParseMaxSize",
+      "type": "dword",
+      "default": 300000,
+      "sourceDefault": "300000L"
+    },
+    {
+      "name": "AutocompleteParseUnversioned",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "AutocompleteRemovesExtensions",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "BlockStatus",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "CacheTrayIcon",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "CacheSave",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "ConflictDontGuessBranchNames",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "CygwinHack",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "Debug",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "DebugOutputString",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "DialogTitles",
+      "type": "dword",
+      "default": 0,
+      "sourceDefault": "0"
+    },
+    {
+      "name": "DiffSimilarityIndexThreshold",
+      "type": "dword",
+      "default": 50,
+      "sourceDefault": "50"
+    },
+    {
+      "name": "DownloadAnimation",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "FetchVerbose",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "FullRowSelect",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "GroupTaskbarIconsPerRepo",
+      "type": "dword",
+      "default": 3,
+      "sourceDefault": "3"
+    },
+    {
+      "name": "GroupTaskbarIconsPerRepoOverlay",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "LogFontForFileListCtrl",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "LogFontForLogCtrl",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "LogTooManyItemsThreshold",
+      "type": "dword",
+      "default": 1000,
+      "sourceDefault": "1000"
+    },
+    {
+      "name": "LogIncludeBoundaryCommits",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "LogIncludeWorkingTreeChanges",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "LogShowSuperProjectSubmodulePointer",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "MaxRefHistoryItems",
+      "type": "dword",
+      "default": 5,
+      "sourceDefault": "5"
+    },
+    {
+      "name": "ModifyExplorerTitle",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "Msys2Hack",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "NamedRemoteFetchAll",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "NoSortLocalBranchesFirst",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "NumDiffWarning",
+      "type": "dword",
+      "default": 10,
+      "sourceDefault": "10"
+    },
+    {
+      "name": "OverlaysCaseSensitive",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "ProgressDlgLinesLimit",
+      "type": "dword",
+      "default": 50000,
+      "sourceDefault": "50000"
+    },
+    {
+      "name": "ReaddUnselectedAddedFilesAfterCommit",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "RefreshFileListAfterResolvingConflict",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "RememberFileListPosition",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "SanitizeCommitMsg",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "ScintillaDirect2D",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "ShellMenuAccelerators",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "ShortHashLengthForHyperLinkInLogMessage",
+      "type": "dword",
+      "default": 8,
+      "sourceDefault": "g_Git.GetShortHASHLength()"
+    },
+    {
+      "name": "ShowContextMenuIcons",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "ShowAppContextMenuIcons",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "ShowListBackgroundImage",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "ShowListFullPathTooltip",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "SquashDate",
+      "type": "dword",
+      "default": 0,
+      "sourceDefault": "0"
+    },
+    {
+      "name": "StyleCommitMessages",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "StyleGitOutput",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "TGitCacheCheckContentMaxSize",
+      "type": "dword",
+      "default": 10240,
+      "sourceDefault": "10 * 1024"
+    },
+    {
+      "name": "UseCustomWordBreak",
+      "type": "dword",
+      "default": 2,
+      "sourceDefault": "2"
+    },
+    {
+      "name": "UseLibgit2",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "VersionCheck",
+      "type": "boolean",
+      "default": true,
+      "sourceDefault": "true"
+    },
+    {
+      "name": "VersionCheckPreview",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    },
+    {
+      "name": "Win8SpellChecker",
+      "type": "boolean",
+      "default": false,
+      "sourceDefault": "false"
+    }
+  ]
+}

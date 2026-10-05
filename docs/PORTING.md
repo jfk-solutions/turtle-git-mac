@@ -70,7 +70,7 @@ require review; a dialog count is not a count of all upstream UI.
 | RefLog | Native five-column list, reference selector, Search, stash inspection/Apply and guarded Drop/Clear | Full context menus, general reflog deletion, persistence and broader native QA; see REFLOG-PARITY.md |
 | Stash | Native Save options/warning plus direct Apply/Pop result prompts and Working Tree handoff; Git effects verified | RefLog list/inspection/selected Apply and guarded Drop/Clear now implemented; branch from stash, full progress/post-actions and broader native QA pending; see STASH-PARITY.md |
 | Finder | Original icons, cache badges, complete selection dispatch, scoped Diff/Log | Signed QA, remaining shell commands, watched-root management, cache daemon/FSEvents |
-| Settings | Native Appearance and partial Merge Editor General: saved indentation and line-number defaults with Apply/Cancel | Remaining merge General/Colors, Git identity, tools, overlays, dialogs, hooks, credentials, networking, localization |
+| Settings | Native 52-row Advanced draft editor with source defaults/validation and Apply/Cancel; Appearance and partial Merge Editor General: saved indentation and line-number defaults with Apply/Cancel | Remaining merge General/Colors, Git identity, tools, overlays, dialogs, hooks, credentials, networking, localization |
 | Rename | Native source/name/browse/OK/Cancel, original artwork, versioned-file menus and guarded Git mv; mixed-file effects verified | Native browse, post-close restoration, submodules, shared-dialog consumers and signed Finder QA; see RENAME-PARITY.md |
 | Delete / keep local | Native confirmation, per-item Remove/Ignore/Abort, original icon and guarded Git removal; retained-copy commits/amendments tested | Native normal-delete execution, submodules, complete Finder conditions and signed QA; see REMOVE-PARITY.md |
 | Ignore | Native five-radio upstream layout, original icon, app/Finder name/extension actions and Delete-and-ignore keep-local flow; real Git and native checks | Full menu conditions, native recovery/No/refresh and signed permissions; see IGNORE-PARITY.md |
@@ -215,3 +215,8 @@ Merge pane menus now include Tab/Space and Smart tab char. Native Space
 insertion, nearby-tab Smart choice, multiline Tab/Shift-Tab, Undo and exact Save
 bytes were verified. Global preferences, EditorConfig, precise partial-column
 selection restoration and broader key/view behavior remain pending.
+
+Advanced Settings now has a native Name/Value editor for all 52 registered
+source settings, with source defaults, deferred Apply and blank-value reset.
+Most setting consumers, the complete settings host and native/signed acceptance
+remain pending. See [ADVANCED-SETTINGS-PARITY.md](ADVANCED-SETTINGS-PARITY.md).

@@ -248,9 +248,9 @@ viewport instead of leaving the image fixed to the document origin.
 
 It reads the saved `ShowListBackgroundImage` boolean, defaulting to true as
 `SettingsAdvanced.cpp` (blob `1b222ebf9053e0e902f79413899dc92d35071464`) does.
-The shared Advanced Settings editor and other list-background consumers remain
-pending. This preference plumbing is not a claim that the settings dialog has
-been ported. Native semantic background colors remain responsible for light/dark;
+The [native Advanced editor](ADVANCED-SETTINGS-PARITY.md) now exposes this setting.
+Other list-background consumers, most Advanced setting effects and the complete
+settings host remain pending. Native semantic background colors remain responsible for light/dark;
 the original artwork is drawn unchanged in either appearance.
 
 The standalone receiver driver now checks the actual background painter with
