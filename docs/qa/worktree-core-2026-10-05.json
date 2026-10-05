@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-05",
+  "scope": "Worktree repository-layer port; native dialogs and Finder routing pending",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "focusedTests": {
+    "suite": "GitWorktreeTests",
+    "count": 8,
+    "failures": 0,
+    "git": "2.50.1 (Apple Git-155)",
+    "fixtures": "Disposable UUID-named temporary repositories; no development repository worktrees mutated"
+  },
+  "builds": {
+    "tests": {
+      "path": "/tmp/turtlegit-worktree-tests.log",
+      "sha256": "9fefdaf977959e4d332804912108d501d78b17fa075d4debbbcbe4b4163c04a8",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-worktree-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "appStoreUnsigned": {
+      "path": "/tmp/turtlegit-worktree-store.log",
+      "sha256": "c3317a93e73643be09045c50c69229cd4545aac229542d1968ba51680e6abb72",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-worktree-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "bundleAudits": {
+    "debug": "passed",
+    "appStoreUnsigned": "passed; bundled universal Git 2.55.0",
+    "noticeMatches": "Both bundles match source NOTICE"
+  },
+  "nativeAcceptance": "Not attempted; no app launched",
+  "pending": [
+    "New Worktree and Worktree List native dialogs",
+    "Menus, original icons and Finder routing",
+    "Multi-selection and confirmation/error continuation",
+    "Post-create submodule update",
+    "Screenshots and signed sandbox acceptance"
+  ]
+}

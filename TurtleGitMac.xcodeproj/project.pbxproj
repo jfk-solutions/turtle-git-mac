@@ -18,6 +18,7 @@
 		0E60EC4DFD35AD719021FCB2 /* FinderCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = F01FB406B12CA9FED59A3121 /* FinderCache.swift */; };
 		10817BEE6C73733AEFE13A86 /* DeleteConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = 966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */; };
 		114EB220A33E2848C99E7466 /* WorkingFileRevert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */; };
+		135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */; };
 		140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */; };
 		174E45FA66A5BAED1EAEF918 /* IgnoreWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */; };
 		17FDB52BEE9F67B214702790 /* CommitFileInteraction.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADFF9F8C8624249F4AB965DF /* CommitFileInteraction.swift */; };
@@ -249,6 +250,7 @@
 		4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffAppearanceSettings.swift; sourceTree = "<group>"; };
 		4E11987C6F9546E908AD60BA /* FinderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSync.swift; sourceTree = "<group>"; };
 		4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitWindow.swift; sourceTree = "<group>"; };
+		50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitWorktrees.swift; sourceTree = "<group>"; };
 		50C02E4063D7394453CC537A /* GitBlamePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePreferences.swift; sourceTree = "<group>"; };
 		515FF59B2CF163D9481D39B5 /* CommitSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitSelection.swift; sourceTree = "<group>"; };
 		5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeSourceComparison.swift; sourceTree = "<group>"; };
@@ -477,6 +479,7 @@
 				0657423D5C68D66703C2BB5C /* GitPatch.swift */,
 				F2E43773297420C7FDAE9748 /* GitRepository.swift */,
 				E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */,
+				50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */,
 				DAA057A2776BAA8F4BE538EE /* Ignore.swift */,
 				9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */,
 				5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */,
@@ -760,6 +763,7 @@
 				4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */,
 				E92971BFB0588C2287D36944 /* GitRepository.swift in Sources */,
 				BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */,
+				135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */,
 				71A192AE217977ACEEDE0E0E /* Ignore.swift in Sources */,
 				36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */,
 				86578F215A688D810DC90ED6 /* IssueRegex.swift in Sources */,
