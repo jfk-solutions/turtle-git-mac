@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-05",
+  "scope": "Repository Browser historical file/folder drag representations; full app and Finder drop parity remain incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "RepositoryBrowser.cpp": "ced08d910b48b8c261fe7d131a409d4dc44875ac",
+    "GitDataObject.cpp": "3ba63178f14e6f9102f87a9a7d97080c8162282c",
+    "GitDataObject.h": "2d75b20c4a079a6eb3feaaea3101ef6fd661ab87"
+  },
+  "tests": {
+    "RepositoryBrowserTests": {
+      "count": 9,
+      "failures": 0,
+      "new_export_cases": 2,
+      "log_sha256": "1233d3dbacccd6bcb7f79353d72830dada926dba7371c1603498d175c36edaff"
+    },
+    "native_provider_receivers": {
+      "exit_code": 0,
+      "log_sha256": "9a3f97942defb3628660bc566eb40517fe06eda448f332631e9030aff2e9c03d",
+      "script": "scripts/verify-browser-item-provider.sh",
+      "coverage": [
+        "Production file representation receiver reads exact pinned binary bytes",
+        "Production recursive folder receiver reads exact pinned binary bytes",
+        "HEAD/index/working bytes unchanged",
+        "Owned fixture and retained exports removed after check"
+      ],
+      "not_covered": "Actual Finder drops, table multi-selection gestures, signed transfer"
+    }
+  },
+  "native_gui": {
+    "apps_launched": 0,
+    "new_screenshots": []
+  },
+  "builds": {
+    "debug": {
+      "exit_code": 0,
+      "log_sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "bundle_audit": "Passed; 71 original icons, Finder extension and helpers/licenses; Store universal Git audit passed",
+      "phase": "Final native transport and attribution"
+    },
+    "store": {
+      "exit_code": 0,
+      "log_sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "bundle_audit": "Passed; 71 original icons, Finder extension and helpers/licenses; Store universal Git audit passed",
+      "phase": "Final native transport and attribution"
+    }
+  },
+  "remaining": [
+    "Actual Finder/other-app drop acceptance",
+    "Multi-selected table rows, tree/root folder gestures",
+    "Cancellation and quit timing, large files and case-colliding names",
+    "Signed App Store scopes and interprocess transfer",
+    "Other GitDataObject consumers and clipboard formats",
+    "Complete application port"
+  ],
+  "publication": "Local; existing Git authentication blocker unchanged",
+  "CI": "Native provider receiver step added to macOS workflow; remote execution pending publication"
+}

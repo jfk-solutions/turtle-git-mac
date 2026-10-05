@@ -2,6 +2,15 @@
 // Copyright (C) 2009-2026 - TortoiseGit; 2003-2013 - TortoiseSVN. GPL-2.0-or-later.
 import Foundation
 
+/// An app-owned drag copy; callers retain it until the receiver finishes reading.
+public struct RepositoryBrowserExport: Sendable {
+    public let directory: URL
+    public let item: URL
+    public let fileCount: Int
+    public func discard() { try? FileManager.default.removeItem(at: directory) }
+}
+
+
 public struct RepositoryBrowserEntry: Identifiable, Equatable, Sendable {
     public enum Kind: Sendable { case directory, file, executable, symlink, submodule }
     public let path: String
@@ -102,6 +111,52 @@ extension GitRepository {
         } catch { throw RepositoryBrowserFailure.directory }
         let entries = try RepositoryBrowserListing.parse(run(["ls-tree", "-z", "-l", subtree, "--"]).stdout, directory: directory)
         return RepositoryBrowserSnapshot(root: root, revision: revision, objectID: objectID, treeID: treeID, directory: directory, bare: bare, entries: entries)
+    }
+    /// Export a displayed item, or the displayed directory when entry is nil.
+    /// Adapts RepositoryBrowser.cpp RecursivelyAdd and GitDataObject.cpp historical
+    /// file contents (GPL-2.0-or-later). Gitlinks are skipped; symlinks are text.
+    /// Copyright (C) 2016-2019, 2021-2023, 2025 TortoiseGit; 2007-2014 TortoiseSVN.
+    public func exportRepositoryBrowser(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry? = nil, cancellation: OperationCancellation? = nil) throws -> RepositoryBrowserExport {
+        try cancellation?.check()
+        guard snapshot.root == root, snapshot.objectID != nil,
+              entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { throw RepositoryBrowserFailure.selection }
+        let manager = FileManager.default
+        let container = manager.temporaryDirectory.appendingPathComponent("TurtleGitBrowserExport-" + UUID().uuidString, isDirectory: true)
+        try manager.createDirectory(at: container, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        var count = 0
+        func writeFile(_ listing: RepositoryBrowserSnapshot, _ value: RepositoryBrowserEntry, to url: URL) throws {
+            try cancellation?.check()
+            let content = try repositoryBrowserFile(listing, entry: value)
+            try cancellation?.check()
+            try manager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try content.bytes.write(to: url, options: .withoutOverwriting)
+            try manager.setAttributes([.posixPermissions: value.kind == .executable ? 0o755 : 0o644], ofItemAtPath: url.path)
+            count += 1
+        }
+        func writeDirectory(_ listing: RepositoryBrowserSnapshot, to url: URL) throws {
+            try cancellation?.check()
+            for value in listing.entries {
+                try cancellation?.check()
+                if value.kind == .submodule { continue }
+                let destination = url.appendingPathComponent(value.name)
+                if value.kind == .directory {
+                    try writeDirectory(browseRepositoryDirectory(snapshot, directory: value.path), to: destination)
+                } else { try writeFile(listing, value, to: destination) }
+            }
+        }
+        do {
+            let name = entry?.name ?? (snapshot.directory.isEmpty ? root.lastPathComponent : (snapshot.directory as NSString).lastPathComponent)
+            guard RepositoryBrowserListing.validPath(name, allowRoot: false), !name.contains("/") else { throw RepositoryBrowserFailure.selection }
+            let destination = container.appendingPathComponent(name)
+            if let entry, entry.kind != .directory { try writeFile(snapshot, entry, to: destination) }
+            else {
+                let listing = try entry.map { try browseRepositoryDirectory(snapshot, directory: $0.path) } ?? snapshot
+                try writeDirectory(listing, to: destination)
+            }
+            try cancellation?.check()
+            guard count > 0 else { throw RepositoryBrowserFailure.selection }
+            return RepositoryBrowserExport(directory: container, item: destination, fileCount: count)
+        } catch { try? manager.removeItem(at: container); throw error }
     }
     /// Resolve the child checkout at the gitlink displayed by this pinned tree.
     /// Availability may be false; this never initializes or fetches a submodule.

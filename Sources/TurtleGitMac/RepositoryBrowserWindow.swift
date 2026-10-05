@@ -204,6 +204,14 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             withExtendedLifetime(access) {}
         }
     }
+    func dragProvider(_ entry: RepositoryBrowserEntry? = nil, directory: String? = nil) -> NSItemProvider? {
+        guard active, !busy, !confirmingQuit, let snapshot, snapshot.objectID != nil,
+              entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { return nil }
+        do { try validateAccess() } catch { self.error = error.localizedDescription; return nil }
+        let folder = directory != nil || entry == nil || entry?.kind == .directory
+        let name = entry?.name ?? (directory.map { $0.isEmpty ? repository.root.lastPathComponent : ($0 as NSString).lastPathComponent } ?? repository.root.lastPathComponent)
+        return RepositoryBrowserDrag.provider(repository: repository, access: access, snapshot: snapshot, entry: entry, directory: directory, name: name, folder: folder)
+    }
     func showSubmoduleLog(_ entry: RepositoryBrowserEntry) {
         guard active, !busy, !confirmingQuit, let snapshot, snapshot.entries.contains(entry), entry.kind == .submodule else { return }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return }
@@ -273,7 +281,7 @@ private struct RepositoryBrowserDialog: View {
                     }.padding(6).frame(maxWidth: .infinity, alignment: .leading)
                 }.disabled(model.busy).accessibilityLabel("Repository folders")
             } right: {
-                Table(model.entries, selection: $model.selection, sortOrder: $model.sortOrder) {
+                Table(of: RepositoryBrowserEntry.self, selection: $model.selection, sortOrder: $model.sortOrder) {
                     TableColumn("Name", value: \.name) { entry in
                         HStack(spacing: 6) {
                             Image(nsImage: browserIcon(entry)).resizable().frame(width: 16, height: 16).overlay {
@@ -284,6 +292,8 @@ private struct RepositoryBrowserDialog: View {
                     }.width(min: 160, ideal: 310)
                     TableColumn("Extension", value: \.fileExtension).width(min: 70, ideal: 100)
                     TableColumn("Size", value: \.sizeSort) { entry in Text(model.sizeText(entry)).frame(maxWidth: .infinity, alignment: .trailing) }.width(min: 70, ideal: 100)
+                } rows: {
+                    ForEach(model.entries) { entry in TableRow(entry).itemProvider { model.dragProvider(entry) } }
                 }.contextMenu(forSelectionType: String.self) { ids in
                     let values = model.entries.filter { ids.contains($0.id) }
                     if values.count == 1, let entry = values.first, let revision = model.snapshot?.objectID {
@@ -369,7 +379,7 @@ private struct RepositoryFolderRow: View {
                     Image(nsImage: NSWorkspace.shared.icon(for: .folder)).resizable().frame(width: 16, height: 16)
                     Text(verbatim: name).lineLimit(1)
                 }.padding(3).background(model.snapshot?.directory == path ? Color.accentColor.opacity(0.2) : Color.clear)
-            }.buttonStyle(.plain).contextMenu {
+            }.buttonStyle(.plain).onDrag { model.dragProvider(directory: path) ?? NSItemProvider() }.contextMenu {
                 if let revision = model.snapshot?.objectID {
                     Button { model.onLog(path, revision) } label: { CommandLabel(title: "Show log", icon: .log) }
                     Button {

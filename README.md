@@ -38,7 +38,8 @@ and compares marked files across revisions without checking them out. Revert to
 this revision restores selected ordinary files into the index and working tree,
 with per-file Continue/Cancel errors. Gitlinks provide separate parent and child
 history; child Log uses the displayed gitlink rather than its current HEAD.
-Drag export, broader submodule acceptance,
+Historical file/folder drag representations are now provided by the table and
+folder tree, with native file/folder receiver checks. Actual Finder drops, broader submodule acceptance,
 broader native acceptance and signed integration remain pending.
 See [Repository Browser parity](docs/REPOSITORY-BROWSER-PARITY.md).
 

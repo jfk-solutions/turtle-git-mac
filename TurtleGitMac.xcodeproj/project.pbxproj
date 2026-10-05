@@ -90,6 +90,7 @@
 		A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */; };
 		A9FF0A885E44AF8F4261B5DA /* GitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */; };
 		AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */; };
+		AF368FB1112CF5C62DEC55A2 /* RepositoryBrowserDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377A8410F24CB6A92830EB11 /* RepositoryBrowserDrag.swift */; };
 		AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7809458AF943456197C0AC7 /* MergeWhitespace.swift */; };
 		B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83395323FFA0860A52795F9F /* Stash.swift */; };
 		B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */; };
@@ -218,6 +219,7 @@
 		331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRevert.swift; sourceTree = "<group>"; };
 		3329485A1DA9D2066A853483 /* MessageCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCompletion.swift; sourceTree = "<group>"; };
 		35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorPreferences.swift; sourceTree = "<group>"; };
+		377A8410F24CB6A92830EB11 /* RepositoryBrowserDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserDrag.swift; sourceTree = "<group>"; };
 		3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRestore.swift; sourceTree = "<group>"; };
 		396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflictWindow.swift; sourceTree = "<group>"; };
 		3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePresentation.swift; sourceTree = "<group>"; };
@@ -364,6 +366,7 @@
 				2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */,
 				A35B58726A94B9B4799C06DE /* RemoveWindow.swift */,
 				D1F6087799A5783306A27CEE /* RenameWindow.swift */,
+				377A8410F24CB6A92830EB11 /* RepositoryBrowserDrag.swift */,
 				0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */,
 				6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */,
 				6CFEE049A0098A0212AD01DA /* ResetWindow.swift */,
@@ -798,6 +801,7 @@
 				8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */,
 				5C7063047C3D6080C0D541A4 /* RemoveWindow.swift in Sources */,
 				6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */,
+				AF368FB1112CF5C62DEC55A2 /* RepositoryBrowserDrag.swift in Sources */,
 				3D0C04463435436A275FC33A /* RepositoryBrowserWindow.swift in Sources */,
 				37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */,
 				DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */,

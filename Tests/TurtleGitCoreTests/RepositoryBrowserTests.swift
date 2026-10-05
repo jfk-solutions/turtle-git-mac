@@ -165,6 +165,57 @@ final class RepositoryBrowserTests: XCTestCase {
         let original = try await repo.repositoryBrowserFile(snapshot, entry: entry)
         XCTAssertEqual(try Data(contentsOf: location), original.bytes)
     }
+    func testExportPreservesPinnedRecursiveNamesBytesAndSkipsGitlinks() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let folder = "folder 雪", nested = folder + "/nested", name = ":(glob)*\tline\n.bin"
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(nested), withIntermediateDirectories: true)
+        let binary = Data([0, 255, 13, 10])
+        try binary.write(to: root.appendingPathComponent(nested + "/" + name))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent(folder + "/link").path, withDestinationPath: "/outside/must-not-follow")
+        try await repo.stage([folder])
+        let previous = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + previous + "," + folder + "/module"])
+        _ = try await repo.commit(message: "export old folder")
+        let snapshot = try await repo.browseRepository()
+        let entry = try XCTUnwrap(snapshot.entries.first { $0.path == folder })
+        try Data("current must not export".utf8).write(to: root.appendingPathComponent(nested + "/" + name))
+        try await repo.stage([folder]); _ = try await repo.commit(message: "advance export source")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let export = try await repo.exportRepositoryBrowser(snapshot, entry: entry)
+        defer { export.discard() }
+        XCTAssertEqual(export.item.lastPathComponent, folder); XCTAssertEqual(export.fileCount, 2)
+        XCTAssertEqual(try Data(contentsOf: export.item.appendingPathComponent("nested/" + name)), binary)
+        let link = export.item.appendingPathComponent("link")
+        XCTAssertEqual(try Data(contentsOf: link), Data("/outside/must-not-follow".utf8))
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: link.path)[.type] as? FileAttributeType, .typeRegular)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: export.item.appendingPathComponent("module").path))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(nested + "/" + name)), Data("current must not export".utf8))
+        let listing = try await repo.browseRepositoryDirectory(snapshot, directory: nested)
+        let file = try XCTUnwrap(listing.entries.first)
+        let single = try await repo.exportRepositoryBrowser(listing, entry: file)
+        XCTAssertEqual(single.item.lastPathComponent, name); XCTAssertEqual(try Data(contentsOf: single.item), binary)
+        single.discard(); XCTAssertFalse(FileManager.default.fileExists(atPath: single.directory.path))
+        let directory = try await repo.exportRepositoryBrowser(listing)
+        defer { directory.discard() }
+        XCTAssertEqual(directory.item.lastPathComponent, "nested")
+        XCTAssertEqual(try Data(contentsOf: directory.item.appendingPathComponent(name)), binary)
+    }
+    func testExportRejectsForeignGitlinkAndCancelledSelection() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let previous = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + previous + ",module"])
+        _ = try await repo.commit(message: "export gitlink rejection")
+        let snapshot = try await repo.browseRepository(), module = try XCTUnwrap(snapshot.entries.first { $0.kind == .submodule })
+        do { _ = try await repo.exportRepositoryBrowser(snapshot, entry: module); XCTFail("Gitlink exported as ordinary file") } catch is RepositoryBrowserFailure {}
+        let cancellation = OperationCancellation(); cancellation.cancel()
+        do { _ = try await repo.exportRepositoryBrowser(snapshot, cancellation: cancellation); XCTFail("Cancelled export continued") } catch is OperationCancellationFailure {}
+        let file = try XCTUnwrap(snapshot.entries.first { $0.kind == .file })
+        let foreign = RepositoryBrowserEntry(path: file.path, name: file.name, mode: file.mode, objectID: String(repeating: "f", count: 40), size: file.size)
+        do { _ = try await repo.exportRepositoryBrowser(snapshot, entry: foreign); XCTFail("Foreign blob exported") } catch is RepositoryBrowserFailure {}
+    }
     func testSortingAndMalformedTreeRecords() throws {
         let oid = String(repeating: "a", count: 40)
         let bytes = Data(("100644 blob " + oid + " 20\tfile2.txt\0" + "040000 tree " + oid + " -\tfolder\0" + "100644 blob " + oid + " 1\tfile10.txt\0").utf8)

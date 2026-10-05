@@ -59,6 +59,52 @@ when unavailable. Bare/submodule Open With produces the source-style plain text
 files retained by the app; Save writes the exact selected blob bytes. Sandbox
 access checks and leases protect reads and historical comparison handoffs.
 
+## Historical drag representations
+
+`RecursivelyAdd`/`BeginDrag` and the historical file-content/descriptors branch of
+GitDataObject.cpp were audited. The pinned data-object blobs are
+`3ba63178f14e6f9102f87a9a7d97080c8162282c` (cpp) and
+`2d75b20c4a079a6eb3feaaea3101ef6fd661ab87` (header). Other consumers and Windows
+clipboard formats remain partial, not replaced by this one browser integration.
+
+The native contents table now provides an item provider for each draggable row;
+folder-tree labels also provide pinned directory exports. The implementation uses
+Apple's [table-row item providers](https://developer.apple.com/documentation/swiftui/tablerowcontent/itemprovider%28_%3A%29)
+and [file representations](https://developer.apple.com/documentation/foundation/nsitemprovider/registerfilerepresentation%28for%3Avisibility%3Aopeninplace%3Aloadhandler%3A%29)
+with original suggested names and file/folder content types. Generation is deferred
+until a receiver requests a representation. This implements native drag data;
+it does not establish Finder drag acceptance yet.
+
+The Core exporter reads only the snapshot's pinned blobs into a private temporary
+container. A selected folder retains its name and recursive relative paths, while
+the displayed directory can be exported for a tree drag. Gitlinks are skipped,
+matching the source's IsDirectory descriptor exclusion. Symlink blobs become
+regular files containing exact target text; no target is followed. Binary bytes
+and unusual names remain unchanged. Empty export selections fail instead of
+promising nonexistent files. Exported executable files retain executable bits as
+a macOS adaptation to the source's ordinary Windows file attributes.
+
+Load callbacks retain the repository permission on the main actor, revalidate
+Store scope and hold exports until app cleanup. The application removes its own
+export containers on normal Quit, and active representation loads block Quit.
+Progress cancellation is checked at file boundaries; an in-flight Git read is
+not terminated. Failed/cancelled generation removes the private partial container.
+Window closure can precede completion because the provider retains its own lease
+and pinned snapshot. Signed transfers and cancellation/quit timing need acceptance.
+
+Two additional Core integration tests bring RepositoryBrowserTests to nine passing
+cases. They verify pinned recursive binary contents after HEAD advances, Unicode/
+colon/tab/newline names, plain symlink text, skipped gitlinks, current-directory
+export, exact single-file names, explicit cleanup, foreign selection rejection,
+pre-cancelled export and unchanged index/working contents. The production provider
+was also compiled into a native receiver check: both file and folder NSItemProvider
+callbacks delivered exact pinned binary bytes while preserving HEAD/index/working
+contents. This is a real Foundation transport check, not a Finder test.
+Run `scripts/verify-browser-item-provider.sh`; it creates and cleans up its own
+fixture without launching a GUI app. The same receiver check is wired into the
+macOS workflow after Core tests; its remote execution is pending publication.
+Final Debug/Store builds and bundle audits passed. See [export evidence](qa/repository-browser-export-2026-10-05.json).
+
 ## Parent and child submodule history
 
 A single gitlink now has both source commands: Show log opens the selected path
@@ -171,7 +217,9 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 
 - Native multi-file Revert menu and partial-success Continue/Cancel acceptance;
   the per-file backend, single-file recovery and rejection cases are verified.
-- Drag export and file-object clipboard interoperability.
+- Actual Finder and other-app drops, multi-selected row drags, tree/root drag
+  acceptance and file-object clipboard interoperability. Native historical item
+  representations and file/folder receivers are implemented and checked.
 - Broader native parent/child Log and initialized/missing child Open/update acceptance.
   Separate child Log and its pinned read-only routing are now implemented.
 - Historical tree-object Log/Blame/compare handoffs: listing and blob reads accept

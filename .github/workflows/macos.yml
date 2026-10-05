@@ -19,6 +19,8 @@ jobs:
         run: python3 scripts/build-issue-regex-runtime.py
       - name: Git integration tests
         run: swift test
+      - name: Native historical file and folder item-provider receivers
+        run: scripts/verify-browser-item-provider.sh
       - name: Application and embedded Finder extension
         run: >-
           xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac

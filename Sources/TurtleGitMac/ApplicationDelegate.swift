@@ -3,9 +3,10 @@ import AppKit
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
     weak var repositoryModel: RepositoryModel?
     private var confirmingQuit = false
-    func applicationWillTerminate(_ notification: Notification) { HistoricalPreviewFiles.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if confirmingQuit { return .terminateLater }
+        if RepositoryBrowserExportFiles.activeLoads > 0 { return .terminateCancel }
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
         let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
