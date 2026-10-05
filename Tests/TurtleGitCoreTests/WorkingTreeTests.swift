@@ -2,6 +2,49 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingTreeTests: XCTestCase {
+    func testIndexFlagMarkedStatusGatesIncludeCombinedAddedDeletedAndUnversionedActions() {
+        for (code, skip, assume) in [(" M", true, true), ("A ", false, false), ("AD", false, false), (" D", true, false), ("D ", true, false), ("UU", false, false), ("??", false, false), ("!!", false, false)] {
+            let entry = StatusEntry.parse(Data((code + " path\0").utf8))[0]
+            let file = WorkingTreeFile(entry: entry, assumeUnchanged: false, skipWorktree: false, modificationDate: nil)
+            XCTAssertEqual(IndexFlagAction.skipWorktree.isAvailable(for: [file]), skip, code)
+            XCTAssertEqual(IndexFlagAction.assumeUnchanged.isAvailable(for: [file]), assume, code)
+        }
+        let retained = StatusEntry.parse(Data("D  path\0?? path\0".utf8))[0]
+        let file = WorkingTreeFile(entry: retained, assumeUnchanged: true, skipWorktree: true, modificationDate: nil)
+        for action in IndexFlagAction.allCases { XCTAssertFalse(action.isAvailable(for: [file])) }
+    }
+    func testMarkedFlagActionUpdatesIndexedSelectionAndReportsUnavailablePaths() async throws {
+        let (root, repo, mark) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let added = ":(glob)* added 雪\n.txt", untracked = "untracked.txt"
+        try Data("added\n".utf8).write(to: root.appendingPathComponent(added)); try await repo.stage([added])
+        try Data("untracked\n".utf8).write(to: root.appendingPathComponent(untracked))
+        try Data("working mark\n".utf8).write(to: root.appendingPathComponent(mark))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let entries = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let baseline = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        do { try await repo.setIndexFlags(.skipWorktree, paths: [mark, added, untracked], markedPath: untracked); XCTFail("Reject an ineligible mark") } catch {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), baseline)
+        do { try await repo.setIndexFlags(.skipWorktree, paths: [mark, added, untracked], markedPath: mark); XCTFail("Report unavailable path") }
+        catch let failure as IndexFlagPartialFailure {
+            XCTAssertEqual(Set(failure.updatedPaths), [mark, added]); XCTAssertEqual(failure.unavailablePaths, [untracked])
+        }
+        let rows = try await repo.workingTreeStatus(refreshIndex: false)
+        XCTAssertTrue(rows.filter { [mark, added].contains($0.id) }.allSatisfy(\.skipWorktree))
+        // The mark can be outside the highlight, as in the upstream status list.
+        try await repo.setIndexFlags(.clear, paths: [added], markedPath: mark)
+        let cleared = try await repo.workingTreeStatus(refreshIndex: false)
+        XCTAssertFalse(try XCTUnwrap(cleared.first { $0.id == added }).skipWorktree)
+        XCTAssertTrue(try XCTUnwrap(cleared.first { $0.id == mark }).skipWorktree)
+        try await repo.setIndexFlags(.clear, paths: [mark], markedPath: mark)
+        let finalEntries = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(entries, finalEntries); XCTAssertEqual(head, finalHead)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(mark)), Data("working mark\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(added)), Data("added\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(untracked)), Data("untracked\n".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/index.lock").path))
+    }
     func testScopedStatusIncludesOtherStagedFilesOnlyWhenEnabledAndPreservesMixedChanges() async throws {
         let (root, repo, unusual) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

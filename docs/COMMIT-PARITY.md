@@ -1094,3 +1094,44 @@ HEAD and every working file. The test app quit normally and no instances remaine
 ordinary checkbox/F5 capture. Native conflict/dirty-submodule and mixed-state bulk
 variants, alternate input devices, full accessibility and signed sandbox workflows
 remain pending; this does not establish full checkbox or Commit parity.
+
+
+## Marked-row index flag actions
+
+Pinned `GitStatusListCtrl.cpp` lines 1815–1832 enable Skip worktree, Assume
+Unchanged and Unflag using the selection mark's action mask and flags. Its
+`SetGitIndexFlagsForSelectedFiles` (2863–2917) independently looks up selected
+index paths, updates found entries and reports missing ones before writing the
+index. Commit now uses its resolved mark for flag-menu visibility and confirmation,
+including mixed selections and a mark outside the highlight.
+
+The core accepts an explicit marked path for this route, revalidates that mark
+under an exclusive real-index lock, and changes flags in a private index before
+atomic publication. Selected stage-zero entries are updated, including idempotent
+flags and added entries permitted by a different eligible mark; unavailable paths
+are reported with the updated count. The existing Status-window route retains its
+whole-selection eligibility check. Clearing both flags and setting either flag now
+share this transaction and preserve index permissions. Added/deleted combined
+actions and retained unversioned copies are excluded from their upstream marked
+menu cases rather than relying only on the displayed state.
+
+Eight WorkingTree regressions pass, including two new checks for action-mask gates,
+marked mixed-selection updates, missing-path reporting, a mark outside the highlight,
+literal paths and unchanged index blobs/HEAD/working bytes. Existing lock rejection,
+both-flag clearing and linked-worktree permission checks also pass. Both native
+build configurations and bundle/Git resource audits pass.
+
+Native QA highlighted a staged/modified marked file and an untracked file. The
+first context menu offered Skip worktree and Assume Unchanged. Its confirmation
+then updated only the indexed path and displayed the unavailable untracked path
+in a native result sheet. Index blobs, HEAD and all working bytes remained unchanged.
+The flagged row moved to Local changes ignored, whose selected-file menu omitted
+Skip worktree and offered Assume Unchanged and Unflag. Confirmed Unflag returned
+the row to Modified Files and removed the flag without changing those contents.
+The same QA process quit normally; no test apps remained.
+
+`site/assets/commit-index-flags.png` is the inspected original 2000 × 1584 native
+partial-result sheet capture. Native No/cancel, assume-valid, outside-highlight mark,
+conflicted/added/deleted flag variants, split-index and signed sandbox execution
+remain under audit. This is partial status-list parity, not completion of all
+flag action masks or dialogs.

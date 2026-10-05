@@ -76,6 +76,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   available, with status/changelist group headings and group check/unstage actions. Broader selection and
   signed sandbox checks remain under audit. Highlighted checkbox changes and Space
   apply to the highlight; F5 refreshes while retaining the message and checks.
+  Index-flag menus use the marked file; mixed selections update indexed paths and
+  report unavailable ones while preserving file contents.
 - Dedicated Revert window with scoped file checks, Select/deselect all, counts,
   F5 refresh and light/dark appearance; Finder and app-menu routing.
   [Revert parity details](docs/REVERT-PARITY.md) record the remaining workflows.

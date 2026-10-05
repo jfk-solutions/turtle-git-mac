@@ -73,34 +73,32 @@ public enum IndexFlagAction: String, CaseIterable, Sendable {
         }
     }
     public func isAvailable(for files: [WorkingTreeFile]) -> Bool {
-        guard !files.isEmpty, files.allSatisfy({ ![FileState.untracked, .ignored, .conflicted].contains($0.state) }) else { return false }
+        guard !files.isEmpty, files.allSatisfy({ ![FileState.untracked, .ignored, .conflicted].contains($0.state) && !$0.entry.hasUnversionedCopy }) else { return false }
         switch self {
-        case .skipWorktree: return files.allSatisfy { $0.state != .added && !$0.skipWorktree }
-        case .assumeUnchanged: return files.allSatisfy { ![FileState.added, .deleted].contains($0.state) && !$0.assumeUnchanged }
+        case .skipWorktree: return files.allSatisfy { $0.entry.index != "A" && $0.entry.worktree != "A" && !$0.skipWorktree }
+        case .assumeUnchanged: return files.allSatisfy { ![$0.entry.index, $0.entry.worktree].contains(where: { $0 == "A" || $0 == "D" }) && !$0.assumeUnchanged }
         case .clear: return files.contains { $0.assumeUnchanged || $0.skipWorktree }
         }
     }
 }
 
-extension GitRepository {
-    /// Change only index flags. Re-read eligibility before modifying the index.
-    public func setIndexFlags(_ action: IndexFlagAction, paths: [String]) throws {
-        let paths = Set(paths)
-        let selected = try workingTreeStatus(refreshIndex: false).filter { paths.contains($0.id) }
-        guard selected.count == paths.count, action.isAvailable(for: selected) else {
-            throw GitFailure(arguments: ["update-index"], code: 1, message: "The selected files changed or cannot use this index flag action. Refresh and select versioned files.")
-        }
-        let arguments: [String]
-        switch action {
-        case .skipWorktree: arguments = ["--skip-worktree"]
-        case .assumeUnchanged: arguments = ["--assume-unchanged"]
-        case .clear:
-            try clearIndexFlags(paths.sorted())
-            return
-        }
-        _ = try run(["update-index"] + arguments + ["--"] + paths.sorted())
+public struct IndexFlagPartialFailure: LocalizedError, Sendable {
+    public let updatedPaths: [String]
+    public let unavailablePaths: [String]
+    public var errorDescription: String? {
+        "Index flags updated for \(updatedPaths.count) selected file(s). The following selected paths have no stage-zero index entry and could not be updated:\n" + unavailablePaths.joined(separator: "\n")
     }
-    private func clearIndexFlags(_ paths: [String]) throws {
+}
+
+extension GitRepository {
+    /// Change only flags in a private locked index. A status-list mark enables
+    /// upstream mixed-selection behavior; missing stage-zero entries are reported
+    /// after the remaining selected entries have been updated.
+    public func setIndexFlags(_ action: IndexFlagAction, paths: [String], markedPath: String? = nil) throws {
+        let paths = Set(paths)
+        guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
+        for path in paths { _ = try restoreLocation(path) }
+        if let markedPath { _ = try restoreLocation(markedPath) }
         var indexBytes = try run(["rev-parse", "--git-path", "index"]).stdout
         if indexBytes.last == 10 { indexBytes.removeLast() }
         let indexPath = String(decoding: indexBytes, as: UTF8.self)
@@ -114,15 +112,41 @@ extension GitRepository {
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         do { try handle.write(contentsOf: Data(contentsOf: index)); try handle.close() }
         catch { try? handle.close(); throw error }
-        // Git accepts only one flag mode per invocation. Both writes target our
-        // private locked index; the real index remains intact if either fails.
+        let current = try workingTreeStatus(refreshIndex: false)
+        let selected = current.filter { paths.contains($0.id) }
+        let gate = markedPath.map { mark in current.filter { $0.id == mark } } ?? selected
+        guard (markedPath != nil || selected.count == paths.count), action.isAvailable(for: gate) else {
+            throw GitFailure(arguments: ["update-index"], code: 1, message: "The selected files changed or cannot use this index flag action. Refresh and select versioned files.")
+        }
+        // libgit2's upstream action looks up every selected path independently.
+        // Preserve that behavior for an eligible mark, including idempotent flags
+        // and added files, while reporting paths lacking a stage-zero entry.
+        var indexed = Set<String>()
+        for record in try run(["ls-files", "--stage", "-z"]).stdout.split(separator: 0) {
+            guard let tab = record.firstIndex(of: 9) else { continue }
+            let header = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
+            if header.last == "0" { indexed.insert(String(decoding: record[record.index(after: tab)...], as: UTF8.self)) }
+        }
+        let targets = paths.intersection(indexed).sorted()
+        let missing = paths.subtracting(indexed).sorted()
+        guard !targets.isEmpty else { throw IndexFlagPartialFailure(updatedPaths: [], unavailablePaths: missing) }
         let environment = ["GIT_INDEX_FILE": lock.path]
-        _ = try run(["update-index", "--no-assume-unchanged", "--"] + paths, environmentOverrides: environment)
-        _ = try run(["update-index", "--no-skip-worktree", "--"] + paths, environmentOverrides: environment)
+        let arguments: [[String]]
+        switch action {
+        case .skipWorktree: arguments = [["--skip-worktree"]]
+        case .assumeUnchanged: arguments = [["--assume-unchanged"]]
+        case .clear: arguments = [["--no-assume-unchanged"], ["--no-skip-worktree"]]
+        }
+        for flags in arguments {
+            _ = try run(["update-index"] + flags + ["--"] + targets, environmentOverrides: environment)
+        }
         let attributes = try FileManager.default.attributesOfItem(atPath: index.path)
         if let permissions = attributes[.posixPermissions] { try FileManager.default.setAttributes([.posixPermissions: permissions], ofItemAtPath: lock.path) }
         guard Darwin.rename(lock.path, index.path) == 0 else {
             throw GitFailure(arguments: ["update-index"], code: 1, message: "Could not replace the Git index: " + String(cString: strerror(errno)))
+        }
+        if !missing.isEmpty {
+            throw IndexFlagPartialFailure(updatedPaths: targets, unavailablePaths: missing)
         }
     }
 

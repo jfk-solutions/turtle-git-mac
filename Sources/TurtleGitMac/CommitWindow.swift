@@ -371,13 +371,13 @@ import UniformTypeIdentifiers
             chooseRestoreCopies(allowCancel) { continuation.resume(returning: $0) }
         }
     }
-    func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile]) {
-        guard !busy, action.isAvailable(for: files), confirmIndexFlags(action) else { return }
+    func setFlags(_ action: IndexFlagAction, files: [WorkingTreeFile], selectionMark: WorkingTreeFile) {
+        guard !busy, !confirmingQuit, !files.isEmpty, action.isAvailable(for: [selectionMark]), confirmIndexFlags(action) else { return }
         busy = true
         Task {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                try await repository.setIndexFlags(action, paths: files.map(\.id))
+                try await repository.setIndexFlags(action, paths: files.map(\.id), markedPath: selectionMark.id)
             }
             catch { self.error = error.localizedDescription }
             busy = false; reload()
@@ -947,7 +947,9 @@ GroupBox("Changes made (double-click on file for diff):") {
                         Button { model.markForRestore(ids) } label: { CommandLabel(title: "Restore after commit", icon: .restore) }
                     }
                 }
-                if flagFiles.count == selected.count { IndexFlagsMenu(files: flagFiles) { model.setFlags($0, files: flagFiles) } }
+                if !selected.isEmpty, let mark = model.indexFlagFiles.first(where: { $0.id == selectionMark?.id }) {
+                    IndexFlagsMenu(files: flagFiles, selectionMark: mark) { model.setFlags($0, files: flagFiles, selectionMark: mark) }
+                }
                 if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
                     Divider()
                     ResolveSelectionMenu(paths: selected.map(\.path), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onResolve)

@@ -225,9 +225,10 @@ struct StatusDialog: View {
 
 struct IndexFlagsMenu: View {
     let files: [WorkingTreeFile]
+    var selectionMark: WorkingTreeFile? = nil
     let action: (IndexFlagAction) -> Void
     var body: some View {
-        ForEach(IndexFlagAction.allCases.filter { $0.isAvailable(for: files) }, id: \.self) { item in
+        ForEach(IndexFlagAction.allCases.filter { $0.isAvailable(for: selectionMark.map { [$0] } ?? files) }, id: \.self) { item in
             Button { action(item) } label: { CommandLabel(title: item.rawValue, icon: .ignore) }
         }
     }
