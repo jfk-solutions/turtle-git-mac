@@ -357,6 +357,11 @@
       "asset": "externalovl.ico",
       "source": "src/Resources/externalovl.ico",
       "sha256": "c7977691dc3e3f3d98d88b8a1780b353fbaa3381e4d2bf746325c96f2687eb2d"
+    },
+    {
+      "asset": "menupatch.ico",
+      "source": "src/Resources/menupatch.ico",
+      "sha256": "b2c22f64ad14ac45e87db75fb4ff700388c9fdedc3551f9f8a950715f8cf9e2c"
     }
   ]
 }

@@ -187,6 +187,10 @@ struct LogCommandRequest: Identifiable {
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
     var onBrowseRepository: ((String) -> Void)?
+    var onFormatPatch: ((FormatPatchPreset) -> Void)?
+    var formatPatchPreset: FormatPatchPreset? {
+        FormatPatchPreset.logSelection(orderedHashes: entries.map(\.hash), selected: selected)
+    }
     var onReset: (String) -> Void = { _ in }
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
@@ -684,6 +688,7 @@ struct RevisionTable: NSViewRepresentable {
             menu.addItem(.separator())
             item("Revert changes by this commit…", #selector(revert), icon: .revert, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
             item("Cherry Pick this commit…", #selector(cherryPick), icon: .cherryPick, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
+            item("Format Patch…", #selector(formatPatch), icon: .patch, enabled: model.formatPatchPreset != nil && !model.busy && model.onFormatPatch != nil)
             menu.addItem(.separator())
             let clipboard = NSMenu(title: "Copy to clipboard")
             clipboard.autoenablesItems = false
@@ -698,6 +703,7 @@ struct RevisionTable: NSViewRepresentable {
             parent.image = MenuIcon.copy.image(); parent.submenu = clipboard; menu.addItem(parent)
         }
         @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }
+        @objc func formatPatch() { if let preset = model.formatPatchPreset, !model.busy { model.onFormatPatch?(preset) } }
         @objc func reset() { model.request(.reset) }
         @objc func push() { model.request(.push) }
         @objc func checkout() { model.request(.checkout) }

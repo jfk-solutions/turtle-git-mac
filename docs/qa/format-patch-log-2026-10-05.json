@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-05",
+  "scope": "Log Format Patch action/presets, original icon and searchable branch picker; full port incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "menupatch.ico": "17f6230df12c68884c8dd3b6c60a7a7988da0de7"
+  },
+  "tests": {
+    "FormatPatchTests": {
+      "count": 7,
+      "failures": 0,
+      "new_cases": [
+        "one/two/continuous/sparse/hidden/stale selection eligibility and both row orders",
+        "real single Since and inclusive multiple Range patch exports preserve HEAD/index"
+      ]
+    },
+    "MenuIconTests": {
+      "count": 1,
+      "failures": 0,
+      "coverage": "Every MenuIcon including the original menupatch artwork loads"
+    }
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "log_sha256": {
+    "focused": "b54a6358a040cc75674dd49fd2e43322625a02791aae5057439a655ce71c02ce",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "gui_apps_launched": 0,
+  "native_verification": "Not attempted this turn; prior computer-control native pipe failure remains a recorded limitation. No native runtime/visual pass claimed.",
+  "github": "Local changes not remotely run",
+  "remaining": [
+    "Native Log context invocation and preset UI",
+    "light/dark screenshot and keyboard QA",
+    "signed Finder/output directory grants",
+    "mail workflow parity and native callbacks",
+    "Shift alternative unified viewer",
+    "progress cancellation"
+  ],
+  "bundle_audits": {
+    "Debug": "passed, 72 original icons",
+    "AppStore_require_git": "passed, 72 original icons and universal Git runtime"
+  }
+}

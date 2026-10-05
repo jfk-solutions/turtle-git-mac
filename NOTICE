@@ -104,3 +104,8 @@ GPL version 2 or later. Copyright (C) 2008-2014, 2016-2017, 2019-2020, 2023-2025
 TortoiseGit. AppKit history fields and radio buttons replace MFC controls, and
 native mail composition replaces the Windows Send Mail handoff. Complete mail,
 progress cancellation and signed sandbox verification remain pending.
+
+Format Patch Log presets adapt GitLogListAction.cpp ID_CREATE_PATCH and
+GitLogListBase.cpp selection eligibility, under GPL version 2 or later.
+Copyright (C) 2008-2026 TortoiseGit and (C) 2005-2007 Marco Costalba.
+Original menupatch.ico is retained unchanged for the Log context command.

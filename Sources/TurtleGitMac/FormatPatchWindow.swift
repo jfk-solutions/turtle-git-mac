@@ -9,8 +9,9 @@ import TurtleGitCore
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
     var activeOperation: Bool { model.busy || mail != nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil) {
         model = FormatPatchWindowModel(repository: repository, access: access)
+        model.apply(preset)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 365), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Format Patch – TurtleGit"
         window.isReleasedWhenClosed = false
@@ -101,6 +102,15 @@ import TurtleGitCore
     var showPatch: (String) -> Void = { _ in }
     var composeMail: ([URL]) -> Void = { _ in }
     var onExported: (String) -> Void = { _ in }
+    func apply(_ preset: FormatPatchPreset?) {
+        guard let preset, !busy, !progress else { return }
+        from = preset.from; to = preset.to
+        switch preset.selection {
+        case .since(let value): since = value; mode = .since
+        case .range: mode = .from
+        case .number(let value): count = value; mode = .number
+        }
+    }
     var dirs: [String] { UserDefaults.standard.stringArray(forKey: "FormatPatchDirectories") ?? [] }
     var fromHistory: [String] { UserDefaults.standard.stringArray(forKey: "FormatPatchFrom") ?? [] }
     var toHistory: [String] { UserDefaults.standard.stringArray(forKey: "FormatPatchTo") ?? [] }
@@ -190,6 +200,7 @@ private struct FormatPatchDialog: View {
     @ObservedObject var model: FormatPatchWindowModel
     @State private var browseSince = false
     @State private var reference: String?
+    @State private var referenceSearch = ""
     func radio(_ title: String, mode: FormatPatchWindowModel.Mode) -> some View {
         FormatPatchRadio(title: title, selected: model.mode == mode) { model.mode = mode }.frame(width: 145, alignment: .leading)
     }
@@ -232,7 +243,8 @@ private struct FormatPatchDialog: View {
         .sheet(isPresented: $browseSince) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Browse references").font(.headline)
-                List(model.references, id: \.self, selection: $reference) { Text($0) }.frame(minHeight: 250)
+                TextField("Filter branches", text: $referenceSearch).onChange(of: referenceSearch) { _ in reference = nil }
+                List(model.references.filter { referenceSearch.isEmpty || $0.localizedCaseInsensitiveContains(referenceSearch) }, id: \.self, selection: $reference) { Text($0) }.frame(minHeight: 250)
                 HStack { Spacer(); Button("Cancel") { browseSince = false }.keyboardShortcut(.cancelAction)
                     Button("OK") { if let reference { model.since = reference; model.mode = .since }; browseSince = false }.keyboardShortcut(.defaultAction).disabled(reference == nil) }
             }.padding(16).frame(width: 500)

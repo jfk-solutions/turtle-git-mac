@@ -326,15 +326,7 @@ import TurtleGitCore
             showRepositoryBrowser(repository: repository, access: activeAccess)
         case .formatPatch:
             guard let repository else { return }
-            let key = repository.root.path
-            let controller = formatPatchWindows[key] ?? FormatPatchWindowController(repository: repository, access: activeAccess)
-            controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
-            controller.model.onExported = { [weak self] output in
-                self?.statusWindows[key]?.model.reload()
-                if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
-            }
-            formatPatchWindows[key] = controller
-            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+            showFormatPatch(repository: repository, access: activeAccess)
         case .log:
             guard let repository else { return }
             showLog(repository: repository, access: activeAccess, paths: paths)
@@ -772,6 +764,27 @@ import TurtleGitCore
         stashRestoreWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
     }
+    private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil) {
+        let rootKey = repository.root.path
+        let suffix: String
+        switch preset?.selection {
+        case .since(let revision): suffix = "\0since\0" + revision
+        case .range(let from, let to): suffix = "\0range\0" + from + "\0" + to
+        case .number(let count): suffix = "\0number\0" + String(count)
+        case nil: suffix = ""
+        }
+        let key = rootKey + suffix
+        let existing = formatPatchWindows[key]
+        let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset)
+        if existing != nil { controller.model.apply(preset) }
+        controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
+        controller.model.onExported = { [weak self] output in
+            self?.statusWindows[rootKey]?.model.reload()
+            if self?.root?.path == rootKey { self?.output = output; Task { await self?.refresh() } }
+        }
+        formatPatchWindows[key] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD") {
         let key = repository.root.path + "\0" + revision
         let controller = browserWindows[key] ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision)
@@ -835,6 +848,7 @@ import TurtleGitCore
         let controller = logWindows[key] ?? LogWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }

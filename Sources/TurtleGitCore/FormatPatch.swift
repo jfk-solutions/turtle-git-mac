@@ -7,6 +7,32 @@ public enum FormatPatchSelection: Equatable, Sendable {
     case range(from: String, to: String)
 }
 
+/// FormatPatchCommand startrev/endrev and GitLogListAction ID_CREATE_PATCH.
+/// A single selected revision means Since (export commits after that revision).
+/// Multiple selections include the oldest selected revision via its first parent.
+public struct FormatPatchPreset: Equatable, Sendable {
+    public let selection: FormatPatchSelection
+    public let from: String
+    public let to: String
+    public init?(startRevision: String?, endRevision: String? = nil) {
+        guard let start = startRevision, !start.isEmpty else { return nil }
+        if let end = endRevision, !end.isEmpty {
+            selection = .range(from: start, to: end); from = start; to = end
+        } else {
+            selection = .since(start); from = start + "~1"; to = start
+        }
+    }
+    public static func logSelection(orderedHashes: [String], selected: Set<String>, oldestFirst: Bool = false, hasHiddenRows: Bool = false) -> FormatPatchPreset? {
+        let rows = orderedHashes.indices.filter { selected.contains(orderedHashes[$0]) }
+        guard !rows.isEmpty, rows.count == selected.count else { return nil }
+        if rows.count == 1 { return FormatPatchPreset(startRevision: orderedHashes[rows[0]]) }
+        guard rows.count <= 2 || (!hasHiddenRows && rows.last! - rows.first! + 1 == rows.count) else { return nil }
+        let oldest = orderedHashes[oldestFirst ? rows.first! : rows.last!]
+        let newest = orderedHashes[oldestFirst ? rows.last! : rows.first!]
+        return FormatPatchPreset(startRevision: oldest + "~1", endRevision: newest)
+    }
+}
+
 public enum FormatPatchFailure: LocalizedError {
     case selection, outputDirectory
     public var errorDescription: String? {

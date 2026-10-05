@@ -1,5 +1,11 @@
 # Log Messages parity
 
+Format Patch now opens from the revision context menu with original menupatch
+artwork and upstream single-revision Since or inclusive multi-revision Range
+presets. One/two/continuous selection rules and actual generated patch subjects
+are tested; native menu activation and field layout remain unverified. See
+[FORMAT-PATCH-PARITY.md](FORMAT-PATCH-PARITY.md).
+
 The implementation target is the actual TortoiseGit Log Messages dialog and its
 selection-dependent context menus. Native macOS controls retain the three-pane
 arrangement and familiar command order. The initial sidebar log table was removed.

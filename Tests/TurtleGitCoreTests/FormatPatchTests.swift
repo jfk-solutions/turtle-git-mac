@@ -2,6 +2,51 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FormatPatchTests: XCTestCase {
+    func testLogSelectionPresetsRespectRowOrderContinuityAndHiddenRows() throws {
+        let rows = ["newest", "middle", "older", "oldest"]
+        let single = try XCTUnwrap(FormatPatchPreset.logSelection(orderedHashes: rows, selected: ["middle"]))
+        XCTAssertEqual(single.selection, .since("middle")); XCTAssertEqual(single.from, "middle~1"); XCTAssertEqual(single.to, "middle")
+        XCTAssertEqual(FormatPatchPreset.logSelection(orderedHashes: rows, selected: ["newest", "oldest"])?.selection, .range(from: "oldest~1", to: "newest"))
+        let three: Set<String> = ["newest", "middle", "older"]
+        XCTAssertEqual(FormatPatchPreset.logSelection(orderedHashes: rows, selected: three)?.selection, .range(from: "older~1", to: "newest"))
+        XCTAssertNil(FormatPatchPreset.logSelection(orderedHashes: rows, selected: ["newest", "middle", "oldest"]))
+        XCTAssertNil(FormatPatchPreset.logSelection(orderedHashes: rows, selected: three, hasHiddenRows: true))
+        XCTAssertNotNil(FormatPatchPreset.logSelection(orderedHashes: rows, selected: ["newest", "oldest"], hasHiddenRows: true))
+        XCTAssertEqual(FormatPatchPreset.logSelection(orderedHashes: rows.reversed(), selected: three, oldestFirst: true)?.selection, .range(from: "older~1", to: "newest"))
+        XCTAssertNil(FormatPatchPreset.logSelection(orderedHashes: rows, selected: []))
+        XCTAssertNil(FormatPatchPreset.logSelection(orderedHashes: rows, selected: ["missing"]))
+        XCTAssertNil(FormatPatchPreset(startRevision: nil, endRevision: "HEAD"))
+    }
+
+    func testLogPresetsExportSourceSingleAndInclusiveMultipleCommitRanges() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var hashes: [String] = []
+        for number in 1...3 {
+            try Data("change \(number)\n".utf8).write(to: root.appendingPathComponent(path))
+            try await repo.stage([path]); _ = try await repo.commit(message: "Change \(number)")
+            hashes.insert(try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines), at: 0)
+        }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        for (name, selected, subjects) in [
+            ("single", Set([hashes[1]]), ["Change 3"]),
+            ("two", Set([hashes[0], hashes[1]]), ["Change 2", "Change 3"]),
+            ("continuous", Set(hashes), ["Change 1", "Change 2", "Change 3"])
+        ] {
+            let preset = try XCTUnwrap(FormatPatchPreset.logSelection(orderedHashes: hashes, selected: selected))
+            let output = root.appendingPathComponent(name)
+            _ = try await repo.formatPatch(selection: preset.selection, to: output)
+            let files = try FileManager.default.contentsOfDirectory(at: output, includingPropertiesForKeys: nil).sorted { $0.path < $1.path }
+            XCTAssertEqual(files.count, subjects.count)
+            for (file, subject) in zip(files, subjects) {
+                let patch = try String(contentsOf: file, encoding: .utf8)
+                XCTAssertTrue(patch.components(separatedBy: "\n").contains { $0.hasPrefix("Subject: [PATCH") && $0.hasSuffix(subject) })
+            }
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(head, hashes[0])
+    }
     func testAllModesAndBinaryMailPatchRoundTripPreserveRepository() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

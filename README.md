@@ -37,6 +37,10 @@ read-only unified-diff viewer. The repository export has binary patch round-trip
 tests; native interaction, mail handoff and signed sandbox acceptance remain
 unverified. See [Format Patch parity](docs/FORMAT-PATCH-PARITY.md).
 
+Log's Format Patch command presets Since for one selected revision or an inclusive
+Range for multiple revisions, using the original patch icon. Selection rules and
+generated patch subjects are tested; native activation remains unverified.
+
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
 icons. It browses pinned nested revisions, including bare repositories and tags,
