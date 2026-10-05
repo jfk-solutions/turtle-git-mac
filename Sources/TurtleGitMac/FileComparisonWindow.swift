@@ -134,6 +134,15 @@ import TurtleGitCore
         do { editorActions[base]?.keep(try FileComparisonEditing.leavingOnlyMarked(alignment, targetBase: base, annotations: annotations(base: base))) }
         catch { self.error = error.localizedDescription }
     }
+    func changeWhitespace(_ command: MergeWhitespaceCommand, base: Bool) {
+        guard canTransfer(toBase: base) else { return }
+        let text = MergeWhitespace.applying(command, to: draftText(base: base), tabWidth: MergeEditorPreferences.load().tabWidth)
+        editorActions[base]?.replace(text, 0, nil)
+    }
+    func changeLineEnding(_ ending: MergeLineEnding, base: Bool) {
+        guard canTransfer(toBase: base) else { return }
+        editorActions[base]?.replace(MergeLineEndings.converting(draftText(base: base), to: ending), 0, nil)
+    }
     func updateSelection(_ range: NSRange, cells: [MergeSourceCell]) {
         guard let alignment else { return }
         selectedRows = try? FileComparisonEditing.selectedRows(range, cells: cells)
@@ -600,6 +609,25 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
         if model.canTransfer(toBase: true) {
             add(baseSide ? "Use other file" : "Use this whole file", #selector(useRightFile), MenuIcon.mergeUseTheirs.image(), true)
         }
+        if model.canTransfer(toBase: baseSide) {
+            menu.addItem(.separator())
+            let text = model.draftText(base: baseSide), width = MergeEditorPreferences.load().tabWidth
+            for (index, command) in MergeWhitespaceCommand.allCases.enumerated() {
+                let item = NSMenuItem(title: command.rawValue, action: #selector(changeWhitespace(_:)), keyEquivalent: "")
+                item.target = self; item.tag = index
+                item.isEnabled = MergeWhitespace.canApply(command, to: text, tabWidth: width)
+                menu.addItem(item)
+            }
+            let endings = NSMenu(title: "End of Line Style"); endings.autoenablesItems = false
+            let styles = MergeLineEndings.styles(in: text)
+            for (index, ending) in MergeLineEnding.allCases.enumerated() {
+                let item = NSMenuItem(title: ending.menuTitle, action: #selector(changeLineEnding(_:)), keyEquivalent: "")
+                item.target = self; item.tag = index; item.state = styles == [ending] ? .on : .off
+                endings.addItem(item)
+            }
+            let item = NSMenuItem(title: "End of Line Style", action: nil, keyEquivalent: "")
+            item.submenu = endings; menu.addItem(item)
+        }
         menu.addItem(.separator())
         add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
         add("Undo", #selector(undoEdit), MenuIcon.mergeUndo.image(), model.canUndo && !model.busy && !model.confirmingQuit)
@@ -618,6 +646,14 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
     @objc private func replaceByRight() { model?.useOtherBlock(targetBase: true) }
     @objc private func appendRight() { model?.useOtherBlock(.currentThenOther, targetBase: true) }
     @objc private func useRightFile() { model?.useOtherFile(targetBase: true) }
+    @objc private func changeWhitespace(_ sender: NSMenuItem) {
+        guard MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
+        model?.changeWhitespace(MergeWhitespaceCommand.allCases[sender.tag], base: baseSide)
+    }
+    @objc private func changeLineEnding(_ sender: NSMenuItem) {
+        guard MergeLineEnding.allCases.indices.contains(sender.tag) else { return }
+        model?.changeLineEnding(MergeLineEnding.allCases[sender.tag], base: baseSide)
+    }
     @objc private func markBlock() { model?.markBlock(true, targetBase: false) }
     @objc private func unmarkBlock() { model?.markBlock(false, targetBase: false) }
     @objc private func leaveOnlyMarked() { model?.leaveOnlyMarked(targetBase: false) }

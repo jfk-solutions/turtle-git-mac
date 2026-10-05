@@ -14,7 +14,7 @@ private extension MergeBlockChoice {
         }
     }
 }
-private extension MergeLineEnding {
+extension MergeLineEnding {
     var menuTitle: String {
         switch self {
         case .crlf: return "CRLF"

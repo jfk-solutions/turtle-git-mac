@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-05",
+  "feature": "Comparison-pane whitespace and line-ending context commands",
+  "preview": "/tmp/TurtleGitFormattingQA.app",
+  "native_verified": [
+    "Mine menu exposes tabs-to-spaces, spaces-to-tabs, Trim right and all nine ending styles",
+    "Leading tabs-to-spaces and spaces-to-tabs each change indentation only; keyboard Undo restores original text",
+    "Trim right removes trailing spaces and tabs; availability becomes disabled once none remain",
+    "LF menu conversion plus native Save produces exact UTF-16LE BOM 40-byte output, preserves 0755 and missing final newline",
+    "Keyboard Undo of LF conversion plus Save restores CRLF while retaining trimming; exact UTF-16LE BOM 44-byte output",
+    "Read-only Base context omits formatting controls; exact Base bytes unchanged",
+    "Bootstrap repository HEAD/raw index/working bytes unchanged",
+    "Only sequential QA launches; normal Quit and process checks; final Quit needed a retry"
+  ],
+  "saved_outputs": {
+    "LF": {
+      "bytes": 40,
+      "text": "\tline\n    next\nlast"
+    },
+    "after_ending_Undo_CRLF": {
+      "bytes": 44,
+      "text": "\tline\r\n    next\r\nlast"
+    },
+    "encoding": "UTF-16LE with BOM",
+    "permissions": "0755"
+  },
+  "verification": {
+    "MergeWhitespace_and_MergeLineEndings_tests": 10,
+    "failures": 0,
+    "Debug_build": "passed",
+    "unsigned_AppStore_build": "passed",
+    "both_bundle_and_embedded_runtime_audits": "passed"
+  },
+  "pending": [
+    "Other eight ending styles native acceptance and checkmark verification",
+    "Mixed endings, Base editing, selected ranges and marked-block interactions",
+    "Per-pane tab widths and inserted-line default ending metadata",
+    "File Encoding submenu and historical-copy editing",
+    "Locale-sensitive trailing Unicode whitespace",
+    "Signed sandbox acceptance and full upstream parity"
+  ]
+}

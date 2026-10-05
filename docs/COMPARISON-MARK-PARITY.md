@@ -289,3 +289,29 @@ The preview quit normally and no TurtleGit process remained. See the
 [menu-close acceptance record](qa/comparison-menu-close-2026-10-05.json).
 Other menu/cancellation/key variants, complete upstream state behavior and
 signed sandbox acceptance remain pending.
+
+## Comparison whitespace and line-ending menus
+
+`BaseView.cpp:2468–2505` adds leading tab/space conversions, trailing whitespace
+removal and the EOL submenu to writable panes. The implementations at 6041–6070
+and 6420–6552 operate on real source lines and preserve missing final endings.
+TurtleGit's working comparison panes now expose the three commands and all nine
+ending styles. They transform the selected pane's full draft, excluding aligned
+display gaps; no-op whitespace commands are disabled. Ending checkmarks derive
+from current draft styles. The read-only pane omits these controls.
+
+Native acceptance verified both indentation conversions with keyboard Undo,
+trimming and its disabled no-op state, LF conversion/Save and ending Undo/Save.
+The external Mine file retained UTF-16LE/BOM, 0755 permissions and missing final
+newline: exact LF output was 40 bytes; ending Undo restored a 44-byte CRLF output
+while keeping trimming. Base and bootstrap repository HEAD/index/working bytes
+were unchanged. Ten existing whitespace/ending regressions, Debug and unsigned
+App Store builds and both bundle/runtime audits passed. Every preview quit and
+process absence was checked. See
+[formatting acceptance](qa/comparison-formatting-2026-10-05.json).
+
+Other ending styles/checkmarks, mixed endings and marked-block variants still
+need native acceptance. These commands do not establish per-pane tab-width or
+inserted-line default-ending metadata parity. File Encoding and historical-copy
+editing, locale-sensitive Unicode trimming and signed sandbox acceptance remain
+pending.
