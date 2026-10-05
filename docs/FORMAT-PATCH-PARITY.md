@@ -2,14 +2,15 @@
 
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 
-The repository operation is implemented and tested. The native dialog, menu
-entry, progress window and mail workflow are still pending; this is not a
-completed dialog port.
+The repository operation is implemented and tested. A native dialog, app/Finder
+action, progress sheet and mail composition handoff now compile. Native runtime,
+visual and signed sandbox verification are still pending; this is not a completed
+dialog port.
 
 | Source | Blob | Replacement |
 | --- | --- | --- |
 | `src/TortoiseProc/Commands/FormatPatchCommand.cpp` | `0e05626d7c64c484276c45d5a004d2d9f3d668d3` | `Sources/TurtleGitCore/FormatPatch.swift`, command only |
-| `src/TortoiseProc/FormatPatchDlg.cpp` | `b8ad0c02bb27397700a6aee773d87ce7656d62c8` | Audited; native UI pending |
+| `src/TortoiseProc/FormatPatchDlg.cpp` | `b8ad0c02bb27397700a6aee773d87ce7656d62c8` | `Sources/TurtleGitMac/FormatPatchWindow.swift`, partial native UI |
 | `src/Git/Git.cpp` | `43dee91dbf94e46564b4cc1a139717fcbd8f6803` | Sole for-merge FETCH_HEAD record selection only |
 
 The operation uses the source's `git format-patch [--no-prefix] -o directory`
@@ -43,6 +44,30 @@ adaptation. Output directories can be created by Git.
 
 ## Evidence and remaining work
 
+The native dialog uses the original Output Directory and Version groups, editable
+AppKit history fields, AppKit radio buttons, commit-count field and stepper, From/To
+Log selection sheets, both options and the four footer actions. The Since chooser
+lists local and remote references without tags. Histories and options persist with
+UserDefaults. Its fixed height and horizontal resizing match the source intent;
+geometry uses AppKit frame autosave. Repository and output-directory access leases
+stay retained through Git operations. Store builds require a covered directory
+grant, and typed destinations outside existing grants open the folder chooser.
+
+Create Patch Serial appears in the app sidebar and automatic action menu, with
+upstream `menudiff.ico` (IDI_CREATEPATCH) in app and Finder menus. Finder enables it
+for one directory selection. The read-only unified-diff viewer uses source's
+HEAD-to-working-tree stat/patch command, excludes external diff tools and applies
+the no-prefix choice. The progress sheet displays errors or Git's output and
+blocks closing/Quit while Git is active. Optional mail uses the native compose-email
+service with exported patch attachments, retaining the controller and output
+grant until its callback. No message was sent during testing.
+
+The Debug preview launched once, but the computer-control connection failed with
+“Sky Computer Use native pipe closed before response” twice. No accessibility
+state or screenshot was obtained, so no layout or native interaction pass is
+claimed. Normal Quit could not be invoked through that failed connection; the
+exact owned PID/executable was rechecked and terminated. No other app was closed.
+
 Five `FormatPatchTests` pass. They exercise all three selections, empty ranges,
 original mail headers and numbered filenames, exact binary patch application with
 `git am`, unchanged HEAD/index/working bytes, no-prefix output, replacement of
@@ -51,6 +76,10 @@ aliases, bare export and FETCH_HEAD disambiguation. These integration tests do
 not prove native UI, Finder integration, progress cancellation or signed sandbox
 access.
 
-Next: implement the dialog and its retained repository/output-directory access
-leases, the reference/Log pickers, saved preferences, unified-diff viewer, optional
-mail composition, action/menu routing and actual light/dark screenshot QA.
+Remaining: verify native light/dark layout and keyboard interaction, successful
+export through the dialog, failure/retry, output-folder grants, unborn/bare states,
+mail attachments and service failure/cancel callbacks. Add searchable reference
+browsing, source command startrev/endrev presets and Log export entry points,
+Shift alternative diff viewer and upstream progress cancellation. Complete the
+source Send Mail dialog/options rather than treating native composition alone as
+full parity. Signed Finder and App Store testing and screenshots remain pending.

@@ -95,7 +95,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, revert, submoduleUpdate, log, repositoryBrowser, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
+    case status, commit, revert, submoduleUpdate, log, repositoryBrowser, formatPatch, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -105,6 +105,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .submoduleUpdate: return "Submodule Update…"
         case .log: return "Show log"
         case .repositoryBrowser: return "Repo-browser…"
+        case .formatPatch: return "Create Patch Serial…"
         case .diff: return "Diff"
         case .diffLater: return "Mark for comparison"
         case .clearComparisonMark: return "Clear comparison mark"

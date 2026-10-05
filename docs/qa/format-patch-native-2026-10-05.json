@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-05",
+  "scope": "Partial native Format Patch dialog and action routing; runtime parity unverified",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "tests": {
+    "suites": [
+      "FormatPatchTests",
+      "FinderRequestTests"
+    ],
+    "count": 12,
+    "failures": 0
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "bundle_audits": {
+    "Debug": "passed",
+    "AppStore_require_git": "passed"
+  },
+  "bundled_notice_matches_source": true,
+  "log_sha256": {
+    "focused": "9fa47cc43879a50833f62345cc288bded501fefff96855e8621fb6814089cf48",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "native": {
+    "fixture": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitFormatPatchQA-g89lg3ej/Harbor",
+    "app": "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitFormatPatchQA-g89lg3ej/TurtleGit Format Patch Preview.app",
+    "launched_instances": 1,
+    "accessibility_attempts": 2,
+    "error": "Sky Computer Use native pipe closed before response",
+    "screenshot": null,
+    "runtime_pass": false,
+    "cleanup": "Exact PID 63416/executable rechecked before SIGTERM because normal Quit was unavailable; no GUI app process remains",
+    "phase": "Preview before the final unified-diff refresh callback; final callback compiled in both configurations."
+  },
+  "mail": {
+    "implemented": "NSSharingService composeEmail handoff",
+    "tested": false,
+    "sent_messages": 0
+  },
+  "remaining": [
+    "light/dark UI and keyboard QA",
+    "native export/error/retry/unborn/bare interaction",
+    "signed output-directory leases",
+    "mail attachments/cancel/error callbacks",
+    "searchable references and source command presets",
+    "Log export menu entry points",
+    "Shift alternate viewer",
+    "source progress cancellation",
+    "complete Send Mail dialog options",
+    "signed Finder integration"
+  ],
+  "github": "Local commit only; not remotely tested"
+}

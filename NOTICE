@@ -99,4 +99,8 @@ FormatPatch.swift adapts the command construction in FormatPatchCommand.cpp
 and the sole-for-merge FETCH_HEAD choice in Git.cpp, under GPL version 2 or later.
 Copyright (C) 2009, 2015-2016, 2018-2019, 2023, 2026 TortoiseGit and (C) 2007-2008
 TortoiseSVN (FormatPatchCommand); Copyright (C) 2008-2026 TortoiseGit (Git.cpp).
-The native Format Patch dialog and mail composition workflow remain pending.
+FormatPatchWindow.swift adapts FormatPatchDlg.cpp/.h and IDD_FORMAT_PATCH under
+GPL version 2 or later. Copyright (C) 2008-2014, 2016-2017, 2019-2020, 2023-2025
+TortoiseGit. AppKit history fields and radio buttons replace MFC controls, and
+native mail composition replaces the Windows Send Mail handoff. Complete mail,
+progress cancellation and signed sandbox verification remain pending.

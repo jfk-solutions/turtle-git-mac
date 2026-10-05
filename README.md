@@ -31,6 +31,12 @@ bundle structure; it is not a signed distribution.
 
 ## Implemented first pass
 
+Create Patch Serial now has a native Format Patch dialog with Since, Number
+Commits and Range choices, no-prefix output, history fields, Log pickers and a
+read-only unified-diff viewer. The repository export has binary patch round-trip
+tests; native interaction, mail handoff and signed sandbox acceptance remain
+unverified. See [Format Patch parity](docs/FORMAT-PATCH-PARITY.md).
+
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
 icons. It browses pinned nested revisions, including bare repositories and tags,

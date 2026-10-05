@@ -72,7 +72,7 @@ src/Resources/TortoiseProcENG.rc,IDD_REQUESTPULL,Request pull,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_GITSWITCH,Switch/Checkout,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_NEW_BRANCH_TAG,New Branch/Tag,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_APPLY_PATCH_LIST,Apply Patches,pending-review
-src/Resources/TortoiseProcENG.rc,IDD_FORMAT_PATCH,Format Patch,pending-review
+src/Resources/TortoiseProcENG.rc,IDD_FORMAT_PATCH,Format Patch,partial-native-replacement
 src/Resources/TortoiseProcENG.rc,IDD_MERGE,Merge,partial-workflow-replacement
 src/Resources/TortoiseProcENG.rc,IDD_FIRSTSTARTWIZARD_START,First Start Wizard - TortoiseGit,pending-review
 src/Resources/TortoiseProcENG.rc,IDD_SETTINGSCOLORS_1,Colors 1,pending-review

@@ -9,7 +9,8 @@ windows. No item is complete merely because its underlying Git command runs.
 
 Format Patch's three export modes and no-prefix command are implemented in the
 repository layer with five integration tests, including binary mail patch
-application. Its native dialog and mail workflow remain pending; see
+application. Its native dialog, progress and mail handoff compile; native runtime
+and signed sandbox verification remain pending. See
 [FORMAT-PATCH-PARITY.md](FORMAT-PATCH-PARITY.md) for the audited controls and scope.
 
 ## Audited baseline

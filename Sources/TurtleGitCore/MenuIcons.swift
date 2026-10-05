@@ -80,6 +80,7 @@ extension RepositoryAction {
         case .revert: return .revert
         case .log, .stashList, .reflog: return .log
         case .repositoryBrowser: return .repositoryBrowser
+        case .formatPatch: return .unifiedDiff
         case .diff, .diffLater, .clearComparisonMark: return .compare
         case .pull: return .pull
         case .push: return .push

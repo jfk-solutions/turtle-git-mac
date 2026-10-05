@@ -31,6 +31,7 @@ import TurtleGitCore
     private var commitWindows: [String: CommitWindowController] = [:]
     private var logWindows: [String: LogWindowController] = [:]
     private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
+    private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
     private var blameWindows: [String: BlameWindowController] = [:]
     private var rebaseWindows: [String: RebaseWindowController] = [:]
     private var fetchWindows: [String: FetchWindowController] = [:]
@@ -323,6 +324,17 @@ import TurtleGitCore
         case .repositoryBrowser:
             guard let repository else { return }
             showRepositoryBrowser(repository: repository, access: activeAccess)
+        case .formatPatch:
+            guard let repository else { return }
+            let key = repository.root.path
+            let controller = formatPatchWindows[key] ?? FormatPatchWindowController(repository: repository, access: activeAccess)
+            controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
+            controller.model.onExported = { [weak self] output in
+                self?.statusWindows[key]?.model.reload()
+                if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
+            }
+            formatPatchWindows[key] = controller
+            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         case .log:
             guard let repository else { return }
             showLog(repository: repository, access: activeAccess, paths: paths)
