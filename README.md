@@ -47,7 +47,7 @@ native Cancel/Escape interaction and signed sandbox behavior remain unverified.
 
 Unified Diff Viewer settings preserve an external application independently of
 Alternative Editor. Shift reverses the saved viewer choice for Format Patch and
-Log revision/selected-file, Commit and Working Tree unified diffs. Preference rules and exact read-only
+Log revision/selected-file, Commit, Working Tree and Changed Files unified diffs. Preference rules and exact read-only
 preview bytes, including non-UTF-8 Git patches, are tested;
 native launching and signed handoff remain unverified. See
 [viewer parity](docs/UNIFIED-DIFF-VIEWER-PARITY.md).

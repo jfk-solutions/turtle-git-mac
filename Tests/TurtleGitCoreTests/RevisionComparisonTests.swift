@@ -2,6 +2,31 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RevisionComparisonTests: XCTestCase {
+    func testPinnedComparisonRawPatchKeepsBytesAndSelectedScopeAfterHeadMoves() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let before = Data([0xff, 0x0a]), after = Data([0xfe, 0x0a])
+        try before.write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.commit(message: "raw base")
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        try after.write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.commit(message: "raw destination")
+        let snapshot = try await repo.revisionComparison(from: .revision(base), to: .revision("HEAD"))
+        let original = try await repo.revisionComparisonPatchData(snapshot, paths: [path])
+        XCTAssertNotNil(original.range(of: Data([0x2d, 0xff, 0x0a])))
+        XCTAssertNotNil(original.range(of: Data([0x2b, 0xfe, 0x0a])))
+        let preview = try UnifiedDiffPreview.create(original); defer { preview.discard() }
+        _ = try await repo.run(["apply", "--reverse", "--check", "--", preview.file.path])
+        try Data("later unrelated\n".utf8).write(to: root.appendingPathComponent("later.txt"))
+        try await repo.stage(["later.txt"]); _ = try await repo.commit(message: "move HEAD")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let repeated = try await repo.revisionComparisonPatchData(snapshot, paths: [path])
+        XCTAssertEqual(original, repeated)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), after)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        do { _ = try await repo.revisionComparisonPatchData(snapshot, paths: ["later.txt"]); XCTFail("Accepted a path absent from pinned snapshot") }
+        catch RevisionComparisonFailure.selection {}
+    }
     func testOrdinaryFileDiffIncludesStagedWorkingRenameAndExplicitUntrackedWithoutIndexWrites() async throws {
         let (root, repo, original) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

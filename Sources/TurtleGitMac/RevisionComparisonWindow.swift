@@ -47,13 +47,13 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard sender.attachedSheet == nil, !model.busy, model.patchWindow?.model.busy != true, !model.comparisonWindows.values.contains(where: { $0.model.busy }) else { return false }
+        guard sender.attachedSheet == nil, !model.busy, model.patchWindow?.model.busy != true, !model.unifiedWindows.values.contains(where: { $0.model.busy }), !model.comparisonWindows.values.contains(where: { $0.model.busy }) else { return false }
         if let child = model.comparisonWindows.values.first(where: { $0.model.dirty }) {
             child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
         }
         return true
     }
-    func windowWillClose(_ notification: Notification) { model.patchWindow?.close(); Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
+    func windowWillClose(_ notification: Notification) { model.patchWindow?.close(); Array(model.unifiedWindows.values).forEach { $0.close() }; Array(model.comparisonWindows.values).forEach { $0.close() }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RevisionComparisonWindowModel: ObservableObject {
@@ -75,6 +75,7 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     @Published var error: String?
     @Published var showingPatch = false
     var patchWindow: PatchWindowController?
+    var unifiedWindows: [String: PatchWindowController] = [:]
     private var patchGeneration = 0
     var onLog: (String?) -> Void = { _ in }
     var onFileLog: (String, String?) -> Void = { _, _ in }
@@ -172,7 +173,54 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); updatePatch()
     }
-    func showPatch(_ ids: Set<String>) { guard !ids.isEmpty else { return }; selection = ids; if !showingPatch { togglePatch() } else { updatePatch() } }
+    func showPatch(_ ids: Set<String>, alternate: Bool) {
+        guard !busy, !confirmingQuit, let snapshot, !unifiedWindows.values.contains(where: { $0.model.busy }) else { return }
+        let files = visibleFiles.filter { ids.contains($0.path) }
+        guard !files.isEmpty else { return }
+        let savedWarning = UserDefaults.standard.object(forKey: "TurtleGit.NumDiffWarning") as? Int ?? 10
+        if files.count > max(3, savedWarning) {
+            let alert = NSAlert(); alert.messageText = "Open unified diffs for \(files.count) files?"
+            alert.informativeText = "Each selected file opens in its own viewer."; alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+        }
+        busy = true
+        Task {
+            defer { busy = false }
+            var failures: [String] = []
+            for file in files {
+                do {
+                    try checkPatchAccess()
+                    let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path])
+                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                        let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access)
+                        controller.model.readOnly = true; controller.model.document = GitPatch(text: String(decoding: bytes, as: UTF8.self))
+                        controller.model.paths = [file.path]
+                        controller.model.comparisonTitle = "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))"
+                        controller.model.readOnlyInformation = "Read-only unified diff for \(file.path). Right-click to save the patch."
+                        controller.window?.title = "\(file.path) – Unified Diff – TurtleGit"
+                        controller.model.customRefresh = { [weak self, weak controller] in
+                            guard let self, let controller, !controller.model.busy, !controller.model.confirmingQuit else { return }
+                            controller.model.busy = true
+                            Task {
+                                defer { controller.model.busy = false }
+                                do {
+                                    try self.checkPatchAccess()
+                                    let bytes = try await self.repository.revisionComparisonPatchData(snapshot, paths: [file.path])
+                                    controller.model.document = GitPatch(text: String(decoding: bytes, as: UTF8.self))
+                                } catch { controller.model.error = error.localizedDescription }
+                            }
+                        }
+                        controller.onClosed = { [weak self] in self?.unifiedWindows.removeValue(forKey: file.path) }
+                        unifiedWindows[file.path] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+                    }
+                } catch { failures.append(file.path + ": " + error.localizedDescription) }
+            }
+            if !failures.isEmpty { error = failures.joined(separator: "\n") }
+        }
+    }
+    private func checkPatchAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
     func updatePatch() {
         guard showingPatch, let controller = patchWindow, let snapshot else { return }
         patchGeneration += 1; let request = patchGeneration
@@ -237,7 +285,7 @@ private struct RevisionComparisonDialog: View {
                 TableColumn("Lines deleted", value: \.sortRemoved) { file in Text(file.removedText) }.width(95)
             }.contextMenu(forSelectionType: String.self) { ids in
                 Button { model.compare(ids) } label: { CommandLabel(title: "Compare revisions", icon: .compare) }.disabled(ids.isEmpty)
-                Button { model.showPatch(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
+                Button { model.showPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty)
                 Button { model.logFiles(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.isEmpty)
                 Divider()
                 Button { model.saveList(ids) } label: { CommandLabel(title: "Save list of selected files…", icon: .saveAs) }.disabled(ids.isEmpty)

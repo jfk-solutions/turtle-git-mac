@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-05",
+  "scope": "Changed Files per-file unified viewer dispatch, distinct selection preview and pinned raw comparison; full app goal incomplete",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blob": {
+    "FileDiffDlg.cpp": "fe4171a852023344cac5af1711873104393e1b0a"
+  },
+  "focused_tests": {
+    "suites": [
+      "RevisionComparisonTests",
+      "UnifiedDiffViewerTests"
+    ],
+    "count": 19,
+    "failures": 0,
+    "duration_seconds": 8.798,
+    "new_regression": [
+      "Exact invalid UTF-8 comparison patch bytes",
+      "Reverse apply check of external preview",
+      "Resolved comparison remains pinned after HEAD moves",
+      "Index/working bytes unchanged",
+      "Path absent from snapshot rejected"
+    ]
+  },
+  "builds": {
+    "Debug": 0,
+    "unsigned_AppStore": 0
+  },
+  "bundle_audits": {
+    "Debug": "passed, 72 original icons",
+    "AppStore_require_git": "passed, 72 original icons and universal runtime"
+  },
+  "bundled_notice_matches_source": true,
+  "site_build": "passed",
+  "log_sha256": {
+    "focused": "2757b2cbe8216ffaa5c010a9d21a257a75b0fde59f9f4aed1bca432ae353c6b4",
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "Debug_audit": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0",
+    "AppStore_audit": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+  },
+  "native_qa": {
+    "apps_launched": 0,
+    "screenshots_created": false,
+    "verification": "Per-file native window/order/Shift/warning/refresh and receiver unverified; prior native pipe failures recorded separately"
+  },
+  "behavior": [
+    "Context command attempts one unified viewer per file in displayed order",
+    "Shared external viewer setting and sampled Shift inversion",
+    "Built-in per-path context viewers refresh captured resolved snapshot",
+    "View Patch remains built-in and follows current selection",
+    "Multi-diff warning default ten/minimum three; Advanced preference editor pending",
+    "Per-file failures collected after remaining attempts",
+    "Busy context viewers guard parent Close/Quit; owned children close with parent"
+  ],
+  "remaining": [
+    "Native warning/Cancel/menu ordering/Shift/refresh/lifecycle acceptance",
+    "Signed external receiver/bookmark handoff",
+    "Advanced settings and command templates",
+    "Non-UTF-8 builtin display/save behavior",
+    "Full Changed Files controls and full TortoiseGitUDiff/application parity"
+  ],
+  "full_suite": "Previous full 432-test pass predates current code; focused suite only here",
+  "github": "Local changes not tested remotely"
+}

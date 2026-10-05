@@ -130,3 +130,6 @@ Commit and Working Tree unified-diff context actions follow GitStatusListCtrl.cp
 IDGITLC_GNUDIFF1 under GPL version 2 or later. Copyright (C) 2008-2026
 TortoiseGit and (C) 2003-2008, 2013-2015 TortoiseSVN. Native saved working-tree
 patches and external viewer copies preserve Git's original bytes.
+RevisionComparisonWindow.swift adapts FileDiffDlg.cpp ID_GNUDIFFCOMPARE's
+per-file unified viewers, Shift dispatch and multi-diff warning under GPL version
+2 or later. Copyright (C) 2008-2026 TortoiseGit and (C) 2003-2008, 2018 TortoiseSVN.

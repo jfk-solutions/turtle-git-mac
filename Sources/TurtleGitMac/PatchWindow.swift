@@ -49,6 +49,7 @@ import UniformTypeIdentifiers
         if let window { UserDefaults.standard.set(window.frame.width, forKey: "PartialPatchWindowWidth") }
         onClosed()
     }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingQuit && sender.attachedSheet == nil }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 

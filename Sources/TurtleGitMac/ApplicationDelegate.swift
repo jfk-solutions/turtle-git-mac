@@ -20,14 +20,14 @@ import AppKit
         let comparisons = sender.windows.compactMap { $0.delegate as? RevisionComparisonWindowController }
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
-        guard !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
+        guard !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
         guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         repositoryModel?.confirmingQuit = true
         for browser in browsers { browser.model.confirmingQuit = true }
         for comparison in fileComparisons { comparison.model.confirmingQuit = true }
         for diff in submoduleDiffs { diff.model.confirmingQuit = true }
-        for comparison in comparisons { comparison.model.confirmingQuit = true; comparison.model.patchWindow?.model.confirmingQuit = true }
+        for comparison in comparisons { comparison.model.confirmingQuit = true; comparison.model.patchWindow?.model.confirmingQuit = true; for viewer in comparison.model.unifiedWindows.values { viewer.model.confirmingQuit = true } }
         for update in updates { update.model.confirmingQuit = true }
         for revert in reverts { revert.model.confirmingQuit = true }
         for commit in commits { commit.setQuitConfirmation(true) }
@@ -75,7 +75,7 @@ import AppKit
             for browser in browsers { browser.model.confirmingQuit = false }
             for diff in submoduleDiffs { diff.model.confirmingQuit = false }
             for comparison in fileComparisons { comparison.model.confirmingQuit = false }
-            for comparison in comparisons { comparison.model.confirmingQuit = false; comparison.model.patchWindow?.model.confirmingQuit = false }
+            for comparison in comparisons { comparison.model.confirmingQuit = false; comparison.model.patchWindow?.model.confirmingQuit = false; for viewer in comparison.model.unifiedWindows.values { viewer.model.confirmingQuit = false } }
             for update in updates { update.model.confirmingQuit = false }
             for revert in reverts { revert.model.confirmingQuit = false }
             for commit in commits { commit.setQuitConfirmation(false) }

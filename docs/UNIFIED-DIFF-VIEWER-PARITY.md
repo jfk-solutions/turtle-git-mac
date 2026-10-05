@@ -3,8 +3,9 @@
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 
 This is a partial port of the unified patch viewer setting and the Shift actions
-in Format Patch, Log, Commit and Working Tree. It does not complete TortoiseGitUDiff, external revision
-comparison tools, extension-specific tools or all unified-diff callers.
+in Format Patch, Log, Commit, Working Tree and Changed Files. It does not complete
+TortoiseGitUDiff, external revision comparison tools, extension-specific tools or
+all unified-diff callers.
 
 | Source | Blob | Native replacement |
 | --- | --- | --- |
@@ -13,6 +14,7 @@ comparison tools, extension-specific tools or all unified-diff callers.
 | `src/TortoiseProc/FormatPatchDlg.cpp`, unified diff button | `b8ad0c02bb27397700a6aee773d87ce7656d62c8` | `FormatPatchWindow.swift` |
 | `src/TortoiseProc/GitLogListAction.cpp`, ID_GNUDIFF1/ID_GNUDIFF2 | `88c255c4c80578c099bbcd4604f6e088f2f9d40a` | `LogWindow.swift`, byte-preserving `CommitHistory.swift` APIs |
 | `src/Git/GitStatusListCtrl.cpp`, IDGITLC_GNUDIFF1 | `bb3424966659715269d38fca610c8d46810b0b15` | `CommitWindow.swift`, `StatusWindow.swift`, raw patch/working-tree diff APIs |
+| `src/TortoiseProc/FileDiffDlg.cpp`, ID_GNUDIFFCOMPARE/CheckMultipleDiffs | `fe4171a852023344cac5af1711873104393e1b0a` | `RevisionComparisonWindow.swift`, raw comparison patch API |
 
 ## Selection rules
 
@@ -68,6 +70,20 @@ partial-staging previews still reject non-UTF-8 patches, avoiding lossy editable
 patch application. Native menu activation, chooser/receiver completion, row-order
 and rename variants remain unverified.
 
+Changed Files now separates the explicit unified-diff context command from
+View Patch. The context command opens one viewer per selected file in visible
+order, honoring the shared setting and Shift. Each built-in context viewer
+refreshes its captured resolved revision snapshot instead of following later
+dialog changes, and is reused by path. External viewers receive the original
+bytes. Rename patch scope includes old and new names. The multi-diff warning
+uses upstream's default ten and minimum three, with the optional native
+`TurtleGit.NumDiffWarning` preference; an Advanced settings editor remains
+pending. Individual failures are reported together after trying remaining files.
+View Patch stays built-in and follows selection. Parent Close/Quit guard busy
+context viewers, which close with their parent; patch windows also guard their
+own busy/confirmation/sheet lifetime. These native behaviors compile but have
+not been interactively verified.
+
 The selected application's bookmark is resolved and scoped for the native open
 request. Store builds require successful scoped access; the error directs the
 user to Browse when needed. The Format Patch controller blocks close, Quit and
@@ -106,6 +122,13 @@ against the index, checks partial-staging's encoding refusal, and preserves
 HEAD/index/working bytes. Existing unborn working-tree and staged-hunk cases also
 pass. This proves the Core byte routes, not native Commit/status menu or Save
 panel acceptance. No GUI app or external viewer was launched for this follow-up.
+
+Changed Files follow-up: 19 focused RevisionComparison/UnifiedDiffViewer tests
+pass. The new real-Git regression verifies exact invalid-UTF-8 patch bytes,
+reverse-apply checking, unchanged index/working bytes and a resolved snapshot
+that remains stable after HEAD advances. Paths absent from that snapshot are
+rejected. This does not verify native per-file ordering, warning, Shift, receiver
+handoff or context-viewer refresh. No GUI app was launched for this follow-up.
 
 Remaining: native settings/application-launch and Shift QA; failed/stale bookmark
 and missing-app acceptance; signed document handoff; command argument templates;

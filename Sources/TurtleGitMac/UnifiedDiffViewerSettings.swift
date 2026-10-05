@@ -64,7 +64,7 @@ struct UnifiedDiffViewerSettings: View {
                     if !draft.valid { Text("Choose an application (.app) using its full path.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
-            Text("Hold Shift when opening a unified diff from Format Patch, Log, Commit or Working Tree to reverse the viewer choice. A saved external application remains available while the built-in viewer is selected.").font(.caption).foregroundStyle(.secondary)
+            Text("Hold Shift when opening a unified diff from Format Patch, Log, Commit, Working Tree or Changed Files to reverse the viewer choice. A saved external application remains available while the built-in viewer is selected.").font(.caption).foregroundStyle(.secondary)
             Spacer()
             HStack { Spacer()
                 Button("Cancel") { draft = saved; NSApp.keyWindow?.performClose(nil) }

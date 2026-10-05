@@ -124,10 +124,13 @@ extension GitRepository {
         return RevisionComparisonSnapshot(root: root, from: old, to: new, fromDetails: try comparisonDetails(old), toDetails: try comparisonDetails(new), files: files, options: options)
     }
     public func revisionComparisonPatch(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> String {
+        String(decoding: try revisionComparisonPatchData(snapshot, paths: paths), as: UTF8.self)
+    }
+    public func revisionComparisonPatchData(_ snapshot: RevisionComparisonSnapshot, paths: [String] = []) throws -> Data {
         guard snapshot.root == root, paths.allSatisfy({ path in snapshot.files.contains { $0.path == path } }) else { throw RevisionComparisonFailure.selection }
         let selected = paths.isEmpty ? [] : snapshot.files.filter { paths.contains($0.path) }.flatMap { [$0.path] + ($0.oldPath.map { [$0] } ?? []) }
         for path in selected { _ = try restoreLocation(path) }
-        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options) + ["--"] + Set(selected).sorted()).text
+        return try run(comparisonArguments(from: snapshot.from, to: snapshot.to, options: snapshot.options) + ["--"] + Set(selected).sorted()).stdout
     }
     private func comparisonDetails(_ side: ComparisonRevision) throws -> ComparisonRevisionDetails? {
         guard case .revision(let hash) = side else { return nil }
