@@ -289,3 +289,9 @@ selection/options window, real Git behavior and remaining progress/Finder checks
 edge cases and native QA. The Git integration suite runs in CI. Submodule deletion offers Delete/Abort
 and preserves the complete checkout in macOS Trash. Monochrome Log, Help and
 cherry-pick icons adapt to light/dark appearances.
+
+Log's selected-file menu now includes historical folder Export with the original
+icon, preserved subfolders, pinned committed bytes and Ignore/Abort failure
+choices. Core export regressions and both builds pass; native chooser/error
+acceptance and signed sandbox checks remain pending. See
+[Log parity](docs/LOG-PARITY.md) for the verification limits.

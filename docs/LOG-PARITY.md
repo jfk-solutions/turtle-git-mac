@@ -344,3 +344,39 @@ custom-editor errors, binary/symlink/rename and deleted/gitlink menu variants,
 read-only document behavior, repeated-session cleanup and signed sandbox handoff
 remain pending. This is a partial port of historical opening, not full native
 editor or file-context-menu parity.
+
+## Historical multi-file folder Export (2026-10-05)
+
+Upstream `GitStatusListCtrl.cpp::FilesExport` (4504–4544) was compared directly.
+Log now includes Export with the original colored icon for eligible selections.
+A native directory chooser captures the selected revision and files before the
+operation. Exports preserve repository-relative directories and visible list
+order, replace existing destination copies, skip deleted files and gitlinks,
+and read exact blobs from a pinned commit. Historical symlink blobs become
+regular files containing the target text. Each failed file offers a native
+Ignore/Abort sheet; Ignore continues and Abort stops subsequent files while
+retaining successful copies. Cancelling the directory chooser starts no export.
+
+Core preflight rejects Git metadata, escaping destination parents and selected
+working-source aliases before writing. Per-file checks repeat parent/source
+validation, use a sibling temporary file and atomically replace the destination.
+A chosen folder's security scope stays active throughout the operation, and the
+App Store route requires the repository grant too. These unsigned checks do not
+prove signed sandbox acceptance.
+
+Six export regressions pass, including two new historical tests covering a
+moving HEAD, literal Unicode/newline paths, binary blobs, broken symlink target
+text, nested hierarchy, overwrite, deleted/gitlink skipping, continuation after a
+missing blob, destination-parent aliases and raw index/HEAD/working preservation.
+Debug and unsigned App Store builds and both bundle audits pass (64 icons,
+11 universal Git Mach-O files).
+
+Native QA displayed Export for three selected files. Menu accessibility IDs
+became invalid between tool calls and the menu did not remain visible for a
+successful invocation. The chooser and Ignore/Abort end-to-end acceptance are
+therefore pending; no exported native output or new screenshot is claimed.
+The incidental read-only comparison was closed, the one QA app quit normally,
+and exact fixture HEAD/index/working bytes were unchanged with no QA process
+remaining. Native overwrite/cancel/error continuation, signed sandbox grants,
+and exact upstream marked-row menu eligibility/order remain pending. Full Log
+and file-context parity remains incomplete.

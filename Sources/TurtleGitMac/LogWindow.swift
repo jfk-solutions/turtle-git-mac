@@ -42,7 +42,29 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
         model.presentHistoricalOpen = { [weak self] content, action in
             DispatchQueue.main.async { [weak self] in self?.openHistoricalFile(content, action: action) }
         }
+        model.presentHistoricalExport = { [weak self] revision, files in
+            DispatchQueue.main.async { [weak self] in self?.chooseHistoricalExport(revision: revision, files: files) }
+        }
+        model.confirmExportFailure = { [weak self] message in
+            guard let window = self?.window else { return false }
+            return await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.messageText = "Could not export historical file"
+                alert.informativeText = message; alert.alertStyle = .warning
+                alert.addButton(withTitle: "Ignore"); alert.addButton(withTitle: "Abort")
+                alert.beginSheetModal(for: window) { response in continuation.resume(returning: response == .alertFirstButtonReturn) }
+            }
+        }
         model.reload()
+    }
+    private func chooseHistoricalExport(revision: String, files: [CommitFile]) {
+        guard let window, window.attachedSheet == nil else { return }
+        let panel = NSOpenPanel(); panel.title = "Export selected files"; panel.prompt = "Export"
+        panel.canChooseFiles = false; panel.canChooseDirectories = true
+        panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
+        panel.beginSheetModal(for: window) { [weak model] response in
+            guard response == .OK, let folder = panel.url else { return }
+            model?.exportHistoricalFiles(revision: revision, files: files, to: folder)
+        }
     }
     private func openHistoricalFile(_ content: ComparisonFileContent, action: HistoricalOpenAction) {
         guard let window, window.attachedSheet == nil else { return }
@@ -156,6 +178,8 @@ struct LogCommandRequest: Identifiable {
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
     var presentHistoricalOpen: (ComparisonFileContent, HistoricalOpenAction) -> Void = { _, _ in }
+    var presentHistoricalExport: (String, [CommitFile]) -> Void = { _, _ in }
+    var confirmExportFailure: (String) async -> Bool = { _ in false }
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
     var onBlame: ((String, String) -> Void)?
@@ -309,6 +333,30 @@ struct LogCommandRequest: Identifiable {
             guard let path = file.oldPath else { return }; onFileLog(path, nil)
         } else { onFileLog(file.path, revision.hash) }
     }
+    func chooseHistoricalExport(_ ids: Set<String>) {
+        guard !busy, let revision, window?.attachedSheet == nil else { return }
+        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        guard chosen.contains(where: { !$0.isSubmodule && !$0.action.hasPrefix("D") }) else { return }
+        presentHistoricalExport(revision.hash, chosen)
+    }
+    func exportHistoricalFiles(revision: String, files: [CommitFile], to folder: URL) {
+        guard !busy else { return }; busy = true
+        Task {
+            let scoped = folder.startAccessingSecurityScopedResource()
+            defer { if scoped { folder.stopAccessingSecurityScopedResource() }; busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let export = try await repository.prepareHistoricalExport(revision: revision, files: files, to: folder)
+                for path in export.paths {
+                    do { try await repository.exportHistoricalFile(export, path: path) }
+                    catch {
+                        let message = "File: " + path + "\nRevision: " + export.revision + "\nDestination: " + folder.appendingPathComponent(path).path + "\n\n" + error.localizedDescription
+                        if !(await confirmExportFailure(message)) { break }
+                    }
+                }
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     func saveHistoricalFile(_ ids: Set<String>) {
         guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
@@ -392,6 +440,8 @@ struct LogDialog: View {
                         }
                         Divider()
                     }
+                    Button { model.chooseHistoricalExport(ids) } label: { CommandLabel(title: "Export…", icon: .export) }
+                        .disabled(model.busy || model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
                     Menu {
                         ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
                             Button { model.copyFiles(ids, information: information) } label: { CommandLabel(title: information.rawValue, icon: .copy) }

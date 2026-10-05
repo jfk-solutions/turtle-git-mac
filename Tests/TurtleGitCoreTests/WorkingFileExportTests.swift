@@ -2,6 +2,61 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingFileExportTests: XCTestCase {
+    func testHistoricalExportPinsRevisionAndPreservesLiteralBytesHierarchyAndRepository() async throws {
+        let manager = FileManager.default
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        let folder = manager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? manager.removeItem(at: root); try? manager.removeItem(at: folder) }
+        try manager.createDirectory(at: folder, withIntermediateDirectories: true)
+        try manager.createDirectory(at: root.appendingPathComponent("nested"), withIntermediateDirectories: true)
+        let path = "nested/:(glob)* 雪\n.bin", link = "nested/link"
+        let bytes = Data([0, 255, 239, 187, 191, 13, 10])
+        try bytes.write(to: root.appendingPathComponent(path))
+        try manager.createSymbolicLink(atPath: root.appendingPathComponent(link).path, withDestinationPath: "missing-target")
+        try await repo.stage([path, link]); _ = try await repo.run(["commit", "-m", "export blobs"])
+        func file(_ path: String, _ action: String = "M", submodule: Bool = false) -> CommitFile {
+            CommitFile(path: path, oldPath: nil, action: action, added: nil, removed: nil, hasStatistics: false, isSubmodule: submodule)
+        }
+        let export = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(path), file("deleted", "D"), file(link), file("module", submodule: true), file(path)], to: folder)
+        XCTAssertEqual(export.paths, [path, link])
+        try Data([42]).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.run(["commit", "-m", "later bytes"])
+        try Data([43]).write(to: root.appendingPathComponent(path))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        try manager.createDirectory(at: folder.appendingPathComponent("nested"), withIntermediateDirectories: true)
+        try Data([99]).write(to: folder.appendingPathComponent(path))
+        for selected in export.paths { try await repo.exportHistoricalFile(export, path: selected) }
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), bytes)
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(link)), Data("missing-target".utf8))
+        XCTAssertEqual(try manager.attributesOfItem(atPath: folder.appendingPathComponent(link).path)[.type] as? FileAttributeType, .typeRegular)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data([43]))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(finalHead, head)
+        do { try await repo.exportHistoricalFile(export, path: "unselected"); XCTFail("Unselected export") } catch {}
+        do { _ = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(path)], to: root); XCTFail("Source overwrite") } catch WorkingFileExportFailure.source {}
+        do { _ = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file(".git/index")], to: folder); XCTFail("Metadata export") } catch {}
+    }
+    func testHistoricalFailureCanContinueAndDestinationAliasCannotEscape() async throws {
+        let manager = FileManager.default
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        let folder = manager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let outside = manager.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { for url in [root, folder, outside] { try? manager.removeItem(at: url) } }
+        for url in [folder, outside] { try manager.createDirectory(at: url, withIntermediateDirectories: true) }
+        func file(_ path: String) -> CommitFile { CommitFile(path: path, oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false) }
+        let export = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file("absent"), file(path)], to: folder)
+        do { try await repo.exportHistoricalFile(export, path: "absent"); XCTFail("Absent blob accepted") } catch {}
+        try await repo.exportHistoricalFile(export, path: path)
+        XCTAssertEqual(try Data(contentsOf: folder.appendingPathComponent(path)), try Data(contentsOf: root.appendingPathComponent(path)))
+        try manager.createDirectory(at: root.appendingPathComponent("nested"), withIntermediateDirectories: true)
+        try Data([77]).write(to: root.appendingPathComponent("nested/file")); try await repo.stage(["nested/file"])
+        _ = try await repo.run(["commit", "-m", "nested historical blob"])
+        let nested = try await repo.prepareHistoricalExport(revision: "HEAD", files: [file("nested/file")], to: folder)
+        try manager.createSymbolicLink(at: folder.appendingPathComponent("nested"), withDestinationURL: outside)
+        do { try await repo.exportHistoricalFile(nested, path: "nested/file"); XCTFail("Escaped folder accepted") } catch WorkingFileExportFailure.location {}
+        XCTAssertFalse(manager.fileExists(atPath: outside.appendingPathComponent("file").path))
+    }
     func testWorkingContentsHierarchyOverwriteAndIndexRemainExact() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         let destination = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
