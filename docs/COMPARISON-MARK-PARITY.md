@@ -342,3 +342,26 @@ selection, Windows system code pages, BOM-less non-Latin Unicode detection,
 empty-file format inference, three-pane conflict controls, historical-copy
 editing and signed sandbox acceptance remain incomplete. This does not
 establish full upstream encoding/loading/writing parity.
+
+## Pane format status controls
+
+Upstream `BaseView.cpp:269–430` places encoding, EOL and tab mode in each pane's
+status ribbon. TurtleGit now shows original source encodings and current draft
+ending styles in both comparison and conflict panes. Writable panes provide
+encoding and EOL menus with checkmarks; read-only panes report their formats.
+The comparison byte count is explicitly labeled saved bytes, because a draft's
+output format can change before Save. Conflict documents retain Base/Mine/Theirs
+encoding metadata across result saves. Ending changes use existing Undo paths.
+
+Native acceptance verified distinct UTF-32BE, UTF-8 BOM and UTF-16LE BOM source
+indicators, CRLF/LF conversion with Undo, result encoding changes/checkmarks,
+and two-pane footer behavior. Loaded mixed-ending and single-line files show
+Mixed EOL and No line ending. Source files and repository bytes remained
+unchanged by the UI. The twelve conflict tests and both builds/bundle audits
+passed. The actual light-window screenshot is published; all QA processes were
+closed. See [record](qa/format-status-2026-10-05.json).
+
+Dark/narrow layout, remaining native formats, absent/binary sources, upstream
+read-only-source format interaction, insertion defaults and signed sandbox
+acceptance still need work. Mixed-ending paste normalization is existing editor
+behavior; this change does not establish paste or full status/view parity.

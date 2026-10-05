@@ -115,7 +115,7 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   aligned source rows and colors, original line numbers, undoable whole-source
   selection, Reload, explicit output encodings and guarded Save/Mark as resolved. Full editor parity and native QA
   remain in progress; see [Text merge parity](docs/TEXT-MERGE-PARITY.md).
-  ![Native three-pane text conflict editor](docs/site/assets/text-merge.png)
+  ![Native three-pane Unicode conflict editor with format controls](docs/site/assets/text-merge-formats.png)
 - Native Merge window with branch/tag/commit selection, squash, fast-forward, No Commit,
   message summaries, strategy controls and custom messages. See [Merge parity](docs/MERGE-PARITY.md).
 - Native Stash Save window with an optional message, mutually exclusive include-untracked

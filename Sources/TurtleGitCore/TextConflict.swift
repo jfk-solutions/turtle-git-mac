@@ -105,6 +105,9 @@ public struct TextConflictDocument: Sendable {
     public let workingContents: Data?
     public let permissions: Int
     public let encoding: ComparisonTextEncoding
+    public let baseEncoding: ComparisonTextEncoding?
+    public let mineEncoding: ComparisonTextEncoding?
+    public let theirsEncoding: ComparisonTextEncoding?
 }
 public struct TextConflictSaveFailure: LocalizedError, Sendable {
     public let savedDocument: TextConflictDocument
@@ -154,7 +157,7 @@ extension GitRepository {
         let merged = try run(["merge-file", "-p", "--diff3", "--marker-size=7", "-L", "Mine", "-L", "Base", "-L", "Theirs", "--", temporary.appendingPathComponent("mine").path, temporary.appendingPathComponent("base").path, temporary.appendingPathComponent("theirs").path], successfulExitCodes: 0...127)
         let result = try text(merged.stdout)
         let encoding = working.flatMap(ComparisonTextEncoding.detect) ?? sourceEncodings[mineStage] ?? .utf8
-        return TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding)
+        return TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding, baseEncoding: sourceEncodings[1], mineEncoding: sourceEncodings[mineStage], theirsEncoding: sourceEncodings[theirsStage])
     }
     public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil) throws -> TextConflictDocument {
         try validateConflicts([document.entry], using: .current)
@@ -170,7 +173,7 @@ extension GitRepository {
         let contents = try selectedEncoding.encode(result)
         try contents.write(to: location, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: document.permissions], ofItemAtPath: location.path)
-        let saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: contents, permissions: document.permissions, encoding: selectedEncoding)
+        let saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: contents, permissions: document.permissions, encoding: selectedEncoding, baseEncoding: document.baseEncoding, mineEncoding: document.mineEncoding, theirsEncoding: document.theirsEncoding)
         if markResolved {
             do { _ = try run(["add", "-f", "--", document.entry.path]) }
             catch { throw TextConflictSaveFailure(savedDocument: saved, gitError: error.localizedDescription) }

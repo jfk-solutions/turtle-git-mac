@@ -29,6 +29,48 @@ extension MergeLineEnding {
         }
     }
 }
+/// Pane-local format indicators match TortoiseMerge's status ribbon. Read-only
+/// sources report their actual file format; writable panes offer output choices.
+struct MergeFormatControls: View {
+    let label: String
+    let encoding: ComparisonTextEncoding?
+    let text: String?
+    let editable: Bool
+    let changeEncoding: (ComparisonTextEncoding) -> Void
+    let changeEnding: (MergeLineEnding) -> Void
+    private var styles: Set<MergeLineEnding> { text.map(MergeLineEndings.styles) ?? [] }
+    private var endingTitle: String {
+        guard text != nil else { return "—" }
+        if styles.isEmpty { return "No line ending" }
+        if styles.count == 1 { return styles.first!.menuTitle }
+        return "Mixed EOL"
+    }
+    var body: some View {
+        HStack(spacing: 8) {
+            if editable {
+                Menu(encoding?.rawValue ?? "—") {
+                    ForEach(ComparisonTextEncoding.allCases, id: \.rawValue) { value in
+                        Button { changeEncoding(value) } label: {
+                            if value == encoding { Label(value.rawValue, systemImage: "checkmark") }
+                            else { Text(value.rawValue) }
+                        }
+                    }
+                }.fixedSize().accessibilityLabel("\(label) file encoding: \(encoding?.rawValue ?? "—")")
+                Menu(endingTitle) {
+                    ForEach(MergeLineEnding.allCases, id: \.rawValue) { value in
+                        Button { changeEnding(value) } label: {
+                            if styles == [value] { Label(value.menuTitle, systemImage: "checkmark") }
+                            else { Text(value.menuTitle) }
+                        }
+                    }
+                }.fixedSize().accessibilityLabel("\(label) line endings: \(endingTitle)")
+            } else {
+                Text(encoding?.rawValue ?? "—")
+                Text(endingTitle)
+            }
+        }.font(.caption).foregroundStyle(.secondary)
+    }
+}
 private enum MergeSourceSide {
     case mine, theirs
     var icon: MenuIcon { self == .mine ? .mergeUseMine : .mergeUseTheirs }
@@ -155,6 +197,12 @@ private enum MergeSourceSide {
         guard !busy, !confirmingQuit, document != nil else { return }
         do { _ = try value.encode(result); encoding = value }
         catch { self.error = error.localizedDescription }
+    }
+    func changeLineEnding(_ value: MergeLineEnding) {
+        guard !busy, !confirmingQuit, document != nil else { return }
+        let converted = MergeLineEndings.converting(result, to: value)
+        guard !converted.utf8.elementsEqual(result.utf8) else { return }
+        if let replaceEntireResult { replaceEntireResult(converted) } else { result = converted }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
         self.repository = repository; self.access = access; self.path = path
@@ -285,10 +333,12 @@ private struct TextConflictDialog: View {
         let tabWidth = model.tabWidths[title] ?? model.editorPreferences.tabWidth
         let useSpaces = model.spacePanes[title] ?? model.editorPreferences.useSpaces
         let smartTab = model.smartTabPanes[title] ?? model.editorPreferences.smartTab
+        let encoding = editable ? model.encoding : (side == .mine ? model.document?.mineEncoding : side == .theirs ? model.document?.theirsEncoding : model.document?.baseEncoding)
         return VStack(spacing: 0) {
             HStack { Text(title).font(.headline); Spacer(); if editable { Text(model.dirty ? "Modified" : "").font(.caption).foregroundStyle(.secondary) } }.padding(7).background(Color(nsColor: .controlBackgroundColor))
             MergeEditor(model: model, text: displayed, label: title, editable: editable, sourceCells: cells, sourceSide: side, tabWidth: tabWidth, useSpaces: useSpaces, smartTab: smartTab).frame(minWidth: 220, minHeight: 120)
             HStack {
+                MergeFormatControls(label: title, encoding: encoding, text: text, editable: editable && !model.busy && !model.confirmingQuit, changeEncoding: model.changeEncoding, changeEnding: model.changeLineEnding)
                 Spacer()
                 Menu("\(useSpaces ? "Space" : "Tab") \(tabWidth)\(smartTab ? " Smart" : "")") {
                     Button { model.spacePanes[title] = false } label: {

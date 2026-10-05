@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-05",
+  "feature": "Pane encoding and line-ending status controls",
+  "preview": "/tmp/TurtleGitFormatStatusQA.app",
+  "screenshot": "docs/site/assets/text-merge-formats.png",
+  "native_verified": [
+    "Three-pane read-only Theirs UTF32BE, Mine UTF8 BOM and Base UTF16LE BOM indicators match original Git stage formats",
+    "Result UTF16LE BOM/CRLF footer has checked menu choices",
+    "Result footer LF conversion marks draft modified; Undo restores CRLF/clean state",
+    "Result footer UTF32BE choice updates output indicator/dirty state without changing source indicators; original encoding restores clean state",
+    "Two-pane Base UTF8/LF indicators and Mine UTF16LE BOM/CRLF controls match their files",
+    "Two-pane footer LF conversion enables Save/Undo; Undo restores CRLF/clean state",
+    "External mixed CRLF/LF file Reload shows Mixed EOL; single-line file Reload shows No line ending",
+    "Repository HEAD/raw index/working bytes and original sources unchanged by UI; comparison Mine fixture changed only by explicit external QA setup",
+    "Only sequential QA launches; all normal Quit exits verified by process checks; final comparison Quit needed retry"
+  ],
+  "verification": {
+    "TextConflict_tests": 12,
+    "failures": 0,
+    "Debug_build": "passed",
+    "unsigned_AppStore_build": "passed",
+    "both_bundle_runtime_audits": "passed"
+  },
+  "observations": [
+    "Pasting mixed endings into the comparison editor follows its existing ending-normalization path, so loaded mixed files were used for indicator acceptance"
+  ],
+  "pending": [
+    "Dark appearance and narrow-window footer layout acceptance",
+    "Remaining EOL/encoding native variants and source absent/binary cases",
+    "Upstream interactive read-only-source format behavior",
+    "Default line-ending metadata for insertion and full source/view state parity",
+    "Signed sandbox acceptance"
+  ]
+}
