@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-05",
+  "base_commit": "f552667",
+  "configuration": "Debug with local Log external-mark changes; ad-hoc preview; no sandbox",
+  "marking": "Documentation startup diffLater request for outside.txt; opened Log through native Show log button",
+  "context_menu": "right.txt > Compare with /private/tmp/TurtleGitWorkingMarkQA-other/outside.txt",
+  "viewer": {
+    "base_path": "/tmp/TurtleGitWorkingMarkQA-other/outside.txt",
+    "base_text": "external partner\n",
+    "base_bytes": 17,
+    "historical_path": "right.txt",
+    "historical_revision": "3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c",
+    "historical_text": "selected right\n",
+    "historical_bytes": 15,
+    "difference_count": 1,
+    "editing": "Only Base became settable after Enable editing; disabled again; no Save"
+  },
+  "shared_record_consumed": true,
+  "retained_mark_reuse": "Closed viewer; same Log context action reopened correct 17/15-byte pair after consumption",
+  "preserved": {
+    "head": "3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c",
+    "index_sha256": "983b6a1c7c0596c06f84fdeb5fd40bc327a72458222c76277ab9b59174c46497",
+    "working_sha256": "756d1682624a699ea7fee6834e7b6923ee1fa406b19beeace8981b6cc2fc5485",
+    "left_absent": true
+  },
+  "external_bytes_preserved": true,
+  "shutdown": "Normal Quit; one QA process at most; none remaining",
+  "screenshot": {
+    "path": "../site/assets/log-working-mark-comparison.png",
+    "width": 2240,
+    "height": 1504,
+    "content": "Actual read-only native mixed comparison"
+  },
+  "pending": [
+    "signed Finder/app sandbox handoff",
+    "native Save and Reload",
+    "Shift alternative tools",
+    "compacted labels",
+    "new-mark/local-mark precedence native variants",
+    "additional native file types"
+  ]
+}

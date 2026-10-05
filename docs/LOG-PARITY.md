@@ -566,8 +566,16 @@ that shared Finder/app route still needs porting.
 
 The external mark's private bookmark store and metadata-only Finder snapshot
 now have persistence, renewal and conditional-consumption regressions. The
-Finder/app working-file routes now open the native viewer; Log external import
-remains pending. See
+Finder/app working-file routes and Log external-mark comparison now open the
+native viewer. See
 [comparison mark parity](COMPARISON-MARK-PARITY.md) for the complete source audit
 and required integration. This storage foundation does not change the verified
 historical Log comparison route.
+
+
+Log external working-file mark import, mixed historical comparison, shared-token
+consumption and dialog-local reuse are now implemented and natively verified
+for a regular file outside the repository. Only that working pane becomes
+editable. The selected historical revision remains pinned. See
+[comparison mark parity](COMPARISON-MARK-PARITY.md) for tests, the native screenshot
+and remaining signed/tool/path variants. This does not establish full Log parity.

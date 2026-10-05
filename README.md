@@ -307,7 +307,10 @@ Working-file marks persist across app launches and compare files in separate
 locations through the native viewer. App and Finder request routes are wired;
 a persisted-mark request and editing toggle were verified natively. Finder
 extension clicks, direct menu chooser handoff and signed sandbox checks remain
-pending. See [comparison mark parity](docs/COMPARISON-MARK-PARITY.md).
+pending. Log also imports an external mark and compares live working bytes with
+a pinned historical file, retaining the mark within the dialog after shared
+consumption. That native route and editing toggle were verified. See
+[comparison mark parity](docs/COMPARISON-MARK-PARITY.md).
 
 Compare two files uses the selected commit's first parent independently for
 deleted sides. Multi-file unified diff appends patches in displayed order and

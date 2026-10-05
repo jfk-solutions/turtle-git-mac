@@ -623,14 +623,26 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription }
         }
     }
-    private func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: HistoricalComparisonMark, current: HistoricalComparisonMark) {
+    private func showPreparedFileComparison(repository: GitRepository, access: RepositoryAccessLease?, marked: PreparedFileComparisonMark, current: PreparedFileComparisonMark) {
         guard !busy, !confirmingQuit else { return }; busy = true
         Task {
             defer { busy = false }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let snapshot = try await repository.historicalPathComparison(fromRevision: marked.revision, fromPath: marked.path, toRevision: current.revision, toPath: current.path)
-                showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+                if let workingAccess = marked.workingAccess {
+                    if GitRuntime.isAppStoreBuild && (!workingAccess.permission.hasSecurityScope || !workingAccess.permission.contains(workingAccess.file)) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let comparison = try await repository.historicalWorkingFileComparison(revision: current.revision, path: current.path, workingFile: workingAccess.file)
+                    let key = "historical-working:" + UUID().uuidString
+                    let controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission)
+                    controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
+                    fileComparisonWindows[key] = controller
+                    controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+                    _ = try comparisonMarkStore.consume(workingAccess.mark.id)
+                    try publishComparisonMark()
+                } else {
+                    let snapshot = try await repository.historicalPathComparison(fromRevision: marked.revision, fromPath: marked.path, toRevision: current.revision, toPath: current.path)
+                    showFileComparisons(repository: repository, access: access, snapshot: snapshot)
+                }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -765,6 +777,7 @@ import TurtleGitCore
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
         controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
         controller.model.onFilePairCompare = { [weak self] revision, files in self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files) }
         controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
@@ -900,6 +913,11 @@ import TurtleGitCore
     }
     private func publishComparisonMark() throws {
         workingComparisonMark = try comparisonMarkStore.snapshot()
+        if workingComparisonMark != nil {
+            let access = try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild)
+            if let access { workingComparisonMark = access.mark }
+            for controller in logWindows.values { controller.model.importWorkingComparisonMark(access) }
+        }
         if try WorkingComparisonMarkSnapshot.publish(workingComparisonMark) {
             DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil)
         }

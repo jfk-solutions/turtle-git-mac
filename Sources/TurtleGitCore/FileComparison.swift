@@ -193,22 +193,51 @@ public struct WorkingFileComparison: Sendable {
         let file = CommitFile(path: destination.path, oldPath: base.path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
         return RevisionComparisonSnapshot(root: destination.deletingLastPathComponent(), from: .workingTree, to: .workingTree, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
     }
+    public static func workingContent(at url: URL) throws -> ComparisonFileContent {
+        guard url.isFileURL, !url.path.contains("\0") else { throw RevisionComparisonFailure.selection }
+        let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+        let type = attributes[.type] as? FileAttributeType
+        guard type == .typeRegular || type == .typeSymbolicLink else { throw RevisionComparisonFailure.selection }
+        let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue
+        let bytes = type == .typeSymbolicLink ? Data(try FileManager.default.destinationOfSymbolicLink(atPath: url.path).utf8) : try Data(contentsOf: url)
+        let mode = type == .typeSymbolicLink ? "120000" : (permissions ?? 0) & 0o111 != 0 ? "100755" : "100644"
+        return ComparisonFileContent(path: url.path, revision: .workingTree, bytes: bytes, mode: mode, permissions: permissions)
+    }
     public func read() throws -> FileComparisonDocument {
-        func content(_ url: URL) throws -> ComparisonFileContent {
-            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-            let type = attributes[.type] as? FileAttributeType
-            guard type == .typeRegular || type == .typeSymbolicLink else { throw RevisionComparisonFailure.selection }
-            let permissions = (attributes[.posixPermissions] as? NSNumber)?.intValue
-            let bytes = type == .typeSymbolicLink ? Data(try FileManager.default.destinationOfSymbolicLink(atPath: url.path).utf8) : try Data(contentsOf: url)
-            let mode = type == .typeSymbolicLink ? "120000" : (permissions ?? 0) & 0o111 != 0 ? "100755" : "100644"
-            return ComparisonFileContent(path: url.path, revision: .workingTree, bytes: bytes, mode: mode, permissions: permissions)
-        }
-        return FileComparisonDocument(base: try content(base), destination: try content(destination))
+        return FileComparisonDocument(base: try Self.workingContent(at: base), destination: try Self.workingContent(at: destination))
     }
     public func save(_ document: FileComparisonDocument, base editingBase: Bool, text: String) throws -> FileComparisonDocument {
         guard document.base.path == base.path, document.destination.path == destination.path else { throw RevisionComparisonFailure.selection }
         let original = editingBase ? document.base : document.destination
         let saved = try FileComparisonEditing.saveWorkingContent(at: editingBase ? base : destination, original: original, text: text)
         return FileComparisonDocument(base: editingBase ? saved : document.base, destination: editingBase ? document.destination : saved)
+    }
+}
+
+
+public struct HistoricalWorkingFileComparison: Sendable {
+    public let workingFile: URL
+    public let snapshot: RevisionComparisonSnapshot
+    public let path: String
+    public func saveBase(_ document: FileComparisonDocument, text: String) throws -> FileComparisonDocument {
+        guard document.base.path == workingFile.path, document.destination.path == path,
+              document.destination.revision == snapshot.to else { throw RevisionComparisonFailure.selection }
+        let saved = try FileComparisonEditing.saveWorkingContent(at: workingFile, original: document.base, text: text)
+        return FileComparisonDocument(base: saved, destination: document.destination)
+    }
+}
+extension GitRepository {
+    public func historicalWorkingFileComparison(revision: String, path: String, workingFile: URL) throws -> HistoricalWorkingFileComparison {
+        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        _ = try historicalFile(revision: hash, path: path)
+        let url = workingFile.standardizedFileURL
+        _ = try WorkingFileComparison.workingContent(at: url)
+        let file = CommitFile(path: path, oldPath: url.path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let snapshot = RevisionComparisonSnapshot(root: root, from: .workingTree, to: .revision(hash), fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        return HistoricalWorkingFileComparison(workingFile: url, snapshot: snapshot, path: path)
+    }
+    public func comparisonFile(_ comparison: HistoricalWorkingFileComparison) throws -> FileComparisonDocument {
+        guard comparison.snapshot.root == root, case .revision(let hash) = comparison.snapshot.to else { throw RevisionComparisonFailure.selection }
+        return FileComparisonDocument(base: try WorkingFileComparison.workingContent(at: comparison.workingFile), destination: try historicalFile(revision: hash, path: comparison.path))
     }
 }

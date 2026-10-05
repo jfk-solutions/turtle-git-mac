@@ -103,9 +103,6 @@ an activated Finder extension or signed sandbox acceptance test.
 
 ## Remaining parity and acceptance
 
-- Import external marks in Log without treating absolute working paths as
-  historical repository paths; retain dialog-local marks and consume only the
-  external token actually used.
 - Match compacted menu labels and Shift alternative-tool behavior.
 - Verify native file-chooser cancellation, direct menu activation, explicit Clear,
   Control clearing from Finder, Reload, Save/Save As and external-change refusal.
@@ -113,3 +110,48 @@ an activated Finder extension or signed sandbox acceptance test.
   contents, Finder extension activation and signed sandbox permission behavior.
 
 Full DiffLater, Log and Finder parity remain incomplete.
+
+
+## External working marks in Log (2026-10-05)
+
+Log now imports the saved working-file mark when opening and when the containing
+app publishes a new mark. A retained bookmark lease belongs to the Log dialog;
+the absolute path is not interpreted as a historical Git path. A new mark ID
+replaces the imported mark. An unchanged ID does not overwrite a later local
+historical mark. Windows tracks changes to the saved path; the macOS token also
+distinguishes a newly marked instance of the same path.
+
+Compare with resolves the selected commit once and reads the historical blob
+without checkout. The external side reads live working bytes. Reload keeps the
+historical revision pinned while rereading the external side. Explicit editing
+and Save apply only to the external regular text file, using the same encoding,
+permission and external-change validation as the other working-file viewer.
+The App Store route checks both the repository grant and marked-file lease.
+A successful handoff consumes the shared mark's ID; the Log dialog retains its
+mark and lease for later comparisons, matching the upstream local retention.
+
+Twenty-four focused comparison/editing/mark-access tests pass. The new real-Git
+regression advances HEAD after preparing the mixed comparison, verifies exact
+old committed bytes and live external BOM/CRLF text, saves only the external
+file with its executable permissions retained, checks raw Git index/HEAD/working
+preservation, reloads, and rejects stale external bytes and a missing file.
+Debug and unsigned App Store builds and both resource/runtime audits pass.
+The queued local commits have not been pushed because GitHub's saved credential
+is unavailable; no CI pass is claimed for these commits.
+
+Native QA opened Log with an outside file marked. The historical `right.txt`
+context menu displayed Compare with the external absolute path, then opened a
+viewer containing 17-byte `external partner` and 15-byte committed `selected right`
+at `3afaeae0ad99d25e865b3f9072bdc5d8bc91d17c`. The later disk contents are
+14-byte `later working` and were not used as the historical side. Enable editing
+made only the external Base pane editable; turning it off restored read-only
+mode. The shared private mark record became empty. Closing the viewer and using
+the same Log action again opened the correct pair through the retained lease.
+No Save was performed. Normal Quit left no QA app process; exact HEAD/index,
+working/external bytes and deleted-file absence were verified.
+
+[Native record](qa/log-working-mark-2026-10-05.json) and
+[actual screenshot](site/assets/log-working-mark-comparison.png) document the
+route. Signed Finder/app sandbox handoff, native Save/Reload, alternate tools,
+compacted labels, new-mark/local-mark precedence variants and additional native
+file types remain pending. Full Log/Finder parity is still incomplete.

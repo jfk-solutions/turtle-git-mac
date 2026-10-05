@@ -3,10 +3,14 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
-struct HistoricalComparisonMark {
+struct PreparedFileComparisonMark {
     let path: String
     let revision: String
-    func label(for path: String) -> String { self.path == path ? revision : self.path + ":" + String(revision.prefix(8)) }
+    var workingAccess: WorkingComparisonAccess? = nil
+    func label(for path: String) -> String {
+        if let workingAccess { return workingAccess.file.path }
+        return self.path == path ? revision : self.path + ":" + String(revision.prefix(8))
+    }
 }
 
 enum HistoricalOpenAction { case open, openWith, alternativeEditor }
@@ -158,7 +162,8 @@ struct LogCommandRequest: Identifiable {
     @Published var selected = Set<String>()
     @Published var files: [CommitFile] = []
     @Published var selectedFiles = Set<String>()
-    @Published var comparisonMark: HistoricalComparisonMark?
+    private var lastImportedWorkingMark: UUID?
+    @Published var comparisonMark: PreparedFileComparisonMark?
     @Published var allBranches = false
     @Published var endRevision: String?
     @Published var historyPaths: [String] = []
@@ -190,7 +195,7 @@ struct LogCommandRequest: Identifiable {
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
     var onBlame: ((String, String) -> Void)?
-    var onPreparedFileCompare: ((HistoricalComparisonMark, HistoricalComparisonMark) -> Void)?
+    var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     var onFilePairCompare: ((String, [CommitFile]) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var close: () -> Void = {}
@@ -396,14 +401,19 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription; busy = false }
         }
     }
+    func importWorkingComparisonMark(_ access: WorkingComparisonAccess?) {
+        guard let access, access.mark.id != lastImportedWorkingMark else { return }
+        lastImportedWorkingMark = access.mark.id
+        comparisonMark = PreparedFileComparisonMark(path: access.file.path, revision: "", workingAccess: access)
+    }
     func markForComparison(_ ids: Set<String>) {
         guard !busy, let revision, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
-        comparisonMark = HistoricalComparisonMark(path: file.path, revision: revision.hash)
+        comparisonMark = PreparedFileComparisonMark(path: file.path, revision: revision.hash)
     }
     func compareWithMarkedFile(_ ids: Set<String>) {
         guard !busy, let revision, let comparisonMark, let onPreparedFileCompare, ids.count == 1,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
-        let current = HistoricalComparisonMark(path: file.path, revision: revision.hash)
+        let current = PreparedFileComparisonMark(path: file.path, revision: revision.hash)
         onPreparedFileCompare(comparisonMark, current)
     }
     func revealFile(_ ids: Set<String>) {

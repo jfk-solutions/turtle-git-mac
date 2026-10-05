@@ -66,6 +66,41 @@ final class FileComparisonTests: XCTestCase {
             do { _ = try await repo.historicalFilePairComparison(revision: head, files: files); XCTFail("Invalid pair accepted") } catch {}
         }
     }
+    func testExternalWorkingMarkUsesLiveBytesAndPinnedHistoryAndEditsOnlyMarkedFile() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let outside = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: outside) }
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        let marked = outside.appendingPathComponent(":(glob)* 雪\n.txt")
+        let original = try Data(contentsOf: root.appendingPathComponent(path))
+        let markedBytes = Data([0xef, 0xbb, 0xbf]) + Data("marked\r\n".utf8)
+        try markedBytes.write(to: marked); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: marked.path)
+        let comparison = try await repo.historicalWorkingFileComparison(revision: "HEAD", path: path, workingFile: marked)
+        try Data("later staged\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.commit(message: "advance history")
+        try Data("later working\n".utf8).write(to: root.appendingPathComponent(path))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let document = try await repo.comparisonFile(comparison)
+        XCTAssertEqual(document.base.bytes, markedBytes); XCTAssertEqual(document.destination.bytes, original)
+        XCTAssertEqual(document.base.revision, .workingTree); XCTAssertEqual(document.destination.revision, comparison.snapshot.to)
+        let saved = try comparison.saveBase(document, text: "edited\r\n")
+        XCTAssertEqual(saved.base.bytes, Data([0xef, 0xbb, 0xbf]) + Data("edited\r\n".utf8))
+        XCTAssertEqual(saved.destination.bytes, original)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("later working\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, head)
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: marked.path)[.posixPermissions] as? NSNumber, 0o755)
+        let reloaded = try await repo.comparisonFile(comparison)
+        XCTAssertEqual(reloaded.base.bytes, saved.base.bytes); XCTAssertEqual(reloaded.destination.bytes, original)
+        try Data("external change\n".utf8).write(to: marked)
+        XCTAssertThrowsError(try comparison.saveBase(saved, text: "lost update"))
+        try FileManager.default.removeItem(at: marked)
+        do { _ = try await repo.comparisonFile(comparison); XCTFail("Missing external mark accepted") } catch {}
+        for invalid in ["missing", "", "bad\0path"] {
+            do { _ = try await repo.historicalWorkingFileComparison(revision: "HEAD", path: invalid, workingFile: marked); XCTFail("Invalid historical selection accepted") } catch {}
+        }
+    }
     func testMarkedHistoricalPathsCompareSameOrDifferentNamesAtPinnedRevisions() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

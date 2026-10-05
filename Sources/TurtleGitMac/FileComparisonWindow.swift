@@ -27,6 +27,9 @@ import TurtleGitCore
     convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease]) {
         self.init(model: FileComparisonWindowModel(comparison: comparison, permissions: permissions))
     }
+    convenience init(repository: GitRepository, access: RepositoryAccessLease?, comparison: HistoricalWorkingFileComparison, permission: RepositoryAccessLease) {
+        self.init(model: FileComparisonWindowModel(repository: repository, access: access, comparison: comparison, permission: permission))
+    }
     private init(model: FileComparisonWindowModel) {
         self.model = model
         let path = model.path
@@ -54,6 +57,7 @@ import TurtleGitCore
 }
 @MainActor final class FileComparisonWindowModel: ObservableObject {
     private let repository: GitRepository?
+    private var historicalWorkingComparison: HistoricalWorkingFileComparison?
     private var workingComparison: WorkingFileComparison?
     private var workingPermissions: [RepositoryAccessLease] = []
     private let access: RepositoryAccessLease?
@@ -157,6 +161,13 @@ import TurtleGitCore
         repository = nil; access = nil; workingComparison = comparison; workingPermissions = permissions
         snapshot = comparison.snapshot; path = comparison.destination.path
     }
+    init(repository: GitRepository, access: RepositoryAccessLease?, comparison: HistoricalWorkingFileComparison, permission: RepositoryAccessLease) {
+        self.repository = repository; self.access = access; historicalWorkingComparison = comparison; workingPermissions = [permission]
+        snapshot = comparison.snapshot; path = comparison.path
+    }
+    private func validateHistoricalWorkingAccess(_ comparison: HistoricalWorkingFileComparison) throws {
+        guard !GitRuntime.isAppStoreBuild || (access?.hasSecurityScope == true && access?.contains(snapshot.root) == true && workingPermissions.contains { $0.hasSecurityScope && $0.contains(comparison.workingFile) }) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
     private func validateWorkingAccess(_ comparison: WorkingFileComparison) throws {
         guard !GitRuntime.isAppStoreBuild || [comparison.base, comparison.destination].allSatisfy({ file in
             workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) }
@@ -178,7 +189,10 @@ import TurtleGitCore
             defer { busy = false }
             do {
                 let value: FileComparisonDocument
-                if let workingComparison {
+                if let historicalWorkingComparison, let repository {
+                    try validateHistoricalWorkingAccess(historicalWorkingComparison)
+                    value = try await repository.comparisonFile(historicalWorkingComparison)
+                } else if let workingComparison {
                     try validateWorkingAccess(workingComparison)
                     value = try workingComparison.read()
                 } else if let repository {
@@ -207,7 +221,11 @@ import TurtleGitCore
             var saved = false
             defer { busy = false; completion?(saved) }
             do {
-                if let workingComparison {
+                if let historicalWorkingComparison {
+                    try validateHistoricalWorkingAccess(historicalWorkingComparison)
+                    guard base else { throw FileComparisonEditFailure.unsupported }
+                    self.document = try historicalWorkingComparison.saveBase(document, text: text)
+                } else if let workingComparison {
                     try validateWorkingAccess(workingComparison)
                     self.document = try workingComparison.save(document, base: base, text: text)
                 } else if let repository {
