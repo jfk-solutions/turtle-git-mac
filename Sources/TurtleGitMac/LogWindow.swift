@@ -341,21 +341,25 @@ struct LogCommandRequest: Identifiable {
     }
     func exportHistoricalFiles(revision: String, files: [CommitFile], to folder: URL) {
         guard !busy else { return }; busy = true
-        Task {
-            let scoped = folder.startAccessingSecurityScopedResource()
-            defer { if scoped { folder.stopAccessingSecurityScopedResource() }; busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let export = try await repository.prepareHistoricalExport(revision: revision, files: files, to: folder)
-                for path in export.paths {
-                    do { try await repository.exportHistoricalFile(export, path: path) }
-                    catch {
-                        let message = "File: " + path + "\nRevision: " + export.revision + "\nDestination: " + folder.appendingPathComponent(path).path + "\n\n" + error.localizedDescription
-                        if !(await confirmExportFailure(message)) { break }
-                    }
+        Task { await performHistoricalExport(revision: revision, files: files, folder: folder) }
+    }
+    private func performHistoricalExport(revision: String, files: [CommitFile], folder: URL) async {
+        let scoped = folder.startAccessingSecurityScopedResource()
+        defer { if scoped { folder.stopAccessingSecurityScopedResource() }; busy = false }
+        do {
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            let export: HistoricalFileExport = try await repository.prepareHistoricalExport(revision: revision, files: files, to: folder)
+            for path in export.paths {
+                do { try await repository.exportHistoricalFile(export, path: path) }
+                catch {
+                    let destination: String = folder.appendingPathComponent(path).path
+                    let lines: [String] = ["File: " + path, "Revision: " + export.revision, "Destination: " + destination, "", error.localizedDescription]
+                    let message: String = lines.joined(separator: "\n")
+                    let shouldContinue: Bool = await confirmExportFailure(message)
+                    if !shouldContinue { break }
                 }
-            } catch { self.error = error.localizedDescription }
-        }
+            }
+        } catch { self.error = error.localizedDescription }
     }
     func saveHistoricalFile(_ ids: Set<String>) {
         guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,

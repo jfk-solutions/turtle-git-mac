@@ -405,3 +405,12 @@ The screenshot captures the underlying Log selection during export; it does not
 capture the separate AppKit warning sheet. Native overwrite, deleted/gitlink
 marked-row menu gates and ordering, dark-mode warning appearance and signed
 sandbox access remain pending. Full Log parity remains incomplete.
+
+### CI compiler follow-up
+
+GitHub's Swift 6.1.2/Xcode 16.4 rejected the Export `Task` at 35d4672
+with a type-checking timeout, before integration tests could run. Local builds
+had passed. The task now calls a separate async function with explicit result
+and message types; the failure message is assembled from a typed string array.
+This retains the verified export behavior while reducing inference complexity.
+The correction must pass a fresh GitHub run before CI compatibility is claimed.
