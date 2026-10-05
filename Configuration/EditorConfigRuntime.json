@@ -1,0 +1,23 @@
+{
+  "editorconfig": {
+    "version": "0.12.11",
+    "commit": "0ba157eff167c1b2d1bc0c3e13975b7a73fb9d25",
+    "url": "https://github.com/editorconfig/editorconfig-core-c/archive/0ba157eff167c1b2d1bc0c3e13975b7a73fb9d25.tar.gz",
+    "sha256": "0aa80e0c90158c8725c29aa978710e8b1071cc5f4e10184576e718349ea32819"
+  },
+  "pcre2": {
+    "version": "10.49",
+    "url": "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.49/pcre2-10.49.tar.gz",
+    "sha256": "929f0b20e62879252a15886b06c89f1edef61a363cbd5826fb041080a5e557ae"
+  },
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "deployment_target": "13.0",
+  "core_tests": {
+    "commit": "d91029bdf1e3e0307714afe0d2cde7ba6fd208ab",
+    "url": "https://github.com/editorconfig/editorconfig-core-test/archive/d91029bdf1e3e0307714afe0d2cde7ba6fd208ab.tar.gz",
+    "sha256": "6ad790d221748e5d9c90a4c42318775ecf6e2876030f3f428fbdac97bcaca8dc"
+  }
+}

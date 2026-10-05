@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-05",
+  "feature": "Official EditorConfig runtime build foundation",
+  "runtime": "build/editorconfig-runtime/EditorConfig/editorconfig",
+  "versions": {
+    "EditorConfig": "0.12.11",
+    "PCRE2": "10.49"
+  },
+  "verified": [
+    "SHA256-pinned unmodified official source archives plus exact upstream core-test submodule revision",
+    "Universal arm64/x86_64 runtime built against macOS SDK with static parser and static PCRE2",
+    "202 official EditorConfig conformance tests pass on native architecture",
+    "Both slices explicitly execute via arch; brace alternatives, numeric ranges, inherited properties, child overrides and unset output verified",
+    "Both Mach-O slices declare macOS13.0 minimum; linkage contains only macOS system libraries",
+    "Runtime package includes component licenses, complete source/test archives, reconstruction script and provenance manifest"
+  ],
+  "pending": [
+    "Embed/sign runtime in Debug/AppStore bundles and gate bundle audit",
+    "Native per-pane EditorConfig menu toggle and loaded-state indicator",
+    "Swift property mapping and asynchronous read/cancellation/error behavior",
+    "Scoped ancestor-file access and signed sandbox acceptance",
+    "Native pane insertion/conversion/preference reload checks with EditorConfig",
+    "Intel macOS13 execution acceptance and complete upstream integration"
+  ]
+}
