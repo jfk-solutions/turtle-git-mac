@@ -50,3 +50,9 @@ gate and UTF-16 scalar traversal are described in the issue-tracker audit.
 Sources/TurtleGitCore/MessageFormatting.swift adapts SciEdit.cpp's marker
 formatting, retaining the TortoiseGit/TortoiseSVN notices above and GPL version
 2 or later attribution. Marker text remains unchanged in committed messages.
+
+Sources/TurtleGitCore/MessageCompletion.swift adapts CommitDlg.cpp filename
+catalog generation and SciEdit.cpp completion matching under GPL version 2 or
+later, retaining their TortoiseGit/TortoiseSVN copyright notices. The native
+popup reuses the upstream file.ico unchanged; its provenance is recorded in
+Sources/TurtleGitCore/Resources/Icons/provenance.json.

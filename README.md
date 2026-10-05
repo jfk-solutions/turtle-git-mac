@@ -71,7 +71,11 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   the issue field using upstream rules. Ordinary URLs and email addresses use
   the upstream punctuation/bracket scanner and native links. Per-line `*bold*`,
   `^italic^` and `_underlined_` marker formatting follows upstream precedence, with
-  a saved Style commit messages preference. Provider plugins and signed scope
+  a saved Style commit messages preference. Filename completion includes displayed
+  unchecked files and path suffixes, with Ctrl-Space, original file icons and
+  saved enable/minimum/extension preferences. Code completion, snippets and
+  spelling remain pending; see [completion audit](docs/COMMIT-COMPLETION-PARITY.md).
+  Provider plugins and signed scope
   acceptance remain pending; see [issue audit](docs/ISSUE-TRACKER-PARITY.md).
   ![Native issue-ID Commit controls](docs/site/assets/commit-issue.png)
   ![Native selected-file merge Commit](docs/site/assets/commit-merge.png)

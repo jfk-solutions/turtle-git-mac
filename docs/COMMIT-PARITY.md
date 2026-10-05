@@ -1232,3 +1232,12 @@ and [recorded evidence](qa/commit-message-format-2026-10-05.json).
 The source supplementary-character boundary quirk is retained. Exact Windows
 locale classification, incremental editor state, spelling/snippets and full
 Advanced settings remain pending.
+
+## Filename completion in the message editor
+
+Displayed filenames and path suffixes now feed a native completion popup with
+the original file icon. Automatic/default-minimum and manual keyboard requests,
+unchecked unversioned candidates, saved preferences, extension-free names and
+Undo have native acceptance evidence. See [completion audit](COMMIT-COMPLETION-PARITY.md)
+for source mapping, screenshots and the remaining code/snippet/spelling work.
+This does not establish complete SciEdit or Commit parity.

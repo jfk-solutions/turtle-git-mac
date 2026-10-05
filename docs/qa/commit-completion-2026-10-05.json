@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-05",
+  "scope": "Commit filename completion; full editor remains partial",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_blobs": {
+    "src/Resources/file.ico": "3edf0618ee2e4dff89d1b3056072ed696ff96782",
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/TortoiseProc/Settings/SetDialogs2.cpp": "67abf27cae395ac4a013856199960db6aac3aee6",
+    "src/TortoiseProc/Settings/SetDialogs2.h": "c9be1574310d1a5228e00fdfd00dc2fa0d7edbdf",
+    "src/TortoiseProc/Settings/SettingsAdvanced.cpp": "1b222ebf9053e0e902f79413899dc92d35071464",
+    "src/Utils/MiscUI/SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e",
+    "src/Utils/MiscUI/SciEdit.h": "0c26375d84d7d27b111a5759af820d9058da9b6e"
+  },
+  "tests": {
+    "completion_cases": 4,
+    "full_suite_count": 389,
+    "failures": 0,
+    "full_log_sha256": "9509a560b86f3642565b6c6c42e1df945dc7078ef369e6ed1bc1fda79a6cdf58"
+  },
+  "native": {
+    "fixture": "/tmp/TurtleGitCompletionQA-repository",
+    "baseline": {
+      "head": "f5ee44fd4101f16ec9e31ff417c0508d62237e94",
+      "index_sha256": "7768dc6d5bd6dd3dd05a3eb97f63daa0ade5790759981c200e6f9d6ddfbb64c6",
+      "working_sha256": "0e442b07e3772e8f5622478242ddf5f9f197bbd6a0402cd71471db4081abb291"
+    },
+    "final_HEAD_raw_index_tracked_working_unchanged": true,
+    "cases": [
+      "Automatic Wi absent / Wid offered Widget.swift",
+      "Tab acceptance; isolated Undo retained Wid after coalescing fix",
+      "Option-Escape Wi offered checked Widget.swift and unchecked Window.swift",
+      "Down/Return chose Window.swift; Undo retained Wi",
+      "Mouse chose Widget.swift",
+      "Ctrl-Space physical key after W offered both filenames",
+      "Saved disabled Autocompletion suppresses Ctrl-Space",
+      "Saved extension option adds Widget and Window; mouse acceptance Undo restores W",
+      "Actual light/dark captures with original file icons inspected"
+    ],
+    "lifecycle": "Sequential disposable QA builds; at most one app running. Final Cmd-Q/Yes quit normally; final process scan empty.",
+    "automation_note": "Observation timed out during initial settings check. Same PID sampled idle in NSApplication event loop; CUA reset and later acceptance completed. No restart or hang inferred from observation timeout.",
+    "screenshots": [
+      {
+        "path": "docs/site/assets/commit-completion.png",
+        "sha256": "bebe320e7ec894bd84657796e5cc61012444f1ddbec57b7d4e06efa73c7b5ae1",
+        "dimensions": [
+          2108,
+          1584
+        ]
+      },
+      {
+        "path": "docs/site/assets/commit-completion-dark.png",
+        "sha256": "221d114d4e2148d7830bddf0ab09d037591d4d4ee22f65c8bc7649e4cb0864f0",
+        "dimensions": [
+          2108,
+          1584
+        ]
+      }
+    ]
+  },
+  "builds": {
+    "Debug": "Unsigned build and bundle audit passed; 65 icons",
+    "AppStore": "Unsigned build and runtime/resource audit passed; signed execution pending",
+    "GitHub Pages": "Local site build and native PNG checks passed; publication pending",
+    "NOTICE": "Both bundles retain current upstream completion attribution"
+  },
+  "remaining": [
+    "Code regex extraction, shipped/user dictionaries, size/timeout gates",
+    "Snippets and spelling",
+    "Exact Windows casing/word rules, empty prefix and minimum bounds",
+    "Complete keyboard/popup lifecycle, IME and accessibility",
+    "Signed App Store acceptance",
+    "Fresh GitHub verification after publication"
+  ],
+  "build_log_sha256": {
+    "Debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "AppStore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  }
+}

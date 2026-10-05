@@ -48,6 +48,39 @@ struct CommitMessageEditor: NSViewRepresentable {
 
 private final class MessageTextView: NSTextView {
     weak var model: CommitWindowModel?
+    private let completionPopup = CommitCompletionPopup()
+    private var completionRange: NSRange?
+    override func keyDown(with event: NSEvent) {
+        if completionPopup.isShown {
+            if event.keyCode == 53 { completionPopup.close(); return }
+            if event.keyCode == 125 || event.keyCode == 126 { completionPopup.move(event.keyCode == 125 ? 1 : -1); return }
+            if event.keyCode == 36 || event.keyCode == 48 { completionPopup.choose(); return }
+        }
+        let modifiers = event.modifierFlags.intersection([.control, .option, .command])
+        if modifiers == .control && event.keyCode == 49 { showCompletions(minimum: 1); return }
+        if modifiers == .option && event.keyCode == 53 { showCompletions(minimum: 1); return }
+        completionPopup.close()
+        super.keyDown(with: event)
+        if modifiers.isEmpty, event.characters?.isEmpty == false { showCompletions(minimum: UserDefaults.standard.object(forKey: "AutoCompleteMinChars") as? Int ?? 3) }
+    }
+    override func complete(_ sender: Any?) { showCompletions(minimum: 1) }
+    private func showCompletions(minimum: Int) {
+        guard isEditable, let model else { return }
+        guard UserDefaults.standard.object(forKey: "Autocompletion") as? Bool ?? true else { completionPopup.close(); return }
+        let stripExtensions = UserDefaults.standard.bool(forKey: "AutocompleteRemovesExtensions")
+        let candidates = MessageCompletion.fileCandidates(paths: model.visibleEntries.map(\.path), removeExtensions: stripExtensions)
+        guard let request = MessageCompletion.request(message: string, selection: selectedRange(), candidates: candidates, minimum: minimum, styling: model.formattingEnabled) else { completionPopup.close(); return }
+        completionRange = request.range
+        completionPopup.accept = { [weak self] value in
+            guard let self, let range = self.completionRange, range.location <= (self.string as NSString).length, range.length <= (self.string as NSString).length - range.location else { return }
+            self.breakUndoCoalescing()
+            self.insertText(value, replacementRange: range)
+            self.breakUndoCoalescing()
+            self.window?.makeFirstResponder(self)
+        }
+        completionPopup.show(request.candidates, in: self)
+    }
+    override func resignFirstResponder() -> Bool { completionPopup.close(); return super.resignFirstResponder() }
     private var appliedStyles: [IssueMessageStyle] = []
     private var styledText = ""
     func applyIssueStyles(_ styles: [IssueMessageStyle]) {
@@ -122,11 +155,18 @@ private final class MessageTextView: NSTextView {
 
 struct CommitEditorSettings: View {
     @AppStorage("StyleCommitMessages") private var styleMessages = true
+    @AppStorage("AutoCompleteMinChars") private var completionMinimum = 3
+    @AppStorage("Autocompletion") private var autocompletion = true
+    @AppStorage("AutocompleteRemovesExtensions") private var removeExtensions = false
     var body: some View {
         Form {
             Toggle("Style commit messages", isOn: $styleMessages)
             Text(verbatim: "Use *bold*, ^italic^ and _underlined_ text. Markers remain in the commit message. Issue and URL links stay enabled.")
                 .font(.caption).foregroundStyle(.secondary)
+            Toggle("Enable auto-completion", isOn: $autocompletion)
+            Stepper("Complete after \(completionMinimum) characters", value: $completionMinimum, in: 1...100).disabled(!autocompletion)
+            Toggle("Include file names without extensions", isOn: $removeExtensions).disabled(!autocompletion)
+            Text("File completions come from the displayed changes. Press Ctrl-Space or Option-Escape to request them after one character.").font(.caption).foregroundStyle(.secondary)
         }.padding(20)
     }
 }
