@@ -525,12 +525,18 @@ private struct FileComparisonEditor: NSViewRepresentable {
         deinit { NotificationCenter.default.removeObserver(self) }
     }
 }
-private final class FileComparisonTextView: NSTextView {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
     var history: UndoManager?
     weak var model: FileComparisonWindowModel?
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
     var missingOffsets: [Int] = []
+    func menuDidClose(_ menu: NSMenu) {
+        guard let model, model.activeBase == baseSide, !model.busy, !model.confirmingQuit,
+              let window, window.attachedSheet == nil else { return }
+        window.makeFirstResponder(self)
+        setAccessibilityFocused(true)
+    }
     override func mouseDown(with event: NSEvent) {
         model?.activatePane(base: baseSide)
         super.mouseDown(with: event)
@@ -566,7 +572,7 @@ private final class FileComparisonTextView: NSTextView {
     override func menu(for event: NSEvent) -> NSMenu? {
         guard let model else { return super.menu(for: event) }
         model.updateSelection(selectedRange(), cells: sourceCells)
-        let menu = NSMenu(); menu.autoenablesItems = false
+        let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
         func add(_ title: String, _ action: Selector, _ icon: NSImage?, _ enabled: Bool) {
             let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon; item.isEnabled = enabled; menu.addItem(item)
         }

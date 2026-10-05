@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-05",
+  "feature": "Restore comparison text focus when native context-menu tracking closes",
+  "preview": "/tmp/TurtleGitMenuCloseQA.app",
+  "native_verified": [
+    "Enable Base, activate/select Mine, invoke Prepend this block to left",
+    "Base draft becomes keyboard draft LF plus base second draft LF; Mine original draft remains",
+    "Immediately press Command-A and paste after menu close CRLF without clicking a text view; Mine draft changes and Base prepend remains",
+    "Keyboard Undo restores Mine without undoing Base prepend",
+    "Selecting Base and keyboard Undo restores Base independently",
+    "Both original file bytes and 0644/0755 modes unchanged; repository HEAD/raw index/working bytes match baseline",
+    "Sequential mark/comparison launches; normal Quit then process absence, with no final UI query"
+  ],
+  "implementation": "NSMenuDelegate.menuDidClose restores the originating active NSTextView as first responder and accessibility focus when no operation, quit confirmation or sheet is active.",
+  "verification": {
+    "Debug_build": "passed",
+    "unsigned_AppStore_build": "passed",
+    "Debug_bundle_audit": "passed",
+    "AppStore_bundle_and_embedded_Git_runtime_audit": "passed"
+  },
+  "pending": [
+    "Other reverse/combined/menu-cancellation and keyboard variants",
+    "Historical-copy editing",
+    "Full TortoiseMerge state/layout/menu parity",
+    "Signed sandbox acceptance"
+  ]
+}

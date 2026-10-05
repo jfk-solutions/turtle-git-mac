@@ -265,9 +265,27 @@ its whole-file command writes Mine. Enabling Base and typing edits Base without
 changing the Mine draft, and independent Undo restores each side. A reverse
 prepend from Mine similarly leaves Mine active while updating Base.
 
-Keyboard-only typing immediately after that reverse menu action remains under
-investigation: the paste did not change text until Mine was explicitly clicked.
-Typing and independent Undo then worked, with both disk files and the bootstrap
-repository unchanged. This narrows the earlier focus gap without establishing
-complete keyboard/context-menu parity. See the
+The initial side-specific acceptance still required a click before keyboard
+editing after the reverse menu action. That observation is preserved in the
 [side-specific acceptance record](qa/comparison-side-edit-2026-10-05.json).
+The menu-close update below verifies the previously failing keyboard-only case;
+complete keyboard/context-menu parity remains unproven.
+
+## Return keyboard focus after native menu tracking
+
+The comparison text view is now its context menu's delegate. On menu close it
+restores the originating active text view as the first responder and
+accessibility focus, provided no operation, Quit confirmation or sheet is active.
+This finishes the native menu-tracking handoff without selecting the transfer's
+other destination.
+
+Native acceptance repeated the previously failing reverse prepend case:
+select Mine, choose “Prepend this block to left,” then immediately use Command-A
+and paste without a text-view click. Mine received the new draft; Base retained
+its prepend. Independent keyboard Undo restored Mine, then Base. Exact original
+comparison bytes/modes and repository HEAD/index/working bytes remained intact.
+Debug and unsigned App Store builds and both bundle/runtime audits passed.
+The preview quit normally and no TurtleGit process remained. See the
+[menu-close acceptance record](qa/comparison-menu-close-2026-10-05.json).
+Other menu/cancellation/key variants, complete upstream state behavior and
+signed sandbox acceptance remain pending.
