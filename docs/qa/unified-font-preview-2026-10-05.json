@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-05",
+  "scope": "Fixed-pitch font-name preview menu; partial appearance parity",
+  "source": "src/TortoiseProc/Settings/SettingsTUDiff.cpp m_cFontNames.Setup and IDC_FONTNAMES owner-drawn resource",
+  "source_blob": "f7013ed3cb19b7c3c625d98c8d15e437a6862da6",
+  "changes": [
+    "NSPopUpButton family menu with attributed font-face titles",
+    "Preserve saved family if unavailable",
+    "Reuse fixed-pitch filter and family binding; resolve fonts through NSFontManager",
+    "Normalize appearance-view source indentation"
+  ],
+  "debug_build_exit": 0,
+  "unsigned_appstore_build_exit": 0,
+  "bundle_audits": "Both passed; all 72 original icons",
+  "core_tests": "Not rerun: no Core changes; last 11 focused tests remain applicable.",
+  "native_verified": [
+    "Default-font unified diff opens from Log",
+    "Settings and Unified Diff Viewer subpage open"
+  ],
+  "native_incomplete": [
+    "Font menu drawing and selection",
+    "Live Apply to open diff",
+    "Dark palette controls and viewer",
+    "Scroll/footer acceptance"
+  ],
+  "observation_failure": "Sky Computer Use native pipe closed before response on entering Appearance; same-window retry failed. Normal quit request rejected because computer use inactive. Cause not established.",
+  "cleanup": {
+    "pid": 1283,
+    "executable": "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitFontPreviewQA-m37lkeok/TurtleGit Font Preview QA.app/Contents/MacOS/TurtleGitMac",
+    "signal": "SIGTERM after exact executable revalidation",
+    "remaining_app_processes": 0
+  },
+  "new_screenshot": "None",
+  "logs": [
+    {
+      "path": "/tmp/turtlegit-font-preview-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-font-preview-store.log",
+      "sha256": "c3317a93e73643be09045c50c69229cd4545aac229542d1968ba51680e6abb72"
+    },
+    {
+      "path": "/tmp/turtlegit-font-preview-debug-audit.log",
+      "sha256": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0"
+    },
+    {
+      "path": "/tmp/turtlegit-font-preview-store-audit.log",
+      "sha256": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+    }
+  ]
+}

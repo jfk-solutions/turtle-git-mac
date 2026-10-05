@@ -349,3 +349,22 @@ isolated preview quit normally; no app process remained. No new screenshot was
 saved. Inch-locale UI, locale changes, native Print after a saved margin edit,
 paper/printer changes inside Print, physical printer minimums and signed sandbox
 acceptance remain pending. See [verification record](qa/unified-page-setup-2026-10-05.json).
+
+## Native fixed-pitch font preview menu
+
+`NativeFixedFontChoice` replaces the font-name picker with a native NSPopUpButton.
+Each item retains its family name and uses an attributed title rendered in that
+family's fixed-pitch face. The current saved family remains available if it is
+missing from font enumeration, with a native monospaced preview fallback. The
+binding stores the family name; the viewer still resolves the selected family
+through NSFontManager. This adapts SettingsTUDiff.cpp `m_cFontNames.Setup` and
+the font combo's owner-drawn resource style. Core preference behavior is unchanged.
+
+Debug/unsigned App Store builds and bundle audits pass. A single fresh preview
+opened the default-font Log diff and Settings. Entering the Appearance subpage
+then lost the computer-use native pipe; retrying the same window failed too.
+The attempt to quit normally was rejected because computer use was inactive.
+Only the exact owned preview PID 1283 was revalidated and sent SIGTERM; no
+TurtleGit process remained. No new screenshot or font-preview/live-Apply/dark
+acceptance is claimed. The cause of the controller failure is not established.
+See [verification record](qa/unified-font-preview-2026-10-05.json).

@@ -130,6 +130,7 @@
 		DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = F925723BED85497207863D60 /* SubmoduleConflict.swift */; };
 		E046B347B367E63019422195 /* WorkingTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20E461B2D9629D0293A80EB /* WorkingTree.swift */; };
 		E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */; };
+		E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */; };
 		E0EF101FE5499CD99CF132F1 /* RevertWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */; };
 		E33A35FBF3211D26C2EE5F72 /* FinderSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E11987C6F9546E908AD60BA /* FinderSync.swift */; };
 		E3EE5EB389BF0E9FD8DDD26A /* SubmoduleConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */; };
@@ -288,6 +289,7 @@
 		9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileExport.swift; sourceTree = "<group>"; };
 		9ABE7B92864A28F4229F6063 /* BlameSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameSettings.swift; sourceTree = "<group>"; };
 		9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueMessageStyle.swift; sourceTree = "<group>"; };
+		9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFixedFontChoice.swift; sourceTree = "<group>"; };
 		A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonWindow.swift; sourceTree = "<group>"; };
 		A2D91605384F213DBC8C3C9F /* CommitAmend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitAmend.swift; sourceTree = "<group>"; };
 		A35B58726A94B9B4799C06DE /* RemoveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveWindow.swift; sourceTree = "<group>"; };
@@ -385,6 +387,7 @@
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
 				63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */,
 				326985003F83908822D7B91E /* MergeWindow.swift */,
+				9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */,
 				65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */,
 				DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */,
 				3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */,
@@ -837,6 +840,7 @@
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,
 				78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */,
 				1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */,
+				E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */,
 				8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */,
 				CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */,
 				FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */,
