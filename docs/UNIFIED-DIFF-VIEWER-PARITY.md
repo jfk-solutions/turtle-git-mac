@@ -255,3 +255,20 @@ inspected. Full footer geometry and live Apply remain pending; a Settings-close
 AX timeout prevented those checks. Both isolated previews quit normally and no
 TurtleGit process remained. No Core code changed in this navigation fix.
 See [acceptance record](qa/unified-appearance-navigation-2026-10-05.json).
+
+### Scrollable settings and editable size presets
+
+Appearance settings now place color/font controls in a scroll view and reserve
+the footer outside it, so content growth can scroll independently of Cancel and
+Apply. The editable native font-size combo offers 6, 8, …, 30 and accepts typed
+sizes, following SettingsTUDiff.cpp. Blame reuses the same existing combo through
+`NativeFontSizeChoice`; its preset/delegate behavior is unchanged.
+
+Both Debug and unsigned App Store builds and bundle audits pass. A single native
+preview opened a Log diff and reached Unified Diff settings, but the computer-use
+native pipe closed before the new Appearance page could be observed. A reconnect
+failed too. The exact owned process was verified and terminated with SIGTERM;
+no app process remained. No fresh screenshot, geometry acceptance, preset
+selection, dark rendering or live Apply pass is claimed. The prior screenshot
+precedes this scroll/preset change. Owner-drawn font preview remains pending.
+See [verification record](qa/unified-appearance-footer-2026-10-05.json).

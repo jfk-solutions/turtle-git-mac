@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-05",
+  "scope": "Appearance page scrolling/fixed footer and shared editable font-size presets",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "changes": [
+    "Colors/font/note scroll independently of footer",
+    "Source size presets 6 through 30 by 2; typed sizes retained",
+    "Move existing Blame combo implementation into shared NativeFontSizeChoice without delegate behavior changes"
+  ],
+  "debug_build_exit": 0,
+  "unsigned_appstore_build_exit": 0,
+  "bundle_audits": "Both passed, all 72 original icons",
+  "core_tests": "Not rerun: no Core changes. Prior 13 focused tests pass at 4b8b58c.",
+  "native_verified": [
+    "Log double-click opens read-only diff",
+    "Settings and Unified Diff viewer page reachable"
+  ],
+  "native_limitation": "Sky Computer Use native pipe closed before response; retry and kernel reconnect both failed before observing Appearance. No native geometry/preset/live Apply acceptance claimed.",
+  "cleanup": {
+    "pid": 96057,
+    "executable": "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/TurtleGitAppearanceFooterQA-w88ye_mp/TurtleGit Appearance Footer QA.app/Contents/MacOS/TurtleGitMac",
+    "termination": "SIGTERM after exact ps executable match",
+    "remaining_app_processes": 0
+  },
+  "pending": [
+    "Footer and scroll visual acceptance",
+    "Native preset selection and typed values",
+    "Dark palette selection/rendering",
+    "Live Apply",
+    "Owner-drawn font preview",
+    "Full editable UDiff and signed sandbox acceptance"
+  ],
+  "logs": [
+    {
+      "path": "/tmp/turtlegit-appearance-footer-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-appearance-footer-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-appearance-footer-debug-audit.log",
+      "sha256": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0"
+    },
+    {
+      "path": "/tmp/turtlegit-appearance-footer-store-audit.log",
+      "sha256": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+    }
+  ]
+}

@@ -69,7 +69,7 @@ struct BlameSettings: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack {
                         Picker("Font:", selection: $presentation.fontName) { ForEach(fonts, id: \.self) { Text($0).tag($0) } }
-                        BlameFontSizeChoice(value: $fontSize).frame(width: 75, height: 24)
+                        NativeFontSizeChoice(value: $fontSize).frame(width: 75, height: 24)
                     }
                     HStack { Text("Tab size:"); TextField("Tab size", text: $tabSize).frame(width: 65); Spacer() }
                     if validPresentation == nil { Text("Enter font and tab sizes from 1 to 1000.").font(.caption).foregroundStyle(.red) }
@@ -121,34 +121,6 @@ struct BlameSettings: View {
         savedOptions = GitBlamePreferences.load(); savedPresentation = .load()
         draft = savedOptions; draft.normalizeLogSettings(); within = String(draft.withinFileCharacters); between = String(draft.betweenFileCharacters)
         presentation = .load(); fontSize = String(presentation.fontSize); tabSize = String(presentation.tabSize)
-    }
-}
-private struct BlameFontSizeChoice: NSViewRepresentable {
-    @Binding var value: String
-    func makeCoordinator() -> Coordinator { Coordinator(value: $value) }
-    func makeNSView(context: Context) -> NSComboBox {
-        let combo = NSComboBox()
-        combo.addItems(withObjectValues: stride(from: 6, through: 30, by: 2).map(String.init))
-        combo.delegate = context.coordinator
-        combo.setAccessibilityLabel("Font size")
-        return combo
-    }
-    func updateNSView(_ combo: NSComboBox, context: Context) {
-        context.coordinator.value = $value
-        if combo.stringValue != value { combo.stringValue = value }
-    }
-    final class Coordinator: NSObject, NSComboBoxDelegate {
-        var value: Binding<String>
-        init(value: Binding<String>) { self.value = value }
-        func controlTextDidChange(_ notification: Notification) {
-            guard let combo = notification.object as? NSComboBox else { return }
-            value.wrappedValue = combo.stringValue
-        }
-        func comboBoxSelectionDidChange(_ notification: Notification) {
-            guard let combo = notification.object as? NSComboBox,
-                  let selected = combo.objectValueOfSelectedItem as? String else { return }
-            value.wrappedValue = selected
-        }
     }
 }
 private final class BlameSettingsWindowReference { weak var window: NSWindow? }

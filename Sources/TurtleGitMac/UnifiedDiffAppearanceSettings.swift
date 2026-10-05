@@ -33,6 +33,8 @@ struct UnifiedDiffAppearanceSettings: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
             GroupBox("Colors") {
                 VStack(spacing: 10) {
                     Picker("Appearance", selection: $dark) { Text("Light").tag(false); Text("Dark").tag(true) }.pickerStyle(.segmented)
@@ -49,13 +51,14 @@ struct UnifiedDiffAppearanceSettings: View {
             }
             GroupBox("Font") {
                 VStack(spacing: 10) {
-                    HStack { Text("Font:"); Picker("Font", selection: $draft.fontName) { ForEach(fonts, id: \.self) { Text($0).tag($0) } }.labelsHidden(); TextField("Size", text: $size).frame(width: 60) }
+                    HStack { Text("Font:"); Picker("Font", selection: $draft.fontName) { ForEach(fonts, id: \.self) { Text($0).tag($0) } }.labelsHidden(); NativeFontSizeChoice(value: $size).frame(width: 75, height: 24) }
                     HStack { Text("Tab size:"); Spacer(); TextField("Tab size", text: $tabs).frame(width: 60) }
                     if value == nil { Text("Enter font and tab sizes from 1 to 1000.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
             }
             Text("These settings also apply to Patch Viewer previews. Choose the built-in or external program in the Viewer tab.").font(.caption).foregroundStyle(.secondary)
-            Spacer()
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.frame(maxHeight: .infinity)
             HStack { Spacer(); Button("Cancel") { draft = saved; size = String(saved.fontSize); tabs = String(saved.tabSize); NSApp.keyWindow?.performClose(nil) }
                 Button("Apply") { guard let value else { return }; value.save(); saved = value; NotificationCenter.default.post(name: .unifiedDiffAppearanceChanged, object: nil) }.disabled(value == nil || value == saved)
             }
