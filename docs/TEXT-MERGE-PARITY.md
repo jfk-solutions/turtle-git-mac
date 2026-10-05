@@ -451,3 +451,41 @@ Multiple dirty windows, Quit during a deliberately long operation, nested marker
 warning cancellation and signed/sandbox termination remain acceptance work.
 Other dialog models' operations and unsaved drafts need their own Quit audit;
 this change does not establish application-wide parity for those dialogs.
+
+## Unicode input and File Encoding output
+
+The three-pane editor now decodes the supported Unicode formats for Base, Mine,
+Theirs and the working snapshot before generating a UTF-8 temporary merge.
+BOMs are file metadata and do not enter the source strings or conflict markers.
+The result initially uses the working file's detected encoding, falling back
+to Mine when the working file is absent. Its File Encoding menu mirrors the
+two-pane choices: UTF-8 and UTF-16LE/BE with optional BOMs, UTF-32LE/BE with
+BOMs, and explicit Windows-1252. Upstream `FileTextLines.cpp:489–537` supplies
+the output/BOM rules; `BaseView.cpp:6078–6087` marks a changed format modified.
+
+Encoding-only changes count as dirty for close, reload and application Quit.
+Save, Save As and Mark as resolved use the selected format. Conversion rejects
+unrepresentable text before changing the choice or writing bytes. Save As
+balances the selected URL's security scope. A shared codec correction preserves
+a literal leading U+FEFF after removing only the format's header BOM.
+
+Native acceptance opened a conflict with a UTF-16LE/BOM working file and Chinese
+text plus an emoji. Use Mine whole file retained CRLF and missing final newline.
+Windows-1252 rejection retained the draft; UTF-32LE Save wrote exactly 64 bytes
+and retained 0755 while leaving the raw index unchanged. A format-only UTF-8 BOM
+change triggered the close prompt, and Cancel kept it. Save As wrote an exact
+23-byte export without changing the working file; Mark as resolved then saved
+and staged those 23 bytes with executable mode. HEAD, MERGE_HEAD and unrelated
+staged/working files were preserved. The sole QA app quit normally and process
+absence was verified. See [record](qa/conflict-encoding-2026-10-05.json).
+
+Real-Git regressions exercise mixed UTF-16LE/UTF-8/UTF-32 stage encodings, every
+output format, no BOM leakage, lossless rejection, modes, index preservation,
+resolution and leading U+FEFF text. All 355 tests, both builds, both bundle/runtime
+audits and the documentation site build passed. The existing stale-stage, stale-working-file,
+marker and failed-stage-retry checks continue to apply.
+
+Full Windows ANSI code-page/input selection, ambiguous BOM-less Unicode,
+remaining native format/checkmark variants, Save-and-Reload/Quit encoding
+variants, source editing and signed sandbox acceptance remain pending. This
+is partial TortoiseMerge encoding parity.

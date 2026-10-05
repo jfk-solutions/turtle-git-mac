@@ -31,14 +31,21 @@ public enum ComparisonTextEncoding: String, CaseIterable, Sendable {
     public func encode(_ text: String) throws -> Data {
         guard !text.unicodeScalars.contains(where: { $0.value == 0 }),
               let bytes = text.data(using: codec, allowLossyConversion: false),
-              let recovered = String(data: bytes, encoding: codec),
+              let recovered = decodePayload(bytes),
               recovered.utf8.elementsEqual(text.utf8) else { throw FileComparisonEditFailure.encoding }
         return bom + bytes
     }
     public func decode(_ bytes: Data) -> String? {
         let body = !bom.isEmpty && bytes.starts(with: bom) ? Data(bytes.dropFirst(bom.count)) : bytes
-        guard let text = String(data: body, encoding: codec), !text.unicodeScalars.contains(where: { $0.value == 0 }),
+        guard let text = decodePayload(body), !text.unicodeScalars.contains(where: { $0.value == 0 }),
               text.data(using: codec, allowLossyConversion: false) == body else { return nil }
+        return text
+    }
+    /// Foundation treats a leading U+FEFF as a header. A sentinel keeps an
+    /// actual text character intact after this format's BOM has been removed.
+    private func decodePayload(_ bytes: Data) -> String? {
+        guard let prefix = "x".data(using: codec), var text = String(data: prefix + bytes, encoding: codec), text.first == "x" else { return nil }
+        text.removeFirst()
         return text
     }
     public static func detect(_ bytes: Data) -> ComparisonTextEncoding? {

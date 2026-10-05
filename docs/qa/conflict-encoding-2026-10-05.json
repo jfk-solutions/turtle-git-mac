@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-05",
+  "feature": "Three-pane Unicode conflict input and explicit result encoding",
+  "preview": "/tmp/TurtleGitConflictEncodingQA.app",
+  "native_verified": [
+    "UTF16LE BOM working snapshot accepted; Unicode Mine/Theirs rendered",
+    "Use Mine whole file retains exact CRLF/no-final-newline source text",
+    "Windows-1252 rejects Chinese/emoji without draft conversion",
+    "UTF32LE Save writes exact 64 bytes with BOM and 0755; raw index unchanged",
+    "Encoding-only UTF8 BOM change sets Modified and close prompt; Cancel retains draft",
+    "Save As exact 23-byte UTF8 BOM output leaves UTF32LE working source untouched",
+    "Mark as resolved writes and stages exact 23-byte UTF8 BOM output with executable mode and closes editor",
+    "HEAD/MERGE_HEAD and unrelated staged/working files unchanged",
+    "Single QA app; normal Quit and process absence verified"
+  ],
+  "verification": {
+    "focused_comparison_and_conflict_tests": 28,
+    "full_tests": 355,
+    "failures": 0,
+    "Debug_build": "passed",
+    "unsigned_AppStore_build": "passed",
+    "both_bundle_runtime_audits": "passed",
+    "documentation_site_build": "passed"
+  },
+  "pending": [
+    "Windows ANSI code pages and legacy input selection",
+    "Ambiguous BOM-less Unicode and empty-file format inference",
+    "Remaining native format/checkmark variants",
+    "Encoding Save-and-Reload and Quit variants",
+    "Source editing and full TortoiseMerge state/layout parity",
+    "Signed sandbox acceptance"
+  ]
+}

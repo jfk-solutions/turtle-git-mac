@@ -2,6 +2,62 @@ import XCTest
 @testable import TurtleGitCore
 
 final class TextConflictTests: XCTestCase {
+    func testExplicitOutputFormatsPreserveModesAndIndexUntilResolution() async throws {
+        let (root, repo, path) = try await ConflictResolutionTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let location = root.appendingPathComponent(path)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: location.path)
+        var document = try await repo.textConflictDocument(path: path)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let text = "Aé\r\nno end"
+        for encoding in ComparisonTextEncoding.allCases {
+            document = try await repo.saveTextConflict(document, result: text, markResolved: false, encoding: encoding)
+            XCTAssertEqual(document.encoding, encoding)
+            XCTAssertEqual(try Data(contentsOf: location), try encoding.encode(text))
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+            XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: location.path)[.posixPermissions] as? NSNumber)?.intValue, 0o755)
+        }
+        let before = try Data(contentsOf: location)
+        do { _ = try await repo.saveTextConflict(document, result: "雪🦎", markResolved: false, encoding: .windows1252); XCTFail("Lost Unicode") }
+        catch FileComparisonEditFailure.encoding {}
+        XCTAssertEqual(try Data(contentsOf: location), before)
+        let reloaded = try await repo.textConflictDocument(path: path)
+        XCTAssertEqual(reloaded.encoding, .utf32BE)
+        XCTAssertEqual(reloaded.workingContents, before)
+        _ = try await repo.saveTextConflict(reloaded, result: "雪🦎\r\nno end", markResolved: true, encoding: .utf16BEBOM)
+        let staged = try await repo.run(["show", ":" + path]).stdout
+        XCTAssertEqual(staged, try ComparisonTextEncoding.utf16BEBOM.encode("雪🦎\r\nno end"))
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(afterHead, head)
+        let other = try await repo.run(["show", ":other.txt"]).text
+        XCTAssertEqual(other, "other index\n")
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("other.txt")), "other working\n")
+    }
+    func testMixedUnicodeStageEncodingsDecodeWithoutLeakingBOMIntoResult() async throws {
+        let (root, repo) = try await CommitSelectionTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = "Unicode.txt", location = root.appendingPathComponent(path)
+        func write(_ text: String, _ encoding: ComparisonTextEncoding) throws {
+            try encoding.encode(text).write(to: location)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: location.path)
+        }
+        try write("base 雪🦎\r\n", .utf16LEBOM); try await repo.stage([path]); _ = try await repo.commit(message: "base")
+        _ = try await repo.run(["switch", "-c", "side"])
+        try write("theirs 雪🦎\r\n", .utf32BE); try await repo.stage([path]); _ = try await repo.commit(message: "theirs")
+        _ = try await repo.run(["switch", "main"])
+        try write("mine 雪🦎\r\n", .utf8BOM); try await repo.stage([path]); _ = try await repo.commit(message: "mine")
+        do { _ = try await repo.run(["merge", "side"]); XCTFail("Expected conflict") } catch is GitFailure {}
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), before = try Data(contentsOf: location)
+        let document = try await repo.textConflictDocument(path: path)
+        XCTAssertEqual(document.base, "base 雪🦎\r\n"); XCTAssertEqual(document.mine, "mine 雪🦎\r\n"); XCTAssertEqual(document.theirs, "theirs 雪🦎\r\n")
+        XCTAssertFalse(document.initialResult.contains("\u{feff}")); XCTAssertEqual(MergeText.conflicts(in: document.initialResult).count, 1)
+        XCTAssertEqual(document.encoding, .utf8BOM)
+        XCTAssertEqual(try Data(contentsOf: location), before); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let result = try MergeText.applying(.theirs, block: 0, to: document.initialResult, document: document)
+        _ = try await repo.saveTextConflict(document, result: result, markResolved: false)
+        XCTAssertEqual(try Data(contentsOf: location), try ComparisonTextEncoding.utf8BOM.encode("theirs 雪🦎\r\n"))
+    }
     func testEofBlockChoicesRetainSourceEndingsAndSeparateCombinedSides() async throws {
         for (mine, theirs, ending) in [("Mine 雪", "Theirs e\u{301}", "\n"), ("Mine\n", "Theirs", "\n"), ("Mine", "Theirs\n", "\n"), ("Mine\r\n", "Theirs", "\r\n"), ("Mine\r", "Theirs", "\n")] {
             let (root, repo) = try await CommitSelectionTests().fixture()

@@ -104,6 +104,7 @@ public struct TextConflictDocument: Sendable {
     public let generatedResult: String
     public let workingContents: Data?
     public let permissions: Int
+    public let encoding: ComparisonTextEncoding
 }
 public struct TextConflictSaveFailure: LocalizedError, Sendable {
     public let savedDocument: TextConflictDocument
@@ -115,7 +116,7 @@ public enum TextConflictFailure: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .unsupported: return "This editor handles regular text files with both conflict sides. Submodules, symlinks and delete/modify conflicts use other workflows."
-        case .encoding: return "This file is binary or uses an unsupported text encoding. The native text merge editor currently supports UTF-8 text."
+        case .encoding: return "This file is binary or uses an unsupported text encoding. Choose a supported Unicode text file for the native merge editor."
         case .changedWorkingFile: return "The working file or its permissions changed while the merge was open. Reload before saving to review those changes."
         case .readOnly: return "The working file is read-only. Use Save As to export the merged result."
         case .markers: return "Resolve the remaining conflict markers before marking this file as resolved."
@@ -130,12 +131,15 @@ extension GitRepository {
               entry.stages.allSatisfy({ ["100644", "100755"].contains($0.mode) }) else { throw TextConflictFailure.unsupported }
         try validateConflicts([entry], using: .current)
         func text(_ data: Data) throws -> String {
-            guard !data.contains(0), String(data: data, encoding: .utf8) != nil else { throw TextConflictFailure.encoding }
-            return String(decoding: data, as: UTF8.self)
+            guard let encoding = ComparisonTextEncoding.detect(data), let text = encoding.decode(data) else { throw TextConflictFailure.encoding }
+            return text
         }
+        var sourceEncodings: [Int: ComparisonTextEncoding] = [:]
         func content(_ stage: Int) throws -> String {
             guard let object = entry.stages.first(where: { $0.number == stage })?.object else { return "" }
-            return try text(run(["cat-file", "blob", object]).stdout)
+            let data = try run(["cat-file", "blob", object]).stdout
+            sourceEncodings[stage] = ComparisonTextEncoding.detect(data)
+            return try text(data)
         }
         let rebase = try conflictIsRebase(), mineStage = rebase ? 3 : 2, theirsStage = rebase ? 2 : 3
         let base = try content(1), mine = try content(mineStage), theirs = try content(theirsStage)
@@ -149,9 +153,10 @@ extension GitRepository {
         for (name, value) in [("mine", mine), ("base", base), ("theirs", theirs)] { try Data(value.utf8).write(to: temporary.appendingPathComponent(name)) }
         let merged = try run(["merge-file", "-p", "--diff3", "--marker-size=7", "-L", "Mine", "-L", "Base", "-L", "Theirs", "--", temporary.appendingPathComponent("mine").path, temporary.appendingPathComponent("base").path, temporary.appendingPathComponent("theirs").path], successfulExitCodes: 0...127)
         let result = try text(merged.stdout)
-        return TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions)
+        let encoding = working.flatMap(ComparisonTextEncoding.detect) ?? sourceEncodings[mineStage] ?? .utf8
+        return TextConflictDocument(entry: entry, base: base, mine: mine, theirs: theirs, mineStage: mineStage, theirsStage: theirsStage, initialResult: result, generatedResult: result, workingContents: working, permissions: permissions, encoding: encoding)
     }
-    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool) throws -> TextConflictDocument {
+    public func saveTextConflict(_ document: TextConflictDocument, result: String, markResolved: Bool, encoding: ComparisonTextEncoding? = nil) throws -> TextConflictDocument {
         try validateConflicts([document.entry], using: .current)
         if markResolved && MergeText.hasMarkers(result) { throw TextConflictFailure.markers }
         guard !result.utf8.contains(0) else { throw TextConflictFailure.encoding }
@@ -161,10 +166,11 @@ extension GitRepository {
         catch TextConflictFailure.unsupported { throw TextConflictFailure.changedWorkingFile }
         guard current == document.workingContents, permissions == nil || permissions == document.permissions else { throw TextConflictFailure.changedWorkingFile }
         if current != nil && !FileManager.default.isWritableFile(atPath: location.path) { throw TextConflictFailure.readOnly }
-        let contents = Data(result.utf8)
+        let selectedEncoding = encoding ?? document.encoding
+        let contents = try selectedEncoding.encode(result)
         try contents.write(to: location, options: .atomic)
         try FileManager.default.setAttributes([.posixPermissions: document.permissions], ofItemAtPath: location.path)
-        let saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: contents, permissions: document.permissions)
+        let saved = TextConflictDocument(entry: document.entry, base: document.base, mine: document.mine, theirs: document.theirs, mineStage: document.mineStage, theirsStage: document.theirsStage, initialResult: result, generatedResult: document.generatedResult, workingContents: contents, permissions: document.permissions, encoding: selectedEncoding)
         if markResolved {
             do { _ = try run(["add", "-f", "--", document.entry.path]) }
             catch { throw TextConflictSaveFailure(savedDocument: saved, gitError: error.localizedDescription) }

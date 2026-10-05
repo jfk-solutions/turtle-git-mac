@@ -21,6 +21,8 @@ final class FileComparisonEditingTests: XCTestCase {
         XCTAssertNil(ComparisonTextEncoding.detect(Data([0,255])))
         for encoding in ComparisonTextEncoding.allCases where encoding != .windows1252 {
             XCTAssertEqual(encoding.decode(try encoding.encode("雪🦎e\u{301}\r\nEOF")), "雪🦎e\u{301}\r\nEOF")
+            let leadingCharacter = "\u{feff}雪🦎\r\nEOF"
+            XCTAssertEqual(encoding.decode(try encoding.encode(leadingCharacter)), leadingCharacter)
         }
     }
     func testEncodingOnlyDraftSaveExportAndStaleGuard() throws {

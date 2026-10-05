@@ -113,6 +113,7 @@ private enum MergeSourceSide {
     @Published var document: TextConflictDocument?
     @Published var sourceComparison: MergeSourceComparison?
     @Published var result = ""
+    @Published var encoding: ComparisonTextEncoding = .utf8
     @Published var selectedConflict = 0
     @Published var caret = NSRange(location: 0, length: 0)
     @Published var selectionRequest: NSRange?
@@ -149,7 +150,12 @@ private enum MergeSourceSide {
         }
     }
     var blocks: [MergeConflictBlock] { MergeText.conflicts(in: result, document: document) }
-    var dirty: Bool { document.map { !result.utf8.elementsEqual($0.initialResult.utf8) } ?? false }
+    var dirty: Bool { document.map { !result.utf8.elementsEqual($0.initialResult.utf8) || encoding != $0.encoding } ?? false }
+    func changeEncoding(_ value: ComparisonTextEncoding) {
+        guard !busy, !confirmingQuit, document != nil else { return }
+        do { _ = try value.encode(result); encoding = value }
+        catch { self.error = error.localizedDescription }
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
         self.repository = repository; self.access = access; self.path = path
         preferencesSubscription = NotificationCenter.default.publisher(for: .mergeEditorPreferencesChanged).sink { [weak self] _ in
@@ -185,7 +191,7 @@ private enum MergeSourceSide {
         let next = try await repository.textConflictDocument(path: path)
         let comparison = await Task.detached { MergeSourceComparison(base: next.base, mine: next.mine, theirs: next.theirs) }.value
         resetHistory()
-        document = next; sourceComparison = comparison; result = next.initialResult
+        document = next; sourceComparison = comparison; result = next.initialResult; encoding = next.encoding
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
         selectConflict(0)
     }
@@ -217,13 +223,13 @@ private enum MergeSourceSide {
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Save")
             guard alert.runModal() == .alertSecondButtonReturn else { completion?(false); return }
         }
-        let text = result; busy = true
+        let text = result, outputEncoding = encoding; busy = true
         Task {
             var saved = false
             defer { busy = false; completion?(saved) }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved)
+                self.document = try await repository.saveTextConflict(document, result: text, markResolved: markResolved, encoding: outputEncoding)
                 onChanged(markResolved ? "Resolved: " + path : "Saved merged result: " + path)
                 if markResolved || closeAfter { close() }
                 else if reloadAfter { try await reloadDocument() }
@@ -237,7 +243,9 @@ private enum MergeSourceSide {
         let panel = NSSavePanel(); panel.nameFieldStringValue = (path as NSString).lastPathComponent
         panel.allowedContentTypes = [.plainText]; panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        do { try Data(result.utf8).write(to: url, options: .atomic) } catch { self.error = error.localizedDescription }
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        do { try encoding.encode(result).write(to: url, options: .atomic) } catch { self.error = error.localizedDescription }
     }
 }
 @MainActor private final class WeakMergeScroll {
@@ -534,6 +542,14 @@ private final class MergeTextView: NSTextView {
             endingsMenu.addItem(item)
         }
         endingsItem.submenu = endingsMenu; menu.addItem(endingsItem)
+        let encodingsItem = NSMenuItem(title: "File Encoding", action: nil, keyEquivalent: "")
+        let encodingsMenu = NSMenu(title: "File Encoding")
+        for (index, encoding) in ComparisonTextEncoding.allCases.enumerated() {
+            let item = NSMenuItem(title: encoding.rawValue, action: #selector(changeEncoding(_:)), keyEquivalent: "")
+            item.target = self; item.tag = index; item.state = model.encoding == encoding ? .on : .off
+            encodingsMenu.addItem(item)
+        }
+        encodingsItem.submenu = encodingsMenu; menu.addItem(encodingsItem)
         return menu
     }
     @objc private func showFind(_ sender: Any?) {
@@ -541,6 +557,9 @@ private final class MergeTextView: NSTextView {
         (window as? TextConflictNSWindow)?.find(.showFindInterface)
     }
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(changeEncoding(_:)) {
+            return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && ComparisonTextEncoding.allCases.indices.contains(menuItem.tag)
+        }
         if menuItem.action == #selector(changeWhitespace(_:)) {
             guard mergeEditable, isEditable, model?.busy == false, MergeWhitespaceCommand.allCases.indices.contains(menuItem.tag) else { return false }
             return MergeWhitespace.canApply(MergeWhitespaceCommand.allCases[menuItem.tag], to: string, tabWidth: mergeTabWidth)
@@ -560,6 +579,10 @@ private final class MergeTextView: NSTextView {
     @objc private func useSourceFile(_ sender: NSMenuItem) {
         guard let sourceSide else { return }
         model?.useFile(sourceSide)
+    }
+    @objc private func changeEncoding(_ sender: NSMenuItem) {
+        guard mergeEditable, isEditable, ComparisonTextEncoding.allCases.indices.contains(sender.tag) else { return }
+        model?.changeEncoding(ComparisonTextEncoding.allCases[sender.tag])
     }
     @objc private func convertLineEndings(_ sender: NSMenuItem) {
         guard mergeEditable, isEditable, model?.busy == false, MergeLineEnding.allCases.indices.contains(sender.tag) else { return }

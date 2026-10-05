@@ -111,9 +111,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   investigation. Historical Open, Open With and alternative-editor commands use
   read-only temporary copies; native editor-document acceptance remains under audit.
   See [Log parity](docs/LOG-PARITY.md).
-- Native three-pane UTF-8 text conflict editor with Theirs/Mine/Merged, block choices,
+- Native three-pane Unicode text conflict editor with Theirs/Mine/Merged, block choices,
   aligned source rows and colors, original line numbers, undoable whole-source
-  selection, Reload and guarded Save/Mark as resolved. Full editor parity and native QA
+  selection, Reload, explicit output encodings and guarded Save/Mark as resolved. Full editor parity and native QA
   remain in progress; see [Text merge parity](docs/TEXT-MERGE-PARITY.md).
   ![Native three-pane text conflict editor](docs/site/assets/text-merge.png)
 - Native Merge window with branch/tag/commit selection, squash, fast-forward, No Commit,
@@ -187,10 +187,10 @@ including files outside the current view. Highlighted rows do not select commit
 contents. [Commit parity details](docs/COMMIT-PARITY.md) track remaining options. Authentication uses existing credential helpers / SSH configuration; there is
 no native credential prompt yet. Interactive hooks, Git editors, signing prompts,
 cancellation and live streaming progress are not implemented. Conflicts remain
-visible in the status list. Regular UTF-8 text conflicts can be resolved in the
+visible in the status list. Regular Unicode text conflicts can be resolved in the
 native three-pane editor; unsupported formats still require another tool. The
 merged result offers the upstream nine-style line-ending conversion submenu
-with Undo/Redo. Full encoding and diff/merge parity remain in progress.
+with Undo/Redo, plus UTF-8/UTF-16/UTF-32 output choices and explicit Windows-1252 export. Legacy input code pages and full diff/merge parity remain in progress.
 
 The future [user manual](docs/MANUAL-PLAN.md) follows TortoiseGit’s structure and
 terminology with macOS-specific instructions and real TurtleGit screenshots.
