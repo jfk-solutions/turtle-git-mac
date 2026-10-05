@@ -523,7 +523,7 @@ Log now offers Mark for comparison and a dynamic Compare with action for one
 non-deleted historical regular file. Both use original comparison artwork.
 The mark belongs to that Log dialog, survives revision changes and comparison,
 and disappears when the dialog closes. Same-path labels show the saved full
-revision; different-path labels show the saved path and seven-character hash.
+revision; different-path labels show the saved path and eight-character hash.
 Both endpoints are resolved to commits before content is read. The App Store
 route checks the retained repository grant.
 
@@ -548,6 +548,17 @@ checks. The screenshot shows the same-path viewer with an inactive title bar;
 it does not capture the context menu.
 
 External working-file DiffLater import, gitlink comparison, alternative diff
-tools/Shift behavior, configured short-hash length, long-path compaction,
+tools/Shift behavior, long-path compaction,
 additional native file types and signed sandbox acceptance remain pending.
 This section does not establish full Log parity.
+
+
+A follow-up source audit of `Git.cpp::GetShortHASHLength` (3011–3014) found a
+fixed return value of eight, not a configurable hash length. Different-path
+comparison labels now use eight characters, matching this pinned upstream.
+The native record above intentionally retains the seven-character label seen
+before this correction; it proves the viewer route, not the corrected label.
+Long-path compaction remains pending. Explorer's `ContextMenu.cpp` DiffLater
+handler (1350–1371) stores an absolute working-file path, consumes it after
+comparison, and supports Control to clear and Shift for an alternative tool;
+that shared Finder/app route still needs porting.

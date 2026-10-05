@@ -300,8 +300,8 @@ Both native reveal routes were verified.
 Mark for comparison retains a path and revision within the Log dialog. Compare
 with opens a read-only viewer for the same path at another revision or a different
 historical path. Both native routes were verified with exact repository state
-preserved. External working-file marks, gitlinks and configured menu-label
-formatting remain under audit.
+preserved. External working-file marks, gitlinks and long-path menu-label
+compaction remain under audit.
 
 Compare two files uses the selected commit's first parent independently for
 deleted sides. Multi-file unified diff appends patches in displayed order and

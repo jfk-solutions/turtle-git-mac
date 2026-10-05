@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 struct HistoricalComparisonMark {
     let path: String
     let revision: String
-    func label(for path: String) -> String { self.path == path ? revision : self.path + ":" + String(revision.prefix(7)) }
+    func label(for path: String) -> String { self.path == path ? revision : self.path + ":" + String(revision.prefix(8)) }
 }
 
 enum HistoricalOpenAction { case open, openWith, alternativeEditor }
