@@ -59,6 +59,12 @@ content, BOMs and line endings. Working Tree’s native toolbar/keyboard Save As
 Cancel and exact UTF-8 export are verified, with an [actual screenshot](docs/site/assets/unified-diff-viewer-light.png).
 Other routes, native non-UTF-8 exports and signed sandbox acceptance remain unverified.
 
+The unified viewer now has appearance settings for all six foreground/background
+color pairs, separate light/dark palettes, font and tab sizes, and restoring the
+selected palette. Defaults follow TortoiseUDiff, with Menlo as the native font.
+Focused persistence/style tests pass; native layout and live Apply acceptance
+remain pending. The screenshot above predates these appearance changes.
+
 Repository Browser now has the upstream folder tree, revision picker, sortable
 Name/Extension/Size list and historical file menus with original command and mode
 icons. It browses pinned nested revisions, including bare repositories and tags,

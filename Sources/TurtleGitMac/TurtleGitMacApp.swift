@@ -67,7 +67,10 @@ import TurtleGitCore
                 MergeEditorSettings().tabItem { Label("Merge Editor", systemImage: "arrow.triangle.merge") }
                 BlameSettings().tabItem { Label("Blame", systemImage: "text.alignleft") }
                 AlternativeEditorSettings().tabItem { Label("Alternative Editor", systemImage: "pencil") }
-                UnifiedDiffViewerSettings().tabItem { Label("Unified Diff Viewer", systemImage: "doc.text") }
+                TabView {
+                    UnifiedDiffViewerSettings().tabItem { Text("Viewer") }
+                    UnifiedDiffAppearanceSettings().tabItem { Text("Appearance") }
+                }.tabItem { Label("Unified Diff", systemImage: "doc.text") }
             }.frame(width: 760, height: 700)
         }
     }

@@ -143,6 +143,7 @@ struct PatchDialog: View {
                 }
             }
         }.padding(12).disabled(model.confirmingQuit)
+        .onReceive(NotificationCenter.default.publisher(for: .unifiedDiffAppearanceChanged)) { _ in model.objectWillChange.send() }
         .alert(model.readOnly ? "Patch could not be loaded" : "Patch could not be applied", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
@@ -151,6 +152,8 @@ struct PatchDialog: View {
 
 struct PatchTextView: NSViewRepresentable {
     @ObservedObject var model: PatchWindowModel
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.colorSchemeContrast) private var contrast
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView {
         let text = PatchText()
@@ -169,20 +172,39 @@ struct PatchTextView: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.model = model
-        guard let text = scroll.documentView as? NSTextView, text.string != model.document.text else { return }
+        guard let text = scroll.documentView as? NSTextView else { return }
+        let settings = UnifiedDiffAppearance.load(), dark = scheme == .dark, highContrast = contrast == .increased
+        let cache = context.coordinator
+        guard cache.lastText != model.document.text || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
+        let contentChanged = cache.lastText != model.document.text, selection = text.selectedRange()
+        cache.lastText = model.document.text; cache.lastAppearance = settings; cache.dark = dark; cache.highContrast = highContrast
+        let font = NSFont(name: settings.fontName, size: CGFloat(settings.fontSize)) ?? NSFontManager.shared.font(withFamily: settings.fontName, traits: [], weight: 5, size: CGFloat(settings.fontSize)) ?? NSFont.monospacedSystemFont(ofSize: CGFloat(settings.fontSize), weight: .regular)
+        let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
+        paragraph.defaultTabInterval = max(1, (" " as NSString).size(withAttributes: [.font: font]).width * CGFloat(settings.tabSize))
+        func color(_ rgb: UInt32) -> NSColor { NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1) }
+        text.backgroundColor = highContrast ? .textBackgroundColor : color(settings.colors(.context, dark: dark).background)
+        text.insertionPointColor = highContrast ? .labelColor : color(settings.colors(.context, dark: dark).foreground)
         let value = NSMutableAttributedString(string: "")
         for (index, line) in model.document.lines.enumerated() {
-            let color: NSColor
-            if model.document.changedLine(index) { color = line.hasPrefix("+") ? .systemGreen : .systemRed }
-            else if line.hasPrefix("@@") { color = .systemBlue }
-            else { color = line.hasPrefix(" ") ? .labelColor : .secondaryLabelColor }
-            value.append(NSAttributedString(string: line + "\n", attributes: [.font: NSFont.monospacedSystemFont(ofSize: 12, weight: .regular), .foregroundColor: color]))
+            let terminated = index < model.document.lines.count - 1 || model.document.text.hasSuffix("\n")
+            let style = UnifiedDiffLineStyle.classify(line + (terminated ? "\n" : "")), palette = settings.colors(style, dark: dark)
+            let face = !highContrast && style == .comment ? NSFontManager.shared.convert(font, toHaveTrait: .boldFontMask) : font
+            value.append(NSAttributedString(string: line + "\n", attributes: [.font: face, .paragraphStyle: paragraph,
+                .foregroundColor: highContrast ? NSColor.labelColor : color(palette.foreground),
+                .backgroundColor: highContrast ? NSColor.textBackgroundColor : color(palette.background)]))
         }
         text.textStorage?.setAttributedString(value)
-        text.setSelectedRange(NSRange(location: 0, length: 0))
+        if contentChanged { text.setSelectedRange(NSRange(location: 0, length: 0)) }
+        else {
+            let location = min(selection.location, value.length)
+            text.setSelectedRange(NSRange(location: location, length: min(selection.length, value.length - location)))
+        }
     }
     @MainActor final class Coordinator: NSObject, NSTextViewDelegate {
         var model: PatchWindowModel
+        var lastText: String?
+        var lastAppearance: UnifiedDiffAppearance?
+        var dark = false, highContrast = false
         init(model: PatchWindowModel) { self.model = model }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let view = notification.object as? NSTextView else { return }

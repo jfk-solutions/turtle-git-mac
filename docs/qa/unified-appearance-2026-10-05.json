@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-05",
+  "scope": "Unified diff appearance settings and renderer; partial port",
+  "baseline": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "lexilla": "ef08a1a00ce151ccdddf7da700fbe1a4934a9c71",
+  "focused_tests": {
+    "count": 13,
+    "failures": 0,
+    "covers": [
+      "line classification including CRLF",
+      "separate light/dark palette reset",
+      "preference round trip and corrupt settings",
+      "existing viewer selection and patch tests"
+    ]
+  },
+  "debug_build_exit": 0,
+  "unsigned_appstore_build_exit": 0,
+  "bundle_audits": "Both passed, all 72 upstream icons; bundled NOTICE equals source",
+  "native_ui_acceptance": "pending; no new screenshot or GUI process launched",
+  "pending": [
+    "light/dark rendering and full-width background acceptance",
+    "live Apply and color chooser acceptance",
+    "font picker/size/tab layout acceptance",
+    "high contrast acceptance",
+    "font size preset dropdown and owner-drawn font preview",
+    "signed sandbox and App Store distribution",
+    "full editable UDiff, encoding and printing"
+  ],
+  "logs": [
+    {
+      "path": "/tmp/turtlegit-unified-appearance-focused.log",
+      "sha256": "4d077a2db23cd345339d60ed23796caf82f8301b7d5e4b3cc10cd72f910edd0c"
+    },
+    {
+      "path": "/tmp/turtlegit-appearance-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-appearance-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    {
+      "path": "/tmp/turtlegit-appearance-debug-audit.log",
+      "sha256": "72a1179ede3eff6ad5dfe526442eabe528ccbf88db3bbf0e0ae185bec9772ac0"
+    },
+    {
+      "path": "/tmp/turtlegit-appearance-store-audit.log",
+      "sha256": "4169fdb6639e2dfac2d96a046a8126eb8b2c91f507790d4d26d1842bbe87a0a8"
+    }
+  ]
+}

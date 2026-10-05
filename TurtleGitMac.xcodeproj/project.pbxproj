@@ -37,6 +37,7 @@
 		36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */; };
 		37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */; };
 		39DF8589F3A2226D095F7C2E /* GitBlame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */; };
+		3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */; };
 		3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */; };
 		3D0C04463435436A275FC33A /* RepositoryBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */; };
 		3E19A6945479711E0CDE3542 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = 5E600ADAA231E0E7D95C9827 /* Icons */; };
@@ -85,6 +86,7 @@
 		94D627C3502D8ACE734DD470 /* Reset.swift in Sources */ = {isa = PBXBuildFile; fileRef = DE3C7BF5278D5807BDDF4B21 /* Reset.swift */; };
 		96858E5400FE448CEE799A09 /* Fetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181B9FE19CD19EA7DAB1E824 /* Fetch.swift */; };
 		98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */; };
+		9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */; };
 		A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08425BF4A91945D52E0F6D99 /* Clone.swift */; };
 		A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FF59B2CF163D9481D39B5 /* CommitSelection.swift */; };
 		A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5AD057FE8CA1C91988DA6E /* Removal.swift */; };
@@ -196,6 +198,7 @@
 		0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserWindow.swift; sourceTree = "<group>"; };
 		0657423D5C68D66703C2BB5C /* GitPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitPatch.swift; sourceTree = "<group>"; };
 		0750171C26BC3934BA091775 /* FormatPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPatch.swift; sourceTree = "<group>"; };
+		0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffAppearance.swift; sourceTree = "<group>"; };
 		08425BF4A91945D52E0F6D99 /* Clone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clone.swift; sourceTree = "<group>"; };
 		0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rebase.swift; sourceTree = "<group>"; };
 		0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLabel.swift; sourceTree = "<group>"; };
@@ -235,6 +238,7 @@
 		4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageEditor.swift; sourceTree = "<group>"; };
 		4B9BF1860CDA9AD27A0DCE2E /* GitBlame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlame.swift; sourceTree = "<group>"; };
 		4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertDialogSelection.swift; sourceTree = "<group>"; };
+		4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffAppearanceSettings.swift; sourceTree = "<group>"; };
 		4E11987C6F9546E908AD60BA /* FinderSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSync.swift; sourceTree = "<group>"; };
 		4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitWindow.swift; sourceTree = "<group>"; };
 		50C02E4063D7394453CC537A /* GitBlamePreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitBlamePreferences.swift; sourceTree = "<group>"; };
@@ -394,6 +398,7 @@
 				977DAB97DBBB903654C73A78 /* SwitchWindow.swift */,
 				396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */,
 				1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */,
+				4DC958926DF74FE6A1DB2D05 /* UnifiedDiffAppearanceSettings.swift */,
 				2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */,
 			);
 			name = TurtleGitMac;
@@ -495,6 +500,7 @@
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
 				C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */,
 				8927431F95C0127D9B66489A /* TextConflict.swift */,
+				0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */,
 				AE81F1D25A56C6A243F01F23 /* UnifiedDiffViewer.swift */,
 				C60249DCAD62F60EB41319E4 /* WorkingFileAdd.swift */,
 				6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */,
@@ -776,6 +782,7 @@
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
 				61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */,
 				7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */,
+				9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */,
 				D7E9B06DF606B6A8A0488AF9 /* UnifiedDiffViewer.swift in Sources */,
 				9309E5E308F3A0D96BF06CDD /* WorkingFileAdd.swift in Sources */,
 				697C21F466069759F260EF25 /* WorkingFileDelete.swift in Sources */,
@@ -837,6 +844,7 @@
 				A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */,
 				98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */,
 				140D138F7FCA43BF5C95B83B /* TurtleGitMacApp.swift in Sources */,
+				3A74A3FA2DEEA1B3A877C24E /* UnifiedDiffAppearanceSettings.swift in Sources */,
 				1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

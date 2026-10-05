@@ -205,3 +205,41 @@ fixture snapshot. [Acceptance record](qa/commit-close-log-unified-2026-10-05.jso
 This verifies the double-click route only; explicit Log/Commit menus, multi-row
 variants, changed-message/restore/suppression cancellation and signed acceptance
 remain pending. The earlier timeout record remains valid historical evidence.
+
+## Appearance settings (native acceptance pending)
+
+The native Appearance tab ports the six foreground/background pairs from
+`IDD_SETTINGSUDIFF`: command, position, header, comment, added lines and removed
+lines. Light and dark palettes can be configured separately. Restore Default
+resets the selected palette only; font and tab size remain unchanged. The Font
+group offers fixed-pitch fonts, font size and tab size. Menlo replaces the Windows
+Consolas default. Apply persists preferences and updates open patch viewers.
+
+| Source | Blob | Replacement |
+| --- | --- | --- |
+| `src/TortoiseProc/Settings/SettingsTUDiff.cpp` | `f7013ed3cb19b7c3c625d98c8d15e437a6862da6` | Native appearance settings |
+| `src/TortoiseProc/Settings/SettingsTUDiff.h` | `f4ab493bfaf15d299da6c47a0ffe0ef0ef775968` | Native settings state |
+| `src/TortoiseUDiff/UDiffColors.h` | `65d7e61aa154245193bce08fbbea75d2f4c49034` | Light/dark default RGB palettes |
+| `src/TortoiseUDiff/MainWindow.cpp` | `fc1d4053019e4b8bc5c2a1c08837d19c7c506751` | Line styles, font and tab spacing |
+
+The line classifier follows [pinned LexDiff.cxx](https://github.com/ScintillaOrg/lexilla/blob/ef08a1a00ce151ccdddf7da700fbe1a4934a9c71/lexers/LexDiff.cxx).
+The renderer retains line termination for classifier decisions, including CRLF.
+Combined added/removed styles share their corresponding palettes. Comments are
+bold. Increased contrast uses native system text/background colors. Lexilla's
+copyright and permission notice are included in the bundled NOTICE.
+
+| Style | Light foreground/background | Dark foreground/background |
+| --- | --- | --- |
+| Command | `0A2436 / FFFFFF` | `C9E2F5 / 202020` |
+| Position | `FF0000 / FFFFFF` | `FF2020 / 202020` |
+| Header | `800000 / FFFF80` | `C00000 / 303000` |
+| Comment | `008000 / FFFFFF` | `008000 / 202020` |
+| Added | `000000 / CCFFCC` | `DDDDDD / 104010` |
+| Removed | `000000 / FFDDDD` | `DDDDDD / 402020` |
+
+Focused tests cover classification, palette defaults, separate-theme restoration,
+preference persistence and invalid-value recovery. Native layout, live Apply,
+light/dark rendering, high contrast and full-width line backgrounds still need
+acceptance. Font size preset dropdown and owner-drawn font preview remain pending.
+Existing viewer screenshots precede these palette changes. Lexer
+folding, editable UDiff, printing and full encoding controls remain incomplete.
