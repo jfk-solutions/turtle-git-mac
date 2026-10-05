@@ -36,6 +36,53 @@ public struct FinderMenuSettings: Codable, Equatable, Sendable {
     }
 }
 
+/// MenuInfo's folder creation clauses, using cached status and metadata only.
+public struct FinderCreationMenuContext: Sendable {
+    public var directory: Bool
+    public var versioned: Bool
+    public var folderInGit: Bool
+    public var bare: Bool
+    public var ignored: Bool
+    public var inaccessible: Bool
+    public var extended: Bool
+    public init(directory: Bool, versioned: Bool = false, folderInGit: Bool? = nil, bare: Bool = false,
+                ignored: Bool = false, inaccessible: Bool = false, extended: Bool = false) {
+        self.directory = directory; self.versioned = versioned
+        self.folderInGit = folderInGit ?? versioned; self.bare = bare
+        self.ignored = ignored; self.inaccessible = inaccessible; self.extended = extended
+    }
+    public var actions: [RepositoryAction] {
+        guard directory else { return [] }
+        let ordinary = !versioned && !folderInGit && !bare && !inaccessible
+        var result: [RepositoryAction] = []
+        if ordinary || ignored || extended { result.append(.clone) }
+        if ordinary || ignored || (extended && !versioned) { result.append(.initialize) }
+        return result
+    }
+    public static func read(directory url: URL, snapshot: FinderSnapshot?, extended: Bool) -> Self {
+        guard url.isFileURL, !url.pathComponents.contains(".git") else { return Self(directory: false) }
+        let values = try? url.resourceValues(forKeys: [.isDirectoryKey])
+        let folder = values?.isDirectory ?? url.hasDirectoryPath
+        let path = url.standardizedFileURL.path
+        let known = snapshot?.roots.contains { path == $0 || path.hasPrefix($0 + "/") } == true
+        let state = snapshot?.states[path]
+        let versioned = known && state.map { [.normal, .modified, .added, .deleted, .conflicted].contains($0) } == true
+        let ignored = snapshot?.states.contains { entry in entry.value == .ignored && (path == entry.key || path.hasPrefix(entry.key + "/")) } == true
+        let fm = FileManager.default
+        // Same loose-ref metadata checks as pinned GitAdminDir::IsBareRepo.
+        func hasDirectory(_ name: String) -> Bool {
+            var isDirectory: ObjCBool = false
+            return fm.fileExists(atPath: url.appendingPathComponent(name).path, isDirectory: &isDirectory) && isDirectory.boolValue
+        }
+        let bare = ["HEAD", "config"].allSatisfy {
+            fm.fileExists(atPath: url.appendingPathComponent($0).path)
+        } && ["objects", "refs", "refs/heads"].allSatisfy(hasDirectory)
+        let inaccessible = values == nil || (fm.fileExists(atPath: url.appendingPathComponent(".git").path) && !known)
+        return Self(directory: folder, versioned: versioned && !bare, bare: bare,
+                    ignored: ignored, inaccessible: inaccessible, extended: extended)
+    }
+}
+
 public struct FinderSnapshot: Codable, Sendable {
     public var roots: [String]
     public var states: [String: FileState]

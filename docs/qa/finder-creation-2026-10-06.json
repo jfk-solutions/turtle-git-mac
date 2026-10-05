@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-06",
+  "scope": "Single-folder creation clauses, native Finder toolbar adaptation and creation request routing; complete shell/signed integration pending",
+  "baseCommit": "0d0d4dd2656de7dd205a270f3d2f70de8c639922",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstreamBlobs": {
+    "MenuInfo.cpp": "aee7f91ad1111fe03ab85b390855885ca940a27f",
+    "ContextMenu.cpp": "0b31f963e73ff71cd9cdb0861972a671236ae20f",
+    "GitAdminDir.cpp": "985eb4e063adf8cf8a59744c917b2c3ec4e780bd"
+  },
+  "focusedCoreTests": {
+    "count": 12,
+    "failures": 0,
+    "newTests": 3,
+    "scope": "Creation flag clauses with independent in-Git/folder-in-Git, cached status/bare directory metadata, no-path creation and all other actions requiring paths; existing Finder requests/preferences"
+  },
+  "actualNativeReceivers": [
+    "Actual extension source compiled Swift 6 with macOS 13 minimum; no Finder controller/extension instantiated",
+    "Outside folder Clone/Create-only menu with captured directory, represented action, target/selector and URL round trips",
+    "Targetless toolbar directly offers Clone/Create; no path substituted",
+    "Versioned Shift Clone rule, single admin path exclusion, item/container/toolbar selection distinction",
+    "Existing six-case nested menu/icon/cache/badge-artwork checks pass"
+  ],
+  "nativeDialogHandoff": "Existing app handle routes Clone/Create before indexing selection; source path compiled/audited, actual click-to-dialog handoff not exercised",
+  "sdkEvidence": "Installed FinderSync.framework Headers/FinderSync.h: toolbar menus called outside managed folders; target/selection may be nil",
+  "unsignedBuilds": [
+    "Debug",
+    "AppStore"
+  ],
+  "bundleAudits": "App/Finder extension, unchanged 75 original icons, current NOTICE/licenses, universal helper runtimes and Store Git 2.55.0 verified",
+  "fullCoreTests": "Prior full 460-test suite predates menu follow-ups; not rerun for this presentation/request change",
+  "nativeUI": "Standalone receiver displays no windows/menus; no activated Finder/gesture/screenshot or signed acceptance claim",
+  "appProcesses": "No app launched; standalone fixture cleanup and no TurtleGit/test receiver process at audit",
+  "logs": {
+    "core": {
+      "path": "/tmp/turtlegit-finder-creation-core.log",
+      "sha256": "471267a8f4cf8b52a3f89e4d420f99318970c7ef82a191cc50d4af65b344eb53",
+      "exitCode": 0
+    },
+    "menu": {
+      "path": "/tmp/turtlegit-finder-creation-menu.log",
+      "sha256": "1b86aae1cb6942774b4d36ebaed0ff287cf1c2876b09accccb2481bfd340f7a5",
+      "exitCode": 0
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-creation-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-creation-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "exitCode": 0
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-finder-creation-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95",
+      "exitCode": 0
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-finder-creation-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd",
+      "exitCode": 0
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-creation-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+      "exitCode": 0
+    }
+  },
+  "sourceHashes": {
+    "FinderSync/FinderSync.swift": "1942e4507be17afa8b1ed145d0769bcac6889d6cad46add23dd20a7dc9255b30",
+    "NOTICE": "c473fd904c1e00efc1947b2d21eeae2cae33f5b8190731cd0e1d0c8e0fe2baa5",
+    "README.md": "83da1377858abb01a0dc08022b06e23be3186f6cc123a2f8b6daf651ce6be5a8",
+    "Sources/TurtleGitCore/FinderCache.swift": "09eb5312d56c9bd4f0944c54ee35298e1ed391bac99c7ff6b5b8a1b069521e26",
+    "Sources/TurtleGitCore/FinderRequest.swift": "d04a495d3d487fba884272af06d09fad1d7dbcb45d54414ca2f8de1cecb8781b",
+    "docs/PORTING.md": "22d069b6b0583196373e63179f543bbaf5436d680faff6448be27387c8f7b8e5",
+    "docs/UI-PARITY.md": "6e6819ad0a84376c0eac84ab6544db3a605c6dd381e5290e08a4703809707dd0",
+    "docs/upstream-files.csv": "6213cf94bdcd55337ea830c9de66c126d0e51f4c9743246aeab425fdb768fb11",
+    "scripts/test-finder-menu.py": "445a136dc68ee95302e0298ec9d249bddbd806468d9a24acd077e77bfc78dbcc",
+    "Tests/TurtleGitCoreTests/FinderCreationMenuTests.swift": "9f372ae713891c2f21013a7ab6907da5efa4e3b089605a9a22814a0415621a2c",
+    "docs/FINDER-CREATION-PARITY.md": "ccec3206f1553c6dd76d700da245e747d932621e1b3fd999104182835dff4186"
+  },
+  "pending": [
+    "Actual Finder toolbar/context activation and native dialog handoff",
+    "Full shell command conditions/order/configuration and metadata classification",
+    "Multiple-folder creation, reftable/invalid structures and broader administrative path cases",
+    "Watched-root management, fresh cache/daemon behavior",
+    "Signed sandbox/App Group/distribution acceptance",
+    "GitHub publication/execution; existing authentication blocker"
+  ]
+}

@@ -29,12 +29,12 @@ public struct FinderRequest: Sendable {
               let command = fields.first(where: { $0.name == "command" })?.value,
               let action = RepositoryAction(rawValue: command) else { return nil }
         let paths = fields.filter { $0.name == "path" }.compactMap(\.value)
-        guard !paths.isEmpty, paths.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
+        guard (!paths.isEmpty || action == .clone || action == .initialize), paths.allSatisfy({ $0.hasPrefix("/") && !$0.contains("\0") }),
               paths.count == fields.filter({ $0.name == "path" }).count else { return nil }
         self.init(action: action, paths: paths.map { URL(fileURLWithPath: $0) })
     }
     public var url: URL? {
-        guard !paths.isEmpty else { return nil }
+        guard !paths.isEmpty || action == .clone || action == .initialize else { return nil }
         var components = URLComponents()
         components.scheme = "turtlegit"; components.host = "action"
         components.queryItems = [URLQueryItem(name: "command", value: action.rawValue)] + paths.map { URLQueryItem(name: "path", value: $0.path) }

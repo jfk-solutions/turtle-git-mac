@@ -175,6 +175,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   retaining button and status icons. ShowContextMenuIcons separately controls
   Finder artwork through the shared cache; signed handoff remains unverified;
   see [context-menu icon audit](docs/CONTEXT-MENU-ICONS-PARITY.md).
+  Finder folder creation menus and a toolbar entry point route Clone/Create
+  repository to native dialogs/pickers. Targetless toolbar requests are supported;
+  signed activation remains unverified. See [creation audit](docs/FINDER-CREATION-PARITY.md).
 - Log revision actions for branch/tag, Switch/Checkout, reset, revert without commit,
   cherry-pick, and copying hashes/messages/details. Advanced options remain pending.
 - Commit’s file menu adds unversioned paths explicitly; Shift reveals upstream

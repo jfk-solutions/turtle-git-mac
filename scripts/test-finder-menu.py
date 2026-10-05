@@ -9,6 +9,7 @@ root = pathlib.Path(__file__).resolve().parent.parent
 frameworks = root / 'build/Build/Products/Debug'
 driver = r'''
 import AppKit
+import FinderSync
 import TurtleGitCore
 
 @MainActor final class MenuTarget: NSObject {
@@ -62,6 +63,36 @@ import TurtleGitCore
         precondition(items(make([tracked], settings: FinderMenuSettings.read(from: cache))).allSatisfy { $0.image == nil })
         try FinderMenuSettings().write(to: cache)
         precondition(items(make([tracked], settings: FinderMenuSettings.read(from: cache))).filter { !$0.isSeparatorItem }.allSatisfy { $0.image != nil })
+        let outside = folder.deletingLastPathComponent().appendingPathComponent("outside 雪", isDirectory: true)
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        func creation(_ directory: URL?, toolbar: Bool = false, extended: Bool = false) -> [NSMenuItem] {
+            items(FinderMenuBuilder.make(paths: directory.map { [$0] } ?? [], snapshot: snapshot,
+                settings: FinderMenuSettings(), comparisonMark: nil, target: target, actionSelector: selector,
+                creationDirectory: directory, extended: extended, toolbar: toolbar))
+        }
+        for (directory, toolbar) in [(outside as URL?, false), (nil, true)] {
+            let commands = creation(directory, toolbar: toolbar).filter { !$0.isSeparatorItem && $0.submenu == nil }
+            precondition(commands.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title])
+            for item in commands {
+                let request = item.representedObject as! FinderCreationRequest
+                precondition(request.directory == directory && item.target === target && item.action == selector)
+                let url = FinderRequest(action: request.action, paths: request.directory.map { [$0] } ?? []).url!
+                precondition(FinderRequest(url: url)?.action == request.action)
+                precondition(FinderRequest(url: url)?.paths.map(\.path) == directory.map { [$0.standardizedFileURL.path] } ?? [])
+            }
+        }
+        let toolbarMenu = FinderMenuBuilder.make(paths: [], snapshot: snapshot, settings: FinderMenuSettings(),
+            comparisonMark: nil, target: target, actionSelector: selector, toolbar: true)
+        precondition(toolbarMenu.items.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title], "Toolbar commands should appear directly")
+        precondition(creation(folder).allSatisfy { !($0.representedObject is FinderCreationRequest) })
+        precondition(creation(folder, extended: true).compactMap { ($0.representedObject as? FinderCreationRequest)?.action } == [.clone])
+        let admin = folder.appendingPathComponent(".git", isDirectory: true)
+        try FileManager.default.createDirectory(at: admin, withIntermediateDirectories: true)
+        precondition(creation(admin, extended: true).isEmpty)
+        precondition(FinderMenuBuilder.paths(kind: .contextualMenuForContainer, selection: [tracked], target: folder) == [folder])
+        precondition(FinderMenuBuilder.paths(kind: .contextualMenuForItems, selection: [tracked], target: folder) == [tracked])
+        precondition(FinderMenuBuilder.paths(kind: .toolbarItemMenu, selection: [tracked], target: nil).isEmpty)
+        print("Actual creation menu receiver: outside folder and targetless toolbar Clone/Create only, captured target routing and URL round-trip, versioned Shift rules, admin exclusion and container/item/toolbar selection passed. Activated Finder and native dialog handoff remain pending.")
         for state in FileState.allCases { precondition(state.icon.image() != nil, "Badge artwork stays available") }
         print("Actual Finder menu builder: parent/action/nested-ignore/marked-compare images toggle; six selection cases preserve titles, enabled states and routing; fresh cache reset and badge artwork pass. No Finder controller/extension/window activated; signed integration and gestures remain pending.")
     }

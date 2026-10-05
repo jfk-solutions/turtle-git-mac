@@ -29,20 +29,29 @@ import TurtleGitCore
     override func requestBadgeIdentifier(for url: URL) {
         FIFinderSyncController.default().setBadgeIdentifier(snapshot?.states[url.path]?.rawValue ?? "", for: url)
     }
+    override var toolbarItemName: String { "TurtleGit" }
+    override var toolbarItemToolTip: String { "TurtleGit for Mac" }
+    override var toolbarItemImage: NSImage { MenuIcon.turtle.image() ?? NSImage() }
     override func menu(for menuKind: FIMenuKind) -> NSMenu? {
         let controller = FIFinderSyncController.default()
         let selection = controller.selectedItemURLs() ?? []
-        let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
+        let targetURL = controller.targetedURL()
+        let paths = FinderMenuBuilder.paths(kind: menuKind, selection: selection, target: targetURL)
+        let creation = paths.count == 1 ? paths.first : nil
         return FinderMenuBuilder.make(paths: paths, snapshot: snapshot,
             settings: FinderMenuSettings.read(), comparisonMark: try? WorkingComparisonMarkSnapshot.read(),
-            target: self, actionSelector: #selector(openAction(_:)))
+            target: self, actionSelector: #selector(openAction(_:)), creationDirectory: creation,
+            extended: NSEvent.modifierFlags.contains(.shift), toolbar: menuKind == .toolbarItemMenu)
     }
     @objc private func openAction(_ sender: NSMenuItem) {
         let controller = FIFinderSyncController.default()
         let selection = controller.selectedItemURLs() ?? []
-        let paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection
-        guard let command = sender.representedObject as? String,
-              var action = RepositoryAction(rawValue: command) else { return }
+        let command = (sender.representedObject as? FinderCreationRequest)?.action.rawValue ?? sender.representedObject as? String
+        guard let command, var action = RepositoryAction(rawValue: command) else { return }
+        let paths: [URL]
+        if let folder = sender.representedObject as? FinderCreationRequest {
+            action = folder.action; paths = folder.directory.map { [$0] } ?? []
+        } else { paths = selection.isEmpty ? controller.targetedURL().map { [$0] } ?? [] : selection }
         if action == .diffLater, NSEvent.modifierFlags.contains(.control) { action = .clearComparisonMark }
         guard let url = FinderRequest(action: action, paths: paths).url else { return }
         NSWorkspace.shared.open(url)
@@ -50,14 +59,37 @@ import TurtleGitCore
 }
 
 /// Builds the same menu used by the extension without requiring a live Finder controller.
+final class FinderCreationRequest: NSObject {
+    let action: RepositoryAction
+    let directory: URL?
+    init(action: RepositoryAction, directory: URL?) { self.action = action; self.directory = directory }
+}
+
 enum FinderMenuBuilder {
+    static func paths(kind: FIMenuKind, selection: [URL], target: URL?) -> [URL] {
+        if kind == .contextualMenuForContainer || kind == .toolbarItemMenu { return target.map { [$0] } ?? [] }
+        return selection.isEmpty ? target.map { [$0] } ?? [] : selection
+    }
     static func make(paths: [URL], snapshot: FinderSnapshot?, settings: FinderMenuSettings,
-                     comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector) -> NSMenu {
+                     comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector,
+                     creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false) -> NSMenu {
         func image(_ icon: MenuIcon) -> NSImage? { settings.showIcons ? icon.image() : nil }
         let menu = NSMenu(title: "TurtleGit")
+        if paths.count == 1 && paths[0].pathComponents.contains(".git") { return menu }
         let submenu = NSMenu(title: "TurtleGit")
         submenu.autoenablesItems = false
+        let creationActions = creationDirectory.map {
+            FinderCreationMenuContext.read(directory: $0, snapshot: snapshot, extended: extended).actions
+        } ?? (toolbar ? [.clone, .initialize] : [])
+        for action in creationActions {
+            let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
+            item.image = image(action.icon); item.target = target
+            item.representedObject = FinderCreationRequest(action: action, directory: creationDirectory); submenu.addItem(item)
+        }
+        let knownRepository = paths.contains { path in snapshot?.roots.contains { path.path == $0 || path.path.hasPrefix($0 + "/") } == true }
+        if !submenu.items.isEmpty && knownRepository { submenu.addItem(.separator()) }
         for action in RepositoryAction.allCases.filter({ $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .reset && $0 != .diffLater && $0 != .clearComparisonMark && !$0.isIgnore && $0.resolveChoice == nil }) {
+            guard knownRepository else { continue }
             let item = NSMenuItem(title: action.title, action: actionSelector, keyEquivalent: "")
             item.image = image(action.icon)
             if action == .formatPatch || action == .worktreeCreate || action == .worktreeList { item.isEnabled = paths.count == 1 && paths.first?.hasDirectoryPath == true }
@@ -91,6 +123,7 @@ enum FinderMenuBuilder {
             item.target = target; item.image = image(.compare); item.representedObject = RepositoryAction.diffLater.rawValue
             submenu.addItem(.separator()); submenu.addItem(item)
         }
+        if toolbar { return submenu }
         let parent = NSMenuItem(title: "TurtleGit", action: nil, keyEquivalent: "")
         parent.image = image(.turtle)
         parent.submenu = submenu; menu.addItem(parent)

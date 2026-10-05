@@ -260,3 +260,11 @@ TortoiseShell/ContextMenu.cpp under GPL version 2 or later. Copyright
 Copyright (C) 2003-2012, 2014-2016, 2018 TortoiseSVN.
 Native Finder menu construction replaces Win32 menu insertion; the complete
 command conditions and signed Finder behavior remain pending.
+
+Finder creation menu clauses adapt MenuInfo.cpp (Copyright (C) 2008-2016,
+2018-2024, 2026 TortoiseGit; Copyright (C) 2003-2008 TortoiseSVN) and bare metadata
+checks from GitAdminDir.cpp (Copyright (C) 2008-2017, 2019, 2023, 2025-2026
+TortoiseGit; Copyright (C) 2003-2008 TortoiseSVN), under GPL version 2 or later.
+Windows folder/extended-menu flags use native cached status and metadata;
+Finder's targetless toolbar opens existing native creation/picker workflows.
+Full shell classification, multiple-folder creation and signed acceptance remain pending.
