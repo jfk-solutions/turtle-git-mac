@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-06",
+  "scope": "Owned Log history cancellation on replacement/close; full port remains incomplete",
+  "baseCommit": "844fee8289a1ded1ffcde7b5283076de98edfde1",
+  "implemented": [
+    "Optional core history cancellation is checked before work, during ref/commit parsing and between merge parents; every Git read receives the token",
+    "Native Log owns one token per history request, cancels the previous token on reload, and cancels/increments generation on invalidation/close",
+    "Close allowed during history loading while mutation/viewer/sheet guards remain; history reload cannot replace a mutation",
+    "Stale completions cannot clear a newer token or replace its rows; cancelled read errors suppressed; bare preflight also cancellable"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 12,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final source. New real Git/owned wrapper test verifies pre-cancelled zero-limit rejection, cancellation during a stalled diff-tree read, wrapper and sleeping child gone within bounded deadline, independent same-repository reader unaffected, exact Git index bytes unchanged and subsequent history succeeds. Previous path/notes/tags/refs/identity/merge/clipboard cases pass."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "nativeAcceptance": "Native token/generation/reload/close guards compiled and reviewed; no actual displayed close/search/mutation/quit gesture acceptance performed.",
+    "fullRegression": "Focused history suite run; full-suite repeat not performed. Prior full-suite evidence retains its original snapshot scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "05c43d5777f5a2d037d7f2099b62fbf666513f79061ea0f7d81ee9b16a4c5087",
+    "Sources/TurtleGitMac/LogWindow.swift": "29c81b5596b01bbabf363b05b8b721d030bffedf94de1c2909c45f1a08e4fbea",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "0abbc0181e6e868cd2edcb05c848a3640bff16fad37175d6ef85f6cb44ac5266"
+  },
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-cancel-tests.log",
+      "sha256": "a0f13615b158334bd274ba64d09bc267090441182f389f5f2c382e76506389bf"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-cancel-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-cancel-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-cancel-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-cancel-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-cancel-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Native displayed close/refresh races, mutation/viewer guards and signed quit/grant acceptance",
+    "Cancellation for Log details/clipboard and other operation workers",
+    "Incremental/streamed history and batched metadata loading",
+    "Remaining search/query/date behavior and full application parity",
+    "Signed Finder/App Store distribution verification"
+  ]
+}

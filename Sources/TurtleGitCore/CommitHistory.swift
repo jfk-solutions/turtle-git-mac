@@ -160,11 +160,15 @@ public enum CommitGraph {
 }
 
 extension GitRepository {
-    public func history(options: HistoryOptions = HistoryOptions()) throws -> [LogEntry] {
+    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil) throws -> [LogEntry] {
+        try cancellation?.check()
+        func historyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
         if options.limit == 0 { return [] }
         // An unborn HEAD is valid; --all may still have commits in other branches.
         if !options.allBranches && options.endRevision == nil {
-            do { _ = try run(["rev-parse", "--verify", "--quiet", "HEAD"]) }
+            do { _ = try historyRun(["rev-parse", "--verify", "--quiet", "HEAD"]) }
             catch let failure as GitFailure where failure.code == 1 { return [] }
         }
         let filtering = !options.search.isEmpty
@@ -173,7 +177,7 @@ extension GitRepository {
         var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00"]
         if !filterInMemory { args.append("-\(options.limit)") }
         if let revision = options.endRevision {
-            let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+            let hash = try historyRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
             args.append(hash)
         } else if options.allBranches { args.append("--all") }
         if filtering && !filterInMemory {
@@ -186,13 +190,14 @@ extension GitRepository {
         args.append("--")
         if let path = options.path, !path.isEmpty { args.append(path) }
         args += options.paths
-        let refs = try run(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).stdout
+        let refs = try historyRun(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).stdout
         let fields = String(decoding: refs, as: UTF8.self).components(separatedBy: "\0")
         var references: [String: [RevisionReference]] = [:]
         var peeledReferenceNames: [String: [String]] = [:]
         var annotatedObjects: [String: [String]] = [:]
         var i = 0
         while i + 2 < fields.count {
+            try cancellation?.check()
             let hash = (fields[i + 1].isEmpty ? fields[i] : fields[i + 1]).trimmingCharacters(in: .whitespacesAndNewlines)
             references[hash, default: []].append(RevisionReference(name: fields[i + 2]))
             if !fields[i + 1].isEmpty {
@@ -204,21 +209,21 @@ extension GitRepository {
         // Notes are separate payloads: their text can contain NUL bytes, unlike
         // the fields in the commit record. Avoid per-commit work in repositories
         // with no notes refs or notes configuration.
-        let notesConfigured = try run(["config", "--get-regexp", "^(core[.]notesref|notes[.]displayref)$"], successfulExitCodes: 0...1).exitCode == 0
+        let notesConfigured = try historyRun(["config", "--get-regexp", "^(core[.]notesref|notes[.]displayref)$"], successfulExitCodes: 0...1).exitCode == 0
         let hasNotes = references.values.contains { $0.contains { $0.name.hasPrefix("refs/notes/") } }
             || notesConfigured || ProcessInfo.processInfo.environment["GIT_NOTES_REF"] != nil
         var notesCache: [String: String] = [:]
         func notes(_ hash: String) throws -> String {
             guard hasNotes else { return "" }
             if let cached = notesCache[hash] { return cached }
-            let value = try run(["show", "-s", "--notes", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
+            let value = try historyRun(["show", "-s", "--notes", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
             notesCache[hash] = value; return value
         }
         var tagCache: [String: String] = [:]
         func tagInfo(_ hash: String) throws -> String {
             try (annotatedObjects[hash] ?? []).map { object in
                 if let cached = tagCache[object] { return cached }
-                var value = try run(["cat-file", "tag", object]).text
+                var value = try historyRun(["cat-file", "tag", object]).text
                 if value.hasPrefix("object "), let newline = value.firstIndex(of: "\n") {
                     value = String(value[value.index(after: newline)...])
                     if value.hasPrefix("type commit\n") { value.removeFirst("type commit\n".count) }
@@ -230,20 +235,22 @@ extension GitRepository {
         func changedPaths(_ hash: String, parents: [String]) throws -> [String] {
             var paths = Set<String>()
             for parent in parents.isEmpty ? [""] : parents {
+                try cancellation?.check()
                 var arguments = ["diff-tree", "--root", "--no-commit-id", "--name-status", "-z", "-r", "-M", "--no-ext-diff", "--no-color"]
                 if !parent.isEmpty { arguments.append(parent) }
                 arguments += [hash, "--"]
-                for file in CommitFile.parse(names: try run(arguments).stdout, statistics: Data()) {
+                for file in CommitFile.parse(names: try historyRun(arguments).stdout, statistics: Data()) {
                     paths.insert(file.path)
                     if let old = file.oldPath { paths.insert(old) }
                 }
             }
             return paths.sorted()
         }
-        let fieldsInHistory = String(decoding: try run(args).stdout, as: UTF8.self).components(separatedBy: "\0")
+        let fieldsInHistory = String(decoding: try historyRun(args).stdout, as: UTF8.self).components(separatedBy: "\0")
         var entries: [LogEntry] = []
         var record = 0
         while record + 8 < fieldsInHistory.count {
+            try cancellation?.check()
             let fields = Array(fieldsInHistory[record..<(record + 9)])
             record += 9
             if filterInMemory {
@@ -270,14 +277,15 @@ extension GitRepository {
             entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
             if filtering && options.limit > 0 && entries.count >= options.limit { break }
         }
-        let head = try? run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let currentRef = try? run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let head = try? historyRun(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let currentRef = try? historyRun(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
         for index in entries.indices {
             entries[index].references = (references[entries[index].hash] ?? []).map { value in
                 var reference = value; reference.isCurrent = value.name == currentRef; return reference
             }
             entries[index].isHead = entries[index].hash == head
         }
+        try cancellation?.check()
         return entries
     }
     /// Full log clipboard details for a pinned commit, including every parent's

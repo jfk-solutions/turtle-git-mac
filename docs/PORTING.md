@@ -120,7 +120,8 @@ Recent Add receiver checks and unsigned build/package results are recorded in
 [Log reference search](qa/log-ref-search-2026-10-06.json) and
 [Log notes search](qa/log-notes-search-2026-10-06.json) and
 [Log annotated-tag search](qa/log-tag-search-2026-10-06.json) and
-[Log changed-path search](qa/log-path-search-2026-10-06.json).
+[Log changed-path search](qa/log-path-search-2026-10-06.json) and
+[Log history cancellation](qa/log-history-cancel-2026-10-06.json).
 These checks do not establish full application parity, displayed-window acceptance,
 signed Finder activation or distribution readiness. Workflow-specific parity files
 record the remaining requirements.

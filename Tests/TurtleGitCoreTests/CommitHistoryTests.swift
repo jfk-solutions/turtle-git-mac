@@ -320,6 +320,57 @@ final class CommitHistoryTests: XCTestCase {
         options.paths = []; options.search = original; options.endRevision = first.hash
         found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
     }
+    func testHistoryCancellationStopsOwnedPathReadAndLeavesOtherReaderAndIndexIntact() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Cancel Tests"])
+        _ = try await repo.run(["config", "user.email", "cancel@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        try Data("base\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "base")
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let stopped = OperationCancellation(); stopped.cancel()
+        var zero = HistoryOptions(); zero.limit = 0
+        do { _ = try await repo.history(options: zero, cancellation: stopped); XCTFail("Cancelled zero-limit read succeeded") } catch is OperationCancellationFailure {}
+        let helper = root.appendingPathComponent("slow-history")
+        let script = """
+        #!/bin/sh
+        case "$*" in
+          *diff-tree*)
+            /bin/sleep 30 &
+            task_history_child=$!
+            trap 'kill "$task_history_child" 2>/dev/null; wait "$task_history_child" 2>/dev/null; exit 143' TERM INT
+            echo "$$ $task_history_child" > "$0.started"
+            wait "$task_history_child"
+            ;;
+        esac
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let slow = GitRepository(root: root, executable: helper), token = OperationCancellation()
+        var options = HistoryOptions(); options.searchFields = .paths; options.search = "file.txt"
+        let read = Task { try await slow.history(options: options, cancellation: token) }
+        defer { token.cancel() }
+        let marker = URL(fileURLWithPath: helper.path + ".started"), deadline = Date().addingTimeInterval(5)
+        while !FileManager.default.fileExists(atPath: marker.path) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        guard FileManager.default.fileExists(atPath: marker.path) else { token.cancel(); _ = await read.result; XCTFail("Path read never started"); return }
+        let pids = try String(contentsOf: marker, encoding: .utf8).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
+        XCTAssertEqual(pids.count, 2)
+        let independent = try await repo.history(); XCTAssertEqual(independent.count, 1)
+        let began = Date(); token.cancel()
+        do { _ = try await read.value; XCTFail("Cancelled path read succeeded") }
+        catch is OperationCancellationFailure {}
+        catch is GitCommandCancellationFailure {}
+        XCTAssertLessThan(Date().timeIntervalSince(began), 5)
+        let reaped = Date().addingTimeInterval(3)
+        while Date() < reaped && pids.contains(where: { kill($0, 0) == 0 }) { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertTrue(pids.allSatisfy { kill($0, 0) != 0 })
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), before)
+        let final = try await repo.history(); XCTAssertEqual(final.map(\.hash), independent.map(\.hash))
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

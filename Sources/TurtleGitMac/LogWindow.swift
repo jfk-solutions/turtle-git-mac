@@ -135,7 +135,7 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
         completion(revision)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.busy, !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
+        guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
@@ -178,6 +178,8 @@ struct LogCommandRequest: Identifiable {
     @Published var endRevision: String?
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
+    private var historyCancellation: OperationCancellation?
+    var loadingHistory: Bool { historyCancellation != nil }
     @Published var search = ""
     @Published var searchFields = LogSearchSelection.load()
     @Published var searchCaseSensitive = UserDefaults.standard.bool(forKey: "FilterCaseSensitively")
@@ -251,9 +253,13 @@ struct LogCommandRequest: Identifiable {
         historyPaths = scope; showWholeProject = scope.isEmpty; reload()
     }
     func invalidate() {
+        if loadingHistory { historyCancellation?.cancel(); historyCancellation = nil; busy = false }
         generation += 1; detailGeneration += 1; clipboardGeneration += 1; copyingDetails = false
     }
     func reload(more: Bool = false) {
+        guard !busy || loadingHistory else { return }
+        historyCancellation?.cancel()
+        let cancellation = OperationCancellation(); historyCancellation = cancellation
         if more { limit += 200 } else { limit = 200 }
         clipboardGeneration += 1; copyingDetails = false
         generation += 1; let request = generation
@@ -263,15 +269,15 @@ struct LogCommandRequest: Identifiable {
         busy = true
         Task {
             do {
-                let bare = try await repository.isBare()
-                let result = try await repository.history(options: options)
+                let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
+                let result = try await repository.history(options: options, cancellation: cancellation)
                 guard request == generation else { return }
                 self.bare = bare
                 entries = result; graph = CommitGraph.layout(result)
                 selected.formIntersection(Set(result.map(\.hash)))
                 if selected.isEmpty, let first = result.first { selected = [first.hash] }
-                busy = false; select(selected)
-            } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
+                historyCancellation = nil; busy = false; select(selected)
+            } catch { if request == generation { historyCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription }; busy = false } }
         }
     }
     func select(_ hashes: Set<String>) {

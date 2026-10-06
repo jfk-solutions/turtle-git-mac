@@ -61,7 +61,7 @@ independent of the lower changed-file pane filter and existing history path scop
 Unlike upstream's cold simple-list path, which can omit rename old names, native
 search includes old names consistently before/after loading commit details.
 Per-commit/per-parent Git diff reads remain a performance gap; batched loading and
-cancellation are unfinished. See [the Paths record](qa/log-path-search-2026-10-06.json).
+streaming remain unfinished. See [the Paths record](qa/log-path-search-2026-10-06.json).
 The menu also offers the upstream Case-sensitive toggle, default off. It applies
 to every selected field and is saved under FilterCaseSensitively for subsequent
 Log windows. Names, emails and revision IDs use literal matching; message-only
@@ -73,13 +73,32 @@ still apply.
 Non-message searches walk the scoped history before applying the result limit,
 so Load more counts matching commits and older matches remain discoverable.
 This currently materializes the scoped log output in memory; incremental filtering
-and cancellation for large histories remain unfinished. The existing message-only
+for large histories remain unfinished. The existing message-only
 search still uses Git's result limit. Returned rows now retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
 regex options, multi-term/exclusion query syntax, bug IDs and the complete
 upstream default field set remain pending. This is partial upstream filter parity; see
 [the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up
 checks are recorded [separately](qa/log-search-case-2026-10-06.json).
+
+## History-load cancellation
+
+Every native Log history read owns an OperationCancellation token. Refresh/search
+cancels the previous read before creating another; closing or invalidating Log
+cancels its active read and advances the generation so stale results cannot replace
+current rows. Log may close during history loading, while mutations, viewer work
+and attached sheets retain their existing close guards. Mutation work cannot be
+replaced by a history reload. Cancellation does not show an error for the stopped
+request.
+
+The core history API now accepts optional cancellation without changing existing
+callers. It checks before any work (including zero-limit/unborn reads), during ref
+and commit parsing and between merge parents, and passes the token through every
+Git command, including notes, tag objects, path diffs and final HEAD/ref metadata.
+The shared process runner terminates only the owned child process group. A cancelled
+read never returns its rows. Native detail/clipboard reads and other Log operations
+still need their own cancellation coverage; large-output buffering and incremental
+loading remain unfinished. See [the cancellation record](qa/log-history-cancel-2026-10-06.json).
 
 ## Specification
 
