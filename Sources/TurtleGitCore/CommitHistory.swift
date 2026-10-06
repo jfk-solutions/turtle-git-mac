@@ -475,7 +475,7 @@ extension GitRepository {
         return CommitNoteSnapshot(revision: hash, notesRef: ref, text: text, minimumLength: minimum)
     }
     /// The synchronous mutation is not interruptible; callers keep its dialog open until completion.
-    /// --allow-empty/--no-stripspace preserve the libgit2 note-create behavior, including empty notes.
+    /// Reusing a blob preserves exact text, including empty notes, on older Git versions too.
     public func saveCommitNote(_ note: CommitNoteSnapshot, text: String) throws -> String {
         guard !text.contains("\0") else { throw CommitNoteFailure.invalidText }
         guard note.accepts(text) else { throw CommitNoteFailure.minimumLength(note.minimumLength) }
@@ -484,7 +484,8 @@ extension GitRepository {
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appendingPathComponent("note.txt")
         try Data(text.utf8).write(to: file)
-        _ = try run(["notes", "--ref=" + note.notesRef, "add", "--force", "--allow-empty", "--no-stripspace", "--file", file.path, note.revision])
+        let blob = try run(["hash-object", "-w", "--", file.path]).text.trimmingCharacters(in: .newlines)
+        _ = try run(["notes", "--ref=" + note.notesRef, "add", "--force", "--allow-empty", "--reuse-message", blob, note.revision])
         // Refresh the display-ref aggregate used by the existing Log message pane.
         do { return try run(["show", "-s", "--notes", "--format=%N", note.revision, "--"]).text.trimmingCharacters(in: .newlines) }
         catch { throw CommitNoteFailure.savedButRefreshFailed(error.localizedDescription) }

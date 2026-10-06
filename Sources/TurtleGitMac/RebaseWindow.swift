@@ -13,6 +13,7 @@ import TurtleGitCore
         window.title = "\(repository.root.lastPathComponent) – Rebase – TurtleGit"; window.minSize = NSSize(width: 930, height: 620); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model))
         super.init(window: window); window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
+        model.revisionMenuLog.window = window
         model.onModeChanged = { [weak window, weak model] in
             window?.title = "\(repository.root.lastPathComponent) – \(model?.operationTitle ?? "Rebase") – TurtleGit"
         }
@@ -131,6 +132,8 @@ import TurtleGitCore
     var onShowStatus: () -> Void = {}
     var onModeChanged: () -> Void = {}
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
+    lazy var revisionMenuLog = LogWindowModel(repository: repository, access: access)
+    var onShowRevisionLog: ((String) -> Void)?
     var pickAdditionalCommits: () -> Void = {}
     var chooseEmptyResult: () async -> RebaseEmptyChoice = { .cancel }
     var confirmConflictHints: () async -> Bool = { false }
@@ -220,6 +223,60 @@ import TurtleGitCore
         }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    var revisionMenuAvailable: Bool { !busy && !selectingSplit && !pickingCommits && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
+    func revisionMenuRows(_ ids: Set<String>) -> [RebaseEntry] { entries.filter { ids.contains($0.id) } }
+    @discardableResult func prepareRevisionMenu(_ ids: Set<String>) -> LogWindowModel? {
+        let rows = revisionMenuRows(ids)
+        guard revisionMenuAvailable, !rows.isEmpty, rows.count == ids.count else { return nil }
+        revisionMenuLog.entries = rows.map(\.commit)
+        revisionMenuLog.selected = Set(rows.map { $0.commit.hash })
+        return revisionMenuLog
+    }
+    func revisionMenuPatchPreset(_ ids: Set<String>) -> FormatPatchPreset? {
+        let indexes = entries.indices.filter { ids.contains(entries[$0].id) }
+        guard !indexes.isEmpty, indexes.count == ids.count else { return nil }
+        if indexes.count == 1 { return FormatPatchPreset(startRevision: entries[indexes[0]].commit.hash) }
+        guard indexes.count <= 2 || indexes.last! - indexes.first! + 1 == indexes.count else { return nil }
+        return FormatPatchPreset(startRevision: entries[indexes.last!].commit.hash + "~1", endRevision: entries[indexes.first!].commit.hash)
+    }
+    func canPerformRevisionMenu(_ command: RebaseRevisionCommand, ids: Set<String>) -> Bool {
+        let rows = revisionMenuRows(ids), one = rows.count == 1
+        guard revisionMenuAvailable, !rows.isEmpty, rows.count == ids.count else { return false }
+        switch command {
+        case .workingTree: return one && !revisionMenuLog.bare && revisionMenuLog.onCompare != nil
+        case .compare: return rows.count <= 2 && revisionMenuLog.onCompare != nil
+        case .unified: return rows.count <= 2 && !revisionMenuLog.unifiedViewerBusy
+        case .log: return one && onShowRevisionLog != nil
+        case .browse: return one && revisionMenuLog.onBrowseRepository != nil
+        case .branch, .tag, .push: return one
+        case .notes: return one && revisionMenuLog.noteRequest == nil
+        case .patch: return revisionMenuPatchPreset(ids) != nil && revisionMenuLog.onFormatPatch != nil
+        default: return true
+        }
+    }
+    func performRevisionMenu(_ command: RebaseRevisionCommand, ids: Set<String>, alternate: Bool = false) {
+        guard canPerformRevisionMenu(command, ids: ids), let log = prepareRevisionMenu(ids) else { return }
+        switch command {
+        case .workingTree: log.compare(workingTree: true)
+        case .compare: log.compare()
+        case .unified: log.diff(alternate: alternate)
+        case .log: if let revision = log.revision { onShowRevisionLog?(revision.hash) }
+        case .browse: if let revision = log.revision { log.onBrowseRepository?(revision.hash) }
+        case .branch: log.request(.branch)
+        case .tag: log.request(.tag)
+        case .push: log.request(.push)
+        case .notes: log.editNotes()
+        case .patch: if let preset = revisionMenuPatchPreset(ids) { log.onFormatPatch?(preset) }
+        case .details: log.copyDetails()
+        case .detailsWithoutPaths: log.copyDetails(includePaths: false)
+        case .hashes: log.copy(log.revisions.map(\.hash).joined(separator: "\n"))
+        case .authors: log.copy(log.revisions.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n"))
+        case .authorNames: log.copy(log.revisions.map(\.author).joined(separator: "\n"))
+        case .authorEmails: log.copy(log.revisions.map(\.email).joined(separator: "\n"))
+        case .subjects: log.copy(log.revisions.map(\.subject).joined(separator: "\n"))
+        case .messages: log.copy(log.revisions.map(\.message).joined(separator: "\n\n"))
+        }
+    }
     func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
         guard !busy, !pickingCommits, !selectingSplit else {
             if upstream != nil || cherryPick != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick) }
@@ -230,6 +287,7 @@ import TurtleGitCore
             defer { if !started { busy = false; loadPendingHandoff() } }
             do {
                 try requireAccess()
+                revisionMenuLog.bare = try await repository.isBare()
                 references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil; draftEntries = []
                 try await loadConflictFiles(); if fileRecovery { tab = 0 }
                 if active { splitCommit = state?.split != nil && state?.split?.conflictRecovery != true; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
@@ -475,6 +533,63 @@ import TurtleGitCore
 
 
 }
+enum RebaseRevisionCommand: String, CaseIterable {
+    case workingTree = "Compare with working tree", compare = "Compare with previous revision", unified = "Show changes as unified diff"
+    case log = "Show log", browse = "Browse repository", branch = "Create branch at this version…", tag = "Create tag at this version…", push = "Push…", notes = "Edit Notes", patch = "Format Patch…"
+    case details = "Full log details", detailsWithoutPaths = "Full log details without changed paths", hashes = "Hashes", authors = "Authors", authorNames = "Author names", authorEmails = "Author emails", subjects = "Subjects", messages = "Messages"
+    var icon: MenuIcon {
+        switch self {
+        case .workingTree, .compare: return .compare
+        case .unified: return .unifiedDiff
+        case .log: return .log
+        case .browse: return .repositoryBrowser
+        case .branch: return .branch
+        case .tag: return .tag
+        case .push: return .push
+        case .notes: return .rebaseEdit
+        case .patch: return .patch
+        default: return .copy
+        }
+    }
+}
+struct RebaseRevisionMenu: View {
+    @ObservedObject var model: RebaseWindowModel
+    @ObservedObject var log: LogWindowModel
+    let ids: Set<String>
+    var body: some View {
+        ForEach(RebaseAction.allCases, id: \.self) { action in
+            Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }
+                .disabled(ids.isEmpty || !model.editable || model.options.preserveMerges)
+        }
+        if !model.revisionMenuRows(ids).isEmpty {
+            Divider()
+            ForEach([RebaseRevisionCommand.workingTree, .compare, .unified], id: \.self) { command in commandButton(command) }
+            Divider()
+            ForEach([RebaseRevisionCommand.log, .browse, .branch, .tag, .push], id: \.self) { command in commandButton(command) }
+            Divider()
+            ForEach([RebaseRevisionCommand.notes, .patch], id: \.self) { command in commandButton(command) }
+            Divider()
+            Menu {
+                ForEach([RebaseRevisionCommand.details, .detailsWithoutPaths, .hashes, .authors, .authorNames, .authorEmails, .subjects, .messages], id: \.self) { command in commandButton(command) }
+            } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }
+                .disabled(!model.revisionMenuAvailable)
+        }
+    }
+    private func commandButton(_ command: RebaseRevisionCommand) -> some View {
+        Button { model.performRevisionMenu(command, ids: ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: command == .compare && ids.count == 2 ? "Compare revisions" : command.rawValue, icon: command.icon) }
+            .disabled(!model.canPerformRevisionMenu(command, ids: ids))
+    }
+}
+struct RebaseRevisionMenuPresentation: ViewModifier {
+    @ObservedObject var log: LogWindowModel
+    func body(content: Content) -> some View {
+        content.alert("Git operation failed", isPresented: Binding(get: { log.error != nil }, set: { if !$0 { log.error = nil } })) {
+            Button("OK") { log.error = nil }
+        } message: { Text(log.error ?? "") }
+        .sheet(item: $log.noteRequest) { _ in LogNotesDialog(model: log) }
+    }
+}
+
 struct RebaseDialog: View {
     @ObservedObject var model: RebaseWindowModel
     var body: some View {
@@ -505,7 +620,7 @@ struct RebaseDialog: View {
                         TableColumn("Date") { entry in Text(HistoryDateSettings.load().format(entry.commit.date)) }.width(150)
                     }.background(RebaseListInteraction(model: model)).contextMenu(forSelectionType: String.self) { ids in
                         TurtleGitContextMenu {
-     ForEach(RebaseAction.allCases, id: \.self) { action in Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }.disabled(ids.isEmpty || !model.editable || model.options.preserveMerges) }
+                            RebaseRevisionMenu(model: model, log: model.revisionMenuLog, ids: ids)
                         }
                     }
                     HStack {
@@ -561,6 +676,7 @@ struct RebaseDialog: View {
                 Button("Help") { NSWorkspace.shared.open(model.helpURL) }
             }
         }.padding(12).disabled(model.busy || model.selectingSplit)
+        .modifier(RebaseRevisionMenuPresentation(log: model.revisionMenuLog))
         .onChange(of: model.options.branch) { _ in model.reloadPlan() }
         .onChange(of: model.options.upstream) { _ in model.reloadPlan() }
         .onChange(of: model.options.onto) { _ in model.reloadPlan() }

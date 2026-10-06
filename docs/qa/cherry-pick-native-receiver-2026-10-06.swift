@@ -389,6 +389,71 @@ import TurtleGitCore
     _ = try await repo.run(["config", "--unset", "rebase.updateRefs"]); _ = try await repo.run(["checkout", "target"])
     print("Actual native repeated/omitted references: Add duplicate IDs, Skip and end moves, original occurrence Edit/reopening, original ref associations, omitted patch-equivalent ref unchanged and retained ref updated passed. Prompts injected.")
 }
+@MainActor func verifyNativeRebaseMenus(_ repo: GitRepository, editor: URL?, revisions: [LogEntry]) async throws {
+    let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.load(cherryPick: revisions.map(\.hash)); try await settle(model)
+    let log = model.revisionMenuLog, one = Set([revisions[0].hash]), pair = Set([revisions[1].hash, revisions[2].hash])
+    let board = NSPasteboard(name: .init("org.turtlegit.qa.rebase." + UUID().uuidString)); log.clipboard = board; defer { board.releaseGlobally() }
+    var compared: [(ComparisonRevision, ComparisonRevision)] = [], routed: [String] = [], patch: FormatPatchPreset?, diff: Data?, alternate = false, noteChanged = false
+    log.onCompare = { compared.append(($0, $1)) }; model.onShowRevisionLog = { routed.append("log " + $0) }; log.onBrowseRepository = { routed.append("browse " + $0) }
+    log.onCreateReference = { routed.append(($0 ? "tag " : "branch ") + $1) }; log.onPush = { routed.append("push " + $0) }; log.onFormatPatch = { patch = $0 }
+    log.onUnifiedDiff = { diff = $0; alternate = $1 }; log.onRevisionChanged = { _ in noteChanged = true }
+    for command in RebaseRevisionCommand.allCases { precondition(command.icon.contextImage() != nil) }
+    let excluded = ["Reset current branch to this…", "Switch/Checkout to this…", "Revert change by this commit", "Cherry Pick this commit…"]
+    precondition(!RebaseRevisionCommand.allCases.contains { excluded.contains($0.rawValue) })
+    let host = NSHostingView(rootView: RebaseDialog(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
+    for command in [RebaseRevisionCommand.log, .browse, .branch, .tag, .push] { model.performRevisionMenu(command, ids: one) }
+    precondition(routed == ["log ", "browse ", "branch ", "tag ", "push "].map { $0 + revisions[0].hash })
+    model.performRevisionMenu(.compare, ids: one); precondition(compared.last?.0 == .revision(revisions[0].parents[0]) && compared.last?.1 == .revision(revisions[0].hash))
+    model.performRevisionMenu(.workingTree, ids: one); precondition(compared.last?.0 == .revision(revisions[0].hash) && compared.last?.1 == .workingTree)
+    model.performRevisionMenu(.compare, ids: pair); precondition(compared.last?.0 == .revision(revisions[2].hash) && compared.last?.1 == .revision(revisions[1].hash))
+    precondition(!model.canPerformRevisionMenu(.workingTree, ids: pair) && !model.canPerformRevisionMenu(.branch, ids: pair))
+    log.bare = true; precondition(!model.canPerformRevisionMenu(.workingTree, ids: one)); log.bare = false
+    let root = revisions.last!, rootID = Set([root.hash])
+    model.performRevisionMenu(.compare, ids: rootID); precondition(compared.last?.0 == .emptyTree && compared.last?.1 == .revision(root.hash))
+    model.performRevisionMenu(.unified, ids: rootID, alternate: true)
+    let diffDeadline = Date().addingTimeInterval(30)
+    while log.busy && Date() < diffDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!log.busy && log.error == nil && alternate && String(decoding: diff!, as: UTF8.self).contains("base.txt"))
+    for (command, expected) in [(RebaseRevisionCommand.hashes, root.hash), (.authors, root.author + " <" + root.email + ">"), (.authorNames, root.author), (.authorEmails, root.email), (.subjects, root.subject), (.messages, root.message)] {
+        model.performRevisionMenu(command, ids: rootID); precondition(board.string(forType: .string) == expected)
+    }
+    model.performRevisionMenu(.details, ids: rootID)
+    let clipboardDeadline = Date().addingTimeInterval(30)
+    while log.copyingDetails && Date() < clipboardDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!log.copyingDetails && log.error == nil && board.string(forType: .string)!.contains("base.txt"))
+    let before = try await repo.rebaseCommit("HEAD"), index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    model.performRevisionMenu(.notes, ids: rootID)
+    let noteDeadline = Date().addingTimeInterval(30)
+    while log.loadingNote && Date() < noteDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!log.loadingNote && log.error == nil && log.noteRequest != nil)
+    log.noteText = "Native Rebase menu note 雪"; log.saveNote()
+    let saveDeadline = Date().addingTimeInterval(30)
+    while log.savingNote && Date() < saveDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    let stored = try await repo.editableCommitNote(revision: root.hash), after = try await repo.rebaseCommit("HEAD"), afterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    precondition(log.noteError == nil && log.noteRequest == nil && noteChanged && stored.text.contains("Native Rebase menu note 雪") && after.hash == before.hash && afterIndex == index)
+    for exact in ["\n # literal note 雪  \n\n", ""] {
+        _ = try await repo.saveCommitNote(stored, text: exact)
+        let reloaded = try await repo.editableCommitNote(revision: root.hash)
+        precondition(reloaded.text == exact)
+    }
+    let routeCount = routed.count; model.busy = true; model.performRevisionMenu(.branch, ids: one); precondition(routed.count == routeCount); model.busy = false
+    model.performRevisionMenu(.branch, ids: ["missing-row"]); precondition(routed.count == routeCount)
+    log.busy = true; precondition(!model.canPerformRevisionMenu(.hashes, ids: one)); log.busy = false
+    let noncontiguous = Set([revisions[0].hash, revisions[2].hash, revisions[3].hash]); precondition(model.revisionMenuPatchPreset(noncontiguous) == nil)
+    let contiguous = Set(revisions.prefix(3).map(\.hash)); model.performRevisionMenu(.patch, ids: contiguous)
+    precondition(patch?.selection == .range(from: revisions[2].hash + "~1", to: revisions[0].hash))
+    model.addCommits([root.hash]); try await settle(model)
+    let duplicate = Set([root.hash, root.hash + ":1"]); precondition(model.revisionMenuRows(duplicate).count == 2)
+    model.performRevisionMenu(.compare, ids: duplicate); precondition(compared.last?.0 == .revision(root.hash) && compared.last?.1 == .revision(root.hash))
+    model.performRevisionMenu(.hashes, ids: duplicate); precondition(board.string(forType: .string) == root.hash + "\n" + root.hash)
+    _ = try await repo.run(["checkout", "main"]); _ = try await repo.run(["commit", "--allow-empty", "-m", "Native menu active Edit"])
+    let edit = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", "target"])
+    let active = RebaseWindowModel(repository: repo, access: nil); active.editorExecutable = editor; active.load(cherryPick: [edit.hash]); try await settle(active); active.setAction(.edit, ids: [edit.hash]); active.request("start"); try await settle(active)
+    active.revisionMenuLog.onCompare = { compared.append(($0, $1)) }
+    precondition(active.active && !active.editable && active.canPerformRevisionMenu(.compare, ids: [edit.hash]))
+    active.performRevisionMenu(.compare, ids: [edit.hash]); precondition(compared.last?.1 == .revision(edit.hash)); active.execute("abort"); try await settle(active)
+    print("Actual native Rebase row commands: original icons/allowed command policy, single/root/merge/two/duplicate revision comparisons, unified diff data and alternate handoff, Log/Browse/Branch/Tag/Push/Format Patch handoffs, isolated clipboard recipes/details, notes save/refresh without HEAD/index changes, busy/stale/bare guards, active Edit inspection and Abort passed. Hidden views; dialog/viewer handoffs injected.")
+}
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
     model.load(cherryPick: revisions); try await settle(model)
@@ -477,6 +542,7 @@ import TurtleGitCore
     let merge = try await repo.rebaseCommit("HEAD")
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); try await verifyNativeRepeatedAndOmittedReferences(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
 
     let log = LogWindowModel(repository: repo, access: nil)
@@ -691,6 +757,7 @@ import TurtleGitCore
     try await verifyNativeEmptySquash(repo, editor: model.editorExecutable, repeatedConflicts: true)
     try await verifyNativeSquashReferenceUpdates(repo, editor: model.editorExecutable)
     try await verifyNativeRepeatedAndOmittedReferences(repo, editor: model.editorExecutable)
+    try await verifyNativeRebaseMenus(repo, editor: model.editorExecutable, revisions: [merge, parent, side, base])
 
 
 

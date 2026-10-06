@@ -155,3 +155,7 @@ Configured Rebase references remain associated with the original occurrence
 after repeated Add and reordering. Automatically omitted patch-equivalent
 references follow Git's unchanged-reference behavior, while retained references
 update after Edit approval. See [repeated/omitted references](REBASE-REFERENCE-RECOVERY.md#repeated-add-and-omitted-commits).
+
+Row menus now reuse native Log inspection/reference/notes/clipboard commands
+with original icons and occurrence-aware selection. Advanced Log commands and
+displayed acceptance remain pending. See [row menus](REBASE-ROW-MENUS.md).

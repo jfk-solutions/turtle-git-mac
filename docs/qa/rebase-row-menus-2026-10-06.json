@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "c4aaf3a",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Rebase/Cherry Pick row menus using native Log commands, original icons and occurrence-aware selection; exact notes on older Git",
+  "sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "da108f34bbfd7383bd8e0f50d7be081b5c8fae6807b2513de8b88df38bd76412",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "cb24ef156fa1db275a885f622228eb5065c987dc4b07e4c2a465129f2872441e",
+    "Sources/TurtleGitMac/LogWindow.swift": "4e62c7d851535fe7ce49f663e29473ef191e6bd058dd630313e941fa3bef2c56",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "5c4942316c817792b640093ebf753178b99a0f10aa76bdce4e8cac253e8be804",
+    "scripts/check-cherry-pick-native.py": "de2bb946bd3370fed0b095a056f27231a5e7759d753d619d1dca9c5e5ea76574",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "4a9044f12b2939488efa3ceb0295891bc95099398edfd4a51dddb58091c5c462",
+    "README.md": "619b9c8d51d112416d5295631e872be1f95c6e0a6f3c94c4c2d5019590d49a3b",
+    "docs/REBASE-PARITY.md": "d59c091ee23aa491c6d55582ccd36a4056f44d1ca3bd77bcb7343832a35ffca8",
+    "docs/CHERRY-PICK-PARITY.md": "94ac6d93e9a8423ae404309b9b2ae12904dd6b6c43bd5c82064d203caf84b3a3",
+    "docs/REBASE-ROW-MENUS.md": "55ecee36d7de1587aa3d486230f77838261a6078b2144faf8e55f83f91dfdbd9",
+    "docs/site/index.html": "ddb92d687ec1c61d2823d7ac827c37e1526a1b9a0df19ca2258cff725ec035b4"
+  },
+  "all_native_sources_manifest_sha256": "1fff9fdd45e3a4a14d99cbadfc2c715cc8fe9270c113b02c06cfc24abdc551f0",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "initial_native_probe": "System Git passed; Git 2.37 failed Notes save because --no-stripspace was unsupported. Fixed by writing and reusing exact note blob.",
+    "commit_history_tests": {
+      "command": "swift test --filter CommitHistoryTests",
+      "tests": 32,
+      "failures": 0
+    },
+    "native_menus": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": [
+        "Actual menu dispatcher and hidden hosted Rebase view",
+        "Original command icon resources and excluded commands",
+        "Single/root/merge/two/duplicate comparisons, real unified diff with injected viewer",
+        "Log/Browse/Branch/Tag/Push/Format Patch revision handoffs",
+        "Private pasteboard recipes and asynchronous details",
+        "Real Notes save and refresh callback; exact whitespace/comment/Unicode/empty notes on all Git versions",
+        "Busy/stale/bare guards; paused Edit inspection and Abort"
+      ]
+    },
+    "builds": {
+      "SwiftPM": "passed as part of swift test, including editor executable",
+      "Debug unsigned": "passed",
+      "AppStore unsigned": "passed"
+    },
+    "bundle_audits": "Debug and Store passed; both NOTICE files exactly match source; Store --require-git passed",
+    "site_generation": "passed",
+    "final_process_audit": "No main app or native receiver instances running",
+    "log_sha256": {
+      "core": "e187e5ae3fda73be163b812094ad5373288de74b281f60b6a45190ba91ce7d15",
+      "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "store": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "native-final": "aafa7523ca8b8da884b8ebfd0c0ccf54dbdcbe7b63647ef34cebb336c99c651d",
+      "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+      "store-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5"
+    }
+  },
+  "limitations": [
+    "Hidden views and injected dialog/viewer handoffs; displayed menus, keyboard accessibility, modal focus and visual parity unverified",
+    "Advanced upstream Log commands and completed Rebase row display/reopening remain pending",
+    "Unsigned builds and static bundle audit do not establish signed sandbox or Finder activation",
+    "No hosted CI run, push or publication performed; full app port remains incomplete"
+  ]
+}

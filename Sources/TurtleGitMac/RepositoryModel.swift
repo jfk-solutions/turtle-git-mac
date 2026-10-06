@@ -1029,6 +1029,17 @@ import TurtleGitCore
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
         controller.model.configureCommitSelection = { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }
+        let revisionLog = controller.model.revisionMenuLog
+        revisionLog.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        revisionLog.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
+        revisionLog.onCreateReference = { [weak self] tag, hash in self?.showReference(repository: repository, access: access, isTag: tag, revision: hash) }
+        revisionLog.onPush = { [weak self] hash in self?.showPush(repository: repository, access: access, source: hash) }
+        revisionLog.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
+        revisionLog.onRevisionChanged = { [weak self] output in
+            self?.logWindows.values.filter { $0.model.repository.root == root }.forEach { $0.model.reload() }
+            if self?.root == root { self?.output = output }
+        }
+        controller.model.onShowRevisionLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
         controller.model.configureLogPicker = { [weak self] log in
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }

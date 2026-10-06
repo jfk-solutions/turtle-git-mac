@@ -293,6 +293,7 @@ struct LogCommandRequest: Identifiable {
                 let display = try await repository.saveCommitNote(note, text: text)
                 if let index = entries.firstIndex(where: { $0.hash == note.revision }) { entries[index].notes = display }
                 savingNote = false; busy = false; cancelNote()
+                onRevisionChanged("Saved note for " + note.revision)
             } catch let failure as CommitNoteFailure {
                 savingNote = false; busy = false
                 if case .savedButRefreshFailed = failure { cancelNote(); error = failure.localizedDescription }
@@ -366,6 +367,7 @@ struct LogCommandRequest: Identifiable {
     private var clipboardCancellation: OperationCancellation?
     private var clipboardGeneration = 0
     @Published var copyingDetails = false
+    var clipboard = NSPasteboard.general
     private var limit = 200
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onPush: (String) -> Void = { _ in }
@@ -378,6 +380,7 @@ struct LogCommandRequest: Identifiable {
     }
     var onReset: (String) -> Void = { _ in }
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
+    var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
     var presentHistoricalOpen: (ComparisonFileContent, HistoricalOpenAction) -> Void = { _, _ in }
     var presentHistoricalExport: (String, [CommitFile]) -> Void = { _, _ in }
@@ -588,7 +591,7 @@ struct LogCommandRequest: Identifiable {
     }
     func copy(_ text: String) {
         cancelClipboardRead()
-        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+        clipboard.clearContents(); clipboard.setString(text, forType: .string)
     }
     func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false) {
         guard !busy, !unifiedViewerBusy, !workingTree || !bare else { return }
@@ -605,7 +608,8 @@ struct LogCommandRequest: Identifiable {
                     if let path { args.append(path) }
                     bytes = try await repository.run(args).stdout
                 } else { bytes = try await repository.revisionDiffData(revisions[0], path: path, workingTree: workingTree) }
-                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
                     unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
             } catch { self.error = error.localizedDescription }
