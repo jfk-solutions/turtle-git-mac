@@ -123,3 +123,7 @@ Pick/Edit checkbox-selected Continue now retains unchecked changes through a
 recoverable native amend loop. Squash conflict selection and displayed
 acceptance remain pending.
 See [Conflict Files](REBASE-CONFLICT-FILES.md).
+
+Already-applied Pick/Edit patches and empty checkbox results now offer
+Commit/Skip/Cancel through the shared replay dialog; conflict-message hints
+offer Ignore/Abort. See [empty-result workflow](REBASE-EMPTY-RESULTS.md).

@@ -31,10 +31,11 @@ upstream's dropdown-only controls. Browse is a filtered reference list, not the
 complete reference/log browser. Edit now uses a multiline message tab and Continue
 applies it. Split opens full Commit selection dialogs, with durable part recovery.
 See [Edit/Split workflow](REBASE-SPLIT.md) and
-[Conflict Files](REBASE-CONFLICT-FILES.md). Pick/Edit conflict Continue now commits checked files and preserves unchecked
-changes through a recoverable native amend loop. Squash conflict selection,
-empty-result choices, full row menus, completed-row display and post-operation controls still need
-porting and comparison.
+[Conflict Files](REBASE-CONFLICT-FILES.md). Pick/Edit conflict Continue now
+commits checked files and preserves unchecked changes through a recoverable
+native amend loop. Squash conflict selection and empty-result grouping, full
+row menus, completed-row display and post-operation controls still need porting
+and comparison.
 
 When the commit list has focus, P/S/Q/E choose Pick/Skip/Squash/Edit. Space cycles
 each selected row Pick → Skip → Edit → Squash → Pick, bypassing Squash for the
@@ -135,3 +136,7 @@ Cherry Pick mode now reuses this window with the upstream disabled reference row
 hidden Force/Preserve controls, attribution checkbox and merge-parent prompts.
 See [Cherry Pick parity](CHERRY-PICK-PARITY.md). Existing screenshots above predate
 the numbered-row and formatted-date changes and do not establish the current layout.
+
+Pick/Edit empty results now offer Commit/Skip/Cancel, including already-applied
+patches and all-unchecked selections. Conflict-message hints offer Ignore/Abort.
+See [empty-result workflow](REBASE-EMPTY-RESULTS.md).

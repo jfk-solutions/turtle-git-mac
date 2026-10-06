@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "f575130",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Pick/Edit Commit/Skip/Cancel empty results and native conflict-message Ignore/Abort warning",
+  "sha256": {
+    "Sources/TurtleGitCore/CommitAmend.swift": "5875ca3423cbfba0187c8831c6d3319ac422ea66d8825f37c5c6b9af4edb8193",
+    "Sources/TurtleGitCore/CommitMessage.swift": "b646d255578be2b453bd0a88fb2d84a91d09fb164e7aade9eb6078e8da4dfdbf",
+    "Sources/TurtleGitCore/Rebase.swift": "f64e59e3e743a4744d9b217643da7d3ecbcbc35e1c8ed536cd7868ac4666bcf9",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "a35d19ccd8d2bbccd9d8384a23e2d43aeb50714c2674556fd49dc31fed7e16ff",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "58e6eb68e850a897859864c64ad50dc89f613fa1d4e739b84c52d7ebacc61c4d",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "f73521d730c445e547aa79583385d48a752e58ebdaeb51fcc63ab21d914b8515",
+    "README.md": "8464e44a6a9376dd28c7e2754a4765ea9fb0c4d3fee4b8a19e4c37b87f95f641",
+    "docs/REBASE-PARITY.md": "51cfac2feb48859bfc648ae5b3faaa31febc51ad0cd0cff7b362b82200428ea2",
+    "docs/CHERRY-PICK-PARITY.md": "e879fa554942f490b28eadec71632ab1d4c4f39a9d1ed7011957546cdf684cc7",
+    "docs/REBASE-CONFLICT-FILES.md": "a7a5112f93a743d7aebeda914ae0f881e02a36d417d6a1c874a218109e3b4722",
+    "docs/REBASE-EMPTY-RESULTS.md": "8db062c246401596f83beefe5b4513422fc3fa4ed8b4c91e01f095e6975bb5a5",
+    "docs/site/index.html": "4a3cf3be23231c9a249a5754debe2e8ba92d067b9e302f613e43c3a532652357"
+  },
+  "all_native_sources_manifest_sha256": "8dbcd8ecec844bb1198c22e6f85b66884d95fd29364e3aa9aaa6150418878f4f",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 38,
+      "failures": 0,
+      "new_coverage": [
+        "Selected-tree preflight preserves real index and HEAD",
+        "Empty commit requires explicit permission and retains author/date/parents",
+        "Empty selection preserves excluded resolution and prevents dirty Continue",
+        "Conflict hint exact pattern, custom prefix and cleanup exemptions"
+      ]
+    },
+    "shared_commit_tests": {
+      "command": "swift test --skip-build --filter 'Commit(Selection|Amend|FileMode)Tests'",
+      "tests": 21,
+      "failures": 0
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Automatic empty-result prompt: Cancel leaves replay recoverable and HEAD unchanged",
+        "Skip retains target HEAD",
+        "Commit keeps empty source message/author/date and finishes",
+        "Conflict hint Abort leaves HEAD/index and child selection unchanged; Ignore retains hints and continues"
+      ],
+      "regressions": "Existing Log, keyboard/reorder, Add/draft/repeated identities, mainline/Edit/reopening, squash, Split, checked conflict continuation and Resolve checks pass",
+      "limits": "Hidden hosted views; sheet/prompt answers injected. Displayed gestures/focus/accessibility, remember-checkbox interaction and signed sandbox unverified"
+    },
+    "swift_build": "passed",
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "build": "c3aa2fcff1675d8762a4ba4e10242b670e9bf36c828817bc7bb0d67602d6346b",
+    "tests": "b81f01ae9617d79f0b46b92c55363381aa58d54ca75d29c40398844a5accf101",
+    "commit-tests": "c20a1f5ea7073617797b163c29d1eaf0a9aeb4796915d1ccc5a097d254fb850d",
+    "native": "25bd60059914d7a7f6b584fc95e66d6c48bb2dede82601e422c0de984523bedd",
+    "debug": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Squash conflict selection and grouped empty choices",
+    "Strip Commented Lines preference",
+    "Displayed prompts, focus, accessibility and remember-checkbox interaction",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Audit checked conflicted Edit transitioning into Split, then Cancel before first part. beginRebaseSplit replaces the conflict recovery marker and cancelUnstartedRebaseSplit removes it; verify that applied Edit phase survives this transition before expanding Squash conflict selection.",
+    "evidence_kind": "Source-based concern requiring a real regression fixture",
+    "sources": [
+      "Sources/TurtleGitCore/Rebase.swift: beginRebaseSplit and cancelUnstartedRebaseSplit",
+      "Sources/TurtleGitMac/RebaseWindow.swift: splitSelectionClosed"
+    ]
+  },
+  "processes": "No main app launched; hidden receiver-owned windows closed, receivers exited; final app/receiver process audit empty"
+}

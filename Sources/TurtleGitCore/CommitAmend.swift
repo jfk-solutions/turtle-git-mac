@@ -53,7 +53,7 @@ extension GitRepository {
         let base = try commitComparisonBase(amendToParent: true)
         return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked))
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil) throws -> String {
+    private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: [String: String], environment: [String: String]) throws -> [String] {
         let tracked = Set(try trackedPaths())
         let retainedDeletes = Set(checked.filter { $0.index == "D" && $0.hasUnversionedCopy }.map(\.path))
         var paths = checked.filter { !retainedDeletes.contains($0.path) }.map(\.path)
@@ -64,11 +64,6 @@ extension GitRepository {
                 if tracked.contains(old) { realStage.append(old) }
             }
         }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        defer { try? FileManager.default.removeItem(at: directory) }
-        var environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
-        if let preservedAuthorDate { environment["GIT_AUTHOR_DATE"] = preservedAuthorDate }
         _ = try run(["read-tree", base], environmentOverrides: environment)
         if !paths.isEmpty {
             _ = try run(["add", "--all", "--"] + Array(Set(paths)).sorted(), environmentOverrides: environment)
@@ -77,6 +72,24 @@ extension GitRepository {
             _ = try run(["update-index", "--force-remove", "--"] + retainedDeletes.sorted(), environmentOverrides: environment)
         }
         try applySelectedFileModes(fileModes, environment: environment)
+        return realStage
+    }
+    func commitSelectionIsEmpty(checked: [StatusEntry], base: String, fileModes: [String: String]) throws -> Bool {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-selection-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
+        _ = try populateCommitSelectionIndex(checked: checked, base: base, fileModes: fileModes, environment: environment)
+        let tree = try run(["write-tree"], environmentOverrides: environment).text
+        return tree == (try run(["rev-parse", base + "^{tree}"]).text)
+    }
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil) throws -> String {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? FileManager.default.removeItem(at: directory) }
+        var environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
+        if let preservedAuthorDate { environment["GIT_AUTHOR_DATE"] = preservedAuthorDate }
+        let realStage = try populateCommitSelectionIndex(checked: checked, base: base, fileModes: fileModes, environment: environment)
         try prepareCommitBranch(options.newBranch)
         try stage(realStage)
         try applySelectedFileModes(fileModes)

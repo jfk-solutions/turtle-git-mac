@@ -42,19 +42,22 @@ A recovered Pick resumes replay once the tree is clean. Split can subsequently
 divide an applied Edit commit through the separate Split workflow. A rejected
 Edit message leaves the continuation record intact for retry.
 
+Empty results now offer Commit/Skip/Cancel, and conflict messages have an
+Ignore/Abort hint warning. See [empty results and message hints](REBASE-EMPTY-RESULTS.md).
+
 ## Remaining parity work
 
-This is a partial port of upstream's conflict tab. Squash conflict selection,
-Commit/Skip/Cancel choices for empty results, conflict-message hint warnings,
-all contextual commands and full displayed layout/keyboard/accessibility
-acceptance remain pending. Squash conflicts keep the existing staged Continue
+This is a partial port of upstream's conflict tab. Squash conflict selection
+and empty-result grouping, the Strip Commented Lines preference, all contextual
+commands and full displayed layout/keyboard/accessibility acceptance remain
+pending. Squash conflicts keep the existing staged Continue
 path, and their checkboxes are disabled. The base
 comparison is a native text sheet; it does not yet use the complete comparison
 editor. No new screenshot establishes this tab's displayed layout.
 
 ## Verification
 
-35 focused Rebase tests pass, covering checked resolution and recovery,
+Focused Rebase tests cover checked resolution and recovery,
 including conflicted Edit, resolved-before-Continue recovery, premature Split
 rejection, unchecked index/content retention, amendment without extra commits,
 stale/unresolved/empty selection rejection and destination history preservation.

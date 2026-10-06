@@ -7,6 +7,17 @@ public struct CommitMessageSeed: Sendable {
 }
 
 extension GitRepository {
+    /// Mirrors upstream AppUtils' conflict hint detection and cleanup exemptions.
+    public func rebaseMessageContainsConflictHints(_ message: String) throws -> Bool {
+        func value(_ key: String) throws -> String {
+            do { return try run(["config", "--get", key]).text.trimmingCharacters(in: .newlines) }
+            catch let failure as GitFailure where failure.code == 1 { return "" }
+        }
+        if ["verbatim", "whitespace", "scissors"].contains(try value("core.cleanup")) { return false }
+        let configured = try value("core.commentchar"), comment = configured.isEmpty ? "#" : configured
+        guard let match = message.range(of: "\n" + comment + " Conflicts:\n" + comment + "\t") else { return false }
+        return match.lowerBound > message.startIndex
+    }
     /// Mirrors CommitDlg's GetCommitTemplate / LoadTextFile sequence without changing Git state.
     public func commitMessageSeed(includeOperationMessages: Bool = true) throws -> CommitMessageSeed {
         var template = "", warnings: [String] = []

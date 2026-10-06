@@ -33,6 +33,28 @@ import TurtleGitCore
             let alert = NSAlert(); alert.messageText = "Add another commit?"; alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
             return await alert.beginSheetModal(for: window) == .alertSecondButtonReturn
         }
+        model.chooseEmptyResult = { [weak self] in
+            guard let window = self?.window else { return .cancel }
+            let alert = NSAlert(); alert.messageText = "The current commit will be empty"
+            alert.informativeText = "Skip the commit or keep the message-only commit?"
+            alert.addButton(withTitle: "Commit"); alert.addButton(withTitle: "Skip")
+            let cancel = alert.addButton(withTitle: "Cancel"); alert.buttons.first?.keyEquivalent = ""; cancel.keyEquivalent = "\r"; alert.window.defaultButtonCell = cancel.cell as? NSButtonCell
+            let answer = await alert.beginSheetModal(for: window)
+            if answer == .alertFirstButtonReturn { return .commit }
+            if answer == .alertSecondButtonReturn { return .skip }
+            return .cancel
+        }
+        model.confirmConflictHints = { [weak self] in
+            guard let window = self?.window else { return false }
+            let alert = NSAlert(); alert.messageText = "Conflict hints remain in the commit message"
+            alert.informativeText = "The message contains Git's commented conflict list. Ignore the warning to continue, or abort to edit the message."
+            alert.addButton(withTitle: "Ignore"); let abort = alert.addButton(withTitle: "Abort")
+            alert.buttons.first?.keyEquivalent = ""; abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
+            let remember = NSButton(checkboxWithTitle: "Do not show again", target: nil, action: nil); alert.accessoryView = remember
+            let answer = await alert.beginSheetModal(for: window)
+            if answer == .alertFirstButtonReturn, remember.state == .on { UserDefaults.standard.set(true, forKey: "CommitMessageContainsConflictHint") }
+            return answer == .alertFirstButtonReturn
+        }
         model.chooseMainline = { [weak window] commit, choices in
             guard let window, window.attachedSheet == nil else { return nil }
             let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.alertStyle = .informational
@@ -110,6 +132,8 @@ import TurtleGitCore
     var onModeChanged: () -> Void = {}
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
     var pickAdditionalCommits: () -> Void = {}
+    var chooseEmptyResult: () async -> RebaseEmptyChoice = { .cancel }
+    var confirmConflictHints: () async -> Bool = { false }
     var chooseMainline: (LogEntry, [LogParentChoice]) async -> Int? = { _, _ in nil }
     var editorExecutable: URL? = Bundle.main.executableURL
     var isCherryPick: Bool { options.isCherryPick || state?.isCherryPick == true }
@@ -357,8 +381,8 @@ import TurtleGitCore
         guard !busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan; busy = true; tab = 2
         Task {
-            var followRecovery = false
-            defer { busy = false; if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } }
+            var followRecovery = false, followEmpty = false
+            defer { busy = false; if followEmpty { execute("continue") } else if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } }
             do {
                 try requireAccess()
                 let result: RebaseExecution
@@ -367,15 +391,25 @@ import TurtleGitCore
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
                 default:
+                    let text = amendMessage, paths = checkedConflicts, head = conflictHead
+                    if fileRecovery, state?.split == nil, !UserDefaults.standard.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(text) {
+                        guard await confirmConflictHints() else { tab = 1; return }
+                    }
                     if fileRecovery, supportsConflictSelection, state?.split == nil, let captured = state {
-                        result = try await repository.commitRebaseConflictSelection(message: amendMessage, paths: checkedConflicts, expected: captured, expectedHead: conflictHead)
+                        let empty = try await repository.rebaseConflictSelectionIsEmpty(paths: paths, expected: captured, expectedHead: head)
+                        let choice = empty ? await chooseEmptyResult() : RebaseEmptyChoice.commit
+                        if choice == .cancel { tab = 0; return }
+                        if empty, !(try await repository.rebaseConflictSelectionIsEmpty(paths: paths, expected: captured, expectedHead: head)) { throw RebaseFailure.changed }
+                        if choice == .skip { result = try await repository.skipRebase() }
+                        else { result = try await repository.commitRebaseConflictSelection(message: text, paths: paths, expected: captured, expectedHead: head, allowEmpty: empty) }
                     } else { result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage, editMessage: state?.isEditPause == true ? amendMessage : nil) }
                 }
                 output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
                 try await loadConflictFiles()
                 if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
+                if result.exitCode != 0, state?.needsFileRecovery == true, supportsConflictSelection, state?.split == nil, state?.conflicts.isEmpty == true, conflictRows.isEmpty { followEmpty = true; error = nil }
                 if result.state.squashMessage != nil { tab = 1 }
-                else if fileRecovery { tab = 0; if result.exitCode != 0 { error = result.output } }
+                else if fileRecovery { tab = 0; if result.exitCode != 0 && !followEmpty { error = result.output } }
                 else if result.exitCode != 0 { error = result.output }
                 onChanged()
                 if action == "continue", state?.split?.conflictRecovery == true { followRecovery = true }

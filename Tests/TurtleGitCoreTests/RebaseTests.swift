@@ -104,7 +104,7 @@ final class RebaseTests: XCTestCase {
         do { _ = try await repo.commitRebaseConflictSelection(message: "unresolved", paths: [path], expected: state, expectedHead: head.hash); XCTFail() } catch RebaseFailure.changed {}
         try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
         let resolved = try await repo.rebaseState()
-        do { _ = try await repo.commitRebaseConflictSelection(message: "none", paths: [], expected: resolved, expectedHead: head.hash); XCTFail() } catch RebaseFailure.plan {}
+        do { _ = try await repo.commitRebaseConflictSelection(message: "none", paths: [], expected: resolved, expectedHead: head.hash); XCTFail() } catch RebaseFailure.emptyResult {}
         do { _ = try await repo.commitRebaseConflictSelection(message: "stale", paths: [path], expected: resolved, expectedHead: plan.branchHash); XCTFail() } catch RebaseFailure.changed {}
         let unchanged = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(unchanged.hash, head.hash)
     }
@@ -123,6 +123,49 @@ final class RebaseTests: XCTestCase {
         let aborted = try await reopened.abortRebase(); XCTAssertEqual(aborted.exitCode, 0, aborted.output); XCTAssertFalse(aborted.state.active)
         let restored = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(restored.hash, plan.branchHash)
         let branch = try await reopened.branch(); XCTAssertEqual(branch, "topic")
+    }
+    func testEmptyResolutionPreflightDoesNotMutateIndexAndCommitKeepsSourceMetadata() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        let plan = try await repo.rebasePlan(options()); _ = try await repo.startRebase(plan, editorExecutable: editor)
+        let head = try await repo.rebaseCommit("HEAD")
+        try Data("upstream\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let state = try await repo.rebaseState(), before = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let empty = try await repo.rebaseConflictSelectionIsEmpty(paths: [], expected: state, expectedHead: head.hash); XCTAssertTrue(empty)
+        let after = try await repo.run(["ls-files", "--stage", "-z"]).stdout; XCTAssertEqual(before, after)
+        let unchanged = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(unchanged.hash, head.hash)
+        do { _ = try await repo.commitRebaseConflictSelection(message: "empty", paths: [], expected: state, expectedHead: head.hash); XCTFail("Requires explicit choice") } catch RebaseFailure.emptyResult {}
+        _ = try await repo.commitRebaseConflictSelection(message: "kept empty message", paths: [], expected: state, expectedHead: head.hash, allowEmpty: true)
+        let kept = try await repo.rebaseCommit("HEAD"), files = try await repo.files(in: kept)
+        XCTAssertTrue(files.isEmpty); XCTAssertEqual(kept.parents, [head.hash]); XCTAssertEqual(kept.date, plan.entries[0].commit.date); XCTAssertEqual(kept.author, plan.entries[0].commit.author)
+        let result = try await repo.continueRebase(); XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertFalse(result.state.active)
+        let history = try await repo.run(["log", "--format=%s", "upstream..HEAD"]).text; XCTAssertEqual(history, "second\nkept empty message\n")
+    }
+    func testUncheckingEveryResolvedFileProducesEmptyTreeAndRetainsExcludedChanges() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        let plan = try await repo.rebasePlan(options()); _ = try await repo.startRebase(plan, editorExecutable: editor)
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let state = try await repo.rebaseState(), head = try await repo.rebaseCommit("HEAD")
+        let none = try await repo.rebaseConflictSelectionIsEmpty(paths: [], expected: state, expectedHead: head.hash)
+        let selected = try await repo.rebaseConflictSelectionIsEmpty(paths: [path], expected: state, expectedHead: head.hash)
+        XCTAssertTrue(none); XCTAssertFalse(selected)
+        _ = try await repo.commitRebaseConflictSelection(message: "empty with excluded resolution", paths: [], expected: state, expectedHead: head.hash, allowEmpty: true)
+        let pending = try await repo.status(); XCTAssertEqual(pending.first?.path, path); XCTAssertEqual(pending.first?.index, "M")
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), "resolved\n")
+        do { _ = try await repo.continueRebase(); XCTFail("Must retain dirty recovery") } catch RebaseFailure.plan {}
+    }
+    func testConflictHintDetectionMatchesUpstreamPatternAndCleanupExemptions() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let hint = "message\n# Conflicts:\n#\tfile\n"
+        let found = try await repo.rebaseMessageContainsConflictHints(hint); XCTAssertTrue(found)
+        for message in ["# Conflicts:\n#\tfile", "message\n# Conflicts:\n# file", "message only"] {
+            let found = try await repo.rebaseMessageContainsConflictHints(message); XCTAssertFalse(found)
+        }
+        _ = try await repo.run(["config", "core.commentchar", ";"])
+        let custom = try await repo.rebaseMessageContainsConflictHints("message\n; Conflicts:\n;\tfile"); XCTAssertTrue(custom)
+        for cleanup in ["verbatim", "whitespace", "scissors"] {
+            _ = try await repo.run(["config", "core.cleanup", cleanup])
+            let found = try await repo.rebaseMessageContainsConflictHints("message\n; Conflicts:\n;\tfile"); XCTAssertFalse(found)
+        }
     }
     func testAbortRestoresOriginalBranchAndSkipDropsConflictingCommit() async throws {
         let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }

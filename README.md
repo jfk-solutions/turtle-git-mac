@@ -301,7 +301,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   changes and routes native conflict editors and Resolve commands. Pick/Edit
   Continue commits checked files and recovers remaining changes through native
   Commit amendment sheets. Squash conflict selection remains pending.
-  [Conflict workflow](docs/REBASE-CONFLICT-FILES.md).
+  [Conflict workflow](docs/REBASE-CONFLICT-FILES.md). Empty Pick/Edit results offer
+  Commit/Skip/Cancel, and conflict-message hints offer Ignore/Abort.
+  [Empty-result workflow](docs/REBASE-EMPTY-RESULTS.md).
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Native Cherry Pick plans from single/multiple Log selections, colored action icons,

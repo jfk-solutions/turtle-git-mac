@@ -1,6 +1,7 @@
 import Foundation
 
 public enum RebaseAction: String, CaseIterable, Sendable { case pick, skip = "drop", edit, squash }
+public enum RebaseEmptyChoice: Sendable { case commit, skip, cancel }
 public enum RebaseSquashDate: Int, Codable, Sendable { case first = 0, latest = 1, current = 2 }
 public struct RebaseSquashMessage: Codable, Sendable {
     public var message: String
@@ -76,7 +77,7 @@ public struct RebaseExecution: Sendable {
     public let state: RebaseState
 }
 public enum RebaseFailure: LocalizedError {
-    case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline
+    case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline, emptyResult
     public var errorDescription: String? {
         switch self {
         case .revision: return "Choose valid branch, upstream and onto revisions."
@@ -87,6 +88,7 @@ public enum RebaseFailure: LocalizedError {
         case .squash: return "The first retained commit cannot be squashed."
         case .preservePlan: return "Preserve Merges uses Git's structural plan; custom actions and ordering require further porting."
         case .message: return "Enter a commit message."
+        case .emptyResult: return "The current commit will be empty. Choose Commit, Skip or Cancel."
         case .mainline: return "Choose a valid mainline parent for each retained merge commit."
         }
     }
@@ -461,18 +463,28 @@ extension GitRepository {
     /// Commit checked conflict-resolution files against destination HEAD. The
     /// durable continuation record keeps excluded index/worktree changes available
     /// for the native amend loop; Git's original replay metadata remains in place.
-    public func commitRebaseConflictSelection(message: String, paths: Set<String>, expected: RebaseState, expectedHead: String) throws -> RebaseExecution {
+    private func checkedRebaseRecovery(paths: Set<String>, expected: RebaseState, expectedHead: String) throws -> (RebaseState, [StatusEntry]) {
         let state = try rebaseState()
         guard state.active, state.needsFileRecovery, state.split == nil, state.conflicts.isEmpty, state.stoppedAction == .pick || state.stoppedAction == .edit,
               state.currentStep == expected.currentStep, state.stoppedEntryID == expected.stoppedEntryID,
               state.originalHead == expected.originalHead, try rebaseRevision("HEAD") == expectedHead else { throw RebaseFailure.changed }
-        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
         let changes = try status()
         let checked = changes.filter { paths.contains($0.path) }
-        guard !paths.isEmpty, checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored && $0.state != .untracked }), !changes.contains(where: { $0.state == .conflicted }) else { throw RebaseFailure.plan }
+        guard checked.count == paths.count, checked.allSatisfy({ $0.state != .ignored && $0.state != .untracked }), !changes.contains(where: { $0.state == .conflicted }) else { throw RebaseFailure.plan }
+        return (state, checked)
+    }
+    public func rebaseConflictSelectionIsEmpty(paths: Set<String>, expected: RebaseState, expectedHead: String) throws -> Bool {
+        let (_, checked) = try checkedRebaseRecovery(paths: paths, expected: expected, expectedHead: expectedHead)
+        return try commitSelectionIsEmpty(checked: checked, base: "HEAD", fileModes: selectedStagedFileModes(checked))
+    }
+    public func commitRebaseConflictSelection(message: String, paths: Set<String>, expected: RebaseState, expectedHead: String, allowEmpty: Bool = false) throws -> RebaseExecution {
+        let (state, checked) = try checkedRebaseRecovery(paths: paths, expected: expected, expectedHead: expectedHead)
+        guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
+        let modes = try selectedStagedFileModes(checked)
+        if !allowEmpty, try commitSelectionIsEmpty(checked: checked, base: "HEAD", fileModes: modes) { throw RebaseFailure.emptyResult }
         let source = try rebaseCommit(state.stoppedCommit)
-        var options = CommitOptions(); options.author = source.author + " <" + source.email + ">"
-        let output = try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked), preservedAuthorDate: source.date)
+        var options = CommitOptions(); options.messageOnly = allowEmpty; options.author = source.author + " <" + source.email + ">"
+        let output = try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: modes, preservedAuthorDate: source.date)
         var continuation = RebaseSplitState(entryID: state.stoppedEntryID, step: state.currentStep, expectedHead: try rebaseRevision("HEAD"), parts: 1, firstAuthor: options.author!, firstDate: source.date, squashDate: nil)
         continuation.conflictRecovery = true
         try JSONEncoder().encode(continuation).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)

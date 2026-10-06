@@ -125,13 +125,24 @@ import TurtleGitCore
             child.confirmCancel = { answer in answer(true) }; child.loadReplaySplit(continuation, message: text)
         }
     }
-    installRecovery(reopened); reopened.checkedConflicts = [path]; reopened.amendMessage = "Native checked recovery"
+    installRecovery(reopened); reopened.checkedConflicts = [path]
+    let oldHintPreference = UserDefaults.standard.object(forKey: "CommitMessageContainsConflictHint")
+    defer { if let oldHintPreference { UserDefaults.standard.set(oldHintPreference, forKey: "CommitMessageContainsConflictHint") } else { UserDefaults.standard.removeObject(forKey: "CommitMessageContainsConflictHint") } }
+    UserDefaults.standard.set(false, forKey: "CommitMessageContainsConflictHint")
+    reopened.amendMessage = "Native checked recovery\n\n# Conflicts:\n#\tfile\n"
+    var hints = 0; reopened.confirmConflictHints = { hints += 1; return false }
+    let beforeHints = try await repo.rebaseCommit("HEAD"), beforeHintIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
     reopened.request("continue"); try await settle(reopened)
+    let afterHints = try await repo.rebaseCommit("HEAD"); precondition(hints == 1 && afterHints.hash == beforeHints.hash && children.isEmpty && reopened.tab == 1)
+    let afterHintIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout; precondition(afterHintIndex == beforeHintIndex)
+    reopened.confirmConflictHints = { hints += 1; return true }
+    reopened.request("continue"); try await settle(reopened)
+    precondition(hints == 2)
     let opening = Date().addingTimeInterval(30)
     while children.isEmpty && Date() < opening { try await Task.sleep(nanoseconds: 10_000_000) }
     precondition(children.count == 1 && reopened.selectingSplit)
     let partial = try await repo.rebaseCommit("HEAD"), partialFiles = try await repo.files(in: partial)
-    precondition(partial.subject == "Native checked recovery" && partialFiles.map(\.path) == [path])
+    precondition(partial.subject == "Native checked recovery" && partial.message.contains("# Conflicts:") && partialFiles.map(\.path) == [path])
     let first = children[0]; try await settleCommit(first)
     precondition(first.amend && !first.amendToParent && first.replaySplit?.conflictRecovery == true)
     first.cancel(); try await settle(reopened)
@@ -152,7 +163,7 @@ import TurtleGitCore
     precondition(complete.parents == partial.parents && Set(completeFiles.map(\.path)) == [path, clean] && complete.subject == "Native recovery Edit approved")
     let preserved = try await repo.rebaseCommit(destination.hash); precondition(preserved.subject == "recovery onto")
     let ancestor = try await repo.run(["merge-base", "--is-ancestor", base.hash, "HEAD"]); precondition(ancestor.exitCode == 0)
-    print("Actual Conflict Files: six-column checkbox native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application checked-file commit, unchecked retention, amendment sheet Cancel/reopening, applied Edit approval and final Continue passed. Sheets/editor/confirmation routing injected.")
+    print("Actual Conflict Files: six-column checkbox native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application checked-file commit, unchecked retention, amendment sheet Cancel/reopening, applied Edit approval and final Continue passed. Conflict-hint Abort leaves HEAD/index and child selection unchanged; Ignore continues. Sheets/editor/confirmation routing injected.")
 }
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
@@ -386,17 +397,25 @@ import TurtleGitCore
     print("Actual draft Add: enabled without upstream/plan, newest-first draft rows/IDs/actions/order, Cancel/Preserve guards, invalid-reference drafts, valid-reference rebuild and Add during pending reload passed.")
     let beforeEmpty = try await repo.rebaseCommit("HEAD")
     let emptyPatch = RebaseWindowModel(repository: repo, access: nil); emptyPatch.editorExecutable = model.editorExecutable
+    var emptyPrompts = 0; emptyPatch.chooseEmptyResult = { emptyPrompts += 1; return .cancel }
     emptyPatch.load(cherryPick: [side.hash]); try await settle(emptyPatch)
     emptyPatch.request("start")
     let emptyDeadline = Date().addingTimeInterval(30)
     while emptyPatch.busy && Date() < emptyDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
-    precondition(!emptyPatch.busy && emptyPatch.error != nil && emptyPatch.active)
+    precondition(!emptyPatch.busy && emptyPatch.error == nil && emptyPatch.active && emptyPrompts == 1)
     precondition(emptyPatch.state?.conflicts.isEmpty == true && emptyPatch.state?.stoppedCommit == side.hash)
     precondition(emptyPatch.selection == [side.hash])
-    emptyPatch.error = nil; emptyPatch.execute("skip"); try await settle(emptyPatch)
+    emptyPatch.chooseEmptyResult = { emptyPrompts += 1; return .skip }; emptyPatch.request("continue"); try await settle(emptyPatch)
     precondition(emptyPatch.finished && !emptyPatch.active)
     let afterEmpty = try await repo.rebaseCommit("HEAD"); precondition(afterEmpty.hash == beforeEmpty.hash)
-    print("Actual empty-patch recovery: already-applied change stops with original selected ID and no conflicts; native Skip finishes with target HEAD unchanged.")
+    precondition(emptyPrompts == 2)
+    let keepEmpty = RebaseWindowModel(repository: repo, access: nil); keepEmpty.editorExecutable = model.editorExecutable
+    var keepPrompts = 0; keepEmpty.chooseEmptyResult = { keepPrompts += 1; return .commit }
+    keepEmpty.load(cherryPick: [side.hash]); try await settle(keepEmpty); keepEmpty.request("start"); try await settle(keepEmpty)
+    precondition(keepEmpty.finished && !keepEmpty.active && keepPrompts == 1)
+    let keptEmpty = try await repo.rebaseCommit("HEAD"), keptFiles = try await repo.files(in: keptEmpty)
+    precondition(keptEmpty.parents == [beforeEmpty.hash] && keptFiles.isEmpty && keptEmpty.author == side.author && keptEmpty.date == side.date)
+    print("Actual empty-patch choices: automatic Commit/Skip/Cancel receiver, Cancel leaves HEAD unchanged and replay recoverable, Skip retains target HEAD, Commit keeps empty source message/author/date and finishes. Prompt answers injected.")
 
     _ = try await repo.run(["checkout", "-b", "native-squash-source"])
     var squashCommits: [LogEntry] = []
