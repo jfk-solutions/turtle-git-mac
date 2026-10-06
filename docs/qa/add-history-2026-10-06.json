@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add tracked history/Blame/comparison context commands and marked-row eligibility; full port remains incomplete",
+  "baseCommit": "1c019885f99d6103114b7e411290ae170615d03f",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/Git/GitStatusListCtrl.cpp: Add status-list menu mask, marked-row base/Ignore/Delete gates, exact-two-file comparison, single tracked Log, R/C old-name Log and working-copy Blame excludes Added/Deleted",
+    "src/TortoiseGitBlame/TortoiseGitBlameDoc.cpp OnOpenDocument: empty revision defaults to HEAD"
+  ],
+  "implemented": [
+    "Original-icon Compare with base, Compare two files, Show log, Show log of old name and Blame menu entries",
+    "Stable marked path updated on right-click and ordinary selection; Ignore/Delete/base menu gates follow marked row",
+    "Existing RepositoryModel history/Blame/comparison controllers retain originating repository/access lease",
+    "Untracked/ignored context history/base hidden; double-click working-file preview retained; busy/quit action guards"
+  ],
+  "verification": {
+    "actualReceiver": "Swift 6/macOS 13 actual Add table/model receiver: tracked Log/HEAD Blame/base captured routes; added-file Log/base allowed and Blame excluded; fresh ignored-file history/base/Blame excluded; two untracked working files ordered and real comparison snapshot; rename old-name route with real path-filtered Git history; marked-row mixed-selection gates and quit guards. Real HEAD annotations read original committed contents. Prior Add/Ignore/Delete/Save/Export/artwork checks pass. No windows/menus displayed.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; 76 original icons, embedded Finder and universal helpers; Store bundled Git runtime verification passed.",
+    "lastFullCoreRegression": {
+      "count": 492,
+      "failures": 0,
+      "scope": "Prior milestone; this change adds native routes/eligibility using unchanged tested repository APIs."
+    },
+    "site": "Static documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AddFileTable.swift": "de79cbebc4df54ca4990bf7b5a12babfca44e47ba0c8e7fe675f6b17fab0dc92",
+    "Sources/TurtleGitMac/AddWindow.swift": "a980aa3ef45ecdba436879938a7d36363c91c3ada671c0c5cffac0ba2f08f1d9",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "66c8366e9c84cba1cbf975da3d8e85e73cab19c14415a241017ce5d00d3c59ea",
+    "scripts/test-add-dialog.py": "a337b1d3a965dcfcd35868322b0bc7ed50aef82e6cb026fdec397907932d073d"
+  },
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-add-history-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-history-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-history-native.log",
+      "sha256": "665797e55aee8b76e2b01795c6581daea045619260cb3078272edb2fa27fd91f"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-history-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-history-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-history-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Actual displayed history/Blame/comparison handoffs and right-click/keyboard selection gestures, light/dark comparison and screenshots",
+    "Broader folders/submodules/status combinations and all remaining shared status-list commands",
+    "Missing-file two-file menu eligibility and Shift alternative comparison (backend already supports pinned HEAD fallback)",
+    "Signed sandbox/Finder/permission acceptance, remaining full app/helper/settings/localization parity and release readiness",
+    "GitHub publication/CI of local changes requires restored authentication"
+  ],
+  "appProcesses": "No main app or native receiver remains; no main app launched for these checks"
+}

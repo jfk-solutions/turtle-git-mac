@@ -71,7 +71,7 @@ import TurtleGitCore
         let menu = receiver.table.menu!; receiver.menuNeedsUpdate(menu)
         let copy = menu.items.first { $0.title == "Copy to clipboard" }!
         precondition(copy.submenu?.items.map(\.title) == ["Full paths", "Relative paths", "File/folder names", "Extensions", "All visible columns"])
-        precondition(menu.items.filter { !$0.isSeparatorItem }.allSatisfy(\.isEnabled))
+        precondition(menu.items.filter { !$0.isSeparatorItem && !$0.isHidden }.allSatisfy(\.isEnabled))
         let heldBytes = try Data(contentsOf: folder.appendingPathComponent(file))
         try FileManager.default.removeItem(at: folder.appendingPathComponent(file)); try FileManager.default.createDirectory(at: folder.appendingPathComponent(file), withIntermediateDirectories: false)
         receiver.menuNeedsUpdate(menu); receiver.openSelected(.open)
@@ -218,7 +218,41 @@ import TurtleGitCore
         precondition(!model.busy && !FileManager.default.fileExists(atPath: cancelledCopy.path))
         await model.saveFile(copyPath, to: folder.appendingPathComponent(copyPath))
         let sourceAfter = try Data(contentsOf: folder.appendingPathComponent(copyPath)); precondition(sourceAfter == copyBytes && !model.busy)
-        print("Actual Add receiver: exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        let addedHistoryPath = "newly-added-history.bin"
+        try Data("added\n".utf8).write(to: folder.appendingPathComponent(addedHistoryPath))
+        try await repo.stage([addedHistoryPath]); model.setScope([addedHistoryPath]); try await model.read()
+        model.highlighted = [addedHistoryPath]; receiver.refresh()
+        precondition(receiver.canLog && receiver.canCompareBase && !receiver.canBlame)
+        let ignoredHistoryPath = "history-ignored.log"
+        try Data("ignored\n".utf8).write(to: folder.appendingPathComponent(ignoredHistoryPath))
+        model.includeIgnored = true; model.setScope([ignoredHistoryPath]); try await model.read(); model.highlighted = [ignoredHistoryPath]; receiver.refresh()
+        precondition(!receiver.canLog && !receiver.canCompareBase && !receiver.canBlame)
+        model.setScope([".gitignore"]); try await model.read(); model.highlighted = [".gitignore"]; receiver.refresh()
+        var logged: [String] = [], blamed: [String] = [], baseComparisons: [[String]] = [], pairs: [[String]] = []
+        model.onLog = { logged.append($0) }; model.onBlame = { blamed.append($0) }; model.onCompare = { baseComparisons.append($0) }; model.onCompareTwo = { pairs.append($0) }
+        receiver.menuNeedsUpdate(menu); precondition(receiver.canLog && receiver.canBlame && receiver.canCompareBase)
+        receiver.showLog(); receiver.blame(); receiver.compareBase()
+        precondition(logged == [".gitignore"] && blamed == [".gitignore"] && baseComparisons == [[".gitignore"]])
+        var historyOptions = HistoryOptions(); historyOptions.paths = [".gitignore"]
+        let history = try await repo.history(options: historyOptions)
+        precondition(!history.isEmpty)
+        let annotation = try await repo.blame(path: ".gitignore", revision: "HEAD")
+        precondition(annotation.contents == Data("*.log\n".utf8))
+        model.setScope(["."]); try await model.read(); model.highlighted = [copyPath, unchecked]; receiver.refresh()
+        precondition(!receiver.canCompareBase && !receiver.canLog && !receiver.canBlame && receiver.canCompareTwo)
+        receiver.compareTwo(); precondition(pairs == [receiver.selectedRows.map(\.path)])
+        let pair = try await repo.workingFilePairComparison(paths: pairs[0]); precondition(pair.files.count == 1)
+        model.confirmingQuit = true; receiver.showLog(); receiver.blame(); receiver.compareBase(); receiver.compareTwo()
+        precondition(logged.count == 1 && blamed.count == 1 && baseComparisons.count == 1 && pairs.count == 1); model.confirmingQuit = false
+        _ = try await repo.run(["mv", "--", ".gitignore", "renamed-ignore.txt"])
+        model.setScope(["renamed-ignore.txt"]); try await model.read(); model.highlighted = ["renamed-ignore.txt"]; receiver.refresh()
+        precondition(receiver.oldLogPath == ".gitignore"); receiver.showOldLog(); precondition(logged.last == ".gitignore")
+        historyOptions.paths = [logged.last!]
+        let oldHistory = try await repo.history(options: historyOptions); precondition(!oldHistory.isEmpty)
+        model.setScope(["renamed-ignore.txt", copyPath]); try await model.read(); model.highlighted = ["renamed-ignore.txt", copyPath]
+        model.selectionMark = copyPath; precondition(!receiver.canCompareBase && receiver.canIgnore && receiver.canDelete)
+        model.selectionMark = "renamed-ignore.txt"; precondition(receiver.canCompareBase && !receiver.canIgnore && !receiver.canDelete)
+        print("Actual Add receiver: tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''

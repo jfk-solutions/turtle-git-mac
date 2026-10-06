@@ -6,10 +6,12 @@ private final class AddNativeTable: NativeWatermarkTable {
     var toggleChecks: () -> Void = {}
     var copySelection: () -> Void = {}
     var deleteSelection: (Bool) -> Void = { _ in }
+    var contextSelection: (Int) -> Void = { _ in }
     override func menu(for event: NSEvent) -> NSMenu? {
         let index = row(at: convert(event.locationInWindow, from: nil))
         guard index >= 0 else { return nil }
         if !selectedRowIndexes.contains(index) { selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
+        contextSelection(index)
         return super.menu(for: event)
     }
     override func keyDown(with event: NSEvent) {
@@ -54,6 +56,7 @@ struct AddFileTable: NSViewRepresentable {
             let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
             table.dataSource = self; table.delegate = self; table.allowsMultipleSelection = true; table.rowHeight = 22
             table.target = self; table.doubleAction = #selector(preview)
+            nativeTable.contextSelection = { [weak self] index in guard let self, self.rows.indices.contains(index) else { return }; self.model.selectionMark = self.rows[index].path }
             nativeTable.toggleChecks = { [weak self] in self?.toggleSelectedChecks() }
             nativeTable.copySelection = { [weak self] in self?.copyText("relative") }
             nativeTable.deleteSelection = { [weak self] permanently in self?.deleteSelected(permanently: permanently, keyboard: true) }
@@ -69,7 +72,7 @@ struct AddFileTable: NSViewRepresentable {
             }
             header.delegate = self; table.headerView?.menu = header
             let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
-            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Diff", #selector(preview), .compare), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Save As…", #selector(saveAs), .saveAs), ("Export…", #selector(export), .export), ("Delete", #selector(deleteItem), .remove)] {
+            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Compare with base", #selector(compareBase), .compare), ("Compare two files", #selector(compareTwo), .compare), ("Show log", #selector(showLog), .log), ("Show log of old name", #selector(showOldLog), .log), ("Blame", #selector(blame), .blame), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Save As…", #selector(saveAs), .saveAs), ("Export…", #selector(export), .export), ("Delete", #selector(deleteItem), .remove)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
             }
             menu.addItem(.separator())
@@ -108,6 +111,8 @@ struct AddFileTable: NSViewRepresentable {
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !updating else { return }; model.highlighted = Set(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].path : nil })
+            if rows.indices.contains(table.clickedRow), table.selectedRowIndexes.contains(table.clickedRow) { model.selectionMark = rows[table.clickedRow].path }
+            else { model.selectionMark = selectedRows.first?.path }
         }
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) { refresh() }
         @objc func toggleRow(_ sender: NSButton) { guard !model.busy, !model.confirmingQuit, let path = sender.identifier?.rawValue, model.entries.contains(where: { $0.path == path }) else { return }; if sender.state == .on { model.checked.insert(path) } else { model.checked.remove(path) } }
@@ -161,17 +166,36 @@ struct AddFileTable: NSViewRepresentable {
             guard let key = sender.representedObject as? String, let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(key)) else { return }
             column.isHidden.toggle(); UserDefaults.standard.set(!column.isHidden, forKey: key == "size" ? "Add.ShowSize" : "Add.ShowModifiedDate")
         }
+        var markedRow: AddDialogEntry? { selectedRows.first { $0.path == model.selectionMark } ?? selectedRows.first }
+        var canCompareBase: Bool { canAct && markedRow?.status.canCompareWithBaseFromStatusList == true }
+        var canCompareTwo: Bool {
+            canAct && selectedRows.count == 2 && selectedRows.allSatisfy { row in
+                guard let type = try? FileManager.default.attributesOfItem(atPath: model.repository.root.appendingPathComponent(row.path).path)[.type] as? FileAttributeType else { return false }
+                return type != .typeDirectory
+            }
+        }
+        var canLog: Bool { canAct && selectedRows.count == 1 && markedRow.map { ![FileState.untracked, .ignored].contains($0.state) && !$0.status.hasUnversionedCopy } == true }
+        var oldLogPath: String? {
+            guard canLog, let row = markedRow, [row.status.index, row.status.worktree].contains(where: { $0 == "R" || $0 == "C" }), let path = row.status.originalPath, !path.isEmpty else { return nil }
+            return path
+        }
+        var canBlame: Bool { canLog && selectedIsFile && markedRow.map { ![FileState.added, .deleted].contains($0.state) } == true }
+        @objc func compareBase() { guard canCompareBase else { return }; model.onCompare(selectedRows.map(\.path)) }
+        @objc func compareTwo() { guard canCompareTwo else { return }; model.onCompareTwo(selectedRows.map(\.path)) }
+        @objc func showLog() { guard canLog, let row = markedRow else { return }; model.onLog(row.path) }
+        @objc func showOldLog() { guard let path = oldLogPath else { return }; model.onLog(path) }
+        @objc func blame() { guard canBlame, let row = markedRow else { return }; model.onBlame(row.path) }
         var canSave: Bool { canAct && selectedIsFile && selectedRows.first?.state != .deleted }
         var canExport: Bool { canAct && selectedRows.contains { $0.state != .deleted } }
         @objc func saveAs() { guard canSave, let row = selectedRows.first else { return }; model.onSave(row.path) }
         @objc func export() { guard canExport else { return }; model.onExport(selectedRows.filter { $0.state != .deleted }.map(\.path)) }
-        var canDelete: Bool { canAct && selectedRows.contains { $0.status.canDeleteFromStatusList } }
+        var canDelete: Bool { canAct && markedRow?.status.canDeleteFromStatusList == true }
         func deleteSelected(permanently: Bool, keyboard: Bool = false) {
-            guard canDelete, !keyboard || selectedRows.contains(where: { $0.status.canDeleteWithKeyboard }) else { return }
+            guard canDelete, !keyboard || markedRow?.status.canDeleteWithKeyboard == true else { return }
             model.onDelete(selectedRows.map(\.status), permanently)
         }
         @objc func deleteItem() { deleteSelected(permanently: NSApp.currentEvent?.modifierFlags.contains(.shift) == true) }
-        var canIgnore: Bool { canAct && selectedRows.contains { $0.state == .untracked || $0.state == .deleted } }
+        var canIgnore: Bool { canAct && markedRow.map { $0.state == .untracked || $0.state == .deleted } == true }
         func ignoreSelected(mask: Bool = false, folder: Bool = false) {
             guard canIgnore else { return }
             var paths = selectedRows.map(\.path)
@@ -214,12 +238,21 @@ struct AddFileTable: NSViewRepresentable {
             if menu === table.menu {
                 updateIgnoreMenu(menu)
                 for item in menu.items where !item.isSeparatorItem {
-                    let icon: MenuIcon = item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(saveAs) ? .saveAs : item.action == #selector(export) ? .export : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
+                    let icon: MenuIcon = item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(saveAs) ? .saveAs : item.action == #selector(export) ? .export : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(compareBase) || item.action == #selector(compareTwo) ? .compare : item.action == #selector(showLog) || item.action == #selector(showOldLog) ? .log : item.action == #selector(blame) ? .blame : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
                     item.image = icon.contextImage()
                     let single = [#selector(preview), #selector(editor), #selector(open), #selector(openWith), #selector(reveal)].contains(item.action)
                     let opensFile = [#selector(editor), #selector(open), #selector(openWith)].contains(item.action)
-                    item.isHidden = opensFile && !selectedIsFile || item.action == #selector(deleteItem) && !canDelete || item.action == #selector(saveAs) && !canSave || item.action == #selector(export) && !canExport
-                    item.isEnabled = canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile) && (item.action != #selector(deleteItem) || canDelete) && (item.action != #selector(saveAs) || canSave) && (item.action != #selector(export) || canExport)
+                    let eligibility: Bool
+                    switch item.action {
+                    case #selector(compareBase): eligibility = canCompareBase
+                    case #selector(compareTwo): eligibility = canCompareTwo
+                    case #selector(showLog): eligibility = canLog
+                    case #selector(showOldLog): eligibility = oldLogPath != nil
+                    case #selector(blame): eligibility = canBlame
+                    default: eligibility = true
+                    }
+                    item.isHidden = !eligibility || opensFile && !selectedIsFile || item.action == #selector(deleteItem) && !canDelete || item.action == #selector(saveAs) && !canSave || item.action == #selector(export) && !canExport
+                    item.isEnabled = eligibility && canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile) && (item.action != #selector(deleteItem) || canDelete) && (item.action != #selector(saveAs) || canSave) && (item.action != #selector(export) || canExport)
                     for child in item.submenu?.items ?? [] { child.image = (item.representedObject as? String == "Add.Ignore" ? MenuIcon.ignore : .copy).contextImage(); child.isEnabled = item.isEnabled }
                 }
             } else {

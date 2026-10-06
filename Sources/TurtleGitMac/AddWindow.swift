@@ -106,6 +106,7 @@ private final class AddNativeWindow: NSWindow {
     @Published var entries: [AddDialogEntry] = []
     @Published var checked = Set<String>()
     @Published var highlighted = Set<String>()
+    @Published var selectionMark: String?
     @Published var includeIgnored = false
     @Published var busy = false
     @Published var confirmingQuit = false
@@ -120,6 +121,10 @@ private final class AddNativeWindow: NSWindow {
     var close: () -> Void = {}
     var onAccepted: ([String]) -> Void = { _ in }
     var onPreview: (String) -> Void = { _ in }
+    var onCompare: ([String]) -> Void = { _ in }
+    var onCompareTwo: ([String]) -> Void = { _ in }
+    var onLog: (String) -> Void = { _ in }
+    var onBlame: (String) -> Void = { _ in }
     var onOpen: (String, AddFileOpenAction) -> Void = { _, _ in }
     var onIgnore: ([String], Bool) -> Void = { _, _ in }
     var onIgnoreChanged: (String) -> Void = { _ in }
@@ -183,7 +188,7 @@ private final class AddNativeWindow: NSWindow {
     }
     var canApply: Bool { !busy && !confirmingQuit && !checked.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    func setScope(_ paths: [String]) { self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = [] }
+    func setScope(_ paths: [String]) { self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = []; selectionMark = nil }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }

@@ -41,6 +41,16 @@ or deleting working files. See [the Ignore integration record](qa/add-ignore-202
 for actual model checks and remaining sheet/signed acceptance. See [the status-menu receiver record](qa/add-status-menu-2026-10-06.json) for verification and native acceptance limits.
 Context images follow ShowAppContextMenuIcons when a menu is prepared.
 
+Tracked-file context menus now expose Compare with base, Show log, old-name Log
+for renames/copies, and HEAD Blame with original icons. Newly added and deleted
+rows omit Blame; unversioned/ignored rows omit history and base comparison while
+retaining double-click preview. Two existing non-directory files expose Compare
+two files in displayed selection order, using the shared working-file comparison
+backend. Right-click records the marked row even inside an existing multiple
+selection; base comparison, Ignore and Delete availability follows that row.
+Actions preserve the Add window's repository lease and are blocked during Add
+work and quit confirmation. See [the history verification record](qa/add-history-2026-10-06.json).
+
 Unversioned rows start checked; ignored rows are hidden until Include ignored is
 selected and start unchecked unless directly requested. Direct files in a mixed
 scope and removed-but-present copies are included. Refresh retains existing
@@ -120,8 +130,8 @@ checks and remaining native/signed picker acceptance. The final copy regression
 passes 492 tests with zero failures; both unsigned builds and bundle audits pass.
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
-acceptance is pending. Full status-list commands (current-column clipboard, tracked-row commands and
-other shared consumers), Space/column/drop/keyboard gestures,
+acceptance is pending. Full status-list commands (current-column clipboard, remaining tracked-row commands and
+other shared consumers), missing-file comparison eligibility, Shift alternative comparison, Space/column/drop/keyboard gestures,
 progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain
 unfinished. Signed Finder/picker/grant/quit acceptance and GitHub execution of
