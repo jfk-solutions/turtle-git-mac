@@ -256,6 +256,18 @@ final class CommitHistoryTests: XCTestCase {
         _ = try await repo.run(["tag", "-a", "nested", "-m", "NestedAnnotation", "release-tag"])
         try Data("new\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
         _ = try await repo.commit(message: "AnnotationMarker only-message")
+        let fixedDates = HistoryDateSettings(useSystemLocale: false)
+        let rawTag = try await repo.run(["cat-file", "tag", object]).text
+        let expectedTag = fixedDates.tagInfo(rawTag)
+        let taggerLine = try XCTUnwrap(expectedTag.components(separatedBy: "\n").first { $0.hasPrefix("tagger ") })
+        var dateQuery = HistoryOptions(); dateQuery.searchFields = .tagInfo; dateQuery.search = "\"" + taggerLine + "\""
+        let dateMatches = try await repo.history(options: dateQuery, dateSettings: fixedDates)
+        XCTAssertEqual(dateMatches.map(\.hash), [old.hash])
+        let copied = try await repo.commitLogText(revision: old.hash, includePaths: false, dateSettings: fixedDates)
+        XCTAssertTrue(copied.contains("Date: " + fixedDates.format(old.date) + "\n"))
+        XCTAssertTrue(copied.contains(taggerLine))
+        XCTAssertFalse(copied.contains("object " + old.hash))
+        XCTAssertTrue(copied.contains("AnnotationMarker 雪\nSecond line"))
         var options = HistoryOptions(); options.searchFields = .tagInfo; options.search = "annotationmarker"; options.limit = 1
         var found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
         XCTAssertTrue(found.first?.tagInfo.contains("tag release-tag") == true)
@@ -718,6 +730,17 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertEqual(final, expected)
         let withPaths = try await repo.commitLogText(revision: entry.hash)
         XCTAssertTrue(withPaths.contains("Added: file.txt"))
+    }
+    func testTagDateHeaderFormattingPreservesAnnotationAndMalformedHeaders() {
+        let settings = HistoryDateSettings(useSystemLocale: false)
+        let object = "object abc\ntype commit\ntag release\ntagger Person <person@example.invalid> 1586092028 -0700\n\nMessage\ntagger Literal <text> 1586092028 +0000\n"
+        let formatted = settings.tagInfo(object, timeZone: TimeZone(secondsFromGMT: 0)!)
+        XCTAssertEqual(formatted, "tag release\ntagger Person <person@example.invalid> 2020-04-05 13:07:08\n\nMessage\ntagger Literal <text> 1586092028 +0000")
+        XCTAssertFalse(formatted.contains("object abc"))
+        XCTAssertEqual(settings.tagInfo("tag x\ntagger A <a> invalid +0000\n\nbody"), "tag x\ntagger A <a> invalid +0000\n\nbody")
+        XCTAssertTrue(settings.tagInfo(object.replacingOccurrences(of: "type commit", with: "type tag")).hasPrefix("type tag\n"))
+        let relative = HistoryDateSettings(relative: true)
+        XCTAssertTrue(relative.tagInfo(object, now: Date(timeIntervalSince1970: 1586092028 + 120)).contains("<person@example.invalid> 2 minutes ago"))
     }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)

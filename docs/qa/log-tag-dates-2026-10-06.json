@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-06",
+  "scope": "Log tagger/search/message/clipboard date preferences; full application parity remains incomplete",
+  "baseCommit": "a3981d6",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Shared local/relative date formatter for tagger header dates; annotation and malformed header text preserved",
+    "Formatted tag-date searches retain raw tag metadata for presentation-time preference updates",
+    "Selected revision message author/tagger dates use preferences; native preference change wiring invalidates message presentation",
+    "Clipboard author/tagger dates use one captured preference snapshot across selected revisions; strips CLI tag object/direct-commit type headers"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 42,
+      "failures": 0,
+      "scope": "CommitHistoryTests (24) and GitBlameTests (18), including real formatted-tagger searches and clipboard output, header/body/malformed/nested-tag formatting, relative thresholds and owned clipboard cancellation with unchanged index."
+    },
+    "nativeReceiver": "Actual native sources, activation prohibited: selected revision message author/tagger formatting and preserved annotation text; existing hosted date cells/tooltips, metadata/header/Actions and owned action queue checks. No windows displayed or live settings gestures.",
+    "nativeReceiverSource": {
+      "path": "/tmp/turtlegit-log-tag-dates-receiver.swift",
+      "sha256": "0afb5af15ae6dcdf812d3afefaf6a6d73f38753f95f04be4f48f15c0c5b3c7f4"
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "fullRegression": "Affected suites only; historical 505-test full-suite evidence remains scoped to 122a2ac.",
+    "bundleAudits": "Both bundle validators and exact bundled NOTICE comparisons passed; Store --require-git audit passed.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "4f126c3110dee678cbea9fb7521f328c5ea1aebc97085cb19c74e5a35ba41e52",
+    "Sources/TurtleGitMac/LogWindow.swift": "14512ed7524ba0a4a9822c323cbda298ef00a536a4aca68752149504cdd9c3f2",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "74dc6de7899569ad0c8acf76247bc557744dbb16e3b08cf7206d47c7e5ef5109"
+  },
+  "pending": [
+    "Displayed message pane/settings refresh acceptance",
+    "Tag search refilter after preference change requires normal search refresh",
+    "Relative label translation and periodic clock refresh",
+    "Exact Windows timezone/DST and malformed tag parsing equivalence",
+    "Signed sandbox/Finder/App Store acceptance",
+    "Remaining dialogs and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-tag-dates-tests.log",
+      "sha256": "cd226b4699729fa949b18ba2aaa9a3a98157cc8c1202dd8995d106c896c3908c"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-log-tag-dates-native.log",
+      "sha256": "55774371a5137135cdc6791034746d70e7189cf540fd9a9a047eadb4ee9eb728"
+    },
+    "native-build": {
+      "path": "/tmp/turtlegit-log-tag-dates-native-build.log",
+      "sha256": "6c4cabcd6a488c005626296723cd75e5ebfda8ba3aac922464560e6e1e0e6513"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-tag-dates-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-tag-dates-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-tag-dates-debug-audit.log",
+      "sha256": "8eb1b75b672510e328055013fa5ced637ac0b22e38e1d552bda9228c821b2584"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-tag-dates-store-audit.log",
+      "sha256": "4ce97b9c2f5ff6fdc8351d8c7fd83f8b1d4deef511ab6ac550cd9c2182ffb294"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-tag-dates-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

@@ -206,7 +206,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   include committer identities; the message pane also shows commit notes and annotated tag information. [Log parity details](docs/LOG-PARITY.md) describe
   the remaining search modes and native acceptance checks.
   Full revision clipboard details include notes, tags and paths, with an option
-  to omit changed paths and support for multiple selected revisions.
+  to omit changed paths and support for multiple selected revisions. Author and
+  tagger dates use the Log preferences in the message pane and copied details;
+  tag-info searches include the formatted tagger date.
 - Original TortoiseGit command icons in app context menus and the Finder submenu;
   original XPStyle status artwork for Finder badges and app file status.
   Advanced Settings → ShowAppContextMenuIcons controls app menu artwork while

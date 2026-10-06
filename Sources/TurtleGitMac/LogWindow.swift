@@ -236,8 +236,8 @@ struct LogCommandRequest: Identifiable {
     var visibleFiles: [CommitFile] { files.filter { filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths) } }
     var message: String {
         guard let revision else { return selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected." }
-        return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(revision.date)\n" +
-            (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + revision.tagInfo)
+        return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
+            (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false) { self.repository = repository; self.access = access; self.selecting = selecting }
     func selectSearchFields(_ fields: HistorySearchFields) {
@@ -407,6 +407,7 @@ struct LogCommandRequest: Identifiable {
     }
     func copyDetails(includePaths: Bool = true) {
         let hashes = revisions.map(\.hash); guard !hashes.isEmpty else { return }
+        let dateSettings = HistoryDateSettings.load()
         cancelClipboardRead()
         let cancellation = OperationCancellation(); clipboardCancellation = cancellation
         let request = clipboardGeneration
@@ -417,7 +418,7 @@ struct LogCommandRequest: Identifiable {
                 var text = ""
                 for hash in hashes {
                     guard request == clipboardGeneration else { return }
-                    text += try await repository.commitLogText(revision: hash, includePaths: includePaths, cancellation: cancellation)
+                    text += try await repository.commitLogText(revision: hash, includePaths: includePaths, cancellation: cancellation, dateSettings: dateSettings)
                 }
                 guard request == clipboardGeneration else { return }
                 copy(text)
@@ -581,6 +582,9 @@ struct LogCommandRequest: Identifiable {
 
 struct LogDialog: View {
     @ObservedObject var model: LogWindowModel
+    @AppStorage("LogDateFormat") private var shortDate = true
+    @AppStorage("RelativeTimes") private var relativeTimes = false
+    @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     var body: some View {
         VStack(spacing: 8) {
             HStack(spacing: 12) {
@@ -618,6 +622,9 @@ struct LogDialog: View {
             VSplitView {
                 RevisionTable(model: model).frame(minHeight: 200, idealHeight: 350)
                 OutputView(text: model.message).frame(minHeight: 110, idealHeight: 150)
+                    .onChange(of: shortDate) { _ in model.objectWillChange.send() }
+                    .onChange(of: relativeTimes) { _ in model.objectWillChange.send() }
+                    .onChange(of: useSystemLocale) { _ in model.objectWillChange.send() }
                 Table(model.visibleFiles, selection: $model.selectedFiles) {
                     TableColumn("Path") { file in
                         Text(file.path).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)

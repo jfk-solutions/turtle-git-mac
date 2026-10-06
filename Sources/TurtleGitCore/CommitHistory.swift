@@ -68,6 +68,9 @@ public struct HistoryDateSettings: Equatable, Sendable {
     public func format(_ timestamp: String, now: Date = Date(), locale: Locale = .current, timeZone: TimeZone = .current, absolute: Bool = false) -> String {
         let parser = ISO8601DateFormatter()
         guard let date = parser.date(from: timestamp) else { return timestamp }
+        return format(date, now: now, locale: locale, timeZone: timeZone, absolute: absolute)
+    }
+    private func format(_ date: Date, now: Date, locale: Locale, timeZone: TimeZone, absolute: Bool) -> String {
         if relative && !absolute {
             let elapsed = now.timeIntervalSince(date), magnitude = abs(elapsed)
             let units: [(Double, Double, String, String)] = [(1095 * 86400, 365 * 86400, "Year", "Years"), (60 * 86400, 30 * 86400, "Month", "Months"), (14 * 86400, 7 * 86400, "Week", "Weeks"), (2 * 86400, 86400, "Day", "Days"), (7200, 3600, "Hour", "Hours"), (120, 60, "Minute", "minutes"), (0, 1, "Second", "Seconds")]
@@ -84,6 +87,24 @@ public struct HistoryDateSettings: Equatable, Sendable {
             formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         }
         return formatter.string(from: date)
+    }
+    /// Format only a tagger header, leaving annotation text and malformed headers intact.
+    /// Header stripping follows the CLI GetTagInfo path in Git.cpp.
+    public func tagInfo(_ object: String, now: Date = Date(), locale: Locale = .current, timeZone: TimeZone = .current) -> String {
+        var lines = object.components(separatedBy: "\n")
+        if lines.first?.hasPrefix("object ") == true {
+            lines.removeFirst()
+            if lines.first == "type commit" { lines.removeFirst() }
+        }
+        for index in lines.indices {
+            if lines[index].isEmpty { break }
+            guard lines[index].hasPrefix("tagger "), let end = lines[index].lastIndex(of: ">") else { continue }
+            let tail = lines[index][lines[index].index(after: end)...].split(separator: " ", omittingEmptySubsequences: true)
+            guard tail.count == 2, let seconds = Int64(tail[0]), seconds >= 0 else { continue }
+            let date = Date(timeIntervalSince1970: TimeInterval(seconds))
+            lines[index] = String(lines[index][...end]) + " " + format(date, now: now, locale: locale, timeZone: timeZone, absolute: false)
+        }
+        return lines.joined(separator: "\n").trimmingCharacters(in: .newlines)
     }
 }
 
@@ -304,7 +325,7 @@ public enum CommitGraph {
 }
 
 extension GitRepository {
-    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil) throws -> [LogEntry] {
+    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil, dateSettings: HistoryDateSettings = .load()) throws -> [LogEntry] {
         try cancellation?.check()
         func historyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
@@ -422,7 +443,7 @@ extension GitRepository {
                     let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
                     searchable += (references[hash] ?? []).map(\.name) + (peeledReferenceNames[hash] ?? [])
                 }
-                if options.searchFields.contains(.tagInfo) { searchable.append(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
+                if options.searchFields.contains(.tagInfo) { searchable.append(dateSettings.tagInfo(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines)))) }
                 if options.searchFields.contains(.paths) { searchable += try changedPaths(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), parents: fields[1].split(separator: " ").map(String.init)) }
                 let text = searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n"
                 if options.searchRegex { regexTexts.append(text) }
@@ -455,7 +476,7 @@ extension GitRepository {
     }
     /// Full log clipboard details for a pinned commit, including every parent's
     /// changed paths, Git notes and annotated tags. Use native LF line endings.
-    public func commitLogText(revision: String, includePaths: Bool = true, cancellation: OperationCancellation? = nil) throws -> String {
+    public func commitLogText(revision: String, includePaths: Bool = true, cancellation: OperationCancellation? = nil, dateSettings: HistoryDateSettings = .load()) throws -> String {
         try cancellation?.check()
         func clipboardRun(_ arguments: [String]) throws -> GitResult {
             try cancellation?.check()
@@ -464,7 +485,7 @@ extension GitRepository {
         let hash = try clipboardRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
         let data = try clipboardRun(["show", "-s", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"]).stdout
         guard let entry = LogEntry.parseHistory(data).first, entry.hash == hash else { throw RevisionComparisonFailure.range }
-        var text = "Revision: \(hash)\nAuthor: \(entry.author) <\(entry.email)>\nDate: \(entry.date)\nMessage:\n\(entry.message)"
+        var text = "Revision: \(hash)\nAuthor: \(entry.author) <\(entry.email)>\nDate: \(dateSettings.format(entry.date))\nMessage:\n\(entry.message)"
         if !text.hasSuffix("\n") { text += "\n" }
         let notes = try clipboardRun(["show", "-s", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
         if !notes.isEmpty { text += "----\nNotes:\n\(notes)\n" }
@@ -475,7 +496,7 @@ extension GitRepository {
             let object = refs[index].trimmingCharacters(in: .newlines), peeled = refs[index + 1], name = refs[index + 2]
             if peeled == hash {
                 let tag = try clipboardRun(["cat-file", "tag", object]).text
-                text += "----\nTag info: \(name)\n\(tag)"
+                text += "----\nTag info: \(name)\n\(dateSettings.tagInfo(tag))"
                 if !text.hasSuffix("\n") { text += "\n" }
             }
             index += 3

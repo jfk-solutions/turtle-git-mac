@@ -54,8 +54,7 @@ layouts and relative boundaries. A headless AppKit receiver checks actual date
 cells and absolute tooltips; it displays no windows. Displayed settings gestures,
 live preference refresh acceptance, translated relative labels and signed sandbox
 acceptance remain pending. Relative values update when rows render; a periodic
-clock refresh is not implemented. Annotated-tag and clipboard date formatting,
-and exact Windows timezone/DST edge equivalence also remain pending. See
+clock refresh is not implemented. Exact Windows timezone/DST edge equivalence remains pending. See
 [the date preference record](qa/log-dates-2026-10-06.json).
 
 ## Actions column
@@ -118,8 +117,14 @@ reference snapshot and cached by object ID; multiple annotated tags on a commit
 are included, including tags pointing to tags. The target object header and direct
 commit type header are removed, matching the upstream CLI tag-info reader. Returned
 rows retain tag information, and the selected message pane appends a Tag Info
-section. Native tagger date formatting/relative-date preferences remain unfinished;
-this pass retains the tagger's raw Git timestamp and zone. Displayed layout, links,
+section. Tagger header dates now use the Log date preferences in search, the
+message pane and copied details. Stored tag information retains raw timestamps so
+the message pane can reformat it when preferences change. Only header tagger lines
+are converted; annotation text, malformed dates and nested tag type headers are
+preserved. Clipboard reads capture one preference snapshot for all selected revisions.
+A tag-date search uses the preferences captured by its history read; refresh the
+search after changing date preferences to refilter existing results.
+See [the tag date record](qa/log-tag-dates-2026-10-06.json). Displayed layout, links,
 colors and signed acceptance remain unverified. See
 [the annotated-tag record](qa/log-tag-search-2026-10-06.json).
 Paths searches changed filenames for each candidate commit, including root
@@ -528,8 +533,9 @@ Multiple selected revisions are captured in visible table order before reading.
 The read runs asynchronously with a progress indicator and the retained repository
 access lease. Closing or reloading Log, or choosing a newer clipboard command,
 invalidates the pending copy. No partial multi-revision text is copied on failure.
-The output uses LF, ISO author dates and raw Git annotated-tag text; localized
-upstream date preferences and tag presentation remain pending, as described in
+The output uses LF and the Log date preferences for author/tagger dates; tag
+object/type-commit headers are omitted. Full upstream tag presentation and localized
+relative labels remain pending, as described in
 [Blame parity](BLAME-PARITY.md). Fast paste before the read finishes can still see
 the previous clipboard; the progress indicator identifies the pending operation.
 
