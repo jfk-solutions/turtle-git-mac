@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native Log Notes search and selected-revision notes display; full port remains incomplete",
+  "baseCommit": "40da6f1ccf9470d0a69467d77ff8c684fd6ef047",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/LogDlgFilter.cpp LOGFILTER_NOTES searches displayed revision notes",
+    "ext/gitdll/gitdll.c git_get_notes uses format_display_notes; src/TortoiseProc/LogDataVector.cpp loads notes into revision records",
+    "src/TortoiseProc/LogDlg.cpp Notes filter menu"
+  ],
+  "implemented": [
+    "Notes field added to native saved selection/All/Toggle mask, with seven currently implemented default fields",
+    "Git displayed note text loaded with configured notes refs; retained on returned LogEntry and appended to native selected message pane",
+    "Notes fetched outside NUL-separated commit records and cached per revision during a history request",
+    "Repositories without notes refs/configuration skip per-commit reads; message-only Git grep explicitly disables notes",
+    "Existing literal case mode, mixed-field OR, filter-before-limit and path/pinned scopes retained"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 9,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final source. New real Git fixture verifies older note match beyond limit, multiline/Unicode note retention, case mode, mixed message/note OR, message-only and note-only isolation, path and pinned scopes, notes.displayRef/core.notesRef configuration, displayed NUL-bearing note payload without history-record corruption and normal unfiltered record count. Prior identity/reference/metadata/merge/clipboard cases pass."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "nativeAcceptance": "Notes menu/default mask and selected-message rendering compiled in both configurations; no displayed menu/message-pane/gesture/screenshot acceptance performed.",
+    "fullRegression": "Focused history suite run for this change; full-suite repeat not performed. Prior full-suite evidence retains its original snapshot scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "6c63c8e21926cbabf1c7f5b24789cefd7c9c19eacae3051b5695f11740c7ba8a",
+    "Sources/TurtleGitCore/GitModels.swift": "f6a7af833c82317397efcde54b922c7cdfb12b2224f9a85297b6225774810798",
+    "Sources/TurtleGitMac/LogWindow.swift": "30f5bb6b98a4c02a62319d8a25cfedcc26ddec43abfa38f2307281121e8f6dc3",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "feba3c8cff243c80a2f0e82668c2dabe65608d738f7342e6650f57f0f1f506cb"
+  },
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-notes-tests.log",
+      "sha256": "2d1c5780d766663d7b779293517bf9f9d271a49e155a33777a58c7ead5212a3c"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-notes-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-notes-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-notes-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-notes-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-notes-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Annotated-tag contents, changed-path and issue-ID search fields",
+    "Regex and advanced query syntax",
+    "Batched/incremental note loading and large-history streaming/cancellation",
+    "Displayed menu/preferences/note rendering/light/dark acceptance",
+    "Signed Finder/App Store verification and complete application parity"
+  ]
+}

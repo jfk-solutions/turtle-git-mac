@@ -20,6 +20,7 @@ public struct HistorySearchFields: OptionSet, Sendable {
     public static let revisions = Self(rawValue: 1 << 3)
     public static let subject = Self(rawValue: 1 << 4)
     public static let referenceNames = Self(rawValue: 1 << 5)
+    public static let notes = Self(rawValue: 1 << 6)
 }
 
 public struct HistoryOptions: Sendable {
@@ -167,7 +168,7 @@ extension GitRepository {
         let filtering = !options.search.isEmpty
         let filterInMemory = filtering && options.searchFields != .messages
         if filtering && options.searchFields.isEmpty { return [] }
-        var args = ["log", "--topo-order", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00"]
+        var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00"]
         if !filterInMemory { args.append("-\(options.limit)") }
         if let revision = options.endRevision {
             let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
@@ -194,6 +195,19 @@ extension GitRepository {
             if !fields[i + 1].isEmpty { peeledReferenceNames[hash, default: []].append(fields[i + 2] + "^{}") }
             i += 3
         }
+        // Notes are separate payloads: their text can contain NUL bytes, unlike
+        // the fields in the commit record. Avoid per-commit work in repositories
+        // with no notes refs or notes configuration.
+        let notesConfigured = try run(["config", "--get-regexp", "^(core[.]notesref|notes[.]displayref)$"], successfulExitCodes: 0...1).exitCode == 0
+        let hasNotes = references.values.contains { $0.contains { $0.name.hasPrefix("refs/notes/") } }
+            || notesConfigured || ProcessInfo.processInfo.environment["GIT_NOTES_REF"] != nil
+        var notesCache: [String: String] = [:]
+        func notes(_ hash: String) throws -> String {
+            guard hasNotes else { return "" }
+            if let cached = notesCache[hash] { return cached }
+            let value = try run(["show", "-s", "--notes", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
+            notesCache[hash] = value; return value
+        }
         let fieldsInHistory = String(decoding: try run(args).stdout, as: UTF8.self).components(separatedBy: "\0")
         var entries: [LogEntry] = []
         var record = 0
@@ -202,6 +216,7 @@ extension GitRepository {
             record += 9
             if filterInMemory {
                 var searchable: [String] = []
+                if options.searchFields.contains(.notes) { searchable.append(try notes(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
                 if options.searchFields.contains(.subject) { searchable.append(fields[5]) }
                 if options.searchFields.contains(.messages) { searchable.append(fields[6]) }
                 if options.searchFields.contains(.authors) { searchable += [fields[2], fields[7]] }
@@ -215,9 +230,10 @@ extension GitRepository {
             }
             let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !hash.isEmpty else { continue }
-            entries.append(LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
+            var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
                 parents: fields[1].split(separator: " ").map(String.init), email: fields[3], message: fields[6],
-                committer: fields[7], committerEmail: fields[8]))
+                committer: fields[7], committerEmail: fields[8])
+            entry.notes = try notes(hash); entries.append(entry)
             if filtering && options.limit > 0 && entries.count >= options.limit { break }
         }
         let head = try? run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)

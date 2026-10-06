@@ -192,6 +192,51 @@ final class CommitHistoryTests: XCTestCase {
         options.paths = []; options.endRevision = old.hash; options.search = "main"
         found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
     }
+    func testNotesSearchUsesDisplayedNotesWithoutCorruptingHistoryRecords() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Note Tests"])
+        _ = try await repo.run(["config", "user.email", "notes@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        try Data("old\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "old")
+        let initial = try await repo.history(), old = try XCTUnwrap(initial.first)
+        _ = try await repo.run(["notes", "add", "-m", "NoteToken 雪\nMultiline note", old.hash])
+        try Data("new\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "NoteToken only-message")
+        var options = HistoryOptions(); options.searchFields = .notes; options.search = "notetoken"; options.limit = 1
+        var found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        XCTAssertTrue(found.first?.notes.contains("Multiline note") == true)
+        options.searchCaseSensitive = true; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "NoteToken"; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        options.searchFields = [.notes, .messages]; options.limit = 2
+        found = try await repo.history(options: options); XCTAssertEqual(found.count, 2)
+        options.searchFields = .messages; options.search = "Multiline note"
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchFields = .notes; options.search = "only-message"
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "NoteToken"; options.paths = ["absent.txt"]
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.paths = []; options.endRevision = old.hash
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        _ = try await repo.run(["notes", "--ref=review", "add", "-m", "ReviewOnly", old.hash])
+        _ = try await repo.run(["config", "notes.displayRef", "refs/notes/review"])
+        options.search = "ReviewOnly"; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        _ = try await repo.run(["config", "--unset", "notes.displayRef"])
+        _ = try await repo.run(["config", "core.notesRef", "refs/notes/review"])
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        let binaryNote = root.appendingPathComponent("note.bin"); try Data("Before\0AfterMarker\n".utf8).write(to: binaryNote)
+        let blob = try await repo.run(["hash-object", "-w", "--", binaryNote.path]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["notes", "add", "-f", "-C", blob, old.hash])
+        let displayed = try await repo.run(["show", "-s", "--notes", "--format=%N", old.hash, "--"]).text.trimmingCharacters(in: .newlines)
+        options.search = "Before"; found = try await repo.history(options: options)
+        XCTAssertEqual(found.map(\.hash), [old.hash]); XCTAssertEqual(found.first?.notes, displayed)
+        options.search = ""; options.endRevision = nil
+        found = try await repo.history(options: options); XCTAssertEqual(found.count, 2); XCTAssertEqual(found.last?.hash, old.hash)
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

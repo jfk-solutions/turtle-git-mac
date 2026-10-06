@@ -82,6 +82,7 @@ public struct LogEntry: Identifiable, Sendable {
     public var committer: String = ""
     public var committerEmail: String = ""
     public var committerDate: String = ""
+    public var notes: String = ""
     public var references: [RevisionReference] = []
     public var isHead = false
     public init(hash: String, author: String, date: String, subject: String, parents: [String] = [], email: String = "", message: String = "", committer: String = "", committerEmail: String = "", committerDate: String = "") {
