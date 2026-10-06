@@ -6,6 +6,7 @@ sandbox execution, displayed alerts, screenshots or keyboard/accessibility.
 """
 import argparse
 import os
+import platform
 from pathlib import Path
 import subprocess
 import tempfile
@@ -31,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-cherry-pick-check-') as tempo
     receiver = root / 'docs/qa/cherry-pick-native-receiver-2026-10-06.swift'
     executable = directory / 'cherry-pick-native-receiver'
     subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-module-name', 'TurtleGitMac',
-                    '-enable-testing', '-swift-version', '5', '-target', 'arm64-apple-macos13.0',
+                    '-enable-testing', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0',
                     '-I', str(products), '-F', str(products), *sources, str(app_copy), str(receiver),
                     '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
     environment = os.environ.copy()

@@ -71,7 +71,7 @@ These establish the pictured layout, not full behavior or accessibility parity.
 ## Remaining workflows
 
 - Fetch/Pull handoffs, old-upstream detection, fast-forward choices and config defaults.
-- Split, advanced Cherry Pick options, patch-becomes-empty interaction and custom structural merge plans.
+- Split, advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
 - Native squash/reword message editing, complete conflict/resolution menus and tabs.
 - Full row targeting/shortcuts, customizable columns and persisted layout. ID and formatted dates are now present; displayed acceptance remains pending.
 - Hooks, signing/editor/authentication prompts, stash restoration, streaming progress,

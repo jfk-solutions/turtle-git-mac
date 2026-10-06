@@ -332,4 +332,24 @@ final class RebaseTests: XCTestCase {
         let state = try await repo.rebaseState(); XCTAssertFalse(state.active)
     }
 
+    func testCherryPickAlreadyAppliedPatchStopsForRecoveryAndSkipKeepsTarget() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let source = try await repo.rebaseCommit("topic^")
+        _ = try await repo.run(["checkout", "main"])
+        _ = try await repo.run(["cherry-pick", source.hash])
+        try Data("marker\n".utf8).write(to: root.appendingPathComponent("target-marker.txt"))
+        try await repo.stage(["target-marker.txt"]); _ = try await repo.commit(message: "target marker")
+        let plan = try await repo.cherryPickPlan(revisions: [source.hash])
+        let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertNotEqual(stopped.exitCode, 0); XCTAssertTrue(stopped.state.isCherryPick); XCTAssertTrue(stopped.state.active)
+        XCTAssertTrue(stopped.state.conflicts.isEmpty); XCTAssertEqual(stopped.state.stoppedCommit, source.hash)
+        XCTAssertEqual(stopped.state.stoppedEntryID, source.hash)
+        let reopened = GitRepository(root: root)
+        let entries = try await reopened.remainingRebaseEntries(); XCTAssertEqual(entries.map(\.id), [source.hash])
+        let skipped = try await reopened.skipRebase(); XCTAssertEqual(skipped.exitCode, 0, skipped.output); XCTAssertFalse(skipped.state.active)
+        let head = try await reopened.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, plan.branchHash)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("first.txt"), encoding: .utf8), "first\n")
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("target-marker.txt"), encoding: .utf8), "marker\n")
+    }
+
 }

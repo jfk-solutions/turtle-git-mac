@@ -96,7 +96,14 @@ Add now uses a native multi-select Log sheet, preserving picker order and repeat
 row identities through recovery. See [Add audit](REBASE-ADD-PARITY.md).
 
 Pending: Split, squash message and author/date choices; root/Octopus replay,
-linked-worktree Cherry Pick, patch-becomes-empty and dirty-target interactions;
+linked-worktree Cherry Pick and dirty-target interactions;
 full conflict tabs and stash/restore; displayed layout/keyboard/accessibility and
 signed sandbox execution. Existing Rebase screenshots predate these changes and
 are not presented as Cherry Pick screenshots. App Store acceptance is unverified.
+
+Empty-patch recovery now passes the actual native receiver with Git 2.37.1,
+2.39.5, system 2.50.1 and packaged 2.55.0. An already-applied patch stops without
+conflicts, selects its original ID and native Skip leaves target HEAD unchanged.
+The focused suite contains 21 passing tests, including reopening that state.
+See [Git compatibility](REPLAY-GIT-COMPATIBILITY.md) and
+`qa/replay-git-compatibility-2026-10-06.json` for scope and reproducibility.

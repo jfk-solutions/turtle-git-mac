@@ -304,7 +304,8 @@ extension GitRepository {
         }
         var args = ["rebase", "--no-autostash"]
         if plan.options.force || plan.options.isCherryPick || plan.hasAddedCommits { args += ["--force-rebase", "--reapply-cherry-picks"] }
-        if plan.options.isCherryPick { args += ["--keep-empty", "--empty=stop"] }
+        // Interactive replay stops for patches that become empty, including on Git versions predating --empty=stop.
+        if plan.options.isCherryPick { args.append("--keep-empty") }
         if plan.options.preserveMerges { args.append("--rebase-merges") }
         else { args.append("--interactive") }
         args += ["--onto", plan.ontoHash, "--", plan.upstreamHash, plan.branchReference.isEmpty ? plan.branchHash : String(plan.branchReference.dropFirst(11))]

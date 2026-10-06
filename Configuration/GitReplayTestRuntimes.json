@@ -1,0 +1,14 @@
+{
+  "test_only": true,
+  "minimum_macos": "13.0",
+  "versions": {
+    "2.37.1": {
+      "source_url": "https://www.kernel.org/pub/software/scm/git/git-2.37.1.tar.xz",
+      "source_sha256": "c8162c6b8b8f1c5db706ab01b4ee29e31061182135dc27c4860224aaec1b3500"
+    },
+    "2.39.5": {
+      "source_url": "https://www.kernel.org/pub/software/scm/git/git-2.39.5.tar.xz",
+      "source_sha256": "c58da92c378df4a986ca33266897a7397e86c22ee266a284d8c2432c39066b59"
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "3913c4b",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Interactive Cherry Pick compatibility and already-applied patch recovery across four Git versions",
+  "sha256": {
+    ".github/workflows/macos.yml": "9cbce135a7d0455391f5e9106c9e4da4be2032bcfa1644dd3fceccfae80f6cfc",
+    "Sources/TurtleGitCore/Rebase.swift": "0a39372ea749ab5e08344ab0740354c6016e6bea810d82d35c033cf530b9bf92",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "7e9c7966305a51afe9e032bbdbbe727c3b0f68fc1d688587c8bba0493c59a693",
+    "Configuration/GitReplayTestRuntimes.json": "6bf7db2c9e45063a9dbd350699b93691566a31004e029b7d4fdb416716db3ccb",
+    "scripts/build-replay-test-git.py": "9fa6a120b57c779b6131300699db0d1a9f9661aaf536b543c6097841887e433e",
+    "scripts/check-cherry-pick-native.py": "a26268813b6c2bee692c496e5a1acbad20b7e89f11acb1f2da7ee5a110a05820",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "b4c4e4157556a79ea9463668e5031b7289765568c3114b12414846c0ca283ac7",
+    "docs/REPLAY-GIT-COMPATIBILITY.md": "c568f96a6142d4946506c709876777e9bb91313f980adf71295744a6687fc929",
+    "docs/CHERRY-PICK-PARITY.md": "cb69cc34852ecec8addb381f2fb5562bbcde811cd89fc77f7d905937fc87f7dd",
+    "docs/REBASE-PARITY.md": "8fb32471012a2a5ef67be6594dda1ae88b767296502817bdbfc10419c37240d6",
+    "docs/site/index.html": "8fd0e690e85f6920fa18e24803854fa06ac663aa96bdab039760cad7643fdce9"
+  },
+  "all_native_sources_manifest_sha256": "c71896c58a51e886d9f86dd2b64a7e6b4f6400996bfeb7354f34372df9a449db",
+  "verification": {
+    "focused_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 21,
+      "failures": 0,
+      "coverage": "Already-applied patch stops with original identity, recovery survives reopening, Skip preserves target HEAD and contents"
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": "Actual model start stops on already-applied patch with no conflicts and original selected ID; native Skip finishes without changing target HEAD",
+      "limits": "Hidden receiver-owned views; no displayed dialogs, alerts, gestures, keyboard/accessibility or signed sandbox verification"
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; both exact NOTICE cmp passed",
+    "site_generation": "passed",
+    "former_flag": "Actual Git 2.37.1 and 2.39.5 reject --empty=stop; interactive default preserves stop behavior",
+    "workflow": "Adds pinned older test runtime builds and four-version native recovery check; hosted CI not verified"
+  },
+  "test_only_git_pins": {
+    "test_only": true,
+    "minimum_macos": "13.0",
+    "versions": {
+      "2.37.1": {
+        "source_url": "https://www.kernel.org/pub/software/scm/git/git-2.37.1.tar.xz",
+        "source_sha256": "c8162c6b8b8f1c5db706ab01b4ee29e31061182135dc27c4860224aaec1b3500"
+      },
+      "2.39.5": {
+        "source_url": "https://www.kernel.org/pub/software/scm/git/git-2.39.5.tar.xz",
+        "source_sha256": "c58da92c378df4a986ca33266897a7397e86c22ee266a284d8c2432c39066b59"
+      }
+    }
+  },
+  "log_sha256": {
+    "tests": "8520c743259da63ac81104ffe8db09758cfd5629ffd053c3c26d5d44d1d7a1a6",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "native": "df7d783f26a24b1aacd64a1210402c2334fbc23685342703688e341a7a7e7996",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "git-2.37-build": "7c6a7305ca41e80fe4270c3889bf147c0886f61dd7900e74855f9aa4f1a819bf",
+    "git-2.39-build": "001dd6febf2a6ccb45b58c350b28acfc37e2d65a214bb94d73e4d1469254ed01",
+    "git-2.37-old-option": "f19008578cef46cb83ebfd050d7e30b8c6f3a42f0d95a6145f0338e974646425",
+    "git-2.39-old-option": "f19008578cef46cb83ebfd050d7e30b8c6f3a42f0d95a6145f0338e974646425"
+  },
+  "not_verified": [
+    "Hosted GitHub CI/publication",
+    "Displayed keyboard/accessibility/layout acceptance",
+    "Signed sandbox execution/App Store acceptance",
+    "Complete TortoiseGit parity"
+  ],
+  "processes": "No main app launched; headless receiver exited and hidden owned windows closed; final app/receiver process audit empty"
+}

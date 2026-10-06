@@ -185,6 +185,20 @@ import TurtleGitCore
     draftModel.addCommits([empty.hash]); try await settle(draftModel)
     precondition(draftModel.plan?.hasAddedCommits == true && draftModel.entries.first?.commit.hash == empty.hash && draftModel.canStart)
     print("Actual draft Add: enabled without upstream/plan, newest-first draft rows/IDs/actions/order, Cancel/Preserve guards, invalid-reference drafts, valid-reference rebuild and Add during pending reload passed.")
+    let beforeEmpty = try await repo.rebaseCommit("HEAD")
+    let emptyPatch = RebaseWindowModel(repository: repo, access: nil); emptyPatch.editorExecutable = model.editorExecutable
+    emptyPatch.load(cherryPick: [side.hash]); try await settle(emptyPatch)
+    emptyPatch.request("start")
+    let emptyDeadline = Date().addingTimeInterval(30)
+    while emptyPatch.busy && Date() < emptyDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!emptyPatch.busy && emptyPatch.error != nil && emptyPatch.active)
+    precondition(emptyPatch.state?.conflicts.isEmpty == true && emptyPatch.state?.stoppedCommit == side.hash)
+    precondition(emptyPatch.selection == [side.hash])
+    emptyPatch.error = nil; emptyPatch.execute("skip"); try await settle(emptyPatch)
+    precondition(emptyPatch.finished && !emptyPatch.active)
+    let afterEmpty = try await repo.rebaseCommit("HEAD"); precondition(afterEmpty.hash == beforeEmpty.hash)
+    print("Actual empty-patch recovery: already-applied change stops with original selected ID and no conflicts; native Skip finishes with target HEAD unchanged.")
+
 
 
 }

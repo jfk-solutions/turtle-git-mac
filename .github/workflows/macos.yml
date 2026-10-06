@@ -45,3 +45,14 @@ jobs:
           -derivedDataPath build-store CODE_SIGNING_ALLOWED=NO build
       - name: Verify sandboxed app resources
         run: python3 scripts/validate-app-bundle.py build-store/Build/Products/AppStore/TurtleGitMac.app --require-git
+      - name: Build isolated older Git runtimes for replay tests
+        run: |
+          python3 scripts/build-replay-test-git.py --version 2.37.1
+          python3 scripts/build-replay-test-git.py --version 2.39.5
+      - name: Native Cherry Pick and Rebase recovery across Git versions
+        run: >-
+          python3 scripts/check-cherry-pick-native.py
+          --git /usr/bin/git
+          --git build/replay-test-git/2.37.1/bin/git
+          --git build/replay-test-git/2.39.5/bin/git
+          --git build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git
