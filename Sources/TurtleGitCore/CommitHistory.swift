@@ -22,6 +22,7 @@ public struct HistorySearchFields: OptionSet, Sendable {
     public static let referenceNames = Self(rawValue: 1 << 5)
     public static let notes = Self(rawValue: 1 << 6)
     public static let tagInfo = Self(rawValue: 1 << 7)
+    public static let paths = Self(rawValue: 1 << 8)
 }
 
 public struct HistoryOptions: Sendable {
@@ -226,6 +227,19 @@ extension GitRepository {
                 tagCache[object] = value; return value
             }.joined(separator: "\n")
         }
+        func changedPaths(_ hash: String, parents: [String]) throws -> [String] {
+            var paths = Set<String>()
+            for parent in parents.isEmpty ? [""] : parents {
+                var arguments = ["diff-tree", "--root", "--no-commit-id", "--name-status", "-z", "-r", "-M", "--no-ext-diff", "--no-color"]
+                if !parent.isEmpty { arguments.append(parent) }
+                arguments += [hash, "--"]
+                for file in CommitFile.parse(names: try run(arguments).stdout, statistics: Data()) {
+                    paths.insert(file.path)
+                    if let old = file.oldPath { paths.insert(old) }
+                }
+            }
+            return paths.sorted()
+        }
         let fieldsInHistory = String(decoding: try run(args).stdout, as: UTF8.self).components(separatedBy: "\0")
         var entries: [LogEntry] = []
         var record = 0
@@ -234,6 +248,7 @@ extension GitRepository {
             record += 9
             if filterInMemory {
                 var searchable: [String] = []
+                if options.searchFields.contains(.paths) { searchable += try changedPaths(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), parents: fields[1].split(separator: " ").map(String.init)) }
                 if options.searchFields.contains(.tagInfo) { searchable.append(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
                 if options.searchFields.contains(.notes) { searchable.append(try notes(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
                 if options.searchFields.contains(.subject) { searchable.append(fields[5]) }

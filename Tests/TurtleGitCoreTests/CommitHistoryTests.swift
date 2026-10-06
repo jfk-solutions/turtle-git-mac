@@ -279,6 +279,47 @@ final class CommitHistoryTests: XCTestCase {
         options.search = ""; found = try await repo.history(options: options)
         XCTAssertEqual(found.map(\.hash), [old.hash]); XCTAssertTrue(found.first?.tagInfo.contains("NestedAnnotation") == true)
     }
+    func testPathSearchIncludesRootRenamesAndEveryMergeParent() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Paths Tests"])
+        _ = try await repo.run(["config", "user.email", "paths@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        let original = "Old 雪\n[1].txt", renamed = "Renamed\t[1].txt"
+        try Data("root\n".utf8).write(to: root.appendingPathComponent(original)); try await repo.stage([original])
+        _ = try await repo.commit(message: "root")
+        let initial = try await repo.history(), first = try XCTUnwrap(initial.first)
+        _ = try await repo.run(["mv", "--", original, renamed]); _ = try await repo.commit(message: "rename")
+        let renamedHistory = try await repo.history(), rename = try XCTUnwrap(renamedHistory.first)
+        _ = try await repo.run(["switch", "-c", "feature"])
+        try Data("feature\n".utf8).write(to: root.appendingPathComponent("feature-only.txt")); try await repo.stage(["feature-only.txt"])
+        _ = try await repo.commit(message: "feature")
+        _ = try await repo.run(["switch", "main"])
+        try Data("main\n".utf8).write(to: root.appendingPathComponent("MainOnly.txt")); try await repo.stage(["MainOnly.txt"])
+        _ = try await repo.commit(message: "main")
+        _ = try await repo.run(["merge", "--no-ff", "feature", "-m", "merge"])
+        let mergedHistory = try await repo.history(), merge = try XCTUnwrap(mergedHistory.first)
+        var options = HistoryOptions(); options.searchFields = .paths; options.limit = 1; options.search = original
+        var found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [rename.hash])
+        options.limit = 10; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [rename.hash, first.hash])
+        options.search = renamed; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [rename.hash])
+        // MainOnly is unchanged from the first parent but changed from the second.
+        options.limit = 1; options.search = "MainOnly.txt"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [merge.hash])
+        options.search = "mainonly.txt"; options.searchCaseSensitive = true
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchCaseSensitive = false; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [merge.hash])
+        options.search = "message-only-token"; _ = try await repo.run(["commit", "--allow-empty", "-m", "message-only-token"])
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchFields = [.paths, .messages]; found = try await repo.history(options: options); XCTAssertEqual(found.count, 1)
+        options.searchFields = .paths; options.search = renamed; options.paths = ["absent.txt"]
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.paths = []; options.search = original; options.endRevision = first.hash
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native Log changed-path search with root/rename/all-parent merge semantics; full port remains incomplete",
+  "baseCommit": "badfce09d1afd187bed5f28bd986bf690ea982d2",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/LogDlgFilter.cpp LOGFILTER_PATHS: loaded changed files include current/old names; cold simple-list fallback",
+    "src/Git/GitRevLoglist.cpp SafeGetSimpleList: root changes and union of all merge-parent differences; cold source list can omit rename old names"
+  ],
+  "implemented": [
+    "Paths checkbox in native saved selection/All/Toggle mask; nine default implemented fields",
+    "NUL-delimited name-status reads preserve literal Unicode/tab/newline/wildcard path text",
+    "Search includes root/deleted/new names and old names of detected renames; merge changes union every parent",
+    "Native old-name search remains consistent before/after loading details, extending upstream cold simple-list behavior to its loaded-list semantics",
+    "Selected case mode, mixed-field OR and filter-before-limit retained; changed-pane filter and existing history path scope remain separate"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 11,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final source. New real Git fixture verifies Unicode/newline/bracket original path and tab/bracket renamed path, older matches beyond limit, root/rename current and old names, merge path unchanged from first parent but changed from second, case mode, empty-commit/message isolation and mixed OR, path scope and pinned root revision. Previous notes/tags/refs/identity/metadata/merge/clipboard cases pass."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and bundled NOTICE byte comparisons passed; Store bundled Git audit passed.",
+    "nativeAcceptance": "Native menu/default-mask integration compiled in both configurations; displayed menu/search gesture and persistence acceptance unverified.",
+    "fullRegression": "Focused history suite run; full-suite repeat not performed. Older full-suite evidence retains its original snapshot scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "0fdb2572185cb76572ab047636d044d53509c234a71592b1fd9c58277b8693b4",
+    "Sources/TurtleGitMac/LogWindow.swift": "02d29c0a208f3b935486c5416f5ab296f3cf64fea201fe4d381acf43d4c59adc",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "8ab8a3a82a6e405eb125d1d67f5ee01b2fa382e454ec9c3a0376d16ec7c6d692"
+  },
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-paths-tests.log",
+      "sha256": "07f802109ae69f2c842855eb75708d2a7d782f28b6ba64a4ed846e793d039273"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-paths-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-paths-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-paths-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-paths-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-paths-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Issue-ID field, regex and advanced query syntax",
+    "Batched/incremental per-commit/per-parent path reads and large-history cancellation",
+    "Native tagger date formatting/relative-date preferences",
+    "Displayed menu/preferences/message/light/dark acceptance",
+    "Signed Finder/App Store verification and full application parity"
+  ]
+}

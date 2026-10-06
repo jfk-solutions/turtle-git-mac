@@ -13,11 +13,11 @@ arrangement and familiar command order. The initial sidebar log table was remove
 ## Search fields
 
 The search row now has a native Search in menu with independent Subject,
-Messages, Authors, Emails, Revisions, Refname, Tag Info and Notes checkboxes. Subject searches only the
+Messages, Paths, Authors, Emails, Revisions, Refname, Tag Info and Notes checkboxes. Subject searches only the
 summary; Messages searches both summary and body. Authors includes both author and
 committer names; Emails includes both identities. Multiple fields match by OR.
 Field selection is saved under SelectedLogFilters and reused by subsequent Log
-windows. Unset/invalid preferences default to all eight implemented fields; an
+windows. Unset/invalid preferences default to all nine implemented fields; an
 explicit empty selection stays empty. Stored unsupported bits are masked out.
 All selects the implemented field set; Toggle filters inverts it. Changing fields
 or case mode only reloads when search text is entered, preserving a loaded list
@@ -26,8 +26,8 @@ See [the selection record](qa/log-search-selection-2026-10-06.json).
 Refname searches the full local/remote branch and tag reference names associated
 with each commit. Annotated and nested tags resolve to their referenced commit;
 annotated-tag searches also accept the upstream peeled `^{}` suffix. Lightweight
-tags have no peeled search name. This field searches names; annotated-tag message
-search remains unfinished. Reference mapping is captured once before filtering
+tags have no peeled search name. This field searches names; Tag Info below
+provides annotation-text search. Reference mapping is captured once before filtering
 and reused for row decorations. Filtering precedes the result limit, with existing
 path and pinned-revision scopes retained. See
 [the reference search record](qa/log-ref-search-2026-10-06.json).
@@ -51,6 +51,17 @@ section. Native tagger date formatting/relative-date preferences remain unfinish
 this pass retains the tagger's raw Git timestamp and zone. Displayed layout, links,
 colors and signed acceptance remain unverified. See
 [the annotated-tag record](qa/log-tag-search-2026-10-06.json).
+Paths searches changed filenames for each candidate commit, including root
+changes, deletions and both names of detected renames. Merge commits include the
+union of changes against every parent, rather than only the first parent. Paths
+are read with NUL-delimited Git name-status output, preserving literal Unicode,
+newline, tab and wildcard characters. Matching uses the selected case mode and
+OR combination with other fields before applying the result limit. This is
+independent of the lower changed-file pane filter and existing history path scope.
+Unlike upstream's cold simple-list path, which can omit rename old names, native
+search includes old names consistently before/after loading commit details.
+Per-commit/per-parent Git diff reads remain a performance gap; batched loading and
+cancellation are unfinished. See [the Paths record](qa/log-path-search-2026-10-06.json).
 The menu also offers the upstream Case-sensitive toggle, default off. It applies
 to every selected field and is saved under FilterCaseSensitively for subsequent
 Log windows. Names, emails and revision IDs use literal matching; message-only
@@ -65,10 +76,8 @@ This currently materializes the scoped log output in memory; incremental filteri
 and cancellation for large histories remain unfinished. The existing message-only
 search still uses Git's result limit. Returned rows now retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
-regex options, multi-term/exclusion query syntax,
-bug IDs and the complete upstream default field
-set remain
-pending. This is partial upstream filter parity; see
+regex options, multi-term/exclusion query syntax, bug IDs and the complete
+upstream default field set remain pending. This is partial upstream filter parity; see
 [the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up
 checks are recorded [separately](qa/log-search-case-2026-10-06.json).
 
@@ -121,7 +130,7 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 | Columns | Actions icons, column chooser/persistence, optional email/committer/bug/SVN columns |
 | Graph | Working-tree pseudo revision, collapse/expand, hidden refs and all merge parent choices |
 | References | Branch/ref chooser, remote ref deletion and tracking menus |
-| Search/filter | Author/email/hash/path search modes, jump next/previous, whole-project/folder history, regex and highlighting |
+| Search/filter | Jump next/previous, full history scope controls, issue IDs, regex/advanced query syntax and highlighting; implemented fields are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
 | Revision menus | Repository browser, rebase onto selection, edit notes, export, format patch, bisect, squash, ref containment/search |
 | Mutations | Full branch/tag options, checkout branches, mainline choices for merge revert/cherry-pick, multi-commit operations, conflict continue/abort |
