@@ -175,6 +175,22 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
 }
 
 enum LogIntegrationCommand { case merge, rebase }
+enum LogBisectCommand: CaseIterable {
+    case start, good, bad, skip
+    var operation: BisectOperation? { switch self { case .start: return nil; case .good: return .good; case .bad: return .bad; case .skip: return .skip } }
+    var title: String { "Bisect " + (self == .start ? "start…" : operation!.rawValue) }
+    var icon: MenuIcon { operation?.icon ?? .bisect }
+}
+struct LogBisectRequest {
+    let good: String?
+    let bad: String?
+    let operation: BisectOperation?
+    let revisions: [String]
+}
+private enum LogBisectFailure: LocalizedError {
+    case marked
+    var errorDescription: String? { "The selected commit is already marked by Bisect. Refresh the Log." }
+}
 private enum LogIntegrationFailure: LocalizedError {
     case worktree, head, active
     var errorDescription: String? {
@@ -220,6 +236,7 @@ struct LogCommandRequest: Identifiable {
     var loadingActions: Bool { actionCancellation != nil }
     @Published var parentMetadata: [String: [LogParentChoice]] = [:]
     @Published var mergeActive = false
+    @Published var bisectActive = false
     @Published var currentBranch = ""
     var onExportRevision: ((String) -> Void)?
     var canExportRevision: Bool { revision != nil && !selectedIsStash && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && onExportRevision != nil }
@@ -229,6 +246,49 @@ struct LogCommandRequest: Identifiable {
     }
     var onMergeRevision: ((String) -> Void)?
     var onRebaseRevision: ((String) -> Void)?
+    var onBisect: ((LogBisectRequest) -> Void)?
+    func bisectAvailable(_ command: LogBisectCommand) -> Bool {
+        let chosen = revisions
+        guard !bare, !chosen.isEmpty, chosen.count == selected.count, let first = chosen.first, !first.hash.isEmpty else { return false }
+        if command == .start { return chosen.count == 2 && !bisectActive && !mergeActive && !isStash(first) }
+        return bisectActive && !first.references.contains { $0.name.hasPrefix("refs/bisect/") } && (command == .skip || chosen.count == 1)
+    }
+    func canBisect(_ command: LogBisectCommand) -> Bool {
+        bisectAvailable(command) && onBisect != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails
+    }
+    func requestBisect(_ command: LogBisectCommand) {
+        guard canBisect(command) else { return }
+        let chosen = revisions, selection = selected, request = generation
+        busy = true; error = nil
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                guard try await !repository.isBare() else { throw BisectFailure.workingTree }
+                let state = try await repository.bisectState()
+                let handoff: LogBisectRequest
+                if command == .start {
+                    guard !state.active, try await !repository.logMergeActive() else { throw BisectFailure.active }
+                    // Upstream uses the first reference, otherwise the hash. A
+                    // moved reference falls back to the selected commit.
+                    func preset(_ entry: LogEntry) async throws -> String {
+                        guard let ref = entry.references.first?.name else { return entry.hash }
+                        let result = try await repository.run(["rev-parse", "--verify", "--end-of-options", ref + "^{commit}"], successfulExitCodes: 0...128)
+                        return result.exitCode == 0 && result.text.trimmingCharacters(in: .newlines) == entry.hash ? ref : entry.hash
+                    }
+                    let bad = try await preset(chosen[0]), good = try await preset(chosen[1])
+                    handoff = LogBisectRequest(good: good, bad: bad, operation: nil, revisions: [])
+                } else {
+                    guard state.active else { throw BisectFailure.inactive }
+                    let marks = try await repository.run(["for-each-ref", "--points-at", chosen[0].hash, "--format=%(refname)", "refs/bisect/"]).text
+                    guard marks.isEmpty else { throw LogBisectFailure.marked }
+                    handoff = LogBisectRequest(good: nil, bad: nil, operation: command.operation, revisions: chosen.map(\.hash))
+                }
+                guard generation == request, selected == selection else { return }
+                busy = false; onBisect?(handoff)
+            } catch { if generation == request { self.error = error.localizedDescription } }
+        }
+    }
     var confirmRevert: (LogCommandRequest) async -> Bool = { _ in false }
     var offerRevertCommit: () async -> Bool = { false }
     var onCommit: () -> Void = {}
@@ -265,6 +325,9 @@ struct LogCommandRequest: Identifiable {
     private var noteGeneration = 0
     var selectedIsStash: Bool {
         guard let revision else { return false }
+        return isStash(revision)
+    }
+    private func isStash(_ revision: LogEntry) -> Bool {
         if revision.references.contains(where: { $0.name == "refs/stash" }) { return true }
         if let index = entries.firstIndex(where: { $0.hash == revision.hash }), index > 0 {
             let previous = entries[index - 1]
@@ -548,11 +611,12 @@ struct LogCommandRequest: Identifiable {
             do {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let mergeActive = try await repository.logMergeActive(cancellation: cancellation)
+                let bisectActive = try await repository.finderMetadata().bisectActive
                 let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 let result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 guard request == generation else { return }
-                self.bare = bare; self.mergeActive = mergeActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
+                self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
                 entries = result; graph = CommitGraph.layout(result)
                 let hashes = Set(result.map(\.hash)); revisionActions = revisionActions.filter { hashes.contains($0.key) }
                 parentMetadata = parentMetadata.filter { hashes.contains($0.key) }
@@ -1195,6 +1259,11 @@ struct RevisionTable: NSViewRepresentable {
             item(two ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (one || two) && !model.busy && model.onCompare != nil)
             item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: (one || two) && !model.busy)
             menu.addItem(.separator())
+            for command in [LogBisectCommand.good, .bad, .skip] where one && model.bisectAvailable(command) {
+                let selector = command == .good ? #selector(bisectGood) : command == .bad ? #selector(bisectBad) : #selector(bisectSkip)
+                item(command.title, selector, icon: command.icon, enabled: model.canBisect(command))
+            }
+            if one && model.bisectAvailable(.skip) { menu.addItem(.separator()) }
             item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: one && !model.busy && model.onBrowseRepository != nil)
             if model.integrationAvailable {
                 item(model.integrationTitle(.merge), #selector(mergeRevision), icon: .merge, enabled: model.canIntegrate(.merge))
@@ -1223,11 +1292,15 @@ struct RevisionTable: NSViewRepresentable {
                     item("Revert change by this commit", #selector(revert), icon: .revert, enabled: model.canRevertRevision)
                 }
             }
+            if !one && model.bisectAvailable(.skip) {
+                item(LogBisectCommand.skip.title, #selector(bisectSkip), icon: .bisect, enabled: model.canBisect(.skip)); menu.addItem(.separator())
+            }
             if model.cherryPickAvailable {
                 item(model.selected.count == 1 ? "Cherry Pick this commit…" : "Cherry Pick selected commits…", #selector(cherryPick), icon: .cherryPick, enabled: model.canCherryPick)
             }
             item("Edit Notes", #selector(editNotes), icon: .rebaseEdit, enabled: model.canEditNotes)
             item("Format Patch…", #selector(formatPatch), icon: .patch, enabled: model.formatPatchPreset != nil && !model.busy && model.onFormatPatch != nil)
+            if model.bisectAvailable(.start) { menu.addItem(.separator()); item(LogBisectCommand.start.title, #selector(bisectStart), icon: .bisect, enabled: model.canBisect(.start)) }
             menu.addItem(.separator())
             let clipboard = NSMenu(title: "Copy to clipboard")
             clipboard.autoenablesItems = false
@@ -1286,6 +1359,10 @@ struct RevisionTable: NSViewRepresentable {
         @objc func showDiff() { model.diff(alternate: NSEvent.modifierFlags.contains(.shift)) }
         @objc func compare() { model.compare() }
         @objc func workingDiff() { model.compare(workingTree: true) }
+        @objc func bisectStart() { model.requestBisect(.start) }
+        @objc func bisectGood() { model.requestBisect(.good) }
+        @objc func bisectBad() { model.requestBisect(.bad) }
+        @objc func bisectSkip() { model.requestBisect(.skip) }
         @objc func copyAuthors() { model.copy(model.revisions.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n")) }
         @objc func copyAuthorNames() { model.copy(model.revisions.map(\.author).joined(separator: "\n")) }
         @objc func copyAuthorEmails() { model.copy(model.revisions.map(\.email).joined(separator: "\n")) }

@@ -298,7 +298,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Finder Start/Good/Bad/Skip/Reset now use fresh session state and original icons.
   Submodule Update availability follows each checkout and requires successful,
   idle progress.
-  Log entry points and displayed/signed acceptance remain pending.
+  Log revision menus provide two-row Start, selected Good/Bad and multi-Skip.
+  The Log working-tree row/Reset menu and displayed/signed acceptance remain pending.
   [Bisect parity](docs/BISECT-PARITY.md).
 - Log revision Export now opens a native ZIP/revision/Whole Project dialog and
   uses Git archive with overwrite confirmation. Repository and Finder folder/bare

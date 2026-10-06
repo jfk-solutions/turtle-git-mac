@@ -3,7 +3,8 @@
 The repository engine now implements Bisect Start, Good, Bad, Skip and Reset.
 The repository sidebar now opens a native Bisect window. The start view follows
 upstream's two-row Good/Bad layout; the same window expands to show Git output
-and continuation controls. **Log entry points remain pending.** Finder commands now use the native workflow.
+and continuation controls. Finder commands and Log revision commands now use the
+native workflow. The Log working-tree row and its Reset menu remain pending.
 This does not establish complete Bisect or application parity.
 
 ## Upstream contract
@@ -26,8 +27,8 @@ The audit uses TortoiseGit commit
   Log Skip supports multiple selected commits. Other Log classification actions
   use the selected commit; Finder classification uses the current commit.
 - Shell `MenuInfo.cpp` rules are ported with original `menubisect`,
-  `menubisectreset`, `thumb_up` and `thumb_down` artwork. Log menu rules remain
-  pending.
+  `menubisectreset`, `thumb_up` and `thumb_down` artwork. Log revision rules are
+  ported; working-tree row rules remain pending.
 
 ## Implemented engine
 
@@ -123,10 +124,47 @@ These receivers do not activate the Finder extension or exercise real URL openin
 
 ## Remaining work
 
-Log command entry points, selected-revision classification and fresh-state Log
-menu rules remain pending. Activated Finder URL opening and signed handoff are
+The Log working-tree row, including its current-commit classification and Reset
+menu, remains pending. Activated Finder URL opening and signed handoff are
 also unverified. So do activated Log pickers, native alert interaction,
 Submodule Update handoff acceptance, progress cancellation, displayed light/dark verification, keyboard
 and accessibility checks, screenshots and signed sandbox acceptance. Broader Git
 session variants need additional acceptance alongside the normal checkout
 workflow. Full TortoiseGit and App Store parity remain incomplete.
+
+## Log revision commands
+
+The revision context menu follows `GitLogListBase.cpp` and
+`GitLogListAction.cpp` at the pinned upstream commit. Two selected rows offer
+**Bisect start…** when a working tree exists and neither Merge nor Bisect is
+active. A stash row at the first selected position excludes Start. Selection
+order follows the displayed list: first supplies Bad, last Good. Each preset
+uses the row's first reference, otherwise its commit hash. If that reference
+has moved, a fresh resolution falls back to the selected hash.
+
+An active session offers **Bisect good**, **Bisect bad** and **Bisect skip**
+for one selected revision, unless that row has a `refs/bisect/` reference.
+Multiple selection offers only Skip, with the same exclusion on the first
+selected row. Skip passes every selected hash literally in displayed order;
+it does not expand a revision range. Original artwork and native menu selectors
+dispatch all four commands. Busy operations, note editing and unavailable
+handoffs disable execution.
+
+Before handoff, the Log checks fresh repository/session state. It refuses Start
+if another session or Merge has begun, continuation if the session has ended,
+and classification if another caller has marked the first selected commit.
+A changed selection or invalidated Log drops the pending handoff. The native
+Bisect window revalidates again before execution and recovers custom terms.
+Repository callbacks configure normal Log windows and the existing Merge,
+Rebase and Stash Log pickers; completed operations refresh normal repository Logs.
+Automatic refresh of those modal picker Logs after a Bisect handoff remains
+pending; their action preflight still uses fresh Git state.
+
+The hidden native receiver checks real menu images, targets and enabled state,
+two-row preset order, moved-reference fallback, selection changes, cached
+busy/bare/Merge guards, fresh active Start refusal and marked-row exclusion.
+It routes injected handoffs into the actual Bisect controller, executes selected
+Good/Bad and multi-Skip against real Git, then verifies stale mark and ended
+session refusal. An unborn repository Log also loads with no Bisect state.
+These checks do not establish activated menus, working-tree row support or
+displayed/signed acceptance.

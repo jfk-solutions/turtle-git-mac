@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "35ffeb2",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log revision Bisect Start/Good/Bad/Skip menus and native workflow handoff",
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "fdd0729f55156a3e82229d09901fdb558ef280b8cc4f48c32622fc531ec97cf6",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "cd8533b717be5d84e168d0a035f804d6e4258e19ce6d1d39227a0fdef2a8b022",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "435745bd4c30c1b4c45f43c2918f9f8e22d1bebfe4d1de442447f18466ab95e5",
+    "docs/BISECT-PARITY.md": "4b2249b8627818c6f072b6a5b0514316edb1a887abdf09288f288cd26f22c367",
+    "README.md": "077a09e479f0d9d823da609693e4fa4801a433a586e9bb33682a463990af59d2"
+  },
+  "upstream_sources_sha256": {
+    "src/TortoiseProc/GitLogListBase.cpp": "024c118c31678bfe86b3f9494c900be5242d9db1955eaf251f67ec6baa7d92a2",
+    "src/TortoiseProc/GitLogListAction.cpp": "3f97246162ee64adb1d23ecd74641c9a25d771869bf2e6988d22b678bc9302a6"
+  },
+  "all_native_sources_manifest_sha256": "1296b63dcc162493f734298fc3e745eda266cd279b369fbded229ec554439b2d",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "new_coverage": "Actual native menu icons/targets/enabled state; first Bad/last Good displayed order; first-ref/hash and moved-ref presets; busy/bare/Merge and changed-selection guards; active Start refusal; marked-row exclusion; injected handoffs into actual Bisect controller followed by selected Good/Bad and literal multi-Skip execution; stale mark and ended-session refusal; unborn Log load. Prior native Bisect, Export, integration and focused Rebase fixtures pass.",
+      "limitations": "Hidden owned windows and injected handoff; activated menus/pickers, root callback invocation through displayed UI, Finder opening, screenshots, keyboard/accessibility and signed sandbox not exercised. Working-tree row and Reset menu absent. Modal picker refresh after handoff pending."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE cmp passed; Store --require-git; 90 original icons and universal helper runtimes verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app, Finder menu receiver or native receiver remained"
+  },
+  "logs": {
+    "/tmp/turtlegit-log-bisect-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-log-bisect-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-log-bisect-native.log": "72710b77a9a8b7377664b33256b0f81989b718c5d5cd94afe7778421b7067a0e",
+    "/tmp/turtlegit-log-bisect-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-log-bisect-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-log-bisect-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-log-bisect-swift.log": "9b2c072623a3262f3bd85fddbae13b3b0975386825b0eb72cde0028b329158b2"
+  },
+  "remaining": "Working-tree row/Reset menu, modal picker refresh, progress cancellation, activated handoffs, displayed light/dark and signed App Store acceptance; full port incomplete."
+}
