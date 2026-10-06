@@ -39,6 +39,14 @@ active repository cache. Hidden newly ignored files leave the Add list and
 unchecked unrelated rows stay unchecked. Ignore writes rules without staging
 or deleting working files. See [the Ignore integration record](qa/add-ignore-2026-10-06.json)
 for actual model checks and remaining sheet/signed acceptance. See [the status-menu receiver record](qa/add-status-menu-2026-10-06.json) for verification and native acceptance limits.
+Copy to clipboard now also offers Column 'Path', Column 'Extension', Column
+'Size' or Column 'Modification date', named for the right-clicked visible column.
+It copies selected cell values in displayed row order without a heading. Column
+identity survives reordering, and a hidden/invalid column disables the command.
+The native checkbox column maps to Path because upstream checkboxes occupy the
+Path column. Busy/quit guards apply to both the menu and copy action. Command-C
+continues to copy relative paths. See [the current-column record](qa/add-current-column-2026-10-06.json)
+for actual receiver checks; native mouse/keyboard menu gestures remain pending.
 Context images follow ShowAppContextMenuIcons when a menu is prepared.
 
 Tracked-file context menus now expose Compare with base, Show log, old-name Log
@@ -140,7 +148,7 @@ working-file removal; both unsigned builds and package audits pass. Displayed
 menus/comparison windows and signed acceptance remain pending.
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
-acceptance is pending. Full status-list commands (current-column clipboard, remaining tracked-row commands and
+acceptance is pending. Full status-list commands (remaining tracked-row commands and
 other shared consumers), Shift alternative comparison, Space/column/drop/keyboard
 gestures,
 progress notification granularity, saved histories/preferences, broader direct/

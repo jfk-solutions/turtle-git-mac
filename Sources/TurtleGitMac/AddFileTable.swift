@@ -6,12 +6,13 @@ private final class AddNativeTable: NativeWatermarkTable {
     var toggleChecks: () -> Void = {}
     var copySelection: () -> Void = {}
     var deleteSelection: (Bool) -> Void = { _ in }
-    var contextSelection: (Int) -> Void = { _ in }
+    var contextSelection: (Int, Int) -> Void = { _, _ in }
     override func menu(for event: NSEvent) -> NSMenu? {
-        let index = row(at: convert(event.locationInWindow, from: nil))
+        let point = convert(event.locationInWindow, from: nil)
+        let index = row(at: point)
         guard index >= 0 else { return nil }
         if !selectedRowIndexes.contains(index) { selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
-        contextSelection(index)
+        contextSelection(index, column(at: point))
         return super.menu(for: event)
     }
     override func keyDown(with event: NSEvent) {
@@ -37,6 +38,7 @@ struct AddFileTable: NSViewRepresentable {
         private let nativeTable = AddNativeTable(icon: .addBackdrop)
         var table: NSTableView { nativeTable }
         private var updating = false
+        private(set) var contextColumnID: String?
         init(model: AddWindowModel) { self.model = model }
         var rows: [AddDialogEntry] {
             let descriptor = table.sortDescriptors.first
@@ -56,7 +58,7 @@ struct AddFileTable: NSViewRepresentable {
             let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
             table.dataSource = self; table.delegate = self; table.allowsMultipleSelection = true; table.rowHeight = 22
             table.target = self; table.doubleAction = #selector(preview)
-            nativeTable.contextSelection = { [weak self] index in guard let self, self.rows.indices.contains(index) else { return }; self.model.selectionMark = self.rows[index].path }
+            nativeTable.contextSelection = { [weak self] row, column in self?.prepareContext(row: row, column: column) }
             nativeTable.toggleChecks = { [weak self] in self?.toggleSelectedChecks() }
             nativeTable.copySelection = { [weak self] in self?.copyText("relative") }
             nativeTable.deleteSelection = { [weak self] permanently in self?.deleteSelected(permanently: permanently, keyboard: true) }
@@ -78,7 +80,7 @@ struct AddFileTable: NSViewRepresentable {
             menu.addItem(.separator())
             let clipboard = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: ""); clipboard.image = MenuIcon.copy.contextImage()
             let submenu = NSMenu(); submenu.autoenablesItems = false
-            for (key, title) in [("full", "Full paths"), ("relative", "Relative paths"), ("names", "File/folder names"), ("ext", "Extensions"), ("all", "All visible columns")] {
+            for (key, title) in [("full", "Full paths"), ("relative", "Relative paths"), ("names", "File/folder names"), ("ext", "Extensions"), ("column", "Current column"), ("all", "All visible columns")] {
                 let item = NSMenuItem(title: title, action: #selector(copyItem(_:)), keyEquivalent: ""); item.target = self; item.representedObject = key; item.image = MenuIcon.copy.contextImage(); submenu.addItem(item)
             }
             clipboard.submenu = submenu; menu.addItem(clipboard)
@@ -135,6 +137,21 @@ struct AddFileTable: NSViewRepresentable {
         @objc func openWith() { openSelected(.openWith) }
         @objc func editor() { openSelected(.editor) }
         @objc func reveal() { guard canAct, selectedRows.count == 1 else { return }; NSWorkspace.shared.activateFileViewerSelecting(selectedRows.map { model.repository.root.appendingPathComponent($0.path) }) }
+        func prepareContext(row: Int, column: Int) {
+            contextColumnID = nil
+            guard rows.indices.contains(row) else { return }
+            model.selectionMark = rows[row].path
+            guard table.tableColumns.indices.contains(column) else { return }
+            let identifier = table.tableColumns[column].identifier.rawValue
+            // Upstream checkboxes share the Path column; AppKit has a separate check column.
+            contextColumnID = identifier == "check" ? "path" : identifier
+        }
+        var currentClipboardColumn: NSTableColumn? {
+            guard let identifier = contextColumnID,
+                  let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(identifier)),
+                  !column.isHidden else { return nil }
+            return column
+        }
         func cellText(_ row: AddDialogEntry, key: String) -> String {
             switch key {
             case "ext": return StatusListClipboard.fileExtension(row.path)
@@ -145,6 +162,8 @@ struct AddFileTable: NSViewRepresentable {
         }
         func clipboardText(_ kind: String) -> String {
             guard canAct else { return "" }
+            let currentColumn = currentClipboardColumn
+            if kind == "column", currentColumn == nil { return "" }
             let columns = table.tableColumns.filter { !$0.isHidden && $0.identifier.rawValue != "check" }
             let heading = kind == "all" && columns.count > 1 ? columns.map(\.title).joined(separator: "\t") + "\n" : ""
             return heading + selectedRows.map { row in
@@ -152,6 +171,7 @@ struct AddFileTable: NSViewRepresentable {
                 case "full": return model.repository.root.appendingPathComponent(row.path).path
                 case "names": return (row.path as NSString).lastPathComponent
                 case "ext": return cellText(row, key: "ext")
+                case "column": return currentColumn.map { cellText(row, key: $0.identifier.rawValue) } ?? ""
                 case "all": return columns.map { cellText(row, key: $0.identifier.rawValue) }.joined(separator: "\t")
                 default: return row.path
                 }
@@ -250,7 +270,13 @@ struct AddFileTable: NSViewRepresentable {
                     }
                     item.isHidden = !eligibility || opensFile && !selectedIsFile || item.action == #selector(deleteItem) && !canDelete || item.action == #selector(saveAs) && !canSave || item.action == #selector(export) && !canExport
                     item.isEnabled = eligibility && canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile) && (item.action != #selector(deleteItem) || canDelete) && (item.action != #selector(saveAs) || canSave) && (item.action != #selector(export) || canExport)
-                    for child in item.submenu?.items ?? [] { child.image = (item.representedObject as? String == "Add.Ignore" ? MenuIcon.ignore : .copy).contextImage(); child.isEnabled = item.isEnabled }
+                    for child in item.submenu?.items ?? [] {
+                        child.image = (item.representedObject as? String == "Add.Ignore" ? MenuIcon.ignore : .copy).contextImage()
+                        let isCurrentColumn = child.representedObject as? String == "column"
+                        child.isHidden = isCurrentColumn && currentClipboardColumn == nil
+                        child.isEnabled = item.isEnabled && (!isCurrentColumn || currentClipboardColumn != nil)
+                        if isCurrentColumn { child.title = currentClipboardColumn.map { "Column '\($0.title)'" } ?? "Current column" }
+                    }
                 }
             } else {
                 for item in menu.items { if let key = item.representedObject as? String { item.state = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(key))?.isHidden == false ? .on : .off } }

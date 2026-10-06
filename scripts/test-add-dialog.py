@@ -70,8 +70,53 @@ import TurtleGitCore
         precondition(opened.count == 3 && opened.allSatisfy { $0.0 == file })
         let menu = receiver.table.menu!; receiver.menuNeedsUpdate(menu)
         let copy = menu.items.first { $0.title == "Copy to clipboard" }!
-        precondition(copy.submenu?.items.map(\.title) == ["Full paths", "Relative paths", "File/folder names", "Extensions", "All visible columns"])
+        precondition(copy.submenu?.items.filter { !$0.isHidden }.map(\.title) == ["Full paths", "Relative paths", "File/folder names", "Extensions", "All visible columns"])
         precondition(menu.items.filter { !$0.isSeparatorItem && !$0.isHidden }.allSatisfy(\.isEnabled))
+        let currentColumnItem = copy.submenu!.items.first { $0.representedObject as? String == "column" }!
+        precondition(currentColumnItem.isHidden && !currentColumnItem.isEnabled && receiver.clipboardText("column").isEmpty)
+        let pathColumn = receiver.table.tableColumns.firstIndex { $0.identifier.rawValue == "path" }!
+        receiver.prepareContext(row: receiver.rows.firstIndex { $0.path == file }!, column: pathColumn)
+        receiver.menuNeedsUpdate(menu)
+        precondition(currentColumnItem.title == "Column 'Path'" && !currentColumnItem.isHidden && currentColumnItem.isEnabled)
+        precondition(receiver.clipboardText("column") == file + "\n")
+        model.highlighted = [file, unchecked]; receiver.refresh()
+        let extensionColumn = receiver.table.tableColumns.firstIndex { $0.identifier.rawValue == "ext" }!
+        receiver.prepareContext(row: receiver.rows.firstIndex { $0.path == unchecked }!, column: extensionColumn)
+        precondition(model.selectionMark == unchecked && receiver.clipboardText("column") == ".txt\n.txt\n")
+        receiver.table.moveColumn(extensionColumn, toColumn: pathColumn)
+        receiver.menuNeedsUpdate(menu)
+        precondition(currentColumnItem.title == "Column 'Extension'" && receiver.clipboardText("column") == ".txt\n.txt\n")
+        let sizeColumn = receiver.table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("size"))!
+        sizeColumn.isHidden = false
+        receiver.prepareContext(row: 0, column: receiver.table.tableColumns.firstIndex { $0 === sizeColumn }!)
+        receiver.menuNeedsUpdate(menu)
+        let copiedSize = receiver.clipboardText("column")
+        precondition(currentColumnItem.title == "Column 'Size'" && copiedSize == receiver.selectedRows.map { receiver.cellText($0, key: "size") }.joined(separator: "\n") + "\n")
+        sizeColumn.isHidden = true; receiver.menuNeedsUpdate(menu)
+        precondition(currentColumnItem.isHidden && !currentColumnItem.isEnabled && receiver.clipboardText("column").isEmpty)
+        let dateColumn = receiver.table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("date"))!
+        dateColumn.isHidden = false
+        receiver.prepareContext(row: 0, column: receiver.table.tableColumns.firstIndex { $0 === dateColumn }!)
+        receiver.menuNeedsUpdate(menu)
+        let displayedDates = receiver.selectedRows.map { row in
+            let index = receiver.rows.firstIndex { $0.path == row.path }!
+            return (receiver.tableView(receiver.table, viewFor: dateColumn, row: index) as! NSTextField).stringValue
+        }
+        precondition(currentColumnItem.title == "Column 'Modification date'" && receiver.clipboardText("column") == displayedDates.joined(separator: "\n") + "\n")
+        dateColumn.isHidden = true
+        receiver.prepareContext(row: 0, column: 0); receiver.menuNeedsUpdate(menu)
+        precondition(currentColumnItem.title == "Column 'Path'")
+        model.busy = true; receiver.menuNeedsUpdate(menu)
+        precondition(!currentColumnItem.isEnabled && receiver.clipboardText("column").isEmpty)
+        model.busy = false
+        model.confirmingQuit = true; receiver.menuNeedsUpdate(menu)
+        precondition(!currentColumnItem.isEnabled && receiver.clipboardText("column").isEmpty)
+        model.confirmingQuit = false
+        receiver.prepareContext(row: 0, column: -1); receiver.menuNeedsUpdate(menu)
+        precondition(currentColumnItem.isHidden && receiver.clipboardText("column").isEmpty)
+        receiver.prepareContext(row: -1, column: pathColumn); receiver.menuNeedsUpdate(menu)
+        precondition(currentColumnItem.isHidden && receiver.clipboardText("column").isEmpty)
+        model.highlighted = [file]; receiver.refresh()
         let heldBytes = try Data(contentsOf: folder.appendingPathComponent(file))
         try FileManager.default.removeItem(at: folder.appendingPathComponent(file)); try FileManager.default.createDirectory(at: folder.appendingPathComponent(file), withIntermediateDirectories: false)
         receiver.menuNeedsUpdate(menu); receiver.openSelected(.open)
@@ -279,7 +324,7 @@ import TurtleGitCore
         precondition(!receiver.canCompareTwo)
         try FileManager.default.removeItem(at: folder.appendingPathComponent(nestedDirectory))
         precondition(!receiver.canCompareTwo)
-        print("Actual Add receiver: disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        print("Actual Add receiver: current-column clipboard without headings, named icon menu, stable column identity after reorder, marked-row capture, hidden-column/invalid-hit/quit guards and checkbox-to-Path mapping; disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''

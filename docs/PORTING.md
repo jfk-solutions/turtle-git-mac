@@ -107,7 +107,8 @@ source-by-source audit; copying C++ files alone would not establish parity.
 
 Recent Add receiver checks and unsigned build/package results are recorded in
 [Add history](qa/add-history-2026-10-06.json) and
-[Add missing-file comparison](qa/add-missing-pair-2026-10-06.json).
+[Add missing-file comparison](qa/add-missing-pair-2026-10-06.json) and
+[Add current-column clipboard](qa/add-current-column-2026-10-06.json).
 These checks do not establish full application parity, displayed-window acceptance,
 signed Finder activation or distribution readiness. Workflow-specific parity files
 record the remaining requirements.

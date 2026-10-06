@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add current-column clipboard context command; full application parity remains incomplete",
+  "baseCommit": "7cefcad3ef9dd1e9ee2bcb98ec2e355559cf96eb",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/Git/GitStatusListCtrl.cpp OnContextMenu records hit-test subitem, adds named IDGITLC_COPYCOL only with a valid subitem",
+    "IDGITLC_COPYCOL sends one column bit to CopySelectedEntriesToClipboard; single-column output has no header and follows selected list rows",
+    "src/Resources/TortoiseProcENG.rc IDS_STATUSLIST_CONTEXT_COPYCOL names the selected column"
+  ],
+  "implemented": [
+    "Native table captures row and physical column on context-menu preparation",
+    "Clipboard submenu names the visible column and uses the original Copy icon preference",
+    "Capture uses the stable column identifier, preserving the selected column through reordering",
+    "Selected rows copy only that column, without heading, with native LF separators",
+    "Hidden/invalid columns and busy/quit conditions prevent copying",
+    "Native separate checkbox column maps to Path, matching upstream checkbox placement"
+  ],
+  "verification": {
+    "actualReceiver": "Swift 6/macOS 13 actual Add model/table receiver checks Path and Extension text without headings; marked row capture; Extension identity after column reordering; Size text; Modification date text matching actual native table cells; hidden columns, invalid row/column hits, busy and quit guards; checkbox-to-Path mapping. All prior Add/Ignore/Delete/copy/history/HEAD comparison/artwork checks pass. No windows/menus displayed; system clipboard contents were not modified.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; 76 original upstream icons, embedded Finder and universal helper runtimes; Store bundled Git audit passed.",
+    "lastFullRegression": {
+      "count": 493,
+      "failures": 0,
+      "scope": "Previous commit; no repository/API/resource changes. Affected native receiver and both full app builds verified rather than repeating unchanged core tests."
+    },
+    "site": "Static documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AddFileTable.swift": "2b3d8555be5010ea151ad7f49321a9d755949eefbed8b2854db48ffe0003e3d4",
+    "scripts/test-add-dialog.py": "c46fcefda944c09b276987c057fe0031bcad7aff887c1920a37a49b4fed613c7"
+  },
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-add-current-column-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-current-column-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-current-column-native.log",
+      "sha256": "61b039bb26b36ebe70a16917b23a271dbaf62ba54285567f8f155475fb495ea9"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-current-column-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-current-column-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-current-column-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Actual right-click/keyboard/accessibility menus, pasteboard dispatch, displayed scroll/column-reorder gestures and screenshots",
+    "Broader selection/scope/refresh/appearance cases and other shared status-list consumers",
+    "Remaining Add/shared menu/progress/settings/helper/localization parity",
+    "Signed Finder/sandbox/AppStore distribution and GitHub publication authentication"
+  ],
+  "appProcesses": "No main app launched; native receiver process is terminal"
+}

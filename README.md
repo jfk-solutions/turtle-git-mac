@@ -40,7 +40,8 @@ includes tracked history, old-name history, HEAD Blame, base comparison and
 two-file comparison. If a selected file disappears before comparison, that side
 uses pinned HEAD contents without changing the working tree or index. The menu
 also provides native Open With, the configured alternative editor, and clipboard
-commands for paths, names, extensions and visible columns. Its Ignore commands
+commands for paths, names, extensions, all visible columns and the right-clicked
+column. Its Ignore commands
 open the native name/extension/folder rule dialog and refresh the Add list while
 preserving unrelated checks and the Git index. Delete now uses a native
 confirmation, recoverable Trash by default, and Shift for permanent deletion;
