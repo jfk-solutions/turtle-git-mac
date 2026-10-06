@@ -62,8 +62,9 @@ plan contains data, not executable commit text; the executable path is quoted an
 child environment overrides are isolated. Git retains its persistent todo after
 the temporary source plan is removed. Continue/Skip/Abort return output, exit status
 and state through `rev-parse --git-path`, including linked-worktree isolation.
-The engine supports amending an Edit stop. Squash currently accepts Git's combined
-message without a native message prompt. Autostash is disabled; dirty starts leave
+The engine supports amending an Edit stop. Squash now pauses for a native multiline
+message editor and captures the upstream first/latest/current author-date setting.
+See [Squash workflow](REBASE-SQUASH.md). Autostash is disabled; dirty starts leave
 staged contents intact and report Git's error.
 
 ## Evidence
@@ -91,7 +92,7 @@ These establish the pictured layout, not full behavior or accessibility parity.
 
 - Fetch/Pull handoffs, old-upstream detection, fast-forward choices and config defaults.
 - Split, advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
-- Native squash/reword message editing, complete conflict/resolution menus and tabs.
+- Remaining reword/author editing and complete conflict/resolution menus and tabs.
 - Remaining row targeting/shortcuts and drag reordering, customizable columns and persisted layout. Action and move shortcuts now have headless native coverage; displayed acceptance remains pending.
 - Hooks, signing/editor/authentication prompts, stash restoration, streaming progress,
   cancellation, failures and signed sandbox/editor validation.

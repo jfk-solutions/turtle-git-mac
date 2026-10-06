@@ -293,7 +293,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Multiple selected rows move together, with Shift-to-end and focused-list action
-  shortcuts checked through a headless native receiver.
+  shortcuts checked through a headless native receiver. Squash groups pause for
+  multiline message approval and apply the first/latest/current author-date setting.
+  [Squash workflow](docs/REBASE-SQUASH.md).
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Native Cherry Pick plans from single/multiple Log selections, colored action icons,

@@ -45,7 +45,11 @@ again recovers the operation in Cherry Pick mode, with the original selected
 commit IDs, remaining actions and recovery controls. Closing its window leaves
 that state available for reopening.
 
-This is a partial port. Full conflict tabs, Split, squash message and author/date
-choices, complete keyboard/accessibility parity, displayed acceptance checks and
+Squash groups pause in the Commit Message tab for multiline editing and Continue
+approval. Advanced `SquashDate` controls the author date; the first author is kept.
+See [Squash workflow](REBASE-SQUASH.md).
+
+This is a partial port. Full conflict tabs, Split, author overrides,
+complete keyboard/accessibility parity, displayed acceptance checks and
 signed App Store execution remain unfinished. See the [parity audit](CHERRY-PICK-PARITY.md)
 for the verification scope. Current macOS screenshots are pending.

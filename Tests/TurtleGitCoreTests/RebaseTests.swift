@@ -37,7 +37,9 @@ final class RebaseTests: XCTestCase {
     func testSquashCombinesMessagesAndEditCanAmendThenContinue() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         var plan = try await repo.rebasePlan(options()); plan.entries[1].action = .squash
-        let result = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(result.exitCode, 0, result.output)
+        let paused = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertTrue(paused.state.active); XCTAssertNotNil(paused.state.squashMessage)
+        let result = try await repo.continueRebase(squashMessage: paused.state.squashMessage!.message); XCTAssertEqual(result.exitCode, 0, result.output)
         let message = try await repo.run(["log", "-1", "--format=%B"]).text; XCTAssertTrue(message.contains("first")); XCTAssertTrue(message.contains("second"))
         let count = try await repo.run(["rev-list", "--count", "upstream..topic"]).text; XCTAssertEqual(count, "1\n")
         var force = options(); force.force = true
@@ -211,7 +213,9 @@ final class RebaseTests: XCTestCase {
         _ = try await repo.run(["checkout", "--detach", "main"])
         var plan = try await repo.cherryPickPlan(revisions: selected)
         plan.entries.reverse(); plan.entries[1].action = .squash
-        let completed = try await repo.startRebase(plan, editorExecutable: editor)
+        let paused = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertNotNil(paused.state.squashMessage)
+        let completed = try await repo.continueRebase(squashMessage: paused.state.squashMessage!.message)
         XCTAssertEqual(completed.exitCode, 0, completed.output); XCTAssertFalse(completed.state.active)
         let symbolic = try await repo.run(["symbolic-ref", "--quiet", "HEAD"], successfulExitCodes: 0...1); XCTAssertEqual(symbolic.exitCode, 1)
         let message = try await repo.run(["log", "-1", "--format=%B"]).text
@@ -350,6 +354,121 @@ final class RebaseTests: XCTestCase {
         let head = try await reopened.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, plan.branchHash)
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("first.txt"), encoding: .utf8), "first\n")
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("target-marker.txt"), encoding: .utf8), "marker\n")
+    }
+
+    func testSquashMessageRecoveryAndAllAuthorDatePoliciesPreserveFirstAuthorAndTree() async throws {
+        for policy in [RebaseSquashDate.first, .latest, .current] {
+            let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            let base = try await repo.rebaseCommit("HEAD")
+            for (name, date, author) in [("first", "2001-01-01T01:02:03+02:00", "First Author"), ("second", "2002-02-02T02:03:04-03:00", "Second Author")] {
+                try Data(name.utf8).write(to: root.appendingPathComponent(name)); try await repo.stage([name])
+                _ = try await repo.run(["commit", "-m", name + "\n\n# literal message 雪"], environmentOverrides: ["GIT_AUTHOR_DATE": date, "GIT_AUTHOR_NAME": author, "GIT_AUTHOR_EMAIL": name + "@example.invalid"])
+            }
+            let first = try await repo.rebaseCommit("HEAD^"), last = try await repo.rebaseCommit("HEAD")
+            var settings = RebaseOptions(); settings.upstream = base.hash; settings.force = true; settings.squashDate = policy
+            var plan = try await repo.rebasePlan(settings); plan.entries[1].action = .squash
+            let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+            let pending = try XCTUnwrap(stopped.state.squashMessage)
+            XCTAssertTrue(stopped.state.active); XCTAssertNotEqual(stopped.exitCode, 0); XCTAssertTrue(stopped.state.conflicts.isEmpty)
+            XCTAssertEqual(pending.datePolicy, policy); XCTAssertEqual(pending.latestDate, last.date)
+            XCTAssertTrue(pending.message.contains("# literal message 雪")); XCTAssertFalse(pending.message.contains("This is a combination"))
+            let reopened = GitRepository(root: root); let recovered = try await reopened.rebaseState()
+            XCTAssertEqual(recovered.squashMessage?.message, pending.message)
+            let pausedHead = try await reopened.rebaseCommit("HEAD")
+            do { _ = try await reopened.continueRebase(); XCTFail("Message approval required") } catch RebaseFailure.message {}
+            do { _ = try await reopened.continueRebase(squashMessage: " \n "); XCTFail("Blank message") } catch RebaseFailure.message {}
+            let unchanged = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(unchanged.hash, pausedHead.hash)
+            let approved = "Combined 雪\n\n# literal retained\nDetails"
+            let before = Date().timeIntervalSince1970
+            let done = try await reopened.continueRebase(squashMessage: approved)
+            XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active); XCTAssertNil(done.state.squashMessage)
+            let result = try await reopened.rebaseCommit("HEAD")
+            XCTAssertEqual(result.author, first.author); XCTAssertEqual(result.email, first.email)
+            switch policy {
+            case .first: XCTAssertEqual(result.date, first.date)
+            case .latest: XCTAssertEqual(result.date, last.date)
+            case .current:
+                let time = try XCTUnwrap(ISO8601DateFormatter().date(from: result.date)).timeIntervalSince1970
+                XCTAssertGreaterThanOrEqual(time, before - 1); XCTAssertLessThanOrEqual(time, Date().timeIntervalSince1970 + 1)
+            }
+            let text = try await reopened.run(["log", "-1", "--format=%B"]).text; XCTAssertEqual(text, approved + "\n")
+            let tree = try await reopened.run(["rev-parse", "HEAD^{tree}"]).text
+            let expected = try await reopened.run(["rev-parse", last.hash + "^{tree}"]).text; XCTAssertEqual(tree, expected)
+        }
+    }
+
+    func testConflictThenSquashMessagePauseCanAbortWithoutLosingOriginalBranch() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        var plan = try await repo.rebasePlan(options()); plan.entries[1].action = .squash
+        let conflict = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertEqual(conflict.state.conflicts, [path]); XCTAssertNil(conflict.state.squashMessage)
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let pause = try await repo.continueRebase(); XCTAssertNotNil(pause.state.squashMessage); XCTAssertTrue(pause.state.active)
+        let aborted = try await GitRepository(root: root).abortRebase(); XCTAssertEqual(aborted.exitCode, 0, aborted.output)
+        let restored = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(restored.hash, plan.branchHash)
+        let branch = try await repo.branch(); XCTAssertEqual(branch, "topic")
+    }
+
+    func testLinkedWorktreeCherryPickSquashUsesItsOwnMessageMetadata() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let linkedRoot = root.appendingPathComponent("linked")
+        _ = try await repo.run(["worktree", "add", "--detach", linkedRoot.path, "main"])
+        let linked = GitRepository(root: linkedRoot)
+        let newest = try await repo.rebaseCommit("topic"), older = try await repo.rebaseCommit("topic^")
+        var plan = try await linked.cherryPickPlan(revisions: [newest.hash, older.hash]); plan.entries[1].action = .squash
+        let stopped = try await linked.startRebase(plan, editorExecutable: editor); XCTAssertNotNil(stopped.state.squashMessage)
+        let mainState = try await repo.rebaseState(); XCTAssertFalse(mainState.active)
+        let done = try await GitRepository(root: linkedRoot).continueRebase(squashMessage: "Linked combined message")
+        XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+        let text = try await linked.run(["log", "-1", "--format=%s"]).text; XCTAssertEqual(text, "Linked combined message\n")
+    }
+
+    func testTwoSquashGroupsRequireSeparateApprovalsAndEditMessageIsKept() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["third", "fourth"] {
+            try Data(name.utf8).write(to: root.appendingPathComponent(name)); try await repo.stage([name]); _ = try await repo.commit(message: name)
+        }
+        var plan = try await repo.rebasePlan(options())
+        plan.entries[0].action = .edit; plan.entries[1].action = .squash; plan.entries[3].action = .squash
+        let edit = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertTrue(edit.state.active); XCTAssertNil(edit.state.squashMessage)
+        _ = try await repo.amendRebaseCommit(message: "Edited first\n\n# retained first body")
+        let first = try await repo.continueRebase()
+        let request = try XCTUnwrap(first.state.squashMessage); XCTAssertTrue(request.message.contains("Edited first")); XCTAssertTrue(request.message.contains("# retained first body"))
+        let second = try await repo.continueRebase(squashMessage: "Approved group one")
+        XCTAssertTrue(second.state.active); XCTAssertNotNil(second.state.squashMessage)
+        XCTAssertTrue(second.state.squashMessage!.message.contains("third")); XCTAssertTrue(second.state.squashMessage!.message.contains("fourth"))
+        XCTAssertFalse(second.state.squashMessage!.message.contains("Approved group one"))
+        let done = try await GitRepository(root: root).continueRebase(squashMessage: "Approved group two")
+        XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+        let subjects = try await repo.run(["log", "-2", "--format=%s"]).text; XCTAssertEqual(subjects, "Approved group two\nApproved group one\n")
+        let count = try await repo.run(["rev-list", "--count", "upstream..topic"]).text; XCTAssertEqual(count, "2\n")
+    }
+
+    func testSquashApprovalHookFailureRetainsAttemptedDraftAndUnchangedHead() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var plan = try await repo.rebasePlan(options()); plan.entries[1].action = .squash
+        let pause = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertNotNil(pause.state.squashMessage)
+        let head = try await repo.rebaseCommit("HEAD")
+        let hook = root.appendingPathComponent(".git/hooks/pre-commit")
+        try Data("#!/bin/sh\nexit 1\n".utf8).write(to: hook)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: hook.path)
+        do { _ = try await repo.continueRebase(squashMessage: "Attempted draft 雪"); XCTFail("Hook failure must stop approval") } catch is GitFailure {}
+        let reopened = GitRepository(root: root), state = try await reopened.rebaseState()
+        XCTAssertTrue(state.active); XCTAssertEqual(state.squashMessage?.message, "Attempted draft 雪")
+        let unchanged = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(unchanged.hash, head.hash)
+        try FileManager.default.removeItem(at: hook)
+        let done = try await reopened.continueRebase(squashMessage: state.squashMessage!.message)
+        XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+    }
+
+    func testSkippingSquashCannotExposeItsOldRequestAtLaterEditStep() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try Data("third\n".utf8).write(to: root.appendingPathComponent("third.txt")); try await repo.stage(["third.txt"]); _ = try await repo.commit(message: "third")
+        var plan = try await repo.rebasePlan(options()); plan.entries[1].action = .squash; plan.entries[2].action = .edit
+        let pause = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertNotNil(pause.state.squashMessage)
+        let skipped = try await repo.skipRebase(); XCTAssertTrue(skipped.state.active); XCTAssertEqual(skipped.state.currentStep, 3); XCTAssertNil(skipped.state.squashMessage)
+        let reopened = GitRepository(root: root), state = try await reopened.rebaseState(); XCTAssertNil(state.squashMessage)
+        let done = try await reopened.continueRebase(); XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
     }
 
 }

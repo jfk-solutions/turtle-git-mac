@@ -1,6 +1,13 @@
 import Foundation
 
 public enum RebaseAction: String, CaseIterable, Sendable { case pick, skip = "drop", edit, squash }
+public enum RebaseSquashDate: Int, Codable, Sendable { case first = 0, latest = 1, current = 2 }
+public struct RebaseSquashMessage: Codable, Sendable {
+    public var message: String
+    public let datePolicy: RebaseSquashDate
+    public let latestDate: String
+    public let step: Int
+}
 public struct RebaseEntry: Identifiable, Sendable {
     public var id: String { occurrence == 0 ? commit.hash : commit.hash + ":" + String(occurrence) }
     public var occurrence = 0
@@ -17,6 +24,7 @@ public struct RebaseOptions: Sendable {
     public var preserveMerges = false
     public var isCherryPick = false
     public var addCherryPickedFrom = false
+    public var squashDate: RebaseSquashDate = .first
     public init() {}
 }
 public enum RebaseDisposition: Sendable { case ready, fastForward, upToDate, equal }
@@ -44,6 +52,7 @@ public struct RebaseState: Sendable {
     public let total: Int
     public let conflicts: [String]
     public let remainingCommands: [String]
+    public let squashMessage: RebaseSquashMessage?
 }
 public struct RebaseExecution: Sendable {
     public let output: String
@@ -70,7 +79,9 @@ public enum RebaseFailure: LocalizedError {
 /// This entry point writes the generated plan and exits before creating windows.
 public enum RebaseEditor {
     public static let argument = "--turtlegit-sequence-editor"
+    public static let messageArgument = "--turtlegit-rebase-message-editor"
     public static func handle(arguments: [String], environment: [String: String]) -> Int32? {
+        if arguments.dropFirst().first == messageArgument { return handleMessage(arguments: arguments) }
         guard arguments.dropFirst().first == argument else { return nil }
         guard arguments.count == 3, let source = environment["TURTLEGIT_REBASE_PLAN"] else { return 1 }
         do {
@@ -82,6 +93,9 @@ public enum RebaseEditor {
             if let metadata = environment["TURTLEGIT_REPLAY_IDENTITIES"] {
                 try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-replay-identities.json"), options: .atomic)
             }
+            if let metadata = environment["TURTLEGIT_REPLAY_MESSAGES"] {
+                try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-message-editor.json"), options: .atomic)
+            }
             return 0
         }
         catch { return 1 }
@@ -89,6 +103,39 @@ public enum RebaseEditor {
     public static func command(executable: URL) -> String {
         "'" + executable.path.replacingOccurrences(of: "'", with: "'\\''") + "' " + argument
     }
+    public static func messageCommand(executable: URL) -> String {
+        "'" + executable.path.replacingOccurrences(of: "'", with: "'\\''") + "' " + messageArgument
+    }
+    private static func handleMessage(arguments: [String]) -> Int32 {
+        guard arguments.count == 3 else { return 1 }
+        let directory = URL(fileURLWithPath: arguments[2]).deletingLastPathComponent().appendingPathComponent("rebase-merge")
+        let configuration = directory.appendingPathComponent("turtlegit-message-editor.json")
+        let squash = directory.appendingPathComponent("message-squash")
+        guard FileManager.default.fileExists(atPath: configuration.path), FileManager.default.fileExists(atPath: squash.path) else { return 0 }
+        do {
+            let config = try JSONDecoder().decode(RebaseMessageConfiguration.self, from: Data(contentsOf: configuration))
+            let step = Int(try String(contentsOf: directory.appendingPathComponent("msgnum"), encoding: .utf8).trimmingCharacters(in: .newlines)) ?? 0
+            guard config.dates.indices.contains(step - 1) else { return 1 }
+            let text = try String(contentsOf: squash, encoding: .utf8)
+            // Remove only Git's combination headings. Literal comment-prefixed
+            // message lines remain editable and are committed verbatim.
+            let lines = text.components(separatedBy: "\n")
+            let header = try NSRegularExpression(pattern: "^(.*) This is a combination of [0-9]+ commits\\.$")
+            let first = lines.first ?? ""
+            guard let match = header.firstMatch(in: first, range: NSRange(first.startIndex..., in: first)), let range = Range(match.range(at: 1), in: first) else { return 1 }
+            let prefix = NSRegularExpression.escapedPattern(for: String(first[range]))
+            let headings = try NSRegularExpression(pattern: "^" + prefix + " This is (a combination of [0-9]+ commits\\.|the ([0-9]+(st|nd|rd|th) commit message|commit message #[0-9]+):)$")
+            let message = lines.filter { headings.firstMatch(in: $0, range: NSRange($0.startIndex..., in: $0)) == nil }.joined(separator: "\n").trimmingCharacters(in: .newlines)
+            let request = RebaseSquashMessage(message: message, datePolicy: config.datePolicy, latestDate: config.dates[step - 1], step: step)
+            try JSONEncoder().encode(request).write(to: directory.appendingPathComponent("turtlegit-squash-message.json"), options: .atomic)
+            return 1 // Leave Git's durable replay state for the native editor.
+        } catch { return 1 }
+    }
+}
+private struct RebaseMessageConfiguration: Codable {
+    let editorCommand: String
+    let datePolicy: RebaseSquashDate
+    let dates: [String]
 }
 private struct RebaseReplayIdentity: Codable {
     let hash: String
@@ -127,10 +174,12 @@ extension GitRepository {
         let identities = replayIdentities(directory)
         let originalStopped = mapping[stopped] ?? stopped
         let stoppedIdentity = identities.indices.contains(step - 1) && identities[step - 1].hash == originalStopped ? identities[step - 1].id : originalStopped
+        let requestURL = directory.appendingPathComponent("turtlegit-squash-message.json")
+        let request = active && manager.fileExists(atPath: requestURL.path) ? try JSONDecoder().decode(RebaseSquashMessage.self, from: Data(contentsOf: requestURL)) : nil
         return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
                            stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: read("message"), currentStep: step,
                            total: Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
-                           remainingCommands: commands)
+                           remainingCommands: commands, squashMessage: request?.step == step && conflicts.isEmpty ? request : nil)
     }
     private func replayIdentities(_ directory: URL) -> [RebaseReplayIdentity] {
         (try? JSONDecoder().decode([RebaseReplayIdentity].self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
@@ -297,6 +346,13 @@ extension GitRepository {
         let identityFile = temporary.appendingPathComponent("identities.json")
         try JSONEncoder().encode(plan.entries.map { RebaseReplayIdentity(hash: $0.commit.hash, occurrence: $0.occurrence) }).write(to: identityFile)
         environment["TURTLEGIT_REPLAY_IDENTITIES"] = identityFile.path
+        if plan.entries.contains(where: { $0.action == .squash }) {
+            let messageFile = temporary.appendingPathComponent("replay-messages.json")
+            let command = RebaseEditor.messageCommand(executable: editorExecutable)
+            try JSONEncoder().encode(RebaseMessageConfiguration(editorCommand: command, datePolicy: plan.options.squashDate, dates: plan.entries.map { $0.commit.date })).write(to: messageFile)
+            environment["TURTLEGIT_REPLAY_MESSAGES"] = messageFile.path
+            environment["GIT_EDITOR"] = command
+        }
         if plan.options.isCherryPick {
             let metadata = temporary.appendingPathComponent("cherry-pick.json")
             try JSONEncoder().encode(mapping).write(to: metadata)
@@ -311,12 +367,37 @@ extension GitRepository {
         args += ["--onto", plan.ontoHash, "--", plan.upstreamHash, plan.branchReference.isEmpty ? plan.branchHash : String(plan.branchReference.dropFirst(11))]
         return try executeRebase(args, environment: environment)
     }
-    public func continueRebase() throws -> RebaseExecution { try recoverRebase("--continue") }
+    public func continueRebase(squashMessage: String? = nil) throws -> RebaseExecution {
+        let state = try rebaseState()
+        guard state.active else { throw RebaseFailure.inactive }
+        var output = ""
+        if var pending = state.squashMessage {
+            guard let squashMessage, !squashMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
+            pending.message = squashMessage
+            let request = try rebasePath("rebase-merge/turtlegit-squash-message.json")
+            try JSONEncoder().encode(pending).write(to: request, options: .atomic)
+            let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            try Data(squashMessage.utf8).write(to: temporary)
+            defer { try? FileManager.default.removeItem(at: temporary) }
+            let date: String
+            switch pending.datePolicy {
+            case .first: date = try rebaseCommit("HEAD").date
+            case .latest: date = pending.latestDate
+            case .current: date = ISO8601DateFormatter().string(from: Date())
+            }
+            output = try run(["commit", "--amend", "--cleanup=verbatim", "-F", temporary.path, "--date", date]).text
+            try FileManager.default.removeItem(at: request)
+        }
+        let result = try recoverRebase("--continue")
+        return RebaseExecution(output: output + result.output, exitCode: result.exitCode, state: result.state)
+    }
     public func skipRebase() throws -> RebaseExecution { try recoverRebase("--skip") }
     public func abortRebase() throws -> RebaseExecution { try recoverRebase("--abort") }
     private func recoverRebase(_ action: String) throws -> RebaseExecution {
         guard try rebaseState().active else { throw RebaseFailure.inactive }
-        return try executeRebase(["rebase", action], environment: ["GIT_EDITOR": "/usr/bin/true"])
+        let configuration = try rebasePath("rebase-merge/turtlegit-message-editor.json")
+        let config = FileManager.default.fileExists(atPath: configuration.path) ? try JSONDecoder().decode(RebaseMessageConfiguration.self, from: Data(contentsOf: configuration)) : nil
+        return try executeRebase(["rebase", action], environment: ["GIT_EDITOR": config?.editorCommand ?? "/usr/bin/true"])
     }
     private func executeRebase(_ arguments: [String], environment: [String: String]) throws -> RebaseExecution {
         do { let output = try run(arguments, environmentOverrides: environment).text; return RebaseExecution(output: output, exitCode: 0, state: try rebaseState()) }
@@ -324,6 +405,7 @@ extension GitRepository {
     }
     public func amendRebaseCommit(message: String) throws -> String {
         guard try rebaseState().active else { throw RebaseFailure.inactive }
+        guard try rebaseState().squashMessage == nil else { throw RebaseFailure.plan }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
         return try run(["commit", "--amend", "-m", message]).text
     }

@@ -75,9 +75,11 @@ import TurtleGitCore
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
     let preference = "CherrypickAddCherryPickedFrom", saved = UserDefaults.standard.object(forKey: "CherrypickAddCherryPickedFrom")
+    let savedSquashDate = UserDefaults.standard.object(forKey: "SquashDate")
     UserDefaults.standard.set(false, forKey: preference)
     defer {
         if let saved { UserDefaults.standard.set(saved, forKey: preference) } else { UserDefaults.standard.removeObject(forKey: preference) }
+        if let savedSquashDate { UserDefaults.standard.set(savedSquashDate, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") }
         for window in NSApp.windows { precondition(!window.isVisible); window.close() }
     }
     let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
@@ -258,6 +260,42 @@ import TurtleGitCore
     precondition(emptyPatch.finished && !emptyPatch.active)
     let afterEmpty = try await repo.rebaseCommit("HEAD"); precondition(afterEmpty.hash == beforeEmpty.hash)
     print("Actual empty-patch recovery: already-applied change stops with original selected ID and no conflicts; native Skip finishes with target HEAD unchanged.")
+
+    _ = try await repo.run(["checkout", "-b", "native-squash-source"])
+    var squashCommits: [LogEntry] = []
+    for (name, date) in [("one", "2001-01-01T01:02:03+02:00"), ("two", "2002-02-02T02:03:04-03:00")] {
+        let path = "native-squash-" + name + ".txt"
+        try Data(name.utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.run(["commit", "-m", "Squash " + name + "\n\n# literal source 雪"], environmentOverrides: ["GIT_AUTHOR_DATE": date, "GIT_AUTHOR_NAME": "Author " + name, "GIT_AUTHOR_EMAIL": name + "@example.invalid"])
+        squashCommits.append(try await repo.rebaseCommit("HEAD"))
+    }
+    _ = try await repo.run(["checkout", "target"])
+    UserDefaults.standard.set(1, forKey: "SquashDate")
+    let squash = RebaseWindowModel(repository: repo, access: nil); squash.editorExecutable = model.editorExecutable
+    squash.load(cherryPick: squashCommits.reversed().map(\.hash)); try await settle(squash)
+    precondition(squash.plan?.options.squashDate == .latest)
+    squash.setAction(.squash, ids: [squashCommits[1].hash]); squash.request("start"); try await settle(squash)
+    precondition(squash.active && !squash.finished && squash.state?.squashMessage != nil && squash.tab == 1 && squash.error == nil)
+    precondition(squash.amendMessage.contains("Squash one") && squash.amendMessage.contains("Squash two") && squash.amendMessage.contains("# literal source 雪"))
+    precondition(squash.selection == [squashCommits[1].hash])
+    let squashReopened = RebaseWindowModel(repository: GitRepository(root: root, executable: git), access: nil)
+    squashReopened.editorExecutable = model.editorExecutable; squashReopened.load(); try await settle(squashReopened)
+    precondition(squashReopened.isCherryPick && squashReopened.tab == 1 && squashReopened.amendMessage == squash.amendMessage)
+    let squashHost = NSHostingView(rootView: RebaseDialog(model: squashReopened)); squashHost.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); squashHost.layoutSubtreeIfNeeded()
+    func findEditor(_ view: NSView) -> NSTextView? {
+        if let text = view as? NSTextView, text.isEditable { return text }
+        return view.subviews.compactMap { findEditor($0) }.first
+    }
+    guard let editor = findEditor(squashHost) else { fatalError("Actual multiline squash editor unavailable") }
+    precondition(editor.string == squashReopened.amendMessage)
+    let approved = "Native combined 雪\n\n# literal approved\nDetails"
+    squashReopened.amendMessage = approved; squashReopened.request("continue"); try await settle(squashReopened)
+    precondition(squashReopened.finished && !squashReopened.active)
+    let combined = try await repo.rebaseCommit("HEAD")
+    precondition(combined.author == squashCommits[0].author && combined.email == squashCommits[0].email && combined.date == squashCommits[1].date)
+    let approvedText = try await repo.run(["log", "-1", "--format=%B"]).text
+    precondition(approvedText == approved + "\n")
+    print("Actual native squash: Advanced SquashDate captured, editor pause without error alert, original selected identity, reopened Cherry Pick/multiline editor, exact Unicode/comment message approval, first author/latest date and Continue passed.")
 
 
 

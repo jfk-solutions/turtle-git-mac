@@ -102,6 +102,7 @@ import TurtleGitCore
     var canStart: Bool { editable && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first(where: { $0.action != .skip })?.action != .squash }
     var status: String {
         if finished { return completion }
+        if state?.squashMessage != nil { return "Edit the combined commit message, then Continue." }
         if active { return "Step \(state?.currentStep ?? 0) of \(state?.total ?? 0) • \(state?.conflicts.count ?? 0) unresolved paths" }
         if plan == nil { return "Choose valid branch and upstream revisions before starting." }
         switch plan?.disposition {
@@ -123,16 +124,19 @@ import TurtleGitCore
             do {
                 try requireAccess()
                 references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil; draftEntries = []
-                if active { options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
+                if active { options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
                 finished = false; plan = nil; recovered = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
                 if let cherryPick {
                     plan = try await repository.cherryPickPlan(revisions: cherryPick)
                     options = plan!.options
                     options.addCherryPickedFrom = UserDefaults.standard.bool(forKey: "CherrypickAddCherryPickedFrom")
                     updateAttribution()
+                    options.squashDate = RebaseSquashDate(rawValue: UserDefaults.standard.integer(forKey: "SquashDate")) ?? .first
+                    plan?.options.squashDate = options.squashDate
                     onModeChanged(); selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit(); return
                 }
                 onModeChanged()
+                options.squashDate = RebaseSquashDate(rawValue: UserDefaults.standard.integer(forKey: "SquashDate")) ?? .first
                 let branch = try await repository.branch(); options.branch = branch.isEmpty ? "HEAD" : "refs/heads/" + branch
                 let defaults = try await repository.pullDefaults()
                 options.upstream = upstream ?? (defaults.trackedRemote.isEmpty || defaults.trackedBranch.isEmpty ? "" : "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch)
@@ -263,7 +267,7 @@ import TurtleGitCore
         guard !busy else { return }; busy = true
         Task {
             defer { busy = false; loadPendingHandoff() }
-            do { let wasActive = active; state = try await repository.rebaseState(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.message ?? ""; selectCommit() } else if wasActive { finished = true; completion = "\(operationTitle) session ended" }; onChanged() }
+            do { let wasActive = active; state = try await repository.rebaseState(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil { tab = 1 }; selectCommit() } else if wasActive { finished = true; completion = "\(operationTitle) session ended" }; onChanged() }
             catch { self.error = error.localizedDescription }
         }
     }
@@ -286,17 +290,18 @@ import TurtleGitCore
                 case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; result = try await repository.startRebase(snapshot, editorExecutable: executable)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
-                default: result = try await repository.continueRebase()
+                default: result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage)
                 }
                 output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
-                if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
-                if result.exitCode != 0 { error = result.output }
+                if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
+                if result.state.squashMessage != nil { tab = 1 }
+                else if result.exitCode != 0 { error = result.output }
                 onChanged()
             } catch { self.error = error.localizedDescription }
         }
     }
     func amend() {
-        guard active, !busy else { return }; busy = true; let text = amendMessage
+        guard active, !busy, state?.squashMessage == nil else { return }; busy = true; let text = amendMessage
         Task { defer { busy = false; loadPendingHandoff() }; do { try requireAccess(); output += try await repository.amendRebaseCommit(message: text); onChanged() } catch { self.error = error.localizedDescription } }
     }
 
@@ -357,13 +362,21 @@ struct RebaseDialog: View {
                         TableColumn("Lines added") { file in Text(file.added.map(String.init) ?? "–") }.width(85)
                         TableColumn("Lines removed") { file in Text(file.removed.map(String.init) ?? "–") }.width(95)
                     }.tabItem { Text("Revision Files") }.tag(0)
-                    ScrollView { Text(model.message).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) }.tabItem { Text("Commit Message") }.tag(1)
+                    Group {
+                        if let squash = model.state?.squashMessage {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Combined commit message:")
+                                TextEditor(text: $model.amendMessage).font(.system(.body, design: .monospaced)).accessibilityLabel("Combined commit message")
+                                Text("Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption)
+                            }.padding(8)
+                        } else { ScrollView { Text(model.message).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }
+                    }.tabItem { Text("Commit Message") }.tag(1)
                     OutputView(text: model.output).tabItem { Text("Progress") }.tag(2)
                 }.frame(minHeight: 150)
             }
             if model.active {
                 HStack { Button("Open Working Tree") { model.onShowStatus() }; Button("Refresh State") { model.refreshState() }; Spacer(); Button("Skip") { model.request("skip") } }
-                HStack { Text("Edit commit message:"); TextField("Commit message", text: $model.amendMessage); Button("Amend") { model.amend() }.disabled(model.amendMessage.isEmpty || model.state?.conflicts.isEmpty != true) }
+                if model.state?.squashMessage == nil { HStack { Text("Edit commit message:"); TextField("Commit message", text: $model.amendMessage); Button("Amend") { model.amend() }.disabled(model.amendMessage.isEmpty || model.state?.conflicts.isEmpty != true) } }
             }
             if model.busy { ProgressView().progressViewStyle(.linear) }
             else { ProgressView(value: model.finished ? 1 : Double(model.state?.currentStep ?? 0), total: model.finished ? 1 : Double(max(model.state?.total ?? 1, 1))) }

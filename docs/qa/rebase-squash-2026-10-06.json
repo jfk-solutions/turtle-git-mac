@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "d9ceb90",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native squash message approval, durable replay recovery and captured first/latest/current author dates",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "f7f2608a0aa75b92f897e4fd6d403b91c44ec4b8ace316895ce33927ba8656c6",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "2378f434983fe21ed5bf78c9eb9e3f3bc39ca2d06fc6d3f43d324d3faf5c70de",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "df09e98b1e8f581368e7f789f2fccee56005604e5a810b3de0bd75b4264963a7",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "2ab535fa44389f89b546c320df1afa4fdabf37fee1d2dc8b9878dda00ca51b26",
+    "README.md": "dd0078e496ee36b2c5b8c4250d4073a76e06671074695c9fe1c2b615151e1a5c",
+    "docs/REBASE-PARITY.md": "8456ae8f4502184ccc06d27e1e482c433723dfea17177a6274c1ef2239f9db9a",
+    "docs/CHERRY-PICK-PARITY.md": "61180b45e319f19dac93773a8d3f1e030715319becc23f77ee2ef16e4d15c225",
+    "docs/CHERRY-PICK.md": "706c1dc3b2991e43503703854b47403743a41945b6b5158afadeeda4160678de",
+    "docs/REBASE-SQUASH.md": "a9080ee9e81263fb9ec55f022f1be64adc7bca98e8afc96eab66e9c2841b8a27",
+    "docs/site/index.html": "8c230e361725e3a959c3fc5fc6364dbb0b789d82c81b5f5236f9da8c66c0f67b"
+  },
+  "all_native_sources_manifest_sha256": "55d5d29ab26c9c9a7c693e82ef53a67de7609f032222857700aa4860e08863ca",
+  "verification": {
+    "focused_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 27,
+      "failures": 0,
+      "coverage": [
+        "Originally-empty and already-applied patch recovery retained",
+        "First/latest/current squash author dates and first-author/email/tree preservation",
+        "Default combined messages and verbatim Unicode/comment approval",
+        "Reopening and blank/no-approval rejection with unchanged HEAD",
+        "Conflict then squash pause and Abort restoration",
+        "Linked-worktree Cherry Pick metadata isolation",
+        "Two separate group approvals with earlier amended Edit message",
+        "Pre-commit hook failure retains attempted draft and HEAD; reopening/retry succeeds",
+        "Skip cannot expose stale squash request at later Edit step"
+      ]
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Advanced SquashDate preference captured in selected-commit plan",
+        "Pending message selects Commit Message tab without expected editor-failure alert",
+        "Original stopped commit identity remains selected",
+        "Reopened operation recovers Cherry Pick mode, text and tab",
+        "Actual editable NSTextView hosted in native multiline editor",
+        "Continue approves exact Unicode/comment text with first author and latest author date"
+      ],
+      "regressions": "Existing Log handoff, multirow keyboard/reorder, Add/draft/repeated identity, mainline/Edit/reopening/Continue and empty-patch Skip checks remain passing",
+      "limits": "Hidden hosted views and injected operations; no displayed gestures/focus/accessibility or signed sandbox execution"
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; both exact NOTICE cmp passed",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "tests": "72e480f65dda24d8b7f595c3c8310638daa3c3f10f69933c6dc182cf75f1cec3",
+    "native": "b2431c9cb47996e03eefc364ff21c3616e64d07c68101c09918fcae8bb2f92a9",
+    "debug": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Displayed layout, editor gestures, focus and accessibility",
+    "Signed sandbox execution and signing/authentication prompts",
+    "Empty combined-commit choices and Split",
+    "Complete TortoiseGit parity",
+    "Hosted GitHub CI/publication"
+  ],
+  "next_finding": {
+    "issue": "Rebase Edit remains a single-line amend field and lacks upstream Split Commit handoff into full Commit selection. Implement multiline Edit and the full splitting workflow, preserving replay recovery rather than providing only a reset button.",
+    "sources": [
+      "Sources/TurtleGitMac/RebaseWindow.swift: active Edit/Amend field",
+      "src/TortoiseProc/RebaseDlg.cpp: canSplitCommit and m_bSplitCommit Commit dialog loop"
+    ]
+  },
+  "processes": "No main app launched; hidden receiver windows closed; receivers exited; final app/receiver audit empty"
+}
