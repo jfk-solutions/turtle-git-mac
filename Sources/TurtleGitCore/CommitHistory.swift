@@ -25,6 +25,86 @@ public struct HistorySearchFields: OptionSet, Sendable {
     public static let paths = Self(rawValue: 1 << 8)
 }
 
+/// Plain-text query rules ported from upstream FilterHelper.cpp (GPL-2.0-or-later).
+/// Conditions operate on the combined selected-field text, not each field alone.
+struct HistoryTextQuery {
+    private enum Prefix { case and, andNot, or }
+    private struct Condition { var text: String; var prefix: Prefix; var nextOr = 0 }
+    private var conditions: [Condition] = []
+    private let negated: Bool
+    private let caseSensitive: Bool
+    var isActive: Bool { !conditions.isEmpty }
+    var simpleLiteral: String? {
+        guard !negated, conditions.count == 1, conditions[0].prefix == .and else { return nil }
+        return conditions[0].text
+    }
+    init(_ query: String, caseSensitive: Bool) {
+        self.caseSensitive = caseSensitive
+        var units = Array(query.utf16)
+        negated = units.first == 33
+        if negated { units.removeFirst() }
+        var index = 0
+        func add(_ token: [UInt16], _ prefix: Prefix) {
+            guard !token.isEmpty else { return }
+            let text = String(decoding: token, as: UTF16.self)
+            conditions.append(Condition(text: caseSensitive ? text : text.lowercased(), prefix: prefix))
+            let position = conditions.count - 1
+            if prefix == .or, position > 0 {
+                for previous in stride(from: position - 1, through: 0, by: -1) {
+                    if conditions[previous].nextOr > 0 { break }
+                    conditions[previous].nextOr = position
+                }
+            }
+        }
+        while index < units.count {
+            while index < units.count && units[index] == 32 { index += 1 }
+            var prefix = Prefix.and
+            if index < units.count {
+                if units[index] == 45 { prefix = .andNot; index += 1 }
+                else if units[index] == 43 { prefix = .or; index += 1 }
+            }
+            if index < units.count && units[index] == 34 {
+                var token: [UInt16] = []
+                while true {
+                    index += 1
+                    guard index < units.count else { break }
+                    if units[index] == 34 {
+                        index += 1
+                        if index < units.count && units[index] == 34 { token.append(34) }
+                        else if index >= units.count || units[index] == 32 { break }
+                        else { token += [34, units[index]] }
+                    } else { token.append(units[index]) }
+                }
+                add(token, prefix); index += 1
+            }
+            // Upstream also tokenizes the word immediately after a quoted term
+            // with the same prefix (rather than restarting prefix detection).
+            while index < units.count && units[index] == 32 { index += 1 }
+            guard index < units.count else { break }
+            let start = index
+            while index < units.count && units[index] != 32 { index += 1 }
+            add(Array(units[start..<index]), prefix)
+        }
+    }
+    func matches(_ value: String) -> Bool {
+        if !isActive { return !negated }
+        let text = caseSensitive ? value : value.lowercased()
+        if text.isEmpty { return negated }
+        var current = true, index = 0
+        while index < conditions.count {
+            let condition = conditions[index]
+            var found = text.contains(condition.text)
+            if condition.prefix == .andNot { found.toggle() }
+            if condition.prefix == .or { current = current || found; found = current }
+            if !found {
+                guard condition.nextOr > 0 else { return negated }
+                current = false; index = condition.nextOr
+            } else { index += 1 }
+        }
+        return !negated
+    }
+}
+
 public struct HistoryOptions: Sendable {
     public var allBranches = false
     public var endRevision: String?
@@ -172,8 +252,9 @@ extension GitRepository {
             catch let failure as GitFailure where failure.code == 1 { return [] }
         }
         let filtering = !options.search.isEmpty
-        let filterInMemory = filtering && options.searchFields != .messages
-        if filtering && options.searchFields.isEmpty { return [] }
+        let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
+        // Git fixed-string grep is equivalent only for one positive message term.
+        let filterInMemory = filtering && (options.searchFields != .messages || query.simpleLiteral == nil)
         var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00"]
         if !filterInMemory { args.append("-\(options.limit)") }
         if let revision = options.endRevision {
@@ -183,7 +264,7 @@ extension GitRepository {
         if filtering && !filterInMemory {
             args.append("--fixed-strings")
             if !options.searchCaseSensitive { args.append("--regexp-ignore-case") }
-            args.append("--grep=" + options.search)
+            args.append("--grep=" + (query.simpleLiteral ?? options.search))
         }
         if let since = options.since { args.append("--since=@\(Int(since.timeIntervalSince1970))") }
         if let until = options.until { args.append("--until=@\(Int(until.timeIntervalSince1970))") }
@@ -255,19 +336,22 @@ extension GitRepository {
             record += 9
             if filterInMemory {
                 var searchable: [String] = []
-                if options.searchFields.contains(.paths) { searchable += try changedPaths(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), parents: fields[1].split(separator: " ").map(String.init)) }
-                if options.searchFields.contains(.tagInfo) { searchable.append(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
-                if options.searchFields.contains(.notes) { searchable.append(try notes(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
-                if options.searchFields.contains(.subject) { searchable.append(fields[5]) }
-                if options.searchFields.contains(.messages) { searchable.append(fields[6]) }
+                if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(fields[5]) }
+                if options.searchFields.contains(.messages) {
+                    let message = fields[6]
+                    searchable.append(message.firstIndex(of: "\n").map { String(message[message.index(after: $0)...]) } ?? "")
+                }
                 if options.searchFields.contains(.authors) { searchable += [fields[2], fields[7]] }
                 if options.searchFields.contains(.emails) { searchable += [fields[3], fields[8]] }
                 if options.searchFields.contains(.revisions) { searchable.append(fields[0].trimmingCharacters(in: .newlines)) }
+                if options.searchFields.contains(.notes) { searchable.append(try notes(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
                 if options.searchFields.contains(.referenceNames) {
                     let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
                     searchable += (references[hash] ?? []).map(\.name) + (peeledReferenceNames[hash] ?? [])
                 }
-                guard searchable.contains(where: { $0.range(of: options.search, options: options.searchCaseSensitive ? [] : .caseInsensitive) != nil }) else { continue }
+                if options.searchFields.contains(.tagInfo) { searchable.append(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
+                if options.searchFields.contains(.paths) { searchable += try changedPaths(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), parents: fields[1].split(separator: " ").map(String.init)) }
+                guard query.matches(searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n") else { continue }
             }
             let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !hash.isEmpty else { continue }

@@ -64,22 +64,49 @@ Per-commit/per-parent Git diff reads remain a performance gap; batched loading a
 streaming remain unfinished. See [the Paths record](qa/log-path-search-2026-10-06.json).
 The menu also offers the upstream Case-sensitive toggle, default off. It applies
 to every selected field and is saved under FilterCaseSensitively for subsequent
-Log windows. Names, emails and revision IDs use literal matching; message-only
-search keeps Git's fixed-string matching with the chosen case mode. Empty search shows
-unfiltered history regardless of field selection; a nonempty search with no fields
-returns no matches. Search/Return preserves the selected field set. Existing date, path, branch and pinned-end-revision scopes
+Log windows. Plain text uses the upstream term query rules described below; a single positive
+message term keeps Git's fixed-string matching with the chosen case mode. Empty search shows
+unfiltered history regardless of field selection; an active positive query with no fields returns no matches; an inverted query
+can match that empty selected-field text. Search/Return preserves the selected field set. Existing date, path, branch and pinned-end-revision scopes
 still apply.
 
 Non-message searches walk the scoped history before applying the result limit,
 so Load more counts matching commits and older matches remain discoverable.
 This currently materializes the scoped log output in memory; incremental filtering
-for large histories remain unfinished. The existing message-only
-search still uses Git's result limit. Returned rows now retain committer name/email
+for large histories remain unfinished. A single positive message term still uses Git's result limit; compound queries
+are filtered before the matching-result limit. Returned rows now retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
-regex options, multi-term/exclusion query syntax, bug IDs and the complete
+regex options, bug IDs and the complete
 upstream default field set remain pending. This is partial upstream filter parity; see
 [the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up
 checks are recorded [separately](qa/log-search-case-2026-10-06.json).
+
+## Plain-text query rules
+
+Ordinary Log search now ports the pinned `FilterHelper.cpp` substring parser and
+matching algorithm: space-separated terms are required, `-term` excludes,
+`+term` starts an alternative and a leading `!` inverts the result. Double quotes
+keep a phrase together, doubled quotes retain one quote, and unterminated quoted
+text stays a term. Only ASCII spaces separate tokens; tabs/newlines inside a term
+remain literal. Terms can match across different selected fields because matching
+uses their combined text, preserving the upstream field order. Subject and body
+are assembled separately. Case mode applies to the whole query.
+
+The port retains the source's less obvious rules: the ordinary word immediately
+after a quoted phrase is parsed with that phrase's prefix, including literal
+`-`/`+` characters; an inactive space-only query shows all rows, while a lone `!`
+hides all rows. Inversion also applies to an empty selected-field text. Native
+Unicode lowercasing uses Swift rather than the Windows locale implementation;
+Windows-locale edge-case equivalence remains unverified. Old/current path names
+remain separate searchable lines; upstream cached `path|oldPath` concatenation
+and highlighting remain pending.
+
+The search field now describes term syntax in its tooltip. Single positive
+message terms retain Git grep's bounded fast path. Compound/inverted and
+multi-field queries walk the scoped history and apply the result limit after
+matching, so older qualifying commits remain discoverable. Regex mode, bug IDs,
+match highlighting, incremental loading and native displayed search acceptance
+remain unfinished. See [the query record](qa/log-query-2026-10-06.json).
 
 ## History-load cancellation
 

@@ -558,7 +558,7 @@ struct LogDialog: View {
                         model.setSearchCaseSensitive(enabled)
                     }))
                 } label: { CommandLabel(title: "Search in", icon: .log) }.disabled(model.busy)
-                TextField("Search log", text: $model.search).textFieldStyle(.roundedBorder).onSubmit { model.reload() }
+                TextField("Search log", text: $model.search).textFieldStyle(.roundedBorder).help("Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert the filter.").onSubmit { model.reload() }
                 Button("Search") { model.reload() }.disabled(model.busy)
             }.font(.system(size: 12))
             VSplitView {

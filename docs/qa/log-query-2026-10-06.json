@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-06",
+  "scope": "Pinned upstream plain-text Log query rules; full application parity remains incomplete",
+  "baseCommit": "190b0d790d87c2fb32b06fd06a9ba5d543de059f",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "FilterHelper substring parser and AND/AND-NOT/OR skip rules, leading inversion, quoted/doubled/unterminated quotes and ASCII-space token separation",
+    "Selected-field combined text in upstream order with separately assembled subject/body; terms may match across fields; empty/inactive/inverted queries retained",
+    "Single positive message term uses bounded Git fixed-string grep; compound and multi-field queries match before result limit",
+    "Native search tooltip documents term syntax"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 16,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final source. Added direct source-rule cases and real-repository required/excluded/alternative/quoted/inverted/case/empty-field queries, older match before limit and terms spanning authors/messages. Previous notes/tags/paths/refs and cancellation regressions pass."
+    },
+    "nativeAcceptance": "Compiled tooltip and search integration; actual displayed search/tooltip gestures unverified.",
+    "fullRegression": {
+      "count": 505,
+      "failures": 0,
+      "scope": "Full Swift test suite on final source snapshot passed."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "52a6bd4c016ff468aed26dab1ff10c1678d9d082c223fd068e952b58cf93c146",
+    "Sources/TurtleGitMac/LogWindow.swift": "97b1c065a239d8e9e5da2449d6811816e56a76cdaba192ffe7a016b2f471556f",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "18dacb08c5f05236e01b4a2853a65d915d41d586877114b8b9a6b6d5300d44c3",
+    ".upstream/TortoiseGit/src/TortoiseProc/FilterHelper.cpp": "41214ea363440103915298e2258160cca3feab15cf35848a77797e963126cbed",
+    ".upstream/TortoiseGit/src/TortoiseProc/LogDlgFilter.cpp": "4ce97a313f33dc8588c40d05ef1ce14b170f11436aa491c9a51eb02bb4d528c0"
+  },
+  "pending": [
+    "Regex mode and regex validation/fallback",
+    "Bug ID query field and match highlighting",
+    "Windows locale lowercasing edge cases",
+    "Cached path|oldPath concatenation and streamed filtering",
+    "Native displayed search and signed App Store acceptance",
+    "Remaining dialog/Finder and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-query-tests.log",
+      "sha256": "ebb860c471be162d294360e6aa9e559f092c608f03a4f4064983352d89829e6f"
+    },
+    "full-tests": {
+      "path": "/tmp/turtlegit-log-query-full-tests.log",
+      "sha256": "e27f0950f064267b7c48806e2b8e348fe09a70c78b09bf1c0b826f61ca443703"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-query-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-query-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-query-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-query-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-query-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

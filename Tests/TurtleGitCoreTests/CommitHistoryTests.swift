@@ -320,6 +320,61 @@ final class CommitHistoryTests: XCTestCase {
         options.paths = []; options.search = original; options.endRevision = first.hash
         found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
     }
+    func testPlainQueryRulesFromUpstreamFilterHelper() {
+        let cases: [(String, String, Bool)] = [
+            ("red fox", "fox and RED", true), ("red fox", "red only", false),
+            ("red -blocked", "red open", true), ("red -blocked", "red blocked", false),
+            ("red +blue", "blue", true), ("red +blue", "green", false),
+            ("red +blue fox", "red fox", true), ("red +blue fox", "blue", false),
+            ("red -blocked +blue fox", "blue fox", true),
+            ("!red", "blue", true), ("!red", "red", false),
+            ("!", "anything", false), ("   ", "", true),
+            ("\"red fox\"", "red fox", true), ("\"red fox\"", "red slow fox", false),
+            ("\"a\"\"b\"", "a\"b", true), ("\"unterminated", "unterminated", true),
+            ("red\tfox", "red fox", false), ("red\tfox", "red\tfox", true),
+            ("-blocked", "clear", true), ("-blocked", "", false),
+            ("\"red fox\" -blocked", "red fox clear", false),
+            ("\"red fox\" -blocked", "red fox -blocked", true)
+        ]
+        for (query, text, expected) in cases {
+            XCTAssertEqual(HistoryTextQuery(query, caseSensitive: false).matches(text), expected, query)
+        }
+        XCTAssertFalse(HistoryTextQuery("Red", caseSensitive: true).matches("red"))
+        XCTAssertTrue(HistoryTextQuery("雪", caseSensitive: true).matches("雪"))
+        XCTAssertTrue(HistoryTextQuery("!red", caseSensitive: false).matches(""))
+    }
+    func testRealPlainQueryCombinesFieldsExclusionsAlternativesNegationAndLimit() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Query Author"])
+        _ = try await repo.run(["config", "user.email", "query@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "red fox"])
+        let initial = try await repo.history(); let first = try XCTUnwrap(initial.first)
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "red blocked"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "blue fox"])
+        let all = try await repo.history()
+        var options = HistoryOptions(); options.limit = 1; options.search = "red -blocked"
+        var found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
+        options.limit = 10; options.search = "red +blue fox"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [all[0].hash, first.hash])
+        options.search = "!red"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [all[0].hash])
+        options.search = "\"red fox\""
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
+        options.searchFields = [.messages, .authors]; options.search = "fox author"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [all[0].hash, first.hash])
+        options.searchCaseSensitive = true; options.search = "fox AUTHOR"
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchFields = []; options.search = "!red"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), all.map(\.hash))
+        options.search = "red"; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchFields = .messages; options.search = "!"
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+    }
     func testHistoryCancellationStopsOwnedPathReadAndLeavesOtherReaderAndIndexIntact() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
