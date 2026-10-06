@@ -11,11 +11,21 @@ public struct RevisionReference: Hashable, Sendable {
     }
 }
 
+public struct HistorySearchFields: OptionSet, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let messages = Self(rawValue: 1 << 0)
+    public static let authors = Self(rawValue: 1 << 1)
+    public static let emails = Self(rawValue: 1 << 2)
+    public static let revisions = Self(rawValue: 1 << 3)
+}
+
 public struct HistoryOptions: Sendable {
     public var allBranches = false
     public var endRevision: String?
     public var limit = 200
     public var search = ""
+    public var searchFields: HistorySearchFields = .messages
     public var path: String?
     public var paths: [String] = []
     public var since: Date?
@@ -145,23 +155,48 @@ public enum CommitGraph {
 
 extension GitRepository {
     public func history(options: HistoryOptions = HistoryOptions()) throws -> [LogEntry] {
+        if options.limit == 0 { return [] }
         // An unborn HEAD is valid; --all may still have commits in other branches.
         if !options.allBranches && options.endRevision == nil {
             do { _ = try run(["rev-parse", "--verify", "--quiet", "HEAD"]) }
             catch let failure as GitFailure where failure.code == 1 { return [] }
         }
-        var args = ["log", "--topo-order", "-\(options.limit)", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00"]
+        let filtering = !options.search.isEmpty
+        let filterInMemory = filtering && options.searchFields != .messages
+        if filtering && options.searchFields.isEmpty { return [] }
+        var args = ["log", "--topo-order", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00"]
+        if !filterInMemory { args.append("-\(options.limit)") }
         if let revision = options.endRevision {
             let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
             args.append(hash)
         } else if options.allBranches { args.append("--all") }
-        if !options.search.isEmpty { args += ["--fixed-strings", "--regexp-ignore-case", "--grep=" + options.search] }
+        if filtering && !filterInMemory { args += ["--fixed-strings", "--regexp-ignore-case", "--grep=" + options.search] }
         if let since = options.since { args.append("--since=@\(Int(since.timeIntervalSince1970))") }
         if let until = options.until { args.append("--until=@\(Int(until.timeIntervalSince1970))") }
         args.append("--")
         if let path = options.path, !path.isEmpty { args.append(path) }
         args += options.paths
-        var entries = LogEntry.parseHistory(try run(args).stdout)
+        let fieldsInHistory = String(decoding: try run(args).stdout, as: UTF8.self).components(separatedBy: "\0")
+        var entries: [LogEntry] = []
+        var record = 0
+        while record + 8 < fieldsInHistory.count {
+            let fields = Array(fieldsInHistory[record..<(record + 9)])
+            record += 9
+            if filterInMemory {
+                var searchable: [String] = []
+                if options.searchFields.contains(.messages) { searchable.append(fields[6]) }
+                if options.searchFields.contains(.authors) { searchable += [fields[2], fields[7]] }
+                if options.searchFields.contains(.emails) { searchable += [fields[3], fields[8]] }
+                if options.searchFields.contains(.revisions) { searchable.append(fields[0].trimmingCharacters(in: .newlines)) }
+                guard searchable.contains(where: { $0.range(of: options.search, options: .caseInsensitive) != nil }) else { continue }
+            }
+            let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !hash.isEmpty else { continue }
+            entries.append(LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
+                parents: fields[1].split(separator: " ").map(String.init), email: fields[3], message: fields[6],
+                committer: fields[7], committerEmail: fields[8]))
+            if filtering && options.limit > 0 && entries.count >= options.limit { break }
+        }
         let refs = try run(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).stdout
         let fields = String(decoding: refs, as: UTF8.self).components(separatedBy: "\0")
         var references: [String: [RevisionReference]] = [:]

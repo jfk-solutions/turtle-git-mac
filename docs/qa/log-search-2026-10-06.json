@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-06",
+  "scope": "Selectable Log message/author/committer/email/revision search fields; full port remains incomplete",
+  "baseCommit": "d0a9442a2b9d2c99d66aaafebcf1182f0c124be8",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/LogDlg.cpp filter popup: independently selected search fields",
+    "src/TortoiseProc/LogDlgFilter.cpp: Authors includes author/committer names, Emails includes both identities, revision hash and message fields"
+  ],
+  "implemented": [
+    "Native Search in menu with independently selected Messages, Authors, Emails, Revisions fields; changes reload the list",
+    "Case-insensitive literal identity/revision matching; selected fields match by OR; empty query unfiltered and empty field set with query has no matches",
+    "Scoped history is filtered before positive result limit for identity/multi-field searches, retaining older matches; existing date/path/all-branch/end-revision scope preserved",
+    "Message-only search retains fixed-string Git grep/limit; history rows now retain committer name/email; zero limit returns no rows"
+  ],
+  "verification": {
+    "initialFullRegression": {
+      "count": 495,
+      "failures": 0,
+      "scope": "Initial search implementation before final message-only fast path, committer metadata retention, zero-limit guard and new regression case. This is not a full-suite verification of the final snapshot."
+    },
+    "finalFocusedRegression": {
+      "count": 7,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final code, including real Git older author/committer match beyond limit, distinct author/committer names/emails, literal punctuation and Unicode, OR combination with message-only match, revision prefix/case, empty field set/query, zero limit, path and pinned-end-revision scope, prior details/refs/filtering/merge/clipboard cases."
+    },
+    "builds": [
+      "Final Debug unsigned passed",
+      "Final AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both final validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "nativeAcceptance": "Search menu/model wiring compiled in both configurations. No displayed windows, native gesture acceptance or screenshots were obtained.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "59e62fdaebabb5bc267dc8e8b7a95a79effe58b63d1f823b78c9062da75bf650",
+    "Sources/TurtleGitMac/LogWindow.swift": "39f647175eacc38dee8c507ea319f945463c8e10561493572390ffb0b19f9cd1",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "6c39b680c84e1637028b7f2c60a811551d246bb4375b277bcc93c5c5794766a6"
+  },
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-search-tests.log",
+      "sha256": "cbe883f12eab001f38a4314270d8faffd8a9d8849a1345cc40d244e1db945ce4"
+    },
+    "focused": {
+      "path": "/tmp/turtlegit-log-search-focused.log",
+      "sha256": "6640fa2b41816b261dd34a68cddf779cf7fa8187dd7a2ed3a1d9cd26c3f0e6ac"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-search-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-search-store.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-search-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-search-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-search-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Subject-only/notes/bug IDs/refs/annotated tags, regex/case-sensitive and advanced multi-term/exclusion query syntax",
+    "Persisted field preferences and full upstream default field set",
+    "Incremental filtering/cancellation instead of materializing scoped log output for non-message searches",
+    "Displayed menu/layout/light/dark and signed grant acceptance",
+    "Full application parity and GitHub execution of local changes"
+  ]
+}

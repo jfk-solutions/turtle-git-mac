@@ -100,6 +100,44 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertNil(files[1].added)
         XCTAssertEqual(files[2].added, 3)
     }
+    func testHistorySearchFieldsMatchAuthorAndCommitterBeforeLimit() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Integrator [雪]"])
+        _ = try await repo.run(["config", "user.email", "integrator@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        try Data("old\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.run(["commit", "--author=Contributor <contributor@example.invalid>", "-m", "Literal [needle]\n\nBody only token"])
+        let oldHistory = try await repo.history(), older = try XCTUnwrap(oldHistory.first)
+        XCTAssertEqual(older.committer, "Integrator [雪]")
+        XCTAssertEqual(older.committerEmail, "integrator@example.invalid")
+        _ = try await repo.run(["config", "user.name", "Recent"])
+        _ = try await repo.run(["config", "user.email", "recent@example.invalid"])
+        try Data("new\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "contributor@example.invalid is mentioned")
+        var options = HistoryOptions(); options.limit = 1; options.search = "CONTRIBUTOR"; options.searchFields = .authors
+        var found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.search = "[雪]"; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.search = "INTEGRATOR@"; options.searchFields = .emails
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.search = "contributor@example.invalid"; options.searchFields = [.messages, .emails]; options.limit = 2
+        found = try await repo.history(options: options); XCTAssertEqual(found.count, 2); XCTAssertEqual(found.last?.hash, older.hash)
+        options.searchFields = .emails; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.searchFields = .revisions; options.search = String(older.hash.prefix(12)).uppercased()
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.searchFields = .messages; options.search = "[needle]"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.searchFields = []; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = ""; options.limit = 1; found = try await repo.history(options: options); XCTAssertEqual(found.count, 1)
+        options.search = "Contributor"; options.searchFields = .authors; options.paths = ["absent.txt"]
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.paths = []; options.limit = 0; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.limit = 1; options.endRevision = older.hash
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -57,7 +57,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Check for modifications | Native standalone Working Tree dialog; columns, scope/filters, statistics, dates, sorting, diff export and basic menus | Full menus, remote checks, progress/cancellation and persistent preferences; see STATUS-PARITY.md |
 | Add | Native scoped checked list, ignored defaults, direct-file progress route, original icons/watermark, tracked history/Blame/base, unified diff, two-file comparison and temporary restoration/Revert menus, cancellable private-index add and index-only executable/symlink post-actions | Full menus, native visual/gesture/signed acceptance; see ADD-PARITY.md |
 | Commit | Native checked-file dialog; optional three-state staging; amend, author, sign-off, statistics | Unsupported partial-stage file types, full history/completion, hooks UI, issue trackers, remaining action menu |
-| Log | Separate native three-pane window; graph, refs, message/files/line counts, search/date filters, load more, comparisons and revision actions | Working-tree row, actions column, branch/ref chooser, author search, walk/view controls, statistics, multi-revision file union, remaining context commands; see LOG-PARITY.md |
+| Log | Separate native three-pane window; graph, refs, message/files/line counts, selectable message/identity/revision search and date filters, load more, comparisons and revision actions | Working-tree row, actions column, branch/ref chooser, full search syntax/fields/preferences, walk/view controls, statistics, multi-revision file union, remaining context commands; see LOG-PARITY.md |
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |
 | Clone | Native Git/SSH/SVN option groups, URL/destination history and browsing, real Git clone tests, native shallow selected-branch/custom-origin clone and Log handoff | Full progress/cancellation, native picker/Cancel QA, authentication, real SVN/LFS runtimes, signed sandbox and bare clone adoption QA; see CLONE-PARITY.md |
 | Init | Native upstream Bare/text/buttons, .git default, destination warnings, real Git tests and normal/bare creation; bare workspace/Log | Picker confirmation, immediate adoption/recents, full bare menu behavior and signed integration; see INIT-PARITY.md |
@@ -113,7 +113,8 @@ Recent Add receiver checks and unsigned build/package results are recorded in
 [Add restoration copies](qa/add-restore-2026-10-06.json) and
 [Add Revert](qa/add-revert-2026-10-06.json) and
 [Revert progress table](qa/revert-table-2026-10-06.json) and
-[Add index flags](qa/add-flags-2026-10-06.json).
+[Add index flags](qa/add-flags-2026-10-06.json) and
+[Log search fields](qa/log-search-2026-10-06.json).
 These checks do not establish full application parity, displayed-window acceptance,
 signed Finder activation or distribution readiness. Workflow-specific parity files
 record the remaining requirements.

@@ -10,6 +10,29 @@ The implementation target is the actual TortoiseGit Log Messages dialog and its
 selection-dependent context menus. Native macOS controls retain the three-pane
 arrangement and familiar command order. The initial sidebar log table was removed.
 
+## Search fields
+
+The search row now has a native Search in menu with independent Messages,
+Authors, Emails and Revisions checkboxes. Authors includes both author and
+committer names; Emails includes both identities. Multiple fields match by OR.
+Names, emails and revision IDs use case-insensitive literal matching; message-only
+search keeps Git's fixed-string, case-insensitive matching. Empty search shows
+unfiltered history regardless of field selection; a nonempty search with no fields
+returns no matches. Changing a field reloads the list, and Search/Return preserves
+the selected field set. Existing date, path, branch and pinned-end-revision scopes
+still apply.
+
+Non-message searches walk the scoped history before applying the result limit,
+so Load more counts matching commits and older matches remain discoverable.
+This currently materializes the scoped log output in memory; incremental filtering
+and cancellation for large histories remain unfinished. The existing message-only
+search still uses Git's result limit. Returned rows now retain committer name/email
+metadata as well as author identity. The native Search in layout and interaction,
+regex/case-sensitive options, multi-term/exclusion query syntax, subject-only,
+notes, bug IDs, refs, annotated-tag fields and persistent field preferences remain
+pending. This is partial upstream filter parity; see
+[the verification record](qa/log-search-2026-10-06.json).
+
 ## Specification
 
 Audited baseline: `7338078f8ddd924b8cddee35f512f2286072136d`.
