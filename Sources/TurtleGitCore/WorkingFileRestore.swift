@@ -5,7 +5,7 @@ public enum WorkingFileRestoreFailure: LocalizedError {
     case selection, location, changed, unsupported
     public var errorDescription: String? {
         switch self {
-        case .selection: return "Select existing versioned files to mark for restoration."
+        case .selection: return "Select existing files to mark for restoration."
         case .location: return "The saved copy belongs to another working tree or its destination is outside this working tree."
         case .changed: return "The file changed while its restoration copy was being created. Try again."
         case .unsupported: return "Only regular files and symbolic links can be saved or restored."
@@ -13,7 +13,7 @@ public enum WorkingFileRestoreFailure: LocalizedError {
     }
 }
 
-/// An immutable, disk-backed copy owned by a Commit dialog. It preserves binary
+/// An immutable, disk-backed copy owned by a status-list dialog. It preserves binary
 /// contents and symlink targets without reading the link's destination.
 public final class WorkingFileRestoreCopy: @unchecked Sendable {
     public let path: String
@@ -29,9 +29,10 @@ public final class WorkingFileRestoreCopy: @unchecked Sendable {
 }
 
 extension GitRepository {
-    public func captureWorkingFileRestoreCopy(path: String) throws -> WorkingFileRestoreCopy {
-        guard try trackedPaths().contains(path) else { throw WorkingFileRestoreFailure.selection }
+    public func captureWorkingFileRestoreCopy(path: String, allowUnversioned: Bool = false) throws -> WorkingFileRestoreCopy {
+        if !allowUnversioned { guard try trackedPaths().contains(path) else { throw WorkingFileRestoreFailure.selection } }
         let location = try restoreLocation(path)
+        if allowUnversioned { try validateRestoreOwner(location) }
         let manager = FileManager.default
         let before = try manager.attributesOfItem(atPath: location.path)
         let type = before[.type] as? FileAttributeType
@@ -58,6 +59,7 @@ extension GitRepository {
             let type = attributes[.type] as? FileAttributeType
             guard type == .typeRegular || type == .typeSymbolicLink else { throw WorkingFileRestoreFailure.unsupported }
         }
+        try validateRestoreOwner(location)
         let temporary = location.deletingLastPathComponent().appendingPathComponent(".TurtleGitRestore-" + UUID().uuidString)
         defer { try? manager.removeItem(at: temporary) }
         if let target = copy.linkTarget { try manager.createSymbolicLink(atPath: temporary.path, withDestinationPath: target) }
@@ -68,6 +70,11 @@ extension GitRepository {
         guard Darwin.rename(temporary.path, location.path) == 0 else {
             throw GitFailure(arguments: ["restore working copy"], code: 1, message: String(cString: strerror(errno)))
         }
+    }
+    private func validateRestoreOwner(_ location: URL) throws {
+        var owner = try run(["-C", location.deletingLastPathComponent().path, "rev-parse", "--show-toplevel"]).stdout
+        if owner.last == 10 { owner.removeLast() }
+        guard URL(fileURLWithPath: String(decoding: owner, as: UTF8.self)).resolvingSymlinksInPath().path == root.resolvingSymlinksInPath().path else { throw WorkingFileRestoreFailure.location }
     }
     func restoreLocation(_ path: String) throws -> URL {
         guard !path.isEmpty, !path.hasPrefix("/"), !path.contains("\0"),

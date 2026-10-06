@@ -27,6 +27,7 @@ private final class AddNativeWindow: NSWindow {
         model.close = { [weak window] in window?.close() }
         model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
         model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
+        model.onRestore = { [weak self] paths in self?.confirmRestore(paths) }
         model.onDelete = { [weak self] selected, permanently in self?.confirmDelete(selected, permanently: permanently) }
         model.onSave = { [weak self] path in self?.saveFile(path) }
         model.onExport = { [weak self] paths in self?.exportFiles(paths) }
@@ -77,6 +78,13 @@ private final class AddNativeWindow: NSWindow {
             ignoreController = controller; window.beginSheet(child)
         } catch { model.error = error.localizedDescription }
     }
+    private func confirmRestore(_ paths: [String]) {
+        guard let window, window.attachedSheet == nil, model.beginRestoreConfirmation(paths) else { return }
+        let alert = NSAlert(); alert.messageText = "Do you really want to restore the copy?"
+        alert.informativeText = "You will lose all changes that you have done after creating the copy."
+        alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Restore")
+        alert.beginSheetModal(for: window) { [weak model] response in _ = model?.finishRestoreConfirmation(accepted: response == .alertSecondButtonReturn) }
+    }
     private func openFile(_ path: String, action: AddFileOpenAction) {
         guard let window, !model.busy, !model.confirmingQuit, window.attachedSheet == nil else { return }
         let file = model.repository.root.appendingPathComponent(path)
@@ -97,7 +105,7 @@ private final class AddNativeWindow: NSWindow {
         } else if !NSWorkspace.shared.open(file) { model.error = "Could not open the file. Choose an application using Open With." }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.restoreCopies.removeAll(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class AddWindowModel: ObservableObject {
@@ -116,6 +124,10 @@ private final class AddNativeWindow: NSWindow {
     private var paths: [String] = ["."]
     private var loaded = false
     private(set) var ignoring = false
+    @Published var restoreCopies: [String: WorkingFileRestoreCopy] = [:]
+    private var pendingRestore: [String]?
+    var onRestore: ([String]) -> Void = { _ in }
+    var onRestoreChanged: () -> Void = {}
     private var pendingDelete: (selected: [StatusEntry], permanently: Bool)?
     private(set) var lastDeleteResult: WorkingFileDeleteResult?
     private var cancellation = OperationCancellation()
@@ -189,6 +201,52 @@ private final class AddNativeWindow: NSWindow {
             busy = false
         }
     }
+    @discardableResult func startMarkForRestore(_ paths: [String]) -> Task<Void, Never>? {
+        let files = paths.filter { path in entries.contains { $0.path == path && !$0.isDirectory } && restoreCopies[path] == nil }
+        guard !busy, !confirmingQuit, !files.isEmpty else { return nil }
+        busy = true; cancellation = OperationCancellation()
+        return Task {
+            defer { busy = false; if cancellation.isCancelled { close() }; cancellation = OperationCancellation() }
+            do {
+                try validateAccess()
+                var failures: [String] = []
+                for path in files {
+                    if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                    do { restoreCopies[path] = try await repository.captureWorkingFileRestoreCopy(path: path, allowUnversioned: true) }
+                    catch { failures.append(path + ": " + error.localizedDescription) }
+                }
+                if !failures.isEmpty { self.error = failures.joined(separator: "\n") }
+            } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
+    func beginRestoreConfirmation(_ paths: [String]) -> Bool {
+        guard !busy, !confirmingQuit, paths.contains(where: { restoreCopies[$0] != nil }) else { return false }
+        pendingRestore = paths; busy = true; return true
+    }
+    @discardableResult func finishRestoreConfirmation(accepted: Bool) -> Task<Void, Never>? {
+        guard let paths = pendingRestore else { return nil }; pendingRestore = nil
+        guard accepted else { busy = false; return nil }
+        cancellation = OperationCancellation()
+        return Task {
+            var changed = false
+            defer { busy = false; if cancellation.isCancelled { close() }; cancellation = OperationCancellation() }
+            do {
+                try validateAccess()
+                var failures: [String] = []
+                for path in paths {
+                    if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                    guard let copy = restoreCopies[path] else { continue }
+                    do { try await repository.restoreWorkingFile(copy); restoreCopies.removeValue(forKey: path); changed = true }
+                    catch { failures.append(path + ": " + error.localizedDescription) }
+                }
+                if !failures.isEmpty { self.error = failures.joined(separator: "\n") }
+            } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+            if changed {
+                onRestoreChanged()
+                do { try await read() } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+            }
+        }
+    }
     @discardableResult func startUnifiedDiff(paths: [String], alternate: Bool = false) -> Task<Void, Never>? {
         let marked = entries.first { $0.path == selectionMark && paths.contains($0.path) } ?? entries.first { $0.path == paths.first }
         guard !busy, !confirmingQuit, !unifiedViewerBusy(), hasHead, !paths.isEmpty,
@@ -239,7 +297,7 @@ private final class AddNativeWindow: NSWindow {
             if cancellation.isCancelled { close() }
         }
     }
-    func cancel() { guard !confirmingQuit, !ignoring, pendingDelete == nil else { return }; if busy { cancellation.cancel() } else { close() } }
+    func cancel() { guard !confirmingQuit, !ignoring, pendingDelete == nil, pendingRestore == nil else { return }; if busy { cancellation.cancel() } else { close() } }
     func apply() { guard canApply else { return }; onAccepted(entries.filter { checked.contains($0.path) }.map(\.path)); close() }
     func addDropped(_ urls: [URL]) -> Bool {
         guard !busy, !confirmingQuit, !urls.isEmpty else { return false }

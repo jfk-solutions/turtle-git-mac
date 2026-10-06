@@ -367,7 +367,53 @@ import TurtleGitCore
         precondition(!receiver.canCompareTwo)
         try FileManager.default.removeItem(at: folder.appendingPathComponent(nestedDirectory))
         precondition(!receiver.canCompareTwo)
-        print("Actual Add receiver: unified HEAD-to-working patch bytes and ordered multi-file scope, default/alternate captured viewer routing, unchanged index, unborn/untracked suppression, queued cancellation and viewer/quit guards; current-column clipboard without headings, named icon menu, stable column identity after reorder, marked-row capture, hidden-column/invalid-hit/quit guards and checkbox-to-Path mapping; disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        let restorePath = "restore-雪\n.bin", restoreOther = "restore-untracked.data"
+        let restoreOriginal = Data([0, 255, 13, 10, 65]), restoreLater = Data([0, 254, 66])
+        try Data("index bytes".utf8).write(to: folder.appendingPathComponent(restorePath)); try await repo.stage([restorePath])
+        try restoreOriginal.write(to: folder.appendingPathComponent(restorePath)); try restoreOriginal.write(to: folder.appendingPathComponent(restoreOther))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.appendingPathComponent(restorePath).path)
+        model.setScope([restorePath, restoreOther]); try await model.read(); model.highlighted = [restorePath, restoreOther]; model.selectionMark = restorePath; receiver.refresh()
+        receiver.menuNeedsUpdate(menu)
+        let restoreMenu = menu.items.first { $0.title == "Restore after commit" }!
+        precondition(receiver.canRestoreCopy && !restoreMenu.isHidden)
+        let restoreIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        receiver.restoreItem(); precondition(model.busy)
+        for _ in 0..<300 { if !model.busy { break }; try await Task.sleep(nanoseconds: 50_000_000) }
+        precondition(!model.busy && Set(model.restoreCopies.keys) == [restorePath, restoreOther])
+        receiver.menuNeedsUpdate(menu); precondition(restoreMenu.title == "Restore")
+        let restoreRowIndex = receiver.rows.firstIndex { $0.path == restorePath }!
+        let pathCell = receiver.tableView(receiver.table, viewFor: receiver.table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("path")), row: restoreRowIndex) as! NSTableCellView
+        precondition(pathCell.subviews.contains { $0.identifier?.rawValue == "restore-overlay" && ($0 as? NSImageView)?.image != nil })
+        precondition(model.startMarkForRestore([restorePath, restoreOther]) == nil)
+        try restoreLater.write(to: folder.appendingPathComponent(restorePath)); try restoreLater.write(to: folder.appendingPathComponent(restoreOther))
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: folder.appendingPathComponent(restorePath).path)
+        var restoreRequests: [[String]] = [], restoreChanges = 0
+        model.onRestore = { restoreRequests.append($0) }; model.onRestoreChanged = { restoreChanges += 1 }
+        receiver.restoreItem(); precondition(restoreRequests == [receiver.selectedRows.map(\.path)])
+        let restoreChecks = model.checked
+        precondition(model.beginRestoreConfirmation(restoreRequests[0]) && !model.canApply)
+        model.cancel(); precondition(model.busy)
+        await model.finishRestoreConfirmation(accepted: false)?.value
+        precondition(!model.busy && model.checked == restoreChecks && model.restoreCopies.count == 2)
+        let afterAbortBytes = try Data(contentsOf: folder.appendingPathComponent(restorePath)); precondition(afterAbortBytes == restoreLater)
+        model.confirmingQuit = true; receiver.restoreItem(); precondition(restoreRequests.count == 1 && model.startMarkForRestore([restorePath]) == nil && !model.beginRestoreConfirmation([restorePath])); model.confirmingQuit = false
+        precondition(model.beginRestoreConfirmation([restorePath])); let cancelledRestore = model.finishRestoreConfirmation(accepted: true); model.cancel(); await cancelledRestore?.value
+        let cancelledRestoreBytes = try Data(contentsOf: folder.appendingPathComponent(restorePath)); precondition(!model.busy && model.restoreCopies.count == 2 && cancelledRestoreBytes == restoreLater)
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(restorePath)); try FileManager.default.createDirectory(at: folder.appendingPathComponent(restorePath), withIntermediateDirectories: false)
+        precondition(model.beginRestoreConfirmation([restorePath, restoreOther])); await model.finishRestoreConfirmation(accepted: true)?.value
+        precondition(!model.busy && model.restoreCopies[restorePath] != nil && model.restoreCopies[restoreOther] == nil && restoreChanges == 1)
+        let restoredOtherBytes = try Data(contentsOf: folder.appendingPathComponent(restoreOther)); precondition(restoredOtherBytes == restoreOriginal)
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(restorePath)); try restoreLater.write(to: folder.appendingPathComponent(restorePath))
+        try await model.read(); model.highlighted = [restorePath]; model.selectionMark = restorePath; receiver.refresh()
+        precondition(model.beginRestoreConfirmation([restorePath])); await model.finishRestoreConfirmation(accepted: true)?.value
+        let restoredBytes = try Data(contentsOf: folder.appendingPathComponent(restorePath))
+        let restoredPermissions = try FileManager.default.attributesOfItem(atPath: folder.appendingPathComponent(restorePath).path)[.posixPermissions] as? Int
+        precondition(restoredBytes == restoreOriginal && restoredPermissions == 0o755 && model.restoreCopies.isEmpty && restoreChanges == 2)
+        let afterRestoreIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout; precondition(afterRestoreIndex == restoreIndex)
+        receiver.menuNeedsUpdate(menu); precondition(restoreMenu.title == "Restore after commit")
+        model.highlighted = [restoreOther]; model.selectionMark = restoreOther; receiver.refresh(); receiver.menuNeedsUpdate(menu)
+        precondition(!receiver.canRestoreCopy && restoreMenu.isHidden)
+        print("Actual Add receiver: source-shaped restoration mark/Restore menu and original overlay, ordered mixed versioned/untracked copy capture, no recapture, native confirmation request/Abort/quit/queued-cancel guards, partial directory-failure recovery, exact binary bytes/permissions and unchanged index; unified HEAD-to-working patch bytes and ordered multi-file scope, default/alternate captured viewer routing, unchanged index, unborn/untracked suppression, queued cancellation and viewer/quit guards; current-column clipboard without headings, named icon menu, stable column identity after reorder, marked-row capture, hidden-column/invalid-hit/quit guards and checkbox-to-Path mapping; disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''

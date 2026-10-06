@@ -48,7 +48,10 @@ preserving unrelated checks and the Git index. Delete now uses a native
 confirmation, recoverable Trash by default, and Shift for permanent deletion;
 stale selections are rejected before deletion. Save As and Export copy current
 working contents with binary bytes and relative folder layout preserved; the
-index is unchanged. Original translucent Add artwork now appears in both lists;
+index is unchanged. The shared Restore after commit command now saves temporary
+working copies, shows the original row overlay and offers confirmed restoration
+without changing staged contents. Copies last for the Add dialog's lifetime.
+Original translucent Add artwork now appears in both lists;
 progress follows the upstream Action/Path columns.
 [Add parity](docs/ADD-PARITY.md) records unfinished menus, post-actions and native QA.
 

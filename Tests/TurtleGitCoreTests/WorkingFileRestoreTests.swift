@@ -86,6 +86,29 @@ final class WorkingFileRestoreTests: XCTestCase {
         try await repo.restoreWorkingFile(copy)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("saved".utf8))
     }
+    func testExplicitMixedSelectionUnversionedCopyRetainsBytesAndRejectsChangedRepositoryOwner() async throws {
+        let (initial, _, _) = try await GitPatchTests().fixture()
+        let root = URL(fileURLWithPath: initial.path + "\n")
+        try FileManager.default.moveItem(at: initial, to: root)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root), path = "untracked 雪\n.bin"
+        let original = Data([0, 255, 13, 10]); try original.write(to: root.appendingPathComponent(path))
+        let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let copy = try await repo.captureWorkingFileRestoreCopy(path: path, allowUnversioned: true)
+        try Data("changed".utf8).write(to: root.appendingPathComponent(path)); try await repo.restoreWorkingFile(copy)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), original)
+        let after = try await repo.run(["ls-files", "--stage", "-z"]).stdout; XCTAssertEqual(after, index)
+        let nested = root.appendingPathComponent("nested", isDirectory: true)
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: false)
+        try original.write(to: nested.appendingPathComponent("file"))
+        let nestedCopy = try await repo.captureWorkingFileRestoreCopy(path: "nested/file", allowUnversioned: true)
+        _ = try await repo.run(["init", nested.path])
+        try Data("nested current".utf8).write(to: nested.appendingPathComponent("file"))
+        do { _ = try await repo.captureWorkingFileRestoreCopy(path: "nested/file", allowUnversioned: true); XCTFail("Foreign owner accepted") } catch WorkingFileRestoreFailure.location {}
+        do { try await repo.restoreWorkingFile(nestedCopy); XCTFail("Changed owner restored") } catch WorkingFileRestoreFailure.location {}
+        XCTAssertEqual(try Data(contentsOf: nested.appendingPathComponent("file")), Data("nested current".utf8))
+        let finalIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout; XCTAssertEqual(finalIndex, index)
+    }
     func testWrongRepositoryUnversionedAndDirectoryDestinationsAreRejected() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

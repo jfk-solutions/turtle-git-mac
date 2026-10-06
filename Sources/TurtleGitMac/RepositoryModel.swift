@@ -613,6 +613,7 @@ import TurtleGitCore
                     self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
                     if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
                 }
+                controller.model.onRestoreChanged = { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
                 controller.model.onDeleteChanged = controller.model.onIgnoreChanged
                 addWindows[key] = controller; controller.model.setScope(paths); controller.model.reload()
                 controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

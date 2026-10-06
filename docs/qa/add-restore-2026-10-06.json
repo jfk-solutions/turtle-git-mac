@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add shared restoration-copy menu, original overlay and native confirmation; full application parity remains incomplete",
+  "baseCommit": "d2688a034631682e6effa6975fa8d6274e1dc262",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/AddDlg.cpp shared status-list menu includes GITSLC_POPRESTORE; Add has no after-commit restoration flow",
+    "src/Git/GitStatusListCtrl.cpp IDGITLC_CREATERESTORE: marked versioned/non-directory gate, selected regular-file copies, skips existing copies/directories and uses OVL_RESTORE",
+    "IDGITLC_RESTOREPATH: overwrite confirmation, selected saved copies restored/touched, successful copies consumed, failed copies retained",
+    "src/Resources/TortoiseProcENG.rc Restore after commit/Restore captions and overwrite confirmation"
+  ],
+  "implemented": [
+    "Original Restore menu and restoration overlay in Add native Path cells",
+    "Display-order mixed versioned/untracked working copies captured; directories/existing saved copies skipped; frozen binary bytes, permissions and symlink targets",
+    "Shared capture API keeps versioned-only default; Add explicitly permits mixed-file copies with same-repository ownership validation",
+    "Restore checks repository ownership again, rejecting a parent that became another Git repository; newline-root parsing preserves literal filenames",
+    "Native default-Abort sheet captures paths, freezes parent, and retains copies/checks on Abort",
+    "Successful restorations consume copies and refresh Add/repository consumers; failures remain retryable while subsequent files continue",
+    "Cooperative cancellation between files; individual file copies/atomic restore finish before cancellation; copies discarded when Add closes"
+  ],
+  "verification": {
+    "actualReceiver": "Swift 6/macOS 13 actual Add model/table verifies Restore after commit to Restore title switch, original restore-overlay image in native cell, marked/untracked selection gates, ordered mixed capture without recapture, captured confirmation paths, Abort/quit/queued-cancel guards, failing directory destination then successful remaining file, retry restoring exact binary contents and 0755 permissions, restored-stage blob/mode equality via ls-files --stage, and refresh callbacks. Earlier Add/unified/history/copy/delete/ignore/artwork/clipboard checks pass. No windows/menus displayed.",
+    "fullRegression": {
+      "count": 494,
+      "failures": 0,
+      "scope": "Full Swift suite, including new literal-newline-root/untracked-copy/foreign-owner-after-capture regression and prior binary/symlink/escaping-parent/default-unversioned rejection cases."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; 76 original upstream icons, embedded Finder, universal helper runtimes; Store Git runtime audit passed.",
+    "site": "Static documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/WorkingFileRestore.swift": "33265fab6f3af66dbe9df9ed4515dd5109e3c74305809b331d4274b8420ef753",
+    "Sources/TurtleGitMac/AddWindow.swift": "a50ddd327b9410b1643d9976745087eb3f870df71f7a7b6be51bfb26b5c32c4d",
+    "Sources/TurtleGitMac/AddFileTable.swift": "66df335c2a829de5705f8fd2c15e6d9511b6fcab230fef9e1f2a9fa3e66032ef",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6d4d9942b8cb93cfdf1ec6c3ff0890a29a80677436a92d6f38dc17a610772d82",
+    "Tests/TurtleGitCoreTests/WorkingFileRestoreTests.swift": "773007b55ca2f9111678fffb7e31377bf4dd28ecb7bc14d59fc762d5b1f81f83",
+    "scripts/test-add-dialog.py": "d013238452d8a1ab0c1feda04801da5218de1e23e524b719d08dd035d239bd86"
+  },
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-add-restore-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-restore-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-restore-native.log",
+      "sha256": "a2696094cc79e5755400764e47dbbc08d8c38f6421085ef92097015af8f7682f"
+    },
+    "tests": {
+      "path": "/tmp/turtlegit-add-restore-tests.log",
+      "sha256": "88667621a55ef31eb5695c7dfdfcded1184d3e268a32476e6ffb464f2f06e4b9"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-restore-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-restore-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-restore-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Actual displayed overlay/light/dark/scroll acceptance and native Abort/Restore sheet gestures",
+    "Actual parent close/discarded-copy lifetime, long-running copy cancellation, signed grants and quit workflows",
+    "Broader removed/missing/submodule/mixed-selection scopes and other shared status-list consumers",
+    "Remaining full menus/progress/settings/helper/localization and signed Finder/AppStore release acceptance",
+    "GitHub publication and remote CI require restored authentication"
+  ],
+  "appProcesses": "No TurtleGitMac, legacy TortoiseGitMac or native receiver remains at audit; no main app launched for checks"
+}

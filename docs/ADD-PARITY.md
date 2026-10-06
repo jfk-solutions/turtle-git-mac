@@ -64,6 +64,29 @@ selection; base comparison, Ignore and Delete availability follows that row.
 Actions preserve the Add window's repository lease and are blocked during Add
 work and quit confirmation. See [the history verification record](qa/add-history-2026-10-06.json).
 
+The tracked-file menu now exposes the shared Restore after commit command from
+upstream. In Add it saves temporary working-file copies and changes to Restore;
+it does not create a commit or automatically restore files when Add completes.
+Marked rows display the unchanged upstream restore overlay. The command follows
+the marked versioned, non-directory row; a mixed selection also copies eligible
+untracked regular files, while skipping directories and already saved copies.
+Binary contents, file permissions and symbolic-link targets are retained. The
+shared backend keeps its versioned-only default for other callers; Add explicitly
+enables mixed-selection capture and validates the containing repository. Restore
+revalidates ownership, rejecting a path whose parent has become a foreign nested
+repository since capture.
+
+Restore uses a native Abort/Restore confirmation sheet, with Abort as default.
+Aborting preserves files, checks and saved copies. Successful paths consume their
+copies; failed paths keep their copies for retry while other selected paths still
+restore. Staged blob IDs and modes remain unchanged. The Add list and repository
+consumers refresh after any successful restoration. Copy/restore work disables
+parent actions and quit; cancellation is checked between files. An individual
+copy or atomic restoration finishes before cancellation is observed. Temporary
+copies are owned by the dialog and discarded on close. See
+[the restoration record](qa/add-restore-2026-10-06.json) for actual receiver/core
+checks and pending sheet/overlay/signed acceptance.
+
 Show changes as unified diff now follows the same marked-row eligibility as base
 comparison and is hidden in repositories without a commit. It captures selected
 paths in displayed order and loads HEAD-to-working diff statistics and patch
@@ -163,6 +186,10 @@ The missing-file comparison regression passes 493 tests with zero failures.
 Actual receiver checks verify unchanged staging and pinned HEAD contents after
 working-file removal; both unsigned builds and package audits pass. Displayed
 menus/comparison windows and signed acceptance remain pending.
+
+The restoration regression passes 494 tests with zero failures; both unsigned
+builds, bundle audits and the actual native receiver pass. Displayed overlay/sheet
+and signed acceptance remain pending.
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
 acceptance is pending. Full status-list commands (remaining tracked-row commands and
