@@ -296,6 +296,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Bisect has a native two-field start window with editable references and Log
   pickers, Stash/Abort, original continuation icons and recoverable Git progress.
   Finder Start/Good/Bad/Skip/Reset now use fresh session state and original icons.
+  Submodule Update availability follows each checkout and requires successful,
+  idle progress.
   Log entry points and displayed/signed acceptance remain pending.
   [Bisect parity](docs/BISECT-PARITY.md).
 - Log revision Export now opens a native ZIP/revision/Whole Project dialog and

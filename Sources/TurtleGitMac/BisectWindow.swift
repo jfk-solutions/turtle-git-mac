@@ -62,6 +62,8 @@ import TurtleGitCore
     var confirmStash: () async -> Bool = { false }
     var onChanged: (String) -> Void = { _ in }
     var onSubmoduleUpdate: (() -> Void)?
+    var canUpdateSubmodules: Bool { !busy && hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil }
+    func updateSubmodules() { guard canUpdateSubmodules else { return }; onSubmoduleUpdate?() }
     var canStart: Bool { !busy && state?.active == false && !good.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !bad.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     func canPerform(_ operation: BisectOperation) -> Bool { !busy && state?.active == true && (operation == .reset || lastExitCode == nil || lastExitCode == 0) }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
@@ -105,7 +107,7 @@ import TurtleGitCore
                     output = stash.output; onChanged(stash.output)
                     result = try await repository.startBisect(good: good, bad: bad)
                 }
-                accept(result)
+                await accept(result)
             } catch { await recover(error) }
         }
     }
@@ -113,18 +115,22 @@ import TurtleGitCore
         guard canPerform(operation) else { return }; busy = true; error = nil
         Task {
             defer { busy = false }
-            do { try validateAccess(); accept(try await repository.bisect(operation, revisions: revisions)) }
+            do { try validateAccess(); await accept(try await repository.bisect(operation, revisions: revisions)) }
             catch { await recover(error) }
         }
     }
-    private func accept(_ result: BisectExecution) {
+    private func accept(_ result: BisectExecution) async {
         state = result.state; lastExitCode = result.exitCode; output += result.output
+        // A bisect checkout can add or remove .gitmodules. Upstream queries the
+        // resulting worktree in its post-command callback, not the initial one.
+        hasSubmodules = (try? await repository.finderMetadata().hasSubmoduleConfig) ?? false
         onProgress(); onChanged(result.output)
         if result.exitCode != 0 { error = result.output.isEmpty ? "Bisect failed (\(result.exitCode))." : result.output }
     }
     private func recover(_ failure: Error) async {
         error = failure.localizedDescription; lastExitCode = 1
         state = try? await repository.bisectState()
+        hasSubmodules = (try? await repository.finderMetadata().hasSubmoduleConfig) ?? false
         if state?.active == true { onProgress() }
         onChanged(failure.localizedDescription)
     }
@@ -150,7 +156,7 @@ private struct BisectDialog: View {
                         Button { model.perform(operation) } label: { CommandLabel(title: model.title(operation), icon: operation.icon) }.disabled(!model.canPerform(operation))
                     }
                 }
-                if model.hasSubmodules, let update = model.onSubmoduleUpdate { Button { update() } label: { CommandLabel(title: "Submodule Update…", icon: .fetch) }.disabled(model.busy || model.lastExitCode != 0) }
+                if model.hasSubmodules, model.onSubmoduleUpdate != nil { Button { model.updateSubmodules() } label: { CommandLabel(title: "Submodule Update…", icon: .fetch) }.disabled(!model.canUpdateSubmodules) }
             }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer()
                 if model.state?.active != true { Button("OK") { model.start() }.keyboardShortcut(.defaultAction).disabled(!model.canStart) }

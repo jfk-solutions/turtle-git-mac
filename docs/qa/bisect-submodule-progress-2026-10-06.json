@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "303a4bb",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Bisect post-operation submodule availability and guarded callback",
+  "sha256": {
+    "Sources/TurtleGitMac/BisectWindow.swift": "bdd2d1482acc8fc3cca3f792bf7fce06eeaa4b7e71c279ae91fc6a58f7b09e33",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "2b8478fb47bf6424fa9f09191617ad0b5f14fed902d853bf75f8bd26b89c3f66",
+    "docs/BISECT-PARITY.md": "a8af46b89547a3b853d4d604c7de2a86fc16867162546510de5cee15988af231",
+    "README.md": "2a853debe037aa18b0663f4ed32892c615d3854ef1aaf7778d2424dc4c08436b"
+  },
+  "all_native_sources_manifest_sha256": "ef889f020cb7aae65b5dd7fd0316dbdfd98ecc2a9c054f84fc5dc32ad749f9b1",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Real eight-commit fixture adds .gitmodules at the initial revision and removes it at step four. Start restores configuration at a candidate; classification removes it again; Reset restores the configuration-free tip. Each result checks file presence against model availability. Successful configured progress invokes the injected callback; busy, load-only and unsuccessful progress cannot invoke it. Prior Bisect, Export, Log integration and focused Rebase native fixtures pass.",
+      "limitations": "Configuration presence tested, not submodule contents/update execution. Hidden owned windows; callback and stash replies injected. Activated dialog handoff, displayed alert interaction, Finder activation, screenshots, keyboard/accessibility and signed sandbox not exercised."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; Store --require-git; 90 original icons and universal helper runtimes verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app, Finder menu receiver or native receiver remained"
+  },
+  "logs": {
+    "/tmp/turtlegit-bisect-submodules-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-bisect-submodules-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-bisect-submodules-native.log": "478a334b48c2fc090edeabb1e0361d9ac4148e09a8a6bb9d4d1a8ee4c862c707",
+    "/tmp/turtlegit-bisect-submodules-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-bisect-submodules-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-bisect-submodules-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-bisect-submodules-swift.log": "c4d631289f862c2acc629ab25ef6cc2e2658baed295045ef8a6b1a78222a73ee"
+  },
+  "remaining": "Log Bisect entry points, cancellation, activated Finder/dialog handoffs and signed App Store acceptance remain incomplete. Full port remains incomplete."
+}

@@ -25,8 +25,9 @@ The audit uses TortoiseGit commit
   takes two selected rows; first visible selection supplies Bad and last Good.
   Log Skip supports multiple selected commits. Other Log classification actions
   use the selected commit; Finder classification uses the current commit.
-- Shell `MenuInfo.cpp` and Log menu rules must still be ported with original
-  `menubisect`, `menubisectreset`, `thumb_up` and `thumb_down` artwork.
+- Shell `MenuInfo.cpp` rules are ported with original `menubisect`,
+  `menubisectreset`, `thumb_up` and `thumb_down` artwork. Log menu rules remain
+  pending.
 
 ## Implemented engine
 
@@ -76,8 +77,17 @@ and enables Reset while disabling further classification in that result view.
 A located culprit is shown with its full hash. Reset restores Git's original
 branch and retains output. The window remains available until Close.
 
-When submodule configuration exists, successful progress also exposes the
-existing Submodule Update dialog through a callback. This handoff still needs
+After each operation, the model checks the resulting worktree for submodule
+configuration, matching upstream's post-command callback. Start, classification
+and Reset can check out a revision which adds or removes `.gitmodules`; the
+Submodule Update action follows that result rather than the state when the
+window opened. Its callback requires a successful result, current configuration
+and an idle model. Failure disables it while retaining Reset recovery. A failed
+metadata read clears availability rather than retaining an earlier result.
+
+Successful progress exposes the existing Submodule Update dialog through a
+callback. A hidden native receiver checks the actual checkout transitions and
+callback guards with an injected callback; activated dialog handoff still needs
 native acceptance. Root-model callbacks refresh repository, status, commit and
 Log views after state changes. Repeated activation reuses one window per
 repository. Close and Quit are refused during Git operations or attached sheets.

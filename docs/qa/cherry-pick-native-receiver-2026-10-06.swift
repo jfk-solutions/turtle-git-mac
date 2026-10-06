@@ -720,6 +720,12 @@ import TurtleGitCore
     _ = try await repo.run(["config", "commit.gpgsign", "false"])
     var hashes: [String] = []
     for step in 0...7 {
+        if step == 0 {
+            try Data("[submodule \"fixture\"]\n\tpath = fixture\n\turl = ./fixture\n".utf8).write(to: root.appendingPathComponent(".gitmodules"))
+            try await repo.stage([".gitmodules"])
+        } else if step == 4 {
+            _ = try await repo.run(["rm", "--", ".gitmodules"])
+        }
         try Data("step \(step)\n".utf8).write(to: root.appendingPathComponent("change"))
         try await repo.stage(["change"]); _ = try await repo.commit(message: "step \(step)")
         hashes.append(try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines))
@@ -731,6 +737,7 @@ import TurtleGitCore
     }
     let controller = BisectWindowController(repository: repo, access: nil); defer { controller.close() }
     let model = controller.model; try await wait(model)
+    precondition(!model.hasSubmodules)
     guard let window = controller.window else { fatalError("Bisect window missing") }
     window.contentView?.layoutSubtreeIfNeeded()
     func combos(_ view: NSView) -> [NSComboBox] { (view as? NSComboBox).map { [$0] } ?? view.subviews.flatMap(combos) }
@@ -749,21 +756,42 @@ import TurtleGitCore
     let noStash = try await repo.run(["rev-parse", "--verify", "refs/stash"], successfulExitCodes: 0...128); precondition(noStash.exitCode != 0)
     model.confirmStash = { prompts += 1; return true }; model.start(); try await wait(model)
     precondition(model.error == nil && prompts == 2 && model.state?.active == true && window.contentLayoutRect.height >= 440)
+    precondition(model.hasSubmodules)
     do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
     let stash = try await repo.run(["show", "stash:change"]).stdout; precondition(stash == dirty)
     let reopened = BisectWindowController(repository: repo, access: nil); defer { reopened.close() }
     try await wait(reopened.model); precondition(reopened.model.state?.active == true && reopened.model.state?.originalRevision == "main")
+    var submoduleUpdates = 0
+    reopened.model.onSubmoduleUpdate = { submoduleUpdates += 1 }
+    func checkSubmoduleAction() {
+        let present = FileManager.default.fileExists(atPath: root.appendingPathComponent(".gitmodules").path)
+        precondition(reopened.model.hasSubmodules == present)
+        let allowed = present && reopened.model.lastExitCode == 0
+        precondition(reopened.model.canUpdateSubmodules == allowed)
+        let before = submoduleUpdates
+        reopened.model.updateSubmodules(); precondition(submoduleUpdates == before + (allowed ? 1 : 0))
+        reopened.model.busy = true; reopened.model.updateSubmodules(); precondition(submoduleUpdates == before + (allowed ? 1 : 0))
+        reopened.model.busy = false
+    }
+    // load alone has no successful progress result; it must not launch Update.
+    precondition(reopened.model.hasSubmodules && !reopened.model.canUpdateSubmodules)
+    reopened.model.updateSubmodules(); precondition(submoduleUpdates == 0)
     for _ in 0..<10 {
         if reopened.model.state?.firstBadCommit != nil { break }
         let current = hashes.firstIndex(of: reopened.model.state!.head)!
         reopened.model.perform(current >= 4 ? .bad : .good); try await wait(reopened.model); precondition(reopened.model.error == nil)
+        checkSubmoduleAction()
     }
     precondition(reopened.model.state?.firstBadCommit == hashes[4]); reopened.model.perform(.reset); try await wait(reopened.model)
     precondition(reopened.model.state?.active == false && reopened.model.state?.head == hashes[7])
+    checkSubmoduleAction(); precondition(!reopened.model.hasSubmodules)
     reopened.model.good = hashes[0]; reopened.model.bad = "HEAD"; reopened.model.start(); try await wait(reopened.model)
+    checkSubmoduleAction(); precondition(reopened.model.hasSubmodules)
     reopened.model.perform(.skip, revisions: Array(hashes[1...6])); try await wait(reopened.model)
     precondition(reopened.model.lastExitCode != 0 && reopened.model.error != nil && reopened.model.canPerform(.reset) && !reopened.model.canPerform(.good))
+    checkSubmoduleAction()
     reopened.model.error = nil; reopened.model.perform(.reset); try await wait(reopened.model); precondition(reopened.model.error == nil)
+    checkSubmoduleAction()
     _ = try await repo.run(["bisect", "start", "--term-good=old", "--term-bad=new", hashes[7], hashes[0]])
     reopened.model.load(); try await wait(reopened.model)
     precondition(reopened.model.title(.good) == "Bisect old" && reopened.model.title(.bad) == "Bisect new")
@@ -785,6 +813,8 @@ import TurtleGitCore
     let afterStale = try await repo.bisectState(); precondition(afterStale.head == afterReset.head && !afterStale.active)
     reopened.model.error = nil
     print("Native Finder Bisect dispatch: fresh active Start refusal, current-commit Good after load, Reset handoff and stale ended-session Bad refusal preserve HEAD/state passed.")
+    precondition(submoduleUpdates > 0)
+    print("Native Bisect submodule progress: checkout adds/removes .gitmodules, Start/classification/Reset refresh availability, failed result and busy callback guards passed. Update callback injected; dialog handoff not activated.")
     let branch = try await repo.branch(); precondition(branch == "main")
     do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
     var closed = false; reopened.onClosed = { closed = true }; reopened.close(); precondition(closed && !window.isVisible)
