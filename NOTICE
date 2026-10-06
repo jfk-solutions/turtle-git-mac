@@ -296,3 +296,9 @@ Finder two-file Diff dispatch follows ContextMenu.cpp's ordered /path and /path2
 handoff, under the source attribution above. A native direct working-file viewer
 retains independent security-scoped grants without opening a repository session.
 Shift's alternative diff tool and signed native activation remain pending.
+
+Finder registered-submodule metadata adapts TGitPath.cpp's
+IsRegisteredSubmoduleOfParentProject .gitmodules path comparison, under the GPL
+version 2 or later attribution above. App-collected parent-root metadata drives
+source root clauses; Rename/Remove revalidate registration and indexed gitlinks
+before selecting the parent repository. Signed parent grants remain unverified.

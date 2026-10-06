@@ -191,6 +191,15 @@ import TurtleGitCore
         let bisecting = metadataMenu(FinderRepositoryMetadata(bisectActive: true))
         verifyOrder(bisecting)
         precondition([RepositoryAction.pull, .merge, .rebase].allSatisfy { !rootActions(bisecting).contains($0) } && rootActions(bisecting).contains(.stash))
+        let registered = metadataMenu(FinderRepositoryMetadata(submoduleParentRoot: folder.deletingLastPathComponent().path))
+        verifyOrder(registered)
+        precondition(rootActions(registered).contains(.rename) && rootActions(registered).contains(.remove) && !rootActions(registered).contains(.removeKeep))
+        for action in [RepositoryAction.rename, .remove] {
+            let item = registered.items[0].submenu!.items.first { FinderShellMenuLayout.action($0) == action }!
+            precondition(item.isEnabled && (item.representedObject as! FinderMenuCommand).request.paths == [folder])
+        }
+        precondition(!rootActions(ordinary).contains(.rename) && !rootActions(ordinary).contains(.remove))
+        print("Actual submodule root menu receiver: registered root enables captured Rename/Remove, excludes RemoveKeep; ordinary root excludes Rename/Remove. Parent authorization and native dispatch remain pending.")
         let bareMenu = metadataMenu(FinderRepositoryMetadata(bare: true))
         verifyOrder(bareMenu)
         precondition(rootActions(bareMenu) == [.fetch, .push, .log, .reflog, .repositoryBrowser, .worktreeList])

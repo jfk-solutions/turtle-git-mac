@@ -1101,15 +1101,23 @@ import TurtleGitCore
         if action == .initialize { showCreateRepository(folder: request.paths.first); return }
         if action == .diff && request.paths.count == 2 { handleFilePair(paths: request.paths); return }
         let candidate = request.paths[0]
+        var permissionTargets = request.paths
+        if action == .rename || action == .remove,
+           let parent = FinderSnapshot.read()?.repositories[candidate.standardizedFileURL.path]?.submoduleParentRoot {
+            let parentURL = URL(fileURLWithPath: parent, isDirectory: true)
+            if parentURL.path != candidate.path && candidate.standardizedFileURL.path.hasPrefix(parentURL.path.hasSuffix("/") ? parentURL.path : parentURL.path + "/") {
+                permissionTargets.append(parentURL)
+            }
+        }
         // A URL from Finder or another app is a request, not a sandbox permission grant.
-        if let activeAccess, request.paths.allSatisfy({ activeAccess.contains($0) }) {
+        if let activeAccess, permissionTargets.allSatisfy({ activeAccess.contains($0) }) {
             openSession(activeAccess, selected: request, action: action)
             return
         }
         if let store = accessStore {
             for saved in store.repositories {
                 guard let lease = try? store.acquire(saved.id, requireSecurityScope: GitRuntime.isAppStoreBuild),
-                      request.paths.allSatisfy({ lease.contains($0) }) else { continue }
+                      permissionTargets.allSatisfy({ lease.contains($0) }) else { continue }
                 recentRepositories = store.repositories
                 openSession(lease, selected: request, action: action)
                 return
@@ -1118,10 +1126,10 @@ import TurtleGitCore
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.prompt = "Authorize repository"
         panel.message = "Choose the repository root containing the Finder selection to allow TurtleGit to work with it."
-        panel.directoryURL = candidate.hasDirectoryPath ? candidate : candidate.deletingLastPathComponent()
+        panel.directoryURL = permissionTargets.count > request.paths.count ? permissionTargets.last : (candidate.hasDirectoryPath ? candidate : candidate.deletingLastPathComponent())
         guard panel.runModal() == .OK, let url = panel.url else { return }
         let lease = RepositoryAccessLease(url: url)
-        guard request.paths.allSatisfy({ lease.contains($0) }) else {
+        guard permissionTargets.allSatisfy({ lease.contains($0) }) else {
             error = "The selected folder does not contain every requested Finder item."; return
         }
         openSession(lease, selected: request, action: action)

@@ -47,8 +47,8 @@ It constructs no Finder controller or extension and displays no menus/windows.
 The final full core regression passes 474 tests with zero failures; Debug and
 unsigned AppStore builds, both bundle audits and site generation pass.
 
-These checks do not prove full source classification. Registered submodule
-roots, git-svn, inaccessible paths, background/container bit combinations,
+These checks do not prove full source classification. Complete submodule-root cache coverage
+(see [refreshed-root progress](FINDER-SUBMODULE-ROOT-PARITY.md)), git-svn, inaccessible paths, background/container bit combinations,
 heterogeneous selections across repositories, complete ignored ancestry,
 configuration/placement, omitted commands and fresh background status remain
 pending. The subsequent [two-file Diff handoff](FINDER-TWO-FILE-DIFF-PARITY.md) adds

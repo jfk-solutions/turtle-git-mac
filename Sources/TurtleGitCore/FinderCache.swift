@@ -89,10 +89,21 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     public var mergeActive: Bool
     public var hasStash: Bool
     public var hasSubmoduleConfig: Bool
+    public var submoduleParentRoot: String?
     public init(bare: Bool = false, bisectActive: Bool = false, mergeActive: Bool = false,
-                hasStash: Bool = false, hasSubmoduleConfig: Bool = false) {
+                hasStash: Bool = false, hasSubmoduleConfig: Bool = false, submoduleParentRoot: String? = nil) {
         self.bare = bare; self.bisectActive = bisectActive; self.mergeActive = mergeActive
-        self.hasStash = hasStash; self.hasSubmoduleConfig = hasSubmoduleConfig
+        self.hasStash = hasStash; self.hasSubmoduleConfig = hasSubmoduleConfig; self.submoduleParentRoot = submoduleParentRoot
+    }
+    private enum CodingKeys: String, CodingKey { case bare, bisectActive, mergeActive, hasStash, hasSubmoduleConfig, submoduleParentRoot }
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        bare = try values.decode(Bool.self, forKey: .bare)
+        bisectActive = try values.decode(Bool.self, forKey: .bisectActive)
+        mergeActive = try values.decode(Bool.self, forKey: .mergeActive)
+        hasStash = try values.decode(Bool.self, forKey: .hasStash)
+        hasSubmoduleConfig = try values.decode(Bool.self, forKey: .hasSubmoduleConfig)
+        submoduleParentRoot = try values.decodeIfPresent(String.self, forKey: .submoduleParentRoot)
     }
     /// Repository-wide clauses only; path/status clauses remain separate.
     public func allows(_ action: RepositoryAction) -> Bool {
@@ -117,7 +128,8 @@ extension GitRepository {
         return FinderRepositoryMetadata(bare: bare,
             bisectActive: fm.fileExists(atPath: directory.appendingPathComponent("BISECT_START").path),
             mergeActive: fm.fileExists(atPath: directory.appendingPathComponent("MERGE_HEAD").path),
-            hasStash: stash, hasSubmoduleConfig: !bare && fm.fileExists(atPath: root.appendingPathComponent(".gitmodules").path))
+            hasStash: stash, hasSubmoduleConfig: !bare && fm.fileExists(atPath: root.appendingPathComponent(".gitmodules").path),
+            submoduleParentRoot: bare ? nil : try registeredSubmoduleParent()?.path)
     }
 }
 
@@ -174,7 +186,7 @@ public struct FinderSnapshot: Codable, Sendable {
     /// the working tree before Git mutates anything.
     public func canRename(_ selection: [URL]) -> Bool {
         guard selection.count == 1, let path = selection.first?.standardizedFileURL.path,
-              roots.contains(where: { path.hasPrefix($0 + "/") }) else { return false }
+              roots.contains(where: { path.hasPrefix($0 + "/") || path == $0 && repositories[$0]?.submoduleParentRoot != nil }) else { return false }
         let versioned: Set<FileState> = [.normal, .modified, .added, .conflicted]
         if let state = states[path], versioned.contains(state) { return true }
         return states.contains { $0.key.hasPrefix(path + "/") && versioned.contains($0.value) }
@@ -182,7 +194,7 @@ public struct FinderSnapshot: Codable, Sendable {
     public func canRemove(_ selection: [URL]) -> Bool {
         guard !selection.isEmpty else { return false }
         let paths = selection.map { $0.standardizedFileURL.path }
-        guard roots.contains(where: { root in paths.allSatisfy { $0.hasPrefix(root + "/") } }) else { return false }
+        guard roots.contains(where: { root in paths.allSatisfy { $0.hasPrefix(root + "/") || $0 == root && repositories[root]?.submoduleParentRoot != nil } }) else { return false }
         let versioned: Set<FileState> = [.normal, .modified, .conflicted]
         return paths.allSatisfy { path in
             if let state = states[path], versioned.contains(state) { return true }
@@ -405,7 +417,10 @@ public enum FinderShellRules {
             if let root, !bare {
                 flags.formUnion([.inGit, .inVersionedFolder])
                 if directory { flags.insert(.folderInGit) }
-                if path.path == root { flags.insert(.workingTreeRoot) }
+                if path.path == root {
+                    flags.insert(.workingTreeRoot)
+                    if directory && metadata?.submoduleParentRoot != nil { flags.insert(.submodule) }
+                }
                 if metadata?.hasStash != false { flags.insert(.stash) }
                 if metadata?.hasSubmoduleConfig != false { flags.insert(.submoduleContainer) }
                 if metadata?.mergeActive == true { flags.insert(.merge) }
@@ -422,5 +437,25 @@ public enum FinderShellRules {
             }
         }
         return flags
+    }
+}
+
+extension GitRepository {
+    /// Source registration rule: nearest parent worktree's .gitmodules path match.
+    /// Missing/inaccessible parent metadata leaves this optional fact unavailable.
+    public func registeredSubmoduleParent() throws -> URL? {
+        guard root.path != "/", let result = try? run(["-C", root.deletingLastPathComponent().path, "rev-parse", "--show-toplevel"]) else { return nil }
+        var bytes = result.stdout; if bytes.last == 10 { bytes.removeLast() }
+        let parent = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL
+        guard parent != root, RepositoryAccessLease.pathIsContained(root, by: parent) else { return nil }
+        let modules = parent.appendingPathComponent(".gitmodules")
+        guard (try? FileManager.default.attributesOfItem(atPath: modules.path)[.type] as? FileAttributeType) == .typeRegular else { return nil }
+        let relative = String(root.path.dropFirst(parent.path.count + 1))
+        guard let names = try? run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1).stdout.split(separator: 0) else { return nil }
+        for name in names {
+            let values = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", String(decoding: name, as: UTF8.self)], successfulExitCodes: 0...1).stdout.split(separator: 0)
+            if values.contains(where: { String(decoding: $0, as: UTF8.self) == relative }) { return parent }
+        }
+        return nil
     }
 }

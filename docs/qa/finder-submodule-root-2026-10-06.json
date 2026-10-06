@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-06",
+  "scope": "Optional registered parent metadata for refreshed child roots, source menu clauses, indexed parent Rename/Remove routing; complete app/Finder parity remains incomplete",
+  "baseCommit": "bb5f16364cacc9854fc9984c2ba5c6eb2a903c11",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceTGitPathBlob": "312f765756181b69ef0421d6c681b1aa7ff6ebb2",
+  "focusedCoreTests": {
+    "count": 37,
+    "newTests": 3,
+    "failures": 0
+  },
+  "actualCoreEvidence": [
+    "Old five-field metadata decodes and new parent field round-trips",
+    "Cached registered/ordinary root source flags and Rename/Remove eligibility",
+    "Real submodule registration with Unicode/newline path",
+    "Rename/Remove selection discovers indexed parent; Log remains child",
+    "Git mv updates parent index/.gitmodules and moved child metadata",
+    "Git rm removes moved submodule without changing parent HEAD",
+    "Unregistered nested repo and similarly named config path do not match"
+  ],
+  "actualNativeReceiver": "Actual extension source Swift 6/macOS 13 enables captured Rename/Remove for registered roots, excludes RemoveKeep and excludes ordinary-root Rename/Remove; all prior order/icons/packet/path/pair/metadata checks retained; no controller/extension/window activated",
+  "productionAppBinding": "RepositoryModel publishes metadata on refresh and adds cached parent to permission targets for Rename/Remove; compiled/source-audited, not native picker/signed acceptance",
+  "compatibility": "New optional submoduleParentRoot field; all prior metadata fields/snapshot/preference/mark schemas retained",
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed; existing Locale metric deprecation retained"
+  ],
+  "pending": [
+    "Collect unvisited child roots/statuses from parent refresh",
+    "Parent sandbox grant discovery and native picker acceptance",
+    "Old/missing cache parent permission fallback",
+    "Uninitialized/removed/conflicted registration cases",
+    "Nonregular/symlink .gitmodules equivalence",
+    "Mixed selections/background monitoring/cache freshness",
+    "Signed Finder/native activation and full app/release parity",
+    "GitHub publication authentication"
+  ],
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "3b4d0813962c88cea372674e43f6970ee56735f527f2a8dffaec013ea490c3c0",
+    "Sources/TurtleGitCore/ConflictResolution.swift": "6a5d0b2996c3f05eeda401fe71ca17b5cd8b4690e6b617826c1d4cf30627e6e4",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "31545cc0d1a0c3e0f87e8b7afe59184c27a4a245be00563fb9dab5bac1a9c779",
+    "Tests/TurtleGitCoreTests/FinderSubmoduleMetadataTests.swift": "8c0f2c6de4fb1e4d2cd9de5acc88db7ebfbeb6c18c761c4e77405f7484c12918",
+    "scripts/test-finder-menu.py": "1f4c7d6c4b080d54dd91365699a94dd6b9c821b490db17408c09277e522231ad",
+    "NOTICE": "7882d8e9919711b5d92affe2c7ea6a239028511b3aff8264fe45d7446434416b"
+  },
+  "logs": {
+    "focused": {
+      "path": "/tmp/turtlegit-finder-submodule-focused.log",
+      "sha256": "a8d282e47c5f883a9cc6ff3dc75a85bed3fac03ee8df0c9f3a3a43bc12b6ab4a"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-submodule-debug.log",
+      "sha256": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-submodule-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "menu": {
+      "path": "/tmp/turtlegit-finder-submodule-menu.log",
+      "sha256": "6fc5c2490812bc1e4c5fdc7a88508ac95b4a54601c8ff555f1e75f7673983057"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-finder-submodule-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-finder-submodule-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "fullCore": {
+      "path": "/tmp/turtlegit-finder-submodule-full-core.log",
+      "sha256": "9863a97757e9c265d71e4aee2ab80d4a6a5d3b5ff5c2e7e409373b8fad8eac0d"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-submodule-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "bundles": "Both audits and exact bundled NOTICE comparison passed; all 75 icons, universal helpers and Store Git 2.55.0 retained",
+  "fullCoreTests": {
+    "count": 481,
+    "failures": 0,
+    "durationSeconds": 277.832
+  },
+  "appProcesses": "No main app or native receiver remained at final audit; no app launched during these checks"
+}
