@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "e8677b3",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Rebase/Cherry Pick multiselection reorder, end moves, action cycling, focused keyboard routing and Options icons",
+  "upstream_sources": [
+    "src/TortoiseProc/RebaseDlg.cpp: PreTranslateMessage, OnBnClickedButtonUp, OnBnClickedButtonDown",
+    "src/TortoiseProc/GitLogListAction.cpp: ShiftSelectedRebaseAction"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/RebaseWindow.swift": "40ad491898a6430bdcbc93b7f1c4cef953b6d96f2264fd9ee534896e56fc0744",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "35e34138970648dd541ee3ae3cecffd7cf733736d0c2f9bf1e5373310ff7dca3",
+    "README.md": "0223bf1536b7fcdf26fc48dc34be2bc73fe415e818c10bbfb508df61fb118c80",
+    "docs/REBASE-PARITY.md": "2836d21df6efe8077215d955f7bb8f16fb88077dcf66f31dbbd23b8feceea017",
+    "docs/CHERRY-PICK.md": "01a2b59f8b94b3c0367101e17d9f8735d67b07298b04dc07036fd58d08de60bd",
+    "docs/site/index.html": "375fed516f3c14535f4fb244079f03daa08bbcadfafbd3e1c3147da7f86e1eab"
+  },
+  "all_native_sources_manifest_sha256": "b5ae3dfcfbe2681f892215007696e10cd7cabe43609c3c4b7d5beb4dca36b65f",
+  "verification": {
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for both executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Contiguous and noncontiguous multi-row moves in both directions",
+        "Boundary no-op and stable top/bottom partition with unchanged selected IDs",
+        "Independent action cycling, including oldest Cherry Pick row bypassing Squash",
+        "Actual hosted table/probe P/S/Q/E/Space/Shift-U injected routing",
+        "SwiftUI reconciles selected IDs into new AppKit indexes after reordering",
+        "Text field, event window, Command/Control/Option, unknown key, busy and Preserve Merges pass-through"
+      ],
+      "regressions": "Existing Log handoff, native Add/draft/repeated identity, merge mainline/Edit/reopening/Continue and empty-patch Skip checks remain passing",
+      "limits": "Hidden hosted views, injected events. No displayed gestures/focus/accessibility or signed execution verification"
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; both exact NOTICE cmp passed",
+    "site_generation": "passed",
+    "core_tests": "Core unchanged from e8677b3; that checkpoint records 21 focused passing Rebase tests. No new full-suite claim."
+  },
+  "log_sha256": {
+    "native": "6c8d6b1f768542fca2cbf86b3bcb27f22b698d721ac1493490627ef175963e2d",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Displayed keyboard gestures, focus appearance and accessibility",
+    "Displayed Options menu icon acceptance",
+    "Drag reorder and remaining keyboard/menu parity",
+    "Signed App Store sandbox execution",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit parity"
+  ],
+  "next_finding": {
+    "issue": "Native replay still auto-accepts squash messages via GIT_EDITOR=true and does not apply SquashDate. Port upstream editable squash message and first/latest/current author-date behavior, with durable recovery and replay regression checks.",
+    "sources": [
+      "Sources/TurtleGitCore/Rebase.swift: startRebase/recoverRebase GIT_EDITOR overrides",
+      "src/TortoiseProc/RebaseDlg.cpp: Squash_Edit and m_iSquashdate handling",
+      "doc/source/en/TortoiseGit/tgit_dug/dug_settings_advanced.xml: SquashDate"
+    ]
+  },
+  "processes": "No main app launched; hidden receiver-owned window closed; receiver exited; final app/receiver audit empty"
+}

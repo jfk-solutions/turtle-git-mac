@@ -12,7 +12,10 @@ from the oldest retained entry. Its numbered rows show the action, commit hash,
 message, author and date. Select a row to inspect its changed files and message.
 Use the row's context menu to choose **Pick**, **Skip**, **Edit** or **Squash**.
 **Up** and **Down** change the replay order; **Pick ALL** and **Options** change
-multiple rows. The first retained entry cannot be Squash. **Add** opens a native Log picker that accepts multiple commits. They appear
+multiple rows. Up/Down also move multiple selected rows together; hold Shift to
+move them to the top or bottom. With the list focused, P/S/Q/E choose actions,
+Space cycles them, and U/D move rows (Shift+U/D moves to the ends). The first
+retained entry cannot be Squash. **Add** opens a native Log picker that accepts multiple commits. They appear
 above the existing list, default to Pick and replay after the existing entries.
 Cancel leaves the plan unchanged. You can add the same commit again; repeated
 rows remain separately selectable after an interruption. An already-applied patch

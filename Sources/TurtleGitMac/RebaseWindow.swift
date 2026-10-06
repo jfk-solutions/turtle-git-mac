@@ -216,12 +216,37 @@ import TurtleGitCore
         for index in values.indices where targets.contains(values[index].id) { values[index].action = action }
         if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
-    func move(up: Bool) {
-        guard editable, !options.preserveMerges, selection.count == 1, let id = selection.first else { return }
+    func canMove(up: Bool, toEnd: Bool = false) -> Bool {
+        guard editable, !options.preserveMerges else { return false }
+        let visible = entries
+        let indexes = visible.indices.filter { selection.contains(visible[$0].id) }
+        guard let first = indexes.first, let last = indexes.last else { return false }
+        if toEnd { return up ? indexes != Array(0..<indexes.count) : indexes != Array((visible.count - indexes.count)..<visible.count) }
+        return up ? first > 0 : last < visible.count - 1
+    }
+    func move(up: Bool, toEnd: Bool = false) {
+        guard canMove(up: up, toEnd: toEnd) else { return }
+        var visible = entries
+        if toEnd {
+            let selected = visible.filter { selection.contains($0.id) }, others = visible.filter { !selection.contains($0.id) }
+            visible = up ? selected + others : others + selected
+        } else {
+            let indexes = visible.indices.filter { selection.contains(visible[$0].id) }
+            for index in up ? indexes : Array(indexes.reversed()) { visible.swapAt(index, index + (up ? -1 : 1)) }
+        }
+        if plan != nil { plan?.entries = Array(visible.reversed()) } else { draftEntries = Array(visible.reversed()) }
+    }
+    func cycleActions() {
+        guard editable, !options.preserveMerges else { return }
         var values = plan?.entries ?? draftEntries
-        guard let index = values.firstIndex(where: { $0.id == id }) else { return }
-        let destination = index + (up ? 1 : -1)
-        guard values.indices.contains(destination) else { return }; values.swapAt(index, destination)
+        for index in values.indices where selection.contains(values[index].id) {
+            switch values[index].action {
+            case .pick: values[index].action = .skip
+            case .skip: values[index].action = .edit
+            case .edit: values[index].action = index == 0 && (isCherryPick || values[index].commit.parents.count == 1) ? .pick : .squash
+            case .squash: values[index].action = .pick
+            }
+        }
         if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
     func selectCommit() {
@@ -304,7 +329,7 @@ struct RebaseDialog: View {
                         TableColumn("Message") { entry in Text(entry.commit.subject) }
                         TableColumn("Author") { entry in Text(entry.commit.author) }.width(130)
                         TableColumn("Date") { entry in Text(HistoryDateSettings.load().format(entry.commit.date)) }.width(150)
-                    }.contextMenu(forSelectionType: String.self) { ids in
+                    }.background(RebaseListInteraction(model: model)).contextMenu(forSelectionType: String.self) { ids in
                         TurtleGitContextMenu {
      ForEach(RebaseAction.allCases, id: \.self) { action in Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }.disabled(ids.isEmpty || !model.editable || model.options.preserveMerges) }
                         }
@@ -312,12 +337,12 @@ struct RebaseDialog: View {
                     HStack {
                         Button("Pick ALL") { model.setAction(.pick, ids: Set(model.entries.map(\.id))) }.disabled(!model.editable || model.options.preserveMerges)
                         Menu("Options") {
-                            ForEach(RebaseAction.allCases.filter { $0 != .skip }, id: \.self) { action in Button("Select all: " + (action == .skip ? "Skip" : action.rawValue.capitalized)) { model.setAction(action, ids: Set(model.entries.map(\.id))) } }
+                            ForEach(RebaseAction.allCases.filter { $0 != .skip }, id: \.self) { action in Button { model.setAction(action, ids: Set(model.entries.map(\.id))) } label: { CommandLabel(title: "Select all: " + action.rawValue.capitalized, icon: action.icon) } }
                             Divider()
-                            ForEach([RebaseAction.skip, .squash, .edit], id: \.self) { action in Button("Unselected: " + (action == .skip ? "Skip" : action.rawValue.capitalized)) { model.setAction(action, ids: Set(model.entries.map(\.id)).subtracting(model.selection)) } }
+                            ForEach([RebaseAction.skip, .squash, .edit], id: \.self) { action in Button { model.setAction(action, ids: Set(model.entries.map(\.id)).subtracting(model.selection)) } label: { CommandLabel(title: "Unselected: " + (action == .skip ? "Skip" : action.rawValue.capitalized), icon: action.icon) } }
                         }.disabled(!model.editable || model.options.preserveMerges)
-                        Button("Up") { model.move(up: true) }.disabled(!model.editable || model.options.preserveMerges || model.selection.count != 1)
-                        Button("Down") { model.move(up: false) }.disabled(!model.editable || model.options.preserveMerges || model.selection.count != 1)
+                        Button("Up") { model.move(up: true, toEnd: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.canMove(up: true, toEnd: true))
+                        Button("Down") { model.move(up: false, toEnd: NSEvent.modifierFlags.contains(.shift)) }.disabled(!model.canMove(up: false, toEnd: true))
                         Button { model.pickAdditionalCommits() } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canAdd)
                         Spacer()
                         if model.isCherryPick { Toggle("add \"cherry picked from\"", isOn: $model.options.addCherryPickedFrom) }
@@ -374,6 +399,63 @@ private struct RebaseReferenceChooser: View {
         List(model.references.filter { filter.isEmpty || $0.label.localizedCaseInsensitiveContains(filter) }, selection: $selection) { Text($0.label).tag($0.name) }
         HStack { Spacer(); Button("Cancel") { model.browsing = false }.keyboardShortcut(.cancelAction); Button("OK") { if let selection { model.options.upstream = selection; model.browsing = false } }.keyboardShortcut(.defaultAction).disabled(selection == nil) }
     }.padding(16).frame(width: 650, height: 430) }
+}
+
+/// Scope upstream's unmodified action keys to the AppKit table hosted by this
+/// SwiftUI list. Other fields, tables and windows retain their normal key handling.
+struct RebaseListInteraction: NSViewRepresentable {
+    let model: RebaseWindowModel
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: Probe, context: Context) -> CGSize? {
+        CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
+    }
+    func updateNSView(_ view: Probe, context: Context) { view.model = model }
+    static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
+    final class Probe: NSView {
+        weak var model: RebaseWindowModel?
+        private var monitor: Any?
+        override func hitTest(_ point: NSPoint) -> NSView? { nil }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow(); stopObserving()
+            guard window != nil else { return }
+            monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+                guard let self else { return event }; return self.observe(event)
+            }
+        }
+        func stopObserving() { if let monitor { NSEvent.removeMonitor(monitor) }; monitor = nil }
+        deinit { stopObserving() }
+        func observe(_ event: NSEvent) -> NSEvent? {
+            guard event.type == .keyDown, let window, event.window === window,
+                  let table = window.firstResponder as? NSTableView,
+                  convert(bounds, to: nil).intersects(table.convert(table.visibleRect, to: nil)),
+                  let model, model.editable, !model.options.preserveMerges else { return event }
+            let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            guard flags.subtracting(.shift).isEmpty else { return event }
+            let visible = model.entries
+            let ids = Set(table.selectedRowIndexes.compactMap { visible.indices.contains($0) ? visible[$0].id : nil })
+            guard !ids.isEmpty else { return event }
+            let key = event.charactersIgnoringModifiers?.lowercased() ?? ""
+            guard [" ", "p", "s", "q", "e", "u", "d"].contains(key) else { return event }
+            model.selection = ids
+            switch key {
+            case " ": model.cycleActions()
+            case "p": model.setAction(.pick)
+            case "s": model.setAction(.skip)
+            case "q": model.setAction(.squash)
+            case "e": model.setAction(.edit)
+            default: model.move(up: key == "u", toEnd: flags.contains(.shift))
+            }
+            // SwiftUI reconciles the identity-bound selection after replacing its
+            // rows. Selecting AppKit indexes here would still use the old rows.
+            DispatchQueue.main.async { [weak table, weak model] in
+                guard let table, let model, model.selection == ids else { return }
+                let visible = model.entries
+                let selected = visible.indices.filter { ids.contains(visible[$0].id) }
+                if let row = key == "d" ? selected.last : selected.first { table.scrollRowToVisible(row) }
+            }
+            return nil
+        }
+    }
 }
 
 private extension RebaseAction {

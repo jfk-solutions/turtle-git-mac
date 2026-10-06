@@ -10,7 +10,10 @@ port; Fetch/Pull now hand off their selected fetched commit to this window.
 The branch/reverse/upstream/browse/onto row sits above the commit action list.
 Commits display newest first and replay oldest first, as upstream documents.
 Pick, Skip, Edit and Squash use the original upstream artwork in action rows and
-context menus. Up/Down reorder one selected commit. The all/unselected action
+context menus and the all/unselected action menu. Up/Down reorder selected commits
+while preserving their order; Shift moves the selection to the top/bottom. A
+one-step move does nothing if any selected row touches that destination boundary.
+The all/unselected action
 menu, Force Rebase and Preserve Merges sit below the list. Add opens a native multiple-selection Log picker even before branch/upstream
 fields are complete; draft entries remain editable while Start stays disabled.
 It is disabled during replay and with Preserve Merges. See [Add audit](REBASE-ADD-PARITY.md).
@@ -26,8 +29,24 @@ loads their files/message without invalidating a concurrently loading plan.
 Branch/upstream fields are currently editable native combo boxes rather than
 upstream's dropdown-only controls. Browse is a filtered reference list, not the
 complete reference/log browser. The amend field is single-line. Full row menus,
-keyboard action shortcuts, completed-row display, conflict tabs, Edit/Split and
+completed-row display, conflict tabs, Edit/Split and
 post-operation controls still need porting and comparison.
+
+When the commit list has focus, P/S/Q/E choose Pick/Skip/Squash/Edit. Space cycles
+each selected row Pick → Skip → Edit → Squash → Pick, bypassing Squash for the
+oldest ordinary commit (and the oldest Cherry Pick row), as the pinned upstream
+implementation does. U/D move the selection; Shift+U/D move it to the top/bottom.
+Command, Control and Option combinations retain normal macOS handling. Other
+fields, tables and windows do not receive these action shortcuts. Busy, active,
+finished, picker and Preserve Merges states disable plan editing.
+
+The whole-native receiver checks contiguous/noncontiguous moves, boundary no-ops,
+stable end moves, per-row action cycles and actual focus-scoped key routing with
+system and packaged Git. It also verifies selection identity after SwiftUI's row
+reconciliation and pass-through for text fields, other windows and modifiers.
+Events are injected into the actual receiver; displayed key gestures, focus
+appearance and accessibility acceptance remain unverified. Evidence:
+`qa/rebase-list-interaction-2026-10-06.json`.
 
 ## Backend foundation
 
@@ -73,7 +92,7 @@ These establish the pictured layout, not full behavior or accessibility parity.
 - Fetch/Pull handoffs, old-upstream detection, fast-forward choices and config defaults.
 - Split, advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
 - Native squash/reword message editing, complete conflict/resolution menus and tabs.
-- Full row targeting/shortcuts, customizable columns and persisted layout. ID and formatted dates are now present; displayed acceptance remains pending.
+- Remaining row targeting/shortcuts and drag reordering, customizable columns and persisted layout. Action and move shortcuts now have headless native coverage; displayed acceptance remains pending.
 - Hooks, signing/editor/authentication prompts, stash restoration, streaming progress,
   cancellation, failures and signed sandbox/editor validation.
 - Broader native light/dark/contrast, keyboard, resizing and accessibility QA.

@@ -13,6 +13,65 @@ import TurtleGitCore
     if let table = view as? NSTableView { return table }
     return view.subviews.compactMap { findTable($0) }.first
 }
+@MainActor func findRebaseProbe(_ view: NSView) -> RebaseListInteraction.Probe? {
+    if let probe = view as? RebaseListInteraction.Probe { return probe }
+    return view.subviews.compactMap { findRebaseProbe($0) }.first
+}
+@MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
+    let model = RebaseWindowModel(repository: repo, access: nil)
+    model.load(cherryPick: revisions); try await settle(model)
+    let original = model.entries.map(\.id), snapshot = model.plan!
+    precondition(original.count == 4)
+    model.selection = [original[1], original[2]]; model.move(up: true)
+    precondition(model.entries.map(\.id) == [original[1], original[2], original[0], original[3]])
+    model.move(up: false); precondition(model.entries.map(\.id) == original)
+    model.selection = [original[0], original[2]]; model.move(up: false)
+    precondition(model.entries.map(\.id) == [original[1], original[0], original[3], original[2]])
+    model.move(up: true); precondition(model.entries.map(\.id) == original)
+    model.selection = [original[0], original[2]]; model.move(up: true)
+    precondition(model.entries.map(\.id) == original) // Boundary blocks the entire move.
+    model.selection = [original[1], original[3]]; model.move(up: true, toEnd: true)
+    precondition(model.entries.map(\.id) == [original[1], original[3], original[0], original[2]])
+    model.move(up: false, toEnd: true)
+    precondition(model.entries.map(\.id) == [original[0], original[2], original[1], original[3]])
+    precondition(model.selection == [original[1], original[3]])
+    model.plan = snapshot; model.selection = Set(original)
+    model.cycleActions(); precondition(model.entries.allSatisfy { $0.action == .skip })
+    model.cycleActions(); precondition(model.entries.allSatisfy { $0.action == .edit })
+    model.cycleActions(); precondition(model.entries.dropLast().allSatisfy { $0.action == .squash } && model.entries.last?.action == .pick)
+    model.cycleActions(); precondition(model.entries.dropLast().allSatisfy { $0.action == .pick } && model.entries.last?.action == .skip)
+    model.plan = snapshot; model.selection = []
+    let host = NSHostingView(rootView: RebaseDialog(model: model))
+    let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false; window.contentView = host
+    defer { window.close() }
+    host.layoutSubtreeIfNeeded()
+    guard let table = findTable(host), let probe = findRebaseProbe(host) else { fatalError("Actual Rebase list/probe unavailable") }
+    precondition(window.makeFirstResponder(table))
+    table.selectRowIndexes(IndexSet([1, 2]), byExtendingSelection: false)
+    func event(_ key: String, flags: NSEvent.ModifierFlags = [], number: Int? = nil) -> NSEvent {
+        NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: number ?? window.windowNumber, context: nil, characters: key, charactersIgnoringModifiers: key, isARepeat: false, keyCode: 0)!
+    }
+    precondition(probe.observe(event("s")) == nil)
+    precondition(model.entries[1].action == .skip && model.entries[2].action == .skip && model.entries[0].action == .pick)
+    precondition(probe.observe(event(" ")) == nil && model.entries[1].action == .edit)
+    precondition(probe.observe(event("q")) == nil && model.entries[1].action == .squash)
+    precondition(probe.observe(event("e")) == nil && model.entries[1].action == .edit)
+    precondition(probe.observe(event("p")) == nil && model.entries[1].action == .pick)
+    precondition(probe.observe(event("u", flags: .shift)) == nil)
+    precondition(model.entries.map(\.id) == [original[1], original[2], original[0], original[3]])
+    try await Task.sleep(nanoseconds: 100_000_000); host.layoutSubtreeIfNeeded()
+    precondition(table.selectedRowIndexes == IndexSet([0, 1]) && model.selection == [original[1], original[2]])
+    for flags: NSEvent.ModifierFlags in [.command, .control, .option] { precondition(probe.observe(event("s", flags: flags)) != nil) }
+    precondition(probe.observe(event("s", number: 0)) != nil)
+    precondition(probe.observe(event("z")) != nil)
+    model.busy = true; precondition(probe.observe(event("s")) != nil); model.busy = false
+    model.options.preserveMerges = true; precondition(probe.observe(event("s")) != nil); model.options.preserveMerges = false
+    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 100, height: 25)); host.addSubview(field)
+    precondition(window.makeFirstResponder(field)); precondition(probe.observe(event("s")) != nil)
+    precondition(!window.isVisible)
+    print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy/Preserve guards passed. Events injected; no displayed keyboard acceptance.")
+}
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
     let preference = "CherrypickAddCherryPickedFrom", saved = UserDefaults.standard.object(forKey: "CherrypickAddCherryPickedFrom")
@@ -43,6 +102,7 @@ import TurtleGitCore
     _ = try await repo.run(["merge", "--no-ff", "--no-edit", "side"])
     let merge = try await repo.rebaseCommit("HEAD")
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
+    try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
 
     let log = LogWindowModel(repository: repo, access: nil)
     log.entries = [merge, parent, side, base]; log.graph = CommitGraph.layout(log.entries); log.bare = false

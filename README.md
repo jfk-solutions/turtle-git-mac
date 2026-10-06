@@ -292,6 +292,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   records picker, signed integration and remaining native verification.
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
+  Multiple selected rows move together, with Shift-to-end and focused-list action
+  shortcuts checked through a headless native receiver.
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Native Cherry Pick plans from single/multiple Log selections, colored action icons,
