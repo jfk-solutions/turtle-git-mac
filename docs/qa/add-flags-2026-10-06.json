@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add index-flag context commands and native confirmation; full port remains incomplete",
+  "baseCommit": "c0595c731090ab1eaf7ffec4fbf6adc29ff00e10",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/Git/GitStatusListCtrl.cpp context flags: marked versioned row; Skip excludes added/unmerged/already-skipped; Assume also excludes deleted/already-assumed; Unflag requires either flag",
+    "src/Git/GitStatusListCtrl.cpp SetGitIndexFlagsForSelectedFiles: default-No confirmation and independently update selected index entries"
+  ],
+  "implemented": [
+    "Direct Skip worktree, Assume Unchanged, Unflag menu commands with shared original Ignore icon",
+    "Marked-row availability, captured selected paths in display order, native default-No/Yes sheet and parent freeze",
+    "Existing locked private-index backend handles selected stage-zero entries and reports unavailable mixed-selection paths after eligible updates",
+    "Refresh reads flags without index refresh; success/partial result invalidates repository consumers; checked selection retained",
+    "Queued cancellation prevents mutation; an already-started synchronous index transaction completes atomically before refresh/requested close"
+  ],
+  "verification": {
+    "actualReceiver": "Swift 6/macOS 13 actual Add model/native table receiver: marked-row menu gates/order, No/quit/queued-cancel behavior, actual skip/assume/both-clear index flags, unchanged staged blobs/modes/working bytes/checks, mixed-selection partial error and refresh, untracked marked suppression and added/unborn gates. All previous Add receiver checks pass. No windows displayed.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "lastFullRegression": {
+      "count": 495,
+      "failures": 0,
+      "record": "add-revert-2026-10-06.json",
+      "note": "No core changes; full regression not repeated for this native wiring change."
+    },
+    "site": "Documentation site generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AddWindow.swift": "0336cd497037a2db879732015790e6bb0a9b70065948b231991c1b07d61417dc",
+    "Sources/TurtleGitMac/AddFileTable.swift": "35f3df5ceabea3cb03923bac3790a4d4aa75e9d7e4ac122262e807794a7649ac",
+    "scripts/test-add-dialog.py": "3ef6e590956261455822c4938641151f4970a2d31a8ab7eef51c59eb0781edb5"
+  },
+  "logs": {
+    "native": {
+      "path": "/tmp/turtlegit-add-flags-native.log",
+      "sha256": "1ae6a22cd66bf9c21cf29284668d27c6969966c91396d6940e176e7a0e406e35"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-add-flags-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-flags-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-add-flags-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-add-flags-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-flags-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Displayed native menu/sheet gestures and light/dark acceptance",
+    "Signed Finder and App Store grant/distribution acceptance",
+    "Remaining LFS/status-list consumers and full application parity",
+    "GitHub execution of these local changes"
+  ]
+}

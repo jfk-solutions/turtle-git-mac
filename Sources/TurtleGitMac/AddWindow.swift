@@ -27,6 +27,7 @@ private final class AddNativeWindow: NSWindow {
         model.close = { [weak window] in window?.close() }
         model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
         model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
+        model.onIndexFlags = { [weak self] action, paths, mark in self?.confirmFlags(action, paths: paths, mark: mark) }
         model.onRevertRequest = { [weak self] rows in self?.confirmRevert(rows) }
         model.onRestore = { [weak self] paths in self?.confirmRestore(paths) }
         model.onDelete = { [weak self] selected, permanently in self?.confirmDelete(selected, permanently: permanently) }
@@ -78,6 +79,12 @@ private final class AddNativeWindow: NSWindow {
             }
             ignoreController = controller; window.beginSheet(child)
         } catch { model.error = error.localizedDescription }
+    }
+    private func confirmFlags(_ action: IndexFlagAction, paths: [String], mark: String) {
+        guard let window, window.attachedSheet == nil, model.beginFlagConfirmation(action, paths: paths, mark: mark) else { return }
+        let alert = NSAlert(); alert.messageText = action.confirmation
+        alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+        alert.beginSheetModal(for: window) { [weak model] response in _ = model?.finishFlagConfirmation(accepted: response == .alertSecondButtonReturn) }
     }
     private func confirmRevert(_ rows: [AddDialogEntry]) {
         guard let window, window.attachedSheet == nil, model.beginRevertConfirmation(rows) else { return }
@@ -134,6 +141,35 @@ private final class AddNativeWindow: NSWindow {
     private var loaded = false
     private(set) var ignoring = false
     @Published var restoreCopies: [String: WorkingFileRestoreCopy] = [:]
+    @Published private(set) var indexFlagFiles: [WorkingTreeFile] = []
+    private var pendingFlags: (IndexFlagAction, [String], String)?
+    var onIndexFlags: (IndexFlagAction, [String], String) -> Void = { _, _, _ in }
+    func beginFlagConfirmation(_ action: IndexFlagAction, paths: [String], mark: String) -> Bool {
+        guard !busy, !confirmingQuit, !paths.isEmpty, paths.contains(mark),
+              paths.allSatisfy({ path in entries.contains { $0.path == path } }),
+              let marked = indexFlagFiles.first(where: { $0.id == mark }), action.isAvailable(for: [marked]) else { return false }
+        pendingFlags = (action, paths, mark); busy = true; return true
+    }
+    @discardableResult func finishFlagConfirmation(accepted: Bool) -> Task<Void, Never>? {
+        guard let (action, paths, mark) = pendingFlags else { return nil }; pendingFlags = nil
+        guard accepted else { busy = false; return nil }
+        cancellation = OperationCancellation(); let operationCancellation = cancellation
+        return Task {
+            defer { busy = false; if operationCancellation.isCancelled || cancellation.isCancelled { close() }; cancellation = OperationCancellation() }
+            do {
+                try validateAccess()
+                if operationCancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                // The shared locked index transaction finishes atomically once started.
+                try await repository.setIndexFlags(action, paths: paths, markedPath: mark)
+                onIgnoreChanged(action.rawValue + ": " + paths.joined(separator: ", "))
+            } catch {
+                if let failure = error as? IndexFlagPartialFailure, !failure.updatedPaths.isEmpty { onIgnoreChanged(failure.localizedDescription) }
+                if !(error is OperationCancellationFailure) { self.error = error.localizedDescription }
+            }
+            cancellation = OperationCancellation()
+            do { try await read() } catch { if !cancellation.isCancelled { self.error = [self.error, error.localizedDescription].compactMap { $0 }.joined(separator: "\n") } }
+        }
+    }
     private var pendingRevert: [AddDialogEntry]?
     private(set) var reverting = false
     private var closeAfterRevert = false
@@ -324,6 +360,9 @@ private final class AddNativeWindow: NSWindow {
         let selection = try await repository.addDialogSelection(paths: paths, includeIgnored: includeIgnored, cancellation: cancellation)
         let head = try? await repository.run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation)
         if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }; hasHead = head != nil
+        let flags = try await repository.workingTreeStatus(refreshIndex: false)
+        if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+        indexFlagFiles = flags
         let previous = Set(entries.map(\.path))
         entries = selection.entries
         if loaded { checked.formIntersection(Set(entries.map(\.path))); checked.formUnion(selection.initiallyChecked.subtracting(previous)) }
@@ -340,7 +379,7 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     func cancel() {
-        guard !confirmingQuit, !ignoring, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil else { return }
+        guard !confirmingQuit, !ignoring, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil, pendingFlags == nil else { return }
         if reverting { closeAfterRevert = true; cancelRevert?() }
         else if busy { cancellation.cancel() }
         else { close() }

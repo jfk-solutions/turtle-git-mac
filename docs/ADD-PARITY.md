@@ -91,6 +91,24 @@ mixed-status behavior remains an explicit parity gap, rather than silently
 filtering requested files. See [the Revert record](qa/add-revert-2026-10-06.json)
 for actual Add/progress receivers, full regression and pending native acceptance.
 
+Index-flag commands now follow the marked versioned row: Skip worktree excludes
+added/conflicted/already-skipped rows; Assume Unchanged also excludes deleted
+and already-assumed rows; Unflag appears when either flag is set. These are direct
+context commands with the shared original Ignore icon. Add captures all selected
+paths in display order and the marked path, then shows a native default-No/Yes
+sheet. No preserves checks and the index. Yes uses the existing locked private-index
+backend, preserving staged blob IDs/modes and working contents. An eligible marked
+row allows mixed selections; paths without stage-zero entries are reported after
+eligible paths are updated, matching the shared backend's partial-result behavior.
+
+The parent blocks actions and close during confirmation/work. A queued cancellation
+prevents mutation; once the synchronous index transaction starts it finishes
+atomically, then the parent refreshes and honors a requested close. Add rereads
+index flags without refreshing the index and updates menu eligibility. Success or
+partial success refreshes repository consumers through the existing callback.
+See [the index-flag record](qa/add-flags-2026-10-06.json); displayed confirmation,
+menu and signed grant acceptance remain pending.
+
 The tracked-file menu now exposes the shared Restore after commit command from
 upstream. In Add it saves temporary working-file copies and changes to Restore;
 it does not create a commit or automatically restore files when Add completes.
@@ -223,7 +241,7 @@ actual progress model checks, both unsigned builds and bundle audits pass.
 Native confirmation/progress gestures and signed acceptance remain pending.
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
-acceptance is pending. Full status-list commands (remaining tracked-row commands and
+acceptance is pending. Full status-list commands (remaining LFS commands and
 other shared consumers), Shift alternative comparison, Space/column/drop/keyboard
 gestures,
 progress notification granularity, saved histories/preferences, broader direct/
