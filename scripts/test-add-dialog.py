@@ -29,6 +29,24 @@ import TurtleGitCore
         let receiver = AddFileTable.Coordinator(model: model), scroll = receiver.make()
         precondition(receiver.table.tableColumns.map(\.title) == ["", "Path", "Extension", "Size", "Modification date"])
         precondition(receiver.numberOfRows(in: receiver.table) == 3 && scroll.documentView === receiver.table)
+        precondition((receiver.table as? NativeWatermarkTable)?.watermarkImage != nil)
+        let watermarkDomain = "TurtleGitAddWatermark-" + UUID().uuidString
+        let watermarkDefaults = UserDefaults(suiteName: watermarkDomain)!
+        defer { watermarkDefaults.removePersistentDomain(forName: watermarkDomain) }
+        let watermark = NativeWatermarkTable(icon: .addBackdrop, defaults: watermarkDefaults)
+        precondition(watermark.backdropRect(in: NSRect(x: 0, y: 0, width: 300, height: 240)) == NSRect(x: 172, y: 112, width: 128, height: 128))
+        precondition(watermark.backdropRect(in: NSRect(x: 20, y: 70, width: 300, height: 240)) == NSRect(x: 192, y: 182, width: 128, height: 128))
+        watermarkDefaults.set(false, forKey: "ShowListBackgroundImage"); precondition(watermark.backdropRect(in: NSRect(x: 0, y: 0, width: 300, height: 240)) == nil)
+        watermarkDefaults.removeObject(forKey: "ShowListBackgroundImage")
+        let artwork = MenuIcon.addBackdrop.image(size: 128)!; precondition(!artwork.isTemplate)
+        var imageRect = NSRect(x: 0, y: 0, width: 128, height: 128)
+        let pixels = NSBitmapImageRep(cgImage: artwork.cgImage(forProposedRect: &imageRect, context: nil, hints: nil)!)
+        precondition(pixels.hasAlpha && pixels.colorAt(x: 0, y: 0)!.alphaComponent < 0.01)
+        precondition((0..<pixels.pixelsHigh).contains { y in (0..<pixels.pixelsWide).contains { x in
+            let color = pixels.colorAt(x: x, y: y)!.usingColorSpace(.deviceRGB)!
+            return color.alphaComponent > 0.1 && color.alphaComponent < 0.9 && abs(color.redComponent - color.blueComponent) > 0.1
+        } })
+        try pixels.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "/tmp/turtlegit-add-background-128.png"))
         let index = receiver.rows.firstIndex { $0.path == unchecked }!
         let checkbox = receiver.tableView(receiver.table, viewFor: receiver.table.tableColumns[0], row: index) as! NSButton
         precondition(checkbox.identifier?.rawValue == unchecked && checkbox.state == .off)
@@ -66,6 +84,10 @@ import TurtleGitCore
         model.onAccepted = { accepted = $0 }; model.close = { closed += 1 }; model.apply()
         precondition(Set(accepted) == [file, ignored] && closed == 1)
         let progress = AddProgressWindowModel(repository: repo, access: nil, paths: accepted)
+        let progressTable = AddProgressTable.Coordinator(model: progress), progressScroll = progressTable.make()
+        precondition(progressTable.table.tableColumns.map(\.title) == ["Action", "Path"])
+        precondition(progressTable.table.watermarkImage != nil && progressScroll.documentView === progressTable.table)
+        precondition(progressTable.numberOfRows(in: progressTable.table) == accepted.count)
         var finishes = 0; progress.onFinished = { _, success in precondition(success); finishes += 1 }
         await progress.run(); precondition(progress.success && !progress.busy && finishes == 1)
         await progress.run(); precondition(finishes == 1)
@@ -196,12 +218,12 @@ import TurtleGitCore
         precondition(!model.busy && !FileManager.default.fileExists(atPath: cancelledCopy.path))
         await model.saveFile(copyPath, to: folder.appendingPathComponent(copyPath))
         let sourceAfter = try Data(contentsOf: folder.appendingPathComponent(copyPath)); precondition(sourceAfter == copyBytes && !model.busy)
-        print("Actual Add receiver: Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        print("Actual Add receiver: exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''
 with tempfile.TemporaryDirectory(prefix='TurtleGitAddDialogTest-') as directory:
     folder = pathlib.Path(directory); main = folder / 'Driver.swift'; main.write_text(driver); binary = folder / 'verify'
-    sources = ['AddWindow.swift', 'AddFileTable.swift', 'AddProgressWindow.swift', 'SelectionAllCheckbox.swift', 'CommandLabel.swift', 'Appearance.swift', 'AlternativeEditorSettings.swift', 'IgnoreWindow.swift']
+    sources = ['AddWindow.swift', 'AddFileTable.swift', 'AddProgressWindow.swift', 'SelectionAllCheckbox.swift', 'CommandLabel.swift', 'Appearance.swift', 'AlternativeEditorSettings.swift', 'IgnoreWindow.swift', 'NativeWatermarkTable.swift', 'AddProgressTable.swift']
     subprocess.run(['xcrun', 'swiftc', '-swift-version', '6', '-parse-as-library', '-target', platform.machine() + '-apple-macos13.0', '-F', str(frameworks), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(frameworks), *[str(root / 'Sources/TurtleGitMac' / s) for s in sources], str(main), '-o', str(binary)], check=True)
     subprocess.run([str(binary), str(folder / 'fixture')], check=True)

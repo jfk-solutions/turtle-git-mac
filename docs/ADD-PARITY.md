@@ -13,7 +13,13 @@ The Add dialog keeps the upstream list above Select/deselect all and Include
 ignored files, with OK/Cancel/Help below. Path and Extension are visible by
 default; native header menus expose optional Size and Modification date columns.
 Original status/menu icons, shared status colors, light/dark adaptation and
-resizable saved geometry are used. Native table sorting, separate highlighted
+resizable saved geometry are used. Add selector and progress now use the unchanged
+pinned AddBackground.ico, a translucent blue plus at the lower right of the list
+viewport. The native background draw preserves alpha and original colors without
+tinting, respects ShowListBackgroundImage (default on), and clips to the visible
+list. Progress uses the upstream two columns, Action and Path, with original Add
+icons and shared status colors; its former extra Status column has been removed.
+See [the artwork verification record](qa/add-artwork-2026-10-06.json). Native table sorting, separate highlighted
 and checked rows, check/uncheck, preview and Explore context commands are present.
 Right-clicking a different row selects it before the menu is prepared. Space
 checks/unchecks highlighted rows. Open, Open With and alternative-editor actions
@@ -115,7 +121,7 @@ passes 492 tests with zero failures; both unsigned builds and bundle audits pass
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
 acceptance is pending. Full status-list commands (current-column clipboard, tracked-row commands and
-other shared consumers), background artwork, Space/column/drop/keyboard gestures,
+other shared consumers), Space/column/drop/keyboard gestures,
 progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain
 unfinished. Signed Finder/picker/grant/quit acceptance and GitHub execution of

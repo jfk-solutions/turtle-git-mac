@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-private final class AddNativeTable: NSTableView {
+private final class AddNativeTable: NativeWatermarkTable {
     var toggleChecks: () -> Void = {}
     var copySelection: () -> Void = {}
     var deleteSelection: (Bool) -> Void = { _ in }
@@ -32,7 +32,7 @@ struct AddFileTable: NSViewRepresentable {
     func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.refresh() }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         let model: AddWindowModel
-        private let nativeTable = AddNativeTable()
+        private let nativeTable = AddNativeTable(icon: .addBackdrop)
         var table: NSTableView { nativeTable }
         private var updating = false
         init(model: AddWindowModel) { self.model = model }
@@ -100,7 +100,7 @@ struct AddFileTable: NSViewRepresentable {
             case "date": field.stringValue = row.modified.map { $0.formatted(date: .numeric, time: .shortened) } ?? "–"
             default:
                 field.stringValue = row.path; field.textColor = NSColor(row.state.textColor)
-                let cell = NSTableCellView(); cell.imageView = NSImageView(); cell.imageView?.image = row.state.icon.image(); cell.textField = field
+                let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: tableColumn?.width ?? 440, height: 22)); cell.imageView = NSImageView(); cell.imageView?.image = row.state.icon.image(); cell.textField = field
                 if let image = cell.imageView { image.frame = NSRect(x: 2, y: 3, width: 16, height: 16); cell.addSubview(image) }
                 field.frame = NSRect(x: 23, y: 2, width: max(0, (tableColumn?.width ?? 440) - 26), height: 18); field.autoresizingMask = [.width]; cell.addSubview(field); cell.toolTip = row.path; return cell
             }

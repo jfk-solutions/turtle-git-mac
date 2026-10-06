@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-06",
+  "scope": "Original Add list watermark and source two-column progress table; full application parity remains incomplete",
+  "baseCommit": "8300571663f53bd8b8b1a09abb99ecbdff0087ec",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "AddDlg.cpp SetBackgroundImage(IDI_ADD_BKG)",
+    "AddProgressCommand.cpp same artwork",
+    "CommonAppUtils.cpp SetListCtrlBackgroundImage: 128 DPI-scaled pixels, lower-right, alpha blend and ShowListBackgroundImage default true",
+    "GitProgressList.cpp Init columns Action/Path only"
+  ],
+  "originalAsset": "AddBackground.ico copied byte-for-byte from pinned source; original blue plus, alpha and GPL resource license choice retained; provenance has 76 assets.",
+  "focusedIconTest": {
+    "count": 1,
+    "failures": 0,
+    "scope": "All MenuIcon cases decoded/rendered, including newly bundled artwork."
+  },
+  "actualReceiver": "Swift 6/macOS 13 actual Add selector and progress table coordinators verify loaded original non-template colored/translucent artwork, transparent corner, default-enabled and disabled preference, 128-point rectangle anchored to initial and scrolled viewports, Action/Path progress columns and row count. Prior real Add/Ignore/Delete/Save/Export checks retained. No windows/menus displayed.",
+  "visualInspection": "Viewed /tmp/turtlegit-add-background-128.png, decoded original icon pixels only; this is not an application screenshot or composed table/window verification.",
+  "drawingScope": "Native background draw and row colors/layout compile; actual AppKit background painting, visible selection/scroll/resize and live light/dark behavior remain pending.",
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed"
+  ],
+  "bundleAudits": "Both validators and exact bundled NOTICE comparisons pass; all 76 upstream icons, extension and universal helpers and Store Git retained.",
+  "lastFullCoreRegression": {
+    "count": 492,
+    "failures": 0,
+    "scope": "Prior commit; no repository behavior/API changes. Focused all-icon decoder and actual affected native receiver used instead of repeating full regression."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/MenuIcons.swift": "7e25b9b75770914af451a061fdeceb71cfea958938ef55ecc92374cbb8039d2b",
+    "Sources/TurtleGitCore/Resources/Icons/AddBackground.ico": "bcd7b2c4b5e6c1915dcde0ece331bdc84d9b97cd3c341ce2977abd596a00dfa9",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "29479485f8fcd20b25e265580d98fd21b9b399ce6600f3d84a6d5694d5729eac",
+    "Sources/TurtleGitMac/NativeWatermarkTable.swift": "ba893d6c0dea836505826224d48c0dff0e8dd61d4d0ba4dfd53222594bae0473",
+    "Sources/TurtleGitMac/AddFileTable.swift": "c79f016469ecac7a8af9304da0f469fea6e235961758379b8c4d80c60b44bc00",
+    "Sources/TurtleGitMac/AddProgressTable.swift": "25ae18845279a159a64578dc33d6b28c6b5c634907bc693b14caab55d0b6b37a",
+    "Sources/TurtleGitMac/AddProgressWindow.swift": "cb0687e06aa2b00f825b27f0a43a7ce26deba673fb18c3c9cf80c0a0c7afc795",
+    "scripts/test-add-dialog.py": "3eabe1bb01f17574964f42d023ef655106fb1f8058f0dc81ffc22301c42753c9",
+    "NOTICE": "038f635ba3a9b1d519fb1b3d20f79b20c60e1fa6144ce77520ba44c9498b398a"
+  },
+  "logs": {
+    "icons": {
+      "path": "/tmp/turtlegit-add-art-icons.log",
+      "sha256": "436b646fbcd497b9945ffadec4183668c77a114c0b97fb3a1a01aa2a82d55ce2"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-add-art-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-art-store.log",
+      "sha256": "c3317a93e73643be09045c50c69229cd4545aac229542d1968ba51680e6abb72"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-art-native.log",
+      "sha256": "24fd31571ec91d4521715601c751cf5f65e4ea675c33291fe53727238f25f6da"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-art-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-art-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-art-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Composed Add selector/progress native screenshots and original dialog comparison",
+    "Light/dark/high-contrast, selection overlap, DPI, viewport scroll/resize and live preference acceptance",
+    "Progress notifications/granularity/context commands and broader native input acceptance",
+    "Remaining Add/shared menus/settings/helper/Finder parity",
+    "Signed sandbox/Finder/AppStore distribution and GitHub publication authentication"
+  ],
+  "appProcesses": "No main app or receiver remains at final audit; no main app launched for checks",
+  "site": "Static documentation generation passed"
+}

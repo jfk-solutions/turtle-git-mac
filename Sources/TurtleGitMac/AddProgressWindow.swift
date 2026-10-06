@@ -18,7 +18,6 @@ import TurtleGitCore
     func windowWillClose(_ notification: Notification) { onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
-struct AddProgressRow: Identifiable { var id: String { path }; let path: String }
 @MainActor final class AddProgressWindowModel: ObservableObject {
     let repository: GitRepository
     let paths: [String]
@@ -62,11 +61,7 @@ struct AddProgressView: View {
     @ObservedObject var model: AddProgressWindowModel
     var body: some View {
         VStack(spacing: 12) {
-            Table(model.paths.map { AddProgressRow(path: $0) }) {
-                TableColumn("Action") { _ in CommandLabel(title: "Add", icon: .add) }.width(100)
-                TableColumn("Path", value: \.path)
-                TableColumn("Status") { _ in Text(model.busy ? "In progress" : model.success ? "Added" : model.cancelled ? "Cancelled" : "Failed").foregroundStyle(model.success ? FileState.added.textColor : Color.primary) }.width(100)
-            }
+            AddProgressTable(model: model).frame(minHeight: 220)
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.information).textSelection(.enabled); Spacer() }
             HStack {
                 if model.success {

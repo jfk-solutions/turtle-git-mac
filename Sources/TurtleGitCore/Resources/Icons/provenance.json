@@ -377,6 +377,11 @@
       "asset": "RepoBrowserBackground.ico",
       "source": "src/Resources/RepoBrowserBackground.ico",
       "sha256": "174fc7929cafdec779da382cf56577ee1252992bbc6c8589625cd09811c674bd"
+    },
+    {
+      "asset": "AddBackground.ico",
+      "source": "src/Resources/AddBackground.ico",
+      "sha256": "bcd7b2c4b5e6c1915dcde0ece331bdc84d9b97cd3c341ce2977abd596a00dfa9"
     }
   ]
 }

@@ -43,7 +43,8 @@ preserving unrelated checks and the Git index. Delete now uses a native
 confirmation, recoverable Trash by default, and Shift for permanent deletion;
 stale selections are rejected before deletion. Save As and Export copy current
 working contents with binary bytes and relative folder layout preserved; the
-index is unchanged.
+index is unchanged. Original translucent Add artwork now appears in both lists;
+progress follows the upstream Action/Path columns.
 [Add parity](docs/ADD-PARITY.md) records unfinished menus, post-actions and native QA.
 
 Create Patch Serial now has a native Format Patch dialog with Since, Number

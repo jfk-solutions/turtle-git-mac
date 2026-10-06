@@ -228,10 +228,11 @@ AppKit tables/header menus and UserDefaults replace Win32 controls and registry
 storage. Receiver tests verify state and persistence; native mouse/keyboard,
 appearance and signed acceptance remain pending.
 
-Worktree List background rendering adapts CCommonAppUtils::SetListCtrlBackgroundImage,
+Worktree List and Add selector/progress background rendering adapts CCommonAppUtils::SetListCtrlBackgroundImage,
 CommonAppUtils.cpp, Copyright (C) 2008-2020, 2023-2025 TortoiseGit and
 Copyright (C) 2003-2008, 2010, 2020 TortoiseSVN, under GPL version 2 or later.
-RepoBrowserBackground.ico is retained unchanged with pinned provenance under
+RepoBrowserBackground.ico and AddBackground.ico are retained unchanged with
+pinned provenance under
 the existing GPL resource license choice. Native viewport drawing replaces the
 Win32 alpha-blended lower-right list watermark. Its enabled-by-default preference
 uses the upstream ShowListBackgroundImage name. Other background-image consumers remain pending; composed window appearance and
