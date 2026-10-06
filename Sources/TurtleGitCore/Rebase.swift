@@ -15,12 +15,13 @@ public struct RebaseOptions: Sendable {
     public var force = false
     public var preserveMerges = false
     public var isCherryPick = false
+    public var addCherryPickedFrom = false
     public init() {}
 }
 public enum RebaseDisposition: Sendable { case ready, fastForward, upToDate, equal }
 public struct RebasePlan: Sendable {
     public let disposition: RebaseDisposition
-    public let options: RebaseOptions
+    public var options: RebaseOptions
     public let branchHash: String
     public let upstreamHash: String
     public let ontoHash: String
@@ -208,15 +209,24 @@ extension GitRepository {
                 // Read immutable objects again rather than trusting caller-supplied parent metadata.
                 let original = try rebaseCommit(entry.id)
                 guard original.parents == entry.commit.parents else { throw RebaseFailure.plan }
-                guard entry.action != .skip, original.parents.count > 1 else { continue }
-                guard let mainline = entry.mainline, original.parents.indices.contains(mainline - 1) else { throw RebaseFailure.mainline }
+                guard entry.action != .skip, original.parents.count > 1 || plan.options.addCherryPickedFrom else { continue }
+                let parent: String?
+                if original.parents.count > 1 {
+                    guard let mainline = entry.mainline, original.parents.indices.contains(mainline - 1) else { throw RebaseFailure.mainline }
+                    parent = original.parents[mainline - 1]
+                } else { parent = original.parents.first }
                 let object = try run(["cat-file", "commit", original.hash]).stdout
                 guard let separator = object.range(of: Data([10, 10])) else { throw RebaseFailure.plan }
                 let messageFile = temporary.appendingPathComponent("message")
-                try object.subdata(in: separator.upperBound..<object.count).write(to: messageFile)
+                var message = object.subdata(in: separator.upperBound..<object.count)
+                if plan.options.addCherryPickedFrom {
+                    while message.last == 10 { message.removeLast() }
+                    message.append(Data(("\n\n(cherry picked from commit " + original.hash + ")\n").utf8))
+                }
+                try message.write(to: messageFile)
                 let tree = try run(["rev-parse", original.hash + "^{tree}"]).text.trimmingCharacters(in: .newlines)
                 // A one-parent object applies precisely the merge-to-mainline patch. It changes no ref or index.
-                let hash = try run(["commit-tree", tree, "-p", original.parents[mainline - 1], "-F", messageFile.path],
+                let hash = try run(["commit-tree", tree] + (parent.map { ["-p", $0] } ?? []) + ["-F", messageFile.path],
                                    environmentOverrides: ["GIT_AUTHOR_NAME": original.author, "GIT_AUTHOR_EMAIL": original.email, "GIT_AUTHOR_DATE": original.date]).text.trimmingCharacters(in: .newlines)
                 mapping[hash] = original.hash
                 var replacement = RebaseEntry(commit: try rebaseCommit(hash), action: entry.action)

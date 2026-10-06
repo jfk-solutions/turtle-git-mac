@@ -31,3 +31,6 @@ its recovery behavior. Its macOS screenshots remain pending.
 
 The [Revert from Log guide](REVERT-COMMIT.md) now covers the single-revision and
 merge-parent workflow. Displayed screenshots and remaining workflows are pending.
+
+The [Cherry Pick guide](CHERRY-PICK.md) documents selected commit plans, merge-parent
+prompts, attribution and recovery. Displayed macOS screenshots remain pending.

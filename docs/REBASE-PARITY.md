@@ -50,8 +50,9 @@ staged contents intact and report Git's error.
 Ten Rebase tests cover the headless editor, pick/skip/reorder, squash, Edit/amend/
 Continue, true conflict recovery after reopening, Abort, Skip, onto/stale/invalid
 plans, preserved merge parents, linked worktrees, dirty rejection, disposition/
-fast-forward branch identity and stopped/pending commit metadata. The full suite
-has 78 passing tests.
+fast-forward branch identity and stopped/pending commit metadata. The initial historical checkpoint recorded 78 full-suite tests; that count is not
+a claim about the current source. The Cherry Pick audit records the newer focused
+replay checks.
 
 Native QA verified commit detail selection, Skip and Up/Down, and a real Start
 operation: the skipped file was absent, retained commits stayed on the chosen
@@ -68,9 +69,9 @@ These establish the pictured layout, not full behavior or accessibility parity.
 ## Remaining workflows
 
 - Fetch/Pull handoffs, old-upstream detection, fast-forward choices and config defaults.
-- Add/Split, cherry-pick mode, empty commits and custom structural merge plans.
+- Add/Split, advanced Cherry Pick options, patch-becomes-empty interaction and custom structural merge plans.
 - Native squash/reword message editing, complete conflict/resolution menus and tabs.
-- Full row targeting/shortcuts, ID/customizable columns, dates and persisted layout.
+- Full row targeting/shortcuts, customizable columns and persisted layout. ID and formatted dates are now present; displayed acceptance remains pending.
 - Hooks, signing/editor/authentication prompts, stash restoration, streaming progress,
   cancellation, failures and signed sandbox/editor validation.
 - Broader native light/dark/contrast, keyboard, resizing and accessibility QA.
@@ -103,3 +104,8 @@ Upstream up-to-date/unchanged prompts, explicit fast-forward Merge/Rebase/Abort
 choices, post-operation Log/Push/mail actions, comprehensive conflict UI and
 native preserve-merges/URL/failure/recovery QA still remain. Pinning the target
 currently displays its hash rather than a named remote-tracking ref.
+
+Cherry Pick mode now reuses this window with the upstream disabled reference row,
+hidden Force/Preserve controls, attribution checkbox and merge-parent prompts.
+See [Cherry Pick parity](CHERRY-PICK-PARITY.md). Existing screenshots above predate
+the numbered-row and formatted-date changes and do not establish the current layout.

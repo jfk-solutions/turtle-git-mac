@@ -11,7 +11,22 @@ import TurtleGitCore
         window.title = "\(repository.root.lastPathComponent) – Rebase – TurtleGit"; window.minSize = NSSize(width: 930, height: 620); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RebaseDialog(model: model))
         super.init(window: window); window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
+        model.onModeChanged = { [weak window, weak model] in
+            window?.title = "\(repository.root.lastPathComponent) – \(model?.operationTitle ?? "Rebase") – TurtleGit"
+        }
+        model.chooseMainline = { [weak window] commit, choices in
+            guard let window, window.attachedSheet == nil else { return nil }
+            let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.alertStyle = .informational
+            alert.informativeText = "\"\(commit.hash)\" - \"\(commit.subject)\"\nis a merge commit.\n\nWhich parent do you want to pick?"
+            for choice in choices { alert.addButton(withTitle: choice.title) }
+            let cancel = alert.addButton(withTitle: "Cancel")
+            alert.buttons.first?.keyEquivalent = ""; cancel.keyEquivalent = "\r"; alert.window.defaultButtonCell = cancel.cell as? NSButtonCell
+            let response = await alert.beginSheetModal(for: window)
+            let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+            return choices.indices.contains(index) ? choices[index].number : nil
+        }
     }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -39,14 +54,21 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onChanged: () -> Void = {}
     var onShowStatus: () -> Void = {}
+    var onModeChanged: () -> Void = {}
+    var chooseMainline: (LogEntry, [LogParentChoice]) async -> Int? = { _, _ in nil }
+    var editorExecutable: URL? = Bundle.main.executableURL
+    var isCherryPick: Bool { options.isCherryPick || state?.isCherryPick == true }
+    var operationTitle: String { isCherryPick ? "Cherry Pick" : "Rebase" }
+    var startTitle: String { isCherryPick ? "Continue" : "Start Rebase" }
+    var helpURL: URL { URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-" + (isCherryPick ? "cherrypick" : "rebase") + ".html")! }
     private var planGeneration = 0
     private var detailGeneration = 0
     private var completion = "Rebase finished"
-    private var pendingLoad: (upstream: String, autoStart: Bool, preserveMerges: Bool)?
+    private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?)?
     private func loadPendingHandoff() {
         guard !busy, let pending = pendingLoad else { return }
         pendingLoad = nil
-        load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges)
+        load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick)
     }
     var active: Bool { state?.active == true }
     var editable: Bool { !busy && !active && !finished }
@@ -56,7 +78,11 @@ import TurtleGitCore
         if plan?.disposition == .upToDate || plan?.disposition == .equal { return [] }
         return Array((plan?.entries ?? []).reversed())
     }
-    var canStart: Bool { editable && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal }
+    func entryNumber(_ entry: RebaseEntry) -> Int {
+        if active { return (state?.currentStep ?? 1) + (recovered.firstIndex(where: { $0.id == entry.id }) ?? 0) }
+        return (plan?.entries.firstIndex(where: { $0.id == entry.id }) ?? 0) + 1
+    }
+    var canStart: Bool { editable && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first(where: { $0.action != .skip })?.action != .squash }
     var status: String {
         if finished { return completion }
         if active { return "Step \(state?.currentStep ?? 0) of \(state?.total ?? 0) • \(state?.conflicts.count ?? 0) unresolved paths" }
@@ -64,22 +90,31 @@ import TurtleGitCore
         case .equal: return "Branch and upstream are the same revision."
         case .upToDate: return "Branch is up to date. Enable Force Rebase to replay its commits."
         case .fastForward: return "The branch can fast-forward to upstream."
-        default: return "\(plan?.entries.count ?? 0) commits in the rebase plan"
+        default: return "\(plan?.entries.count ?? 0) commits in the \(operationTitle.lowercased()) plan"
         }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false) {
+    func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
         guard !busy else {
-            if let upstream { pendingLoad = (upstream, autoStart, preserveMerges) }
+            if upstream != nil || cherryPick != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick) }
             return
         }; busy = true; planGeneration += 1; detailGeneration += 1
         Task {
             var started = false
             defer { if !started { busy = false; loadPendingHandoff() } }
             do {
-                references = try await repository.checkoutReferences(); state = try await repository.rebaseState()
-                if active { options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
+                try requireAccess()
+                references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil
+                if active { options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
                 finished = false; plan = nil; recovered = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
+                if let cherryPick {
+                    plan = try await repository.cherryPickPlan(revisions: cherryPick)
+                    options = plan!.options
+                    options.addCherryPickedFrom = UserDefaults.standard.bool(forKey: "CherrypickAddCherryPickedFrom")
+                    updateAttribution()
+                    onModeChanged(); selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit(); return
+                }
+                onModeChanged()
                 let branch = try await repository.branch(); options.branch = branch.isEmpty ? "HEAD" : "refs/heads/" + branch
                 let defaults = try await repository.pullDefaults()
                 options.upstream = upstream ?? (defaults.trackedRemote.isEmpty || defaults.trackedBranch.isEmpty ? "" : "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch)
@@ -90,13 +125,38 @@ import TurtleGitCore
         }
     }
     func reloadPlan() {
-        guard editable else { return }; planGeneration += 1; detailGeneration += 1
+        guard editable, !isCherryPick else { return }; planGeneration += 1; detailGeneration += 1
         let request = planGeneration; var snapshot = options; if !ontoEnabled { snapshot.onto = "" }
         plan = nil; selection = []; files = []; message = ""
         Task {
             do { let value = try await repository.rebasePlan(snapshot); guard request == planGeneration, editable else { return }; plan = value; selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit() }
             catch RebaseFailure.revision { /* Keep incomplete editable references without interrupting typing. */ }
             catch { if request == planGeneration { self.error = error.localizedDescription } }
+        }
+    }
+    private func requireAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    func updateAttribution() {
+        guard isCherryPick, var value = plan, !active else { return }
+        value.options.addCherryPickedFrom = options.addCherryPickedFrom
+        plan = value
+        UserDefaults.standard.set(options.addCherryPickedFrom, forKey: "CherrypickAddCherryPickedFrom")
+    }
+    private func prepareCherryPick() {
+        guard canStart, var snapshot = plan else { return }
+        busy = true
+        Task {
+            do {
+                try requireAccess()
+                for index in snapshot.entries.indices where snapshot.entries[index].action != .skip && snapshot.entries[index].commit.parents.count > 1 {
+                    let commit = snapshot.entries[index].commit
+                    let choices = try await repository.logParentChoices(commit)
+                    guard let parent = await chooseMainline(commit, choices) else { busy = false; loadPendingHandoff(); return }
+                    snapshot.entries[index].mainline = parent
+                }
+                plan = snapshot; busy = false; execute("start")
+            } catch { busy = false; self.error = error.localizedDescription; loadPendingHandoff() }
         }
     }
     func setAction(_ action: RebaseAction, ids: Set<String>? = nil) {
@@ -124,30 +184,32 @@ import TurtleGitCore
         guard !busy else { return }; busy = true
         Task {
             defer { busy = false; loadPendingHandoff() }
-            do { let wasActive = active; state = try await repository.rebaseState(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.message ?? ""; selectCommit() } else if wasActive { finished = true; completion = "Rebase session ended" }; onChanged() }
+            do { let wasActive = active; state = try await repository.rebaseState(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.message ?? ""; selectCommit() } else if wasActive { finished = true; completion = "\(operationTitle) session ended" }; onChanged() }
             catch { self.error = error.localizedDescription }
         }
     }
     func request(_ action: String) {
-        if action == "start" { confirmation = "Start rewriting the selected branch using this commit plan?" }
-        else if action == "abort" { confirmation = "Abort this rebase and restore its original branch? Current conflict-resolution edits will be discarded." }
+        if action == "start", isCherryPick { prepareCherryPick(); return }
+        if action == "start" { guard canStart else { return }; confirmation = "Start rewriting the selected branch using this commit plan?" }
+        else if action == "abort" { confirmation = "Abort this \(operationTitle.lowercased()) and restore its original branch? Current conflict-resolution edits will be discarded." }
         else if action == "skip" { confirmation = "Skip the current commit? Its changes and current conflict-resolution edits will be discarded." }
         else { execute(action) }
     }
     func execute(_ action: String) {
-        guard !busy else { return }
+        guard !busy, action != "start" || canStart else { return }
         let snapshot = plan; busy = true; tab = 2
         Task {
             defer { busy = false; loadPendingHandoff() }
             do {
+                try requireAccess()
                 let result: RebaseExecution
                 switch action {
-                case "start": guard let snapshot, let executable = Bundle.main.executableURL else { throw RebaseFailure.plan }; result = try await repository.startRebase(snapshot, editorExecutable: executable)
+                case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; result = try await repository.startRebase(snapshot, editorExecutable: executable)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
                 default: result = try await repository.continueRebase()
                 }
-                output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "Rebase aborted" : "Rebase finished"
+                output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
                 if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedCommit.isEmpty == false ? [state!.stoppedCommit] : []) }
                 if result.exitCode != 0 { error = result.output }
                 onChanged()
@@ -156,37 +218,46 @@ import TurtleGitCore
     }
     func amend() {
         guard active, !busy else { return }; busy = true; let text = amendMessage
-        Task { defer { busy = false; loadPendingHandoff() }; do { output += try await repository.amendRebaseCommit(message: text); onChanged() } catch { self.error = error.localizedDescription } }
+        Task { defer { busy = false; loadPendingHandoff() }; do { try requireAccess(); output += try await repository.amendRebaseCommit(message: text); onChanged() } catch { self.error = error.localizedDescription } }
     }
 
 }
-private struct RebaseDialog: View {
+struct RebaseDialog: View {
     @ObservedObject var model: RebaseWindowModel
     var body: some View {
         VStack(spacing: 10) {
             HStack {
+                if model.isCherryPick {
+                    Text("Branch:"); TextField("", text: .constant("")).disabled(true)
+                    Image(nsImage: MenuIcon.reverse.image() ?? NSImage()).resizable().frame(width: 16, height: 16).opacity(0.4)
+                    Text("Upstream:"); TextField("", text: .constant("HEAD")).disabled(true)
+                    Button("…") {}.disabled(true); Toggle("Onto", isOn: .constant(false)).toggleStyle(.button).disabled(true)
+                } else {
                 Text("Branch:"); PushRefCombo(value: $model.options.branch, choices: model.references.filter { $0.name.hasPrefix("refs/heads/") }.map(\.name), local: true)
                 Button { let branch = model.options.branch; model.options.branch = model.options.upstream; model.options.upstream = branch; model.reloadPlan() } label: { Image(nsImage: MenuIcon.reverse.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }.accessibilityLabel("Reverse branch and upstream")
                 Text("Upstream:"); PushRefCombo(value: $model.options.upstream, choices: model.references.map(\.name), local: true)
                 Button("…") { model.browsing = true }.accessibilityLabel("Browse upstream references")
                 Toggle("Onto", isOn: $model.ontoEnabled).toggleStyle(.button)
+                }
             }.disabled(!model.editable)
             if model.ontoEnabled { HStack { Text("Onto:"); PushRefCombo(value: $model.options.onto, choices: model.references.map(\.name), local: true) }.disabled(!model.editable) }
             VSplitView {
                 VStack(spacing: 8) {
                     Table(model.entries, selection: $model.selection) {
-                        TableColumn("Action") { entry in HStack(spacing: 5) { Image(nsImage: entry.action.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized) } }.width(90)
+                        TableColumn("REBASE") { entry in HStack(spacing: 5) { Image(nsImage: entry.action.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(entry.action == .skip ? "Skip" : entry.action.rawValue.capitalized) } }.width(90)
+                        TableColumn("ID") { entry in Text(String(model.entryNumber(entry))) }.width(40)
+                        TableColumn("Hash") { entry in Text(String(entry.id.prefix(9))).font(.system(.caption, design: .monospaced)) }.width(95)
                         TableColumn("Message") { entry in Text(entry.commit.subject) }
                         TableColumn("Author") { entry in Text(entry.commit.author) }.width(130)
-                        TableColumn("Date") { entry in Text(entry.commit.date) }.width(150)
-                        TableColumn("Hash") { entry in Text(String(entry.id.prefix(9))).font(.system(.caption, design: .monospaced)) }.width(95)
+                        TableColumn("Date") { entry in Text(HistoryDateSettings.load().format(entry.commit.date)) }.width(150)
                     }.contextMenu(forSelectionType: String.self) { ids in
                         TurtleGitContextMenu {
      ForEach(RebaseAction.allCases, id: \.self) { action in Button { model.setAction(action, ids: ids) } label: { CommandLabel(title: action == .skip ? "Skip" : action.rawValue.capitalized, icon: action.icon) }.disabled(ids.isEmpty || !model.editable || model.options.preserveMerges) }
                         }
                     }
                     HStack {
-                        Menu("Select all options") {
+                        Button("Pick ALL") { model.setAction(.pick, ids: Set(model.entries.map(\.id))) }.disabled(!model.editable || model.options.preserveMerges)
+                        Menu("Options") {
                             ForEach(RebaseAction.allCases.filter { $0 != .skip }, id: \.self) { action in Button("Select all: " + (action == .skip ? "Skip" : action.rawValue.capitalized)) { model.setAction(action, ids: Set(model.entries.map(\.id))) } }
                             Divider()
                             ForEach([RebaseAction.skip, .squash, .edit], id: \.self) { action in Button("Unselected: " + (action == .skip ? "Skip" : action.rawValue.capitalized)) { model.setAction(action, ids: Set(model.entries.map(\.id)).subtracting(model.selection)) } }
@@ -194,7 +265,9 @@ private struct RebaseDialog: View {
                         Button("Up") { model.move(up: true) }.disabled(!model.editable || model.options.preserveMerges || model.selection.count != 1)
                         Button("Down") { model.move(up: false) }.disabled(!model.editable || model.options.preserveMerges || model.selection.count != 1)
                         Button("Add") {}.disabled(true).help("Adding commits outside this plan is still being ported.")
-                        Spacer(); Toggle("Preserve merges", isOn: $model.options.preserveMerges); Toggle("Force Rebase", isOn: $model.options.force)
+                        Spacer()
+                        if model.isCherryPick { Toggle("add \"cherry picked from\"", isOn: $model.options.addCherryPickedFrom) }
+                        else { Toggle("Preserve merges", isOn: $model.options.preserveMerges); Toggle("Force Rebase", isOn: $model.options.force) }
                     }.disabled(!model.editable)
                 }.frame(minHeight: 180)
                 TabView(selection: $model.tab) {
@@ -204,7 +277,7 @@ private struct RebaseDialog: View {
                         TableColumn("Status", value: \.status).width(100)
                         TableColumn("Lines added") { file in Text(file.added.map(String.init) ?? "–") }.width(85)
                         TableColumn("Lines removed") { file in Text(file.removed.map(String.init) ?? "–") }.width(95)
-                    }.tabItem { Text("Changed Files") }.tag(0)
+                    }.tabItem { Text("Revision Files") }.tag(0)
                     ScrollView { Text(model.message).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) }.tabItem { Text("Commit Message") }.tag(1)
                     OutputView(text: model.output).tabItem { Text("Progress") }.tag(2)
                 }.frame(minHeight: 150)
@@ -217,20 +290,21 @@ private struct RebaseDialog: View {
             else { ProgressView(value: model.finished ? 1 : Double(model.state?.currentStep ?? 0), total: model.finished ? 1 : Double(max(model.state?.total ?? 1, 1))) }
             HStack {
                 Text(model.status).font(.caption); Spacer()
-                Button(model.finished ? "Done" : model.active ? "Continue" : "Start Rebase") { if model.finished { model.close() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
-                Button(model.active ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.close() } }.keyboardShortcut(.cancelAction)
-                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-rebase.html")!) }
+                Button(model.finished ? "Done" : model.active ? "Continue" : model.startTitle) { if model.finished { model.close() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
+                Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.close() } }.keyboardShortcut(.cancelAction)
+                Button("Help") { NSWorkspace.shared.open(model.helpURL) }
             }
         }.padding(12).disabled(model.busy)
         .onChange(of: model.options.branch) { _ in model.reloadPlan() }
         .onChange(of: model.options.upstream) { _ in model.reloadPlan() }
         .onChange(of: model.options.onto) { _ in model.reloadPlan() }
         .onChange(of: model.ontoEnabled) { _ in model.reloadPlan() }
+        .onChange(of: model.options.addCherryPickedFrom) { _ in model.updateAttribution() }
         .onChange(of: model.options.force) { _ in model.reloadPlan() }
         .onChange(of: model.options.preserveMerges) { _ in model.reloadPlan() }
         .onChange(of: model.selection) { _ in model.selectCommit() }
-        .alert("Rebase", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } message: { Text(model.error ?? "") }
-        .alert("Confirm Rebase", isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.confirmation = nil } })) {
+        .alert(model.operationTitle, isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } message: { Text(model.error ?? "") }
+        .alert("Confirm " + model.operationTitle, isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.confirmation = nil } })) {
             Button("Continue") { let text = model.confirmation ?? ""; model.confirmation = nil; model.execute(text.hasPrefix("Abort") ? "abort" : text.hasPrefix("Skip") ? "skip" : "start") }
             Button("Cancel", role: .cancel) {}
         } message: { Text(model.confirmation ?? "") }

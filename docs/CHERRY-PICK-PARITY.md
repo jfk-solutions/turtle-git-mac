@@ -1,6 +1,7 @@
 # Cherry Pick parity audit
 
-Status: backend implemented; native Log handoff and Cherry Pick dialog are pending.
+Status: native Log handoff and Cherry Pick plan implemented; displayed acceptance
+and advanced options remain pending.
 This document does not establish complete Cherry Pick or Rebase parity.
 
 ## Upstream reference
@@ -10,7 +11,10 @@ Pinned TortoiseGit revision: `7338078f8ddd924b8cddee35f512f2286072136d`.
 in Cherry Pick mode with every selected Log commit. It does not execute a lone
 `git cherry-pick` immediately. `RebaseDlg.cpp` prompts for Parent 1 or Parent 2
 when replaying a merge commit. Pick, Skip, Edit, Squash and ordering belong to
-the selected commit plan.
+the selected commit plan. The pinned documentation screenshot is
+`doc/images/en/GitCherryPick.png`; its disabled reference row, numbered commit
+list, Pick ALL/ordering controls, attribution checkbox, lower tabs and initial
+Continue/Abort buttons were compared with the native implementation.
 
 ## Implemented backend
 
@@ -43,19 +47,51 @@ the operation ends.
 
 ## Verification and remaining work
 
-Focused `RebaseTests`: 15 tests, zero failures on 2026-10-06. These include
+Focused `RebaseTests`: 16 tests, zero failures on 2026-10-06. These include
 ordinary Rebase regression coverage and Cherry Pick selection/Skip, stale branch
 identity, both merge mainlines, Edit/reopening/Continue, conflict/reopening/Abort,
-merge-conflict/Skip, reordered Squash, detached HEAD and originally empty commits.
+merge-conflict/Skip, reordered Squash, detached HEAD, originally empty commits
+and attribution compared with `git cherry-pick -x` for ordinary/merge commits.
 They execute the real application's headless editor rather than a mock editor.
 Unsigned Debug and App Store build/package results are recorded separately in
-`qa/cherry-pick-backend-2026-10-06.json`.
+`qa/cherry-pick-native-2026-10-06.json`. The earlier backend checkpoint
+`021e611` is separately recorded in `qa/cherry-pick-backend-2026-10-06.json`.
 
-Pending: route single/multiple Log selections to the native plan; match Cherry
-Pick labels, controls and merge-parent interaction; implement remaining upstream
-options such as cherry-picked-from attribution and squash author/date choices;
-verify root/Octopus commits, linked-worktree Cherry Pick, patch-becomes-empty
-interaction, dirty-target handling and displayed UI/keyboard/accessibility.
-The current Log still uses its old single-commit Cherry Pick confirmation.
-Signed sandbox execution and App Store acceptance are not established by these
-unsigned checks.
+## Native handoff and plan
+
+Log now routes its single/multiple visible-order selection to the shared native
+plan. The old one-command Cherry Pick confirmation is no longer reachable from
+that menu. The original icon appears beside the single/multiple menu labels.
+First-selected HEAD, bare and active-merge contexts omit the operation; busy/note/jump
+states disable it. Merge, root and stash rows can be handed to the plan; HEAD
+later in a multi-selection does not suppress the command, matching upstream.
+
+Cherry Pick mode disables Branch/reverse/Upstream/browse/Onto, with an empty Branch
+and HEAD Upstream, and hides Force/Preserve. Numbered rows show action icons,
+hash, message, author and formatted date. Pick ALL, action menus and Up/Down edit
+the plan. The attribution checkbox persists `CherrypickAddCherryPickedFrom` and
+adds the original commit ID (including for merge commits). Initial Continue/Abort
+and Revision Files/Commit Message tabs follow the pinned resource/screenshot.
+
+Retained merges prompt for a mainline using parent subjects and hashes. These
+prompts occur before any replay, rather than upstream's just-in-time prompts.
+Cancel leaves HEAD unchanged. All Git-supported parents are offered; upstream
+explicitly offers two. Active sessions recover Cherry Pick mode, original commit
+IDs and Edit/Continue/Skip/Abort controls. Closing is blocked during mutations or
+a parent sheet; closing an idle active window leaves recovery metadata intact.
+Repository status/Commit and all Log scopes are refreshed after mutation.
+
+A whole-native-source headless receiver hosts the actual Log table and Rebase
+view. With both system Git and packaged Git 2.55.0, it checks menu labels/icon,
+single/multiple/merge/root/stash handoff, first-selected HEAD semantics, selection
+order and guards, numbered rows,
+actions/order, attribution persistence, parent metadata, cancel-with-unchanged-HEAD,
+Edit/reopening/mode recovery and Continue. Parent answers are injected: this does
+not establish displayed NSAlert appearance, default focus, keyboard behavior or
+window title/close gestures. No displayed app or receiver windows were launched.
+
+Pending: Add/Split, squash message and author/date choices; root/Octopus replay,
+linked-worktree Cherry Pick, patch-becomes-empty and dirty-target interactions;
+full conflict tabs and stash/restore; displayed layout/keyboard/accessibility and
+signed sandbox execution. Existing Rebase screenshots predate these changes and
+are not presented as Cherry Pick screenshots. App Store acceptance is unverified.

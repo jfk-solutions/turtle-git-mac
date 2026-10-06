@@ -244,4 +244,21 @@ final class RebaseTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("upstream.txt"), encoding: .utf8), "target conflict\n")
     }
 
+    func testCherryPickedFromAttributionMatchesGitForOrdinaryAndMergeCommits() async throws {
+        for merging in [false, true] {
+            let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            if merging { _ = try await repo.run(["merge", "--no-ff", "--no-edit", "upstream"]) }
+            let source = try await repo.rebaseCommit("HEAD")
+            _ = try await repo.run(["checkout", "-b", "expected", source.parents[0]])
+            _ = try await repo.run(["cherry-pick", "-x"] + (merging ? ["-m", "1"] : []) + [source.hash])
+            let expected = try await repo.run(["show", "-s", "--format=%T%x00%an%x00%ae%x00%aI%x00%B", "HEAD"]).stdout
+            _ = try await repo.run(["checkout", "-b", "actual", source.parents[0]])
+            var plan = try await repo.cherryPickPlan(revisions: [source.hash]); plan.options.addCherryPickedFrom = true
+            if merging { plan.entries[0].mainline = 1 }
+            let result = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(result.exitCode, 0, result.output)
+            let actual = try await repo.run(["show", "-s", "--format=%T%x00%an%x00%ae%x00%aI%x00%B", "HEAD"]).stdout
+            XCTAssertEqual(actual, expected)
+        }
+    }
+
 }

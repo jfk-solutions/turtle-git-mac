@@ -240,6 +240,16 @@ struct LogCommandRequest: Identifiable {
         }
         return false
     }
+    var cherryPickSelection: [LogEntry] { entries.filter { selected.contains($0.hash) } }
+    var cherryPickAvailable: Bool {
+        let chosen = cherryPickSelection
+        return !chosen.isEmpty && chosen.count == selected.count && !bare && !mergeActive && chosen.first?.isHead == false
+    }
+    var canCherryPick: Bool { cherryPickAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && onCherryPick != nil }
+    func requestCherryPick() {
+        guard canCherryPick else { return }
+        onCherryPick?(cherryPickSelection.map(\.hash))
+    }
     var canEditNotes: Bool { revision != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !selectedIsStash }
     var canSaveNote: Bool { !savingNote && noteRequest?.accepts(noteText) == true }
     private func cancelNoteRead() {
@@ -349,6 +359,7 @@ struct LogCommandRequest: Identifiable {
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
+    var onCherryPick: (([String]) -> Void)?
     var onBrowseRepository: ((String) -> Void)?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
     var formatPatchPreset: FormatPatchPreset? {
@@ -499,6 +510,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func request(_ command: LogRevisionCommand, mainline: Int? = nil) {
+        if command == .cherryPick { requestCherryPick(); return }
         guard !busy, let revision else { return }
         guard !bare || ![LogRevisionCommand.checkout, .cherryPick, .revert].contains(command) else { return }
         if command == .revert {
@@ -533,7 +545,7 @@ struct LogCommandRequest: Identifiable {
         case .push: commandRequest = nil; onPush(hash); return
         case .checkout: commandRequest = nil; onCheckout(hash); return
         case .reset: commandRequest = nil; onReset(hash); return
-        case .cherryPick: args = ["cherry-pick", hash]
+        case .cherryPick: commandRequest = nil; requestCherryPick(); return
         case .revert: args = ["revert", "--no-commit", hash]
         }
         commandRequest = nil; busy = true
@@ -1126,7 +1138,9 @@ struct RevisionTable: NSViewRepresentable {
                     item("Revert change by this commit", #selector(revert), icon: .revert, enabled: model.canRevertRevision)
                 }
             }
-            item("Cherry Pick this commit…", #selector(cherryPick), icon: .cherryPick, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
+            if model.cherryPickAvailable {
+                item(model.selected.count == 1 ? "Cherry Pick this commit…" : "Cherry Pick selected commits…", #selector(cherryPick), icon: .cherryPick, enabled: model.canCherryPick)
+            }
             item("Edit Notes", #selector(editNotes), icon: .rebaseEdit, enabled: model.canEditNotes)
             item("Format Patch…", #selector(formatPatch), icon: .patch, enabled: model.formatPatchPreset != nil && !model.busy && model.onFormatPatch != nil)
             menu.addItem(.separator())

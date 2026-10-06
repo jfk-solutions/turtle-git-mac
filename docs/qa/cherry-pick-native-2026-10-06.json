@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-06",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Log Cherry Pick handoff, selected plan, attribution and recovery; partial port",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "7d2e714c89249559023c313db5b66fb1a12977fccd109b2f5cd7c9814552f92e",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "a0d849fa10af8e11f92497ee5cad0493fb8feef8960146631b06f1c7086111fa",
+    "Sources/TurtleGitMac/LogWindow.swift": "59dfa89f3eb0c68365c9698b725b421ce2b8a95f19d2e2dcd8d3b3f4cae7f608",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "e9e66d37eaa3c2ff8414864618d29e7a6be9251a6580a664f11dc28ac7639f98",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "a6f8af238ca1b965c043e72b79afd6ba24ace50fa50b90cb096fd9176d49e858",
+    "scripts/check-cherry-pick-native.py": "7d2fc24624aba5d155d099f0d75e918617fa77db74fef626f8f336d8b9ca4a8a",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "0d586c395d6efbef2f73147edf37bf10232fa9cbf07a41fa22d50d49036afd9d",
+    "docs/CHERRY-PICK.md": "fb08d058f543a102c0fe1cd2f9132113c5e97b6cbb22a4a1e8d9a4173258c07b",
+    "docs/CHERRY-PICK-PARITY.md": "ccd7ced8b944c9cd8caa9926dd37ce2fb03c26d8892f3977659b99e3243a6614",
+    "docs/site/index.html": "250d593865d662c01599a8bd8ec1d43cdb81c2d85798e191ee56507d96c31c60"
+  },
+  "all_native_sources_manifest_sha256": "4b8a6b09668e9d349964f41a047fab51fe8fde7d26f4b65c53245f9168645d4b",
+  "verification": {
+    "focused_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 16,
+      "failures": 0,
+      "covers": "10 original Rebase tests and 6 Cherry Pick tests; attribution compared with actual git cherry-pick -x for ordinary/merge commits"
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "host_architecture": "arm64",
+      "result": "passed for both Git executables",
+      "covers": [
+        "Actual hosted Log table menu titles/icon and single/multiple/merge/root selection handoff in visible order",
+        "Busy/bare/first-selected-HEAD/active-merge guards; stash allowed and HEAD later in multi-selection allowed",
+        "Actual Rebase model/view host: Cherry Pick mode, Continue label, row numbering, actions/order and attribution persistence",
+        "Injected merge-parent choices: parent metadata, Cancel preserves HEAD, Edit stop retains original selected IDs",
+        "Reopened mode resets stale finished state; Continue completes on target branch"
+      ],
+      "not_covered": [
+        "Displayed NSAlert/default focus/keyboard",
+        "Window title/close gestures",
+        "Full conflict tabs",
+        "Root/Octopus/stash replay"
+      ]
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "debug_bundle_audit": "passed; NOTICE cmp passed",
+    "appstore_bundle_audit": "--require-git passed; NOTICE cmp passed",
+    "site": "generated with Cherry Pick guide/audit links and historical Rebase capture labels"
+  },
+  "log_sha256": {
+    "tests": "babfa72a17036426521141d9c6f54b794964aa01c8d817d1413f2d7d7afa8f06",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "final-check": "1a1d342f4995558027bf0ab9bf7d2dc5ad6202d42fa5d5484ac9a839269117a4",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Displayed current Cherry Pick layout/screenshots",
+    "Signed sandbox execution/App Store acceptance",
+    "GitHub CI or publication",
+    "Complete TortoiseGit parity"
+  ],
+  "fixture_corrections": [
+    "Temporary receiver first used an invalid RevisionReference initializer; changed to actual Git reference metadata",
+    "Temporary receiver history initially excluded the synthetic stash reference; corrected to all-branches history"
+  ],
+  "processes": "Headless only; receiver-owned hidden windows closed; no main app launches"
+}

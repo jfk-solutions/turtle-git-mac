@@ -329,6 +329,7 @@ import TurtleGitCore
                 log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
                 log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
                 log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+                log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
             }
             commitWindows[root.path] = controller
@@ -941,6 +942,7 @@ import TurtleGitCore
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+        controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
@@ -983,6 +985,7 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+                log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
         mergeWindows[root.path] = controller; controller.model.load()
@@ -1004,13 +1007,13 @@ import TurtleGitCore
         stashWindows[root.path] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false) {
+    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
         let root = repository.root
         let existing = rebaseWindows[root.path]
         let controller = existing ?? RebaseWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.rebaseWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] in
-            self?.logWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
+            self?.logWindows.values.filter { $0.model.repository.root == root }.forEach { $0.model.reload() }; self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
             if self?.root == root { Task { await self?.refresh() } }
         }
         controller.model.onShowStatus = { [weak self] in
@@ -1019,7 +1022,7 @@ import TurtleGitCore
             else if let access { self.openSession(access, action: .status) }
         }
         rebaseWindows[root.path] = controller
-        if existing == nil || controller.model.finished || upstream != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges) }
+        if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false) {
