@@ -183,3 +183,7 @@ metadata, stable numbering and current/completed styling through reopening.
 Successful Rebase now exposes upstream completion commands through a native
 split control. [Completion actions](REBASE-COMPLETION-ACTIONS.md) records direct
 and after-Fetch behavior, mail/export adaptation and remaining acceptance.
+
+Active session context now restores original options and Fetch/Pull completion
+origin after reopening. [Session context](REBASE-SESSION-CONTEXT.md) records
+versioned metadata, fallback and verification limits.

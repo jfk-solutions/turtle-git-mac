@@ -51,6 +51,22 @@ public struct RebaseOptions: Sendable {
     public var squashDate: RebaseSquashDate = .first
     public init() {}
 }
+public struct RebaseSessionContext: Codable, Sendable {
+    public let version: Int
+    public let branch: String
+    public let upstream: String
+    public let onto: String
+    public let force: Bool
+    public let preserveMerges: Bool
+    public let afterFetch: Bool
+    public let autoStart: Bool
+    init(options: RebaseOptions, afterFetch: Bool, autoStart: Bool) {
+        version = 1; branch = options.branch; upstream = options.upstream; onto = options.onto
+        force = options.force; preserveMerges = options.preserveMerges
+        self.afterFetch = afterFetch && !options.isCherryPick; self.autoStart = autoStart && self.afterFetch
+    }
+}
+
 public enum RebaseDisposition: Sendable { case ready, fastForward, upToDate, equal }
 public struct RebasePlan: Sendable {
     public let disposition: RebaseDisposition
@@ -81,6 +97,7 @@ public struct RebaseState: Sendable {
     public let split: RebaseSplitState?
     public let isEditPause: Bool
     public let needsFileRecovery: Bool
+    public let session: RebaseSessionContext?
     public var canSplit: Bool { active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
 }
 public struct RebaseExecution: Sendable {
@@ -277,6 +294,8 @@ extension GitRepository {
         let request = active && manager.fileExists(atPath: requestURL.path) ? try JSONDecoder().decode(RebaseSquashMessage.self, from: Data(contentsOf: requestURL)) : nil
         let splitURL = directory.appendingPathComponent("turtlegit-split.json")
         let split = active && manager.fileExists(atPath: splitURL.path) ? try JSONDecoder().decode(RebaseSplitState.self, from: Data(contentsOf: splitURL)) : nil
+        let storedSession = active ? try? JSONDecoder().decode(RebaseSessionContext.self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-session.json"))) : nil
+        let session = storedSession?.version == 1 ? storedSession : nil
         let referenceUpdates = manager.fileExists(atPath: directory.appendingPathComponent("turtlegit-update-refs").path)
         let done = read("done").split(separator: "\n")
         let lastCommand = (referenceUpdates ? done.filter { $0.split(separator: " ").first.flatMap { RebaseAction(rawValue: String($0)) } != nil } : done).last?.split(separator: " ").first.map(String.init)
@@ -288,7 +307,7 @@ extension GitRepository {
                            stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD").message : read("message"), currentStep: step,
                            total: referenceUpdates ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
-                           isEditPause: editPause, needsFileRecovery: active && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil))
+                           isEditPause: editPause, needsFileRecovery: active && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil), session: session)
     }
     private func replayIdentities(_ directory: URL) -> [RebaseReplayIdentity] {
         (try? JSONDecoder().decode([RebaseReplayIdentity].self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
@@ -426,7 +445,7 @@ extension GitRepository {
         if plan.entries.isEmpty { return "noop\n" }
         return plan.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
     }
-    public func startRebase(_ plan: RebasePlan, editorExecutable: URL) throws -> RebaseExecution {
+    public func startRebase(_ plan: RebasePlan, editorExecutable: URL, afterFetch: Bool = false, autoStart: Bool = false) throws -> RebaseExecution {
         guard !(try rebaseState().active) else { throw RebaseFailure.active }
         guard try rebaseRevision(plan.options.branch) == plan.branchHash,
               try rebaseRevision(plan.options.upstream) == plan.upstreamHash,
@@ -500,7 +519,15 @@ extension GitRepository {
         if plan.options.preserveMerges { args.append("--rebase-merges") }
         else { args.append("--interactive") }
         args += ["--onto", plan.ontoHash, "--", plan.upstreamHash, plan.branchReference.isEmpty ? plan.branchHash : String(plan.branchReference.dropFirst(11))]
-        return try executeRebase(args, environment: environment)
+        let result = try executeRebase(args, environment: environment)
+        if result.state.active {
+            let merge = try rebasePath("rebase-merge")
+            let directory = FileManager.default.fileExists(atPath: merge.path) ? merge : try rebasePath("rebase-apply")
+            let context = RebaseSessionContext(options: plan.options, afterFetch: afterFetch, autoStart: autoStart)
+            try JSONEncoder().encode(context).write(to: directory.appendingPathComponent("turtlegit-session.json"), options: .atomic)
+            return RebaseExecution(output: result.output, exitCode: result.exitCode, state: try rebaseState())
+        }
+        return result
     }
     public func rebaseSquashIsEmpty() throws -> Bool {
         let state = try rebaseState()

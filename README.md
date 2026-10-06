@@ -312,7 +312,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Custom replay lists retain completed rows and recover actions, occurrence IDs
   and progress when reopened. [Replay rows](docs/REBASE-PROGRESS-ROWS.md).
   Successful Rebase offers Show Log/restart and after-Fetch Push/mail controls.
-  [Completion actions](docs/REBASE-COMPLETION-ACTIONS.md).
+  [Completion actions](docs/REBASE-COMPLETION-ACTIONS.md). Active session metadata
+  restores original options and Fetch/Pull origin after reopening.
+  [Session context](docs/REBASE-SESSION-CONTEXT.md).
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Native Cherry Pick plans from single/multiple Log selections, colored action icons,

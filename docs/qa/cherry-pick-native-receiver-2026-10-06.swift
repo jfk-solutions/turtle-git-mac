@@ -511,6 +511,27 @@ import TurtleGitCore
     completed.performCompletionAction(.restart); try await settle(completed)
     precondition(!completed.finished && !completed.completedSuccessfully)
     precondition(skipLast.completionActions.isEmpty) // Cherry Pick does not add upstream's Rebase-only buttons.
+    _ = try await repo.run(["commit", "--allow-empty", "-m", "Native completion context recovery"])
+    let contextCommit = try await repo.rebaseCommit("HEAD")
+    let contextModel = RebaseWindowModel(repository: repo, access: nil); contextModel.editorExecutable = editor
+    contextModel.completionAfterFetch = true; contextModel.completionAutoStart = true
+    contextModel.load(upstream: "main"); try await settle(contextModel)
+    contextModel.ontoEnabled = true; contextModel.options.onto = "main"; contextModel.options.force = true; contextModel.reloadPlan(); try await settle(contextModel)
+    let contextPlanDeadline = Date().addingTimeInterval(30)
+    while contextModel.plan == nil && Date() < contextPlanDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(contextModel.plan != nil && contextModel.canStart, contextModel.error ?? "Context fixture plan did not load")
+    contextModel.setAction(.edit, ids: [contextCommit.hash]); let originalOptions = contextModel.options
+    contextModel.execute("start"); try await settle(contextModel)
+    precondition(contextModel.active && contextModel.state?.session?.afterFetch == true, "Context fixture active=\(contextModel.active), origin=\(String(describing: contextModel.state?.session?.afterFetch)), canStart=\(contextModel.canStart), error=\(String(describing: contextModel.error)), output=\(contextModel.output), entries=\(String(describing: contextModel.plan?.entries.map { $0.action.rawValue }))")
+    let restored = RebaseWindowModel(repository: GitRepository(root: repo.root, executable: repo.executable), access: nil); restored.editorExecutable = editor
+    restored.load(); try await settle(restored)
+    precondition(restored.active && restored.completionAfterFetch && restored.completionAutoStart && restored.ontoEnabled && restored.options.force)
+    precondition(restored.options.branch == originalOptions.branch && restored.options.upstream == "main" && restored.options.onto == "main")
+    restored.execute("continue"); try await settle(restored)
+    precondition(restored.finished && restored.completionActions == [.log, .push, .mail, .rebase])
+    restored.performCompletionAction(.rebase); try await settle(restored)
+    precondition(restored.options.upstream == "main" && restored.completionAfterFetch && restored.completionAutoStart && !restored.finished)
+    print("Actual native session context: after-Fetch/auto-start, branch/upstream/onto, reopened Edit, successful completion commands and restarted chooser recovered from Git metadata passed.")
     print("Actual native Rebase completion: successful direct/after-Fetch commands, busy/unsuccessful/Cherry Pick guards, Log/Push/mail range handoffs, close ordering, mail-enabled native Format Patch controller, unchanged HEAD/index and restart/reset passed. Hidden views/windows; no mail sent.")
     print("Actual native replay rows: completed/current/pending occurrences, Pick/Skip/Edit actions, reopened ordering/numbering, completed-row clipboard inspection and finished retained list passed. Hidden hosted view.")
     print("Actual native Rebase row commands: original icons/allowed command policy, single/root/merge/two/duplicate revision comparisons, unified diff data and alternate handoff, Log/Browse/Branch/Tag/Push/Format Patch handoffs, isolated clipboard recipes/details, notes save/refresh without HEAD/index changes, busy/stale/bare guards, active Edit inspection and Abort passed. Hidden views; dialog/viewer handoffs injected.")

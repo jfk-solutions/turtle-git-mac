@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "3d541c8",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Versioned active Rebase context restores Fetch/Pull origin and branch/upstream/onto/Force/Preserve choices through reopening",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "b7996a32ea11943f310547c9a2ab47066503a0241704042187f78f52a5179a96",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "b77bb1763166df43586fe803db9674e93ae0d76349f1f98116f9eb2c76cf1ff9",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "59b6aeb24017c754f3883a825169585dc18df4984c598998bd8808f9941eb324",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "2afba7275e3c3a7ef17763ebbd5d93650a4c1d1a4df78e62cde46bf73d4b4e84",
+    "README.md": "f10f0681381590965cef0f6734d0c0e88ae8642885c2d30dcbcfc14f470cfaaf",
+    "docs/REBASE-PARITY.md": "f9074b35e9481c4d2a8b8da0a248295b09fd8f8436e99504b238e44c995c7747",
+    "docs/CHERRY-PICK-PARITY.md": "69decd9de87a0d4d7d5fc5f069b214a0fd28e9a96100dde8b8a835be000b6243",
+    "docs/REBASE-COMPLETION-ACTIONS.md": "5388d838252de85116fd8fa3aebcd96e6f30aff1c6fb3c2462adb29ad46d00a0",
+    "docs/REBASE-SESSION-CONTEXT.md": "a43e1b1a34410bd8657349702806f8e91554465bcb184f0c064740a7f80a2215",
+    "docs/site/index.html": "774cb0ac41b62f3af622808e82af31e95aa5c3d8a7219e5373bb392edda02d1d"
+  },
+  "all_native_sources_manifest_sha256": "1d9b67bab5c551a733cbe2691c6840c3aee6c4b17185e1933ec39f9e8fb1eb4a",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 52,
+      "failures": 0,
+      "scope": "Includes new context/legacy/malformed/cleanup test; before added unknown-version and linked-context assertions"
+    },
+    "targeted_context_and_linked": {
+      "tests": 2,
+      "failures": 0,
+      "coverage": [
+        "Unknown version ignored while Edit remains recoverable",
+        "Linked worktree owns its context file; parent has no session/context file",
+        "Abort removes linked context; dirty rejection preserves existing protections"
+      ]
+    },
+    "structural_conflict": {
+      "command": "swift test --filter RebaseTests.testStructuralConflictPreservesSessionContextWithoutCustomEditor",
+      "tests": 1,
+      "failures": 0,
+      "coverage": "Preserve Merges conflict records origin/upstream/Preserve choice even without custom replay identity/editor; Abort clears context"
+    },
+    "native_receiver": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": [
+        "Actual forced normal Rebase stops at Edit",
+        "Fresh repository/model recovers after-Fetch and auto-start flags",
+        "Original branch/upstream/onto and Force restored",
+        "Continue exposes after-Fetch completion commands; restart preserves origin/upstream/auto-start",
+        "Existing completion, full-row and row-menu fixtures pass"
+      ],
+      "initial_probes": "Fixture attempted Start before asynchronous reloadPlan returned. Diagnostic confirmed active=false, canStart=false, entries=nil and no Git output. Explicit plan-result wait fixed fixture; Force retained to exercise Force recovery."
+    },
+    "builds": {
+      "SwiftPM": "passed through tests, including editor executable",
+      "Debug unsigned": "passed",
+      "AppStore unsigned": "passed"
+    },
+    "bundle_audits": "Both passed with exact NOTICE; 86 icon resources verified; Store --require-git passed",
+    "site_generation": "passed",
+    "process_audit": "No main app or receiver instances running",
+    "logs_sha256": {
+      "core": "4995e93f0456b5955ab34226c50545cb6cee6c46eb89360686e27ad2c1daf3d6",
+      "targeted": "ca6470fc614e53dbbe5165e1e7de0d668e334bc3243166060e341a6f420ae37c",
+      "structural": "3115532a8f6f134ed8b6010290bdb7eed07a0d80edc0510fd55368ed180c7c2f",
+      "debug": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+      "store": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "native-diagnostic": "45defe7d55c7d286c6d990899f24a63bbd2fefe19bc14810851b13f18e243914",
+      "native-passed": "37134d6a8d40036ebd4d8fa89e61043fbdcd05ac1091a15b5e68f364c78ab223",
+      "debug-audit": "524a234addd8b8e8366b55e22533cc9736d8979fa77ace113cb86b8f82e323fb",
+      "store-audit": "65bcab67068f3a1a770ff06b35e1fedf3fb90de95ac93038c81fc670adac14b1"
+    }
+  },
+  "limitations": [
+    "Hidden views and injected handoffs; displayed focus/controls/accessibility and signed sandbox execution unverified",
+    "Legacy sessions without context cannot recover an unrecorded origin",
+    "Context covers enumerated options, not a complete serialization of every advanced preference",
+    "No finished-session persistent report; structural full progress rows remain pending",
+    "No full app suite/broader native receiver rerun or hosted CI/push/publication; full port remains incomplete"
+  ]
+}

@@ -28,6 +28,43 @@ final class RebaseTests: XCTestCase {
         var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
         return (root, repo, plan)
     }
+    func testSessionContextRecoversOriginOptionsAndLegacyFallback() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var settings = options(); settings.onto = "upstream"; settings.force = true
+        var plan = try await repo.rebasePlan(settings); plan.entries[0].action = .edit
+        let result = try await repo.startRebase(plan, editorExecutable: editor, afterFetch: true, autoStart: true)
+        XCTAssertTrue(result.state.active)
+        let state = try await GitRepository(root: root).rebaseState(), context = try XCTUnwrap(state.session)
+        XCTAssertTrue(context.afterFetch); XCTAssertTrue(context.autoStart); XCTAssertTrue(context.force)
+        XCTAssertEqual(context.branch, "topic"); XCTAssertEqual(context.upstream, "upstream"); XCTAssertEqual(context.onto, "upstream")
+        let file = root.appendingPathComponent(".git/rebase-merge/turtlegit-session.json")
+        let bytes = try Data(contentsOf: file)
+        try FileManager.default.removeItem(at: file)
+        let legacy = try await repo.rebaseState(); XCTAssertNil(legacy.session); XCTAssertTrue(legacy.isEditPause)
+        try Data("{ invalid".utf8).write(to: file)
+        let malformed = try await repo.rebaseState(); XCTAssertNil(malformed.session); XCTAssertTrue(malformed.active)
+        var unknown = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
+        unknown["version"] = 999
+        try JSONSerialization.data(withJSONObject: unknown).write(to: file)
+        let future = try await repo.rebaseState(); XCTAssertNil(future.session); XCTAssertTrue(future.isEditPause)
+        try bytes.write(to: file)
+        let completed = try await repo.continueRebase(); XCTAssertFalse(completed.state.active); XCTAssertNil(completed.state.session)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    func testStructuralConflictPreservesSessionContextWithoutCustomEditor() async throws {
+        let (root, repo, _) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        var settings = options(); settings.preserveMerges = true
+        let plan = try await repo.rebasePlan(settings)
+        let paused = try await repo.startRebase(plan, editorExecutable: editor, afterFetch: true)
+        XCTAssertNotEqual(paused.exitCode, 0); XCTAssertTrue(paused.state.active)
+        let recovered = try await GitRepository(root: root).rebaseState()
+        XCTAssertTrue(recovered.session?.preserveMerges == true); XCTAssertTrue(recovered.session?.afterFetch == true)
+        XCTAssertEqual(recovered.session?.upstream, "upstream")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/rebase-merge/turtlegit-replay-identities.json").path))
+        let aborted = try await repo.abortRebase(); XCTAssertFalse(aborted.state.active); XCTAssertNil(aborted.state.session)
+    }
+
     func testHeadlessEditorWritesOnlyRequestedPlanAndReturnsErrors() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString); try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: directory) }
         let source = directory.appendingPathComponent("plan"), target = directory.appendingPathComponent("todo"); try Data("pick abc subject\n".utf8).write(to: source)
@@ -510,9 +547,16 @@ final class RebaseTests: XCTestCase {
         let linked = GitRepository(root: linkedURL)
         var o = options(); o.branch = "linked-topic"
         let plan = try await linked.rebasePlan(o)
-        let stopped = try await linked.startRebase(plan, editorExecutable: editor); XCTAssertTrue(stopped.state.active); XCTAssertEqual(stopped.state.conflicts, [path])
+        let stopped = try await linked.startRebase(plan, editorExecutable: editor, afterFetch: true, autoStart: true); XCTAssertTrue(stopped.state.active); XCTAssertEqual(stopped.state.conflicts, [path])
         let parentState = try await repo.rebaseState(); XCTAssertFalse(parentState.active)
+        XCTAssertTrue(stopped.state.session?.afterFetch == true); XCTAssertTrue(stopped.state.session?.autoStart == true)
+        let contextPath = try await linked.run(["rev-parse", "--git-path", "rebase-merge/turtlegit-session.json"]).text.trimmingCharacters(in: .newlines)
+        let contextURL = contextPath.hasPrefix("/") ? URL(fileURLWithPath: contextPath) : linkedURL.appendingPathComponent(contextPath)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: contextURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/rebase-merge/turtlegit-session.json").path))
+
         let aborted = try await linked.abortRebase(); XCTAssertEqual(aborted.exitCode, 0)
+        XCTAssertNil(aborted.state.session); XCTAssertFalse(FileManager.default.fileExists(atPath: contextURL.path))
         try Data("dirty\n".utf8).write(to: linkedURL.appendingPathComponent(path)); try await linked.stage([path])
         let rejected = try await linked.startRebase(plan, editorExecutable: editor); XCTAssertNotEqual(rejected.exitCode, 0); XCTAssertFalse(rejected.state.active)
         let head = try await linked.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, plan.branchHash)

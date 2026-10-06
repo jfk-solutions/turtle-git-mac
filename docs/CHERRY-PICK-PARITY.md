@@ -163,3 +163,7 @@ displayed acceptance remain pending. See [row menus](REBASE-ROW-MENUS.md).
 Custom replay lists now retain completed occurrences, original action/mainline
 metadata, stable numbering and current/completed styling through reopening.
 [Replay rows](REBASE-PROGRESS-ROWS.md) records scope and remaining differences.
+
+Active session context now restores original options and Fetch/Pull completion
+origin after reopening. [Session context](REBASE-SESSION-CONTEXT.md) records
+versioned metadata, fallback and verification limits.

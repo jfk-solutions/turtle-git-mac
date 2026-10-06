@@ -206,6 +206,12 @@ import TurtleGitCore
         if active || finished && !replayRows.isEmpty { return (replayRows.firstIndex(where: { $0.id == entry.id }) ?? 0) + 1 }
         return ((plan?.entries ?? draftEntries).firstIndex(where: { $0.id == entry.id }) ?? 0) + 1
     }
+    private func restoreSessionContext() {
+        guard let context = state?.session else { return }
+        completionAfterFetch = context.afterFetch; completionAutoStart = context.autoStart
+        options.branch = context.branch; options.upstream = context.upstream; options.onto = context.onto
+        options.force = context.force; options.preserveMerges = context.preserveMerges; ontoEnabled = !context.onto.isEmpty
+    }
     var completionActions: [RebaseCompletionAction] {
         guard finished, completedSuccessfully, !active, !isCherryPick else { return [] }
         return completionAfterFetch ? [.log, .push, .mail, .rebase] : [.log, .restart]
@@ -322,7 +328,7 @@ import TurtleGitCore
                 revisionMenuLog.bare = try await repository.isBare()
                 references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; completedSuccessfully = false; output = ""; error = nil; confirmation = nil; draftEntries = []
                 try await loadConflictFiles(); if fileRecovery { tab = 0 }
-                if active { splitCommit = state?.split != nil && state?.split?.conflictRecovery != true; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
+                if active { splitCommit = state?.split != nil && state?.split?.conflictRecovery != true; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; restoreSessionContext(); plan = nil; recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
                 finished = false; plan = nil; recovered = []; replayRows = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
                 if let cherryPick {
                     plan = try await repository.cherryPickPlan(revisions: cherryPick)
@@ -465,7 +471,7 @@ import TurtleGitCore
         guard !busy, !selectingSplit else { return }; busy = true
         Task {
             defer { busy = false; loadPendingHandoff() }
-            do { let wasActive = active; state = try await repository.rebaseState(); try await loadConflictFiles(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; selectCommit() } else if wasActive { finished = true; completedSuccessfully = false; completion = "\(operationTitle) session ended" }; onChanged() }
+            do { let wasActive = active; state = try await repository.rebaseState(); try await loadConflictFiles(); onModeChanged(); if active { restoreSessionContext(); recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; selectCommit() } else if wasActive { finished = true; completedSuccessfully = false; completion = "\(operationTitle) session ended" }; onChanged() }
             catch { self.error = error.localizedDescription }
         }
     }
@@ -489,7 +495,7 @@ import TurtleGitCore
                 try requireAccess()
                 let result: RebaseExecution
                 switch action {
-                case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable)
+                case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable, afterFetch: completionAfterFetch, autoStart: completionAutoStart)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
                 default:
@@ -516,7 +522,7 @@ import TurtleGitCore
                 if result.exitCode == 0, let skippedID { replayRows = replayRows.map { var row = $0; if row.id == skippedID { row.action = .skip }; return row } }
                 if finished, action != "abort" { replayRows = replayRows.map { var row = $0; row.progress = .completed; return row } }
                 try await loadConflictFiles()
-                if active { recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
+                if active { restoreSessionContext(); recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
                 if result.exitCode != 0, state?.needsFileRecovery == true, supportsConflictSelection, state?.split == nil, state?.conflicts.isEmpty == true, conflictRows.isEmpty { followEmpty = true; error = nil }
                 if result.state.squashMessage != nil { tab = 1 }
                 else if fileRecovery { tab = 0; if result.exitCode != 0 && !followEmpty { error = result.output } }

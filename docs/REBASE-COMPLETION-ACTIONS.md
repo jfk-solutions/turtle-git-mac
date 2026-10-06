@@ -38,6 +38,9 @@ Original icons also pass the shared decode/pixel tests.
 Handoffs and closing callbacks are injected; hosted views and the Format Patch
 window are hidden. No email is sent. Displayed split-control positioning, focus,
 accessibility and signed sandbox export/mail composition remain unverified.
-Fetch-origin completion context is currently held by the native controller;
-recovering that origin after closing/reopening an active session remains pending.
+Active sessions now persist versioned completion context in Git's state directory,
+so reopening restores Fetch/Pull origin, auto-start, branch/upstream/onto choices,
+Force and Preserve Merges. Legacy/malformed context falls back without preventing
+recovery. Git removes the metadata when the session completes or aborts.
+See [session recovery](REBASE-SESSION-CONTEXT.md).
 Full application and Rebase parity are still incomplete.
