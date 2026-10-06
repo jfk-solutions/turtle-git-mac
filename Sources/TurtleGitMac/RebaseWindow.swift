@@ -152,8 +152,9 @@ import TurtleGitCore
         fileRecovery = active && conflictStep == current
         if fileRecovery {
             conflicts = try await repository.conflicts(paths: [])
-            conflictRows = try await repository.status().filter { $0.state != .untracked && $0.state != .ignored }
-            conflictStatistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+            let group = state?.stoppedAction == .squash
+            conflictRows = try await repository.commitDialogStatus(amendToParent: group).filter { $0.state != .untracked && $0.state != .ignored }
+            conflictStatistics = Dictionary(try await repository.workingTreeFiles(amendToParent: group).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
             let paths = Set(conflictRows.map(\.path))
             checkedConflicts.formIntersection(paths); checkedConflicts.formUnion(paths.subtracting(previousPaths))
             conflictHead = try await repository.rebaseCommit("HEAD").hash
@@ -196,9 +197,17 @@ import TurtleGitCore
         return ((plan?.entries ?? draftEntries).firstIndex(where: { $0.id == entry.id }) ?? 0) + 1
     }
     var canStart: Bool { editable && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first(where: { $0.action != .skip })?.action != .squash }
+    var primaryActionTitle: String {
+        if finished { return "Done" }
+        if !active { return startTitle }
+        if state?.squashMessage != nil { return "Commit" }
+        if state?.isEditPause == true { return "Amend" }
+        if fileRecovery && supportsConflictSelection && state?.split == nil { return "Commit" }
+        return "Continue"
+    }
     var status: String {
         if finished { return completion }
-        if state?.squashMessage != nil { return "Edit the combined commit message, then Continue." }
+        if state?.squashMessage != nil { return "Edit the combined commit message, then Commit." }
         if active { return "Step \(state?.currentStep ?? 0) of \(state?.total ?? 0) • \(state?.conflicts.count ?? 0) unresolved paths" }
         if plan == nil { return "Choose valid branch and upstream revisions before starting." }
         switch plan?.disposition {
@@ -455,10 +464,7 @@ import TurtleGitCore
             } catch { busy = false; self.error = error.localizedDescription; loadPendingHandoff() }
         }
     }
-    func amend() {
-        guard active, !busy, !selectingSplit, state?.split == nil, state?.squashMessage == nil else { return }; busy = true; let text = amendMessage
-        Task { defer { busy = false; loadPendingHandoff() }; do { try requireAccess(); output += try await repository.amendRebaseCommit(message: text); onChanged() } catch { self.error = error.localizedDescription } }
-    }
+
 
 }
 struct RebaseDialog: View {
@@ -536,13 +542,13 @@ struct RebaseDialog: View {
             }
             if model.active {
                 HStack { Button("Open Working Tree") { model.onShowStatus() }; Button("Refresh State") { model.refreshState() }; Spacer(); Button("Skip") { model.request("skip") } }
-                HStack { if model.state?.canSplit == true { Toggle("Split commit", isOn: $model.splitCommit).disabled(!model.canSplit || model.state?.split != nil) }; if model.state?.squashMessage == nil && model.state?.split == nil { Button("Amend") { model.amend() }.disabled(model.amendMessage.isEmpty || model.state?.conflicts.isEmpty != true) } }
+                HStack { if model.state?.canSplit == true { Toggle("Split commit", isOn: $model.splitCommit).disabled(!model.canSplit || model.state?.split != nil) } }
             }
             if model.busy { ProgressView().progressViewStyle(.linear) }
             else { ProgressView(value: model.finished ? 1 : Double(model.state?.currentStep ?? 0), total: model.finished ? 1 : Double(max(model.state?.total ?? 1, 1))) }
             HStack {
                 Text(model.status).font(.caption); Spacer()
-                Button(model.finished ? "Done" : model.active ? "Continue" : model.startTitle) { if model.finished { model.close() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
+                Button(model.primaryActionTitle) { if model.finished { model.close() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
                 Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.close() } }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(model.helpURL) }
             }

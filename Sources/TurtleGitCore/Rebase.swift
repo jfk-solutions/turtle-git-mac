@@ -451,7 +451,7 @@ extension GitRepository {
     public func amendRebaseCommit(message: String) throws -> String {
         guard try rebaseState().active else { throw RebaseFailure.inactive }
         let state = try rebaseState()
-        guard state.squashMessage == nil && (state.split == nil || state.split?.conflictRecovery == true) else { throw RebaseFailure.plan }
+        guard state.isEditPause, state.squashMessage == nil && (state.split == nil || state.split?.conflictRecovery == true) else { throw RebaseFailure.plan }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
         let base = try commitComparisonBase(amendToParent: true)
         let originallyEmpty = try run(["diff", "--quiet", base, "HEAD", "--"], successfulExitCodes: 0...1).exitCode == 0

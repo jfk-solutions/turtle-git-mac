@@ -21,9 +21,11 @@ Changed Files, Commit Message and Progress tabs occupy the resizable lower pane,
 followed by progress, status and Start/Continue, Abort/Cancel and Help controls.
 
 Active sessions recover the stopped and pending commits from Git's persistent
-metadata. They expose Working Tree, Refresh State, Skip, an amend-message field,
-Amend, Continue and Abort. The Conflict Files tab now routes resolution through the native conflict editors
-and Resolve workflow, retaining resolved changes until the step advances. Start, Skip and Abort have confirmations. Selecting commits
+metadata. They expose Working Tree, Refresh State, Skip, a message editor and
+phase-specific Commit/Continue/Amend and Abort controls. The Conflict Files tab
+now routes resolution through the native conflict editors and Resolve workflow,
+retaining resolved changes until the step advances. Start, Skip and Abort have
+confirmations. Selecting commits
 loads their files/message without invalidating a concurrently loading plan.
 
 Branch/upstream fields are currently editable native combo boxes rather than
@@ -145,3 +147,7 @@ Cancelling the first Split dialog after a checked conflict Edit now restores
 the applied Edit recovery and message without changing HEAD/index/files. The
 transition rejects an externally changed HEAD and supports reopening.
 See [Split return QA](qa/rebase-split-return-2026-10-06.json).
+
+Squash conflicts now show the whole group relative to its destination parent.
+Native phase captions match the upstream continuation stages, and amendment is
+restricted to applied Edit pauses. See [Squash conflicts](REBASE-SQUASH-CONFLICTS.md).

@@ -49,7 +49,7 @@ Ignore/Abort hint warning. See [empty results and message hints](REBASE-EMPTY-RE
 
 ## Remaining parity work
 
-This is a partial port of upstream's conflict tab. Squash conflict selection
+This is a partial port of upstream's conflict tab. Squash checkbox acceptance
 and empty-result grouping, the Strip Commented Lines preference, all contextual
 commands and full displayed layout/keyboard/accessibility acceptance remain
 pending. Squash conflicts keep the existing staged Continue
@@ -76,3 +76,7 @@ Pinned upstream: `7338078f8ddd924b8cddee35f512f2286072136d`,
 `src/TortoiseProc/RebaseDlg.cpp` (`UpdateCurrentStatus`, `REBASE_TAB_CONFLICT`
 and conflict context-menu handling). Evidence:
 [QA record](qa/rebase-checked-continue-2026-10-06.json).
+
+Squash now lists all group files relative to the destination parent and continues
+through staged resolution and combined-message approval.
+See [Squash conflicts](REBASE-SQUASH-CONFLICTS.md).

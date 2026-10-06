@@ -131,3 +131,8 @@ offer Ignore/Abort. See [empty-result workflow](REBASE-EMPTY-RESULTS.md).
 The shared Split workflow restores checked-conflict Edit recovery when the
 first Split dialog is cancelled, including reopening and message approval.
 See [Split return QA](qa/rebase-split-return-2026-10-06.json).
+
+The shared Squash conflict tab shows the whole group and supports staged
+resolution → combined-message approval, including reopened date policies.
+Phase-specific primary captions replace the separate Amend control.
+See [Squash conflicts](REBASE-SQUASH-CONFLICTS.md).

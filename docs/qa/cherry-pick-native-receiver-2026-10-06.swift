@@ -91,6 +91,7 @@ import TurtleGitCore
     while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
     precondition(!model.busy && model.error != nil && model.fileRecovery && model.tab == 0 && !model.canSplit)
     model.error = nil
+    precondition(model.primaryActionTitle == "Commit")
     precondition(model.conflicts.map(\.path) == [path] && Set(model.conflictRows.map(\.path)) == [path, clean])
     let host = NSHostingView(rootView: RebaseConflictFiles(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1000, height: 300); host.layoutSubtreeIfNeeded()
     guard let table = findTable(host) else { fatalError("Actual Conflict Files table unavailable") }
@@ -174,6 +175,52 @@ import TurtleGitCore
     let preserved = try await repo.rebaseCommit(destination.hash); precondition(preserved.subject == "recovery onto")
     let ancestor = try await repo.run(["merge-base", "--is-ancestor", base.hash, "HEAD"]); precondition(ancestor.exitCode == 0)
     print("Actual Conflict Files: six-column checkbox native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application checked-file commit, unchecked retention, amendment sheet Cancel/reopening, applied Edit approval and final Continue passed. Conflict-hint Abort leaves HEAD/index and child selection unchanged; Ignore continues. Applied conflict Edit survives unstarted Split Cancel with unchanged HEAD/index and reopened multiline approval. Sheets/editor/confirmation routing injected.")
+}
+@MainActor func verifyNativeSquashConflict(_ repo: GitRepository, editor: URL?) async throws {
+    let preference = UserDefaults.standard.object(forKey: "SquashDate")
+    defer { if let preference { UserDefaults.standard.set(preference, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") } }
+    for policy in [RebaseSquashDate.first, .latest, .current] {
+        let tag = String(policy.rawValue), path = "squash conflict 雪 " + tag + "\n.txt", firstPath = "squash-first-" + tag + ".txt"
+        try Data("base group\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "squash conflict base " + tag)
+        _ = try await repo.run(["checkout", "-b", "native-squash-conflict-" + tag])
+        try Data("first file\n".utf8).write(to: repo.root.appendingPathComponent(firstPath)); try await repo.stage([firstPath])
+        _ = try await repo.run(["commit", "--author", "First Conflict <first@example.test>", "-m", "First conflict group\n\n# literal first"], environmentOverrides: ["GIT_AUTHOR_DATE": "2001-02-03T04:05:06+02:00"])
+        let first = try await repo.rebaseCommit("HEAD")
+        try Data("source conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.run(["commit", "--author", "Last Conflict <last@example.test>", "-m", "Last conflict group\n\n# literal last"], environmentOverrides: ["GIT_AUTHOR_DATE": "2002-03-04T05:06:07-03:00"])
+        let last = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["checkout", "target"])
+        try Data("destination conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "squash destination " + tag)
+        let destination = try await repo.rebaseCommit("HEAD")
+        UserDefaults.standard.set(policy.rawValue, forKey: "SquashDate")
+        let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.confirmConflictHints = { true }
+        model.load(cherryPick: [last.hash, first.hash]); try await settle(model); model.setAction(.squash, ids: [last.hash]); model.request("start")
+        let deadline = Date().addingTimeInterval(30)
+        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!model.busy && model.error != nil && model.state?.stoppedAction == .squash && model.fileRecovery && !model.canSplit && model.primaryActionTitle == "Continue")
+        precondition(Set(model.conflictRows.map(\.path)) == [path, firstPath] && !model.supportsConflictSelection)
+        model.error = nil
+        let conflictHost = NSHostingView(rootView: RebaseDialog(model: model)); conflictHost.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); conflictHost.layoutSubtreeIfNeeded(); precondition(conflictHost.fittingSize.width > 0)
+        try Data("resolved group\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path])
+        let recovered = RebaseWindowModel(repository: repo, access: nil); recovered.editorExecutable = editor; recovered.confirmConflictHints = { true }; recovered.load(); try await settle(recovered)
+        precondition(recovered.primaryActionTitle == "Continue" && Set(recovered.conflictRows.map(\.path)) == [path, firstPath])
+        recovered.request("continue"); try await settle(recovered)
+        precondition(recovered.state?.squashMessage != nil && recovered.tab == 1 && recovered.primaryActionTitle == "Commit")
+        precondition(recovered.amendMessage.contains("First conflict group") && recovered.amendMessage.contains("Last conflict group") && recovered.amendMessage.contains("# literal first") && recovered.amendMessage.contains("# literal last"))
+        let approval = RebaseWindowModel(repository: repo, access: nil); approval.editorExecutable = editor; approval.confirmConflictHints = { true }; approval.load(); try await settle(approval)
+        precondition(approval.primaryActionTitle == "Commit" && approval.state?.squashMessage?.datePolicy == policy)
+        let host = NSHostingView(rootView: RebaseDialog(model: approval)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
+        let before = Date().addingTimeInterval(-2), approved = "Native resolved group " + tag + "\n\nUnicode 雪\n# retained approval\n"
+        approval.amendMessage = approved; approval.request("continue"); try await settle(approval)
+        precondition(approval.finished && approval.primaryActionTitle == "Done")
+        let combined = try await repo.rebaseCommit("HEAD")
+        precondition(combined.parents == [destination.hash] && combined.author == first.author && combined.email == first.email && combined.message == approved)
+        if policy == .first { precondition(combined.date == first.date) }
+        else if policy == .latest { precondition(combined.date == last.date) }
+        else { precondition(ISO8601DateFormatter().date(from: combined.date)! >= before) }
+        let paths = try await repo.files(in: combined); precondition(Set(paths.map(\.path)) == [path, firstPath])
+    }
+    print("Actual native Squash conflict: whole-group file list, Unicode/newline path, Continue/Commit/Done captions, staged resolution and repeated reopening, multiline/literal-comment approval, first author and first/latest/current dates passed. Hidden hosted views; prompt answers injected.")
 }
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
@@ -471,6 +518,7 @@ import TurtleGitCore
     print("Actual native squash: Advanced SquashDate captured, editor pause without error alert, original selected identity, reopened Cherry Pick/multiline editor, exact Unicode/comment message approval, first author/latest date and Continue passed.")
     try await verifyNativeSplit(repo, editor: model.editorExecutable)
     try await verifyNativeRecoveryFiles(repo, editor: model.editorExecutable)
+    try await verifyNativeSquashConflict(repo, editor: model.editorExecutable)
 
 
 

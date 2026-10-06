@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "121d2b4",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Whole-group Squash conflict list, phase-specific primary actions and applied-Edit amendment guard",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "720e2abf138aef26b4097a59e8cb00e312a659dadf65b84f46973d522ccc8dc3",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "d6f15f996be5f7fd877e7e281bdd20ae9dfebd63443f871b3ac117ae0ae30c9f",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "5a287671e00a92ad3807d08950680ed31723a48dce4333ef5f90a57f0d1e0d56",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "efb7742a45ad25d6eaeffb0322ee0f7c448602a4d69e4b791494892bac0fa666",
+    "README.md": "7c88d9ddfeddb0613566e432540dcbdf602495fda4e1bf79759bdd9989fc81a5",
+    "docs/REBASE-PARITY.md": "54172fe1fb7f1eeea6e6ec6ee226cb0a5066c002accbb0589f51e8f9080e793c",
+    "docs/CHERRY-PICK-PARITY.md": "d94ec1f8a392254e7f7ff8eeef3e4842a70fcc9149477a14a036478385b659a4",
+    "docs/REBASE-CONFLICT-FILES.md": "3d1e9c56b7eb44bcc41f43fc5fc92d05de42b37fed0412d7e0f4cca18ef3924b",
+    "docs/REBASE-SQUASH-CONFLICTS.md": "3bb8fded9f22f877d2f491e951338e218eb6b266b408ceb2320de0ff8546d946",
+    "docs/site/index.html": "b655fd17ca1db21b64fa1a2996e6e9920a2828afdcfca0f993b91fec28aca32a"
+  },
+  "all_native_sources_manifest_sha256": "4ea37cc675415fbbda6ae76500d36033064c3d8ff140f217882b06a5f8b907b5",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "initial_probe": {
+      "command": "swift test --filter RebaseTests.testSquashConflictResolutionReopensCombinedMessageAndKeepsDatePolicies",
+      "tests": 1,
+      "failures": 0,
+      "result": "Existing core staged conflict\u2192combined approval worked for first/latest/current policies; native list and action mismatches identified by upstream comparison"
+    },
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 42,
+      "failures": 0,
+      "new_coverage": [
+        "Real Squash conflict with independent first-group file",
+        "Staged resolution and reopened combined message/literal comments",
+        "First author/email and first/latest/current date policies retained",
+        "Exact Unicode/comment approval results in one group commit",
+        "Premature Pick/Squash amendments rejected with unchanged HEAD"
+      ]
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Actual Squash conflict file list includes the earlier group file and Unicode/newline conflict path",
+        "Continue/Commit/Done phase captions follow real replay phases",
+        "Reopened resolved conflict reaches combined-message approval",
+        "Reopened approval retains message/date policy",
+        "Actual model approves exact Unicode/comment message with first author and first/latest/current dates",
+        "Final group has destination as sole parent and both expected paths"
+      ],
+      "regressions": "Existing Log, keyboard/reorder, Add/draft/repeated identities, merge/Edit/reopening, empty choices, clean squash, Split, checked conflict continuation, hint warnings and Split Cancel return remain passing",
+      "limits": "Hidden hosted views; prompts injected. Displayed captions/layout/focus/gestures/accessibility and signed execution unverified"
+    },
+    "swift_build": "passed",
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "probe": "d946c54d25743d8476c9b236ccd465a7cc3e91e98ee44de6ffacb871ed2d15b6",
+    "build": "e22e02d1f3c476e8a289d8bc5665253637d5f73a88c8935fc8105d946cc626e4",
+    "tests": "cd01b49d28ee17e2c19a87ec152b17b12324e3c2b366bc4edd1f54c5dd0b7f55",
+    "native": "879c1b62a1af99d38948a7f49b9cda3e57376914e065e34056b3739e5967ced8",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Empty Squash groups and multiple conflicting Squash steps in one group",
+    "Exact Squash checkbox interaction; native checkboxes remain disabled while upstream does not consume them in the Pick/Edit index loop",
+    "Displayed phase-button and layout acceptance",
+    "Strip Commented Lines preference",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Add a real empty Squash-group conflict fixture: first group commit introduces a file, a later Squash removes it and conflicts elsewhere, and resolution restores destination contents. Verify combined approval and upstream Commit/Skip/Cancel group semantics without preserving an unintended first-group commit. Also cover multiple conflicting Squash steps.",
+    "sources": [
+      "src/TortoiseProc/RebaseDlg.cpp: Squash_Edit, IsResultingCommitBecomeEmpty and IDS_CHERRYPICK_EMPTY",
+      "Sources/TurtleGitCore/Rebase.swift: continueRebase squashMessage amendment",
+      "Sources/TurtleGitMac/RebaseWindow.swift: combined-message primary Commit action"
+    ]
+  },
+  "processes": "No main app launched; receiver-owned hidden windows closed, receivers exited; final app/receiver process audit empty"
+}
