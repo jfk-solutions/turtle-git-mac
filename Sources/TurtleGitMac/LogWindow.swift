@@ -482,6 +482,7 @@ struct LogCommandRequest: Identifiable {
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     @Published var commandRequest: LogCommandRequest?
     private var generation = 0
+    private(set) var isInvalidated = false
     private var detailGeneration = 0
     private var clipboardCancellation: OperationCancellation?
     private var clipboardGeneration = 0
@@ -584,6 +585,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func invalidate() {
+        isInvalidated = true
         cancelNoteRead()
         cancelJump()
         cancelActionReads()
@@ -594,6 +596,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload(more: Bool = false) {
         guard !busy || loadingHistory else { return }
+        isInvalidated = false
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil; scrollRevision = nil
         cancelActionReads(); actionFailures = []

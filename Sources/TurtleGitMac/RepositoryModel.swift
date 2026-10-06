@@ -959,18 +959,19 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
-    private func configureLogBisect(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
-        model.onBisect = { [weak self] request in
-            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil)
+    private func configureLogBisect(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, refreshPicker: Bool = false) {
+        model.onBisect = { [weak self, weak model] request in
+            self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil)
         }
     }
-    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false) {
+    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false, sourceLog: LogWindowModel? = nil) {
         let root = repository.root
         let controller: BisectWindowController
         if let existing = bisectWindows[root.path] {
             controller = existing
             if !existing.activeOperation { existing.model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart) }
         } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart) }
+        if let sourceLog { controller.model.observeLog(sourceLog) }
         controller.onClosed = { [weak self] in self?.bisectWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] output in
             guard let self else { return }
@@ -1007,7 +1008,7 @@ import TurtleGitCore
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
-            self?.configureLogBisect(log, repository: repository, access: access)
+            self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
                 log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
@@ -1056,7 +1057,7 @@ import TurtleGitCore
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
-            self?.configureLogBisect(log, repository: repository, access: access)
+            self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
             log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
@@ -1104,7 +1105,7 @@ import TurtleGitCore
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
-            self?.configureLogBisect(log, repository: repository, access: access)
+            self?.configureLogBisect(log, repository: repository, access: access, refreshPicker: true)
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
         rebaseWindows[root.path] = controller

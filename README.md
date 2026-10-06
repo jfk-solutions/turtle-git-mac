@@ -299,6 +299,7 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Submodule Update availability follows each checkout and requires successful,
   idle progress.
   Log revision menus provide two-row Start, selected Good/Bad and multi-Skip.
+  Participating modal Log pickers refresh after Bisect results and detach on close.
   The Log working-tree row/Reset menu and displayed/signed acceptance remain pending.
   [Bisect parity](docs/BISECT-PARITY.md).
 - Log revision Export now opens a native ZIP/revision/Whole Project dialog and

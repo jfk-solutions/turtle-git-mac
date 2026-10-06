@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "2b77b99",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Refresh participating modal Log pickers after Bisect state changes without retaining closed models",
+  "sha256": {
+    "Sources/TurtleGitMac/BisectWindow.swift": "adb7d26da488029eab0898bb528b43e7aa241ea70528fef5ed152a5e0d9d65b4",
+    "Sources/TurtleGitMac/LogWindow.swift": "a957e4a3cf210aa1c780932f4c3ac2b13bd250d80d62f04938e1a5507f555ac9",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "3270bf3742559f66102b41d5d2f529519baacdbe0f011d71602c11def445a264",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "94c3d153f2cee471068c8498ef7b973a5b9f05d8f9771f8196d9cbabe6c1fa96",
+    "docs/BISECT-PARITY.md": "eda6276b105d5a19dee4d36525a577296886c384b38ebbcb5b89c2ca319fe43e",
+    "README.md": "0379d9f149aa24f54bb360be368e07d9d4f5e6f0a95170e920d38c568d0df4d3"
+  },
+  "all_native_sources_manifest_sha256": "0436ae2ab63a1b136a85b131f5e531ecfcfc73919af9247c6877cdcb8c7813f3",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "new_coverage": "Actual hidden Log picker and source Log are observed by the reused Bisect model. Selected Good refreshes HEAD/good refs, literal multi-Skip refreshes skip refs, Bad refreshes bad ref without manual reload. Reset clears source Log active state/markers and restores HEAD. Closing the retained picker invalidates it and Reset does not revive it. A weakly observed transient model is released. Prior Bisect, Export, integration and focused Rebase fixtures pass.",
+      "limitations": "Root handoff injected; observer registration exercised directly. Activated modal handoff, displayed windows/alerts, Finder integration, keyboard/accessibility, screenshots and signed sandbox not exercised. Existing reload busy guards apply; concurrent busy picker refresh deferral not added."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE cmp passed; Store --require-git; 90 original icons and universal helper runtimes verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app, Finder menu receiver or native receiver remained"
+  },
+  "logs": {
+    "/tmp/turtlegit-bisect-picker-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-bisect-picker-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-bisect-picker-native.log": "b483a8bba3d662e9d8f37089535dbb307acd2b2a30df26866fe9b406665e24da",
+    "/tmp/turtlegit-bisect-picker-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-bisect-picker-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-bisect-picker-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-bisect-picker-swift.log": "73e4d0bafbd42296f7d4248f7a9f33278d7ab61bd5454f3e1dfd58787aa16391"
+  },
+  "remaining": "Log working-tree row/Reset menu, progress cancellation, concurrent busy picker refresh acceptance, activated/displayed handoffs, signed Finder and App Store acceptance; full port incomplete."
+}

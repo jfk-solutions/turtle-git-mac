@@ -61,6 +61,21 @@ import TurtleGitCore
     var chooseRevision: (Bool) -> Void = { _ in }
     var confirmStash: () async -> Bool = { false }
     var onChanged: (String) -> Void = { _ in }
+    private final class LogObserver {
+        weak var model: LogWindowModel?
+        init(_ model: LogWindowModel) { self.model = model }
+    }
+    private var logObservers: [LogObserver] = []
+    func observeLog(_ model: LogWindowModel) {
+        guard model.repository.root == repository.root, !model.isInvalidated else { return }
+        logObservers.removeAll { $0.model == nil || $0.model?.isInvalidated == true }
+        if !logObservers.contains(where: { $0.model === model }) { logObservers.append(LogObserver(model)) }
+    }
+    private func changed(_ output: String) {
+        onChanged(output)
+        logObservers.removeAll { $0.model == nil || $0.model?.isInvalidated == true }
+        for observer in logObservers { observer.model?.reload() }
+    }
     var onSubmoduleUpdate: (() -> Void)?
     var canUpdateSubmodules: Bool { !busy && hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil }
     func updateSubmodules() { guard canUpdateSubmodules else { return }; onSubmoduleUpdate?() }
@@ -104,7 +119,7 @@ import TurtleGitCore
                 catch BisectFailure.dirty {
                     guard await confirmStash() else { return }
                     try validateAccess(); let stash = try await repository.stashBeforeBisect()
-                    output = stash.output; onChanged(stash.output)
+                    output = stash.output; changed(stash.output)
                     result = try await repository.startBisect(good: good, bad: bad)
                 }
                 await accept(result)
@@ -124,7 +139,7 @@ import TurtleGitCore
         // A bisect checkout can add or remove .gitmodules. Upstream queries the
         // resulting worktree in its post-command callback, not the initial one.
         hasSubmodules = (try? await repository.finderMetadata().hasSubmoduleConfig) ?? false
-        onProgress(); onChanged(result.output)
+        onProgress(); changed(result.output)
         if result.exitCode != 0 { error = result.output.isEmpty ? "Bisect failed (\(result.exitCode))." : result.output }
     }
     private func recover(_ failure: Error) async {
@@ -132,7 +147,7 @@ import TurtleGitCore
         state = try? await repository.bisectState()
         hasSubmodules = (try? await repository.finderMetadata().hasSubmoduleConfig) ?? false
         if state?.active == true { onProgress() }
-        onChanged(failure.localizedDescription)
+        changed(failure.localizedDescription)
     }
     func title(_ operation: BisectOperation) -> String {
         "Bisect " + (operation == .good ? state?.goodTerm ?? "good" : operation == .bad ? state?.badTerm ?? "bad" : operation.rawValue)

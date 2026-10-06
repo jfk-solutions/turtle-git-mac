@@ -157,8 +157,11 @@ A changed selection or invalidated Log drops the pending handoff. The native
 Bisect window revalidates again before execution and recovers custom terms.
 Repository callbacks configure normal Log windows and the existing Merge,
 Rebase and Stash Log pickers; completed operations refresh normal repository Logs.
-Automatic refresh of those modal picker Logs after a Bisect handoff remains
-pending; their action preflight still uses fresh Git state.
+Picker handoffs also register their model with the reused Bisect window. The
+window keeps weak, deduplicated observers and reloads participating picker Logs
+after stash, successful/failed Git results and recovery. Their normal reload
+guards apply. Closing a picker invalidates its model and removes it from later
+notifications; observing it does not keep the model or its security grant alive.
 
 The hidden native receiver checks real menu images, targets and enabled state,
 two-row preset order, moved-reference fallback, selection changes, cached
@@ -166,5 +169,9 @@ busy/bare/Merge guards, fresh active Start refusal and marked-row exclusion.
 It routes injected handoffs into the actual Bisect controller, executes selected
 Good/Bad and multi-Skip against real Git, then verifies stale mark and ended
 session refusal. An unborn repository Log also loads with no Bisect state.
-These checks do not establish activated menus, working-tree row support or
+An actual hidden picker also refreshes HEAD and Good/Bad/Skip references after
+classification without manual reload. Reset clears active state and markers
+in the source Log. A closed retained picker stays invalidated, and a released
+model is not retained by observation. These checks use injected root handoff;
+they do not establish activated menus, working-tree row support or
 displayed/signed acceptance.

@@ -864,30 +864,62 @@ import TurtleGitCore
     log.selected = [hashes[1]]
     for command in [LogBisectCommand.good, .bad, .skip] { precondition(menuItem(command)?.image != nil && menuItem(command)?.isEnabled == true) }
     precondition(menuItem(.start) == nil)
+    reopened.model.observeLog(log); reopened.model.observeLog(log)
+    let bisectPicker = LogWindowController(repository: repo, access: nil, onChoose: { _ in })
+    defer { bisectPicker.close() }
+    bisectPicker.model.endRevision = "main"; bisectPicker.model.reload()
+    func waitPicker() async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while bisectPicker.model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!bisectPicker.model.busy)
+    }
+    try await waitPicker(); reopened.model.observeLog(bisectPicker.model)
+    var transient: LogWindowModel? = LogWindowModel(repository: repo, access: nil, selecting: true)
+    weak var weakTransient = transient
+    reopened.model.observeLog(transient!); transient = nil; precondition(weakTransient == nil)
     coordinator.bisectGood(); try await waitLog()
     precondition(requests.count == 3 && requests.last?.operation == .good && requests.last?.revisions == [hashes[1]])
     reopened.model.load(operation: requests.last!.operation, revisions: requests.last!.revisions); try await wait(reopened.model)
     precondition(reopened.model.error == nil && reopened.model.state?.log.contains("git bisect good " + hashes[1]) == true)
-    log.reload(); try await waitLog(); log.selected = [hashes[2], hashes[5]]
+    try await waitLog(); try await waitPicker()
+    for refreshed in [log, bisectPicker.model] {
+        precondition(refreshed.entries.first { $0.hash == hashes[1] }?.references.contains { $0.name.hasPrefix("refs/bisect/good-") } == true)
+        precondition(refreshed.entries.first { $0.isHead }?.hash == reopened.model.state?.head)
+    }
+    log.selected = [hashes[2], hashes[5]]
     precondition(menuItem(.good) == nil && menuItem(.bad) == nil && menuItem(.skip)?.isEnabled == true)
     coordinator.bisectSkip(); try await waitLog()
     precondition(requests.count == 4 && requests.last?.operation == .skip && requests.last?.revisions == [hashes[5], hashes[2]])
     reopened.model.load(operation: requests.last!.operation, revisions: requests.last!.revisions); try await wait(reopened.model)
     precondition(reopened.model.error == nil)
     for hash in [hashes[2], hashes[5]] { precondition(reopened.model.state?.log.contains("git bisect skip " + hash) == true) }
-    log.reload(); try await waitLog(); log.selected = [hashes[6]]
+    try await waitLog(); try await waitPicker()
+    for hash in [hashes[2], hashes[5]] {
+        precondition(bisectPicker.model.entries.first { $0.hash == hash }?.references.contains { $0.name.hasPrefix("refs/bisect/skip-") } == true)
+    }
+    log.selected = [hashes[6]]
     coordinator.bisectBad(); try await waitLog(); precondition(requests.count == 5 && requests.last?.operation == .bad && requests.last?.revisions == [hashes[6]])
     reopened.model.load(operation: requests.last!.operation, revisions: requests.last!.revisions); try await wait(reopened.model)
     precondition(reopened.model.error == nil && reopened.model.state?.log.contains("git bisect bad " + hashes[6]) == true)
     // A menu built before another caller marks the selected commit must refuse it.
-    log.reload(); try await waitLog(); log.selected = [hashes[4]]
+    try await waitLog(); try await waitPicker()
+    precondition(bisectPicker.model.entries.first { $0.hash == hashes[6] }?.references.contains { $0.name == "refs/bisect/bad" } == true)
+    bisectPicker.close(); precondition(bisectPicker.model.isInvalidated)
+    log.selected = [hashes[4]]
     _ = try await repo.run(["update-ref", "refs/bisect/skip-" + hashes[4], hashes[4]])
     coordinator.bisectGood(); try await waitLog(); precondition(requests.count == 5 && log.error != nil)
     reopened.model.perform(.reset); try await wait(reopened.model)
+    try await waitLog()
+    precondition(!log.bisectActive && log.entries.first { $0.isHead }?.hash == hashes[7])
+    precondition(log.entries.allSatisfy { !$0.references.contains { $0.name.hasPrefix("refs/bisect/") } })
+    precondition(bisectPicker.model.isInvalidated && !bisectPicker.model.busy)
+    // Recreate a stale cached menu independently of the automatic refresh.
+    log.bisectActive = true
     log.error = nil; coordinator.bisectBad(); try await waitLog()
     precondition(requests.count == 5 && log.error == BisectFailure.inactive.localizedDescription)
     let logResetState = try await repo.bisectState(); precondition(!logResetState.active && logResetState.head == hashes[7])
     print("Native Log Bisect revision commands: actual menu icons/targets, two-row Bad/Good order, ref/hash and moved-ref presets, busy/bare/merge/selection guards, active Start refusal, marked-row exclusion, selected Good/Bad and literal multi-Skip execution, stale mark/ended-session refusal passed. Handoff injected; working-tree row/Reset menu pending.")
+    print("Native Bisect picker refresh: real hidden picker and source Log refresh HEAD/Good/Skip/Bad references without manual reload; Reset clears session/marks; closed retained picker stays invalidated and weak observers release models. Root handoff injected.")
     let branch = try await repo.branch(); precondition(branch == "main")
     do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
     var closed = false; reopened.onClosed = { closed = true }; reopened.close(); precondition(closed && !window.isVisible)
