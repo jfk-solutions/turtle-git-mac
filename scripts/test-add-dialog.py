@@ -37,6 +37,31 @@ import TurtleGitCore
         model.busy = true; precondition(!model.canApply)
         let disabled = receiver.tableView(receiver.table, viewFor: receiver.table.tableColumns[0], row: index) as! NSButton
         precondition(!disabled.isEnabled); model.busy = false
+        model.highlighted = [file, unchecked]; receiver.refresh()
+        let displayed = receiver.selectedRows.map(\.path)
+        precondition(receiver.clipboardText("relative") == displayed.joined(separator: "\n") + "\n")
+        precondition(receiver.clipboardText("full") == displayed.map { folder.appendingPathComponent($0).path }.joined(separator: "\n") + "\n")
+        precondition(receiver.clipboardText("names") == displayed.map { ($0 as NSString).lastPathComponent }.joined(separator: "\n") + "\n")
+        precondition(receiver.clipboardText("ext") == ".txt\n.txt\n")
+        precondition(receiver.clipboardText("all").hasPrefix("Path\tExtension"))
+        receiver.toggleSelectedChecks(); precondition(model.checked.contains(unchecked)); receiver.toggleSelectedChecks()
+        precondition(!model.checked.contains(file) && !model.checked.contains(unchecked)); model.checked = [file, ignored]
+        var opened: [(String, AddFileOpenAction)] = []; model.onOpen = { opened.append(($0, $1)) }
+        receiver.openSelected(.open); precondition(opened.isEmpty)
+        model.highlighted = [file]; receiver.refresh(); receiver.openSelected(.open); receiver.openSelected(.openWith); receiver.openSelected(.editor)
+        precondition(opened.count == 3 && opened.allSatisfy { $0.0 == file })
+        let menu = receiver.table.menu!; receiver.menuNeedsUpdate(menu)
+        let copy = menu.items.first { $0.title == "Copy to clipboard" }!
+        precondition(copy.submenu?.items.map(\.title) == ["Full paths", "Relative paths", "File/folder names", "Extensions", "All visible columns"])
+        precondition(menu.items.filter { !$0.isSeparatorItem }.allSatisfy(\.isEnabled))
+        let heldBytes = try Data(contentsOf: folder.appendingPathComponent(file))
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(file)); try FileManager.default.createDirectory(at: folder.appendingPathComponent(file), withIntermediateDirectories: false)
+        receiver.menuNeedsUpdate(menu); receiver.openSelected(.open)
+        precondition(opened.count == 3 && menu.items.first { $0.title == "Open" }!.isHidden)
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(file)); try heldBytes.write(to: folder.appendingPathComponent(file))
+        model.confirmingQuit = true; receiver.menuNeedsUpdate(menu); receiver.openSelected(.open)
+        precondition(receiver.clipboardText("relative").isEmpty && opened.count == 3 && menu.items.filter { !$0.isSeparatorItem }.allSatisfy { !$0.isEnabled })
+        model.confirmingQuit = false
         var accepted: [String] = [], closed = 0
         model.onAccepted = { accepted = $0 }; model.close = { closed += 1 }; model.apply()
         precondition(Set(accepted) == [file, ignored] && closed == 1)
@@ -61,12 +86,12 @@ import TurtleGitCore
         precondition(cancelled.cancelled && !cancelled.success && !cancelled.busy)
         let after = try await repo.run(["diff", "--cached", "--name-only", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
         precondition(Set(after) == [file, ignored])
-        print("Actual Add receiver: ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        print("Actual Add receiver: context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''
 with tempfile.TemporaryDirectory(prefix='TurtleGitAddDialogTest-') as directory:
     folder = pathlib.Path(directory); main = folder / 'Driver.swift'; main.write_text(driver); binary = folder / 'verify'
-    sources = ['AddWindow.swift', 'AddFileTable.swift', 'AddProgressWindow.swift', 'SelectionAllCheckbox.swift', 'CommandLabel.swift', 'Appearance.swift']
+    sources = ['AddWindow.swift', 'AddFileTable.swift', 'AddProgressWindow.swift', 'SelectionAllCheckbox.swift', 'CommandLabel.swift', 'Appearance.swift', 'AlternativeEditorSettings.swift']
     subprocess.run(['xcrun', 'swiftc', '-swift-version', '6', '-parse-as-library', '-target', platform.machine() + '-apple-macos13.0', '-F', str(frameworks), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(frameworks), *[str(root / 'Sources/TurtleGitMac' / s) for s in sources], str(main), '-o', str(binary)], check=True)
     subprocess.run([str(binary), str(folder / 'fixture')], check=True)

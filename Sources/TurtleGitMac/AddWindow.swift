@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import TurtleGitCore
 
 private final class AddNativeWindow: NSWindow {
@@ -22,7 +23,27 @@ private final class AddNativeWindow: NSWindow {
         window.contentViewController = NSHostingController(rootView: AddDialogView(model: model))
         super.init(window: window); window.delegate = self; window.setFrameAutosaveName("AddDialog"); window.center()
         model.close = { [weak window] in window?.close() }
+        model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
         window.refresh = { [weak model] in model?.reload() }; window.accept = { [weak model] in model?.apply() }
+    }
+    private func openFile(_ path: String, action: AddFileOpenAction) {
+        guard let window, !model.busy, !model.confirmingQuit, window.attachedSheet == nil else { return }
+        let file = model.repository.root.appendingPathComponent(path)
+        if action == .openWith {
+            let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
+            panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+            panel.beginSheetModal(for: window) { [weak model] response in
+                guard response == .OK, let application = panel.url, let model, !model.busy, !model.confirmingQuit else { return }
+                let scoped = application.startAccessingSecurityScopedResource()
+                NSWorkspace.shared.open([file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                    if scoped { application.stopAccessingSecurityScopedResource() }
+                    DispatchQueue.main.async { if let error { model.error = error.localizedDescription } }
+                }
+            }
+        } else if action == .editor {
+            AlternativeEditor.open(file) { [weak model] failure in if let failure { model?.error = failure } }
+        } else if !NSWorkspace.shared.open(file) { model.error = "Could not open the file. Choose an application using Open With." }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) { onClosed() }
@@ -45,6 +66,7 @@ private final class AddNativeWindow: NSWindow {
     var close: () -> Void = {}
     var onAccepted: ([String]) -> Void = { _ in }
     var onPreview: (String) -> Void = { _ in }
+    var onOpen: (String, AddFileOpenAction) -> Void = { _, _ in }
     var canApply: Bool { !busy && !confirmingQuit && !checked.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
     func setScope(_ paths: [String]) { self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = [] }
@@ -94,6 +116,8 @@ private final class AddNativeWindow: NSWindow {
         return true
     }
 }
+enum AddFileOpenAction { case open, openWith, editor }
+
 struct AddDialogView: View {
     @ObservedObject var model: AddWindowModel
     var body: some View {

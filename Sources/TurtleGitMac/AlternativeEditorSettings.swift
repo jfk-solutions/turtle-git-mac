@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import TurtleGitCore
 
 @MainActor enum AlternativeEditor {
-    static func open(_ file: URL, completion: @escaping (String?) -> Void) {
+    static func open(_ file: URL, completion: @escaping @MainActor @Sendable (String?) -> Void) {
         let preferences = AlternativeEditorPreferences.load()
         guard preferences.valid else { completion("Choose a macOS editor application in Settings → Alternative Editor."); return }
         var application = preferences.customApplication

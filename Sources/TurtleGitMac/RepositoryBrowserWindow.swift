@@ -80,7 +80,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     private func open(_ content: ComparisonFileContent, action: RepositoryBrowserWindowModel.FileAction, application: URL? = nil) {
         do {
             let preview = try HistoricalFilePreview.create(content); HistoricalPreviewFiles.retain(preview)
-            let failed: (String?) -> Void = { [weak model] error in
+            let failed: @MainActor @Sendable (String?) -> Void = { [weak model] error in
                 if let error { HistoricalPreviewFiles.discard(preview.file); model?.error = error }
             }
             if action == .alternativeEditor { AlternativeEditor.open(preview.file, completion: failed) }

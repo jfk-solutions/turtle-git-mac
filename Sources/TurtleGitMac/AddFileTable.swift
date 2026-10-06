@@ -2,6 +2,25 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+private final class AddNativeTable: NSTableView {
+    var toggleChecks: () -> Void = {}
+    var copySelection: () -> Void = {}
+    override func menu(for event: NSEvent) -> NSMenu? {
+        let index = row(at: convert(event.locationInWindow, from: nil))
+        guard index >= 0 else { return nil }
+        if !selectedRowIndexes.contains(index) { selectRowIndexes(IndexSet(integer: index), byExtendingSelection: false) }
+        return super.menu(for: event)
+    }
+    override func keyDown(with event: NSEvent) {
+        if event.charactersIgnoringModifiers == " ", event.modifierFlags.intersection([.command, .control, .option]).isEmpty { toggleChecks(); return }
+        super.keyDown(with: event)
+    }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.charactersIgnoringModifiers?.lowercased() == "c", event.modifierFlags.contains(.command) { copySelection(); return true }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
 struct AddFileTable: NSViewRepresentable {
     @ObservedObject var model: AddWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
@@ -9,7 +28,8 @@ struct AddFileTable: NSViewRepresentable {
     func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.refresh() }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         let model: AddWindowModel
-        let table = NSTableView()
+        private let nativeTable = AddNativeTable()
+        var table: NSTableView { nativeTable }
         private var updating = false
         init(model: AddWindowModel) { self.model = model }
         var rows: [AddDialogEntry] {
@@ -30,6 +50,8 @@ struct AddFileTable: NSViewRepresentable {
             let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
             table.dataSource = self; table.delegate = self; table.allowsMultipleSelection = true; table.rowHeight = 22
             table.target = self; table.doubleAction = #selector(preview)
+            nativeTable.toggleChecks = { [weak self] in self?.toggleSelectedChecks() }
+            nativeTable.copySelection = { [weak self] in self?.copyText("relative") }
             for (id, title, width) in [("check", "", 26.0), ("path", "Path", 440.0), ("ext", "Extension", 85.0), ("size", "Size", 90.0), ("date", "Modification date", 150.0)] {
                 let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width
                 if id != "check" { column.sortDescriptorPrototype = NSSortDescriptor(key: id, ascending: true) }
@@ -42,9 +64,16 @@ struct AddFileTable: NSViewRepresentable {
             }
             header.delegate = self; table.headerView?.menu = header
             let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
-            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Diff", #selector(preview), .compare), ("Explore to", #selector(reveal), .explore)] {
+            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Diff", #selector(preview), .compare), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
             }
+            menu.addItem(.separator())
+            let clipboard = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: ""); clipboard.image = MenuIcon.copy.contextImage()
+            let submenu = NSMenu(); submenu.autoenablesItems = false
+            for (key, title) in [("full", "Full paths"), ("relative", "Relative paths"), ("names", "File/folder names"), ("ext", "Extensions"), ("all", "All visible columns")] {
+                let item = NSMenuItem(title: title, action: #selector(copyItem(_:)), keyEquivalent: ""); item.target = self; item.representedObject = key; item.image = MenuIcon.copy.contextImage(); submenu.addItem(item)
+            }
+            clipboard.submenu = submenu; menu.addItem(clipboard)
             table.menu = menu; scroll.documentView = table; refresh(); return scroll
         }
         func refresh() {
@@ -61,7 +90,7 @@ struct AddFileTable: NSViewRepresentable {
             }
             let field = NSTextField(labelWithString: ""); field.lineBreakMode = .byTruncatingMiddle
             switch tableColumn?.identifier.rawValue {
-            case "ext": field.stringValue = (row.path as NSString).pathExtension
+            case "ext": field.stringValue = StatusListClipboard.fileExtension(row.path)
             case "size": field.stringValue = row.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "–"
             case "date": field.stringValue = row.modified.map { $0.formatted(date: .numeric, time: .shortened) } ?? "–"
             default:
@@ -77,20 +106,66 @@ struct AddFileTable: NSViewRepresentable {
         }
         func tableView(_ tableView: NSTableView, sortDescriptorsDidChange oldDescriptors: [NSSortDescriptor]) { refresh() }
         @objc func toggleRow(_ sender: NSButton) { guard !model.busy, !model.confirmingQuit, let path = sender.identifier?.rawValue, model.entries.contains(where: { $0.path == path }) else { return }; if sender.state == .on { model.checked.insert(path) } else { model.checked.remove(path) } }
-        @objc func check() { model.checked.formUnion(model.highlighted); refresh() }
-        @objc func uncheck() { model.checked.subtract(model.highlighted); refresh() }
-        @objc func preview() { guard !model.busy, !model.confirmingQuit else { return }; if table.clickedRow >= 0 && rows.indices.contains(table.clickedRow) { model.onPreview(rows[table.clickedRow].path) } else if model.highlighted.count == 1, let path = model.highlighted.first { model.onPreview(path) } }
-        @objc func reveal() { NSWorkspace.shared.activateFileViewerSelecting(model.highlighted.map { model.repository.root.appendingPathComponent($0) }) }
+        var selectedRows: [AddDialogEntry] { rows.filter { model.highlighted.contains($0.path) } }
+        var selectedIsFile: Bool {
+            guard selectedRows.count == 1, let row = selectedRows.first,
+                  let type = try? FileManager.default.attributesOfItem(atPath: model.repository.root.appendingPathComponent(row.path).path)[.type] as? FileAttributeType else { return false }
+            return type != .typeDirectory
+        }
+        var canAct: Bool { !model.busy && !model.confirmingQuit && !selectedRows.isEmpty }
+        @objc func check() { guard canAct else { return }; model.checked.formUnion(selectedRows.map(\.path)); refresh() }
+        @objc func uncheck() { guard canAct else { return }; model.checked.subtract(selectedRows.map(\.path)); refresh() }
+        func toggleSelectedChecks() {
+            guard canAct else { return }
+            if selectedRows.allSatisfy({ model.checked.contains($0.path) }) { uncheck() } else { check() }
+        }
+        @objc func preview() { guard canAct, selectedRows.count == 1, let row = selectedRows.first else { return }; model.onPreview(row.path) }
+        func openSelected(_ action: AddFileOpenAction) { guard canAct, selectedIsFile, let row = selectedRows.first else { return }; model.onOpen(row.path, action) }
+        @objc func open() { openSelected(.open) }
+        @objc func openWith() { openSelected(.openWith) }
+        @objc func editor() { openSelected(.editor) }
+        @objc func reveal() { guard canAct, selectedRows.count == 1 else { return }; NSWorkspace.shared.activateFileViewerSelecting(selectedRows.map { model.repository.root.appendingPathComponent($0.path) }) }
+        func cellText(_ row: AddDialogEntry, key: String) -> String {
+            switch key {
+            case "ext": return StatusListClipboard.fileExtension(row.path)
+            case "size": return row.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "–"
+            case "date": return row.modified.map { $0.formatted(date: .numeric, time: .shortened) } ?? "–"
+            default: return row.path
+            }
+        }
+        func clipboardText(_ kind: String) -> String {
+            guard canAct else { return "" }
+            let columns = table.tableColumns.filter { !$0.isHidden && $0.identifier.rawValue != "check" }
+            let heading = kind == "all" && columns.count > 1 ? columns.map(\.title).joined(separator: "\t") + "\n" : ""
+            return heading + selectedRows.map { row in
+                switch kind {
+                case "full": return model.repository.root.appendingPathComponent(row.path).path
+                case "names": return (row.path as NSString).lastPathComponent
+                case "ext": return cellText(row, key: "ext")
+                case "all": return columns.map { cellText(row, key: $0.identifier.rawValue) }.joined(separator: "\t")
+                default: return row.path
+                }
+            }.joined(separator: "\n") + "\n"
+        }
+        func copyText(_ kind: String) {
+            let text = clipboardText(kind); guard !text.isEmpty else { return }
+            NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
+        }
+        @objc func copyItem(_ sender: NSMenuItem) { guard let kind = sender.representedObject as? String else { return }; copyText(kind) }
         @objc func toggleColumn(_ sender: NSMenuItem) {
             guard let key = sender.representedObject as? String, let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(key)) else { return }
             column.isHidden.toggle(); UserDefaults.standard.set(!column.isHidden, forKey: key == "size" ? "Add.ShowSize" : "Add.ShowModifiedDate")
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
             if menu === table.menu {
-                for item in menu.items {
-                    let icon: MenuIcon = item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : .explore
+                for item in menu.items where !item.isSeparatorItem {
+                    let icon: MenuIcon = item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
                     item.image = icon.contextImage()
-                    item.isEnabled = !model.busy && !model.confirmingQuit && !model.highlighted.isEmpty && (item.action != #selector(preview) || model.highlighted.count == 1)
+                    let single = [#selector(preview), #selector(editor), #selector(open), #selector(openWith), #selector(reveal)].contains(item.action)
+                    let opensFile = [#selector(editor), #selector(open), #selector(openWith)].contains(item.action)
+                    item.isHidden = opensFile && !selectedIsFile
+                    item.isEnabled = canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile)
+                    for child in item.submenu?.items ?? [] { child.image = MenuIcon.copy.contextImage(); child.isEnabled = item.isEnabled }
                 }
             } else {
                 for item in menu.items { if let key = item.representedObject as? String { item.state = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(key))?.isHidden == false ? .on : .off } }

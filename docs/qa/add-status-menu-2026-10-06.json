@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add status-list native open/editor commands and clipboard submenu, row selection and keyboard check/copy wiring; full upstream dialog/application parity still incomplete",
+  "baseCommit": "0f9eed89b1be9ac28ad644ed7910adf7855194b4",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": "AddDlg.cpp Init masks and GitStatusListCtrl.cpp OnContextMenuList, OpenFile, CopySelectedEntriesToClipboard and keyboard handling",
+  "receiver": "Actual Swift 6/macOS 13 Add model/table receiver verifies selected callback routing for Open/Open With/editor without launching applications; multiple selection rejection, full/relative/name/extension/visible-column clipboard text in displayed order, dotted extensions, check toggles, busy/quit/menu guards, and folder replacement hiding Open. Existing checked-only Add and mode post-action checks retained. No windows/menus displayed, system clipboard not changed.",
+  "concurrency": "AlternativeEditor completion and Log/RepositoryBrowser failure callbacks explicitly MainActor/Sendable; strict receiver compilation exposed and verified this correction.",
+  "lastCoreRegression": {
+    "count": 490,
+    "failures": 0,
+    "log": "/tmp/turtlegit-add-post-full.log",
+    "sha256": "237d9b228b52ac18d833e1f53f2548ecde632b94622e90a0ca648de7f072e221",
+    "scope": "Previous commit regression; no core or repository API changes in this change, so full suite not repeated."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AddFileTable.swift": "10bbd0b1224a3e6f0200ef4a982736aa9486da21ec4e12c54cffddceededa21f",
+    "Sources/TurtleGitMac/AddWindow.swift": "74fa34be16baa16e647715cff049f040985ed7c52b3fc361b7973f05a974a3c7",
+    "Sources/TurtleGitMac/AlternativeEditorSettings.swift": "6de4d4f559cb55bb22c9ab8ffcd64eb86ff440dcaf477ad14c0324f8dd33e3b9",
+    "Sources/TurtleGitMac/LogWindow.swift": "6dce61c99f7e03abbf00e326e2e7ff0e47f334a6077b166b2566a3be184acf02",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "023bc5de5394b8d52c3c4f3a530508a3d11a27dca8f96f5ef6a9756ecf3e3334",
+    "scripts/test-add-dialog.py": "fb48303f478b2a6225a03cb072298111f024aa784a67bf28520ffca13c1da6ae",
+    "NOTICE": "74e44fcf975cdc394738d9d26322d5961a068d7b19ac95dfa58cd0dde3a81c69"
+  },
+  "pending": [
+    "Ignore/Delete and current-column clipboard commands",
+    "Full shared status menus/export/save/LFS and other tracked-row commands",
+    "Actual right-click, Space/Command-C, clipboard, native picker/cancel/editor/default open and signed launch acceptance",
+    "Native visual light/dark/artwork acceptance",
+    "Signed Finder/security-scope/AppStore distribution and GitHub publication authentication"
+  ],
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed"
+  ],
+  "bundleAudits": "Both bundle validators and exact bundled NOTICE comparisons passed; original icons, universal helpers and Store Git runtime retained.",
+  "site": "Static documentation generation passed",
+  "appProcesses": "No main app or receiver remained; no main app launched for verification",
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-add-menu-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-menu-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-menu-native.log",
+      "sha256": "54924a98a0f5c9a7b2019f6e2f9dfacf4d9a77fb2f8a1e78fc589fb8f6d0b534"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-menu-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-menu-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-menu-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

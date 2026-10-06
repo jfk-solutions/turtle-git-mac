@@ -35,7 +35,9 @@ Native Add now uses the upstream file-only progress route and folder checked-lis
 route, with Include ignored files, original icons and checked-only forced staging.
 The cancellable private-index transaction preserves unrelated staging. Progress
 provides Commit and executable/symlink post-actions that preserve the staged blob
-when the working file has since changed or disappeared.
+when the working file has since changed or disappeared. Add's status menu now
+includes native Open With, the configured alternative editor, and clipboard
+commands for paths, names, extensions and visible columns.
 [Add parity](docs/ADD-PARITY.md) records unfinished menus, post-actions and native QA.
 
 Create Patch Serial now has a native Format Patch dialog with Since, Number

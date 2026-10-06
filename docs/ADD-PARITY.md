@@ -15,6 +15,15 @@ default; native header menus expose optional Size and Modification date columns.
 Original status/menu icons, shared status colors, light/dark adaptation and
 resizable saved geometry are used. Native table sorting, separate highlighted
 and checked rows, check/uncheck, preview and Explore context commands are present.
+Right-clicking a different row selects it before the menu is prepared. Space
+checks/unchecks highlighted rows. Open, Open With and alternative-editor actions
+use the working file and retain the repository grant; Open With uses a native
+application picker and a scoped launch. Clipboard actions provide full paths,
+relative paths, file/folder names, dotted extensions and all visible columns in
+displayed order. Single-column text has no heading; multiple columns use tabs
+and headings, with native LF separators. Command-C copies relative paths. Menu
+commands and nested icons update with selection, busy/quit state and icon preferences.
+File-opening commands are hidden for folders. See [the status-menu receiver record](qa/add-status-menu-2026-10-06.json) for verification and native acceptance limits.
 Context images follow ShowAppContextMenuIcons when a menu is prepared.
 
 Unversioned rows start checked; ignored rows are hidden until Include ignored is
@@ -68,7 +77,7 @@ screenshots. Debug and unsigned AppStore builds, bundle audits and site generati
 are recorded in [the verification record](qa/add-2026-10-06.json).
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
-acceptance is pending. Full status-list commands (Ignore/Delete/clipboard/open/editor and
+acceptance is pending. Full status-list commands (Ignore/Delete/current-column clipboard and
 other shared consumers), background artwork, Space/column/drop/keyboard gestures,
 progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain
