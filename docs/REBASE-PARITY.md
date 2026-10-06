@@ -151,3 +151,7 @@ See [Split return QA](qa/rebase-split-return-2026-10-06.json).
 Squash conflicts now show the whole group relative to its destination parent.
 Native phase captions match the upstream continuation stages, and amendment is
 restricted to applied Edit pauses. See [Squash conflicts](REBASE-SQUASH-CONFLICTS.md).
+
+Empty Squash approval now offers Commit/Skip/Cancel. Skip drops the whole group
+and retains a durable retry intent after reset failures.
+See [empty Squash groups](REBASE-EMPTY-SQUASH.md).

@@ -40,7 +40,8 @@ actual Commit model.
 
 Prompt answers and sheets are injected in hidden native receivers; displayed
 button focus, mouse/keyboard gestures and accessibility are not verified. Squash
-conflict checkbox selection and its empty-result grouping need separate porting.
+checkbox acceptance remains pending. [Empty Squash groups](REBASE-EMPTY-SQUASH.md)
+now have Commit/Skip/Cancel and durable Skip recovery.
 No new screenshot establishes these prompts' appearance, and unsigned builds do
 not prove signed sandbox execution or App Store acceptance.
 

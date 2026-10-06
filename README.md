@@ -302,8 +302,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   changes and routes native conflict editors and Resolve commands. Pick/Edit
   Continue commits checked files and recovers remaining changes through native
   Commit amendment sheets. Squash conflicts list the whole group and continue
-  through combined-message approval; checkbox acceptance and empty groups remain
-  pending. [Squash conflicts](docs/REBASE-SQUASH-CONFLICTS.md).
+  through combined-message approval. Empty groups offer Commit/Skip/Cancel with
+  recoverable Skip; checkbox acceptance remains pending. [Squash conflicts](docs/REBASE-SQUASH-CONFLICTS.md).
   [Conflict workflow](docs/REBASE-CONFLICT-FILES.md). Empty Pick/Edit results offer
   Commit/Skip/Cancel, and conflict-message hints offer Ignore/Abort.
   [Empty-result workflow](docs/REBASE-EMPTY-RESULTS.md).

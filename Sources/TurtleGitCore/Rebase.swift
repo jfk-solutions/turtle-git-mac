@@ -8,6 +8,8 @@ public struct RebaseSquashMessage: Codable, Sendable {
     public let datePolicy: RebaseSquashDate
     public let latestDate: String
     public let step: Int
+    public var skipOriginalHead: String? = nil
+    public var skipBaseHead: String? = nil
 }
 public struct RebaseSplitReturn: Codable, Sendable {
     public let parts: Int
@@ -77,7 +79,7 @@ public struct RebaseState: Sendable {
     public let split: RebaseSplitState?
     public let isEditPause: Bool
     public let needsFileRecovery: Bool
-    public var canSplit: Bool { active && conflicts.isEmpty && (isEditPause || squashMessage != nil || split != nil && split?.conflictRecovery != true) }
+    public var canSplit: Bool { active && conflicts.isEmpty && (isEditPause || squashMessage != nil && squashMessage?.skipBaseHead == nil || split != nil && split?.conflictRecovery != true) }
 }
 public struct RebaseExecution: Sendable {
     public let output: String
@@ -401,7 +403,21 @@ extension GitRepository {
         args += ["--onto", plan.ontoHash, "--", plan.upstreamHash, plan.branchReference.isEmpty ? plan.branchHash : String(plan.branchReference.dropFirst(11))]
         return try executeRebase(args, environment: environment)
     }
-    public func continueRebase(squashMessage: String? = nil, editMessage: String? = nil) throws -> RebaseExecution {
+    public func rebaseSquashIsEmpty() throws -> Bool {
+        let state = try rebaseState()
+        guard state.active, state.squashMessage != nil, state.squashMessage?.skipBaseHead == nil, state.conflicts.isEmpty, state.split == nil else { throw RebaseFailure.plan }
+        let base = try commitComparisonBase(amendToParent: true)
+        return try run(["diff", "--cached", "--quiet", base, "--"], successfulExitCodes: 0...1).exitCode == 0
+    }
+    private func resumeEmptySquashSkip(_ pending: RebaseSquashMessage) throws -> RebaseExecution {
+        guard let original = pending.skipOriginalHead, let base = pending.skipBaseHead else { throw RebaseFailure.plan }
+        let head = try rebaseRevision("HEAD")
+        guard head == original || head == base, try run(["diff", "--cached", "--quiet", base, "--"], successfulExitCodes: 0...1).exitCode == 0,
+              try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1).exitCode == 0 else { throw RebaseFailure.changed }
+        if head == original { _ = try run(["reset", "--soft", base, "--"]) }
+        return try recoverRebase("--skip")
+    }
+    public func continueRebase(squashMessage: String? = nil, editMessage: String? = nil, emptySquashChoice: RebaseEmptyChoice? = nil, expectedSquashHead: String? = nil, expectedSquashState: RebaseState? = nil) throws -> RebaseExecution {
         let state = try rebaseState()
         guard state.active else { throw RebaseFailure.inactive }
         if let split = state.split {
@@ -417,6 +433,23 @@ extension GitRepository {
             }
         }
         if var pending = state.squashMessage {
+            if let expectedSquashState {
+                guard state.currentStep == expectedSquashState.currentStep, state.stoppedEntryID == expectedSquashState.stoppedEntryID, state.originalHead == expectedSquashState.originalHead else { throw RebaseFailure.changed }
+            }
+            if let expectedSquashHead, try rebaseRevision("HEAD") != expectedSquashHead { throw RebaseFailure.changed }
+            if pending.skipBaseHead != nil { return try resumeEmptySquashSkip(pending) }
+            let empty = try rebaseSquashIsEmpty()
+            if empty {
+                guard let emptySquashChoice else { throw RebaseFailure.emptyResult }
+                if emptySquashChoice == .cancel { return RebaseExecution(output: "", exitCode: 0, state: state) }
+                if emptySquashChoice == .skip {
+                    guard try run(["diff", "--quiet", "--"], successfulExitCodes: 0...1).exitCode == 0 else { throw RebaseFailure.plan }
+                    let base = try commitComparisonBase(amendToParent: true)
+                    pending.skipOriginalHead = try rebaseRevision("HEAD"); pending.skipBaseHead = base
+                    try JSONEncoder().encode(pending).write(to: rebasePath("rebase-merge/turtlegit-squash-message.json"), options: .atomic)
+                    return try resumeEmptySquashSkip(pending)
+                }
+            } else if emptySquashChoice != nil { throw RebaseFailure.changed }
             guard let squashMessage, !squashMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
             pending.message = squashMessage
             let request = try rebasePath("rebase-merge/turtlegit-squash-message.json")
@@ -430,7 +463,7 @@ extension GitRepository {
             case .latest: date = pending.latestDate
             case .current: date = ISO8601DateFormatter().string(from: Date())
             }
-            output = try run(["commit", "--amend", "--cleanup=verbatim", "-F", temporary.path, "--date", date]).text
+            output = try run(["commit", "--amend", "--cleanup=verbatim", "-F", temporary.path, "--date", date] + (empty ? ["--allow-empty"] : [])).text
             try FileManager.default.removeItem(at: request)
         }
         let result = try recoverRebase("--continue")

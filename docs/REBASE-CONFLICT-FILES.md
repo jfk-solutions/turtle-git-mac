@@ -50,7 +50,7 @@ Ignore/Abort hint warning. See [empty results and message hints](REBASE-EMPTY-RE
 ## Remaining parity work
 
 This is a partial port of upstream's conflict tab. Squash checkbox acceptance
-and empty-result grouping, the Strip Commented Lines preference, all contextual
+the Strip Commented Lines preference, all contextual
 commands and full displayed layout/keyboard/accessibility acceptance remain
 pending. Squash conflicts keep the existing staged Continue
 path, and their checkboxes are disabled. The base
@@ -80,3 +80,6 @@ and conflict context-menu handling). Evidence:
 Squash now lists all group files relative to the destination parent and continues
 through staged resolution and combined-message approval.
 See [Squash conflicts](REBASE-SQUASH-CONFLICTS.md).
+
+Empty Squash groups now offer Commit/Skip/Cancel and recover an approved Skip
+after failure. See [empty Squash groups](REBASE-EMPTY-SQUASH.md).

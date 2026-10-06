@@ -37,8 +37,9 @@ button focus, keyboard gestures and accessibility remain unverified.
 Squash conflict checkboxes remain disabled. Upstream displays active checkboxes,
 but its Squash conflict Continue branch does not consume their selection through
 the Pick/Edit index loop. Exact checkbox behavior/layout still needs acceptance.
-Empty Squash groups and multiple conflicting Squash steps within a group need
-separate recovery coverage and choices. This does not establish complete replay
+Empty groups now offer Commit/Skip/Cancel, including durable Skip recovery.
+See [empty Squash groups](REBASE-EMPTY-SQUASH.md). Multiple conflicting Squash
+steps within a group still need separate recovery coverage. This does not establish complete replay
 parity, signed sandbox execution, Finder acceptance or App Store distribution.
 
 Pinned upstream: `7338078f8ddd924b8cddee35f512f2286072136d`,

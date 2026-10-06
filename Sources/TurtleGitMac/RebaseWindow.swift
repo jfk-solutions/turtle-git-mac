@@ -147,7 +147,7 @@ import TurtleGitCore
         let current = state?.currentStep
         let previousPaths = conflictStep == current ? Set(conflictRows.map(\.path)) : []
         if !active || conflictStep != current { checkedConflicts = [] }
-        if !active || conflictStep != current { conflictStep = nil }
+        if !active || conflictStep != current || state?.squashMessage?.skipBaseHead != nil { conflictStep = nil }
         if state?.needsFileRecovery == true { conflictStep = current }
         fileRecovery = active && conflictStep == current
         if fileRecovery {
@@ -200,6 +200,7 @@ import TurtleGitCore
     var primaryActionTitle: String {
         if finished { return "Done" }
         if !active { return startTitle }
+        if state?.squashMessage?.skipBaseHead != nil { return "Continue" }
         if state?.squashMessage != nil { return "Commit" }
         if state?.isEditPause == true { return "Amend" }
         if fileRecovery && supportsConflictSelection && state?.split == nil { return "Commit" }
@@ -207,6 +208,7 @@ import TurtleGitCore
     }
     var status: String {
         if finished { return completion }
+        if state?.squashMessage?.skipBaseHead != nil { return "Continue retries the approved empty-group Skip." }
         if state?.squashMessage != nil { return "Edit the combined commit message, then Commit." }
         if active { return "Step \(state?.currentStep ?? 0) of \(state?.total ?? 0) • \(state?.conflicts.count ?? 0) unresolved paths" }
         if plan == nil { return "Choose valid branch and upstream revisions before starting." }
@@ -404,7 +406,13 @@ import TurtleGitCore
                     if fileRecovery, state?.split == nil, !UserDefaults.standard.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(text) {
                         guard await confirmConflictHints() else { tab = 1; return }
                     }
-                    if fileRecovery, supportsConflictSelection, state?.split == nil, let captured = state {
+                    if state?.squashMessage?.skipBaseHead != nil { result = try await repository.continueRebase() }
+                    else if state?.squashMessage != nil, state?.split == nil, try await repository.rebaseSquashIsEmpty() {
+                        let capturedState = state, capturedHead = try await repository.rebaseCommit("HEAD").hash
+                        let choice = await chooseEmptyResult()
+                        if choice == .cancel { tab = 1; return }
+                        result = try await repository.continueRebase(squashMessage: text, emptySquashChoice: choice, expectedSquashHead: capturedHead, expectedSquashState: capturedState)
+                    } else if fileRecovery, supportsConflictSelection, state?.split == nil, let captured = state {
                         let empty = try await repository.rebaseConflictSelectionIsEmpty(paths: paths, expected: captured, expectedHead: head)
                         let choice = empty ? await chooseEmptyResult() : RebaseEmptyChoice.commit
                         if choice == .cancel { tab = 0; return }

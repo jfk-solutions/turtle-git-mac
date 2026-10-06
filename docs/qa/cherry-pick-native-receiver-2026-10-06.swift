@@ -222,6 +222,68 @@ import TurtleGitCore
     }
     print("Actual native Squash conflict: whole-group file list, Unicode/newline path, Continue/Commit/Done captions, staged resolution and repeated reopening, multiline/literal-comment approval, first author and first/latest/current dates passed. Hidden hosted views; prompt answers injected.")
 }
+@MainActor func verifyNativeEmptySquash(_ repo: GitRepository, editor: URL?) async throws {
+    let preference = UserDefaults.standard.object(forKey: "SquashDate")
+    defer { if let preference { UserDefaults.standard.set(preference, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") } }
+    for (name, choice) in [("commit", RebaseEmptyChoice.commit), ("skip", .skip), ("cancel", .cancel)] {
+        let path = "empty squash 雪 " + name + "\n.txt", firstPath = "empty-first-" + name + ".txt", futurePath = "empty-future-" + name + ".txt"
+        try Data("base empty\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "empty base " + name)
+        _ = try await repo.run(["checkout", "-b", "native-empty-squash-" + name])
+        try Data("first empty group\n".utf8).write(to: repo.root.appendingPathComponent(firstPath)); try await repo.stage([firstPath])
+        _ = try await repo.run(["commit", "--author", "Empty First <first@example.test>", "-m", "First empty group"], environmentOverrides: ["GIT_AUTHOR_DATE": "2001-02-03T04:05:06+02:00"])
+        let first = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["rm", "--", firstPath]); try Data("source empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.run(["commit", "--author", "Empty Last <last@example.test>", "-m", "Last empty group"], environmentOverrides: ["GIT_AUTHOR_DATE": "2002-03-04T05:06:07-03:00"])
+        let last = try await repo.rebaseCommit("HEAD")
+        try Data("future after group\n".utf8).write(to: repo.root.appendingPathComponent(futurePath)); try await repo.stage([futurePath]); _ = try await repo.commit(message: "Future after " + name)
+        let future = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", "target"])
+        try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "empty destination " + name)
+        let destination = try await repo.rebaseCommit("HEAD")
+        UserDefaults.standard.set(1, forKey: "SquashDate")
+        let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.confirmConflictHints = { true }
+        model.load(cherryPick: [future.hash, last.hash, first.hash]); try await settle(model); model.setAction(.squash, ids: [last.hash]); model.request("start")
+        let deadline = Date().addingTimeInterval(30)
+        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!model.busy && model.error != nil && model.state?.stoppedAction == .squash); model.error = nil
+        try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); model.refreshState(); try await settle(model)
+        model.request("continue"); try await settle(model); precondition(model.state?.squashMessage != nil && model.primaryActionTitle == "Commit")
+        let approval = RebaseWindowModel(repository: repo, access: nil); approval.editorExecutable = editor; approval.confirmConflictHints = { true }; approval.load(); try await settle(approval)
+        let lock = repo.root.appendingPathComponent(".git/index.lock")
+        defer { try? FileManager.default.removeItem(at: lock) }
+        var prompts = 0; approval.chooseEmptyResult = {
+            prompts += 1
+            if choice == .skip { try! Data().write(to: lock) }
+            return choice
+        }
+        let before = try await repo.rebaseCommit("HEAD"), index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        approval.amendMessage = "Native approved empty " + name; approval.request("continue"); try await settle(approval)
+        precondition(prompts == 1)
+        if choice == .cancel {
+            let after = try await repo.rebaseCommit("HEAD"), currentIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+            precondition(approval.active && approval.tab == 1 && approval.amendMessage == "Native approved empty " + name && after.hash == before.hash && currentIndex == index)
+            approval.chooseEmptyResult = { prompts += 1; return .commit }; approval.request("continue"); try await settle(approval); precondition(prompts == 2)
+        }
+        var completed = approval
+        if choice == .skip {
+            precondition(approval.active && approval.state?.squashMessage?.skipBaseHead == destination.hash && approval.primaryActionTitle == "Continue" && !approval.canSplit)
+            try FileManager.default.removeItem(at: lock)
+            let retry = RebaseWindowModel(repository: repo, access: nil); retry.editorExecutable = editor; retry.load(); try await settle(retry)
+            precondition(retry.primaryActionTitle == "Continue" && retry.state?.squashMessage?.skipBaseHead == destination.hash)
+            retry.chooseEmptyResult = { preconditionFailure("Approved Skip must not ask again") }
+            retry.request("continue"); try await settle(retry); completed = retry
+        }
+        precondition(completed.finished && !completed.active)
+        let head = try await repo.rebaseCommit("HEAD"), parent = try await repo.rebaseCommit("HEAD^")
+        precondition(head.subject == "Future after " + name)
+        if choice == .skip { precondition(head.parents == [destination.hash]) }
+        else {
+            let files = try await repo.files(in: parent)
+            precondition(files.isEmpty && parent.parents == [destination.hash] && parent.subject == "Native approved empty " + name && parent.author == first.author && parent.date == last.date)
+        }
+        precondition(!FileManager.default.fileExists(atPath: repo.root.appendingPathComponent(firstPath).path))
+    }
+    print("Actual native empty Squash groups: reopened Commit/Skip/Cancel choices, Cancel retains message/HEAD/index, Commit keeps message-only group with first author/latest date, Skip drops entire group, index-lock failure reopens and retries approved Skip without another prompt, future replay follows the correct parent. Answers injected.")
+}
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
     model.load(cherryPick: revisions); try await settle(model)
@@ -519,6 +581,7 @@ import TurtleGitCore
     try await verifyNativeSplit(repo, editor: model.editorExecutable)
     try await verifyNativeRecoveryFiles(repo, editor: model.editorExecutable)
     try await verifyNativeSquashConflict(repo, editor: model.editorExecutable)
+    try await verifyNativeEmptySquash(repo, editor: model.editorExecutable)
 
 
 

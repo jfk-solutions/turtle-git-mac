@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "c85fa77",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Empty Squash-group Commit/Skip/Cancel and durable whole-group Skip recovery",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "442d809a7463f4e9364537a66336c930e97e26c6dc32275c5f8dc1344de4d824",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "9429df36dcc1edaebc62cc8bdb4c3eafc0891ef26fa5788605f35c4fbc259558",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "16abab0dfe1feda5200eff43487d9fb00f6b6bd3d0e348f91eabf1bdb992c755",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "e2c71bce558623dae318586b1ff0280d1e81aa18a929aa10861125bf99109cf9",
+    "README.md": "a0a36f9a901768b41d01fbb7549158a1d65f9ebf2d210f3c698e6b90b0d203be",
+    "docs/REBASE-PARITY.md": "59b52bf90260912370b9e125c85c960886a65a8d4a6d49a5e274ce92401a71de",
+    "docs/CHERRY-PICK-PARITY.md": "cbcd5cbf8ff7429bb919e4cea4a47104e47926b85e898d1a4f4ebd8cae5645cb",
+    "docs/REBASE-CONFLICT-FILES.md": "d67a915846839d2de48f32c95516571b117dda59efa3f7e73676f40df3364b1d",
+    "docs/REBASE-EMPTY-RESULTS.md": "2aee380267da4a85e876f89acb1c95e68b931dc7a5b23f7368a1fcb2d85ae226",
+    "docs/REBASE-SQUASH-CONFLICTS.md": "8b8a8863a9b84fbf11d15a85fc6402d8aff3dd4852dd44823db1d5a4ff5033fd",
+    "docs/REBASE-EMPTY-SQUASH.md": "44939182bf5ef8bddaa5ada387b4f1605642041d5eda5aea5e35b5ee8c4cddbf",
+    "docs/site/index.html": "4c4380b697a687ec9082e2ddd87552c0abc2a3b102dd5a541db128c6b4603808"
+  },
+  "all_native_sources_manifest_sha256": "d3f61e22ba307b4b8adbf221c3efa532be9ef44483f00cfc55155bd99f7f9a85",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "initial_probe": {
+      "tests": 1,
+      "failures": 1,
+      "result": "Real empty group reached combined-message approval; amendment failed because Git required --allow-empty"
+    },
+    "targeted_choices_regression": {
+      "tests": 1,
+      "failures": 0
+    },
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 45,
+      "failures": 0,
+      "new_coverage": [
+        "Whole empty group Commit/Skip/Cancel and correct future replay parent",
+        "Cancel retains HEAD/index/message; Commit retains first author/latest date",
+        "Skip rejects unstaged changes and stale approvals",
+        "Index-lock failure after reset reopens and retries durable approved Skip"
+      ]
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Actual reopened combined-message model presents Commit/Skip/Cancel",
+        "Cancel retains draft/HEAD/index",
+        "Commit keeps message-only group with first author/latest date",
+        "Skip removes entire group; future replay follows destination",
+        "Forced index-lock failure reopens with Continue and retries approved Skip without another prompt"
+      ],
+      "limits": "Hidden hosted views; prompt answers injected. Displayed layout/focus/gestures/accessibility and signed execution unverified"
+    },
+    "swift_build": "passed",
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "probe": "c68024732b7f029ab17e91954be1f5b661a8bda14839263480ece40f569401e6",
+    "targeted": "70b164fc5e6f9799e67fedf455fff3087107a270e05b69f28cf8533ff8c9eb96",
+    "build": "26ad9fb2f1433f80e1231dc16034ed181fd0e71bb61144c714ec429557ca8b3a",
+    "tests": "adac0b0f5e1d2009c452bd06e3f13316c8780cc44579d22eb1673a750760d598",
+    "native": "bc557f889811b222b9ee55694660bd821e8a7c9682cb619e1d9b24c98f4ed4c8",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Multiple conflicting Squash steps in one group",
+    "Empty-group Skip across linked worktrees and advanced rewritten refs",
+    "Exact Squash checkbox interaction",
+    "Displayed dialogs, focus and accessibility",
+    "Strip Commented Lines preference",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Exercise multiple conflicting Squash steps in one group, including a later empty result, and verify group metadata/Skip recovery across linked worktrees and rewritten references.",
+    "sources": [
+      "src/TortoiseProc/RebaseDlg.cpp: Squash_Conclict, Squash_Edit, ResetParentForSquash",
+      "Sources/TurtleGitCore/Rebase.swift: continueRebase and resumeEmptySquashSkip"
+    ]
+  },
+  "processes": "No main app launched; receiver-owned hidden windows closed, receivers exited; final app/receiver process audit empty"
+}

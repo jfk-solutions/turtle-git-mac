@@ -136,3 +136,7 @@ The shared Squash conflict tab shows the whole group and supports staged
 resolution → combined-message approval, including reopened date policies.
 Phase-specific primary captions replace the separate Amend control.
 See [Squash conflicts](REBASE-SQUASH-CONFLICTS.md).
+
+Shared empty Squash-group approval offers Commit/Skip/Cancel, preserving correct
+future ancestry and approved Skip recovery.
+See [empty Squash groups](REBASE-EMPTY-SQUASH.md).

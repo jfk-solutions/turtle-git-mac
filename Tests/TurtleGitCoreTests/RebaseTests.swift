@@ -164,7 +164,7 @@ final class RebaseTests: XCTestCase {
         let unchanged = try await repo.rebaseState(); XCTAssertEqual(unchanged.split?.expectedHead, applied.state.split?.expectedHead); XCTAssertEqual(unchanged.split?.conflictRecovery, true)
         _ = try await repo.abortRebase()
     }
-    func squashConflictFixture(policy: RebaseSquashDate) async throws -> (URL, GitRepository, String, RebasePlan) {
+    func squashConflictFixture(policy: RebaseSquashDate, empty: Bool = false) async throws -> (URL, GitRepository, String, RebasePlan) {
         let (root, repo, path) = try await GitPatchTests().fixture()
         let base = try await repo.rebaseCommit("HEAD")
         _ = try await repo.run(["checkout", "-b", "upstream"])
@@ -172,6 +172,7 @@ final class RebaseTests: XCTestCase {
         _ = try await repo.run(["checkout", "-b", "topic", base.hash])
         try Data("first group file\n".utf8).write(to: root.appendingPathComponent("group-first.txt")); try await repo.stage(["group-first.txt"])
         _ = try await repo.run(["commit", "--author", "First Group <first@example.test>", "-m", "first group\n\n# literal first"], environmentOverrides: ["GIT_AUTHOR_DATE": "2001-02-03T04:05:06+02:00"])
+        if empty { _ = try await repo.run(["rm", "--", "group-first.txt"]) }
         try Data("squashed conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
         _ = try await repo.run(["commit", "--author", "Last Group <last@example.test>", "-m", "last group\n\n# literal last"], environmentOverrides: ["GIT_AUTHOR_DATE": "2002-03-04T05:06:07-03:00"])
         var settings = options(); settings.squashDate = policy
@@ -204,6 +205,68 @@ final class RebaseTests: XCTestCase {
             XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), "resolved squash\n")
             let count = try await again.run(["rev-list", "--count", "upstream..HEAD"]).text; XCTAssertEqual(count, "1\n")
         }
+    }
+    func testEmptySquashGroupCommitSkipCancelAndFutureReplay() async throws {
+        for choice in [RebaseEmptyChoice.commit, .skip, .cancel] {
+            let (root, repo, path, _) = try await squashConflictFixture(policy: .latest, empty: true); defer { try? FileManager.default.removeItem(at: root) }
+            try Data("future\n".utf8).write(to: root.appendingPathComponent("future-group.txt")); try await repo.stage(["future-group.txt"]); _ = try await repo.commit(message: "future after empty group")
+            var plan = try await repo.rebasePlan(options()); plan.options.squashDate = .latest; plan.entries[1].action = .squash
+            let stopped = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(stopped.state.stoppedAction, .squash)
+            try Data("upstream conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+            let paused = try await repo.continueRebase(); XCTAssertNotNil(paused.state.squashMessage)
+            let empty = try await repo.rebaseSquashIsEmpty(); XCTAssertTrue(empty)
+            let head = try await repo.rebaseCommit("HEAD"), index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+            do { _ = try await repo.continueRebase(squashMessage: "requires decision"); XCTFail("Explicit empty-group decision required") } catch RebaseFailure.emptyResult {}
+            let reopened = GitRepository(root: root)
+            var result = try await reopened.continueRebase(squashMessage: "approved empty group", emptySquashChoice: choice, expectedSquashHead: head.hash)
+            if choice == .cancel {
+                XCTAssertTrue(result.state.active); XCTAssertEqual(result.state.squashMessage?.message, paused.state.squashMessage?.message)
+                let unchanged = try await reopened.rebaseCommit("HEAD"), currentIndex = try await reopened.run(["ls-files", "--stage", "-z"]).stdout
+                XCTAssertEqual(unchanged.hash, head.hash); XCTAssertEqual(currentIndex, index)
+                result = try await reopened.continueRebase(squashMessage: "approved empty group", emptySquashChoice: .commit, expectedSquashHead: head.hash)
+            }
+            XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertFalse(result.state.active)
+            let history = try await reopened.run(["log", "--format=%s", "upstream..HEAD"]).text
+            XCTAssertEqual(history, choice == .skip ? "future after empty group\n" : "future after empty group\napproved empty group\n")
+            let last = try await reopened.rebaseCommit("HEAD"), parent = try await reopened.rebaseCommit("HEAD^"), onto = try await reopened.rebaseCommit("upstream")
+            if choice == .skip { XCTAssertEqual(last.parents, [onto.hash]) }
+            else {
+                XCTAssertEqual(parent.parents, [onto.hash]); XCTAssertEqual(parent.author, plan.entries[0].commit.author); XCTAssertEqual(parent.date, plan.entries[1].commit.date)
+                let files = try await reopened.files(in: parent); XCTAssertTrue(files.isEmpty)
+            }
+            XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("group-first.txt").path))
+        }
+    }
+    func testEmptySquashSkipRejectsUnstagedChangesAndStaleHeadWithoutLosingRequest() async throws {
+        let (root, repo, path, plan) = try await squashConflictFixture(policy: .latest, empty: true); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.startRebase(plan, editorExecutable: editor)
+        try Data("upstream conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.continueRebase()
+        let state = try await repo.rebaseState(), head = try await repo.rebaseCommit("HEAD"), index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        try Data("unstaged must survive\n".utf8).write(to: root.appendingPathComponent(path))
+        do { _ = try await repo.continueRebase(emptySquashChoice: .skip, expectedSquashHead: head.hash, expectedSquashState: state); XCTFail("Skip must not discard unstaged changes") } catch RebaseFailure.plan {}
+        let unchanged = try await repo.rebaseCommit("HEAD"), currentIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        XCTAssertEqual(unchanged.hash, head.hash); XCTAssertEqual(index, currentIndex)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), "unstaged must survive\n")
+        try Data("upstream conflict\n".utf8).write(to: root.appendingPathComponent(path))
+        _ = try await repo.run(["commit", "-m", "external HEAD change"])
+        do { _ = try await repo.continueRebase(squashMessage: "stale approval", emptySquashChoice: .commit, expectedSquashHead: head.hash, expectedSquashState: state); XCTFail("Stale prompt must fail") } catch RebaseFailure.changed {}
+        let pending = try await repo.rebaseState(); XCTAssertEqual(pending.squashMessage?.message, state.squashMessage?.message)
+        _ = try await repo.abortRebase()
+    }
+    func testEmptySquashSkipIndexLockFailureReopensAndRetriesApprovedSkip() async throws {
+        let (root, repo, path, plan) = try await squashConflictFixture(policy: .latest, empty: true); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.startRebase(plan, editorExecutable: editor)
+        try Data("upstream conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.continueRebase()
+        let onto = try await repo.rebaseCommit("upstream"), head = try await repo.rebaseCommit("HEAD")
+        let lock = root.appendingPathComponent(".git/index.lock"); try Data().write(to: lock); defer { try? FileManager.default.removeItem(at: lock) }
+        let failed = try await repo.continueRebase(emptySquashChoice: .skip, expectedSquashHead: head.hash)
+        XCTAssertNotEqual(failed.exitCode, 0); XCTAssertTrue(failed.state.active)
+        XCTAssertEqual(failed.state.squashMessage?.skipBaseHead, onto.hash); XCTAssertFalse(failed.state.canSplit)
+        let resetHead = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(resetHead.hash, onto.hash)
+        try FileManager.default.removeItem(at: lock)
+        let reopened = GitRepository(root: root), result = try await reopened.continueRebase()
+        XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertFalse(result.state.active)
+        let final = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(final.hash, onto.hash)
     }
     func testResolvedPickConflictCannotAmendDestinationBeforeApplication() async throws {
         let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
