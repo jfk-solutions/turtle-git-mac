@@ -39,7 +39,9 @@ when the working file has since changed or disappeared. Add's status menu now
 includes native Open With, the configured alternative editor, and clipboard
 commands for paths, names, extensions and visible columns. Its Ignore commands
 open the native name/extension/folder rule dialog and refresh the Add list while
-preserving unrelated checks and the Git index.
+preserving unrelated checks and the Git index. Delete now uses a native
+confirmation, recoverable Trash by default, and Shift for permanent deletion;
+stale selections are rejected before deletion.
 [Add parity](docs/ADD-PARITY.md) records unfinished menus, post-actions and native QA.
 
 Create Patch Serial now has a native Format Patch dialog with Since, Number

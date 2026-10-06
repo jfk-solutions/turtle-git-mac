@@ -130,7 +130,48 @@ import TurtleGitCore
         let finalUnrelated = try Data(contentsOf: folder.appendingPathComponent(unchecked))
         precondition(finalIndex == oldIndex && finalUnrelated == unrelatedBytes)
         precondition(FileManager.default.fileExists(atPath: folder.appendingPathComponent("sub/folder.tmp").path))
-        print("Actual Add receiver: Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        let deleting = "delete 雪\n.bin", permanent = "permanent.bin", ignoredDelete = "trash.log", cancelledDelete = "cancel-delete.bin"
+        let deletionBytes = Data([0, 255, 13, 10])
+        for path in [deleting, permanent, ignoredDelete, cancelledDelete] { try deletionBytes.write(to: folder.appendingPathComponent(path)) }
+        model.includeIgnored = true; try await model.read()
+        var deleteRequests: [([StatusEntry], Bool)] = []; model.onDelete = { deleteRequests.append(($0, $1)) }
+        model.highlighted = [deleting]; receiver.refresh(); receiver.deleteSelected(permanently: false, keyboard: true)
+        precondition(deleteRequests.count == 1 && deleteRequests[0].0.map(\.path) == [deleting] && !deleteRequests[0].1)
+        receiver.menuNeedsUpdate(menu); precondition(menu.items.contains { $0.title == "Delete" && !$0.isHidden && $0.isEnabled })
+        let checksBeforeDelete = model.checked
+        precondition(model.beginDeleteConfirmation(deleteRequests[0].0, permanently: false)); model.cancel()
+        precondition(model.busy && !model.canApply); precondition(model.finishDeleteConfirmation(accepted: false) == nil)
+        precondition(!model.busy && model.checked == checksBeforeDelete && FileManager.default.fileExists(atPath: folder.appendingPathComponent(deleting).path))
+        var deletions = 0; model.onDeleteChanged = { _ in deletions += 1 }
+        precondition(model.beginDeleteConfirmation(deleteRequests[0].0, permanently: false))
+        await model.finishDeleteConfirmation(accepted: true)?.value
+        let recycled = model.lastDeleteResult!
+        defer { for url in recycled.trashedFiles { try? FileManager.default.removeItem(at: url) } }
+        precondition(recycled.trashedFiles.count == 1 && !model.entries.contains { $0.path == deleting })
+        let recovered = try Data(contentsOf: recycled.trashedFiles[0]); precondition(recovered == deletionBytes && deletions == 1)
+        model.highlighted = [ignoredDelete]; receiver.refresh(); receiver.deleteSelected(permanently: false)
+        precondition(deleteRequests.last!.0.first!.state == .ignored)
+        precondition(model.beginDeleteConfirmation(deleteRequests.last!.0, permanently: false)); await model.finishDeleteConfirmation(accepted: true)?.value
+        let ignoredRecycled = model.lastDeleteResult!
+        defer { for url in ignoredRecycled.trashedFiles { try? FileManager.default.removeItem(at: url) } }
+        precondition(ignoredRecycled.trashedFiles.count == 1 && !FileManager.default.fileExists(atPath: folder.appendingPathComponent(ignoredDelete).path))
+        model.highlighted = [permanent]; receiver.refresh(); receiver.deleteSelected(permanently: true, keyboard: true)
+        precondition(deleteRequests.last!.1); precondition(model.beginDeleteConfirmation(deleteRequests.last!.0, permanently: true))
+        await model.finishDeleteConfirmation(accepted: true)?.value
+        precondition(model.lastDeleteResult!.trashedFiles.isEmpty && !FileManager.default.fileExists(atPath: folder.appendingPathComponent(permanent).path))
+        let beforeCancel = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        model.highlighted = [cancelledDelete]; receiver.refresh(); receiver.deleteSelected(permanently: false)
+        precondition(model.beginDeleteConfirmation(deleteRequests.last!.0, permanently: false))
+        let cancelledTask = model.finishDeleteConfirmation(accepted: true); model.cancel(); await cancelledTask?.value
+        precondition(model.lastDeleteResult == nil && FileManager.default.fileExists(atPath: folder.appendingPathComponent(cancelledDelete).path) && !model.busy)
+        let afterDeleteCancel = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        precondition(beforeCancel == oldIndex && afterDeleteCancel == beforeCancel)
+        let stale = model.entries.first { $0.path == cancelledDelete }!.status
+        try await repo.stage([cancelledDelete]); let stagedBeforeStale = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        precondition(model.beginDeleteConfirmation([stale], permanently: false)); await model.finishDeleteConfirmation(accepted: true)?.value
+        let stagedAfterStale = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        precondition(model.lastDeleteResult == nil && stagedBeforeStale == stagedAfterStale && FileManager.default.fileExists(atPath: folder.appendingPathComponent(cancelledDelete).path))
+        print("Actual Add receiver: Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''

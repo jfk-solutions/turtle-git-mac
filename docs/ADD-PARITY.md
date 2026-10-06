@@ -85,8 +85,20 @@ display no windows/menus; they prove receiver behavior, not native gestures or
 screenshots. Debug and unsigned AppStore builds, bundle audits and site generation
 are recorded in [the verification record](qa/add-2026-10-06.json).
 
+Delete now captures exact status entries from the Add list and routes to the
+existing guarded working-file delete backend. A native confirmation sheet offers
+Trash by default; Shift selects permanent deletion with a separate warning.
+Both keyboard Delete keys are wired, using the upstream unversioned/ignored/copy
+eligibility rule. The Add parent is blocked during confirmation/work, Cancel
+preserves checks before acceptance and can cancel work at backend boundaries.
+Successful deletion refreshes Add and repository consumers; failure shows the
+backend error and any recoverable Trash locations, then refreshes partial effects.
+Unrelated unchecked rows remain unchanged. See [the Delete record](qa/add-delete-2026-10-06.json)
+for actual effects and acceptance limits. The final Delete regression passes
+491 tests with zero failures; both unsigned builds and bundle audits pass.
+
 Index-only executable/symlink post-actions are implemented; real native action-menu
-acceptance is pending. Full status-list commands (Delete/current-column clipboard and
+acceptance is pending. Full status-list commands (current-column clipboard and
 other shared consumers), background artwork, Space/column/drop/keyboard gestures,
 progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain

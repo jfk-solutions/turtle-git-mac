@@ -5,6 +5,7 @@ import TurtleGitCore
 private final class AddNativeTable: NSTableView {
     var toggleChecks: () -> Void = {}
     var copySelection: () -> Void = {}
+    var deleteSelection: (Bool) -> Void = { _ in }
     override func menu(for event: NSEvent) -> NSMenu? {
         let index = row(at: convert(event.locationInWindow, from: nil))
         guard index >= 0 else { return nil }
@@ -12,6 +13,9 @@ private final class AddNativeTable: NSTableView {
         return super.menu(for: event)
     }
     override func keyDown(with event: NSEvent) {
+        if event.keyCode == 51 || event.keyCode == 117 {
+            deleteSelection(event.modifierFlags.contains(.shift)); return
+        }
         if event.charactersIgnoringModifiers == " ", event.modifierFlags.intersection([.command, .control, .option]).isEmpty { toggleChecks(); return }
         super.keyDown(with: event)
     }
@@ -52,6 +56,7 @@ struct AddFileTable: NSViewRepresentable {
             table.target = self; table.doubleAction = #selector(preview)
             nativeTable.toggleChecks = { [weak self] in self?.toggleSelectedChecks() }
             nativeTable.copySelection = { [weak self] in self?.copyText("relative") }
+            nativeTable.deleteSelection = { [weak self] permanently in self?.deleteSelected(permanently: permanently, keyboard: true) }
             for (id, title, width) in [("check", "", 26.0), ("path", "Path", 440.0), ("ext", "Extension", 85.0), ("size", "Size", 90.0), ("date", "Modification date", 150.0)] {
                 let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width
                 if id != "check" { column.sortDescriptorPrototype = NSSortDescriptor(key: id, ascending: true) }
@@ -64,7 +69,7 @@ struct AddFileTable: NSViewRepresentable {
             }
             header.delegate = self; table.headerView?.menu = header
             let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
-            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Diff", #selector(preview), .compare), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore)] {
+            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Diff", #selector(preview), .compare), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Delete", #selector(deleteItem), .remove)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
             }
             menu.addItem(.separator())
@@ -156,6 +161,12 @@ struct AddFileTable: NSViewRepresentable {
             guard let key = sender.representedObject as? String, let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(key)) else { return }
             column.isHidden.toggle(); UserDefaults.standard.set(!column.isHidden, forKey: key == "size" ? "Add.ShowSize" : "Add.ShowModifiedDate")
         }
+        var canDelete: Bool { canAct && selectedRows.contains { $0.status.canDeleteFromStatusList } }
+        func deleteSelected(permanently: Bool, keyboard: Bool = false) {
+            guard canDelete, !keyboard || selectedRows.contains(where: { $0.status.canDeleteWithKeyboard }) else { return }
+            model.onDelete(selectedRows.map(\.status), permanently)
+        }
+        @objc func deleteItem() { deleteSelected(permanently: NSApp.currentEvent?.modifierFlags.contains(.shift) == true) }
         var canIgnore: Bool { canAct && selectedRows.contains { $0.state == .untracked || $0.state == .deleted } }
         func ignoreSelected(mask: Bool = false, folder: Bool = false) {
             guard canIgnore else { return }
@@ -199,12 +210,12 @@ struct AddFileTable: NSViewRepresentable {
             if menu === table.menu {
                 updateIgnoreMenu(menu)
                 for item in menu.items where !item.isSeparatorItem {
-                    let icon: MenuIcon = item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
+                    let icon: MenuIcon = item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
                     item.image = icon.contextImage()
                     let single = [#selector(preview), #selector(editor), #selector(open), #selector(openWith), #selector(reveal)].contains(item.action)
                     let opensFile = [#selector(editor), #selector(open), #selector(openWith)].contains(item.action)
-                    item.isHidden = opensFile && !selectedIsFile
-                    item.isEnabled = canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile)
+                    item.isHidden = opensFile && !selectedIsFile || item.action == #selector(deleteItem) && !canDelete
+                    item.isEnabled = canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile) && (item.action != #selector(deleteItem) || canDelete)
                     for child in item.submenu?.items ?? [] { child.image = (item.representedObject as? String == "Add.Ignore" ? MenuIcon.ignore : .copy).contextImage(); child.isEnabled = item.isEnabled }
                 }
             } else {

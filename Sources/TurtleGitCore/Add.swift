@@ -4,6 +4,7 @@ public struct AddDialogEntry: Identifiable, Sendable {
     public var id: String { path }
     public let path: String
     public let state: FileState
+    public let status: StatusEntry
     public let size: Int64?
     public let modified: Date?
 }
@@ -42,12 +43,12 @@ extension GitRepository {
             let location = try restoreLocation(row.path)
             let attributes = try? FileManager.default.attributesOfItem(atPath: location.path)
             guard attributes != nil else { continue }
-            rows[row.path] = AddDialogEntry(path: row.path, state: row.state, size: (attributes?[.size] as? NSNumber)?.int64Value, modified: attributes?[.modificationDate] as? Date)
+            rows[row.path] = AddDialogEntry(path: row.path, state: row.state, status: row, size: (attributes?[.size] as? NSNumber)?.int64Value, modified: attributes?[.modificationDate] as? Date)
             if row.state == .untracked || row.hasUnversionedCopy || direct.contains(row.path) { checked.insert(row.path) }
         }
         for path in direct where rows[path] == nil {
             let attributes = try FileManager.default.attributesOfItem(atPath: restoreLocation(path).path)
-            rows[path] = AddDialogEntry(path: path, state: .normal, size: (attributes[.size] as? NSNumber)?.int64Value, modified: attributes[.modificationDate] as? Date)
+            rows[path] = AddDialogEntry(path: path, state: .normal, status: StatusEntry(path: path, originalPath: nil, index: " ", worktree: " "), size: (attributes[.size] as? NSNumber)?.int64Value, modified: attributes[.modificationDate] as? Date)
             checked.insert(path)
         }
         return AddDialogSelection(entries: rows.values.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }, initiallyChecked: checked)

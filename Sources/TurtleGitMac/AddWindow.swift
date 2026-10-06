@@ -27,7 +27,16 @@ private final class AddNativeWindow: NSWindow {
         model.close = { [weak window] in window?.close() }
         model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
         model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
+        model.onDelete = { [weak self] selected, permanently in self?.confirmDelete(selected, permanently: permanently) }
         window.refresh = { [weak model] in model?.reload() }; window.accept = { [weak model] in model?.apply() }
+    }
+    private func confirmDelete(_ selected: [StatusEntry], permanently: Bool) {
+        guard let window, window.attachedSheet == nil, model.beginDeleteConfirmation(selected, permanently: permanently) else { return }
+        let alert = NSAlert(); alert.alertStyle = .warning
+        alert.messageText = permanently ? "Permanently delete the selected paths?" : "Move the selected paths to Trash?"
+        alert.informativeText = "\(selected.count) selected item(s). Any exact index entries will also be removed." + (permanently ? " This cannot be undone." : " Files moved to Trash can be recovered in Finder.")
+        alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: permanently ? "Delete Permanently" : "Move to Trash")
+        alert.beginSheetModal(for: window) { [weak model] response in _ = model?.finishDeleteConfirmation(accepted: response == .alertSecondButtonReturn) }
     }
     private func ignore(_ paths: [String], mask: Bool) {
         guard let window, window.attachedSheet == nil, ignoreController == nil, !model.busy, !model.confirmingQuit else { return }
@@ -81,6 +90,8 @@ private final class AddNativeWindow: NSWindow {
     private var paths: [String] = ["."]
     private var loaded = false
     private(set) var ignoring = false
+    private var pendingDelete: (selected: [StatusEntry], permanently: Bool)?
+    private(set) var lastDeleteResult: WorkingFileDeleteResult?
     private var cancellation = OperationCancellation()
     var close: () -> Void = {}
     var onAccepted: ([String]) -> Void = { _ in }
@@ -96,6 +107,32 @@ private final class AddNativeWindow: NSWindow {
         guard ignoring else { return }
         ignoring = false; busy = false
         if changed { reload() }
+    }
+    var onDelete: ([StatusEntry], Bool) -> Void = { _, _ in }
+    var onDeleteChanged: (String) -> Void = { _ in }
+    func beginDeleteConfirmation(_ selected: [StatusEntry], permanently: Bool) -> Bool {
+        guard !busy, !confirmingQuit, !selected.isEmpty, selected.contains(where: \.canDeleteFromStatusList) else { return false }
+        pendingDelete = (selected, permanently); lastDeleteResult = nil; busy = true; return true
+    }
+    @discardableResult func finishDeleteConfirmation(accepted: Bool) -> Task<Void, Never>? {
+        guard let pendingDelete else { return nil }; self.pendingDelete = nil
+        guard accepted else { busy = false; return nil }
+        cancellation = OperationCancellation()
+        return Task {
+            do {
+                try validateAccess()
+                let result = try await repository.deleteWorkingFiles(pendingDelete.selected, permanently: pendingDelete.permanently, cancellation: cancellation)
+                lastDeleteResult = result
+                checked.subtract(pendingDelete.selected.map(\.path)); highlighted.subtract(pendingDelete.selected.map(\.path))
+                onDeleteChanged("\(pendingDelete.selected.count) item(s) deleted." + (result.trashedFiles.isEmpty ? "" : "\n" + result.trashedFiles.map { "Moved to Trash: " + $0.path }.joined(separator: "\n")))
+            } catch {
+                self.error = error.localizedDescription
+                if let failure = error as? WorkingFileDeleteFailure, !failure.removedPaths.isEmpty { onDeleteChanged(failure.localizedDescription) }
+            }
+            cancellation = OperationCancellation()
+            do { try await read() } catch { self.error = [self.error, error.localizedDescription].compactMap { $0 }.joined(separator: "\n") }
+            busy = false
+        }
     }
     var canApply: Bool { !busy && !confirmingQuit && !checked.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
@@ -121,7 +158,7 @@ private final class AddNativeWindow: NSWindow {
             if cancellation.isCancelled { close() }
         }
     }
-    func cancel() { guard !confirmingQuit, !ignoring else { return }; if busy { cancellation.cancel() } else { close() } }
+    func cancel() { guard !confirmingQuit, !ignoring, pendingDelete == nil else { return }; if busy { cancellation.cancel() } else { close() } }
     func apply() { guard canApply else { return }; onAccepted(entries.filter { checked.contains($0.path) }.map(\.path)); close() }
     func addDropped(_ urls: [URL]) -> Bool {
         guard !busy, !confirmingQuit, !urls.isEmpty else { return false }

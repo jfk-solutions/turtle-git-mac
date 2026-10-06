@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add checked list captures exact Git statuses and routes Delete to native confirmation and existing guarded working-file deletion; full port remains incomplete",
+  "baseCommit": "b7f2b17d6bf4e50f0f6c3d01355e6f98a3967ba4",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": "GitStatusListCtrl.cpp OnContextMenuList, VK_DELETE, DeleteSelectedFiles SHFileOperation recycle/Shift-permanent choice and exact index removal. Native implementation reuses existing WorkingFileDelete backend.",
+  "actualReceiver": "Actual Add model/coordinator compiled Swift 6/macOS 13: callback captures exact ordered statuses; cancelled confirmation leaves working files and checks intact; real Trash preserves selected Unicode/newline binary bytes; ignored file also recycled; Shift-requested permanent delete affects only disposable fixture; pre-worker owned cancellation preserves paths/index and resets parent state; staging after selection rejects stale snapshot with unchanged files/index. Returned Trash files cleaned by fixture defers. Prior Add/Ignore/open/clipboard/index-mode checks pass. No windows/menus displayed.",
+  "newCoreTest": "Removed-versioned-but-present copy retains exact parsed status and hasUnversionedCopy/keyboard eligibility; full run covers it.",
+  "productionBinding": "Native sheet default Cancel and explicit Trash/Permanent button; parent close/cancel/quit frozen during confirmation, owned token during operation; completion refreshes Add, Working Tree/Commit and active root/cache. Compiled/source-audited, not native sheet or signed scope acceptance.",
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed"
+  ],
+  "bundleAudits": "Both validators and exact bundled NOTICE comparisons pass; all 75 icons, extension/universal helpers and Store Git retained.",
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/Add.swift": "c82afa431d542a27ef97c3656a3521e4cb2c697a8289163b386c3383d4829d50",
+    "Sources/TurtleGitMac/AddWindow.swift": "86edb88bab58a9a915723b68a7ad500bc49ca4d0c71fa4751938a67169f5c8bf",
+    "Sources/TurtleGitMac/AddFileTable.swift": "34bfaa8cc0ebf4d6d941790f3ddb3bc15ea67aa3c07abbfc67f945d036d88b8b",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "19d8cb3eae28e6d9dbb60758843dacfb46b77c3a5826e988534ace31a6b77871",
+    "Tests/TurtleGitCoreTests/AddTests.swift": "59797f735d434fe86523258192b23de263c20bb397e2948cdad9dc199dcbebaf",
+    "scripts/test-add-dialog.py": "2e333687d61a193e4264dec786f7603266dab4079540a850698dd7998ebb4deb"
+  },
+  "logs": {
+    "focused": {
+      "path": "/tmp/turtlegit-add-delete-focused.log",
+      "sha256": "002ffe65ae11c1b1592c20d1a2d146593b40631c6417f6c0d0fe19ce446dad94"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-add-delete-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-delete-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-delete-native.log",
+      "sha256": "bcf176d33932a645cff76db46ed020cfe8fd51f05eed0d41ec50e2f16d65d81a"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-delete-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-delete-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "fullCore": {
+      "path": "/tmp/turtlegit-add-delete-full.log",
+      "sha256": "3720170d5b779a7062882a14cf87786c87bacfc9483368bb4ec825649d6268d6"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-delete-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Native confirmation Cancel/Trash/Permanent, both Delete keys and Shift acceptance",
+    "Late cancellation, partial filesystem failure/recovery and scalable metadata cancellation",
+    "Selection mark, mixed normal/status rows, submodules and broader visibility equivalence",
+    "Full Add export/save/current-column and other tracked-row context commands",
+    "Original artwork/native light/dark screenshot comparison",
+    "Signed sandbox/Finder/AppStore distribution and GitHub publication authentication"
+  ],
+  "appProcesses": "No main app or receiver running; main app not launched during verification",
+  "fullCoreTests": {
+    "count": 491,
+    "failures": 0,
+    "durationSeconds": 278.222
+  },
+  "site": "Static documentation generation passed"
+}

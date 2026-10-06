@@ -24,6 +24,18 @@ final class AddTests: XCTestCase {
         let directNormal = try await repo.addDialogSelection(paths: [tracked], includeIgnored: false)
         XCTAssertEqual(directNormal.entries.first?.state, .normal); XCTAssertEqual(directNormal.initiallyChecked, [tracked])
     }
+    func testAddRowsRetainExactDeleteSelectionForRemovedPresentCopy() async throws {
+        let (root, repo, tracked) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.removeVersionedPath(tracked, keepLocal: true)
+        let rows = try await repo.addDialogSelection(paths: ["."], includeIgnored: false)
+        let row = try XCTUnwrap(rows.entries.first { $0.path == tracked })
+        let status = try await repo.status(refreshIndex: false)
+        XCTAssertEqual(row.status, status.first { $0.path == tracked })
+        XCTAssertTrue(row.status.hasUnversionedCopy); XCTAssertTrue(row.status.canDeleteWithKeyboard)
+        XCTAssertEqual(row.state, row.status.state)
+        XCTAssertTrue(rows.initiallyChecked.contains(tracked))
+    }
     func testFileFastRouteUnbornAndCancelledAddition() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: root) }
