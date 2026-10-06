@@ -27,6 +27,7 @@ private final class AddNativeWindow: NSWindow {
         model.close = { [weak window] in window?.close() }
         model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
         model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
+        model.onRevertRequest = { [weak self] rows in self?.confirmRevert(rows) }
         model.onRestore = { [weak self] paths in self?.confirmRestore(paths) }
         model.onDelete = { [weak self] selected, permanently in self?.confirmDelete(selected, permanently: permanently) }
         model.onSave = { [weak self] path in self?.saveFile(path) }
@@ -78,6 +79,14 @@ private final class AddNativeWindow: NSWindow {
             ignoreController = controller; window.beginSheet(child)
         } catch { model.error = error.localizedDescription }
     }
+    private func confirmRevert(_ rows: [AddDialogEntry]) {
+        guard let window, window.attachedSheet == nil, model.beginRevertConfirmation(rows) else { return }
+        guard model.revertNeedsConfirmation else { model.finishRevertConfirmation(accepted: true); return }
+        let alert = NSAlert(); alert.messageText = "Are you sure you want to revert \(rows.count) item(s)?"
+        alert.informativeText = "You will lose ALL changes since the last update! Replaced working files are moved to Trash. Added files remain on disk as unversioned files."
+        alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+        alert.beginSheetModal(for: window) { [weak model] response in model?.finishRevertConfirmation(accepted: response == .alertSecondButtonReturn) }
+    }
     private func confirmRestore(_ paths: [String]) {
         guard let window, window.attachedSheet == nil, model.beginRestoreConfirmation(paths) else { return }
         let alert = NSAlert(); alert.messageText = "Do you really want to restore the copy?"
@@ -125,6 +134,39 @@ private final class AddNativeWindow: NSWindow {
     private var loaded = false
     private(set) var ignoring = false
     @Published var restoreCopies: [String: WorkingFileRestoreCopy] = [:]
+    private var pendingRevert: [AddDialogEntry]?
+    private(set) var reverting = false
+    private var closeAfterRevert = false
+    private var cancelRevert: (() -> Void)?
+    var onRevertRequest: ([AddDialogEntry]) -> Void = { _ in }
+    var onRevert: ([StatusEntry], @escaping (Bool) -> Void) -> (() -> Void) = { _, done in done(false); return {} }
+    var revertNeedsConfirmation: Bool { pendingRevert?.contains { !$0.isDirectory && [$0.status.index, $0.status.worktree].contains { $0 == "M" || $0 == "T" } } == true }
+    func beginRevertConfirmation(_ rows: [AddDialogEntry]) -> Bool {
+        let marked = rows.first { $0.path == selectionMark } ?? rows.first
+        guard !busy, !confirmingQuit, !rows.isEmpty, marked?.status.canCompareWithBaseFromStatusList == true else { return false }
+        pendingRevert = rows; busy = true; return true
+    }
+    func finishRevertConfirmation(accepted: Bool) {
+        guard let selected = pendingRevert else { return }; pendingRevert = nil
+        guard accepted else { busy = false; return }
+        reverting = true; closeAfterRevert = false
+        let cancel = onRevert(selected.map(\.status)) { [weak self] succeeded in self?.finishRevert(selected, succeeded: succeeded) }
+        if reverting { cancelRevert = cancel }
+    }
+    private func finishRevert(_ selected: [AddDialogEntry], succeeded: Bool) {
+        guard reverting else { return }; reverting = false; cancelRevert = nil; cancellation = OperationCancellation()
+        Task {
+            defer { busy = false; if closeAfterRevert || cancellation.isCancelled { close() }; closeAfterRevert = false; cancellation = OperationCancellation() }
+            if succeeded { checked.subtract(selected.map(\.path)); highlighted.subtract(selected.map(\.path)) }
+            do {
+                try await read()
+                if succeeded {
+                    let clean = Set(selected.filter { !$0.isDirectory && $0.state != .added }.map(\.path))
+                    entries.removeAll { clean.contains($0.path) && $0.state == .normal }
+                }
+            } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
     private var pendingRestore: [String]?
     var onRestore: ([String]) -> Void = { _ in }
     var onRestoreChanged: () -> Void = {}
@@ -297,7 +339,12 @@ private final class AddNativeWindow: NSWindow {
             if cancellation.isCancelled { close() }
         }
     }
-    func cancel() { guard !confirmingQuit, !ignoring, pendingDelete == nil, pendingRestore == nil else { return }; if busy { cancellation.cancel() } else { close() } }
+    func cancel() {
+        guard !confirmingQuit, !ignoring, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil else { return }
+        if reverting { closeAfterRevert = true; cancelRevert?() }
+        else if busy { cancellation.cancel() }
+        else { close() }
+    }
     func apply() { guard canApply else { return }; onAccepted(entries.filter { checked.contains($0.path) }.map(\.path)); close() }
     func addDropped(_ urls: [URL]) -> Bool {
         guard !busy, !confirmingQuit, !urls.isEmpty else { return false }

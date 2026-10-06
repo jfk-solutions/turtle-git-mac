@@ -64,6 +64,27 @@ selection; base comparison, Ignore and Delete availability follows that row.
 Actions preserve the Add window's repository lease and are blocked during Add
 work and quit confirmation. See [the history verification record](qa/add-history-2026-10-06.json).
 
+Revert now follows the marked versioned row and captures selected status entries
+in displayed order. The native No/Yes sheet is shown only when a non-directory
+row has a modified/type-changed status flag; added-only, clean and other eligible
+selections start the existing Revert progress workflow directly. No preserves
+checks and files. Add is blocked while progress runs; its Cancel/close request
+forwards cancellation to that specific progress worker and waits for the terminal
+refresh before closing. The shared progress window retains errors/cancellation,
+Trash recovery and submodule follow-up; simple success auto-closes.
+
+Added files remain on disk, become unversioned and stay unchecked after success.
+Clean reverted file rows leave the Add list, unrelated checks/staged contents are
+retained, and saved restoration copies remain available for explicit restoration.
+Failures refresh the available rows and retain checks for rows that remain. Clean tracked
+rows explicitly selected in a mixed Add scope are now accepted by the shared
+backend, with the same stale-status check as changed rows. Modified contents are
+recoverable in Trash and unrelated staged files are preserved. The backend still
+rejects mixed unversioned/ignored selections before moving any files; broader
+mixed-status behavior remains an explicit parity gap, rather than silently
+filtering requested files. See [the Revert record](qa/add-revert-2026-10-06.json)
+for actual Add/progress receivers, full regression and pending native acceptance.
+
 The tracked-file menu now exposes the shared Restore after commit command from
 upstream. In Add it saves temporary working-file copies and changes to Restore;
 it does not create a commit or automatically restore files when Add completes.
@@ -190,6 +211,10 @@ menus/comparison windows and signed acceptance remain pending.
 The restoration regression passes 494 tests with zero failures; both unsigned
 builds, bundle audits and the actual native receiver pass. Displayed overlay/sheet
 and signed acceptance remain pending.
+
+The Add Revert regression passes 495 tests with zero failures; native Add and
+actual progress model checks, both unsigned builds and bundle audits pass.
+Native confirmation/progress gestures and signed acceptance remain pending.
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
 acceptance is pending. Full status-list commands (remaining tracked-row commands and

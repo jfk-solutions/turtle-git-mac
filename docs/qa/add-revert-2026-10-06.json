@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add context Revert confirmation, owned native progress handoff and terminal refresh; full port remains incomplete",
+  "baseCommit": "ae1e655469774ac55ddc2a45519a56c54dd6fb42",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/Git/GitStatusListCtrl.cpp: marked versioned-row Revert gate; confirmation only for non-directory LOGACTIONS_MODIFIED; selected paths to RevertProgressCommand HEAD; auto-close-if-no-options; added rows unversioned/unchecked and other clean rows removed after success",
+    "src/Git/TGitPath.cpp ParseStatus: M and T map to modified; R/A/D/U/C do not independently do so",
+    "src/TortoiseProc/ProgressCommands/RevertProgressCommand.cpp: added files remain on disk; modified working contents recycled; checkout HEAD, submodule follow-up and cancellation",
+    "src/Resources/TortoiseProcENG.rc IDS_PROC_WARNREVERT"
+  ],
+  "implemented": [
+    "Original Revert icon and marked-row context command, capturing displayed-order exact status snapshots",
+    "Native default-No sheet for modified/type-changed files; added-only/clean selections route directly to progress",
+    "Add busy/quit freeze during progress; Cancel/close forwards to that owned worker and closes after terminal refresh when requested",
+    "Existing native progress manages private-index transaction, Trash recovery, cancellation/errors and submodule follow-up; simple success auto-closes",
+    "Successful added paths stay visible as unchecked unversioned rows; clean reverted rows removed until refresh; unrelated checked/staged files and saved restoration copies retained",
+    "Core permits explicitly selected clean tracked status rows, preserving status-equality rejection if a clean path changes after selection"
+  ],
+  "verification": {
+    "actualReceiver": "Swift 6/macOS 13 actual Add and RevertProgress models, without windows: menu/status capture; No/quit/confirmation gates; real added-file unstage with exact binary bytes retained and unchecked unversioned row; real modified/clean file Revert and recovered Trash bytes; preserved unrelated staged blob; retained restoration copy restored after Revert; worker auto-close callbacks; cancellation forwarded before start with unchanged staging/work bytes and Add close after refresh; real stale selection rejection before effects. Prior Add/history/unified/restore/copy/delete/ignore/artwork/clipboard checks pass.",
+    "fullRegression": {
+      "count": 495,
+      "failures": 0,
+      "scope": "Full Swift suite, including new clean tracked selection/rejection-after-edits case and prior Revert transaction/Trash/rename/unborn/cancellation/submodule cases."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; 76 original upstream icons, embedded Finder and universal helper runtimes; Store bundled Git audit passed.",
+    "site": "Static documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/WorkingFileRevert.swift": "a1cfcee345c19b00ae04a415fe84563d3ee9705c70849f20be5bd451e1fcbcae",
+    "Sources/TurtleGitMac/AddWindow.swift": "a2e4651b7b16ef6d6a07683e1a3654724aaca2ebb7bfc99b68ac49569485ca90",
+    "Sources/TurtleGitMac/AddFileTable.swift": "f90d499fc582b07786bf916c84edebabe3d955bef6c216e6950a63be8b0aeaba",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "f86f9c57f850420ee15e40e7ab5d164975a2104e3a99be98083b178ffaecf105",
+    "Tests/TurtleGitCoreTests/WorkingFileRevertTests.swift": "5d7b18343d2f2af7b4639b46be04536a8a1c2400475a44fc20d22962cae9633e",
+    "scripts/test-add-dialog.py": "107dde707732a277ff6abbabf49e7989199a587e0eba8e0ea8457ca6358b280f"
+  },
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-add-revert-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-revert-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-revert-native.log",
+      "sha256": "5ee4ba22c91df4fd86be4d871e6edc32c46ae05a65ab7f3db0a392e8756a470b"
+    },
+    "tests": {
+      "path": "/tmp/turtlegit-add-revert-tests.log",
+      "sha256": "171f33ece99a2bda341af0dfe741e7a878933a25c79baaba7d0eaaafabc75a9a"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-revert-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-revert-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-revert-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Actual displayed No/Yes sheet, progress/auto-close/Trash gestures, parent activation and native Cancel/quit acceptance",
+    "Mixed unversioned/ignored selections still rejected by backend before effects; no silent filtering; broader source behavior remains a parity gap",
+    "Broader directories/submodules/index flags and selected-status/scope/partial-failure refresh combinations",
+    "Full shared menu/progress/settings/helper/localization parity, signed Finder/sandbox/AppStore release acceptance",
+    "GitHub publication and remote CI require restored authentication"
+  ],
+  "appProcesses": "No TurtleGitMac, legacy TortoiseGitMac or native receiver remains at final audit; no main app launched for checks"
+}

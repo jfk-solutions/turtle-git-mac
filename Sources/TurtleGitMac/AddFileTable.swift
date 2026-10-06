@@ -74,7 +74,7 @@ struct AddFileTable: NSViewRepresentable {
             }
             header.delegate = self; table.headerView?.menu = header
             let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
-            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Compare with base", #selector(compareBase), .compare), ("Show changes as unified diff", #selector(unifiedDiff), .unifiedDiff), ("Compare two files", #selector(compareTwo), .compare), ("Show log", #selector(showLog), .log), ("Show log of old name", #selector(showOldLog), .log), ("Blame", #selector(blame), .blame), ("Restore after commit", #selector(restoreItem), .restore), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Save As…", #selector(saveAs), .saveAs), ("Export…", #selector(export), .export), ("Delete", #selector(deleteItem), .remove)] {
+            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Compare with base", #selector(compareBase), .compare), ("Show changes as unified diff", #selector(unifiedDiff), .unifiedDiff), ("Compare two files", #selector(compareTwo), .compare), ("Show log", #selector(showLog), .log), ("Show log of old name", #selector(showOldLog), .log), ("Blame", #selector(blame), .blame), ("Revert", #selector(revertItem), .revert), ("Restore after commit", #selector(restoreItem), .restore), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Save As…", #selector(saveAs), .saveAs), ("Export…", #selector(export), .export), ("Delete", #selector(deleteItem), .remove)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
             }
             menu.addItem(.separator())
@@ -205,6 +205,8 @@ struct AddFileTable: NSViewRepresentable {
         @objc func showLog() { guard canLog, let row = markedRow else { return }; model.onLog(row.path) }
         @objc func showOldLog() { guard let path = oldLogPath else { return }; model.onLog(path) }
         @objc func blame() { guard canBlame, let row = markedRow else { return }; model.onBlame(row.path) }
+        var canRevert: Bool { canCompareBase }
+        @objc func revertItem() { guard canRevert else { return }; model.onRevertRequest(selectedRows) }
         var canRestoreCopy: Bool { canAct && markedRow.map { !$0.isDirectory && $0.status.canCompareWithBaseFromStatusList } == true }
         @objc func restoreItem() {
             guard canRestoreCopy, let mark = markedRow else { return }
@@ -265,7 +267,7 @@ struct AddFileTable: NSViewRepresentable {
             if menu === table.menu {
                 updateIgnoreMenu(menu)
                 for item in menu.items where !item.isSeparatorItem {
-                    let icon: MenuIcon = item.action == #selector(restoreItem) ? .restore : item.action == #selector(unifiedDiff) ? .unifiedDiff : item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(saveAs) ? .saveAs : item.action == #selector(export) ? .export : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(compareBase) || item.action == #selector(compareTwo) ? .compare : item.action == #selector(showLog) || item.action == #selector(showOldLog) ? .log : item.action == #selector(blame) ? .blame : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
+                    let icon: MenuIcon = item.action == #selector(revertItem) ? .revert : item.action == #selector(restoreItem) ? .restore : item.action == #selector(unifiedDiff) ? .unifiedDiff : item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(saveAs) ? .saveAs : item.action == #selector(export) ? .export : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(compareBase) || item.action == #selector(compareTwo) ? .compare : item.action == #selector(showLog) || item.action == #selector(showOldLog) ? .log : item.action == #selector(blame) ? .blame : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
                     item.image = icon.contextImage()
                     let single = [#selector(preview), #selector(editor), #selector(open), #selector(openWith), #selector(reveal)].contains(item.action)
                     let opensFile = [#selector(editor), #selector(open), #selector(openWith)].contains(item.action)
@@ -277,6 +279,7 @@ struct AddFileTable: NSViewRepresentable {
                     case #selector(showLog): eligibility = canLog
                     case #selector(showOldLog): eligibility = oldLogPath != nil
                     case #selector(blame): eligibility = canBlame
+                    case #selector(revertItem): eligibility = canRevert
                     case #selector(restoreItem): eligibility = canRestoreCopy
                         item.title = markedRow.flatMap { model.restoreCopies[$0.path] } == nil ? "Restore after commit" : "Restore"
                     default: eligibility = true

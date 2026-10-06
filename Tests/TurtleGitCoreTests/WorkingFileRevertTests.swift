@@ -21,6 +21,21 @@ final class WorkingFileRevertTests: XCTestCase {
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
         XCTAssertEqual(staged, base); XCTAssertEqual(unrelated, Data("other staged".utf8)); XCTAssertEqual(afterHead, head)
     }
+    func testCleanTrackedStatusRowRevertsAndRejectsChangesAfterSelection() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = try Data(contentsOf: root.appendingPathComponent(path))
+        let clean = StatusEntry(path: path, originalPath: nil, index: " ", worktree: " ")
+        let result = try await repo.revertWorkingFiles([clean])
+        defer { for url in result.trashedFiles { try? FileManager.default.removeItem(at: url) } }
+        XCTAssertEqual(result.revertedPaths, [path]); XCTAssertEqual(result.trashedFiles.count, 1)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), original)
+        try Data("later changes".utf8).write(to: root.appendingPathComponent(path))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        do { _ = try await repo.revertWorkingFiles([clean]); XCTFail("Stale clean selection reverted") } catch {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("later changes".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
     func testAddedLiteralFileRetainsWorkingContentsWhenRevertedBeforeInitialCommit() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)

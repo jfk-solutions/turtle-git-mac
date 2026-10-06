@@ -51,6 +51,8 @@ working contents with binary bytes and relative folder layout preserved; the
 index is unchanged. The shared Restore after commit command now saves temporary
 working copies, shows the original row overlay and offers confirmed restoration
 without changing staged contents. Copies last for the Add dialog's lifetime.
+Add Revert now uses the source confirmation rule and shared cancellable progress,
+with added-file preservation, Trash recovery and checked-list refresh.
 Original translucent Add artwork now appears in both lists;
 progress follows the upstream Action/Path columns.
 [Add parity](docs/ADD-PARITY.md) records unfinished menus, post-actions and native QA.

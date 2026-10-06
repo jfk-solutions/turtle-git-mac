@@ -28,7 +28,12 @@ extension GitRepository {
               selected.allSatisfy({ ![FileState.untracked, .ignored].contains($0.state) }) else {
             throw GitFailure(arguments: ["revert"], code: 1, message: "Select versioned files to revert.")
         }
-        let current = Dictionary(try commitDialogStatus(amendToParent: amend && !amendDiffToLastCommit).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        var current = Dictionary(try commitDialogStatus(amendToParent: amend && !amendDiffToLastCommit).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        let clean = selected.filter { current[$0.path] == nil && $0.index == " " && $0.worktree == " " && $0.originalPath == nil && !$0.hasUnversionedCopy }
+        if !clean.isEmpty {
+            let tracked = Set(try trackedPaths())
+            for entry in clean where tracked.contains(entry.path) { current[entry.path] = entry }
+        }
         guard selected.allSatisfy({ current[$0.path] == $0 }) else {
             throw GitFailure(arguments: ["revert"], code: 1, message: "The selected files changed. Refresh before reverting.")
         }

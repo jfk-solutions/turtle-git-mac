@@ -613,6 +613,11 @@ import TurtleGitCore
                     self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
                     if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
                 }
+                controller.model.onRevert = { [weak self] entries, done in
+                    guard let self else { done(false); return {} }
+                    let progress = self.showRevertProgress(repository: repository, access: access, entries: entries, autoCloseSuccess: true, completion: done)
+                    return { [weak progress] in progress?.model.cancel() }
+                }
                 controller.model.onRestoreChanged = { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
                 controller.model.onDeleteChanged = controller.model.onIgnoreChanged
                 addWindows[key] = controller; controller.model.setScope(paths); controller.model.reload()
@@ -763,7 +768,7 @@ import TurtleGitCore
         submoduleUpdateWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) {
+    @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
         let root = repository.root, id = UUID()
         let controller = RevertProgressWindowController(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess)
         controller.onClosed = { [weak self] in self?.revertProgressWindows.removeValue(forKey: id) }
@@ -778,6 +783,7 @@ import TurtleGitCore
         }
         revertProgressWindows[id] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
+        return controller
     }
     private func showStatus(repository: GitRepository, access: RepositoryAccessLease?, paths: [String] = []) {
         let root = repository.root

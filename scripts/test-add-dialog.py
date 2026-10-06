@@ -413,12 +413,68 @@ import TurtleGitCore
         receiver.menuNeedsUpdate(menu); precondition(restoreMenu.title == "Restore after commit")
         model.highlighted = [restoreOther]; model.selectionMark = restoreOther; receiver.refresh(); receiver.menuNeedsUpdate(menu)
         precondition(!receiver.canRestoreCopy && restoreMenu.isHidden)
-        print("Actual Add receiver: source-shaped restoration mark/Restore menu and original overlay, ordered mixed versioned/untracked copy capture, no recapture, native confirmation request/Abort/quit/queued-cancel guards, partial directory-failure recovery, exact binary bytes/permissions and unchanged index; unified HEAD-to-working patch bytes and ordered multi-file scope, default/alternate captured viewer routing, unchanged index, unborn/untracked suppression, queued cancellation and viewer/quit guards; current-column clipboard without headings, named icon menu, stable column identity after reorder, marked-row capture, hidden-column/invalid-hit/quit guards and checkbox-to-Path mapping; disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        var revertRequests: [[AddDialogEntry]] = [], revertWorkers: [RevertProgressWindowModel] = [], revertClosed = 0
+        model.onRevertRequest = { revertRequests.append($0) }
+        model.onRevert = { entries, done in
+            let progress = RevertProgressWindowModel(repository: repo, access: nil, entries: entries, amend: false, againstHead: false, autoCloseSuccess: true)
+            progress.onFinished = { _, succeeded in done(succeeded) }; progress.close = { revertClosed += 1 }
+            revertWorkers.append(progress); progress.start(); return { progress.cancel() }
+        }
+        defer { for progress in revertWorkers { for url in progress.trashedFiles { try? FileManager.default.removeItem(at: url) } } }
+        func waitForRevert() async throws {
+            for _ in 0..<300 { if !model.busy { break }; try await Task.sleep(nanoseconds: 50_000_000) }
+            precondition(!model.busy && !model.reverting)
+        }
+        let revertAdded = "revert-added.bin", revertAddedBytes = Data([0, 254, 13, 10])
+        try revertAddedBytes.write(to: folder.appendingPathComponent(revertAdded)); try await repo.stage([revertAdded])
+        model.setScope([revertAdded, restoreOther]); try await model.read(); model.highlighted = [revertAdded]; model.selectionMark = revertAdded; receiver.refresh()
+        receiver.revertItem(); precondition(revertRequests.count == 1 && revertRequests[0].map(\.path) == [revertAdded])
+        let addedChecks = model.checked
+        precondition(model.beginRevertConfirmation(revertRequests[0]) && !model.revertNeedsConfirmation)
+        model.cancel(); precondition(model.busy)
+        model.finishRevertConfirmation(accepted: false); precondition(!model.busy && model.checked == addedChecks && revertWorkers.isEmpty)
+        precondition(model.beginRevertConfirmation(revertRequests[0])); model.finishRevertConfirmation(accepted: true); precondition(model.busy && model.reverting)
+        try await waitForRevert()
+        let revertedAddedBytes = try Data(contentsOf: folder.appendingPathComponent(revertAdded)); precondition(revertedAddedBytes == revertAddedBytes && !model.checked.contains(revertAdded) && model.entries.first { $0.path == revertAdded }?.state == .untracked)
+        precondition(revertClosed == 1 && !revertWorkers[0].failed && revertWorkers[0].trashedFiles.isEmpty)
+        let indexedAdded = try await repo.trackedPaths(); precondition(!indexedAdded.contains(revertAdded))
+        model.highlighted = [revertAdded]; model.selectionMark = revertAdded; receiver.refresh(); receiver.revertItem(); precondition(!receiver.canRevert && revertRequests.count == 1)
+        model.setScope([".gitignore", restoreOther]); try await model.read(); model.highlighted = [".gitignore"]; model.selectionMark = ".gitignore"; receiver.refresh()
+        let beforeRevertBytes = try Data(contentsOf: folder.appendingPathComponent(".gitignore"))
+        await model.startMarkForRestore([".gitignore"])?.value
+        receiver.revertItem(); precondition(model.beginRevertConfirmation(revertRequests.last!) && model.revertNeedsConfirmation)
+        let noChecks = model.checked; model.finishRevertConfirmation(accepted: false)
+        let afterNoBytes = try Data(contentsOf: folder.appendingPathComponent(".gitignore")); precondition(!model.busy && afterNoBytes == beforeRevertBytes && model.checked == noChecks)
+        model.confirmingQuit = true; receiver.revertItem(); precondition(!model.beginRevertConfirmation(revertRequests.last!)); model.confirmingQuit = false
+        let unrelatedRevertIndex = try await repo.run(["show", ":" + restorePath]).stdout
+        precondition(model.beginRevertConfirmation(revertRequests.last!)); model.finishRevertConfirmation(accepted: true); try await waitForRevert()
+        let revertedIgnore = try Data(contentsOf: folder.appendingPathComponent(".gitignore")); precondition(revertedIgnore == Data("*.log\n".utf8) && !model.entries.contains { $0.path == ".gitignore" } && !model.checked.contains(".gitignore"))
+        let trashedIgnore = try Data(contentsOf: revertWorkers.last!.trashedFiles[0]); precondition(trashedIgnore == beforeRevertBytes && revertClosed == 2 && model.restoreCopies[".gitignore"] != nil)
+        let unrelatedAfterRevert = try await repo.run(["show", ":" + restorePath]).stdout; precondition(unrelatedAfterRevert == unrelatedRevertIndex)
+        try await model.read(); model.highlighted = [".gitignore"]; model.selectionMark = ".gitignore"; receiver.refresh()
+        let cleanRows = receiver.selectedRows; precondition(cleanRows.first?.state == .normal && model.beginRevertConfirmation(cleanRows) && !model.revertNeedsConfirmation)
+        model.finishRevertConfirmation(accepted: true); try await waitForRevert(); precondition(!revertWorkers.last!.failed && revertClosed == 3)
+        try await model.read(); precondition(model.beginRestoreConfirmation([".gitignore"])); await model.finishRestoreConfirmation(accepted: true)?.value
+        let restoredAfterRevert = try Data(contentsOf: folder.appendingPathComponent(".gitignore")); precondition(restoredAfterRevert == beforeRevertBytes)
+        model.highlighted = [".gitignore"]; model.selectionMark = ".gitignore"; receiver.refresh()
+        let cancelRows = receiver.selectedRows, cancelRevertStage = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let closesBeforeRevert = closed
+        precondition(model.beginRevertConfirmation(cancelRows)); model.finishRevertConfirmation(accepted: true); model.cancel(); try await waitForRevert()
+        let afterCancelRevertStage = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        precondition(revertWorkers.last!.cancelled && closed == closesBeforeRevert + 1 && afterCancelRevertStage == cancelRevertStage)
+        let afterCancelRevertBytes = try Data(contentsOf: folder.appendingPathComponent(".gitignore")); precondition(afterCancelRevertBytes == beforeRevertBytes)
+        model.highlighted = [".gitignore"]; model.selectionMark = ".gitignore"; receiver.refresh()
+        let staleRows = receiver.selectedRows
+        try await repo.stage([".gitignore"]); let staleRevertIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        precondition(model.beginRevertConfirmation(staleRows)); model.finishRevertConfirmation(accepted: true); try await waitForRevert()
+        let afterStaleIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        precondition(revertWorkers.last!.failed && afterStaleIndex == staleRevertIndex && model.entries.contains { $0.path == ".gitignore" })
+        print("Actual Add receiver: captured Revert status/order, source confirmation/No/quit rules, actual progress unstage-added/Trash-modified/clean-tracked effects, unchecked added refresh/removal of clean rows, retained restoration copies, unrelated staging, owned cancellation and stale selection; source-shaped restoration mark/Restore menu and original overlay, ordered mixed versioned/untracked copy capture, no recapture, native confirmation request/Abort/quit/queued-cancel guards, partial directory-failure recovery, exact binary bytes/permissions and unchanged index; unified HEAD-to-working patch bytes and ordered multi-file scope, default/alternate captured viewer routing, unchanged index, unborn/untracked suppression, queued cancellation and viewer/quit guards; current-column clipboard without headings, named icon menu, stable column identity after reorder, marked-row capture, hidden-column/invalid-hit/quit guards and checkbox-to-Path mapping; disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''
 with tempfile.TemporaryDirectory(prefix='TurtleGitAddDialogTest-') as directory:
     folder = pathlib.Path(directory); main = folder / 'Driver.swift'; main.write_text(driver); binary = folder / 'verify'
-    sources = ['AddWindow.swift', 'AddFileTable.swift', 'AddProgressWindow.swift', 'SelectionAllCheckbox.swift', 'CommandLabel.swift', 'Appearance.swift', 'AlternativeEditorSettings.swift', 'IgnoreWindow.swift', 'NativeWatermarkTable.swift', 'AddProgressTable.swift']
+    sources = ['AddWindow.swift', 'AddFileTable.swift', 'AddProgressWindow.swift', 'SelectionAllCheckbox.swift', 'CommandLabel.swift', 'Appearance.swift', 'AlternativeEditorSettings.swift', 'IgnoreWindow.swift', 'NativeWatermarkTable.swift', 'AddProgressTable.swift', 'RevertProgressWindow.swift']
     subprocess.run(['xcrun', 'swiftc', '-swift-version', '6', '-parse-as-library', '-target', platform.machine() + '-apple-macos13.0', '-F', str(frameworks), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(frameworks), *[str(root / 'Sources/TurtleGitMac' / s) for s in sources], str(main), '-o', str(binary)], check=True)
     subprocess.run([str(binary), str(folder / 'fixture')], check=True)
