@@ -47,6 +47,7 @@
 		3D0C04463435436A275FC33A /* RepositoryBrowserWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */; };
 		3E19A6945479711E0CDE3542 /* Icons in Resources */ = {isa = PBXBuildFile; fileRef = 5E600ADAA231E0E7D95C9827 /* Icons */; };
 		407EFF50D7678E3D7BB3F032 /* TurtleGitCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; };
+		413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */ = {isa = PBXBuildFile; fileRef = 366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */; };
 		46F03179364D977A48FD1EC5 /* Changelists.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA08DAA6757DBD3FB0045BC5 /* Changelists.swift */; };
 		4B43C652D04DFD95FB88BFB1 /* CommitPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */; };
 		4CCA62C8CECAD2B41E2E888A /* FileComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7428B46131B5378475891E94 /* FileComparison.swift */; };
@@ -127,6 +128,7 @@
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
 		C23CCEFA7DA0A805EFCE94C7 /* GitBlamePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C02E4063D7394453CC537A /* GitBlamePreferences.swift */; };
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
+		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
 		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
 		D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */; };
 		D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A48D22D1E6D22153CBA3744 /* Push.swift */; };
@@ -242,6 +244,7 @@
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeSymbols.swift; sourceTree = "<group>"; };
 		244AD68D8412684F520E64AC /* ReferenceCreation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCreation.swift; sourceTree = "<group>"; };
+		26B86A4879EF89058692598F /* ExportWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportWindow.swift; sourceTree = "<group>"; };
 		2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffViewerSettings.swift; sourceTree = "<group>"; };
 		28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeScanner.swift; sourceTree = "<group>"; };
 		29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListClipboard.swift; sourceTree = "<group>"; };
@@ -253,6 +256,7 @@
 		331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRevert.swift; sourceTree = "<group>"; };
 		3329485A1DA9D2066A853483 /* MessageCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCompletion.swift; sourceTree = "<group>"; };
 		35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorPreferences.swift; sourceTree = "<group>"; };
+		366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionArchive.swift; sourceTree = "<group>"; };
 		377A8410F24CB6A92830EB11 /* RepositoryBrowserDrag.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserDrag.swift; sourceTree = "<group>"; };
 		3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRestore.swift; sourceTree = "<group>"; };
 		396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflictWindow.swift; sourceTree = "<group>"; };
@@ -411,6 +415,7 @@
 				022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */,
 				7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */,
 				798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */,
+				26B86A4879EF89058692598F /* ExportWindow.swift */,
 				BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */,
 				A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */,
 				72211FE8450E694C1BC89AB3 /* FormatPatchWindow.swift */,
@@ -547,6 +552,7 @@
 				593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */,
 				DE3C7BF5278D5807BDDF4B21 /* Reset.swift */,
 				4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */,
+				366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */,
 				870D95A7EC384863F1C04342 /* RevisionComparison.swift */,
 				83395323FFA0860A52795F9F /* Stash.swift */,
 				29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */,
@@ -833,6 +839,7 @@
 				5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */,
 				94D627C3502D8ACE734DD470 /* Reset.swift in Sources */,
 				F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */,
+				413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */,
 				510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
@@ -880,6 +887,7 @@
 				DB59BAE5F3CCA439B5A6C388 /* CreateRepositoryWindow.swift in Sources */,
 				1CB7F6B1BB3F2584AD6F9547 /* DeleteConflictWindow.swift in Sources */,
 				B49B1BCC7E2F02AEC5A83B12 /* DocumentationCapture.swift in Sources */,
+				C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */,
 				D4DC9BE706E4DFFB73154A96 /* FetchWindow.swift in Sources */,
 				70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */,
 				889A5713EF2EFE553723715F /* FormatPatchWindow.swift in Sources */,

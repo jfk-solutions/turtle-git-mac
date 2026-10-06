@@ -408,6 +408,34 @@ import TurtleGitCore
     guard let table = findTable(host), let coordinator = table.delegate as? RevisionTable.Coordinator, let menu = table.menu else { fatalError("Integration menu unavailable") }
     coordinator.menuNeedsUpdate(menu)
     for title in [log.integrationTitle(.merge), log.integrationTitle(.rebase)] { guard let item = menu.items.first(where: { $0.title == title }) else { fatalError("Missing integration menu: \(title), available=\(log.integrationAvailable), bare=\(log.bare)") }; precondition(item.isEnabled && item.image != nil) }
+    var exports: [String] = []
+    log.onExportRevision = { exports.append($0) }; coordinator.menuNeedsUpdate(menu)
+    guard let exportItem = menu.items.first(where: { $0.title == "Export this version…" }) else { fatalError("Export menu missing") }
+    precondition(exportItem.isEnabled && exportItem.image != nil)
+    coordinator.exportRevision(); precondition(exports == ["refs/tags/integration-tag"])
+    log.busy = true; coordinator.exportRevision(); precondition(exports.count == 1); log.busy = false
+    let exportModel = ExportWindowModel(repository: repo, access: nil)
+    func settleExport() async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while exportModel.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!exportModel.busy && exportModel.error == nil)
+    }
+    exportModel.load(revision: exports[0]); try await settleExport()
+    precondition(exportModel.target == .tag && exportModel.revision == exports[0] && exportModel.wholeProject)
+    let archive = repo.root.appendingPathComponent("native-export.zip")
+    exportModel.destination = archive.path; exportModel.export(); try await settleExport()
+    precondition(exportModel.exported == archive && FileManager.default.fileExists(atPath: archive.path))
+    let originalArchive = try Data(contentsOf: archive)
+    exportModel.confirmOverwrite = { _ in false }; exportModel.export(); try await settleExport()
+    let keptArchive = try Data(contentsOf: archive)
+    precondition(exportModel.exported == nil && keptArchive == originalArchive)
+    exportModel.load(revision: revisions.last!.hash); try await settleExport(); precondition(exportModel.target == .commit)
+    exportModel.confirmOverwrite = { _ in true }; exportModel.export(); try await settleExport()
+    precondition(exportModel.exported == archive)
+    try FileManager.default.removeItem(at: archive)
+    let archiveIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    precondition(archiveIndex == index)
+    print("Native Log Export icon/handoff, tag/hash presets, ZIP creation and overwrite Cancel/Replace passed.")
     coordinator.mergeRevision(); try await wait(); precondition(log.error == nil && merges == ["refs/tags/integration-tag"])
     coordinator.rebaseRevision(); try await wait(); precondition(log.error == nil && rebases == ["main"])
     let mergeModel = MergeWindowModel(repository: repo, access: nil); mergeModel.load(revision: merges[0])

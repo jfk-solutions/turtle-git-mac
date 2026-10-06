@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "a2dc67b",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log revision Export menu and native ZIP/revision/Whole Project dialog with Git archive backend",
+  "sha256": {
+    "Sources/TurtleGitCore/RevisionArchive.swift": "5767341469a9d1b13887bbc9f6fea46ab33b77c665b8b75eaedd1b452ca54ef0",
+    "Sources/TurtleGitMac/ExportWindow.swift": "04bff01d5aa008e5c736cde8e4126c9d783a46152729e3550765a2e6a6bd1bb9",
+    "Sources/TurtleGitMac/LogWindow.swift": "ea92dfe14e394c7a1a1b01f2fe4761fdd13d2ae1e6b794b135cc3e95bc40358a",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "49548279dd4f3a17a8104c88b029f1f8e9be49d7821251e4c1cd44ff0b8cfd9d",
+    "Tests/TurtleGitCoreTests/RevisionArchiveTests.swift": "e78ea9f21d4fbda5a18f6cebee383fc3b6e21b60a39023bab9253da9c9876de7",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "9358cd05d68d82b749441c2b76f1c245796ddac7dd430605356d729eea362b54",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "509a975d1ae83edc91eb6679fa82516413221a9b4624d687fa07cd98bd6359ab",
+    "README.md": "56f2edcefa55bb1ed23e85ee65ec582bf05395d5ab3af061c7dfa34a307a3602",
+    "docs/REVISION-EXPORT.md": "c9410c1508bee80c54358c65b35df9bcc8d7c377d0511bd8ce9bb9b90107a632",
+    "docs/LOG-PARITY.md": "c98ebe8e3cb9d4dc9559d8e56bc8b98877a1e3a47496443f51f94bce8fb3bfe6",
+    "docs/site/index.html": "2bce1726685fe100eb75d76b58fcd0cadab73646b2c743e71e1263312937f5c9"
+  },
+  "all_native_sources_manifest_sha256": "909958c83d2ad1af7a9ae197c96e5f71bd7e2b3f99c0008ba2c7f7f8db81cec6",
+  "verification": {
+    "core": {
+      "command": "swift test --filter RevisionArchiveTests",
+      "tests": 2,
+      "failures": 0,
+      "coverage": "Committed binary bytes, archive attributes/substitution, executable mode, symlinks, directory and whole scopes, annotated tag, bare repository, invalid revision/scope/destination, pre-cancel, failure preserves output, HEAD/index unchanged, cleanup"
+    },
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Actual hosted Log menu icon/selector, tag handoff, real ExportWindowModel tag/hash presets, ZIP creation, overwrite Cancel/Replace, unchanged logical index; prior focused integration/Rebase menus/context/completion/rows fixtures pass",
+      "limitations": "Hidden Log hosted view; Export model rather than displayed Export window; panel replies injected; no screenshots or signed sandbox"
+    },
+    "builds": [
+      "SwiftPM debug build via swift test",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "bundle_audits": "Debug and AppStore (require-git), exact NOTICE cmp, all 86 original icon resources; universal bundled Git 2.55.0",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native receiver remained"
+  },
+  "logs": {
+    "/tmp/turtlegit-archive-core-final.log": "cef1dc68fe8cce795089363ccb5a2e8925da10b8d62ec13d7864a89a142554f2",
+    "/tmp/turtlegit-archive-native.log": "097687a264a497ffe9dc6f58c9dd1bf5d61499351b41cc7e97523831d2577609",
+    "/tmp/turtlegit-archive-debug.log": "0ffa335e173e9ba41807b08d6e1a524b8d18e7fd66316ecd6fa124f65ecb3ad6",
+    "/tmp/turtlegit-archive-store.log": "c6b15ded77af7ec7402dc88d58d90ea2c6f5d12d00f06b8ebc9ee7ec80f316ea",
+    "/tmp/turtlegit-archive-debug-audit.log": "524a234addd8b8e8366b55e22533cc9736d8979fa77ace113cb86b8f82e323fb",
+    "/tmp/turtlegit-archive-store-audit.log": "65bcab67068f3a1a770ff06b35e1fedf3fb90de95ac93038c81fc670adac14b1",
+    "/tmp/turtlegit-archive-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Displayed Export layout, light/dark and keyboard/accessibility verification",
+    "Signed AppStore save-panel grant and adjacent temporary archive behavior",
+    "Finder and remaining Export entry points",
+    "Full TortoiseGit port, documentation/screenshots and distribution remain incomplete"
+  ]
+}

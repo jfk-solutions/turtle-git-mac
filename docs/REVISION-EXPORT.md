@@ -1,0 +1,58 @@
+# Revision Export
+
+TurtleGit for Mac now provides **Export this version…** in the single-revision
+Log menu, with TortoiseGit's original Export icon. It is available in bare
+repositories too; stash entries do not offer it. A selected tag is preferred
+as the initial revision, otherwise the selected commit hash is used.
+
+The native Export window follows upstream `IDD_EXPORT`: **Export Zip File**
+with a destination field and file picker, **Revision** with HEAD, Branch, Tag
+and Commit choices, reference browsing and a Log commit picker, then **Whole
+Project**, OK, Cancel and Help. HEAD includes the current branch name. The
+Whole Project control is checked and disabled for a repository-root export.
+A Log scoped to one existing directory can instead export that directory.
+A file-scoped Log exports the whole repository, matching upstream's directory
+check. Native branch/tag popup controls share the other revision dialogs.
+
+OK exports a ZIP using `git archive`. It reads the chosen revision, rather
+than dirty working files or staged contents. Git handles `export-ignore`,
+`export-subst`, executable modes and symlinks. Directory exports run from the
+selected directory so Git removes the directory prefix and keeps the commit
+metadata used for substitution. Submodule contents follow Git archive behavior;
+this command does not recursively archive checked-out submodule repositories.
+
+An existing file requires Replace confirmation. The archive is produced in a
+unique temporary file and only replaces the destination after Git succeeds.
+Failures and cancellation preserve an existing archive; temporary files are
+removed. Cancel export terminates the owned Git operation. Completion keeps the
+window open with **Show in Finder** and Done. This adapts upstream's separate
+progress window and Explore completion action to one native window.
+
+The destination picker retains its security-scoped lease for the operation.
+The AppStore configuration requires a grant for the exact chosen output file
+and a retained repository grant. A typed alternate path requires a new picker
+grant. Signed sandbox execution, including creation of the adjacent temporary
+archive under a save-panel grant, remains **unverified**. No App Store readiness
+is claimed by the unsigned build.
+
+## Evidence and limits
+
+The upstream comparison uses pinned TortoiseGit commit
+`7338078f8ddd924b8cddee35f512f2286072136d`, `ExportDlg.cpp`, `IDD_EXPORT` in
+`TortoiseProcENG.rc`, `CAppUtils::Export` in `AppUtils.cpp`, and the normal Git
+`ID_EXPORT` handler in `GitLogListAction.cpp`. The older SVN handler is not the
+basis of this implementation.
+
+`RevisionArchiveTests` verifies exact committed binary bytes despite working
+changes, archive attributes, commit substitution, executable mode, symlinks,
+whole-project versus directory scope, annotated tags, bare export, rejected
+revision/scope/metadata destinations, pre-cancelled operations, unchanged HEAD
+and index, preserved output on failure and temporary-file cleanup.
+
+The headless native receiver checks the actual Log menu icon and selector,
+selected-tag handoff, tag/hash model presets, archive generation and both
+Cancel and Replace responses through the real model. It does not display the
+window or click the native save/confirmation panels. Screenshot/layout,
+keyboard/accessibility, signed sandbox, Finder entry points and broader Export
+entry-point parity remain pending. Full Log and application parity remain
+incomplete.

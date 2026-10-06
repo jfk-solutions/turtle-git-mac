@@ -221,6 +221,12 @@ struct LogCommandRequest: Identifiable {
     @Published var parentMetadata: [String: [LogParentChoice]] = [:]
     @Published var mergeActive = false
     @Published var currentBranch = ""
+    var onExportRevision: ((String) -> Void)?
+    var canExportRevision: Bool { revision != nil && !selectedIsStash && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && onExportRevision != nil }
+    func requestExport() {
+        guard canExportRevision, let revision else { return }
+        onExportRevision?(revision.references.first { $0.name.hasPrefix("refs/tags/") }?.name ?? revision.hash)
+    }
     var onMergeRevision: ((String) -> Void)?
     var onRebaseRevision: ((String) -> Void)?
     var confirmRevert: (LogCommandRequest) async -> Bool = { _ in false }
@@ -1201,6 +1207,7 @@ struct RevisionTable: NSViewRepresentable {
             if model.integrationAvailable {
                 item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase))
             }
+            if one && !model.selectedIsStash { item("Export this version…", #selector(exportRevision), icon: .export, enabled: model.canExportRevision) }
             menu.addItem(.separator())
             if model.revertAvailable {
                 if let revision = model.revision, revision.parents.count > 1 {
@@ -1265,6 +1272,7 @@ struct RevisionTable: NSViewRepresentable {
         @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }
         @objc func formatPatch() { if let preset = model.formatPatchPreset, !model.busy { model.onFormatPatch?(preset) } }
         @objc func editNotes() { model.editNotes() }
+        @objc func exportRevision() { model.requestExport() }
         @objc func mergeRevision() { model.requestIntegration(.merge) }
         @objc func rebaseRevision() { model.requestIntegration(.rebase) }
         @objc func reset() { model.request(.reset) }

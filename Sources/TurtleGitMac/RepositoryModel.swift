@@ -46,6 +46,7 @@ import TurtleGitCore
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
     private var revertWindows: [String: RevertWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
+    private var exportWindows: [String: ExportWindowController] = [:]
     private var mergeWindows: [String: MergeWindowController] = [:]
     private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
     private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
@@ -920,6 +921,7 @@ import TurtleGitCore
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
+        controller.model.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, paths: paths) }
         controller.model.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
         controller.model.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
@@ -949,6 +951,16 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
+    private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = []) {
+        let root = repository.root
+        let directory: String
+        if paths.count == 1, (try? root.appendingPathComponent(paths[0]).resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { directory = paths[0] }
+        else { directory = "" }
+        let key = root.path + "\0" + revision + "\0" + directory
+        let controller = exportWindows[key] ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory)
+        controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
+        exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
         let root = repository.root
         let controller = mergeWindows[root.path] ?? MergeWindowController(repository: repository, access: access)
@@ -964,6 +976,7 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
                 log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
@@ -1011,6 +1024,7 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
             log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
@@ -1057,6 +1071,7 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }

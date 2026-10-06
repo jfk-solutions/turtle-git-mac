@@ -944,3 +944,8 @@ parity are still pending. See [unified diff viewer parity](UNIFIED-DIFF-VIEWER-P
 Native revision menus now include Merge and Rebase onto selection, with original
 icons, reference/hash presets and fresh repository-state guards.
 [Merge/Rebase handoffs](LOG-MERGE-REBASE.md) records origin recovery and limits.
+
+Single-revision Log Export now has the original icon and a native archive
+dialog with HEAD/Branch/Tag/Commit, Whole Project and overwrite confirmation.
+[Revision Export](REVISION-EXPORT.md) records the implementation and remaining
+displayed, signed sandbox and entry-point checks.

@@ -293,6 +293,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Log revision context menus now hand Merge/Rebase selections to native dialogs
   with original icons, branch/tag/hash presets and fresh state checks.
   [Log Merge/Rebase](docs/LOG-MERGE-REBASE.md).
+- Log revision Export now opens a native ZIP/revision/Whole Project dialog and
+  uses Git archive with overwrite confirmation. Signed sandbox and displayed
+  verification remain pending. [Revision Export](docs/REVISION-EXPORT.md).
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Multiple selected rows move together, with Shift-to-end and focused-list action
