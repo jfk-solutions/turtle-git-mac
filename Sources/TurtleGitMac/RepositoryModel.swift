@@ -597,6 +597,10 @@ import TurtleGitCore
                 controller.onClosed = { [weak self] in self?.addWindows.removeValue(forKey: key) }
                 controller.model.onAccepted = { [weak self] paths in self?.showAddProgress(repository: repository, access: access, paths: paths) }
                 controller.model.onPreview = { [weak self] path in self?.showWorkingFiles(repository: repository, access: access, paths: [path]) }
+                controller.model.onIgnoreChanged = { [weak self] output in
+                    self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+                    if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
+                }
                 addWindows[key] = controller; controller.model.setScope(paths); controller.model.reload()
                 controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
             } catch { self.error = error.localizedDescription }

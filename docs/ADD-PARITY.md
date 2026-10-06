@@ -23,7 +23,16 @@ relative paths, file/folder names, dotted extensions and all visible columns in
 displayed order. Single-column text has no heading; multiple columns use tabs
 and headings, with native LF separators. Command-C copies relative paths. Menu
 commands and nested icons update with selection, busy/quit state and icon preferences.
-File-opening commands are hidden for folders. See [the status-menu receiver record](qa/add-status-menu-2026-10-06.json) for verification and native acceptance limits.
+File-opening commands are hidden for folders. Ignore adds source-shaped filename,
+extension-mask and containing-folder commands: a shared extension uses a submenu,
+and mixed extensions use direct name/mask entries. Names are captured in display
+order and passed to the existing five-radio native Ignore dialog as a sheet.
+The Add list is blocked while the sheet is open; Cancel preserves its checked
+selection. Successful Ignore writes refresh Add, Working Tree/Commit and the
+active repository cache. Hidden newly ignored files leave the Add list and
+unchecked unrelated rows stay unchecked. Ignore writes rules without staging
+or deleting working files. See [the Ignore integration record](qa/add-ignore-2026-10-06.json)
+for actual model checks and remaining sheet/signed acceptance. See [the status-menu receiver record](qa/add-status-menu-2026-10-06.json) for verification and native acceptance limits.
 Context images follow ShowAppContextMenuIcons when a menu is prepared.
 
 Unversioned rows start checked; ignored rows are hidden until Include ignored is
@@ -77,7 +86,7 @@ screenshots. Debug and unsigned AppStore builds, bundle audits and site generati
 are recorded in [the verification record](qa/add-2026-10-06.json).
 
 Index-only executable/symlink post-actions are implemented; real native action-menu
-acceptance is pending. Full status-list commands (Ignore/Delete/current-column clipboard and
+acceptance is pending. Full status-list commands (Delete/current-column clipboard and
 other shared consumers), background artwork, Space/column/drop/keyboard gestures,
 progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain

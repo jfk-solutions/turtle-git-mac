@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-06",
+  "baseCommit": "bfad7d7d35288e6e07dbc7bce418d04bb950af58",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Add native Ignore names/extensions/containing-folder menu and child-dialog integration; full application parity remains incomplete",
+  "sourceComparison": "AddDlg.cpp context masks and GitStatusListCtrl.cpp OnContextMenuList IDGITLC_IGNORE/IGNOREMASK/IGNOREFOLDER, refresh handoffs; existing IgnoreOptions/IgnoreWindow implement rule chooser and writes.",
+  "actualReceiver": "Swift 6/macOS 13 receiver uses actual menu coordinator, AddWindowModel and IgnoreWindowModel. Case-insensitive common extension submenu, mixed extensions direct entries, nested containing folder and captured request routing pass. Real name, mask and folder rules remove hidden ignored rows after Add refresh. Cancelled child preserves checks and logical index. Working files and unrelated unchecked selections retained. Prior Add/open/clipboard/post-mode checks also pass.",
+  "productionBinding": "Compiled Add controller owns native Ignore sheet and repository lease, freezes parent via busy state, prevents parent cancel/close/quit while sheet is open and restores/refreshes on child close; sheet activation/cancel/close are not proved by the no-window receiver. RepositoryModel refreshes existing Working Tree/Commit and active cache on successful writes.",
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed; existing metric-system deprecation remains"
+  ],
+  "audits": "Both bundle validators and bundled NOTICE comparisons passed; original icons, extension and universal helpers plus Store Git runtime retained.",
+  "lastCoreRegression": {
+    "count": 490,
+    "failures": 0,
+    "log": "/tmp/turtlegit-add-post-full.log",
+    "sha256": "237d9b228b52ac18d833e1f53f2548ecde632b94622e90a0ca648de7f072e221",
+    "scope": "Prior regression; core implementation/API unchanged in this change, so full suite not repeated."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AddFileTable.swift": "cf2c737142cf9d668cc0e96fc185f4fa3e022388b88ff4b729200a1d93e4fd8f",
+    "Sources/TurtleGitMac/AddWindow.swift": "c9e7f54a11c7470d5e306400ff8827c684bc24f85f520be849822f06cce2294f",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "50ce4576da01eed72c41c25190ab6ee754f51d0d1d7f3fc545809369b3cb8e84",
+    "Sources/TurtleGitMac/IgnoreWindow.swift": "48ca00c23ae69917d2eb6758ab1713b5b41b599001dc58d0172f5d3844daeca3",
+    "scripts/test-add-dialog.py": "8665c21ab76cc7950bf5c6934750ee201d4dd13d878391b547e296001acfacd5"
+  },
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-add-ignore-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-ignore-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-ignore-native.log",
+      "sha256": "1ae16860449f73e77c59f8bed28ffd1aff2f149cad052649f2c6e8c5c1032446"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-ignore-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-ignore-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-ignore-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Real native Ignore sheet Apply/Cancel/window-close/parent restoration and quit gestures",
+    "Broader source visibility including removed copies, mixed ignored rows and submodules",
+    "Literal newline extension-mask handling and full recovery/error behavior",
+    "Full Add Delete/export/save/current-column and tracked-row context commands",
+    "Original Add background artwork and native light/dark comparison",
+    "Signed sandbox/Finder/AppStore distribution and GitHub publication authentication"
+  ],
+  "appProcesses": "No main app or receiver remained at final audit; no main app launched during checks",
+  "site": "Static documentation generation passed"
+}

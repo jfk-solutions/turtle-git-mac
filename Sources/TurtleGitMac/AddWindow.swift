@@ -14,9 +14,11 @@ private final class AddNativeWindow: NSWindow {
 }
 @MainActor final class AddWindowController: NSWindowController, NSWindowDelegate {
     let model: AddWindowModel
+    private let access: RepositoryAccessLease?
+    private var ignoreController: IgnoreWindowController?
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = AddWindowModel(repository: repository, access: access)
+        model = AddWindowModel(repository: repository, access: access); self.access = access
         let window = AddNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 480), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Add – TurtleGit"
         window.contentMinSize = NSSize(width: 580, height: 320); window.isReleasedWhenClosed = false
@@ -24,7 +26,23 @@ private final class AddNativeWindow: NSWindow {
         super.init(window: window); window.delegate = self; window.setFrameAutosaveName("AddDialog"); window.center()
         model.close = { [weak window] in window?.close() }
         model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
+        model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
         window.refresh = { [weak model] in model?.reload() }; window.accept = { [weak model] in model?.apply() }
+    }
+    private func ignore(_ paths: [String], mask: Bool) {
+        guard let window, window.attachedSheet == nil, ignoreController == nil, !model.busy, !model.confirmingQuit else { return }
+        do {
+            let controller = try IgnoreWindowController(repository: model.repository, access: access, paths: paths, mask: mask, delete: false)
+            guard let child = controller.window, model.beginIgnore() else { return }
+            var changed = false
+            controller.onChanged = { [weak model] output in changed = true; model?.onIgnoreChanged(output) }
+            controller.onClosed = { [weak self, weak child] in
+                guard let self else { return }
+                if let child, let parent = child.sheetParent { parent.endSheet(child) }
+                self.ignoreController = nil; self.model.finishIgnore(changed: changed)
+            }
+            ignoreController = controller; window.beginSheet(child)
+        } catch { model.error = error.localizedDescription }
     }
     private func openFile(_ path: String, action: AddFileOpenAction) {
         guard let window, !model.busy, !model.confirmingQuit, window.attachedSheet == nil else { return }
@@ -62,11 +80,23 @@ private final class AddNativeWindow: NSWindow {
     @Published var sortOrder = [KeyPathComparator(\AddDialogEntry.path)]
     private var paths: [String] = ["."]
     private var loaded = false
+    private(set) var ignoring = false
     private var cancellation = OperationCancellation()
     var close: () -> Void = {}
     var onAccepted: ([String]) -> Void = { _ in }
     var onPreview: (String) -> Void = { _ in }
     var onOpen: (String, AddFileOpenAction) -> Void = { _, _ in }
+    var onIgnore: ([String], Bool) -> Void = { _, _ in }
+    var onIgnoreChanged: (String) -> Void = { _ in }
+    func beginIgnore() -> Bool {
+        guard !busy, !confirmingQuit else { return false }
+        ignoring = true; busy = true; return true
+    }
+    func finishIgnore(changed: Bool) {
+        guard ignoring else { return }
+        ignoring = false; busy = false
+        if changed { reload() }
+    }
     var canApply: Bool { !busy && !confirmingQuit && !checked.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
     func setScope(_ paths: [String]) { self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = [] }
@@ -91,7 +121,7 @@ private final class AddNativeWindow: NSWindow {
             if cancellation.isCancelled { close() }
         }
     }
-    func cancel() { guard !confirmingQuit else { return }; if busy { cancellation.cancel() } else { close() } }
+    func cancel() { guard !confirmingQuit, !ignoring else { return }; if busy { cancellation.cancel() } else { close() } }
     func apply() { guard canApply else { return }; onAccepted(entries.filter { checked.contains($0.path) }.map(\.path)); close() }
     func addDropped(_ urls: [URL]) -> Bool {
         guard !busy, !confirmingQuit, !urls.isEmpty else { return false }

@@ -156,16 +156,56 @@ struct AddFileTable: NSViewRepresentable {
             guard let key = sender.representedObject as? String, let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(key)) else { return }
             column.isHidden.toggle(); UserDefaults.standard.set(!column.isHidden, forKey: key == "size" ? "Add.ShowSize" : "Add.ShowModifiedDate")
         }
+        var canIgnore: Bool { canAct && selectedRows.contains { $0.state == .untracked || $0.state == .deleted } }
+        func ignoreSelected(mask: Bool = false, folder: Bool = false) {
+            guard canIgnore else { return }
+            var paths = selectedRows.map(\.path)
+            if folder {
+                guard paths.count == 1 else { return }
+                let parent = (paths[0] as NSString).deletingLastPathComponent
+                guard !parent.isEmpty, parent != "." else { return }; paths = [parent]
+            } else if mask && !paths.contains(where: { !StatusListClipboard.fileExtension($0).isEmpty }) { return }
+            model.onIgnore(paths, mask)
+        }
+        @objc func ignoreNames() { ignoreSelected() }
+        @objc func ignoreExtensions() { ignoreSelected(mask: true) }
+        @objc func ignoreFolder() { ignoreSelected(folder: true) }
+        func updateIgnoreMenu(_ menu: NSMenu) {
+            for item in menu.items where item.representedObject as? String == "Add.Ignore" { menu.removeItem(item) }
+            guard canIgnore else { return }
+            let paths = selectedRows.map(\.path), extensions = paths.map { StatusListClipboard.fileExtension($0) }
+            let same = Set(extensions.map { $0.lowercased() }).count == 1
+            let title = paths.count == 1 ? (paths[0] as NSString).lastPathComponent : "Ignore \(paths.count) items"
+            func item(_ title: String, _ action: Selector? = nil) -> NSMenuItem {
+                let result = NSMenuItem(title: title, action: action, keyEquivalent: ""); result.target = self
+                result.image = MenuIcon.ignore.contextImage(); result.representedObject = "Add.Ignore"; return result
+            }
+            let index = menu.items.firstIndex(where: \.isSeparatorItem) ?? menu.items.count
+            if same {
+                let root = item("Ignore"); let submenu = NSMenu(); submenu.autoenablesItems = false
+                submenu.addItem(item(title, #selector(ignoreNames)))
+                if let ext = extensions.first, !ext.isEmpty { submenu.addItem(item("*" + ext, #selector(ignoreExtensions))) }
+                if paths.count == 1 {
+                    let parent = (paths[0] as NSString).deletingLastPathComponent
+                    if !parent.isEmpty, parent != "." { submenu.addItem(item(parent, #selector(ignoreFolder))) }
+                }
+                root.submenu = submenu; menu.insertItem(root, at: index)
+            } else {
+                menu.insertItem(item(title, #selector(ignoreNames)), at: index)
+                if extensions.contains(where: { !$0.isEmpty }) { menu.insertItem(item("Ignore \(paths.count) items by extension", #selector(ignoreExtensions)), at: index + 1) }
+            }
+        }
         func menuNeedsUpdate(_ menu: NSMenu) {
             if menu === table.menu {
+                updateIgnoreMenu(menu)
                 for item in menu.items where !item.isSeparatorItem {
-                    let icon: MenuIcon = item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
+                    let icon: MenuIcon = item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
                     item.image = icon.contextImage()
                     let single = [#selector(preview), #selector(editor), #selector(open), #selector(openWith), #selector(reveal)].contains(item.action)
                     let opensFile = [#selector(editor), #selector(open), #selector(openWith)].contains(item.action)
                     item.isHidden = opensFile && !selectedIsFile
                     item.isEnabled = canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile)
-                    for child in item.submenu?.items ?? [] { child.image = MenuIcon.copy.contextImage(); child.isEnabled = item.isEnabled }
+                    for child in item.submenu?.items ?? [] { child.image = (item.representedObject as? String == "Add.Ignore" ? MenuIcon.ignore : .copy).contextImage(); child.isEnabled = item.isEnabled }
                 }
             } else {
                 for item in menu.items { if let key = item.representedObject as? String { item.state = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(key))?.isHidden == false ? .on : .off } }

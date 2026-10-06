@@ -86,12 +86,56 @@ import TurtleGitCore
         precondition(cancelled.cancelled && !cancelled.success && !cancelled.busy)
         let after = try await repo.run(["diff", "--cached", "--name-only", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
         precondition(Set(after) == [file, ignored])
-        print("Actual Add receiver: context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("sub"), withIntermediateDirectories: true)
+        for path in ["ignore-a.txt", "ignore-b.TXT", "sub/folder.tmp", "mixed.data"] { try Data(path.utf8).write(to: folder.appendingPathComponent(path)) }
+        model.includeIgnored = false; try await model.read()
+        var ignoreRequests: [([String], Bool)] = []; model.onIgnore = { ignoreRequests.append(($0, $1)) }
+        model.highlighted = ["ignore-a.txt", "ignore-b.TXT"]; receiver.refresh(); receiver.menuNeedsUpdate(menu)
+        let sameExtension = menu.items.first { $0.title == "Ignore" }!
+        precondition(sameExtension.submenu?.items.map(\.title) == ["Ignore 2 items", "*.txt"])
+        receiver.ignoreSelected(mask: true); precondition(Set(ignoreRequests.last!.0) == ["ignore-a.txt", "ignore-b.TXT"] && ignoreRequests.last!.1)
+        model.highlighted = ["sub/folder.tmp"]; receiver.refresh(); receiver.menuNeedsUpdate(menu)
+        precondition(menu.items.first { $0.title == "Ignore" }!.submenu?.items.map(\.title) == ["folder.tmp", "*.tmp", "sub"])
+        receiver.ignoreSelected(folder: true); precondition(ignoreRequests.last!.0 == ["sub"] && !ignoreRequests.last!.1)
+        model.highlighted = ["ignore-a.txt", "mixed.data"]; receiver.refresh(); receiver.menuNeedsUpdate(menu)
+        precondition(menu.items.contains { $0.title == "Ignore 2 items" && $0.submenu == nil })
+        precondition(menu.items.contains { $0.title == "Ignore 2 items by extension" })
+        let oldChecks = model.checked, oldIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        precondition(model.beginIgnore() && !model.canApply); model.cancel(); receiver.ignoreSelected()
+        precondition(model.ignoring && model.busy && ignoreRequests.count == 2)
+        model.finishIgnore(changed: false); precondition(!model.busy && model.checked == oldChecks)
+        let afterCancel = try await repo.run(["ls-files", "--stage", "-z"]).stdout; precondition(afterCancel == oldIndex)
+        func applyIgnore(_ paths: [String], mask: Bool = false) async throws {
+            precondition(model.beginIgnore())
+            let ignore = IgnoreWindowModel(repository: repo, access: nil, options: try IgnoreOptions(paths: paths, mask: mask))
+            var finished = false
+            ignore.onRulesWritten = { _ in finished = true; model.finishIgnore(changed: true) }
+            ignore.apply()
+            for _ in 0..<300 {
+                if finished && !model.busy { break }
+                if let error = ignore.error { throw NSError(domain: error, code: 1) }
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            precondition(finished && !model.busy)
+        }
+        let unrelatedBytes = try Data(contentsOf: folder.appendingPathComponent(unchecked))
+        model.checked.remove(unchecked)
+        try await applyIgnore(["ignore-a.txt"])
+        precondition(!model.entries.contains { $0.path == "ignore-a.txt" } && !model.checked.contains(unchecked))
+        try await applyIgnore(["ignore-b.TXT"], mask: true)
+        precondition(!model.entries.contains { $0.path == "ignore-b.TXT" })
+        try await applyIgnore(["sub"])
+        precondition(!model.entries.contains { $0.path.hasPrefix("sub/") })
+        let finalIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let finalUnrelated = try Data(contentsOf: folder.appendingPathComponent(unchecked))
+        precondition(finalIndex == oldIndex && finalUnrelated == unrelatedBytes)
+        precondition(FileManager.default.fileExists(atPath: folder.appendingPathComponent("sub/folder.tmp").path))
+        print("Actual Add receiver: Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''
 with tempfile.TemporaryDirectory(prefix='TurtleGitAddDialogTest-') as directory:
     folder = pathlib.Path(directory); main = folder / 'Driver.swift'; main.write_text(driver); binary = folder / 'verify'
-    sources = ['AddWindow.swift', 'AddFileTable.swift', 'AddProgressWindow.swift', 'SelectionAllCheckbox.swift', 'CommandLabel.swift', 'Appearance.swift', 'AlternativeEditorSettings.swift']
+    sources = ['AddWindow.swift', 'AddFileTable.swift', 'AddProgressWindow.swift', 'SelectionAllCheckbox.swift', 'CommandLabel.swift', 'Appearance.swift', 'AlternativeEditorSettings.swift', 'IgnoreWindow.swift']
     subprocess.run(['xcrun', 'swiftc', '-swift-version', '6', '-parse-as-library', '-target', platform.machine() + '-apple-macos13.0', '-F', str(frameworks), '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(frameworks), *[str(root / 'Sources/TurtleGitMac' / s) for s in sources], str(main), '-o', str(binary)], check=True)
     subprocess.run([str(binary), str(folder / 'fixture')], check=True)
