@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-06",
+  "scope": "Log ten-choice Jump controls and selection-history navigation; full application parity remains incomplete",
+  "baseCommit": "f0b3435",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Original jumpup/jumpdown ICOs and upstream dropdown labels/order/default",
+    "Email, merge, parent, tag and local/remote branch navigation, exact pinned first/last selected scan rules and top-row/no-parent guards",
+    "FF modes use cancellable real Git ancestry across omitted intermediate commits",
+    "50-entry history with fork/reselection semantics, native highlight-only navigation, outside-list notice and repeated-target scroll requests",
+    "Owned ancestry cancellation on selection/reload/close, stale completion guards and exhausted-selection clearing with suppressible native warning"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 27,
+      "failures": 0,
+      "scope": "CommitHistoryTests (26) and MenuIconTests (1). Candidate direction/boundaries/multi-selection, parent/reference/email matches, history cap/forks, real FF ancestry, pre-cancel and stalled process/child cancellation, independent reader and unchanged index. Core/test sources unchanged after this run; final native scroll change checked separately."
+    },
+    "nativeReceiver": "Actual final native sources, activation prohibited: author-email target and scroll request, history highlight without selection replacement and repeated scroll request increments, exhausted selection/notice, stalled FF ancestry invalidation/child reaping with no stale selection/error and unchanged index. Existing hosted date/metadata/Actions and action queue checks also pass. No windows displayed or UI gestures.",
+    "nativeReceiverSource": {
+      "path": "/tmp/turtlegit-log-jump-receiver.swift",
+      "sha256": "f4757623cacdd1cd9ebc989a95767e2eddd31af940c791907dc9b59a3986d933"
+    },
+    "builds": [
+      "Final Debug unsigned passed",
+      "Final AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; all 85 pinned icon resources and Store --require-git audit passed.",
+    "fullRegression": "Focused affected suites only; historical 505-test full-suite evidence retains 122a2ac snapshot scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "ca45de266e2c1ae70f7a85724fd689058e3bd0f325fcddee951f257b056bdd5c",
+    "Sources/TurtleGitCore/MenuIcons.swift": "2d7cb3b430900cc196ee66c8e6ecebcd8aa8df342b1cff206046728d763e5271",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "98a15c60980ce6c1b3c9e2505a9b86d8db687fa837ad6ac0f30d745357ac6464",
+    "Sources/TurtleGitMac/LogWindow.swift": "2752d0b0d577afaff52368726b796b95439ae9a6fa3dc75fdeb909e3977c1e06",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "ebcdf0de42098947e2ac34767db3ec94aaa151240debefd331b79586c61b787c"
+  },
+  "pending": [
+    "Displayed arrow/dropdown gestures and scroll/highlight appearance in light/dark",
+    "Warning suppression and relaunch acceptance",
+    "Keyboard navigation and exact Windows multi-selection event ordering",
+    "Signed sandbox/Finder/App Store acceptance",
+    "Remaining dialogs and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-jump-tests.log",
+      "sha256": "a490941d3510a6869c9fd43fbf36b96cf1f76a3c0a264162bd145b90625c3f37"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-log-jump-native.log",
+      "sha256": "009697374a0c4b07dddb08d1bd26cfc2b61e32bfd399e6f4cf6a5a0caa63a500"
+    },
+    "native-build": {
+      "path": "/tmp/turtlegit-log-jump-native-build.log",
+      "sha256": "ce97865abdda1fb1edcd85b3ef4fff1c29ab3a1ed032439c65311a238b777df7"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-jump-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-jump-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-jump-debug-audit.log",
+      "sha256": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-jump-store-audit.log",
+      "sha256": "592834c8170194ee4051cc017d86e1c27c36897d88ca1a5ceb5a7291dcc33505"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-jump-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

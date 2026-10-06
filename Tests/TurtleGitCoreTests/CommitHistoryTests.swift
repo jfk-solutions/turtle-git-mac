@@ -742,6 +742,94 @@ final class CommitHistoryTests: XCTestCase {
         let relative = HistoryDateSettings(relative: true)
         XCTAssertTrue(relative.tagInfo(object, now: Date(timeIntervalSince1970: 1586092028 + 120)).contains("<person@example.invalid> 2 minutes ago"))
     }
+    func testJumpCandidatesAndSelectionHistoryFollowSourceRules() {
+        func entry(_ hash: String, _ parents: [String], _ email: String = "a", _ committer: String = "c") -> LogEntry {
+            LogEntry(hash: hash, author: "Author", date: "", subject: hash, parents: parents, email: email, committerEmail: committer)
+        }
+        var rows = [entry("tip", ["merge"]), entry("merge", ["left", "right"]), entry("left", ["base"]), entry("right", ["base"], "b", "d"), entry("base", [])]
+        rows[0].references = [.init(name: "refs/tags/release")]
+        rows[3].references = [.init(name: "refs/remotes/origin/side")]
+        XCTAssertEqual(HistoryJumpKind.allCases.map(\.rawValue), ["Author Email", "Committer Email", "Merge Point", "Parent 1", "Parent 2", "Tag", "Tag (FF)", "Branch", "Branch (FF)", "Selection History"])
+        XCTAssertEqual(HistoryJumpKind.authorEmail.candidates(entries: rows, selected: ["left"], up: true), [1, 0])
+        XCTAssertEqual(HistoryJumpKind.committerEmail.candidates(entries: rows, selected: ["left"], up: false), [4])
+        XCTAssertEqual(HistoryJumpKind.mergePoint.candidates(entries: rows, selected: ["base"], up: true), [1])
+        XCTAssertEqual(HistoryJumpKind.parent1.candidates(entries: rows, selected: ["left"], up: true), [1])
+        XCTAssertEqual(HistoryJumpKind.parent2.candidates(entries: rows, selected: ["right"], up: true), [1])
+        XCTAssertEqual(HistoryJumpKind.parent2.candidates(entries: rows, selected: ["merge"], up: false), [3])
+        XCTAssertEqual(HistoryJumpKind.tag.candidates(entries: rows, selected: ["base"], up: true), [0])
+        XCTAssertEqual(HistoryJumpKind.branch.candidates(entries: rows, selected: ["merge"], up: false), [3])
+        XCTAssertEqual(HistoryJumpKind.authorEmail.candidates(entries: rows, selected: ["merge", "right"], up: true), [2, 1, 0])
+        XCTAssertNil(HistoryJumpKind.authorEmail.candidates(entries: rows, selected: ["tip"], up: false)) // Pinned source guard in both directions.
+        XCTAssertNil(HistoryJumpKind.parent1.candidates(entries: rows, selected: ["base"], up: false))
+        XCTAssertNil(HistoryJumpKind.parent2.candidates(entries: rows, selected: ["left"], up: false))
+        XCTAssertNil(HistoryJumpKind.tag.candidates(entries: rows, selected: [], up: true))
+        var history = HistorySelectionNavigation()
+        XCTAssertNil(history.move(up: true)); history.add("")
+        for hash in ["a", "b", "c"] { history.add(hash) }
+        XCTAssertEqual(history.move(up: true), "b"); history.add("b")
+        XCTAssertEqual(history.move(up: false), "c")
+        _ = history.move(up: true); history.add("x")
+        XCTAssertEqual(history.hashes, ["a", "b", "x"]); XCTAssertNil(history.move(up: false))
+        _ = history.move(up: true); history.add("x"); XCTAssertEqual(history.location, 2)
+        for index in 0..<60 { history.add(String(index)) }
+        XCTAssertEqual(history.hashes.count, 50); XCTAssertEqual(history.hashes.first, "10")
+    }
+    func testFastForwardJumpUsesRealAncestryAndOwnedCancellation() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Jump"])
+        _ = try await repo.run(["config", "user.email", "jump@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        func commit(_ message: String) async throws -> String {
+            _ = try await repo.run(["commit", "--allow-empty", "-m", message])
+            return try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        }
+        let a = try await commit("base"), b = try await commit("middle"), c = try await commit("tip")
+        _ = try await repo.run(["checkout", "-b", "side", a]); let d = try await commit("side")
+        _ = try await repo.run(["checkout", "main"])
+        func row(_ hash: String) -> LogEntry { LogEntry(hash: hash, author: "Jump", date: "", subject: "") }
+        var rows = [row("ignored"), row(c), row(d), row(b), row(a)]
+        for index in [1, 2, 4] { rows[index].references = [.init(name: "refs/tags/release"), .init(name: "refs/heads/main")] }
+        let before = try? Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let branch = try await repo.historyJump(entries: rows, selected: [b], kind: .branch, up: true); XCTAssertEqual(branch, 2)
+        let ff = try await repo.historyJump(entries: rows, selected: [b], kind: .branchFF, up: true); XCTAssertEqual(ff, 1)
+        let down = try await repo.historyJump(entries: rows, selected: [c], kind: .tagFF, up: false); XCTAssertEqual(down, 4)
+        let stopped = OperationCancellation(); stopped.cancel()
+        do { _ = try await repo.historyJump(entries: rows, selected: [b], kind: .tagFF, up: true, cancellation: stopped); XCTFail() } catch is OperationCancellationFailure {}
+        let wrapper = root.appendingPathComponent("slow-jump")
+        let script = """
+        #!/bin/sh
+        case "$*" in
+          *merge-base*)
+            /bin/sleep 30 &
+            task_jump_child=$!
+            trap 'kill "$task_jump_child" 2>/dev/null; wait "$task_jump_child" 2>/dev/null; exit 143' TERM INT
+            echo "$$ $task_jump_child" > "$0.started"
+            wait "$task_jump_child"
+            ;;
+        esac
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
+        let slow = GitRepository(root: root, executable: wrapper), token = OperationCancellation()
+        let snapshot = rows
+        let task = Task { try await slow.historyJump(entries: snapshot, selected: [b], kind: .tagFF, up: true, cancellation: token) }
+        defer { token.cancel() }
+        let marker = URL(fileURLWithPath: wrapper.path + ".started"), deadline = Date().addingTimeInterval(5)
+        while !FileManager.default.fileExists(atPath: marker.path) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        guard FileManager.default.fileExists(atPath: marker.path) else { token.cancel(); _ = await task.result; XCTFail("Ancestry read never started"); return }
+        let pids = try String(contentsOf: marker).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
+        token.cancel()
+        do { _ = try await task.value; XCTFail() } catch is OperationCancellationFailure {} catch is GitCommandCancellationFailure {}
+        let reaped = Date().addingTimeInterval(3)
+        while Date() < reaped && pids.contains(where: { kill($0, 0) == 0 }) { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertEqual(pids.count, 2); XCTAssertTrue(pids.allSatisfy { kill($0, 0) != 0 })
+        let independent = try await repo.historyJump(entries: rows, selected: [b], kind: .tagFF, up: true); XCTAssertEqual(independent, 1)
+        XCTAssertEqual(try? Data(contentsOf: root.appendingPathComponent(".git/index")), before)
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

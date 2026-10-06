@@ -417,6 +417,16 @@
       "asset": "actionerror.ico",
       "source": "src/Resources/actionerror.ico",
       "sha256": "26ee77f3ac2bd131fae89f4b4ecd532d13772ecadd5bbba8e0677d67b2975c53"
+    },
+    {
+      "asset": "jumpup.ico",
+      "source": "src/Resources/jumpup.ico",
+      "sha256": "04a61700c50ceb3749ae71fba0a531ba4da2636bd92c21dc1fa1e2c7ce94a07f"
+    },
+    {
+      "asset": "jumpdown.ico",
+      "source": "src/Resources/jumpdown.ico",
+      "sha256": "d4a261284b30d5a60c2e57ba56fa5dda9e4c4de1e305f88cf81828527627b208"
     }
   ]
 }

@@ -197,6 +197,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Optional email/committer/date columns and a header menu support saved visibility,
   resizing/reordering and resetting columns. Settings → Dialogs offers short/long,
   relative and system-locale date display, with absolute tooltips for relative dates.
+  The upstream Jump dropdown navigates emails, merges, parents, tags, branches
+  (including fast-forward ancestry) and a 50-entry selection history.
   Refreshing or closing Log cancels its owned history, changed-file and clipboard
   detail reads.
   Search offers saved Subject/Message/Paths/Author/Email/Revision/Refname/Tag Info/Notes

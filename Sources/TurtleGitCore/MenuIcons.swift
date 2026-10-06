@@ -37,6 +37,7 @@ public enum MenuIcon: String, CaseIterable {
     case mergePreviousConflict = "UpRed", mergeNextConflict = "DownRed"
     case mergeUseMine = "UseMine", mergeUseTheirs = "UseTheirs"
     case mergeMineThenTheirs = "UseMineTheirs", mergeTheirsThenMine = "UseTheirsMine"
+    case jumpUp = "jumpup", jumpDown = "jumpdown"
     case actionModified = "actionmodified", actionAdded = "actionadded", actionDeleted = "actiondeleted"
     case actionReplaced = "actionreplaced", actionConflicted = "actionconflicted", actionFetching = "actionfetching", actionError = "actionerror"
     case normal = "status-normal", modified = "status-modified", added = "status-added", deleted = "status-deleted"

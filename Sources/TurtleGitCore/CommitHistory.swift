@@ -51,6 +51,56 @@ public struct LogRevisionActions: OptionSet, Sendable {
     }
 }
 
+/// Jump order and selection-history behavior from LogDlg.cpp/GitLogListBase.h.
+public enum HistoryJumpKind: String, CaseIterable, Sendable {
+    case authorEmail = "Author Email", committerEmail = "Committer Email", mergePoint = "Merge Point"
+    case parent1 = "Parent 1", parent2 = "Parent 2", tag = "Tag", tagFF = "Tag (FF)"
+    case branch = "Branch", branchFF = "Branch (FF)", selectionHistory = "Selection History"
+    public var requiresAncestry: Bool { self == .tagFF || self == .branchFF }
+    /// nil means the source handler returns without changing selection.
+    public func candidates(entries: [LogEntry], selected: Set<String>, up: Bool) -> [Int]? {
+        let indices = entries.indices.filter { selected.contains(entries[$0].hash) }
+        guard self != .selectionHistory, let first = indices.first, let last = indices.last, first != 0 else { return nil }
+        let origin = entries[first]
+        let parentIndex = self == .parent2 ? 1 : 0
+        if !up && (self == .parent1 || self == .parent2) && origin.parents.count <= parentIndex { return nil }
+        let rows = up ? Array((0..<last).reversed()) : Array((last + 1)..<entries.count)
+        return rows.filter { index in
+            let entry = entries[index]
+            switch self {
+            case .authorEmail: return entry.email == origin.email
+            case .committerEmail: return entry.committerEmail == origin.committerEmail
+            case .mergePoint: return entry.parents.count > 1
+            case .parent1, .parent2:
+                return up ? (entry.parents.count > parentIndex && entry.parents[parentIndex] == origin.hash) : entry.hash == origin.parents[parentIndex]
+            case .tag, .tagFF: return entry.references.contains { $0.name.hasPrefix("refs/tags/") }
+            case .branch, .branchFF: return entry.references.contains { $0.name.hasPrefix("refs/heads/") || $0.name.hasPrefix("refs/remotes/") }
+            case .selectionHistory: return false
+            }
+        }
+    }
+}
+public struct HistorySelectionNavigation: Sendable {
+    public private(set) var hashes: [String] = []
+    public private(set) var location = 0
+    public init() {}
+    public mutating func add(_ hash: String) {
+        guard !hash.isEmpty else { return }
+        if hashes.last == hash { location = hashes.count - 1; return }
+        if !hashes.isEmpty && location != hashes.count - 1 {
+            if hashes[location] == hash { return }
+            hashes.removeSubrange((location + 1)..<hashes.count)
+        }
+        if hashes.count >= 50 { hashes.removeFirst() }
+        hashes.append(hash); location = hashes.count - 1
+    }
+    public mutating func move(up: Bool) -> String? {
+        guard !hashes.isEmpty, up ? location > 0 : location + 1 < hashes.count else { return nil }
+        location += up ? -1 : 1
+        return hashes[location]
+    }
+}
+
 /// Date preferences and relative thresholds from LoglistUtils.cpp.
 /// macOS locale layout and timezone conversion use Foundation.
 public struct HistoryDateSettings: Equatable, Sendable {
@@ -325,6 +375,22 @@ public enum CommitGraph {
 }
 
 extension GitRepository {
+    /// FF jumps inspect the actual graph, including ancestors omitted by filters/limits.
+    public func historyJump(entries: [LogEntry], selected: Set<String>, kind: HistoryJumpKind, up: Bool, cancellation: OperationCancellation? = nil) throws -> Int? {
+        try cancellation?.check()
+        guard let candidates = kind.candidates(entries: entries, selected: selected, up: up) else { return nil }
+        guard kind.requiresAncestry else { return candidates.first }
+        guard let origin = entries.first(where: { selected.contains($0.hash) }) else { return nil }
+        for index in candidates {
+            try cancellation?.check()
+            let ancestor = up ? origin.hash : entries[index].hash
+            let descendant = up ? entries[index].hash : origin.hash
+            guard [ancestor, descendant].allSatisfy({ ($0.count == 40 || $0.count == 64) && $0.allSatisfy { $0.isHexDigit && $0.isASCII } }) else { throw RevisionComparisonFailure.range }
+            if try run(["merge-base", "--is-ancestor", ancestor, descendant], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0 { return index }
+        }
+        try cancellation?.check()
+        return nil
+    }
     public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil, dateSettings: HistoryDateSettings = .load()) throws -> [LogEntry] {
         try cancellation?.check()
         func historyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {

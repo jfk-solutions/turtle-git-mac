@@ -193,6 +193,57 @@ struct LogCommandRequest: Identifiable {
     @Published var searchFields = LogSearchSelection.load()
     @Published var searchRegex = UserDefaults.standard.bool(forKey: "UseRegexFilter")
     @Published var searchCaseSensitive = UserDefaults.standard.bool(forKey: "FilterCaseSensitively")
+    @Published var jumpKind = HistoryJumpKind.authorEmail
+    @Published var jumping = false
+    @Published var highlightedRevision: String?
+    @Published var scrollRevision: String?
+    @Published var scrollRequest = 0
+    @Published var navigationNotice: String?
+    var selectionNavigation = HistorySelectionNavigation()
+    private var jumpCancellation: OperationCancellation?
+    private var jumpGeneration = 0
+    private func cancelJump() {
+        jumpCancellation?.cancel(); jumpCancellation = nil; jumping = false; jumpGeneration += 1
+    }
+    func jump(up: Bool) {
+        guard !busy, !jumping else { return }
+        if jumpKind == .selectionHistory {
+            highlightedRevision = nil
+            if let hash = selectionNavigation.move(up: up) {
+                if entries.contains(where: { $0.hash == hash }) { highlightedRevision = hash; scrollRevision = hash; scrollRequest += 1 }
+                else { navigationNotice = "The revision \(hash) is not visible in the current log." }
+            }
+            return
+        }
+        let snapshot = entries, selection = selected, kind = jumpKind
+        guard kind.candidates(entries: snapshot, selected: selection, up: up) != nil else { return }
+        select([])
+        let token = OperationCancellation(); jumpCancellation = token; let request = jumpGeneration
+        jumping = true
+        Task {
+            do {
+                let index = try await repository.historyJump(entries: snapshot, selected: selection, kind: kind, up: up, cancellation: token)
+                guard request == jumpGeneration else { return }
+                jumpCancellation = nil; jumping = false
+                if let index { let hash = snapshot[index].hash; select([hash]); scrollRevision = hash; scrollRequest += 1 }
+                else { showJumpNotFound() }
+            } catch {
+                guard request == jumpGeneration else { return }
+                jumpCancellation = nil; jumping = false
+                if !token.isCancelled { self.error = error.localizedDescription }
+            }
+        }
+    }
+    private func showJumpNotFound() {
+        guard !UserDefaults.standard.bool(forKey: "NoJumpNotFoundWarning") else { return }
+        guard let window, window.attachedSheet == nil else { navigationNotice = "No more revisions found."; return }
+        let alert = NSAlert(); alert.messageText = "No more revisions found."; alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK"); alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = "Do not show this message again"
+        alert.beginSheetModal(for: window) { _ in
+            if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "NoJumpNotFoundWarning") }
+        }
+    }
     @Published var filterPaths = ""
     @Published var from = Date(timeIntervalSince1970: 0)
     @Published var to = Date()
@@ -297,6 +348,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func invalidate() {
+        cancelJump()
         cancelActionReads()
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
@@ -305,6 +357,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload(more: Bool = false) {
         guard !busy || loadingHistory else { return }
+        cancelJump(); highlightedRevision = nil; scrollRevision = nil
         cancelActionReads(); actionFailures = []
         detailCancellation?.cancel(); detailCancellation = nil; detailGeneration += 1
         historyCancellation?.cancel()
@@ -332,6 +385,8 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func select(_ hashes: Set<String>) {
+        cancelJump(); highlightedRevision = nil
+        for entry in entries where hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
         selected = hashes; selectedFiles = []; files = []
@@ -618,6 +673,12 @@ struct LogDialog: View {
                 } label: { CommandLabel(title: "Search in", icon: .log) }.disabled(model.busy)
                 TextField("Search log", text: $model.search).textFieldStyle(.roundedBorder).help(model.searchRegex ? "Use an ECMAScript regular expression; begin with ! to invert. Invalid expressions leave the filter inactive." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert the filter.").onSubmit { model.reload() }
                 Button("Search") { model.reload() }.disabled(model.busy)
+                Picker("Jump", selection: $model.jumpKind) {
+                    ForEach(HistoryJumpKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                }.labelsHidden().frame(width: 150).help("Jump to revision")
+                Button { model.jump(up: true) } label: { CommandLabel(title: "", icon: .jumpUp) }.help("Jump up").accessibilityLabel("Jump up").disabled(model.busy || model.jumping)
+                Button { model.jump(up: false) } label: { CommandLabel(title: "", icon: .jumpDown) }.help("Jump down").accessibilityLabel("Jump down").disabled(model.busy || model.jumping)
+
             }.font(.system(size: 12))
             VSplitView {
                 RevisionTable(model: model).frame(minHeight: 200, idealHeight: 350)
@@ -667,6 +728,9 @@ struct LogDialog: View {
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
+        .alert("Log navigation", isPresented: Binding(get: { model.navigationNotice != nil }, set: { if !$0 { model.navigationNotice = nil } })) {
+            Button("OK") { model.navigationNotice = nil }
+        } message: { Text(model.navigationNotice ?? "") }
         .sheet(item: $model.commandRequest) { request in LogRevisionDialog(model: model, request: request) }
 
     }
@@ -792,7 +856,9 @@ struct RevisionTable: NSViewRepresentable {
         let datesChanged = coordinator.dateSettings != dateSettings; coordinator.dateSettings = dateSettings
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
         let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) }
-        if signature != coordinator.signature || datesChanged {
+        let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
+        coordinator.highlightedRevision = model.highlightedRevision
+        if signature != coordinator.signature || datesChanged || highlightChanged {
             coordinator.signature = signature
             table.reloadData()
             if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
@@ -801,6 +867,10 @@ struct RevisionTable: NSViewRepresentable {
         }
         let indices = IndexSet(model.entries.enumerated().compactMap { model.selected.contains($0.element.hash) ? $0.offset : nil })
         if table.selectedRowIndexes != indices { table.selectRowIndexes(indices, byExtendingSelection: false) }
+        if coordinator.scrollRequest != model.scrollRequest {
+            coordinator.scrollRequest = model.scrollRequest
+            if let hash = model.scrollRevision, let row = model.entries.firstIndex(where: { $0.hash == hash }) { table.scrollRowToVisible(row) }
+        }
         coordinator.updating = false
         // A refresh may retain the same hashes while cancelling pending reads.
         // Restart visible missing cells even when the row signature is unchanged.
@@ -818,6 +888,8 @@ struct RevisionTable: NSViewRepresentable {
         var updating = false
         var signature: [String] = []
         var dateSettings = HistoryDateSettings.load()
+        var highlightedRevision: String?
+        var scrollRequest = 0
         init(model: LogWindowModel) { self.model = model }
         func numberOfRows(in tableView: NSTableView) -> Int { model.entries.count }
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
@@ -852,6 +924,7 @@ struct RevisionTable: NSViewRepresentable {
             let text = NSTextField(labelWithString: "")
             text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
             text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular)
+            if model.highlightedRevision == entry.hash { text.drawsBackground = true; text.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.3) }
             switch column?.identifier.rawValue {
             case "hash": text.stringValue = entry.hash; text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
             case "email": text.stringValue = entry.email

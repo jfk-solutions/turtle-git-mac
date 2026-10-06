@@ -80,6 +80,41 @@ Copy-detection/configuration variants, working-copy pseudo rows, incremental/bat
 reads, displayed scroll/header/light/dark acceptance and signed sandbox behavior
 remain pending. See [the Actions record](qa/log-actions-2026-10-06.json).
 
+## Jump navigation
+
+The top row now has the upstream ten-choice Jump dropdown in source order and
+original `jumpup.ico` / `jumpdown.ico` buttons: Author Email, Committer Email,
+Merge Point, Parent 1, Parent 2, Tag, Tag (FF), Branch, Branch (FF), Selection History.
+Email matches are exact; branches include local and remote refs. Up searches
+children for the selected first/second parent relationship, while Down searches
+that parent's own revision. FF modes inspect real Git ancestry rather than only
+loaded rows, so omitted intermediate commits do not break navigation.
+
+The pinned handlers use the first selected row as their comparison origin and
+start scanning beyond the last selected row; both return without changing
+selection when the first selected row is the top row. A missing parent in Down
+also leaves selection unchanged. An exhausted search clears selection and offers
+“No more revisions found.” with the saved Do not show again checkbox. The native
+implementation retains those source rules. Git failures surface as errors rather
+than silently treating a failed ancestry read as a nonmatch.
+
+Selection History retains at most 50 hashes, preserves forward history when the
+highlighted fork point is reselected, and drops forward entries for a new fork.
+Its arrows scroll/highlight the target without replacing selection or its details;
+a target outside the current list produces an informational notice. Native history
+records selected hashes in visible order; exact Windows event ordering for complex
+multi-selection remains pending. Reload, selection replacement and close cancel
+owned ancestry reads and reject stale completions. A normal jump selects and
+scrolls its match, then uses the existing changed-file reader.
+
+Core tests cover source boundary/multi-selection/parent/reference rules, selection
+history branching and length, actual FF ancestry across filtered-out intermediates,
+pre-cancel and owned stalled ancestry cancellation with reaped child and unchanged
+index. A headless native receiver checks selection, highlight-only history,
+exhaustion and invalidation. Displayed controls, arrow gestures, scroll/highlight
+appearance in light/dark, warning suppression/relaunch, keyboard navigation and
+signed sandbox acceptance remain pending. See [the jump record](qa/log-jump-2026-10-06.json).
+
 ## Search fields
 
 The search row now has a native Search in menu with independent Subject,
@@ -338,10 +373,10 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 
 | Area | Remaining behavior |
 | --- | --- |
-| Columns | Actions icons, column chooser/persistence, optional email/committer/bug/SVN columns |
+| Columns | ID/rebase and SVN columns; displayed header/reset and cross-launch persistence acceptance |
 | Graph | Working-tree pseudo revision, collapse/expand, hidden refs and all merge parent choices |
 | References | Branch/ref chooser, remote ref deletion and tracking menus |
-| Search/filter | Jump next/previous, full history scope controls, issue IDs, regex/advanced query syntax and highlighting; implemented fields are recorded above |
+| Search/filter | Full history scope controls, search highlighting, displayed jump/selection-history acceptance and keyboard navigation; implemented fields/modes are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
 | Revision menus | Repository browser, rebase onto selection, edit notes, export, format patch, bisect, squash, ref containment/search |
 | Mutations | Full branch/tag options, checkout branches, mainline choices for merge revert/cherry-pick, multi-commit operations, conflict continue/abort |
