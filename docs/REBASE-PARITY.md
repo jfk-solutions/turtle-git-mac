@@ -31,8 +31,9 @@ upstream's dropdown-only controls. Browse is a filtered reference list, not the
 complete reference/log browser. Edit now uses a multiline message tab and Continue
 applies it. Split opens full Commit selection dialogs, with durable part recovery.
 See [Edit/Split workflow](REBASE-SPLIT.md) and
-[Conflict Files](REBASE-CONFLICT-FILES.md). Checkbox-selected conflict Continue,
-full row menus, completed-row display and post-operation controls still need
+[Conflict Files](REBASE-CONFLICT-FILES.md). Pick/Edit conflict Continue now commits checked files and preserves unchecked
+changes through a recoverable native amend loop. Squash conflict selection,
+empty-result choices, full row menus, completed-row display and post-operation controls still need
 porting and comparison.
 
 When the commit list has focus, P/S/Q/E choose Pick/Skip/Squash/Edit. Space cycles

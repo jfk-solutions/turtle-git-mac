@@ -565,8 +565,8 @@ import UniformTypeIdentifiers
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
     }
     func loadReplaySplit(_ split: RebaseSplitState, message: String) {
-        replaySplit = split; amend = split.parts == 0; amendDiffToLastCommit = false
-        self.message = split.parts == 0 ? message : ""
+        replaySplit = split; amend = split.conflictRecovery == true || split.parts == 0; amendDiffToLastCommit = split.conflictRecovery == true
+        self.message = split.conflictRecovery == true || split.parts == 0 ? message : ""
         if split.parts == 0, let date = split.squashDate {
             setAuthor = true; author = split.firstAuthor
             if date != .current, let value = ISO8601DateFormatter().date(from: split.firstDate) { setAuthorDate = true; authorDate = value }

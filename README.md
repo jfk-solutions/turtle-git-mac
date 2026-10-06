@@ -298,7 +298,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   [Squash workflow](docs/REBASE-SQUASH.md). Edit uses multiline approval, and Split
   reuses full Commit selection with partial-history recovery.
   [Edit/Split workflow](docs/REBASE-SPLIT.md). Conflict Files now retains resolved
-  changes and routes native conflict editors and Resolve commands.
+  changes and routes native conflict editors and Resolve commands. Pick/Edit
+  Continue commits checked files and recovers remaining changes through native
+  Commit amendment sheets. Squash conflict selection remains pending.
   [Conflict workflow](docs/REBASE-CONFLICT-FILES.md).
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).

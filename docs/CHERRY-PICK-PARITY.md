@@ -119,5 +119,7 @@ parts and reopening after cancellation. See [Edit/Split](REBASE-SPLIT.md).
 The shared Conflict Files tab now retains resolved changes and routes existing
 native editors and Resolve commands with replay-specific side labels. A
 conflicted Edit cannot Split or amend destination HEAD before application.
-Checkbox-selected Continue and displayed acceptance remain pending.
+Pick/Edit checkbox-selected Continue now retains unchecked changes through a
+recoverable native amend loop. Squash conflict selection and displayed
+acceptance remain pending.
 See [Conflict Files](REBASE-CONFLICT-FILES.md).

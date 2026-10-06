@@ -72,6 +72,58 @@ final class RebaseTests: XCTestCase {
         let ancestry = try await reopened.run(["merge-base", "--is-ancestor", "upstream", "topic"]); XCTAssertTrue(ancestry.text.isEmpty)
         XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), "resolved\n")
     }
+    func testCheckedConflictCommitPreservesExcludedIndexAndRecoversAmendLoop() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        let plan = try await repo.rebasePlan(options()); _ = try await repo.startRebase(plan, editorExecutable: editor)
+        let head = try await repo.rebaseCommit("HEAD")
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let excluded = "excluded 雪\n.txt"
+        try Data("excluded content\n".utf8).write(to: root.appendingPathComponent(excluded)); try await repo.stage([excluded])
+        let state = try await repo.rebaseState()
+        let selected = try await repo.commitRebaseConflictSelection(message: "selected recovery", paths: [path], expected: state, expectedHead: head.hash)
+        XCTAssertEqual(selected.state.split?.conflictRecovery, true); XCTAssertEqual(selected.state.split?.parts, 1)
+        let applied = try await repo.rebaseCommit("HEAD")
+        XCTAssertEqual(applied.subject, "selected recovery"); XCTAssertEqual(applied.author, plan.entries[0].commit.author); XCTAssertEqual(applied.date, plan.entries[0].commit.date)
+        let files = try await repo.files(in: applied); XCTAssertEqual(files.map(\.path), [path])
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(excluded), encoding: .utf8), "excluded content\n")
+        let status = try await repo.status(); XCTAssertEqual(status.first(where: { $0.path == excluded })?.index, "A")
+        do { _ = try await repo.continueRebase(); XCTFail("Excluded changes must prevent automatic continuation") } catch RebaseFailure.plan {}
+        let reopened = GitRepository(root: root), captured = try await reopened.rebaseState().split!
+        var amendment = CommitOptions(); amendment.amend = true
+        _ = try await reopened.commitRebaseSplit(message: "completed recovery", paths: [excluded], staging: false, options: amendment, expected: captured)
+        let amended = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(amended.parents, applied.parents)
+        let all = try await reopened.files(in: amended); XCTAssertEqual(Set(all.map(\.path)), [path, excluded])
+        let completed = try await reopened.continueRebase(); XCTAssertEqual(completed.exitCode, 0, completed.output); XCTAssertFalse(completed.state.active)
+        let history = try await reopened.run(["log", "--format=%s", "upstream..HEAD"]).text; XCTAssertEqual(history, "second\ncompleted recovery\n")
+        let destination = try await reopened.rebaseCommit(head.hash); XCTAssertEqual(destination.subject, "upstream")
+    }
+    func testCheckedConflictRejectsUnresolvedStaleAndEmptySelectionsWithoutMovingHead() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        let plan = try await repo.rebasePlan(options()); _ = try await repo.startRebase(plan, editorExecutable: editor)
+        let state = try await repo.rebaseState(), head = try await repo.rebaseCommit("HEAD")
+        do { _ = try await repo.commitRebaseConflictSelection(message: "unresolved", paths: [path], expected: state, expectedHead: head.hash); XCTFail() } catch RebaseFailure.changed {}
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let resolved = try await repo.rebaseState()
+        do { _ = try await repo.commitRebaseConflictSelection(message: "none", paths: [], expected: resolved, expectedHead: head.hash); XCTFail() } catch RebaseFailure.plan {}
+        do { _ = try await repo.commitRebaseConflictSelection(message: "stale", paths: [path], expected: resolved, expectedHead: plan.branchHash); XCTFail() } catch RebaseFailure.changed {}
+        let unchanged = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(unchanged.hash, head.hash)
+    }
+    func testCheckedConflictEditKeepsRecoveryOnRejectedMessageAndAbortRestoresBranch() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
+        _ = try await repo.startRebase(plan, editorExecutable: editor)
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let state = try await repo.rebaseState(), destination = try await repo.rebaseCommit("HEAD")
+        let selected = try await repo.commitRebaseConflictSelection(message: "checked Edit", paths: [path], expected: state, expectedHead: destination.hash)
+        XCTAssertTrue(selected.state.isEditPause); XCTAssertTrue(selected.state.canSplit)
+        do { _ = try await repo.continueRebase(editMessage: " \n"); XCTFail("Blank approval") } catch RebaseFailure.message {}
+        let reopened = GitRepository(root: root), retry = try await reopened.rebaseState()
+        XCTAssertTrue(retry.isEditPause); XCTAssertEqual(retry.split?.expectedHead, selected.state.split?.expectedHead)
+        XCTAssertEqual(retry.message, "checked Edit\n")
+        let aborted = try await reopened.abortRebase(); XCTAssertEqual(aborted.exitCode, 0, aborted.output); XCTAssertFalse(aborted.state.active)
+        let restored = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(restored.hash, plan.branchHash)
+        let branch = try await reopened.branch(); XCTAssertEqual(branch, "topic")
+    }
     func testAbortRestoresOriginalBranchAndSkipDropsConflictingCommit() async throws {
         let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
         var plan = try await repo.rebasePlan(options()); _ = try await repo.startRebase(plan, editorExecutable: editor)

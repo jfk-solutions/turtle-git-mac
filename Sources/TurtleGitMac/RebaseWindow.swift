@@ -82,6 +82,9 @@ import TurtleGitCore
     @Published var conflictStatistics: [String: CommitFile] = [:]
     @Published var conflicts: [ConflictEntry] = []
     @Published var selectedConflicts = Set<String>()
+    @Published var checkedConflicts = Set<String>()
+    private var conflictHead = ""
+    var supportsConflictSelection: Bool { state?.stoppedAction == .pick || state?.stoppedAction == .edit }
     @Published var fileRecovery = false
     var onConflictAction: (RepositoryAction, [String]) -> Void = { _, _ in }
     @Published var conflictPatch: String?
@@ -118,6 +121,8 @@ import TurtleGitCore
     private var conflictStep: Int?
     private func loadConflictFiles() async throws {
         let current = state?.currentStep
+        let previousPaths = conflictStep == current ? Set(conflictRows.map(\.path)) : []
+        if !active || conflictStep != current { checkedConflicts = [] }
         if !active || conflictStep != current { conflictStep = nil }
         if state?.needsFileRecovery == true { conflictStep = current }
         fileRecovery = active && conflictStep == current
@@ -125,6 +130,9 @@ import TurtleGitCore
             conflicts = try await repository.conflicts(paths: [])
             conflictRows = try await repository.status().filter { $0.state != .untracked && $0.state != .ignored }
             conflictStatistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+            let paths = Set(conflictRows.map(\.path))
+            checkedConflicts.formIntersection(paths); checkedConflicts.formUnion(paths.subtracting(previousPaths))
+            conflictHead = try await repository.rebaseCommit("HEAD").hash
             selectedConflicts.formIntersection(Set(conflictRows.map(\.id)))
         } else { conflicts = []; conflictRows = []; conflictStatistics = [:]; selectedConflicts = [] }
     }
@@ -189,7 +197,7 @@ import TurtleGitCore
                 try requireAccess()
                 references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil; draftEntries = []
                 try await loadConflictFiles(); if fileRecovery { tab = 0 }
-                if active { splitCommit = state?.split != nil; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
+                if active { splitCommit = state?.split != nil && state?.split?.conflictRecovery != true; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
                 finished = false; plan = nil; recovered = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
                 if let cherryPick {
                     plan = try await repository.cherryPickPlan(revisions: cherryPick)
@@ -337,7 +345,8 @@ import TurtleGitCore
         }
     }
     func request(_ action: String) {
-        if action == "continue", splitCommit || state?.split != nil { beginSplitSelection(); return }
+        if action == "continue", splitCommit || state?.split != nil && state?.split?.conflictRecovery != true { beginSplitSelection(); return }
+        if action == "continue", state?.split?.conflictRecovery == true { resumeConflictSelection(); return }
         if action == "start", isCherryPick { prepareCherryPick(); return }
         if action == "start" { guard canStart else { return }; confirmation = "Start rewriting the selected branch using this commit plan?" }
         else if action == "abort" { confirmation = "Abort this \(operationTitle.lowercased()) and restore its original branch? Current conflict-resolution edits will be discarded." }
@@ -348,7 +357,8 @@ import TurtleGitCore
         guard !busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan; busy = true; tab = 2
         Task {
-            defer { busy = false; loadPendingHandoff() }
+            var followRecovery = false
+            defer { busy = false; if followRecovery { resumeConflictSelection(afterCommit: true) } else { loadPendingHandoff() } }
             do {
                 try requireAccess()
                 let result: RebaseExecution
@@ -356,7 +366,10 @@ import TurtleGitCore
                 case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; result = try await repository.startRebase(snapshot, editorExecutable: executable)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
-                default: result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage, editMessage: state?.isEditPause == true && state?.split == nil ? amendMessage : nil)
+                default:
+                    if fileRecovery, supportsConflictSelection, state?.split == nil, let captured = state {
+                        result = try await repository.commitRebaseConflictSelection(message: amendMessage, paths: checkedConflicts, expected: captured, expectedHead: conflictHead)
+                    } else { result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage, editMessage: state?.isEditPause == true ? amendMessage : nil) }
                 }
                 output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
                 try await loadConflictFiles()
@@ -365,6 +378,7 @@ import TurtleGitCore
                 else if fileRecovery { tab = 0; if result.exitCode != 0 { error = result.output } }
                 else if result.exitCode != 0 { error = result.output }
                 onChanged()
+                if action == "continue", state?.split?.conflictRecovery == true { followRecovery = true }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -376,12 +390,29 @@ import TurtleGitCore
             catch { busy = false; self.error = error.localizedDescription }
         }
     }
+    private func resumeConflictSelection(afterCommit: Bool = false) {
+        guard !busy, !selectingSplit, let continuation = state?.split, continuation.conflictRecovery == true else { return }; busy = true
+        Task {
+            do {
+                try requireAccess()
+                let remaining = try await repository.rebaseSplitHasRemainingChanges()
+                busy = false
+                if remaining { selectingSplit = true; showSplitSelection(continuation, amendMessage) }
+                else if afterCommit && state?.isEditPause == true { tab = 1 }
+                else { execute("continue") }
+            } catch { busy = false; self.error = error.localizedDescription }
+        }
+    }
     func splitSelectionClosed(committed: Bool) {
         guard selectingSplit else { return }; selectingSplit = false; busy = true
         Task {
             do {
-                state = try await repository.rebaseState(); splitCommit = state?.split != nil
+                state = try await repository.rebaseState(); splitCommit = state?.split != nil && state?.split?.conflictRecovery != true
                 guard committed else { if state?.split?.parts == 0 { try await repository.cancelUnstartedRebaseSplit(); state = try await repository.rebaseState(); splitCommit = false }; busy = false; loadPendingHandoff(); return }
+                if state?.split?.conflictRecovery == true {
+                    try await loadConflictFiles(); amendMessage = try await repository.rebaseCommit("HEAD").message
+                    busy = false; resumeConflictSelection(afterCommit: true); return
+                }
                 let remaining = try await repository.rebaseSplitHasRemainingChanges()
                 let another = remaining ? true : await chooseAnotherSplit()
                 busy = false
@@ -458,7 +489,7 @@ struct RebaseDialog: View {
                     }
                     }.tabItem { Text(model.fileRecovery ? "Conflict Files" : "Revision Files") }.tag(0)
                     Group {
-                        if model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
+                        if model.fileRecovery || model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
                                 TextEditor(text: $model.amendMessage).font(.system(.body, design: .monospaced)).accessibilityLabel(model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message")
@@ -505,6 +536,7 @@ struct RebaseConflictFiles: View {
     @ObservedObject var model: RebaseWindowModel
     var body: some View {
         Table(model.conflictRows, selection: $model.selectedConflicts) {
+            TableColumn("✓") { entry in Toggle("Commit \(entry.path)", isOn: Binding(get: { model.checkedConflicts.contains(entry.path) }, set: { if $0 { model.checkedConflicts.insert(entry.path) } else { model.checkedConflicts.remove(entry.path) } })).labelsHidden().toggleStyle(.checkbox).disabled(!model.supportsConflictSelection) }.width(28)
             TableColumn("Path") { entry in HStack(spacing: 5) { Image(nsImage: entry.state.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(entry.state.textColor) } }
             TableColumn("Extension") { Text(($0.path as NSString).pathExtension) }.width(70)
             TableColumn("Status") { Text($0.state.rawValue.capitalized).foregroundStyle($0.state.textColor) }.width(110)

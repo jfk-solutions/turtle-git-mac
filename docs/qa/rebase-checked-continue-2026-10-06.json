@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "9a77dcb",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Pick/Edit checked conflict Continue, retained excluded index/worktree changes, recoverable native Commit amend loop and applied Edit approval",
+  "sha256": {
+    "Sources/TurtleGitCore/CommitAmend.swift": "7cfe1a554be7d94550a89045be315bf83a2a69941e185c94e677d4a3f54ac7be",
+    "Sources/TurtleGitCore/Rebase.swift": "61938a149292742e6be4f4a1c3ec7fd7acb84a43c7d637c5e0226240e1278894",
+    "Sources/TurtleGitMac/CommitWindow.swift": "689388c51c93754758c04e0bee08ec204479eeb52ad6abc85396b1fd24c69fdf",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "9a77a9c9bafabca19c12c66ec78fdb453479b50266b18a9667bb5318ec4ac128",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "8120da68192a2fbc9eaedf1ef99b2a7e04358291c680838fc823bb55a2f059ce",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "7f0c54159aee4521f34b2295a0b67d775e4e89928520e5e87a84f6c28c17288c",
+    "README.md": "80b5e439385adf07eb7ef530d21a26d284e9c9dc42d89b100ed6f2a8cf2b9fae",
+    "docs/REBASE-PARITY.md": "594e8bd1fbfb61c2e55bc6538d84c5aff35624d6950f92964121bf9adffc6f38",
+    "docs/CHERRY-PICK-PARITY.md": "8159b2bb0ef5a2275d7b446980147e1b8a82e6886442697024e54cf8e021ce61",
+    "docs/REBASE-CONFLICT-FILES.md": "a6a3d29befd3ef0eaf5a5a65d47db58dcbaea4f2559ab1506ebb2226b80a6a06"
+  },
+  "all_native_sources_manifest_sha256": "04752955a67036dfec63abbf4c6e09773c5d268f9dbcbc0cbdf6f57d7716b455",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON mapping relative Swift source paths to file SHA256, default json.dumps separators",
+  "verification": {
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 35,
+      "failures": 0,
+      "new_coverage": [
+        "Checked conflict commit excludes staged added Unicode/newline path without changing its contents",
+        "Source author and original author-date timezone retained",
+        "Unchecked dirty tree blocks automatic Continue",
+        "Reopened amendment adds excluded files without an extra commit and replays future commits",
+        "Unresolved, stale and empty selection rejection leaves HEAD unchanged",
+        "Rejected Edit message preserves continuation/HEAD; Abort restores original branch"
+      ]
+    },
+    "shared_commit_tests": {
+      "command": "swift test --skip-build --filter 'Commit(Selection|Amend|FileMode)Tests'",
+      "tests": 21,
+      "failures": 0
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Actual six-column checkbox table and independent checked-path state",
+        "Checked conflict-only commit excludes clean addition from first tree",
+        "Actual full Commit model opens in amend-to-current mode",
+        "Cancel/reopening restores amendment workflow",
+        "Amendment retains first tree plus excluded addition without adding a commit",
+        "Applied conflicted Edit pauses for multiline approval, then final Continue"
+      ],
+      "regressions": "Existing Log, keyboard/reorder, draft/Add/repeated identities, merge/Edit/reopening, empty patch, squash, Split, conflict editor routing and Resolve checks pass",
+      "limits": "Hidden hosted views; sheet/editor handoffs and confirmation answers injected. No displayed gesture/layout/accessibility or signed execution acceptance"
+    },
+    "swift_build": "passed",
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "build": "074675c8ff4cd5abdfad0e7c2d9f2ba3072988e115ebd4b36406c64a84a8ab71",
+    "tests": "f28031f8138b850a653524ff78641febc69cba17904edc79001a5114e0e6b591",
+    "commit-tests": "95802d771b0627cba43c374f56ad3da4f1680063ff41c69a8ab4624e08cd3dcb",
+    "native": "7f2c5b523c99c2eeddb69ddc9d847a7d2ca4c713ec011d1bee940ea2b7714bfc",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Squash conflict checkbox selection; checkboxes disabled and existing staged Continue used",
+    "Commit/Skip/Cancel choices for empty results and conflict-message hint warnings",
+    "Remaining contextual commands and displayed layout/keyboard/accessibility acceptance",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Port upstream Commit/Skip/Cancel empty-result choices and conflict-message hint confirmation; current checked path rejects an empty selection/tree while native Skip remains available. Then integrate Squash conflict selection with combined-message handling.",
+    "sources": [
+      "src/TortoiseProc/RebaseDlg.cpp: Conclict continuation, IDS_CHERRYPICK_EMPTY and MessageContainsConflictHints",
+      "Sources/TurtleGitCore/Rebase.swift: commitRebaseConflictSelection",
+      "Sources/TurtleGitMac/RebaseWindow.swift: supportsConflictSelection"
+    ]
+  },
+  "processes": "Main app not launched; hidden receiver-owned windows closed, receivers exited; final app/receiver process audit empty"
+}

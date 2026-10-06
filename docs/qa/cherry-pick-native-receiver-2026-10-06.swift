@@ -94,7 +94,7 @@ import TurtleGitCore
     precondition(model.conflicts.map(\.path) == [path] && Set(model.conflictRows.map(\.path)) == [path, clean])
     let host = NSHostingView(rootView: RebaseConflictFiles(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1000, height: 300); host.layoutSubtreeIfNeeded()
     guard let table = findTable(host) else { fatalError("Actual Conflict Files table unavailable") }
-    precondition(table.numberOfRows == 2 && table.tableColumns.count == 5)
+    precondition(table.numberOfRows == 2 && table.tableColumns.count == 6)
     model.compareConflicts([path]); try await settle(model); precondition(model.conflictPatch?.contains("base-recovery") == true); model.conflictPatch = nil
     var edited: [String] = [], resolve: ResolveWindowModel?
     model.onConflictAction = { action, paths in
@@ -113,10 +113,46 @@ import TurtleGitCore
     let resolvedText = try String(contentsOf: repo.root.appendingPathComponent(path), encoding: .utf8); precondition(resolvedText == "from-replay\n")
     let reopened = RebaseWindowModel(repository: repo, access: nil); reopened.editorExecutable = editor; reopened.load(); try await settle(reopened)
     precondition(reopened.fileRecovery && !reopened.canSplit && Set(reopened.conflictRows.map(\.path)) == [path, clean])
-    reopened.request("continue"); try await settle(reopened); precondition(reopened.finished && !reopened.active && !reopened.fileRecovery)
+    precondition(reopened.checkedConflicts == [path, clean])
+    var children: [CommitWindowModel] = []
+    func installRecovery(_ owner: RebaseWindowModel) {
+        owner.showSplitSelection = { [weak owner] continuation, text in
+            guard let owner else { return }
+            let child = CommitWindowModel(repository: repo, access: nil); children.append(child)
+            var committed = false
+            child.onCommitted = { _ in committed = true }
+            child.close = { [weak owner] in owner?.splitSelectionClosed(committed: committed) }
+            child.confirmCancel = { answer in answer(true) }; child.loadReplaySplit(continuation, message: text)
+        }
+    }
+    installRecovery(reopened); reopened.checkedConflicts = [path]; reopened.amendMessage = "Native checked recovery"
+    reopened.request("continue"); try await settle(reopened)
+    let opening = Date().addingTimeInterval(30)
+    while children.isEmpty && Date() < opening { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(children.count == 1 && reopened.selectingSplit)
+    let partial = try await repo.rebaseCommit("HEAD"), partialFiles = try await repo.files(in: partial)
+    precondition(partial.subject == "Native checked recovery" && partialFiles.map(\.path) == [path])
+    let first = children[0]; try await settleCommit(first)
+    precondition(first.amend && !first.amendToParent && first.replaySplit?.conflictRecovery == true)
+    first.cancel(); try await settle(reopened)
+    let restored = RebaseWindowModel(repository: repo, access: nil); restored.editorExecutable = editor; installRecovery(restored)
+    restored.load(); try await settle(restored); precondition(restored.state?.split?.conflictRecovery == true)
+    restored.request("continue"); try await settle(restored)
+    let nextOpening = Date().addingTimeInterval(30)
+    while children.count < 2 && Date() < nextOpening { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(children.count == 2); let next = children[1]; try await settleCommit(next)
+    next.stagingEnabled = false; next.checked = [clean]; next.message = "Native complete recovery"; next.commit()
+    try await settleCommit(next); try await settle(restored)
+    let closing = Date().addingTimeInterval(30)
+    while restored.selectingSplit && Date() < closing { try await Task.sleep(nanoseconds: 10_000_000) }
+    try await settle(restored); precondition(restored.active && restored.state?.isEditPause == true && restored.tab == 1)
+    restored.amendMessage = "Native recovery Edit approved"; restored.request("continue"); try await settle(restored)
+    precondition(restored.finished && !restored.active && !restored.fileRecovery)
+    let complete = try await repo.rebaseCommit("HEAD"), completeFiles = try await repo.files(in: complete)
+    precondition(complete.parents == partial.parents && Set(completeFiles.map(\.path)) == [path, clean] && complete.subject == "Native recovery Edit approved")
     let preserved = try await repo.rebaseCommit(destination.hash); precondition(preserved.subject == "recovery onto")
     let ancestor = try await repo.run(["merge-base", "--is-ancestor", base.hash, "HEAD"]); precondition(ancestor.exitCode == 0)
-    print("Actual Conflict Files: five-column native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application and final Continue passed. Editor/confirmation routing injected.")
+    print("Actual Conflict Files: six-column checkbox native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application checked-file commit, unchecked retention, amendment sheet Cancel/reopening, applied Edit approval and final Continue passed. Sheets/editor/confirmation routing injected.")
 }
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)

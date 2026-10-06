@@ -53,7 +53,7 @@ extension GitRepository {
         let base = try commitComparisonBase(amendToParent: true)
         return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked))
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:]) throws -> String {
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil) throws -> String {
         let tracked = Set(try trackedPaths())
         let retainedDeletes = Set(checked.filter { $0.index == "D" && $0.hasUnversionedCopy }.map(\.path))
         var paths = checked.filter { !retainedDeletes.contains($0.path) }.map(\.path)
@@ -67,7 +67,8 @@ extension GitRepository {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
-        let environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
+        var environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
+        if let preservedAuthorDate { environment["GIT_AUTHOR_DATE"] = preservedAuthorDate }
         _ = try run(["read-tree", base], environmentOverrides: environment)
         if !paths.isEmpty {
             _ = try run(["add", "--all", "--"] + Array(Set(paths)).sorted(), environmentOverrides: environment)
