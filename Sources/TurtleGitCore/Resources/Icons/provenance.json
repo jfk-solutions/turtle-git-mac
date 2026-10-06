@@ -432,6 +432,26 @@
       "asset": "menusendmail.ico",
       "source": "src/Resources/menusendmail.ico",
       "sha256": "97d40fbf59decb0bba367e1d9d89fd6a7785a0a44e753dfc9ab48ab43907681b"
+    },
+    {
+      "asset": "menubisect.ico",
+      "source": "src/Resources/menubisect.ico",
+      "sha256": "58739b252dd8478eada4b2424e58a0a0d4a765343d4065e3ac32acf7442b48db"
+    },
+    {
+      "asset": "menubisectreset.ico",
+      "source": "src/Resources/menubisectreset.ico",
+      "sha256": "927eeca831fea855fc9d13174b129fc8ae1a7f915d4bf6fa04ca8eb730390956"
+    },
+    {
+      "asset": "thumb_up.ico",
+      "source": "src/Resources/thumb_up.ico",
+      "sha256": "849af58cf1cb30f8b68545e11da98859adba81d72aec16350c1f2d5d5f577dc8"
+    },
+    {
+      "asset": "thumb_down.ico",
+      "source": "src/Resources/thumb_down.ico",
+      "sha256": "1c91526a867705f50415eb7744016e49c35d9428e929e38b9d044f8d1503517f"
     }
   ]
 }

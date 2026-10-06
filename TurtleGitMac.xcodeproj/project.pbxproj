@@ -126,6 +126,7 @@
 		BBF557294334CDAEE1937ADD /* NativeWatermarkTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */; };
 		BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */; };
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
+		C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2889759BB2F79152E342606E /* BisectWindow.swift */; };
 		C23CCEFA7DA0A805EFCE94C7 /* GitBlamePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C02E4063D7394453CC537A /* GitBlamePreferences.swift */; };
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
 		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
@@ -247,6 +248,7 @@
 		244AD68D8412684F520E64AC /* ReferenceCreation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCreation.swift; sourceTree = "<group>"; };
 		26B86A4879EF89058692598F /* ExportWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportWindow.swift; sourceTree = "<group>"; };
 		2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffViewerSettings.swift; sourceTree = "<group>"; };
+		2889759BB2F79152E342606E /* BisectWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BisectWindow.swift; sourceTree = "<group>"; };
 		28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeScanner.swift; sourceTree = "<group>"; };
 		29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListClipboard.swift; sourceTree = "<group>"; };
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
@@ -403,6 +405,7 @@
 				58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */,
 				B16F443B326FDAB1414D334B /* Appearance.swift */,
 				5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */,
+				2889759BB2F79152E342606E /* BisectWindow.swift */,
 				9ABE7B92864A28F4229F6063 /* BlameSettings.swift */,
 				147C1880748CAF195D6A19CA /* BlameWindow.swift */,
 				136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */,
@@ -877,6 +880,7 @@
 				338C2F4E08F8FCB953636C45 /* AlternativeEditorSettings.swift in Sources */,
 				D710492DFFD4B6D5AF1A322E /* Appearance.swift in Sources */,
 				230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */,
+				C0DFDDFC2CEFE1853FEDEA84 /* BisectWindow.swift in Sources */,
 				C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */,
 				04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */,
 				7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */,

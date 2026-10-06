@@ -63,6 +63,14 @@ extension GitRepository {
         do { return try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines) }
         catch { throw BisectFailure.revision }
     }
+    /// The native Stash/Abort prompt calls this only after explicit Stash.
+    public func stashBeforeBisect() throws -> StashSaveResult {
+        guard try !isBare() else { throw BisectFailure.workingTree }
+        guard try !bisectState().active, try !logMergeActive(), try !rebaseState().active,
+              try !FileManager.default.fileExists(atPath: bisectPath("CHERRY_PICK_HEAD").path),
+              try !FileManager.default.fileExists(atPath: bisectPath("REVERT_HEAD").path) else { throw BisectFailure.active }
+        return try saveStash(StashSaveOptions())
+    }
     /// Like upstream, run Start, Good, Bad in order. A checkout failure leaves
     /// Git's active session recoverable through Reset instead of hiding it.
     public func startBisect(good: String, bad: String) throws -> BisectExecution {

@@ -1,9 +1,10 @@
 # Bisect parity
 
 The repository engine now implements Bisect Start, Good, Bad, Skip and Reset.
-**These operations are not yet exposed by native dialogs, Log menus or Finder.**
-This is the backend prerequisite for porting the upstream Bisect workflow, not
-completed application parity.
+The repository sidebar now opens a native Bisect window. The start view follows
+upstream's two-row Good/Bad layout; the same window expands to show Git output
+and continuation controls. **Log and Finder entry points remain pending.**
+This does not establish complete Bisect or application parity.
 
 ## Upstream contract
 
@@ -54,12 +55,42 @@ active-session refusal, and an untracked checkout obstruction whose exact bytes
 survive failure and Reset. A failed checkout remains an active recoverable
 session; the backend does not report it as a successful search step.
 
+## Native workflow
+
+Both revision fields are editable native combo boxes populated from branch,
+remote-branch and tag labels, with a single-selection Log picker beside each.
+Good defaults empty; Bad defaults to the current branch or HEAD. The initial
+OK button requires both fields. Inputs stay disabled while a session is active.
+
+Starting with tracked changes offers **Abort / Stash**. Abort leaves the tree
+and index alone. Stash invokes the existing tracked-only stash workflow after
+an explicit response, then revalidates and starts Bisect. Stashes are retained;
+untracked files are not included or removed. The helper rejects active merge,
+replay and Bisect sessions before stashing. It never auto-applies the stash.
+
+After Start the native window shows Git output and **Bisect good**, **Bisect
+bad**, **Bisect skip**, **Bisect reset**, using the unchanged upstream artwork.
+A fresh window recovers an external or interrupted session and uses its custom
+terms for button captions and commands. A Git failure preserves output/state
+and enables Reset while disabling further classification in that result view.
+A located culprit is shown with its full hash. Reset restores Git's original
+branch and retains output. The window remains available until Close.
+
+When submodule configuration exists, successful progress also exposes the
+existing Submodule Update dialog through a callback. This handoff still needs
+native acceptance. Root-model callbacks refresh repository, status, commit and
+Log views after state changes. Repeated activation reuses one window per
+repository. Close and Quit are refused during Git operations or attached sheets.
+
+This adapts upstream's separate start/progress windows to a native start window
+that expands for progress. It retains the two-field start layout and operation
+choices; displayed sizing and appearance are not yet verified.
+
 ## Remaining work
 
-The native two-row start dialog, editable reference lists, Log pickers and
-Stash/Abort prompt are pending. So are progress/continuation UI, custom-term
-labels, original icons, Log/Finder entry points and fresh-state menu rules,
-Submodule Update handoff, displayed light/dark verification, keyboard and
-accessibility checks, screenshots and signed sandbox acceptance. Broader Git
+Log/Finder command entry points, selected-revision classification and fresh-state
+menu rules remain pending. So do activated Log pickers, native alert interaction,
+Submodule Update handoff acceptance, progress cancellation, displayed light/dark verification, keyboard
+and accessibility checks, screenshots and signed sandbox acceptance. Broader Git
 session variants need additional acceptance alongside the normal checkout
 workflow. Full TortoiseGit and App Store parity remain incomplete.

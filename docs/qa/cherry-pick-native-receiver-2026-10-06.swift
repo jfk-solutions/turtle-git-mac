@@ -709,6 +709,72 @@ import TurtleGitCore
     precondition(!window.isVisible)
     print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy/Preserve guards passed. Events injected; no displayed keyboard acceptance.")
 }
+@MainActor func verifyNativeBisect(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitBisectNative-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "-b", "main"])
+    _ = try await repo.run(["config", "user.name", "Bisect Native QA"])
+    _ = try await repo.run(["config", "user.email", "bisect@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgsign", "false"])
+    var hashes: [String] = []
+    for step in 0...7 {
+        try Data("step \(step)\n".utf8).write(to: root.appendingPathComponent("change"))
+        try await repo.stage(["change"]); _ = try await repo.commit(message: "step \(step)")
+        hashes.append(try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines))
+    }
+    func wait(_ model: BisectWindowModel) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!model.busy)
+    }
+    let controller = BisectWindowController(repository: repo, access: nil); defer { controller.close() }
+    let model = controller.model; try await wait(model)
+    guard let window = controller.window else { fatalError("Bisect window missing") }
+    window.contentView?.layoutSubtreeIfNeeded()
+    func combos(_ view: NSView) -> [NSComboBox] { (view as? NSComboBox).map { [$0] } ?? view.subviews.flatMap(combos) }
+    let fields = window.contentView.map(combos) ?? []
+    precondition(fields.count == 2 && fields.allSatisfy { $0.objectValues.contains { ($0 as? String) == "main" } })
+    precondition(model.good.isEmpty && model.bad == "main" && !model.canStart && !window.isVisible)
+    for operation in BisectOperation.allCases { precondition(operation.icon.image() != nil) }
+    model.good = hashes[0]; model.bad = "HEAD"; precondition(model.canStart)
+    model.busy = true; precondition(controller.activeOperation && !controller.windowShouldClose(window)); model.busy = false
+    let dirty = Data("dirty tracked bytes".utf8), untracked = Data("keep untracked".utf8)
+    try dirty.write(to: root.appendingPathComponent("change")); try untracked.write(to: root.appendingPathComponent("untracked"))
+    var prompts = 0
+    model.confirmStash = { prompts += 1; return false }; model.start(); try await wait(model)
+    precondition(model.error == nil && prompts == 1 && model.state?.active == false)
+    let keptDirty = try Data(contentsOf: root.appendingPathComponent("change")); precondition(keptDirty == dirty)
+    let noStash = try await repo.run(["rev-parse", "--verify", "refs/stash"], successfulExitCodes: 0...128); precondition(noStash.exitCode != 0)
+    model.confirmStash = { prompts += 1; return true }; model.start(); try await wait(model)
+    precondition(model.error == nil && prompts == 2 && model.state?.active == true && window.contentLayoutRect.height >= 440)
+    do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
+    let stash = try await repo.run(["show", "stash:change"]).stdout; precondition(stash == dirty)
+    let reopened = BisectWindowController(repository: repo, access: nil); defer { reopened.close() }
+    try await wait(reopened.model); precondition(reopened.model.state?.active == true && reopened.model.state?.originalRevision == "main")
+    for _ in 0..<10 {
+        if reopened.model.state?.firstBadCommit != nil { break }
+        let current = hashes.firstIndex(of: reopened.model.state!.head)!
+        reopened.model.perform(current >= 4 ? .bad : .good); try await wait(reopened.model); precondition(reopened.model.error == nil)
+    }
+    precondition(reopened.model.state?.firstBadCommit == hashes[4]); reopened.model.perform(.reset); try await wait(reopened.model)
+    precondition(reopened.model.state?.active == false && reopened.model.state?.head == hashes[7])
+    reopened.model.good = hashes[0]; reopened.model.bad = "HEAD"; reopened.model.start(); try await wait(reopened.model)
+    reopened.model.perform(.skip, revisions: Array(hashes[1...6])); try await wait(reopened.model)
+    precondition(reopened.model.lastExitCode != 0 && reopened.model.error != nil && reopened.model.canPerform(.reset) && !reopened.model.canPerform(.good))
+    reopened.model.error = nil; reopened.model.perform(.reset); try await wait(reopened.model); precondition(reopened.model.error == nil)
+    _ = try await repo.run(["bisect", "start", "--term-good=old", "--term-bad=new", hashes[7], hashes[0]])
+    reopened.model.load(); try await wait(reopened.model)
+    precondition(reopened.model.title(.good) == "Bisect old" && reopened.model.title(.bad) == "Bisect new")
+    reopened.model.perform(.good, revisions: [hashes[1]]); try await wait(reopened.model); precondition(reopened.model.error == nil)
+    reopened.model.perform(.reset); try await wait(reopened.model)
+    let branch = try await repo.branch(); precondition(branch == "main")
+    do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
+    var closed = false; reopened.onClosed = { closed = true }; reopened.close(); precondition(closed && !window.isVisible)
+    print("Native Bisect: real hidden two-combo dialog, defaults/icons, Stash Abort/accept with exact saved bytes and untracked preservation, fresh session reopening, regression classification/Reset, ambiguous Skip recovery, custom labels and owned-window cleanup passed. Prompt replies injected.")
+}
+
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
     let preference = "CherrypickAddCherryPickedFrom", saved = UserDefaults.standard.object(forKey: "CherrypickAddCherryPickedFrom")
@@ -742,6 +808,7 @@ import TurtleGitCore
     let merge = try await repo.rebaseCommit("HEAD")
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); try await verifyNativeRepeatedAndOmittedReferences(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
+    try await verifyNativeBisect(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])

@@ -228,7 +228,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, add, revert, submoduleUpdate, log, repositoryBrowser, export, formatPatch, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
+    case status, commit, add, revert, submoduleUpdate, log, repositoryBrowser, export, bisect, formatPatch, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -239,6 +239,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .submoduleUpdate: return "Submodule Update…"
         case .log: return "Show log"
         case .repositoryBrowser: return "Repo-browser…"
+        case .bisect: return "Bisect…"
         case .export: return "Export…"
         case .formatPatch: return "Create Patch Serial…"
         case .worktreeCreate: return "New Worktree…"
@@ -284,7 +285,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .add, .revert, .submoduleUpdate, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .add, .revert, .submoduleUpdate, .diff, .bisect, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"

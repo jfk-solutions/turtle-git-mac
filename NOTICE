@@ -328,3 +328,10 @@ behavior remain unfinished.
 
 Original menusendmail.ico is retained unchanged for Rebase-after-Fetch completion
 controls; provenance records its upstream resource and exact SHA-256.
+
+Original menubisect.ico, menubisectreset.ico, thumb_up.ico and thumb_down.ico
+are retained unchanged for native Bisect continuation controls. Their pinned
+TortoiseGit source paths and SHA-256 values are recorded in Icons/provenance.json.
+The upstream resource license and GPL alternative apply as above.
+The native workflow adapts BisectStartDlg.cpp and AppUtils.cpp BisectStart and
+BisectOperation (Copyright 2014-2026 TortoiseGit; see upstream file notices).

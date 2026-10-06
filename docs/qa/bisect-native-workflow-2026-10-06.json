@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "b7355ec",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Bisect start/progress workflow exposed from repository sidebar; Log/Finder entry points pending",
+  "sha256": {
+    "Sources/TurtleGitMac/BisectWindow.swift": "0cca86e1bf35a8ac2b14ac04d770ccb187e940947c0423a5dfa963012bfc94c9",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "57c82bb033c3305f8da693245a84844d78db4a6ff6b373623e0c05e44dc6017d",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "7369b4394c70c663df9c1ac1a90a072238993e5d1dd3c54d19255bb4496d2636",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "a405e39d918aa8f0f0da2bda813b46c2998d52a8212dcbf19a222122e998898b",
+    "Sources/TurtleGitCore/Bisect.swift": "981cd0421bd6e08ca190ee269166062fa03e6be4fd525c8a2ace9cd517ede70a",
+    "Sources/TurtleGitCore/FinderCache.swift": "c551bfbae3e2c829ba93d155f62f832534358431a94524c5209d3192e2690ce8",
+    "Sources/TurtleGitCore/MenuIcons.swift": "ba87ca6cd2790fb4389c0f2917664f28b947879142e5cd19429cc2fc163dbf47",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "8658880d76a545a336e7c0ce8979a91296613b8445bba05a53beb00cd0404868",
+    "NOTICE": "95b5edca10da842ea487cb47dabd48abafdcd899e241d4c4c2df44af42948c23",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "ecdf8874d38e3ea282aac094ad375f25a69328a7f8bb22369739bd61c3314143",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "885e6feb6092b03a17d7c07e58b67be74d4b53fa5df2c43f151ed74c8fe9b3c5",
+    "README.md": "a705495c8716d8171bb7f5770423e7e467ae3ef18b4ce0250f5527d6feb33399",
+    "docs/BISECT-PARITY.md": "515436028cf7e35256d960831d19f5ed6a2c994197d46337ba906fb700a4f6fd",
+    "docs/site/index.html": "ae5555fd8a6d694ae9b5ec95eb1ecca9df8ba1f91f5935016452723c8115a336"
+  },
+  "all_native_sources_manifest_sha256": "be4b1d37d167a5ec64d340c0ef6cdcae1f34ad296dd7d4c684d43660f343daf7",
+  "verification": {
+    "core": {
+      "command": "swift test --filter 'BisectTests|MenuIconTests|FinderCreationMenuTests'",
+      "tests": 9,
+      "failures": 0
+    },
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": [
+        "Actual hidden controller/two native combo fields, main branch defaults and all four original continuation icons",
+        "Start/busy-close guards and expansion for progress",
+        "Injected Abort preserves dirty bytes and creates no stash; injected Stash saves exact tracked bytes and retains untracked bytes",
+        "Fresh controller recovers active metadata, actual classification finds culprit and Reset restores main",
+        "Ambiguous selected Skip disables classification while retaining Reset",
+        "Externally started old/new session drives native labels and operations",
+        "Owned-window onClosed cleanup; prior focused Export/Log integration/Rebase menu/context/progress fixtures pass"
+      ],
+      "limitations": "No displayed window, real alert response, actual Log picker click, keyboard/accessibility, screenshot or signed sandbox verification"
+    },
+    "builds": [
+      "SwiftPM debug",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators passed; Store require-git; exact NOTICE cmp; all 90 original icons, Finder extension and universal helper runtimes audited",
+    "site": "Local build passed; not published",
+    "process_audit": "No main app or native receiver remained"
+  },
+  "logs": {
+    "/tmp/turtlegit-bisect-ui-build.log": "b6b0126f3d780e31b574d6c46959b2b8eac87cc4060c9a79247d5728a28fcc08",
+    "/tmp/turtlegit-bisect-ui-core.log": "82f9ddb8ea4f8b7da71fc953ff1f8d495168a65d4664fa812ef1b63e21a9243d",
+    "/tmp/turtlegit-bisect-ui-native.log": "48ad0289003fa049a280859e1fbfd10d1ef36677ca66ba4378bda2e955765046",
+    "/tmp/turtlegit-bisect-ui-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-bisect-ui-store.log": "a8f6bc2d3ea4c416fadaacd897ed8dec7ece2d432a429e26a8f7b1c32da55293",
+    "/tmp/turtlegit-bisect-ui-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-bisect-ui-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-bisect-ui-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Log/Finder selected-revision command entry points and fresh-state rules",
+    "Progress cancellation",
+    "Activated Log pickers, real alerts and Submodule Update handoff acceptance",
+    "Displayed light/dark layout, keyboard/accessibility, screenshots and signed AppStore sandbox",
+    "Full port and distribution remain incomplete"
+  ]
+}
