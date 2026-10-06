@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "2a01446",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Bisect repository engine prerequisite; no new native UI or menu entry points",
+  "sha256": {
+    "Sources/TurtleGitCore/Bisect.swift": "d4b63da35236df095c2da4662962b7d35c70917f5eda3ab2ecabf4d2e4cef3fe",
+    "Tests/TurtleGitCoreTests/BisectTests.swift": "ed329a87b0fbf7d4c5efb25a06ed6b61e3943907c832e3d9745ca6c5245156fd",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "2778e8654d311bc79f59bdcefdb310dcb1511c288ee751ab6ce6eb88b46bc497",
+    "docs/BISECT-PARITY.md": "132995be78141947518c8eee689ea56c9fbdfec51936fe6bf16c421508b6a063",
+    "README.md": "ce571c3def8b7ccf3f3db51899880d186aaeb52e52a12753577d3c1e5edb18b0",
+    "docs/site/index.html": "64435b257075d8ffee73a73faaa3d9300bd330cfa7a82caaf8733e1254ffffef"
+  },
+  "verification": {
+    "tests": {
+      "command": "swift test --filter BisectTests; repeat with --skip-build and TURTLEGIT_BISECT_TEST_GIT for each selected Git",
+      "per_version_tests": 5,
+      "per_version_failures": 0,
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": [
+        "Real regression search, first bad commit recognition, fresh-actor recovery and original-branch Reset",
+        "Custom old/new terms and literal multi-revision Skip ambiguity with Reset recovery",
+        "Linked-worktree original branch and per-worktree metadata isolation",
+        "Invalid Good/Bad, dirty worktree/index, bare/active/inactive and invalid operation selection refusal",
+        "Checkout obstruction preserves untracked bytes, exposes active failure state and Reset restores branch"
+      ],
+      "fixture_note": "Initial seed commit uses the shared system-Git fixture; subsequent commits and all Bisect operations use the selected Git executable"
+    },
+    "builds": [
+      "SwiftPM debug via swift test",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle audits passed; Store require-git; exact NOTICE cmp for both; all 86 original icon assets and embedded Finder extension audited",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native receiver remained"
+  },
+  "compatibility_repair": "Git 2.55 completion records quote the bad term. Added firstBadCommit extraction for both quoted and older unquoted formats; test observes returned culprit hash rather than matching only old log wording. Diagnostic failure was followed by passing full five-test runs on all four Git versions.",
+  "logs": {
+    "/tmp/turtlegit-bisect-core.log": "52a99d4ac828aee59cec28762cf858eec7a54e9480063f90b65f76b374e2f189",
+    "/tmp/turtlegit-bisect-2.37.1.log": "cbef20e60525a51f6d8dd1065c54c7eb9a20f238ac61848714435059ea57086e",
+    "/tmp/turtlegit-bisect-2.39.5.log": "57c28f2d9d2b4fcda4cb22fadec88df8c4ee84bc781f8dda9db23562a91166b3",
+    "/tmp/turtlegit-bisect-2.55.0.log": "946a6fea9565c62a4723e050b238231bb453f585fc324fb6ad08d02a7cbccfe6",
+    "/tmp/turtlegit-bisect-diagnostic.log": "232da25a30d682e00f04f1e542de6907557a98284c5a9de36c154815bc06cb69",
+    "/tmp/turtlegit-bisect-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-bisect-store-final.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-bisect-debug-audit.log": "524a234addd8b8e8366b55e22533cc9736d8979fa77ace113cb86b8f82e323fb",
+    "/tmp/turtlegit-bisect-store-audit.log": "65bcab67068f3a1a770ff06b35e1fedf3fb90de95ac93038c81fc670adac14b1",
+    "/tmp/turtlegit-bisect-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Native two-field start dialog, editable reference controls and Log pickers",
+    "Explicit Stash/Abort workflow and progress/continuation/submodule-update actions",
+    "Original Bisect artwork and Log/Finder commands/rules",
+    "Broader Git-session variant acceptance, displayed light/dark/keyboard/accessibility/screenshots and signed sandbox",
+    "Full port and AppStore distribution remain incomplete"
+  ]
+}

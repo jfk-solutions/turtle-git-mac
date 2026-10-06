@@ -293,6 +293,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Log revision context menus now hand Merge/Rebase selections to native dialogs
   with original icons, branch/tag/hash presets and fresh state checks.
   [Log Merge/Rebase](docs/LOG-MERGE-REBASE.md).
+- Bisect now has a tested repository engine for Start/Good/Bad/Skip/Reset,
+  custom terms and reopened linked-worktree sessions. Native dialogs and menu
+  entry points are pending. [Bisect parity](docs/BISECT-PARITY.md).
 - Log revision Export now opens a native ZIP/revision/Whole Project dialog and
   uses Git archive with overwrite confirmation. Repository and Finder folder/bare
   entry points share the dialog. Signed sandbox and displayed
