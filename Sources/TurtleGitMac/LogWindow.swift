@@ -183,6 +183,7 @@ struct LogCommandRequest: Identifiable {
     var loadingHistory: Bool { historyCancellation != nil }
     @Published var search = ""
     @Published var searchFields = LogSearchSelection.load()
+    @Published var searchRegex = UserDefaults.standard.bool(forKey: "UseRegexFilter")
     @Published var searchCaseSensitive = UserDefaults.standard.bool(forKey: "FilterCaseSensitively")
     @Published var filterPaths = ""
     @Published var from = Date(timeIntervalSince1970: 0)
@@ -239,6 +240,12 @@ struct LogCommandRequest: Identifiable {
     }
     func toggleSearchFields() { selectSearchFields(LogSearchSelection.all.subtracting(searchFields)) }
     func selectAllSearchFields() { selectSearchFields(LogSearchSelection.all) }
+    func setSearchRegex(_ enabled: Bool) {
+        guard !busy else { return }
+        searchRegex = enabled
+        UserDefaults.standard.set(enabled, forKey: "UseRegexFilter")
+        if !search.isEmpty { reload() }
+    }
     func setSearchCaseSensitive(_ enabled: Bool) {
         guard !busy else { return }
         searchCaseSensitive = enabled
@@ -268,7 +275,7 @@ struct LogCommandRequest: Identifiable {
         if more { limit += 200 } else { limit = 200 }
         cancelClipboardRead()
         generation += 1; let request = generation
-        var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.limit = limit
+        var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
         if !showWholeProject { options.paths = historyPaths }
         if useDates { options.since = Calendar.current.startOfDay(for: from); options.until = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) }
         busy = true
@@ -554,11 +561,12 @@ struct LogDialog: View {
                     Button("Toggle filters") { model.toggleSearchFields() }
                     Button("All") { model.selectAllSearchFields() }
                     Divider()
+                    Toggle("Use regular expression", isOn: Binding(get: { model.searchRegex }, set: { model.setSearchRegex($0) }))
                     Toggle("Case-sensitive", isOn: Binding(get: { model.searchCaseSensitive }, set: { enabled in
                         model.setSearchCaseSensitive(enabled)
                     }))
                 } label: { CommandLabel(title: "Search in", icon: .log) }.disabled(model.busy)
-                TextField("Search log", text: $model.search).textFieldStyle(.roundedBorder).help("Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert the filter.").onSubmit { model.reload() }
+                TextField("Search log", text: $model.search).textFieldStyle(.roundedBorder).help(model.searchRegex ? "Use an ECMAScript regular expression; begin with ! to invert. Invalid expressions leave the filter inactive." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert the filter.").onSubmit { model.reload() }
                 Button("Search") { model.reload() }.disabled(model.busy)
             }.font(.system(size: 12))
             VSplitView {

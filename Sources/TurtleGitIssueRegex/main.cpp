@@ -87,9 +87,36 @@ static void styles(const std::wstring& checkUnits, const std::wstring& extractUn
 int main(int argc, char** argv) {
     const bool styling = argc == 5 && std::string(argv[4]) == "--styles-utf8";
     const bool code = argc == 5 && std::string(argv[4]) == "--code-captures";
-    if (argc != 4 && !styling && !code) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
+    const bool logFilter = argc == 5 && (std::string(argv[4]) == "--log-case" || std::string(argv[4]) == "--log-insensitive");
+    if (argc != 4 && !styling && !code && !logFilter) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
     try {
-        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code);
+        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter);
+        if (logFilter) {
+            // FilterHelper validates one ECMAScript expression; invalid syntax
+            // leaves the filter inactive, rather than using substring fallback.
+            std::wregex pattern;
+            if (check.empty()) { std::cout << "log\tinactive\n"; return 0; }
+            try {
+                auto flags = std::regex_constants::ECMAScript;
+                if (std::string(argv[4]) == "--log-insensitive") flags |= std::regex_constants::icase;
+                pattern.assign(check, flags);
+            } catch (const std::regex_error&) { std::cout << "log\tinactive\n"; return 0; }
+            std::cout << "log\tactive\n";
+            size_t offset = 0;
+            while (offset < text.size()) {
+                if (text.size() - offset < 2) throw std::runtime_error("Invalid log record header.");
+                const size_t length = static_cast<size_t>(text[offset]) | (static_cast<size_t>(text[offset + 1]) << 16);
+                offset += 2;
+                if (length > text.size() - offset) throw std::runtime_error("Invalid log record length.");
+                bool matched = false;
+                if (length) {
+                    try { matched = std::regex_search(text.begin() + offset, text.begin() + offset + length, pattern, std::regex_constants::match_any); }
+                    catch (const std::exception&) { matched = false; }
+                }
+                std::cout << (matched ? "1\n" : "0\n"); offset += length;
+            }
+            return 0;
+        }
         if (code) {
             const std::wregex pattern(check, std::regex_constants::icase | std::regex_constants::ECMAScript);
             std::cout << "captures\tutf16\n";

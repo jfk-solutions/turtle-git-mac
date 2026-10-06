@@ -375,6 +375,37 @@ final class CommitHistoryTests: XCTestCase {
         options.searchFields = .messages; options.search = "!"
         found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
     }
+    func testRealRegexQueryFieldsCaseInversionInvalidAndMatchingLimit() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Regex Author"])
+        _ = try await repo.run(["config", "user.email", "regex@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "red fox"])
+        let initial = try await repo.history(); let first = try XCTUnwrap(initial.first)
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "blue bird"])
+        let all = try await repo.history()
+        var options = HistoryOptions(); options.searchRegex = true; options.limit = 1
+        options.regexExecutable = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        options.search = "RED.*FOX"
+        var found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
+        options.searchCaseSensitive = true
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "!red.*fox"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [all[0].hash])
+        options.search = "(?<=blue)bird"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [all[0].hash])
+        options.search = "!("; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchFields = [.messages, .authors]; options.search = "red[\\s\\S]*Regex Author"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
+        options.searchFields = []; options.search = ".*"
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "!.*"; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [all[0].hash])
+        options.paths = ["absent.txt"]; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+    }
     func testHistoryCancellationStopsOwnedPathReadAndLeavesOtherReaderAndIndexIntact() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

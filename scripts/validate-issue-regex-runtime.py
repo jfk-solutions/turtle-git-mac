@@ -79,4 +79,19 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitIssueRegexAudit-') as folder:
                 file.write_bytes(value.encode('utf-16-le'))
             output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--code-captures'], text=True, timeout=6)
             assert output == expected, (prefix, message, output, expected)
+        for pattern, mode, texts, expected in [
+            (r'^red.*fox$', '--log-case', ['red fox', 'RED fox', 'blue fox', ''], 'log\tactive\n1\n0\n0\n0\n'),
+            (r'fox|snow', '--log-insensitive', ['FOX', 'snow', 'green', ''], 'log\tactive\n1\n1\n0\n0\n'),
+            (r'after', '--log-case', ['before\0after'], 'log\tactive\n1\n'),
+            (r'(?<=#)42', '--log-case', ['#42'], 'log\tinactive\n'),
+            ('', '--log-case', ['any'], 'log\tinactive\n'),
+        ]:
+            inputs[0].write_bytes(pattern.encode('utf-16-le')); inputs[1].write_bytes(b'')
+            framed = b''
+            for text in texts:
+                value = text.encode('utf-16-le')
+                framed += (len(value) // 2).to_bytes(4, 'little') + value
+            inputs[2].write_bytes(framed)
+            output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + [mode], text=True, timeout=6)
+            assert output == expected, (pattern, output, expected)
 print('IssueRegex: universal macOS 13 matcher, UTF-16 offsets, extraction, source and system linkage verified.')

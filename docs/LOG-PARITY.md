@@ -76,7 +76,7 @@ This currently materializes the scoped log output in memory; incremental filteri
 for large histories remain unfinished. A single positive message term still uses Git's result limit; compound queries
 are filtered before the matching-result limit. Returned rows now retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
-regex options, bug IDs and the complete
+bug IDs and the complete
 upstream default field set remain pending. This is partial upstream filter parity; see
 [the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up
 checks are recorded [separately](qa/log-search-case-2026-10-06.json).
@@ -104,9 +104,37 @@ and highlighting remain pending.
 The search field now describes term syntax in its tooltip. Single positive
 message terms retain Git grep's bounded fast path. Compound/inverted and
 multi-field queries walk the scoped history and apply the result limit after
-matching, so older qualifying commits remain discoverable. Regex mode, bug IDs,
-match highlighting, incremental loading and native displayed search acceptance
+matching, so older qualifying commits remain discoverable. Bug IDs, match highlighting, incremental loading and native displayed search acceptance
 remain unfinished. See [the query record](qa/log-query-2026-10-06.json).
+
+## Regular-expression search
+
+The native Search in menu now includes the source label **Use regular expression**
+before Case-sensitive. It defaults off and persists under `UseRegexFilter`;
+changing it reloads only when search text is entered, and busy windows block the
+change. The tooltip switches to regex syntax guidance.
+
+Regex searches use the bundled C++ ECMAScript helper over Windows UTF-16 units,
+not Git's basic/POSIX regular-expression dialect. One compiled expression checks
+the combined selected-field text for every candidate, with case mode and a
+leading `!` inversion. Empty text fails an active expression even for `.*`.
+Invalid or empty expressions leave the filter inactive, reproducing upstream
+`FilterHelper::ValidateRegexp`; inversion still applies. Expressions can span
+selected fields. Matching precedes the result limit and retains date/path/branch
+and pinned-revision scope.
+
+Length-framed records preserve embedded NUL, newlines and surrogate pairs. Regex
+work uses one batched helper invocation per history read; refresh/close cancel its
+owned process group and children. A five-second helper deadline uses its own token
+and does not cancel the owning Log request. Temporary input/output files are
+cleaned up. The runtime retains its universal macOS 13 slices, inherited sandbox
+signing route and redistributable source/provenance checks.
+
+Batched filtering currently buffers scoped history and selected-field text; the
+existing 16 MiB helper input limit can report an error for very large requests.
+Incremental batches, Windows locale/case-folding edge cases, match highlighting,
+actual native toggle/persistence gestures and signed sandbox acceptance remain
+unverified. See [the regex record](qa/log-regex-2026-10-06.json).
 
 ## History-load cancellation
 

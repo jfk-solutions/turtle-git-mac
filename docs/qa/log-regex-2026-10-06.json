@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-06",
+  "scope": "Pinned upstream ECMAScript Log regex mode; full application parity remains incomplete",
+  "baseCommit": "122a2ac",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Native Use regular expression checkbox before Case-sensitive, saved UseRegexFilter default false; only reload active query, busy guard and mode-specific tooltip",
+    "C++ ECMAScript std::wregex over framed UTF-16 selected-field records with case/inversion; invalid or empty expressions inactive like upstream FilterHelper",
+    "One compiled expression per batched history read; filtering before matching limit with existing scopes and no Git POSIX regex substitution",
+    "Owned helper process group cancellation and isolated five-second timeout token; native Log history token propagated to helper; Log-specific error messages"
+  ],
+  "verification": {
+    "nativeAcceptance": "Compiled and source-reviewed native toggle/default/preferences/tooltip; actual displayed interactions and signed sandbox acceptance not performed.",
+    "fullRegression": "Focused affected suites only; previous 505-test full-suite result remains scoped to prior 122a2ac snapshot.",
+    "runtime": "Build and universal validator passed, including actual arm64/x86_64 runs of previous issue/style/code fixtures and new Log case/invalid/NUL fixtures.",
+    "focusedRegression": {
+      "count": 22,
+      "failures": 0,
+      "scope": "Final-source CommitHistoryTests (17) and IssueRegexTests (5). Real repository regex filters verify case/inversion/invalid inactive behavior, empty selected text, cross-field expression, older match before limit and path scope. Helper regressions verify UTF-16 surrogate/NUL framing, pre-cancel, stalled owned wrapper/child cancellation, independent matcher success, timeout cleanup and caller token unaffected. Existing literal queries, histories, issue IDs, code/style runtime fixtures remain passing."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/BundledTextHelper.swift": "e2a9eb75bdeed484f3437b0ceb181f07f7aaf5dbf1299e9fc3bcb273496b4265",
+    "Sources/TurtleGitCore/CommitHistory.swift": "b3492e696aeee56779455a24bd5662f1e7dc611f119e120ddbf8268d50b24a72",
+    "Sources/TurtleGitCore/IssueRegex.swift": "0903ad87613dd02aa165c70f9cd6fd2fc6f819c66bf17e6175e066ab76c63aad",
+    "Sources/TurtleGitIssueRegex/main.cpp": "ba9b0bfe97a9d80d18d428d4af8028e431481402f694aa170b543b155db5d1fc",
+    "Sources/TurtleGitMac/LogWindow.swift": "edcf90a48b26a0eb8130c1ae5ae484164bf5958cce2ab0c6d3223f19f3020941",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "d9cf7e750e0853d46208c6127c4199a47e1fda9d6d7e0f1eb01240897e714669",
+    "Tests/TurtleGitCoreTests/IssueRegexTests.swift": "18a5430e1cd4ba040497109d7723599d43b0499c20079fac0b7660416203e896",
+    "scripts/build-issue-regex-runtime.py": "666e952bff2968f6da7d933f6171a3b41f91e5795301a3c7b8c2cb4e8f813d66",
+    "scripts/validate-issue-regex-runtime.py": "8f690ba7d97e241e68863222e36e9fdaa8bd8448771d4510a32965d0538c02df"
+  },
+  "pending": [
+    "Incremental batches and histories exceeding the current 16 MiB helper input limit",
+    "Windows locale case-folding and C++ library edge-case equivalence",
+    "Native toggle/preferences/search/close gestures and signed sandbox acceptance",
+    "Match highlighting, bug ID field and remaining search behaviors",
+    "Remaining dialog/Finder and full application parity",
+    "Signed App Store distribution validation"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-regex-tests.log",
+      "sha256": "c663d42652a383259947447887f50f51e9e77c801f3cf0a0845959f8336c1ae6"
+    },
+    "runtime": {
+      "path": "/tmp/turtlegit-log-regex-runtime.log",
+      "sha256": "e6fe43915651fab968d7d555409559a532dbbd3d85613a142e69e74d1daa3228"
+    },
+    "architectures": {
+      "path": "/tmp/turtlegit-log-regex-architectures.log",
+      "sha256": "347f6ff6cbc40fc934dc7804750ae7cc6faa8cb28655222d5bb387466f43e9a9"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-regex-debug.log",
+      "sha256": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-regex-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-regex-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-regex-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-regex-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

@@ -112,6 +112,8 @@ public struct HistoryOptions: Sendable {
     public var search = ""
     public var searchFields: HistorySearchFields = .messages
     public var searchCaseSensitive = false
+    public var searchRegex = false
+    var regexExecutable: URL?
     public var path: String?
     public var paths: [String] = []
     public var since: Date?
@@ -254,7 +256,7 @@ extension GitRepository {
         let filtering = !options.search.isEmpty
         let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
         // Git fixed-string grep is equivalent only for one positive message term.
-        let filterInMemory = filtering && (options.searchFields != .messages || query.simpleLiteral == nil)
+        let filterInMemory = filtering && (options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
         var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00"]
         if !filterInMemory { args.append("-\(options.limit)") }
         if let revision = options.endRevision {
@@ -329,6 +331,7 @@ extension GitRepository {
         }
         let fieldsInHistory = String(decoding: try historyRun(args).stdout, as: UTF8.self).components(separatedBy: "\0")
         var entries: [LogEntry] = []
+        var regexTexts: [String] = []
         var record = 0
         while record + 8 < fieldsInHistory.count {
             try cancellation?.check()
@@ -351,7 +354,9 @@ extension GitRepository {
                 }
                 if options.searchFields.contains(.tagInfo) { searchable.append(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
                 if options.searchFields.contains(.paths) { searchable += try changedPaths(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), parents: fields[1].split(separator: " ").map(String.init)) }
-                guard query.matches(searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n") else { continue }
+                let text = searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n"
+                if options.searchRegex { regexTexts.append(text) }
+                else { guard query.matches(text) else { continue } }
             }
             let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !hash.isEmpty else { continue }
@@ -359,7 +364,12 @@ extension GitRepository {
                 parents: fields[1].split(separator: " ").map(String.init), email: fields[3], message: fields[6],
                 committer: fields[7], committerEmail: fields[8])
             entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
-            if filtering && options.limit > 0 && entries.count >= options.limit { break }
+            if filtering && !options.searchRegex && options.limit > 0 && entries.count >= options.limit { break }
+        }
+        if filtering && options.searchRegex {
+            let matches = try IssueRegexRuntime.logMatches(regexTexts, pattern: options.search, caseSensitive: options.searchCaseSensitive, executable: options.regexExecutable, cancellation: cancellation)
+            entries = zip(entries, matches).filter { $0.1 }.map { $0.0 }
+            if options.limit > 0 { entries = Array(entries.prefix(options.limit)) }
         }
         let head = try? historyRun(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentRef = try? historyRun(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
