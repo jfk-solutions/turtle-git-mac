@@ -51,6 +51,42 @@ public struct LogRevisionActions: OptionSet, Sendable {
     }
 }
 
+/// Date preferences and relative thresholds from LoglistUtils.cpp.
+/// macOS locale layout and timezone conversion use Foundation.
+public struct HistoryDateSettings: Equatable, Sendable {
+    public var shortDate: Bool
+    public var relative: Bool
+    public var useSystemLocale: Bool
+    public init(shortDate: Bool = true, relative: Bool = false, useSystemLocale: Bool = true) {
+        self.shortDate = shortDate; self.relative = relative; self.useSystemLocale = useSystemLocale
+    }
+    public static func load(defaults: UserDefaults = .standard) -> Self {
+        Self(shortDate: (defaults.object(forKey: "LogDateFormat") as? NSNumber)?.boolValue ?? true,
+             relative: (defaults.object(forKey: "RelativeTimes") as? NSNumber)?.boolValue ?? false,
+             useSystemLocale: (defaults.object(forKey: "UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true)
+    }
+    public func format(_ timestamp: String, now: Date = Date(), locale: Locale = .current, timeZone: TimeZone = .current, absolute: Bool = false) -> String {
+        let parser = ISO8601DateFormatter()
+        guard let date = parser.date(from: timestamp) else { return timestamp }
+        if relative && !absolute {
+            let elapsed = now.timeIntervalSince(date), magnitude = abs(elapsed)
+            let units: [(Double, Double, String, String)] = [(1095 * 86400, 365 * 86400, "Year", "Years"), (60 * 86400, 30 * 86400, "Month", "Months"), (14 * 86400, 7 * 86400, "Week", "Weeks"), (2 * 86400, 86400, "Day", "Days"), (7200, 3600, "Hour", "Hours"), (120, 60, "Minute", "minutes"), (0, 1, "Second", "Seconds")]
+            for (threshold, divisor, single, plural) in units where magnitude >= threshold {
+                let count = Int(elapsed / divisor)
+                return "\(count) \(count == 1 ? single : plural) ago"
+            }
+        }
+        let formatter = DateFormatter(); formatter.timeZone = timeZone
+        if useSystemLocale {
+            formatter.locale = locale; formatter.dateStyle = shortDate ? .short : .long; formatter.timeStyle = .medium
+        } else {
+            formatter.locale = Locale(identifier: "en_US_POSIX"); formatter.calendar = Calendar(identifier: .gregorian)
+            formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        }
+        return formatter.string(from: date)
+    }
+}
+
 /// Plain-text query rules ported from upstream FilterHelper.cpp (GPL-2.0-or-later).
 /// Conditions operate on the combined selected-field text, not each field alone.
 struct HistoryTextQuery {

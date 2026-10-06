@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-06",
+  "scope": "Log date preferences and native date cells; full application parity remains incomplete",
+  "baseCommit": "4ab27d1",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Three saved upstream Dialogs date preferences and defaults",
+    "Native locale short/long date and local timezone conversion; fixed format when system locale disabled",
+    "Upstream relative thresholds/resource wording with absolute tooltips in author and committer date cells; preference changes redraw without Git reload"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 27,
+      "failures": 0,
+      "scope": "CommitHistoryTests (23) and AdvancedSettingsTests (4); preference defaults/persistence, invalid timestamps, UTC/Berlin DST, short/long/locales and relative boundary/future counts."
+    },
+    "nativeReceiver": "Actual native sources in activation-prohibited headless AppKit receiver: actual date cells and absolute relative tooltips, existing metadata/header/Actions checks and owned action queue cancellation. No displayed windows or settings gestures.",
+    "nativeReceiverSource": {
+      "path": "/tmp/turtlegit-log-dates-receiver.swift",
+      "sha256": "3c192b7830fd1d63e42c2293a3f4c9b2a4bb149a72e6ba42a78af14388aa60de"
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store --require-git audit passed.",
+    "fullRegression": "Focused affected suites only; historical 505-test full suite retains its 122a2ac snapshot scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "64c94523734a9fed8369c472458fbd7d5da7568095e7921749a1a8d6c7be21d2",
+    "Sources/TurtleGitMac/LogWindow.swift": "e6699813e609b16fec79fe67fae76906927d49ac51da299678a329d8d238014b",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "ccd0c91e956b4078f0bcfa483f857e71f3f8f4bbb297421b338486c837d25040",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "718700b248f045ab96ccb2ba987c3177a8a6b02ffea70f0f0e1b77d2a4e121eb"
+  },
+  "pending": [
+    "Displayed settings gestures and live preference refresh acceptance",
+    "Translated relative labels and periodic clock refresh",
+    "Annotated-tag and clipboard date preferences",
+    "Exact Windows timezone/DST edge equivalence",
+    "Signed sandbox/Finder/App Store acceptance",
+    "Remaining dialog and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-dates-tests.log",
+      "sha256": "bc052fa6de161acb0b241a851ecdda028032364448c32223886feb98e6c06aea"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-log-dates-native.log",
+      "sha256": "b38b77a83153dc88740e5edee94af1abde80e514cb92c563eb3e9462598a45db"
+    },
+    "native-build": {
+      "path": "/tmp/turtlegit-log-dates-native-build.log",
+      "sha256": "534cc1881dd1c114790b98e10ea377ed82be980d1887d4dc19ed8dc332caa8a0"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-dates-debug.log",
+      "sha256": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-dates-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-dates-debug-audit.log",
+      "sha256": "8eb1b75b672510e328055013fa5ced637ac0b22e38e1d552bda9228c821b2584"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-dates-store-audit.log",
+      "sha256": "4ce97b9c2f5ff6fdc8351d8c7fd83f8b1d4deef511ab6ac550cd9c2182ffb294"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-dates-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

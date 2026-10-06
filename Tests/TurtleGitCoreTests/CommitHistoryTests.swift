@@ -476,6 +476,30 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertEqual(actions, [.modified, .added, .deleted, .replaced, .conflicted])
         XCTAssertEqual(LogRevisionActions.classify([]), [])
     }
+    func testDatePreferencesDefaultsPersistedChoicesAndNativeAbsoluteTimezones() throws {
+        let name = "TurtleGitDates-" + UUID().uuidString, defaults = try XCTUnwrap(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        XCTAssertEqual(HistoryDateSettings.load(defaults: defaults), HistoryDateSettings())
+        defaults.set(false, forKey: "LogDateFormat"); defaults.set(true, forKey: "RelativeTimes"); defaults.set(false, forKey: "UseSystemLocaleForDates")
+        let settings = HistoryDateSettings.load(defaults: defaults)
+        XCTAssertEqual(settings, HistoryDateSettings(shortDate: false, relative: true, useSystemLocale: false))
+        let utc = try XCTUnwrap(TimeZone(secondsFromGMT: 0)), berlin = try XCTUnwrap(TimeZone(identifier: "Europe/Berlin"))
+        let timestamp = "2020-04-05T06:07:08-07:00"
+        XCTAssertEqual(settings.format(timestamp, timeZone: utc, absolute: true), "2020-04-05 13:07:08")
+        XCTAssertEqual(settings.format(timestamp, timeZone: berlin, absolute: true), "2020-04-05 15:07:08")
+        XCTAssertEqual(settings.format("bad timestamp"), "bad timestamp")
+        XCTAssertEqual(settings.format(""), "")
+        let short = HistoryDateSettings(), long = HistoryDateSettings(shortDate: false)
+        let en = Locale(identifier: "en_US"), de = Locale(identifier: "de_DE")
+        XCTAssertNotEqual(short.format(timestamp, locale: en, timeZone: utc), long.format(timestamp, locale: en, timeZone: utc))
+        XCTAssertNotEqual(short.format(timestamp, locale: en, timeZone: utc), short.format(timestamp, locale: de, timeZone: utc))
+    }
+    func testRelativeDateThresholdsAndSignedFutureCountsMatchPinnedSource() throws {
+        let parser = ISO8601DateFormatter(), date = try XCTUnwrap(parser.date(from: "2020-01-01T00:00:00Z"))
+        let settings = HistoryDateSettings(relative: true)
+        let cases: [(Double, String)] = [(0, "0 Seconds ago"), (1, "1 Second ago"), (119, "119 Seconds ago"), (120, "2 minutes ago"), (7199, "119 minutes ago"), (7200, "2 Hours ago"), (172799, "47 Hours ago"), (172800, "2 Days ago"), (14 * 86400 - 1, "13 Days ago"), (14 * 86400, "2 Weeks ago"), (60 * 86400 - 1, "8 Weeks ago"), (60 * 86400, "2 Months ago"), (1095 * 86400 - 1, "36 Months ago"), (1095 * 86400, "3 Years ago"), (-120, "-2 minutes ago")]
+        for (elapsed, expected) in cases { XCTAssertEqual(settings.format("2020-01-01T00:00:00Z", now: date.addingTimeInterval(elapsed)), expected) }
+    }
     func testHistoryCancellationStopsOwnedPathReadAndLeavesOtherReaderAndIndexIntact() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

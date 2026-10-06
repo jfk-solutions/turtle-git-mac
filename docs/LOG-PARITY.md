@@ -29,9 +29,34 @@ visibility, widths and order. An attached sheet blocks another reset request.
 Graph resizing now addresses the graph column by identifier rather than whichever
 column happens to be first after reordering, and keeps wider user-set widths.
 
-ID/rebase replacement and SVN-specific columns remain unported. Date-format/relative-time preferences, native header/confirmation gestures,
+ID/rebase replacement and SVN-specific columns remain unported. Native header/confirmation gestures,
 cross-launch width/order persistence and signed sandbox acceptance remain pending.
 See [the metadata-column record](qa/log-columns-2026-10-06.json).
+
+## Date display preferences
+
+Settings → Dialogs now exposes the three upstream options: Short date/time format
+in log messages, Relative Times in log, and Use system locale for date/time.
+Their saved defaults match `SetDialogs.cpp`: short format and system locale on,
+relative times off. Both Date and Commit Date use these preferences; a preference
+change redraws the table without reading Git again. Relative cells provide an
+absolute date/time tooltip, following `GitLogListBase.cpp`.
+
+ISO Git timestamps now convert into the local timezone. Foundation supplies native
+macOS short/long date and time layouts; disabling system locale uses
+`yyyy-MM-dd HH:mm:ss`. Relative labels retain `LoglistUtils.cpp` thresholds and
+resource wording, including its signed future counts. The short-format checkbox
+is disabled while system locale is off. Settings save immediately through native
+preferences rather than a Windows Apply button.
+
+Focused tests cover defaults, persisted choices, timezone/DST conversion, locale
+layouts and relative boundaries. A headless AppKit receiver checks actual date
+cells and absolute tooltips; it displays no windows. Displayed settings gestures,
+live preference refresh acceptance, translated relative labels and signed sandbox
+acceptance remain pending. Relative values update when rows render; a periodic
+clock refresh is not implemented. Annotated-tag and clipboard date formatting,
+and exact Windows timezone/DST edge equivalence also remain pending. See
+[the date preference record](qa/log-dates-2026-10-06.json).
 
 ## Actions column
 

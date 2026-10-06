@@ -195,7 +195,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.
   Optional email/committer/date columns and a header menu support saved visibility,
-  resizing/reordering and resetting columns.
+  resizing/reordering and resetting columns. Settings → Dialogs offers short/long,
+  relative and system-locale date display, with absolute tooltips for relative dates.
   Refreshing or closing Log cancels its owned history, changed-file and clipboard
   detail reads.
   Search offers saved Subject/Message/Paths/Author/Email/Revision/Refname/Tag Info/Notes

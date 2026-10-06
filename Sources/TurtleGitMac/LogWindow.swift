@@ -714,6 +714,23 @@ struct LogDialog: View {
 
 }
 
+struct LogDialogSettings: View {
+    @AppStorage("LogDateFormat") private var shortDate = true
+    @AppStorage("RelativeTimes") private var relative = false
+    @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
+    var body: some View {
+        Form {
+            GroupBox("Log messages") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Short date/time format in log messages", isOn: $shortDate).disabled(!useSystemLocale)
+                    Toggle("Relative Times in log", isOn: $relative)
+                    Toggle("Use system locale for date/time", isOn: $useSystemLocale)
+                }.padding(8)
+            }
+        }.padding(20)
+    }
+}
+
 /// Normal Log column labels/defaults from GitLogListBase and TortoiseLoglistCommon.
 /// Rebase/ID/Actions/SVN-specific columns still require their own backend ports.
 private enum LogRevisionColumns {
@@ -732,6 +749,9 @@ private enum LogRevisionColumns {
 
 struct RevisionTable: NSViewRepresentable {
     @ObservedObject var model: LogWindowModel
+    @AppStorage("LogDateFormat") private var shortDate = true
+    @AppStorage("RelativeTimes") private var relativeTimes = false
+    @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSScrollView {
         let table = HistoryTableView()
@@ -761,9 +781,11 @@ struct RevisionTable: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model
         guard let table = coordinator.table else { return }
         coordinator.updating = true
+        let dateSettings = HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale)
+        let datesChanged = coordinator.dateSettings != dateSettings; coordinator.dateSettings = dateSettings
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
         let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) }
-        if signature != coordinator.signature {
+        if signature != coordinator.signature || datesChanged {
             coordinator.signature = signature
             table.reloadData()
             if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
@@ -788,6 +810,7 @@ struct RevisionTable: NSViewRepresentable {
         var headerMenu: NSMenu?
         var updating = false
         var signature: [String] = []
+        var dateSettings = HistoryDateSettings.load()
         init(model: LogWindowModel) { self.model = model }
         func numberOfRows(in tableView: NSTableView) -> Int { model.entries.count }
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
@@ -827,10 +850,10 @@ struct RevisionTable: NSViewRepresentable {
             case "email": text.stringValue = entry.email
             case "committer": text.stringValue = entry.committer
             case "committerEmail": text.stringValue = entry.committerEmail
-            case "committerDate": text.stringValue = entry.committerDate.replacingOccurrences(of: "T", with: " ").prefix(19).description
+            case "committerDate": text.stringValue = dateSettings.format(entry.committerDate)
             case "bugs": text.stringValue = entry.issueIDs
             case "author": text.stringValue = entry.author
-            case "date": text.stringValue = entry.date.replacingOccurrences(of: "T", with: " ").prefix(19).description
+            case "date": text.stringValue = dateSettings.format(entry.date)
             default:
                 let label = NSMutableAttributedString()
                 for reference in entry.references {
@@ -841,7 +864,9 @@ struct RevisionTable: NSViewRepresentable {
                 label.append(NSAttributedString(string: entry.subject, attributes: [.font: text.font!]))
                 text.attributedStringValue = label
             }
-            text.toolTip = entry.subject + "\n" + entry.hash
+            if column?.identifier.rawValue == "date" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.date, absolute: true) : nil }
+            else if column?.identifier.rawValue == "committerDate" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.committerDate, absolute: true) : nil }
+            else { text.toolTip = entry.subject + "\n" + entry.hash }
             let cell = NSTableCellView(); cell.addSubview(text); cell.textField = text
             text.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([text.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
