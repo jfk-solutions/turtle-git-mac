@@ -11,6 +11,10 @@ and Commit choices, reference browsing and a Log commit picker, then **Whole
 Project**, OK, Cancel and Help. HEAD includes the current branch name. The
 Whole Project control is checked and disabled for a repository-root export.
 A Log scoped to one existing directory can instead export that directory.
+The repository sidebar also offers Export, and Finder offers it for one
+repository folder or a bare repository. Finder preserves the selected directory
+in its captured URL request; choosing the repository root opens Whole Project.
+The shell position follows upstream, after Create Tag.
 A file-scoped Log exports the whole repository, matching upstream's directory
 check. Native branch/tag popup controls share the other revision dialogs.
 
@@ -52,7 +56,16 @@ and index, preserved output on failure and temporary-file cleanup.
 The headless native receiver checks the actual Log menu icon and selector,
 selected-tag handoff, tag/hash model presets, archive generation and both
 Cancel and Replace responses through the real model. It does not display the
-window or click the native save/confirmation panels. Screenshot/layout,
-keyboard/accessibility, signed sandbox, Finder entry points and broader Export
-entry-point parity remain pending. Full Log and application parity remain
+window or click the native save/confirmation panels. A follow-up hidden
+controller check hosts the real Export dialog and verifies HEAD/Branch presets,
+root/subdirectory scope normalization, the busy-close guard and window cleanup. Screenshot/layout,
+keyboard/accessibility, signed sandbox, activated Finder dispatch and broader
+Export entry-point parity remain pending. Full Log and application parity remain
 incomplete.
+
+Finder uses the same pinned `MenuInfo.cpp` Export clauses (single folder in Git,
+or bare repository). The native menu-builder receiver verifies source order,
+original icons, enabled state, captured folder request and URL round-trip,
+file/multiple-file exclusion, and the bare menu. This uses cached repository
+metadata without activating the Finder extension. Application Quit refuses an
+active Export operation or attached sheet so a pending archive is not abandoned.

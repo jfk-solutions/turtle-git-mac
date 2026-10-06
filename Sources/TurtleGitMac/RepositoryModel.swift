@@ -321,6 +321,9 @@ import TurtleGitCore
         case .worktreeCreate:
             guard let repository else { return }
             showWorktreeCreate(repository: repository, access: activeAccess)
+        case .export:
+            guard let repository else { return }
+            showExport(repository: repository, access: activeAccess, revision: "HEAD", paths: paths)
         case .formatPatch:
             guard let repository else { return }
             showFormatPatch(repository: repository, access: activeAccess)
@@ -774,7 +777,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .add && action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .add && action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .export && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller
@@ -953,9 +956,7 @@ import TurtleGitCore
 
     private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = []) {
         let root = repository.root
-        let directory: String
-        if paths.count == 1, (try? root.appendingPathComponent(paths[0]).resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true { directory = paths[0] }
-        else { directory = "" }
+        let directory = ExportWindowModel.directoryScope(root: root, paths: paths)
         let key = root.path + "\0" + revision + "\0" + directory
         let controller = exportWindows[key] ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory)
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }

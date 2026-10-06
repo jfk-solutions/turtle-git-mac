@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "3e54d02",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Repository/Finder Export action routing, pinned shell clauses/order/icons, root-directory normalization and native Export controller lifecycle",
+  "sha256": {
+    "FinderSync/FinderSync.swift": "153f1aba557dfeddeb7810c55602b827197ff7885cbd0f75ddf022a3f2c48b1d",
+    "Sources/TurtleGitCore/FinderCache.swift": "49d280d273c53fe43bcb20b06b6217e25e6ac60764b6813196014c33f7dddfd4",
+    "Sources/TurtleGitCore/MenuIcons.swift": "19a5c9e71aa9157b00bc574e8ff5c100c504d60fc52a30f6cdc9822d435062ec",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "00ee53806a60d42bccf4a0baa970dc5da7c3818b16eec36e1c66a6802cfb6a79",
+    "Sources/TurtleGitMac/ExportWindow.swift": "702c9eb6e67100a1dcfa85a3b099e2b73e5ba13def67a0c5e60893d8ca69e72c",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "7d6f7537d59444e4eb5cfba0ffcc88a625a17383df66f607f8b13bd2953f1b0e",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "c59ce2979db74ab967e5ca7126d7589094428ba3852cbc59aab7ac211e0ca7f2",
+    "Tests/TurtleGitCoreTests/FinderRepositoryMetadataTests.swift": "aea89bc5160b6959739f8b526474959ef2b9bb34b3bf5d173eb4ae3f699450a5",
+    "Tests/TurtleGitCoreTests/FinderRequestTests.swift": "73d9d9f08ce99d573b92902f4fe309efbaa2321f37a2950225063e6688c4b91d",
+    "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift": "9680cdf7ec2a41e3eeed5f76e8f6630c1eb8792c8251b3f976bba82cbf0d32fa",
+    "docs/upstream-shell-menu-conditions.json": "f6b67246c8a79e1c6645c79705127d4197c84b54624de7d3fa7f52dcc3d4c62b",
+    "scripts/test-finder-menu.py": "740ea6d0a4bb144b4e9b952604ce664bf0d7ab2a2b4dadef5467aa1b0926e907",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "a668a761f04bfdfb03c2c3d95ddc47cde8244645f30cfe71a33c5d889cf0d4f8",
+    "README.md": "904d7a081a754f2ad6d216c0f27fac1e6498513e91cfb4fd77d04470601bed46",
+    "docs/PORTING.md": "18ef75ac3e2e0c344566f0aa15fe321afcddd597f8af5432ad1c58f3756070c8",
+    "docs/REVISION-EXPORT.md": "417edff3c98878c32281cb110528ba71ba19ea86854fa62edc493c17f1d504eb"
+  },
+  "all_native_sources_manifest_sha256": "3889f37277b6a1265a30762603f74792f2b749ab12e17ca35a4d0a00b571e88c",
+  "verification": {
+    "core": {
+      "command": "swift test --filter Finder",
+      "tests": 38,
+      "failures": 0,
+      "coverage": "Updated pinned-source 33 rule projection, bare metadata policy and new Export URL/icon/dialog routing test, existing Finder-related tests"
+    },
+    "finder_menu": {
+      "command": "python3 scripts/test-finder-menu.py",
+      "passed": true,
+      "coverage": "Actual Finder menu builder matches 33 implemented root entries projected from pinned source; Export folder enabled icon/selector/captured paths/URL, tracked and multi-file exclusion, bare menu includes Export; existing creation/ignore/comparison/submodule/classification fixtures pass",
+      "activation": "None; no signed extension activation"
+    },
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "new_coverage": "Real hidden ExportWindowController with hosted dialog, HEAD/Branch presets, root and directory scope normalization, busy-close guard, onClosed notification and cleanup; prior Export/tag/hash/overwrite/integration/Rebase focus fixtures pass"
+    },
+    "builds": [
+      "SwiftPM via swift test",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Debug and AppStore require-git validation plus exact NOTICE cmp; 86 original icons, Finder extension and universal runtime audits passed",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app, Finder menu check or native receiver remained"
+  },
+  "fixture_repair": "New URL test now compares literal paths rather than URL directory-marker equality for a non-existent directory; production URL normalization unchanged",
+  "logs": {
+    "/tmp/turtlegit-export-entry-core.log": "fb165b2d2b8b9a26b246a28f457b7774222753d4dce6f6f63fbc9d22a1f6856c",
+    "/tmp/turtlegit-export-entry-finder.log": "3348b43fd133811f7f59829e95839397ff02d38f7d5ebcff0c35d9b21b955ad9",
+    "/tmp/turtlegit-export-entry-native.log": "661df4528a0934b56822abf95a5bd3f631b6fb85c5fefd374faeeac2bb351ef4",
+    "/tmp/turtlegit-export-entry-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-export-entry-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-export-entry-debug-audit.log": "524a234addd8b8e8366b55e22533cc9736d8979fa77ace113cb86b8f82e323fb",
+    "/tmp/turtlegit-export-entry-store-audit.log": "65bcab67068f3a1a770ff06b35e1fedf3fb90de95ac93038c81fc670adac14b1",
+    "/tmp/turtlegit-export-entry-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Displayed layout, light/dark, screenshots, keyboard and accessibility acceptance",
+    "Activated Finder handoff and signed sandbox save-panel output grant behavior",
+    "Broader entry-point parity and full TortoiseGit port",
+    "AppStore distribution and hosted CI/Pages publication remain unverified"
+  ]
+}

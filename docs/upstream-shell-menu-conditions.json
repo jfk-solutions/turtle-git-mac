@@ -889,6 +889,32 @@
           ]
         }
       ]
+    },
+    "export": {
+      "command": "Export",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_BAREREPO"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
   }
 }

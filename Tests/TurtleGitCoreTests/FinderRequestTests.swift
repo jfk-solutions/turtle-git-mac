@@ -2,6 +2,19 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderRequestTests: XCTestCase {
+    func testExportRoundTripUsesDialogAndAllowsBareRepository() throws {
+        let folder = URL(fileURLWithPath: "/repo 雪/subfolder", isDirectory: true)
+        let request = FinderRequest(action: .export, paths: [folder])
+        let decoded = try XCTUnwrap(FinderRequest(url: XCTUnwrap(request.url)))
+        XCTAssertEqual(decoded.action, .export); XCTAssertEqual(decoded.paths.map(\.path), [folder.path])
+        XCTAssertEqual(decoded.action.icon, .export); XCTAssertNil(decoded.action.arguments(value: ""))
+        XCTAssertFalse(decoded.action.requiresWorkingTree)
+        XCTAssertTrue(FinderRepositoryMetadata(bare: true).allows(.export))
+        XCTAssertTrue(FinderShellRules.allows(.export, flags: [.folderInGit, .onlyOne]))
+        XCTAssertTrue(FinderShellRules.allows(.export, flags: [.bare]))
+        XCTAssertFalse(FinderShellRules.allows(.export, flags: [.inGit, .onlyOne]))
+        XCTAssertFalse(FinderShellRules.allows(.export, flags: [.folderInGit, .two]))
+    }
     func testCompleteSelectionRoundTripsLiteralPathsAndLegacyRequest() throws {
         let paths = ["/repo/a b 雪\n?#%.txt", "/repo/second.txt"]
         let request = FinderRequest(action: .diff, paths: paths.map { URL(fileURLWithPath: $0) })

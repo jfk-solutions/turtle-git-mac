@@ -107,7 +107,7 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     }
     /// Repository-wide clauses only; path/status clauses remain separate.
     public func allows(_ action: RepositoryAction) -> Bool {
-        if bare { return [.fetch, .push, .log, .reflog, .repositoryBrowser, .worktreeList].contains(action) }
+        if bare { return [.fetch, .push, .log, .reflog, .repositoryBrowser, .export, .worktreeList].contains(action) }
         if [.pull, .merge, .rebase].contains(action) && (bisectActive || mergeActive) { return false }
         if action == .stash && mergeActive { return false }
         if [.stashApply, .stashPop, .stashList].contains(action) && !hasStash { return false }
@@ -228,7 +228,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, add, revert, submoduleUpdate, log, repositoryBrowser, formatPatch, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
+    case status, commit, add, revert, submoduleUpdate, log, repositoryBrowser, export, formatPatch, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -239,6 +239,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .submoduleUpdate: return "Submodule Update…"
         case .log: return "Show log"
         case .repositoryBrowser: return "Repo-browser…"
+        case .export: return "Export…"
         case .formatPatch: return "Create Patch Serial…"
         case .worktreeCreate: return "New Worktree…"
         case .worktreeList: return "Worktrees"
@@ -394,6 +395,7 @@ public enum FinderShellRules {
         .merge: [.init([.folderInGit, .onlyOne], [.bisect, .merge]), .init([], []), .init([], []), .init([], [])],
         .branch: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
         .tag: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
+        .export: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([], []), .init([], [])],
         .initialize: [.init([.folder], [.inGit, .folderInGit, .bare, .inaccessible]), .init([.folder, .ignored], []), .init([.folder, .extended], [.inGit]), .init([], [])],
         .ignore: [.init([.inVersionedFolder], [.ignored, .inGit, .workingTreeRoot]), .init([], []), .init([], []), .init([], [])],
         .ignoreDelete: [.init([.inVersionedFolder, .inGit], [.ignored, .workingTreeRoot]), .init([], []), .init([], []), .init([], [])],

@@ -46,7 +46,8 @@ import TurtleGitCore
             self.model.outputAccess = lease; self.model.destination = url.path
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
+    var activeOperation: Bool { model.busy || window?.attachedSheet != nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation }
     func windowWillClose(_ notification: Notification) { picker?.close(); picker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -78,6 +79,11 @@ import TurtleGitCore
     var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && $0.symbolicTarget == nil } }
     var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
     var revision: String { switch target { case .head: return "HEAD"; case .branch: return branch; case .tag: return tag; case .commit: return commit } }
+    static func directoryScope(root: URL, paths: [String]) -> String {
+        guard paths.count == 1, paths[0] != ".", !paths[0].isEmpty,
+              (try? root.appendingPathComponent(paths[0]).resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return "" }
+        return paths[0]
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, directory: String = "") {
         self.repository = repository; self.access = access; self.directory = directory; wholeProject = directory.isEmpty
     }

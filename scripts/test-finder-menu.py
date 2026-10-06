@@ -26,7 +26,7 @@ import TurtleGitCore
             .status: "ShowChanged", .rebase: "Rebase", .stash: "StashSave", .stashApply: "StashApply",
             .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .rename: "Rename",
             .remove: "Remove", .removeKeep: "RemoveKeep", .revert: "Revert", .switchBranch: "Switch",
-            .merge: "Merge", .branch: "Branch", .tag: "Tag", .initialize: "CreateRepo",
+            .merge: "Merge", .branch: "Branch", .tag: "Tag", .export: "Export", .initialize: "CreateRepo",
             .ignore: "IgnoreSub", .ignoreDelete: "DeleteIgnoreSub", .worktreeList: "Worktree",
             .submoduleUpdate: "SubmoduleUpdate", .formatPatch: "FormatPatch"
         ]
@@ -200,10 +200,16 @@ import TurtleGitCore
         }
         precondition(!rootActions(ordinary).contains(.rename) && !rootActions(ordinary).contains(.remove))
         print("Actual submodule root menu receiver: registered root enables captured Rename/Remove, excludes RemoveKeep; ordinary root excludes Rename/Remove. Parent authorization and native dispatch remain pending.")
+        let exportMenu = make([folder], settings: FinderMenuSettings())
+        guard let exportItem = items(exportMenu).first(where: { ($0.representedObject as? FinderMenuCommand)?.request.action == .export }) else { fatalError("Folder Export missing") }
+        precondition(exportItem.isEnabled && exportItem.image != nil && exportItem.target === target && exportItem.action == selector)
+        let exportRequest = (exportItem.representedObject as! FinderMenuCommand).request
+        precondition(FinderRequest(url: exportRequest.url!)?.action == .export && exportRequest.paths == [folder])
+        precondition(!trackedActions.contains(.export) && !multiple.contains(.export))
         let bareMenu = metadataMenu(FinderRepositoryMetadata(bare: true))
         verifyOrder(bareMenu)
-        precondition(rootActions(bareMenu) == [.fetch, .push, .log, .reflog, .repositoryBrowser, .worktreeList])
-        print("Actual metadata menu receiver: absent/present stash and .gitmodules, merge/bisect exclusions and six bare-root commands follow source repository clauses while preserving groups. Cached facts only; fresh signed handoff remains pending.")
+        precondition(rootActions(bareMenu) == [.fetch, .push, .log, .reflog, .repositoryBrowser, .export, .worktreeList])
+        print("Actual metadata menu receiver: absent/present stash and .gitmodules, merge/bisect exclusions and seven bare-root commands follow source repository clauses while preserving groups. Cached facts only; fresh signed handoff remains pending.")
         let unrelated = outside.appendingPathComponent("plain.txt"); try Data().write(to: unrelated)
         let outsideFileMenu = FinderMenuBuilder.make(paths: [unrelated], snapshot: nil, settings: FinderMenuSettings(),
             comparisonMark: nil, target: target, actionSelector: selector)
@@ -218,7 +224,7 @@ import TurtleGitCore
         print("Actual pair menu receiver: two outside files expose only Diff and retain ordered paths; file/folder selection is excluded. Native comparison activation remains pending.")
         verifyOrder(outsideFileMenu)
         precondition(outsideFileMenu.items[0].submenu!.items.count == 1, "A lone mark command needs no leading separator")
-        print("Actual layout receiver: all 32 implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")
+        print("Actual layout receiver: all \(mapping.count) implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")
         let actualRoot = folder.appendingPathComponent("actual-parent", isDirectory: true)
         let actualSource = folder.appendingPathComponent("actual-source", isDirectory: true)
         for directory in [actualRoot, actualSource] {

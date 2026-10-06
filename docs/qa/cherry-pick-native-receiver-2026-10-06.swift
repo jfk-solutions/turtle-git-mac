@@ -435,6 +435,29 @@ import TurtleGitCore
     try FileManager.default.removeItem(at: archive)
     let archiveIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
     precondition(archiveIndex == index)
+    precondition(ExportWindowModel.directoryScope(root: repo.root, paths: ["."]) == "")
+    precondition(ExportWindowModel.directoryScope(root: repo.root, paths: []) == "")
+    precondition(ExportWindowModel.directoryScope(root: repo.root, paths: ["missing"]) == "")
+    let scopeDirectory = "native-export-directory 雪"
+    try FileManager.default.createDirectory(at: repo.root.appendingPathComponent(scopeDirectory), withIntermediateDirectories: false)
+    precondition(ExportWindowModel.directoryScope(root: repo.root, paths: [scopeDirectory]) == scopeDirectory)
+    precondition(ExportWindowModel.directoryScope(root: repo.root, paths: [scopeDirectory, "."]) == "")
+    try FileManager.default.removeItem(at: repo.root.appendingPathComponent(scopeDirectory))
+    let controller = ExportWindowController(repository: repo, access: nil, revision: "HEAD")
+    let controllerDeadline = Date().addingTimeInterval(30)
+    while controller.model.busy && Date() < controllerDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!controller.model.busy && controller.model.error == nil && controller.model.target == .head)
+    guard let exportWindow = controller.window else { fatalError("Export window missing") }
+    exportWindow.contentView?.layoutSubtreeIfNeeded()
+    precondition(!exportWindow.isVisible && !controller.activeOperation && controller.windowShouldClose(exportWindow))
+    controller.model.busy = true; precondition(controller.activeOperation && !controller.windowShouldClose(exportWindow)); controller.model.busy = false
+    controller.model.load(revision: "refs/heads/main")
+    let branchDeadline = Date().addingTimeInterval(30)
+    while controller.model.busy && Date() < branchDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!controller.model.busy && controller.model.error == nil && controller.model.target == .branch)
+    var exportClosed = false; controller.onClosed = { exportClosed = true }; controller.close()
+    precondition(exportClosed)
+    print("Native Export controller: hidden real dialog, HEAD/Branch presets, root/subdirectory scope normalization, busy-close guard and owned-window cleanup passed.")
     print("Native Log Export icon/handoff, tag/hash presets, ZIP creation and overwrite Cancel/Replace passed.")
     coordinator.mergeRevision(); try await wait(); precondition(log.error == nil && merges == ["refs/tags/integration-tag"])
     coordinator.rebaseRevision(); try await wait(); precondition(log.error == nil && rebases == ["main"])
