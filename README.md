@@ -36,7 +36,10 @@ route, with Include ignored files, original icons and checked-only forced stagin
 The cancellable private-index transaction preserves unrelated staging. Progress
 provides Commit and executable/symlink post-actions that preserve the staged blob
 when the working file has since changed or disappeared. Add's status menu now
-includes native Open With, the configured alternative editor, and clipboard
+includes tracked history, old-name history, HEAD Blame, base comparison and
+two-file comparison. If a selected file disappears before comparison, that side
+uses pinned HEAD contents without changing the working tree or index. The menu
+also provides native Open With, the configured alternative editor, and clipboard
 commands for paths, names, extensions and visible columns. Its Ignore commands
 open the native name/extension/folder rule dialog and refresh the Add list while
 preserving unrelated checks and the Git index. Delete now uses a native

@@ -103,7 +103,19 @@ Every unreviewed file remains pending. The initial mapped command and dialog row
 are marked **partial**, not complete. A broad Swift rewrite still needs this
 source-by-source audit; copying C++ files alone would not establish parity.
 
-## Validation so far
+## Verification records
+
+Recent Add receiver checks and unsigned build/package results are recorded in
+[Add history](qa/add-history-2026-10-06.json) and
+[Add missing-file comparison](qa/add-missing-pair-2026-10-06.json).
+These checks do not establish full application parity, displayed-window acceptance,
+signed Finder activation or distribution readiness. Workflow-specific parity files
+record the remaining requirements.
+
+## Earlier validation milestones
+
+The following records describe earlier milestones. Test and icon counts belong to
+those milestones; use the recent QA records for current validation scope.
 
 `swift test` covers raw path parsing, renames/conflicts, stage/unstage including an
 unborn branch, multiline commits and log parsing, working-tree diffs, literal

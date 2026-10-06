@@ -252,7 +252,34 @@ import TurtleGitCore
         model.setScope(["renamed-ignore.txt", copyPath]); try await model.read(); model.highlighted = ["renamed-ignore.txt", copyPath]
         model.selectionMark = copyPath; precondition(!receiver.canCompareBase && receiver.canIgnore && receiver.canDelete)
         model.selectionMark = "renamed-ignore.txt"; precondition(receiver.canCompareBase && !receiver.canIgnore && !receiver.canDelete)
-        print("Actual Add receiver: tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        model.setScope(["renamed-ignore.txt", copyPath]); try await model.read()
+        model.highlighted = ["renamed-ignore.txt", copyPath]; receiver.refresh()
+        let retainedFile = folder.appendingPathComponent("renamed-ignore.txt")
+        let renamedWorkingBytes = try Data(contentsOf: retainedFile)
+        // HEAD still has the original path, so use that path before the rename for fallback.
+        _ = try await repo.run(["mv", "--", "renamed-ignore.txt", ".gitignore"])
+        model.setScope([".gitignore", copyPath]); try await model.read(); model.highlighted = [".gitignore", copyPath]; receiver.refresh()
+        let fallbackIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(".gitignore"))
+        receiver.menuNeedsUpdate(menu)
+        precondition(receiver.canCompareTwo && menu.items.first { $0.title == "Compare two files" }?.isHidden == false)
+        receiver.compareTwo(); let fallbackPaths = pairs.last!; precondition(fallbackPaths == receiver.selectedRows.map(\.path))
+        let fallback = try await repo.workingFilePairComparison(paths: fallbackPaths)
+        let fallbackDocument = try await repo.comparisonFile(fallback, path: fallbackPaths[1])
+        let historicalBytes = fallbackPaths[0] == ".gitignore" ? fallbackDocument.base.bytes : fallbackDocument.destination.bytes
+        precondition(historicalBytes == Data("*.log\n".utf8))
+        let unchangedFallbackIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout; precondition(unchangedFallbackIndex == fallbackIndex)
+        try renamedWorkingBytes.write(to: folder.appendingPathComponent(".gitignore"))
+        let nestedDirectory = "pair-directory"
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent(nestedDirectory), withIntermediateDirectories: false)
+        try Data("child".utf8).write(to: folder.appendingPathComponent(nestedDirectory + "/child"))
+        _ = try await repo.run(["init", folder.appendingPathComponent(nestedDirectory).path])
+        model.setScope([copyPath, nestedDirectory]); try await model.read()
+        let directoryRow = model.entries.first { $0.isDirectory }!; model.highlighted = [copyPath, directoryRow.path]; receiver.refresh()
+        precondition(!receiver.canCompareTwo)
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(nestedDirectory))
+        precondition(!receiver.canCompareTwo)
+        print("Actual Add receiver: disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''

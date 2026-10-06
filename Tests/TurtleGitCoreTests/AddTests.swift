@@ -36,6 +36,21 @@ final class AddTests: XCTestCase {
         XCTAssertEqual(row.state, row.status.state)
         XCTAssertTrue(rows.initiallyChecked.contains(tracked))
     }
+    func testAddRowTypesRetainFileAndNestedDirectoryIdentityAfterDisappearance() async throws {
+        let (root, repo, tracked) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let directory = root.appendingPathComponent("nested-folder", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        try Data("child".utf8).write(to: directory.appendingPathComponent("file"))
+        _ = try await repo.run(["init", directory.path])
+        let selection = try await repo.addDialogSelection(paths: [tracked, "nested-folder"], includeIgnored: true)
+        let fileRow = try XCTUnwrap(selection.entries.first { $0.path == tracked })
+        let directoryRow = try XCTUnwrap(selection.entries.first { $0.path == "nested-folder/" })
+        XCTAssertFalse(fileRow.isDirectory); XCTAssertTrue(directoryRow.isDirectory)
+        try FileManager.default.removeItem(at: root.appendingPathComponent(tracked))
+        try FileManager.default.removeItem(at: directory)
+        XCTAssertFalse(fileRow.isDirectory); XCTAssertTrue(directoryRow.isDirectory)
+    }
     func testFileFastRouteUnbornAndCancelledAddition() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: root) }

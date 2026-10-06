@@ -169,10 +169,7 @@ struct AddFileTable: NSViewRepresentable {
         var markedRow: AddDialogEntry? { selectedRows.first { $0.path == model.selectionMark } ?? selectedRows.first }
         var canCompareBase: Bool { canAct && markedRow?.status.canCompareWithBaseFromStatusList == true }
         var canCompareTwo: Bool {
-            canAct && selectedRows.count == 2 && selectedRows.allSatisfy { row in
-                guard let type = try? FileManager.default.attributesOfItem(atPath: model.repository.root.appendingPathComponent(row.path).path)[.type] as? FileAttributeType else { return false }
-                return type != .typeDirectory
-            }
+            canAct && selectedRows.count == 2 && selectedRows.allSatisfy { !$0.isDirectory }
         }
         var canLog: Bool { canAct && selectedRows.count == 1 && markedRow.map { ![FileState.untracked, .ignored].contains($0.state) && !$0.status.hasUnversionedCopy } == true }
         var oldLogPath: String? {

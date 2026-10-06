@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add two-file comparison availability after a selected path disappears; full application parity remains incomplete",
+  "baseCommit": "32264469ec336952c61564f5653bb0727b5b03f0",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/Git/GitStatusListCtrl.cpp Compare two files menu checks two list entries and cached IsDirectory, not live disk existence",
+    "IDGITLC_COMPARETWOFILES uses working-copy revision for existing paths and HEAD for absent paths; existing macOS backend pins one HEAD revision for all missing sides"
+  ],
+  "implemented": [
+    "AddDialogEntry records directory identity at list loading",
+    "Compare two files eligibility uses two recorded non-directory rows, retaining the command after a working file disappears",
+    "Existing shared comparison backend reads the missing side from pinned HEAD, validates path/type/blob and preserves the working tree/index",
+    "Removed directories remain excluded; live revalidation still rejects paths that become directories or lack historical content"
+  ],
+  "verification": {
+    "actualReceiver": "Swift 6/macOS 13 actual Add receiver: load tracked .gitignore and binary working file, delete tracked path without reloading, verify visible enabled Compare two files, dispatch ordered paths and read exact committed HEAD bytes. Git ls-files --stage is unchanged. Load a nested Git directory row and verify the pair is excluded before and after directory removal. Prior Add/history/Blame/Ignore/Delete/copy/artwork checks pass. No windows/menus displayed.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and bundled NOTICE comparisons passed; 76 original icon hashes, embedded Finder and universal helper runtimes; Store universal Git runtime audit passed.",
+    "coreRegression": {
+      "count": 493,
+      "failures": 0,
+      "scope": "Final corrected full Swift suite passed, including real nested-directory Add selection and working-file/HEAD comparison regressions."
+    },
+    "site": "Static documentation generation passed."
+  },
+  "fixtureCorrection": "The first full run was stopped after a new fixture failed to find an ignored directory: status --untracked-files=all --ignored reports its child files. Corrected to a real untracked nested repository directory row; corrected actual native receiver passed.",
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/Add.swift": "6c5a1f51e8dfe16b87753a6643c62428936365ad9ba59392ac9ffa2311cffec4",
+    "Sources/TurtleGitMac/AddFileTable.swift": "00039dfc1c07ca6124c4a9fa83ea72e7384761ad9408a09ec8ac1d6ce6db12c8",
+    "Tests/TurtleGitCoreTests/AddTests.swift": "a6d1035bab7ee3ddd547e277ecd29c1de54bb217a7a4f6d37ba08d59aa2d3949",
+    "scripts/test-add-dialog.py": "ba51f8f116cd12ba34eb733baaae1b793b08aa54c3d43bd8068a662d1c378dba"
+  },
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-add-missing-pair-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-missing-pair-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-missing-pair-native.log",
+      "sha256": "a23dac44b6b9587b0f9411932d1d9955549e08642b67ff8fcdbe579b0c568b7d"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-missing-pair-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-missing-pair-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "tests": {
+      "path": "/tmp/turtlegit-add-missing-pair-tests-final.log",
+      "sha256": "7df50d6494ed6a7972d5b410673b84962c3d87f0ef6e7978a71d099b15f127da"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-missing-pair-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Actual native menu gesture/display, history/comparison windows, appearance and screenshots",
+    "Missing files after full list refresh, broader registered/uninitialized submodules and status-list combinations",
+    "Shift alternative comparison, remaining status-list menus/progress/settings/helper/localization parity",
+    "Signed Finder/sandbox/AppStore release acceptance and GitHub publication authentication"
+  ],
+  "appProcesses": "No main app or native receiver remains at final audit; no main app launched for checks"
+}

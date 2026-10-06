@@ -44,9 +44,14 @@ Context images follow ShowAppContextMenuIcons when a menu is prepared.
 Tracked-file context menus now expose Compare with base, Show log, old-name Log
 for renames/copies, and HEAD Blame with original icons. Newly added and deleted
 rows omit Blame; unversioned/ignored rows omit history and base comparison while
-retaining double-click preview. Two existing non-directory files expose Compare
-two files in displayed selection order, using the shared working-file comparison
-backend. Right-click records the marked row even inside an existing multiple
+retaining double-click preview. Two rows recorded as non-directory files expose
+Compare two files in displayed selection order. If a file disappears before the
+command runs, the shared backend reads that side from a pinned HEAD commit while
+using current disk bytes for the other side. The menu no longer disappears merely
+because a selected file was removed after the list loaded. Directory identity is
+recorded with each row, so a removed directory remains ineligible. Comparison
+revalidates path types and historical contents before opening; it does not stage
+or restore files. See [the missing-file verification record](qa/add-missing-pair-2026-10-06.json). Right-click records the marked row even inside an existing multiple
 selection; base comparison, Ignore and Delete availability follows that row.
 Actions preserve the Add window's repository lease and are blocked during Add
 work and quit confirmation. See [the history verification record](qa/add-history-2026-10-06.json).
@@ -129,9 +134,15 @@ See [the copy verification record](qa/add-copy-2026-10-06.json) for actual model
 checks and remaining native/signed picker acceptance. The final copy regression
 passes 492 tests with zero failures; both unsigned builds and bundle audits pass.
 
+The missing-file comparison regression passes 493 tests with zero failures.
+Actual receiver checks verify unchanged staging and pinned HEAD contents after
+working-file removal; both unsigned builds and package audits pass. Displayed
+menus/comparison windows and signed acceptance remain pending.
+
 Index-only executable/symlink post-actions are implemented; real native action-menu
 acceptance is pending. Full status-list commands (current-column clipboard, remaining tracked-row commands and
-other shared consumers), missing-file comparison eligibility, Shift alternative comparison, Space/column/drop/keyboard gestures,
+other shared consumers), Shift alternative comparison, Space/column/drop/keyboard
+gestures,
 progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain
 unfinished. Signed Finder/picker/grant/quit acceptance and GitHub execution of
