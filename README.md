@@ -193,6 +193,10 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.
+  Search offers saved Subject/Message/Author/Email/Revision field choices,
+  All/Toggle filters and a saved case-sensitive option. Author and email searches
+  include committer identities. [Log parity details](docs/LOG-PARITY.md) describe
+  the remaining search modes and native acceptance checks.
   Full revision clipboard details include notes, tags and paths, with an option
   to omit changed paths and support for multiple selected revisions.
 - Original TortoiseGit command icons in app context menus and the Finder submenu;

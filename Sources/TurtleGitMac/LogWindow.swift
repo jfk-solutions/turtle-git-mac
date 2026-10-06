@@ -3,6 +3,15 @@ import SwiftUI
 import TurtleGitCore
 import UniformTypeIdentifiers
 
+/// Native persistence for the filter fields currently implemented in Log.
+private enum LogSearchSelection {
+    static let all: HistorySearchFields = [.subject, .messages, .authors, .emails, .revisions]
+    static func load(defaults: UserDefaults = .standard) -> HistorySearchFields {
+        guard let stored = defaults.object(forKey: "SelectedLogFilters") as? NSNumber, stored.intValue >= 0 else { return all }
+        return HistorySearchFields(rawValue: stored.intValue).intersection(all)
+    }
+}
+
 struct PreparedFileComparisonMark {
     let path: String
     let revision: String
@@ -170,7 +179,7 @@ struct LogCommandRequest: Identifiable {
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
     @Published var search = ""
-    @Published var searchFields: HistorySearchFields = .messages
+    @Published var searchFields = LogSearchSelection.load()
     @Published var searchCaseSensitive = UserDefaults.standard.bool(forKey: "FilterCaseSensitively")
     @Published var filterPaths = ""
     @Published var from = Date(timeIntervalSince1970: 0)
@@ -218,6 +227,20 @@ struct LogCommandRequest: Identifiable {
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false) { self.repository = repository; self.access = access; self.selecting = selecting }
+    func selectSearchFields(_ fields: HistorySearchFields) {
+        guard !busy else { return }
+        searchFields = fields.intersection(LogSearchSelection.all)
+        UserDefaults.standard.set(searchFields.rawValue, forKey: "SelectedLogFilters")
+        if !search.isEmpty { reload() }
+    }
+    func toggleSearchFields() { selectSearchFields(LogSearchSelection.all.subtracting(searchFields)) }
+    func selectAllSearchFields() { selectSearchFields(LogSearchSelection.all) }
+    func setSearchCaseSensitive(_ enabled: Bool) {
+        guard !busy else { return }
+        searchCaseSensitive = enabled
+        UserDefaults.standard.set(enabled, forKey: "FilterCaseSensitively")
+        if !search.isEmpty { reload() }
+    }
     func accept() {
         if selecting { guard !busy, let revision else { return }; finishSelection(revision) }
         else { close() }
@@ -502,15 +525,17 @@ struct LogDialog: View {
                 Menu {
                     ForEach([("Subject", HistorySearchFields.subject), ("Messages", .messages), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions)], id: \.0) { title, field in
                         Toggle(title, isOn: Binding(get: { model.searchFields.contains(field) }, set: { enabled in
-                            if enabled { model.searchFields.insert(field) } else { model.searchFields.remove(field) }
-                            model.reload()
+                            var selected = model.searchFields
+                            if enabled { selected.insert(field) } else { selected.remove(field) }
+                            model.selectSearchFields(selected)
                         }))
                     }
                     Divider()
+                    Button("Toggle filters") { model.toggleSearchFields() }
+                    Button("All") { model.selectAllSearchFields() }
+                    Divider()
                     Toggle("Case-sensitive", isOn: Binding(get: { model.searchCaseSensitive }, set: { enabled in
-                        model.searchCaseSensitive = enabled
-                        UserDefaults.standard.set(enabled, forKey: "FilterCaseSensitively")
-                        model.reload()
+                        model.setSearchCaseSensitive(enabled)
                     }))
                 } label: { CommandLabel(title: "Search in", icon: .log) }.disabled(model.busy)
                 TextField("Search log", text: $model.search).textFieldStyle(.roundedBorder).onSubmit { model.reload() }

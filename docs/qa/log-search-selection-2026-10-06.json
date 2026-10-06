@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native Log saved search-field selection and All/Toggle filters commands; full port remains incomplete",
+  "baseCommit": "0d48bb80897115bbeb3214ea4b82a485402731b8",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/LogDlg.cpp: SelectedLogFilters persisted, default LOGFILTER_ALL; All assigns mask; Toggle complements selected mask within supported set; reload only when filter active",
+    "src/Resources/TortoiseProcENG.rc: Toggle filters label"
+  ],
+  "implemented": [
+    "Native field selection loads/saves SelectedLogFilters; default all five currently implemented fields; explicit empty mask retained and unsupported bits masked out",
+    "All and Toggle filters commands in upstream order before case-sensitive control",
+    "Model setters block busy work and reload only for entered search text; empty search preserves loaded history/pagination",
+    "README and parity records now describe saved selection and remaining upstream fields"
+  ],
+  "verification": {
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "sourceAudit": "Reviewed saved-mask loading (including zero mask), supported-mask intersection, complement/select-all dispatch, busy guards and conditional reload against pinned source. Native model/menu compilation passed. No displayed UI or persisted-preference runtime acceptance was performed.",
+    "regressionScope": "No core changes or new tests for this reversible preference/menu wiring. Existing final history-search test evidence remains in log-search-case-2026-10-06.json.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "4065994f2ddbb380ab6e1272da55e4b9003d41059cd5a3e412989f256b097028"
+  },
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-log-search-selection-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-search-selection-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-search-selection-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-search-selection-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-search-selection-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Displayed field-selection/menu gestures and cross-window/restart persistence acceptance",
+    "Full source field/default set including paths, refs, tags, notes and issue IDs",
+    "Regex/advanced query syntax and large-history streaming/cancellation",
+    "Signed Finder/App Store acceptance and full application parity"
+  ]
+}
