@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native Log reference-name search; full port remains incomplete",
+  "baseCommit": "89865ea639d6be7fc9c01ab5dcd598ca810735c4",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/LogDlgFilter.cpp LOGFILTER_REFNAME: associated full reference names are searchable",
+    "src/TortoiseProc/LogDlg.cpp filter menu and src/Resources/TortoiseProcENG.rc Refname label",
+    "src/Git/Git.cpp GetMapHashToFriendName: annotated tags use peeled ^{} names; CLI show-ref -d and libgit2 map behavior reviewed"
+  ],
+  "implemented": [
+    "Refname field added to native saved selection/All/Toggle supported mask; unset defaults include all six implemented fields",
+    "Reference snapshot captured before history filtering and reused for visible row decorations",
+    "Local branches, remote refs, lightweight/annotated/nested tag names match their associated commit; annotated peeled aliases searchable without changing displayed tag names",
+    "Case mode and mixed-field OR retained; result limit applies after matches; pinned revision/path scopes retained"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 8,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final source. New real Git fixture verifies older branch/remote/lightweight/annotated/nested tag matches beyond limit, actual ref decorations, annotated ^{} query, rejection of lightweight ^{} query, ref-only rejection of message text, case matching, mixed message/ref OR, path scope and pinned range. Previous search/identity/metadata/refs/merge/clipboard cases pass."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and bundled NOTICE byte comparisons passed; Store bundled Git audit passed.",
+    "nativeAcceptance": "Native menu field/default-mask integration compiled in both configurations. No displayed menu/gesture/screenshot or persisted-choice runtime acceptance was performed.",
+    "fullRegression": "Focused history suite run for this change; full-suite repeat not performed. Prior full regression evidence has its own snapshot scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "b1a298c2793362d692284a3e09b106dbbc226a8db0c15391f4b31c83d3e3dfb4",
+    "Sources/TurtleGitMac/LogWindow.swift": "1d99a9a8a807fc3914689d5a738a9cc03598a07a43d379d2be93dc335c9fecc6",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "c1216ab26c303ece9161b7e1fcec89c779352af653ff5977cd3fab2ae034c016"
+  },
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-ref-tests.log",
+      "sha256": "13767479b1cc155ccdb8d0a2d6a619ad5fc8dee1d65803ab535f343f12ffd922"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-ref-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-ref-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-ref-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-ref-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-ref-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Annotated-tag contents, notes, changed paths and issue-ID search fields",
+    "Regex/advanced query syntax and large-history streaming/cancellation",
+    "Native menu/preferences/light/dark gesture acceptance",
+    "Signed Finder/App Store verification and complete application parity"
+  ]
+}

@@ -153,6 +153,45 @@ final class CommitHistoryTests: XCTestCase {
         options.limit = 1; options.endRevision = older.hash
         found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
     }
+    func testReferenceSearchFindsBranchesRemoteAndPeeledTagsBeforeLimit() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Ref Tests"])
+        _ = try await repo.run(["config", "user.email", "refs@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        try Data("old\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "old")
+        let initial = try await repo.history(), old = try XCTUnwrap(initial.first)
+        _ = try await repo.run(["branch", "release-needle", old.hash])
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/Review", old.hash])
+        _ = try await repo.run(["tag", "light-needle", old.hash])
+        _ = try await repo.run(["tag", "-a", "annotated-needle", "-m", "annotation text", old.hash])
+        _ = try await repo.run(["tag", "-a", "nested-tag", "-m", "nested annotation", "annotated-needle"])
+        try Data("new\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "needle only-in-message")
+        var options = HistoryOptions(); options.searchFields = .referenceNames; options.limit = 1
+        for name in ["release-needle", "refs/remotes/origin/Review", "light-needle", "annotated-needle", "nested-tag"] {
+            options.search = name; let found = try await repo.history(options: options)
+            XCTAssertEqual(found.map(\.hash), [old.hash], name)
+            XCTAssertTrue(found.first?.references.contains { $0.name.hasSuffix(name) } == true)
+        }
+        options.search = "annotated-needle^{}"
+        let peeled = try await repo.history(options: options); XCTAssertEqual(peeled.map(\.hash), [old.hash])
+        options.search = "light-needle^{}"; let notPeeled = try await repo.history(options: options); XCTAssertTrue(notPeeled.isEmpty)
+        options.search = "only-in-message"; var found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "review"; options.searchCaseSensitive = true
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchCaseSensitive = false; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        options.search = "needle"; options.searchFields = [.messages, .referenceNames]; options.limit = 2
+        found = try await repo.history(options: options); XCTAssertEqual(found.count, 2); XCTAssertEqual(found.last?.hash, old.hash)
+        options.searchFields = .referenceNames; options.search = "release-needle"; options.paths = ["absent.txt"]
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.paths = []; options.endRevision = old.hash; options.search = "main"
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

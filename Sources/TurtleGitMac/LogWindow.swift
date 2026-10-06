@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 /// Native persistence for the filter fields currently implemented in Log.
 private enum LogSearchSelection {
-    static let all: HistorySearchFields = [.subject, .messages, .authors, .emails, .revisions]
+    static let all: HistorySearchFields = [.subject, .messages, .authors, .emails, .revisions, .referenceNames]
     static func load(defaults: UserDefaults = .standard) -> HistorySearchFields {
         guard let stored = defaults.object(forKey: "SelectedLogFilters") as? NSNumber, stored.intValue >= 0 else { return all }
         return HistorySearchFields(rawValue: stored.intValue).intersection(all)
@@ -523,7 +523,7 @@ struct LogDialog: View {
                 DatePicker("From:", selection: $model.from, displayedComponents: .date).disabled(!model.useDates)
                 DatePicker("To:", selection: $model.to, displayedComponents: .date).disabled(!model.useDates)
                 Menu {
-                    ForEach([("Subject", HistorySearchFields.subject), ("Messages", .messages), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions)], id: \.0) { title, field in
+                    ForEach([("Subject", HistorySearchFields.subject), ("Messages", .messages), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions), ("Refname", .referenceNames)], id: \.0) { title, field in
                         Toggle(title, isOn: Binding(get: { model.searchFields.contains(field) }, set: { enabled in
                             var selected = model.searchFields
                             if enabled { selected.insert(field) } else { selected.remove(field) }

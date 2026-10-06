@@ -19,6 +19,7 @@ public struct HistorySearchFields: OptionSet, Sendable {
     public static let emails = Self(rawValue: 1 << 2)
     public static let revisions = Self(rawValue: 1 << 3)
     public static let subject = Self(rawValue: 1 << 4)
+    public static let referenceNames = Self(rawValue: 1 << 5)
 }
 
 public struct HistoryOptions: Sendable {
@@ -182,6 +183,17 @@ extension GitRepository {
         args.append("--")
         if let path = options.path, !path.isEmpty { args.append(path) }
         args += options.paths
+        let refs = try run(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).stdout
+        let fields = String(decoding: refs, as: UTF8.self).components(separatedBy: "\0")
+        var references: [String: [RevisionReference]] = [:]
+        var peeledReferenceNames: [String: [String]] = [:]
+        var i = 0
+        while i + 2 < fields.count {
+            let hash = (fields[i + 1].isEmpty ? fields[i] : fields[i + 1]).trimmingCharacters(in: .whitespacesAndNewlines)
+            references[hash, default: []].append(RevisionReference(name: fields[i + 2]))
+            if !fields[i + 1].isEmpty { peeledReferenceNames[hash, default: []].append(fields[i + 2] + "^{}") }
+            i += 3
+        }
         let fieldsInHistory = String(decoding: try run(args).stdout, as: UTF8.self).components(separatedBy: "\0")
         var entries: [LogEntry] = []
         var record = 0
@@ -195,6 +207,10 @@ extension GitRepository {
                 if options.searchFields.contains(.authors) { searchable += [fields[2], fields[7]] }
                 if options.searchFields.contains(.emails) { searchable += [fields[3], fields[8]] }
                 if options.searchFields.contains(.revisions) { searchable.append(fields[0].trimmingCharacters(in: .newlines)) }
+                if options.searchFields.contains(.referenceNames) {
+                    let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
+                    searchable += (references[hash] ?? []).map(\.name) + (peeledReferenceNames[hash] ?? [])
+                }
                 guard searchable.contains(where: { $0.range(of: options.search, options: options.searchCaseSensitive ? [] : .caseInsensitive) != nil }) else { continue }
             }
             let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -203,14 +219,6 @@ extension GitRepository {
                 parents: fields[1].split(separator: " ").map(String.init), email: fields[3], message: fields[6],
                 committer: fields[7], committerEmail: fields[8]))
             if filtering && options.limit > 0 && entries.count >= options.limit { break }
-        }
-        let refs = try run(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00"]).stdout
-        let fields = String(decoding: refs, as: UTF8.self).components(separatedBy: "\0")
-        var references: [String: [RevisionReference]] = [:]
-        var i = 0
-        while i + 2 < fields.count {
-            let hash = (fields[i + 1].isEmpty ? fields[i] : fields[i + 1]).trimmingCharacters(in: .whitespacesAndNewlines)
-            references[hash, default: []].append(RevisionReference(name: fields[i + 2])); i += 3
         }
         let head = try? run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentRef = try? run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
