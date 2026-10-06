@@ -153,7 +153,23 @@ public enum RebaseEditor {
             guard let match = header.firstMatch(in: first, range: NSRange(first.startIndex..., in: first)), let range = Range(match.range(at: 1), in: first) else { return 1 }
             let prefix = NSRegularExpression.escapedPattern(for: String(first[range]))
             let headings = try NSRegularExpression(pattern: "^" + prefix + " This is (a combination of [0-9]+ commits\\.|the ([0-9]+(st|nd|rd|th) commit message|commit message #[0-9]+):)$")
-            let message = lines.filter { headings.firstMatch(in: $0, range: NSRange($0.startIndex..., in: $0)) == nil }.joined(separator: "\n").trimmingCharacters(in: .newlines)
+            var message = lines.filter { headings.firstMatch(in: $0, range: NSRange($0.startIndex..., in: $0)) == nil }.joined(separator: "\n").trimmingCharacters(in: .newlines)
+            if let actions = config.actions, let messages = config.messages, actions.indices.contains(step - 1), messages.count == actions.count {
+                // Git omits messages for Squash steps whose conflict resolution
+                // adds no changes. TortoiseGit accumulates every group message.
+                // Keep Git's first section, which may contain an approved Edit,
+                // and obtain later sections from the captured replay objects.
+                var start = step - 1
+                while start > 0 && (actions[start] == RebaseAction.squash.rawValue || actions[start] == RebaseAction.skip.rawValue) { start -= 1 }
+                let boundaries = lines.indices.filter { headings.firstMatch(in: lines[$0], range: NSRange(lines[$0].startIndex..., in: lines[$0])) != nil }
+                if boundaries.count >= 3 {
+                    let firstMessage = lines[(boundaries[1] + 1)..<boundaries[2]].joined(separator: "\n").trimmingCharacters(in: .newlines)
+                    let skippedURL = directory.appendingPathComponent("turtlegit-skipped-steps.json")
+                    let skipped = FileManager.default.fileExists(atPath: skippedURL.path) ? try JSONDecoder().decode(Set<Int>.self, from: Data(contentsOf: skippedURL)) : []
+                    let rest = ((start + 1)..<step).filter { actions[$0] == RebaseAction.squash.rawValue && !skipped.contains($0 + 1) }.map { messages[$0].trimmingCharacters(in: .newlines) }
+                    message = ([firstMessage] + rest).joined(separator: "\n\n")
+                }
+            }
             let request = RebaseSquashMessage(message: message, datePolicy: config.datePolicy, latestDate: config.dates[step - 1], step: step)
             try JSONEncoder().encode(request).write(to: directory.appendingPathComponent("turtlegit-squash-message.json"), options: .atomic)
             return 1 // Leave Git's durable replay state for the native editor.
@@ -164,6 +180,8 @@ private struct RebaseMessageConfiguration: Codable {
     let editorCommand: String
     let datePolicy: RebaseSquashDate
     let dates: [String]
+    var actions: [String]? = nil
+    var messages: [String]? = nil
 }
 private struct RebaseReplayIdentity: Codable {
     let hash: String
@@ -385,7 +403,7 @@ extension GitRepository {
         if plan.entries.contains(where: { $0.action == .squash }) {
             let messageFile = temporary.appendingPathComponent("replay-messages.json")
             let command = RebaseEditor.messageCommand(executable: editorExecutable)
-            try JSONEncoder().encode(RebaseMessageConfiguration(editorCommand: command, datePolicy: plan.options.squashDate, dates: plan.entries.map { $0.commit.date })).write(to: messageFile)
+            try JSONEncoder().encode(RebaseMessageConfiguration(editorCommand: command, datePolicy: plan.options.squashDate, dates: plan.entries.map { $0.commit.date }, actions: replay.entries.map { $0.action.rawValue }, messages: replay.entries.map { $0.commit.message })).write(to: messageFile)
             environment["TURTLEGIT_REPLAY_MESSAGES"] = messageFile.path
             environment["GIT_EDITOR"] = command
         }
@@ -469,7 +487,21 @@ extension GitRepository {
         let result = try recoverRebase("--continue")
         return RebaseExecution(output: output + result.output, exitCode: result.exitCode, state: result.state)
     }
-    public func skipRebase() throws -> RebaseExecution { try recoverRebase("--skip") }
+    public func skipRebase() throws -> RebaseExecution {
+        let before = try rebaseState()
+        guard before.active else { throw RebaseFailure.inactive }
+        guard FileManager.default.fileExists(atPath: try rebasePath("rebase-merge/turtlegit-message-editor.json").path) else { return try recoverRebase("--skip") }
+        let path = try rebasePath("rebase-merge/turtlegit-skipped-steps.json")
+        var skipped = FileManager.default.fileExists(atPath: path.path) ? try JSONDecoder().decode(Set<Int>.self, from: Data(contentsOf: path)) : []
+        let old = skipped
+        skipped.insert(before.currentStep)
+        try JSONEncoder().encode(skipped).write(to: path, options: .atomic)
+        let result = try recoverRebase("--skip")
+        if result.state.active && result.state.currentStep == before.currentStep && result.state.squashMessage == nil {
+            try JSONEncoder().encode(old).write(to: path, options: .atomic)
+        }
+        return result
+    }
     public func abortRebase() throws -> RebaseExecution { try recoverRebase("--abort") }
     private func recoverRebase(_ action: String) throws -> RebaseExecution {
         guard try rebaseState().active else { throw RebaseFailure.inactive }

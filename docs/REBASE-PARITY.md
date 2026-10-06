@@ -35,7 +35,7 @@ applies it. Split opens full Commit selection dialogs, with durable part recover
 See [Edit/Split workflow](REBASE-SPLIT.md) and
 [Conflict Files](REBASE-CONFLICT-FILES.md). Pick/Edit conflict Continue now
 commits checked files and preserves unchecked changes through a recoverable
-native amend loop. Squash conflict selection and empty-result grouping, full
+native amend loop. Squash checkbox interaction, advanced group/reference recovery, full
 row menus, completed-row display and post-operation controls still need porting
 and comparison.
 
@@ -155,3 +155,8 @@ restricted to applied Edit pauses. See [Squash conflicts](REBASE-SQUASH-CONFLICT
 Empty Squash approval now offers Commit/Skip/Cancel. Skip drops the whole group
 and retains a durable retry intent after reset failures.
 See [empty Squash groups](REBASE-EMPTY-SQUASH.md).
+
+Repeated Squash conflicts retain no-change middle messages in the final draft,
+exclude deliberate Skip steps, and preserve the latest source date. Reopening,
+empty-group choices and subsequent ancestry are covered by real/headless native
+fixtures. See [repeated conflicts](REBASE-SQUASH-CONFLICTS.md#repeated-conflicts-within-a-group).

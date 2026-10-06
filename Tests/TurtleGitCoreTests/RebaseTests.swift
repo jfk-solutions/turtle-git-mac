@@ -237,6 +237,49 @@ final class RebaseTests: XCTestCase {
             XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("group-first.txt").path))
         }
     }
+    func testSquashGroupSurvivesTwoConflictsBeforeCombinedApproval() async throws {
+        for (empty, choice, skipMiddle) in [(false, RebaseEmptyChoice.commit, false), (true, .commit, false), (true, .skip, false), (false, .commit, true)] {
+            let (root, repo, path, _) = try await squashConflictFixture(policy: .latest); defer { try? FileManager.default.removeItem(at: root) }
+            if empty { _ = try await repo.run(["rm", "--", "group-first.txt"]) }
+            try Data("third source conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+            _ = try await repo.run(["commit", "--author", "Third Group <third@example.test>", "-m", "third group\n\n# literal third"], environmentOverrides: ["GIT_AUTHOR_DATE": "2003-04-05T06:07:08+05:30"])
+            try Data("future\n".utf8).write(to: root.appendingPathComponent("future-group.txt")); try await repo.stage(["future-group.txt"]); _ = try await repo.commit(message: "future after repeated conflicts")
+            var plan = try await repo.rebasePlan(options()); plan.options.squashDate = .latest; plan.entries[1].action = .squash; plan.entries[2].action = .squash
+            let firstStop = try await repo.startRebase(plan, editorExecutable: editor)
+            XCTAssertEqual(firstStop.state.stoppedEntryID, plan.entries[1].id); XCTAssertNil(firstStop.state.squashMessage)
+            try Data("upstream conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+            let reopened = GitRepository(root: root)
+            if skipMiddle {
+                let lock = root.appendingPathComponent(".git/index.lock"); try Data().write(to: lock)
+                let failed = try await reopened.skipRebase()
+                try FileManager.default.removeItem(at: lock)
+                XCTAssertNotEqual(failed.exitCode, 0); XCTAssertEqual(failed.state.currentStep, firstStop.state.currentStep)
+                let skipped = try JSONDecoder().decode(Set<Int>.self, from: Data(contentsOf: root.appendingPathComponent(".git/rebase-merge/turtlegit-skipped-steps.json")))
+                XCTAssertTrue(skipped.isEmpty, "Failed Skip must not exclude the commit from a later draft")
+            }
+            let secondStop = try await (skipMiddle ? reopened.skipRebase() : reopened.continueRebase())
+            XCTAssertNotEqual(secondStop.exitCode, 0); XCTAssertEqual(secondStop.state.conflicts, [path]); XCTAssertEqual(secondStop.state.stoppedEntryID, plan.entries[2].id)
+            XCTAssertNil(secondStop.state.squashMessage, "Combined approval must wait for the whole group"); XCTAssertFalse(secondStop.state.canSplit)
+            try Data((empty ? "upstream conflict\n" : "resolved final group\n").utf8).write(to: root.appendingPathComponent(path)); try await reopened.stage([path])
+            let again = GitRepository(root: root), pause = try await again.continueRebase()
+            let pending = try XCTUnwrap(pause.state.squashMessage)
+            XCTAssertEqual(pending.latestDate, plan.entries[2].commit.date)
+            for message in ["first group", "third group", "# literal first", "# literal third"] { XCTAssertTrue(pending.message.contains(message), message + " draft: " + pending.message) }
+            for message in ["last group", "# literal last"] { XCTAssertEqual(pending.message.contains(message), !skipMiddle, message) }
+            let isEmpty = try await again.rebaseSquashIsEmpty(); XCTAssertEqual(isEmpty, empty)
+            let result = try await again.continueRebase(squashMessage: "approved repeated-conflict group", emptySquashChoice: empty ? choice : nil)
+            XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertFalse(result.state.active)
+            let head = try await again.rebaseCommit("HEAD"), parent = try await again.rebaseCommit("HEAD^"), onto = try await again.rebaseCommit("upstream")
+            XCTAssertEqual(head.subject, "future after repeated conflicts")
+            if choice == .skip { XCTAssertEqual(head.parents, [onto.hash]) }
+            else {
+                XCTAssertEqual(parent.parents, [onto.hash]); XCTAssertEqual(parent.subject, "approved repeated-conflict group")
+                XCTAssertEqual(parent.author, plan.entries[0].commit.author); XCTAssertEqual(parent.email, plan.entries[0].commit.email); XCTAssertEqual(parent.date, plan.entries[2].commit.date)
+                let files = try await again.files(in: parent); XCTAssertEqual(files.isEmpty, empty)
+            }
+            XCTAssertEqual(FileManager.default.fileExists(atPath: root.appendingPathComponent("group-first.txt").path), !empty)
+        }
+    }
     func testEmptySquashSkipRejectsUnstagedChangesAndStaleHeadWithoutLosingRequest() async throws {
         let (root, repo, path, plan) = try await squashConflictFixture(policy: .latest, empty: true); defer { try? FileManager.default.removeItem(at: root) }
         _ = try await repo.startRebase(plan, editorExecutable: editor)

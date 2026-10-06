@@ -32,8 +32,10 @@ reset followed by reopening/retry. The whole-native receiver drives the actual
 models through conflict resolution, reopened combined approval, each choice and
 final replay. Prompt answers are injected and views remain hidden.
 
-Displayed prompt focus, gestures and accessibility, empty groups formed across
-multiple conflicting Squash steps, advanced rewritten-reference behavior and
+Two consecutive conflicts within one empty group are also exercised; see
+[repeated Squash conflicts](REBASE-SQUASH-CONFLICTS.md#repeated-conflicts-within-a-group).
+
+Displayed prompt focus, gestures and accessibility, advanced rewritten-reference behavior and
 signed sandbox/App Store acceptance remain unverified. Squash checkbox acceptance
 also remains pending. This is not complete replay or TortoiseGit parity.
 

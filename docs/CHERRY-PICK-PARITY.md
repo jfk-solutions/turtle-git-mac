@@ -140,3 +140,8 @@ See [Squash conflicts](REBASE-SQUASH-CONFLICTS.md).
 Shared empty Squash-group approval offers Commit/Skip/Cancel, preserving correct
 future ancestry and approved Skip recovery.
 See [empty Squash groups](REBASE-EMPTY-SQUASH.md).
+
+Repeated Squash conflicts retain no-change middle messages in the final draft,
+exclude deliberate Skip steps, and preserve the latest source date. Reopening,
+empty-group choices and subsequent ancestry are covered by real/headless native
+fixtures. See [repeated conflicts](REBASE-SQUASH-CONFLICTS.md#repeated-conflicts-within-a-group).

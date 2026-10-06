@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "7718f7d",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Retain all group messages across repeated Squash conflicts, excluding deliberately skipped steps",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "58c85a992cb91a6cd2423a579c14258ca8efc1808d3695737e327c1b1e1b49a6",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "6b1fff9986f28b1ea0344c1df2974e89d6b5be72d7ff2d181e23f265e5089963",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "b170b8889e242c6a316efb0652449af4139ee3ba63b4fa744b8a6ae79ad32075",
+    "README.md": "2e8eb02353177bcfff9510a6399146a85bebbc996549332359c8b0c4da2fa298",
+    "docs/REBASE-PARITY.md": "db2f8c8490f3c83a44c5f7ccdecac518f124738cd7462338eafa0bda9e5e1764",
+    "docs/CHERRY-PICK-PARITY.md": "9b85b3f3d54c99f7bdd7e1273982d19a3c961211b3637de4d39d6a602b1bfa4c",
+    "docs/REBASE-SQUASH-CONFLICTS.md": "b03ca8de965cf7c5334bb202008b69b443bd86f7683a3f015df4398f9311c4bf",
+    "docs/REBASE-EMPTY-SQUASH.md": "4087e84db40c9b253f98f8ccf1e12effc83d1435fbea7bf3462cc9818e368e01",
+    "docs/site/index.html": "22a29282f2286d3786d95167e5dbcaa0abeed421f6af60ee7fa6e9631ddc8ab6"
+  },
+  "all_native_sources_manifest_sha256": "d3f61e22ba307b4b8adbf221c3efa532be9ef44483f00cfc55155bd99f7f9a85",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "initial_probe": {
+      "command": "swift test --filter RebaseTests.testSquashGroupSurvivesTwoConflictsBeforeCombinedApproval",
+      "tests": 1,
+      "assertion_failures": 6,
+      "result": "Middle source message and its literal comment were lost after a no-change conflict resolution in three group variants"
+    },
+    "targeted_after_fix": {
+      "tests": 1,
+      "failures": 0,
+      "variants": 3
+    },
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 46,
+      "failures": 0,
+      "coverage": [
+        "Two consecutive conflicts retain one group across reopening",
+        "No-change middle message and literal comments retained",
+        "Latest author date comes from the third source commit",
+        "Normal group and empty-group Commit/Skip preserve future ancestry",
+        "Deliberately skipped middle step excluded",
+        "Existing first/latest/current, edited first message, separate groups, attribution, Split and conflict recovery regressions"
+      ]
+    },
+    "final_targeted_rerun": {
+      "tests": 1,
+      "failures": 0,
+      "variants": 4,
+      "additional_coverage": "An index-lock failure prevents middle Skip; its exclusion record rolls back before a successful retry"
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Actual models reopen at second conflict and final combined approval",
+        "First/middle/third messages and third source date retained",
+        "No premature approval or Split before final application",
+        "Empty group Commit/Skip/Cancel, cancellation draft preservation and correct future parent",
+        "Forced whole-group Skip failure reopens and retries without another prompt"
+      ],
+      "limits": "Hidden hosted views; prompt answers injected. Displayed layout/focus/gestures/accessibility and signed execution unverified"
+    },
+    "swift_build": "passed",
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "probe": "e43ce531355cda7208ce8d8b6f5d77c777fa6e7ddffb6ba8ce38f85c333d38d2",
+    "draft": "0e5d9c18c4cd46bc6c1fd304bbc1e760d8a2e2e1c14ea9ae1ad44f0181896a60",
+    "build": "1840dab192f86192d0348378b4a954fa4e5da8018769c2d5eed0076b3ade9e44",
+    "targeted": "615d73f038defbad055bad307fa1f236f385d2d5d4c9d58042082ad80bb6b230",
+    "tests": "fe9e53402d872faecf56b28c30075793d323160239f99cf35ccc10b0c135f56c",
+    "final-targeted": "767fa98262acce564e0ab307c652e783752459e9a88c196c460d5d804bd854ed",
+    "native": "353cbfa5fb045c840dfa56647f4e609aea8471e2e23d7623d06b95ef81cfd4f4",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Repeated-conflict empty-group Skip across linked worktrees and advanced rewritten refs",
+    "External edits to the replay todo",
+    "Exact Squash checkbox interaction",
+    "Displayed dialogs, focus and accessibility",
+    "Strip Commented Lines preference",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Verify empty-group Skip in linked worktrees and with Git rewrite metadata/update-refs; then complete missing Rebase row menus, completed-row presentation and post-operation controls against upstream.",
+    "sources": [
+      "src/TortoiseProc/RebaseDlg.cpp: Squash_Conclict, Squash_Edit, ResetParentForSquash, m_rewrittenCommitsMap",
+      "Sources/TurtleGitCore/Rebase.swift: resumeEmptySquashSkip and replay metadata",
+      "Sources/TurtleGitMac/RebaseWindow.swift: commit row context menu and final controls"
+    ]
+  },
+  "processes": "No main app launched; receiver-owned hidden windows closed, receivers exited; final app/receiver process audit empty"
+}

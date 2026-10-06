@@ -222,32 +222,54 @@ import TurtleGitCore
     }
     print("Actual native Squash conflict: whole-group file list, Unicode/newline path, Continue/Commit/Done captions, staged resolution and repeated reopening, multiline/literal-comment approval, first author and first/latest/current dates passed. Hidden hosted views; prompt answers injected.")
 }
-@MainActor func verifyNativeEmptySquash(_ repo: GitRepository, editor: URL?) async throws {
+@MainActor func verifyNativeEmptySquash(_ repo: GitRepository, editor: URL?, repeatedConflicts: Bool = false) async throws {
     let preference = UserDefaults.standard.object(forKey: "SquashDate")
     defer { if let preference { UserDefaults.standard.set(preference, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") } }
-    for (name, choice) in [("commit", RebaseEmptyChoice.commit), ("skip", .skip), ("cancel", .cancel)] {
+    for (variant, choice) in [("commit", RebaseEmptyChoice.commit), ("skip", .skip), ("cancel", .cancel)] {
+        let name = (repeatedConflicts ? "repeated-" : "") + variant
         let path = "empty squash 雪 " + name + "\n.txt", firstPath = "empty-first-" + name + ".txt", futurePath = "empty-future-" + name + ".txt"
         try Data("base empty\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "empty base " + name)
         _ = try await repo.run(["checkout", "-b", "native-empty-squash-" + name])
         try Data("first empty group\n".utf8).write(to: repo.root.appendingPathComponent(firstPath)); try await repo.stage([firstPath])
         _ = try await repo.run(["commit", "--author", "Empty First <first@example.test>", "-m", "First empty group"], environmentOverrides: ["GIT_AUTHOR_DATE": "2001-02-03T04:05:06+02:00"])
         let first = try await repo.rebaseCommit("HEAD")
-        _ = try await repo.run(["rm", "--", firstPath]); try Data("source empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path])
+        if !repeatedConflicts { _ = try await repo.run(["rm", "--", firstPath]) }; try Data("source empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path])
         _ = try await repo.run(["commit", "--author", "Empty Last <last@example.test>", "-m", "Last empty group"], environmentOverrides: ["GIT_AUTHOR_DATE": "2002-03-04T05:06:07-03:00"])
-        let last = try await repo.rebaseCommit("HEAD")
+        let middle = try await repo.rebaseCommit("HEAD")
+        var last = middle
+        if repeatedConflicts {
+            _ = try await repo.run(["rm", "--", firstPath]); try Data("third source conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path])
+            _ = try await repo.run(["commit", "--author", "Third Conflict <third@example.test>", "-m", "Third empty group\n\n# literal third"], environmentOverrides: ["GIT_AUTHOR_DATE": "2003-04-05T06:07:08+05:30"])
+            last = try await repo.rebaseCommit("HEAD")
+        }
         try Data("future after group\n".utf8).write(to: repo.root.appendingPathComponent(futurePath)); try await repo.stage([futurePath]); _ = try await repo.commit(message: "Future after " + name)
         let future = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", "target"])
         try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "empty destination " + name)
         let destination = try await repo.rebaseCommit("HEAD")
         UserDefaults.standard.set(1, forKey: "SquashDate")
         let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.confirmConflictHints = { true }
-        model.load(cherryPick: [future.hash, last.hash, first.hash]); try await settle(model); model.setAction(.squash, ids: [last.hash]); model.request("start")
+        model.load(cherryPick: repeatedConflicts ? [future.hash, last.hash, middle.hash, first.hash] : [future.hash, last.hash, first.hash]); try await settle(model); model.setAction(.squash, ids: repeatedConflicts ? [middle.hash, last.hash] : [last.hash]); model.request("start")
         let deadline = Date().addingTimeInterval(30)
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(!model.busy && model.error != nil && model.state?.stoppedAction == .squash); model.error = nil
         try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); model.refreshState(); try await settle(model)
-        model.request("continue"); try await settle(model); precondition(model.state?.squashMessage != nil && model.primaryActionTitle == "Commit")
+        model.request("continue")
+        if repeatedConflicts {
+            let secondDeadline = Date().addingTimeInterval(30)
+            while model.busy && Date() < secondDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(!model.busy && model.error != nil)
+            precondition(model.state?.squashMessage == nil && model.state?.stoppedEntryID == last.hash && model.state?.conflicts == [path] && model.primaryActionTitle == "Continue" && !model.canSplit)
+            model.error = nil
+            let second = RebaseWindowModel(repository: repo, access: nil); second.editorExecutable = editor; second.confirmConflictHints = { true }; second.load(); try await settle(second)
+            precondition(second.state?.stoppedEntryID == last.hash && second.fileRecovery && !second.supportsConflictSelection)
+            try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); second.refreshState(); try await settle(second)
+            second.request("continue"); try await settle(second); precondition(second.state?.squashMessage != nil && second.primaryActionTitle == "Commit")
+        } else { try await settle(model); precondition(model.state?.squashMessage != nil && model.primaryActionTitle == "Commit") }
         let approval = RebaseWindowModel(repository: repo, access: nil); approval.editorExecutable = editor; approval.confirmConflictHints = { true }; approval.load(); try await settle(approval)
+        if repeatedConflicts {
+            for text in ["First empty group", "Last empty group", "Third empty group", "# literal third"] { precondition(approval.amendMessage.contains(text)) }
+            precondition(approval.state?.squashMessage?.latestDate == last.date)
+        }
         let lock = repo.root.appendingPathComponent(".git/index.lock")
         defer { try? FileManager.default.removeItem(at: lock) }
         var prompts = 0; approval.chooseEmptyResult = {
@@ -282,7 +304,7 @@ import TurtleGitCore
         }
         precondition(!FileManager.default.fileExists(atPath: repo.root.appendingPathComponent(firstPath).path))
     }
-    print("Actual native empty Squash groups: reopened Commit/Skip/Cancel choices, Cancel retains message/HEAD/index, Commit keeps message-only group with first author/latest date, Skip drops entire group, index-lock failure reopens and retries approved Skip without another prompt, future replay follows the correct parent. Answers injected.")
+    print((repeatedConflicts ? "Actual native repeated Squash conflicts: two conflict stops/reopening, retained middle message and final date; " : "Actual native empty Squash groups: ") + "reopened Commit/Skip/Cancel choices, Cancel retains message/HEAD/index, Commit keeps message-only group with first author/latest date, Skip drops entire group, index-lock failure reopens and retries approved Skip without another prompt, future replay follows the correct parent. Answers injected.")
 }
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
@@ -582,6 +604,7 @@ import TurtleGitCore
     try await verifyNativeRecoveryFiles(repo, editor: model.editorExecutable)
     try await verifyNativeSquashConflict(repo, editor: model.editorExecutable)
     try await verifyNativeEmptySquash(repo, editor: model.editorExecutable)
+    try await verifyNativeEmptySquash(repo, editor: model.editorExecutable, repeatedConflicts: true)
 
 
 
