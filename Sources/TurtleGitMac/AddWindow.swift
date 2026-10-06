@@ -28,7 +28,31 @@ private final class AddNativeWindow: NSWindow {
         model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
         model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
         model.onDelete = { [weak self] selected, permanently in self?.confirmDelete(selected, permanently: permanently) }
+        model.onSave = { [weak self] path in self?.saveFile(path) }
+        model.onExport = { [weak self] paths in self?.exportFiles(paths) }
         window.refresh = { [weak model] in model?.reload() }; window.accept = { [weak model] in model?.apply() }
+    }
+    private func saveFile(_ path: String) {
+        guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }
+        let panel = NSSavePanel(); panel.title = "Save As"; panel.canCreateDirectories = true
+        let file = model.repository.root.appendingPathComponent(path)
+        let name = file.lastPathComponent, ext = StatusListClipboard.fileExtension(path)
+        panel.nameFieldStringValue = String(name.dropLast(ext.count)) + "-" + ext
+        panel.directoryURL = file.deletingLastPathComponent()
+        panel.beginSheetModal(for: window) { [weak model] response in
+            guard response == .OK, let target = panel.url else { return }
+            _ = model?.startSave(path, to: target)
+        }
+    }
+    private func exportFiles(_ paths: [String]) {
+        guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }
+        let panel = NSOpenPanel(); panel.title = "Export"; panel.prompt = "Export"
+        panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false; panel.directoryURL = model.repository.root
+        panel.beginSheetModal(for: window) { [weak model] response in
+            guard response == .OK, let folder = panel.url else { return }
+            _ = model?.startExport(paths, to: folder)
+        }
     }
     private func confirmDelete(_ selected: [StatusEntry], permanently: Bool) {
         guard let window, window.attachedSheet == nil, model.beginDeleteConfirmation(selected, permanently: permanently) else { return }
@@ -72,7 +96,7 @@ private final class AddNativeWindow: NSWindow {
             AlternativeEditor.open(file) { [weak model] failure in if let failure { model?.error = failure } }
         } else if !NSWorkspace.shared.open(file) { model.error = "Could not open the file. Choose an application using Open With." }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) { onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -107,6 +131,29 @@ private final class AddNativeWindow: NSWindow {
         guard ignoring else { return }
         ignoring = false; busy = false
         if changed { reload() }
+    }
+    var onSave: (String) -> Void = { _ in }
+    var onExport: ([String]) -> Void = { _ in }
+    @Published var information = ""
+    func saveFile(_ path: String, to target: URL) async { await startSave(path, to: target)?.value }
+    func exportFiles(_ paths: [String], to folder: URL) async { await startExport(paths, to: folder)?.value }
+    @discardableResult func startSave(_ path: String, to target: URL) -> Task<Void, Never>? { startCopy([path], to: target, save: true) }
+    @discardableResult func startExport(_ paths: [String], to folder: URL) -> Task<Void, Never>? { startCopy(paths, to: folder, save: false) }
+    private func startCopy(_ paths: [String], to target: URL, save: Bool) -> Task<Void, Never>? {
+        guard !busy, !confirmingQuit, !paths.isEmpty else { return nil }; busy = true; cancellation = OperationCancellation()
+        return Task {
+            let scoped = target.startAccessingSecurityScopedResource()
+            defer { if scoped { target.stopAccessingSecurityScopedResource() }; busy = false; cancellation = OperationCancellation() }
+            do {
+                try validateAccess()
+                if GitRuntime.isAppStoreBuild && !scoped { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if save {
+                    try await repository.saveWorkingFile(path: paths[0], to: target, cancellation: cancellation); information = "Saved " + target.path
+                } else {
+                    let count = try await repository.exportWorkingFiles(paths: paths, to: target, cancellation: cancellation); information = "\(count) file(s) exported."
+                }
+            } catch { self.error = error.localizedDescription }
+        }
     }
     var onDelete: ([StatusEntry], Bool) -> Void = { _, _ in }
     var onDeleteChanged: (String) -> Void = { _ in }
@@ -197,6 +244,7 @@ struct AddDialogView: View {
             }.disabled(model.busy)
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
+                if !model.busy && !model.information.isEmpty { Text(model.information).lineLimit(1).truncationMode(.middle).textSelection(.enabled) }
                 if !model.busy && model.entries.isEmpty { Text("There is nothing to add.").foregroundStyle(.secondary) }
                 Spacer()
                 Button("OK") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.canApply)

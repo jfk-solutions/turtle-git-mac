@@ -97,8 +97,24 @@ Unrelated unchecked rows remain unchanged. See [the Delete record](qa/add-delete
 for actual effects and acceptance limits. The final Delete regression passes
 491 tests with zero failures; both unsigned builds and bundle audits pass.
 
+Save As and Export now use native save/folder panels and current working-file
+copies, matching FileSaveAs/FilesExport rather than exporting staged blobs.
+Save As's working-copy default stem includes the upstream trailing dash before
+the extension. Existing destination files are replaced by a complete temporary
+copy; source aliases and Git metadata destinations are rejected. Binary bytes
+and file attributes are retained, and file symlinks supply their target contents.
+Export preserves repository-relative folders, skips directories and omitted
+removed rows, and uses the existing preflighted working-file export backend.
+Chosen destination scopes are held for the operation; picker sheets and queued
+copies block close/quit. Cancellation is checked between exports and before
+replacement; a synchronous individual copy completes before cancellation is
+observed. Earlier completed exports remain when a later copy fails or cancels.
+See [the copy verification record](qa/add-copy-2026-10-06.json) for actual model
+checks and remaining native/signed picker acceptance. The final copy regression
+passes 492 tests with zero failures; both unsigned builds and bundle audits pass.
+
 Index-only executable/symlink post-actions are implemented; real native action-menu
-acceptance is pending. Full status-list commands (current-column clipboard and
+acceptance is pending. Full status-list commands (current-column clipboard, tracked-row commands and
 other shared consumers), background artwork, Space/column/drop/keyboard gestures,
 progress notification granularity, saved histories/preferences, broader direct/
 removed/ignored/submodule cases and real native visual/light/dark comparison remain

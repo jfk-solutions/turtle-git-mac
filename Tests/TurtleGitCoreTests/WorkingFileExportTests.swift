@@ -2,6 +2,34 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingFileExportTests: XCTestCase {
+    func testWorkingSaveAsPreservesBinaryBytesPermissionsAndIndexAndRejectsAliases() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        let destination = root.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: destination) }
+        let path = "save 雪\n.bin", file = root.appendingPathComponent(path), bytes = Data([0, 255, 13, 10])
+        try bytes.write(to: file); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
+        try await repo.stage([path]); let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let working = Data([255, 0, 3]); try working.write(to: file)
+        try Data("old".utf8).write(to: destination)
+        try await repo.saveWorkingFile(path: path, to: destination)
+        XCTAssertEqual(try Data(contentsOf: destination), working)
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: destination.path)[.posixPermissions] as? Int, 0o755)
+        XCTAssertEqual(try Data(contentsOf: file), working); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let alias = root.appendingPathComponent("alias")
+        try FileManager.default.createSymbolicLink(at: alias, withDestinationURL: file)
+        for target in [file, alias, root.appendingPathComponent(".git/config")] {
+            do { try await repo.saveWorkingFile(path: path, to: target); XCTFail("Unsafe save accepted") } catch {}
+        }
+        let link = root.appendingPathComponent("link")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
+        try await repo.saveWorkingFile(path: "link", to: destination)
+        XCTAssertEqual(try Data(contentsOf: destination), working)
+        let token = OperationCancellation(); token.cancel()
+        do { try await repo.saveWorkingFile(path: path, to: destination, cancellation: token); XCTFail("Cancelled save accepted") } catch {}
+        XCTAssertEqual(try Data(contentsOf: destination), working)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+
     func testHistoricalExportPinsRevisionAndPreservesLiteralBytesHierarchyAndRepository() async throws {
         let manager = FileManager.default
         let (root, repo, _) = try await GitPatchTests().fixture()

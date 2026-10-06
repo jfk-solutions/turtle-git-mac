@@ -171,7 +171,32 @@ import TurtleGitCore
         precondition(model.beginDeleteConfirmation([stale], permanently: false)); await model.finishDeleteConfirmation(accepted: true)?.value
         let stagedAfterStale = try await repo.run(["ls-files", "--stage", "-z"]).stdout
         precondition(model.lastDeleteResult == nil && stagedBeforeStale == stagedAfterStale && FileManager.default.fileExists(atPath: folder.appendingPathComponent(cancelledDelete).path))
-        print("Actual Add receiver: Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        let copyPath = "copy-folder/source 雪\n.bin", copyBytes = Data([0, 255, 13, 10, 7])
+        try FileManager.default.createDirectory(at: folder.appendingPathComponent("copy-folder"), withIntermediateDirectories: true)
+        try copyBytes.write(to: folder.appendingPathComponent(copyPath))
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: folder.appendingPathComponent(copyPath).path)
+        try await model.read(); model.highlighted = [copyPath]; receiver.refresh()
+        var savedRequests: [String] = [], exportRequests: [[String]] = []
+        model.onSave = { savedRequests.append($0) }; model.onExport = { exportRequests.append($0) }
+        receiver.saveAs(); receiver.export(); precondition(savedRequests == [copyPath] && exportRequests == [[copyPath]])
+        let outputFolder = folder.deletingLastPathComponent().appendingPathComponent("exports")
+        try FileManager.default.createDirectory(at: outputFolder, withIntermediateDirectories: true)
+        let saved = outputFolder.appendingPathComponent("saved.bin")
+        let beforeCopy = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let checksBeforeCopy = model.checked
+        await model.saveFile(copyPath, to: saved)
+        let savedBytes = try Data(contentsOf: saved); precondition(savedBytes == copyBytes && !model.busy)
+        await model.exportFiles([copyPath], to: outputFolder)
+        let exportedBytes = try Data(contentsOf: outputFolder.appendingPathComponent(copyPath)); precondition(exportedBytes == copyBytes)
+        let afterCopy = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        precondition(beforeCopy == afterCopy && model.checked == checksBeforeCopy)
+        model.confirmingQuit = true; precondition(model.startSave(copyPath, to: saved) == nil); receiver.saveAs(); precondition(savedRequests.count == 1); model.confirmingQuit = false
+        let cancelledCopy = outputFolder.appendingPathComponent("cancelled.bin")
+        let copyTask = model.startSave(copyPath, to: cancelledCopy); precondition(model.busy && !model.canApply); model.cancel(); await copyTask?.value
+        precondition(!model.busy && !FileManager.default.fileExists(atPath: cancelledCopy.path))
+        await model.saveFile(copyPath, to: folder.appendingPathComponent(copyPath))
+        let sourceAfter = try Data(contentsOf: folder.appendingPathComponent(copyPath)); precondition(sourceAfter == copyBytes && !model.busy)
+        print("Actual Add receiver: Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''

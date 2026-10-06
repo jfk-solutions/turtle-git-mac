@@ -69,7 +69,7 @@ struct AddFileTable: NSViewRepresentable {
             }
             header.delegate = self; table.headerView?.menu = header
             let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
-            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Diff", #selector(preview), .compare), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Delete", #selector(deleteItem), .remove)] {
+            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Diff", #selector(preview), .compare), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Save As…", #selector(saveAs), .saveAs), ("Export…", #selector(export), .export), ("Delete", #selector(deleteItem), .remove)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
             }
             menu.addItem(.separator())
@@ -161,6 +161,10 @@ struct AddFileTable: NSViewRepresentable {
             guard let key = sender.representedObject as? String, let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(key)) else { return }
             column.isHidden.toggle(); UserDefaults.standard.set(!column.isHidden, forKey: key == "size" ? "Add.ShowSize" : "Add.ShowModifiedDate")
         }
+        var canSave: Bool { canAct && selectedIsFile && selectedRows.first?.state != .deleted }
+        var canExport: Bool { canAct && selectedRows.contains { $0.state != .deleted } }
+        @objc func saveAs() { guard canSave, let row = selectedRows.first else { return }; model.onSave(row.path) }
+        @objc func export() { guard canExport else { return }; model.onExport(selectedRows.filter { $0.state != .deleted }.map(\.path)) }
         var canDelete: Bool { canAct && selectedRows.contains { $0.status.canDeleteFromStatusList } }
         func deleteSelected(permanently: Bool, keyboard: Bool = false) {
             guard canDelete, !keyboard || selectedRows.contains(where: { $0.status.canDeleteWithKeyboard }) else { return }
@@ -210,12 +214,12 @@ struct AddFileTable: NSViewRepresentable {
             if menu === table.menu {
                 updateIgnoreMenu(menu)
                 for item in menu.items where !item.isSeparatorItem {
-                    let icon: MenuIcon = item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
+                    let icon: MenuIcon = item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(saveAs) ? .saveAs : item.action == #selector(export) ? .export : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(preview) ? .compare : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
                     item.image = icon.contextImage()
                     let single = [#selector(preview), #selector(editor), #selector(open), #selector(openWith), #selector(reveal)].contains(item.action)
                     let opensFile = [#selector(editor), #selector(open), #selector(openWith)].contains(item.action)
-                    item.isHidden = opensFile && !selectedIsFile || item.action == #selector(deleteItem) && !canDelete
-                    item.isEnabled = canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile) && (item.action != #selector(deleteItem) || canDelete)
+                    item.isHidden = opensFile && !selectedIsFile || item.action == #selector(deleteItem) && !canDelete || item.action == #selector(saveAs) && !canSave || item.action == #selector(export) && !canExport
+                    item.isEnabled = canAct && (!single || selectedRows.count == 1) && (!opensFile || selectedIsFile) && (item.action != #selector(deleteItem) || canDelete) && (item.action != #selector(saveAs) || canSave) && (item.action != #selector(export) || canExport)
                     for child in item.submenu?.items ?? [] { child.image = (item.representedObject as? String == "Add.Ignore" ? MenuIcon.ignore : .copy).contextImage(); child.isEnabled = item.isEnabled }
                 }
             } else {

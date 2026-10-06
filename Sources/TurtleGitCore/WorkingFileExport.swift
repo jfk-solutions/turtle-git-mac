@@ -13,10 +13,31 @@ public enum WorkingFileExportFailure: LocalizedError {
 }
 
 extension GitRepository {
+    /// Working-tree Save As copies current disk bytes, following file symlinks,
+    /// without reading or changing the Git index.
+    public func saveWorkingFile(path: String, to destination: URL, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        let source = try restoreLocation(path).resolvingSymlinksInPath()
+        let destination = destination.standardizedFileURL
+        let parent = destination.deletingLastPathComponent().resolvingSymlinksInPath()
+        guard destination.isFileURL, try parent.resourceValues(forKeys: [.isDirectoryKey]).isDirectory == true,
+              !destination.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }),
+              !parent.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw WorkingFileExportFailure.location }
+        guard source.path != destination.resolvingSymlinksInPath().path else { throw WorkingFileExportFailure.source }
+        guard try FileManager.default.attributesOfItem(atPath: source.path)[.type] as? FileAttributeType == .typeRegular else { throw WorkingFileExportFailure.unsupported }
+        let temporary = parent.appendingPathComponent(".TurtleGitSaveAs-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: temporary) }
+        try FileManager.default.copyItem(at: source, to: temporary)
+        try cancellation?.check()
+        guard Darwin.rename(temporary.path, destination.path) == 0 else {
+            throw GitFailure(arguments: ["save as", path], code: 1, message: String(cString: strerror(errno)))
+        }
+    }
     /// Export working contents, including untracked files, without consulting or
     /// updating the index. Like upstream FilesExport, directories are skipped,
     /// symlinks supply their target's contents, and existing copies are replaced.
-    @discardableResult public func exportWorkingFiles(paths: [String], to folder: URL) throws -> Int {
+    @discardableResult public func exportWorkingFiles(paths: [String], to folder: URL, cancellation: OperationCancellation? = nil) throws -> Int {
+        try cancellation?.check()
         let manager = FileManager.default
         let destinationRoot = folder.standardizedFileURL.resolvingSymlinksInPath()
         guard !destinationRoot.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }),
@@ -26,6 +47,7 @@ extension GitRepository {
         let destinations = sources.map { destinationRoot.appendingPathComponent(String($0.path.dropFirst(root.path.count + 1))).standardizedFileURL }
         // Preflight the whole selection before replacing any existing copy.
         for destination in destinations {
+            try cancellation?.check()
             guard RepositoryAccessLease.pathIsContained(destination.deletingLastPathComponent(), by: destinationRoot),
                   !destination.deletingLastPathComponent().resolvingSymlinksInPath().pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }),
                   !destination.pathComponents.contains(where: { $0.caseInsensitiveCompare(".git") == .orderedSame }) else { throw WorkingFileExportFailure.location }
@@ -33,6 +55,7 @@ extension GitRepository {
         }
         var count = 0
         for (source, destination) in zip(sources, destinations) {
+            try cancellation?.check()
             let resolved = source.resolvingSymlinksInPath()
             let attributes = try manager.attributesOfItem(atPath: resolved.path)
             if attributes[.type] as? FileAttributeType == .typeDirectory { continue }
@@ -43,6 +66,7 @@ extension GitRepository {
             let temporary = destination.deletingLastPathComponent().appendingPathComponent(".TurtleGitExport-" + UUID().uuidString)
             defer { try? manager.removeItem(at: temporary) }
             try manager.copyItem(at: resolved, to: temporary)
+            try cancellation?.check()
             guard Darwin.rename(temporary.path, destination.path) == 0 else {
                 throw GitFailure(arguments: ["export", source.lastPathComponent], code: 1, message: String(cString: strerror(errno)))
             }

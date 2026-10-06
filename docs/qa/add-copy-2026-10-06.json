@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-06",
+  "baseCommit": "a3c3eea907e57a6b8343588353b4bda050b2bebe",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Add working-copy Save As and Export native panel routing plus guarded copying; full application parity remains incomplete",
+  "sourceComparison": "GitStatusListCtrl.cpp OnContextMenuList, FileSaveAs, FilesExport; working-copy Save filename stem dash and extension from empty m_CurrentVersion. Historical/revision copies use separate existing workflows.",
+  "focusedCoreTests": {
+    "count": 7,
+    "failures": 0,
+    "newTests": 1
+  },
+  "actualReceiver": "Swift 6/macOS 13 actual Add model/coordinator captures Save and Export selection; real Save produces exact binary bytes, Export preserves relative folders; index entries and checks unchanged. Queued copy busy state, cancellation before worker creates no destination, quit guard and source overwrite rejection pass. Prior Add/Delete/Ignore/open/clipboard/post-action checks retained. No windows or menus displayed.",
+  "backend": "New working-file Save As uses full temporary copy and atomic replacement, preserves regular-file bytes and attributes, follows source file symlinks, rejects source aliases and metadata destinations; no Git index reads/writes. Existing relative-path export now checks owned cancellation during preflight, between files and before replacing destination. Synchronous single-file copy cannot be interrupted; earlier completed exports remain on later failure/cancellation.",
+  "productionBinding": "NSSavePanel and folder NSOpenPanel sheets use captured paths and start queued work synchronously; retained selected-destination scope and repository lease, busy/attached-sheet close and quit guards. Native filename, picker overwrite/Cancel/scope/launch behavior compiled/source-audited only.",
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/WorkingFileExport.swift": "372b79097d80994a613153e36445bd1948de20ee0ea4da19d430d76f452d126e",
+    "Sources/TurtleGitMac/AddWindow.swift": "ebb344729514005f0edec083d66ef1e0dd753aaa802b96c203a4a9d2d24f6003",
+    "Sources/TurtleGitMac/AddFileTable.swift": "3abf83472d76aa5088f2b41600379d539694eb671ee41c21d428a154ea0c0651",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "3a7e72256853b7b111001d37af7518de48783f52c9dc5ed8854f780871b695cd",
+    "Tests/TurtleGitCoreTests/WorkingFileExportTests.swift": "80457bad8ff286a922d57e12e5de5baad3b468ddb2d56af2d2a45618428aece9",
+    "scripts/test-add-dialog.py": "70f67794d6c2870a87f928877209357c239f2d1a854eca37b5bf26c58085ad6a",
+    "NOTICE": "8fc2b1d9ed9dd7c86c6e62a9e209981d21015e6aa3140f590d86fe42a14f0e8f"
+  },
+  "pending": [
+    "Actual native Save/Export panels, filename/overwrite/Cancel and destination security scope lifetime",
+    "Signed sandbox temporary sibling copy and external source symlink access acceptance",
+    "Late cancellation/failure/partial export messaging and native parent restoration",
+    "Full current-column clipboard and other tracked-row/shared consumers",
+    "Native Add artwork/light-dark screenshot comparison",
+    "Full app/settings/helpers/Finder parity, signed AppStore distribution and GitHub publication authentication"
+  ],
+  "fullCoreTests": {
+    "count": 492,
+    "failures": 0,
+    "durationSeconds": 283.986
+  },
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed"
+  ],
+  "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; 75 original icons, extension/universal helpers and Store Git retained.",
+  "site": "Static documentation generation passed",
+  "appProcesses": "No main app or receiver remains; no main app launched for verification",
+  "logs": {
+    "focused": {
+      "path": "/tmp/turtlegit-add-copy-focused.log",
+      "sha256": "dfcdf72b0ac66de6db81ce9b1bed64684c639e03eb72b15b232b5955bc528788"
+    },
+    "fullCore": {
+      "path": "/tmp/turtlegit-add-copy-full.log",
+      "sha256": "768894c538c4a45730a90bdee94c27c6255423a0dc70f44c7cdce964cff52b9c"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-add-copy-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-copy-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-copy-native.log",
+      "sha256": "fb64cd355162a5186f84afdada36a13893ba4ae6db04df9aa57a18ea53b41e74"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-copy-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-copy-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-copy-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

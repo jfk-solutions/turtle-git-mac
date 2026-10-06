@@ -41,7 +41,9 @@ commands for paths, names, extensions and visible columns. Its Ignore commands
 open the native name/extension/folder rule dialog and refresh the Add list while
 preserving unrelated checks and the Git index. Delete now uses a native
 confirmation, recoverable Trash by default, and Shift for permanent deletion;
-stale selections are rejected before deletion.
+stale selections are rejected before deletion. Save As and Export copy current
+working contents with binary bytes and relative folder layout preserved; the
+index is unchanged.
 [Add parity](docs/ADD-PARITY.md) records unfinished menus, post-actions and native QA.
 
 Create Patch Serial now has a native Format Patch dialog with Since, Number

@@ -127,8 +127,10 @@ Log revision and selected-file unified diffs share this preference and Shift
 dispatch, following GitLogListAction.cpp ID_GNUDIFF1/ID_GNUDIFF2. Copyright (C)
 2008-2026 TortoiseGit and (C) 2005-2007 Marco Costalba, GPL version 2 or later.
 Commit and Working Tree unified-diff context actions and Add status-list
-clipboard/open command behavior follow GitStatusListCtrl.cpp (IDGITLC_GNUDIFF1,
-OnContextMenuList, CopySelectedEntriesToClipboard) under GPL version 2 or later. Copyright (C) 2008-2026
+clipboard/open/Ignore/Delete and working-file Save As/Export behavior follow
+GitStatusListCtrl.cpp (IDGITLC_GNUDIFF1, OnContextMenuList,
+CopySelectedEntriesToClipboard, DeleteSelectedFiles, FileSaveAs, FilesExport)
+under GPL version 2 or later. Copyright (C) 2008-2026
 TortoiseGit and (C) 2003-2008, 2013-2015 TortoiseSVN. Native saved working-tree
 patches and external viewer copies preserve Git's original bytes.
 RevisionComparisonWindow.swift adapts FileDiffDlg.cpp ID_GNUDIFFCOMPARE's
