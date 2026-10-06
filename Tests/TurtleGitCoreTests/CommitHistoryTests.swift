@@ -406,6 +406,47 @@ final class CommitHistoryTests: XCTestCase {
         options.search = "!.*"; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [all[0].hash])
         options.paths = ["absent.txt"]; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
     }
+    func testBugIDSearchUsesProjectConfigurationExtractionAndBareHistory() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Issue Tests"])
+        _ = try await repo.run(["config", "user.email", "issue@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        try Data("[bugtraq]\nmessage = Issue %BUGID%\nurl = https://example.invalid/%BUGID%\n".utf8).write(to: root.appendingPathComponent(".tgitconfig"))
+        try await repo.stage([".tgitconfig"])
+        _ = try await repo.commit(message: "Fix\n\nIssue 42,7,42\n")
+        let initial = try await repo.history(); let first = try XCTUnwrap(initial.first)
+        XCTAssertEqual(first.issueIDs, "7 42")
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "Mention 900 without issue line"])
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        var options = HistoryOptions(); options.searchFields = .bugIDs; options.search = "7 42"; options.limit = 1
+        options.regexExecutable = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        var found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
+        options.search = "900"; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchFields = [.messages, .bugIDs]; found = try await repo.history(options: options); XCTAssertEqual(found.count, 1)
+        _ = try await repo.run(["config", "bugtraq.logregex", "issue #(\\d+)"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "issue #100 issue #2 issue #2"])
+        options.searchFields = .bugIDs; options.search = "2 100"
+        found = try await repo.history(options: options); XCTAssertEqual(found.first?.issueIDs, "2 100")
+        XCTAssertEqual(found.count, 1)
+        options.searchRegex = true; options.search = "^2 100"
+        found = try await repo.history(options: options); XCTAssertEqual(found.first?.issueIDs, "2 100")
+        _ = try await repo.run(["config", "bugtraq.logregex", "(?<=#)42"])
+        options.search = ""; options.limit = 10
+        found = try await repo.history(options: options); XCTAssertEqual(found.count, 3); XCTAssertTrue(found.allSatisfy { $0.issueIDs.isEmpty })
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), before)
+        let bareRoot = root.appendingPathComponent("bare.git")
+        _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        let bare = GitRepository(root: bareRoot)
+        options.searchRegex = false; options.search = "7 42"
+        found = try await bare.history(options: options); XCTAssertEqual(found.map(\.hash), [first.hash])
+        XCTAssertEqual(found.first?.issueIDs, "7 42")
+        let stopped = OperationCancellation(); stopped.cancel()
+        do { _ = try await repo.issueTrackerProperties(cancellation: stopped); XCTFail("Cancelled properties succeeded") } catch is OperationCancellationFailure {}
+    }
     func testHistoryCancellationStopsOwnedPathReadAndLeavesOtherReaderAndIndexIntact() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

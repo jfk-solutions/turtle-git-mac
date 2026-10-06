@@ -30,6 +30,7 @@ public struct IssueTrackerProperties: Sendable, Equatable {
     public var warnNoSignedOffBy = false
     public var checkExpression = ""
     public var extractionExpression = ""
+    public var showsBugIDColumn: Bool { !urlTemplate.isEmpty || !checkExpression.isEmpty }
     public var showsIssueField: Bool { !messageTemplate.isEmpty }
     public init(values: [String: String] = [:]) {
         if let value = values["bugtraq.label"], !value.isEmpty { label = value }
@@ -94,9 +95,10 @@ public struct IssueTrackerProperties: Sendable, Equatable {
         }
         return (rest, id)
     }
-    public func identifiers(in message: String, executable: URL? = nil) throws -> [String] {
+    public func identifiers(in message: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [String] {
+        try cancellation?.check()
         if !checkExpression.isEmpty {
-            return try IssueRegexRuntime.match(message: message, check: checkExpression, extract: extractionExpression, executable: executable).identifiers(in: message)
+            return try IssueRegexRuntime.match(message: message, check: checkExpression, extract: extractionExpression, executable: executable, cancellation: cancellation).identifiers(in: message)
         }
         guard let found = templateLine(in: message), found.id.length > 0 else { return [] }
         // Upstream trims edge commas before splitting, while retaining the
@@ -144,9 +146,14 @@ public struct IssueTrackerProperties: Sendable, Equatable {
 }
 
 extension GitRepository {
-    public func issueTrackerProperties(environmentOverrides: [String: String] = [:]) throws -> IssueTrackerProperties {
+    public func issueTrackerProperties(environmentOverrides: [String: String] = [:], cancellation: OperationCancellation? = nil) throws -> IssueTrackerProperties {
+        try cancellation?.check()
+        func propertyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(arguments, environmentOverrides: environmentOverrides, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+        let bare = try propertyRun(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) == "true"
         let pattern = "^(bugtraq\\.|tgit\\.warnnosignedoffby$)"
-        let configured = try run(["config", "--null", "--show-scope", "--get-regexp", pattern], environmentOverrides: environmentOverrides, successfulExitCodes: 0...1).stdout
+        let configured = try propertyRun(["config", "--null", "--show-scope", "--get-regexp", pattern], successfulExitCodes: 0...1).stdout
         var records = configured.split(separator: 0, omittingEmptySubsequences: false)
         if records.last?.isEmpty == true { records.removeLast() }
         guard records.count % 2 == 0 else { throw IssueTrackerFailure.malformedConfiguration }
@@ -158,7 +165,7 @@ extension GitRepository {
             else { low[pair.0] = pair.1 }
         }
         var project: Data?
-        if try isBare() { project = try? run(["show", "HEAD:.tgitconfig"]).stdout }
+        if bare { project = try? propertyRun(["show", "HEAD:.tgitconfig"]).stdout }
         else {
             let file = root.appendingPathComponent(".tgitconfig")
             if FileManager.default.fileExists(atPath: file.path) { project = try Data(contentsOf: file) }
@@ -168,13 +175,14 @@ extension GitRepository {
             try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: temporary) }
             let file: URL
-            if try isBare() { file = temporary.appendingPathComponent(".tgitconfig"); try project.write(to: file) }
+            if bare { file = temporary.appendingPathComponent(".tgitconfig"); try project.write(to: file) }
             else { file = root.appendingPathComponent(".tgitconfig") }
-            let values = try run(["config", "--includes", "--file", file.path, "--null", "--get-regexp", pattern], environmentOverrides: environmentOverrides, successfulExitCodes: 0...1).stdout
+            let values = try propertyRun(["config", "--includes", "--file", file.path, "--null", "--get-regexp", pattern], successfulExitCodes: 0...1).stdout
             for record in values.split(separator: 0) {
                 let pair = Self.issueConfigPair(Data(record)); low[pair.0] = pair.1
             }
         }
+        try cancellation?.check()
         low.merge(high) { _, higher in higher }
         return IssueTrackerProperties(values: low)
     }

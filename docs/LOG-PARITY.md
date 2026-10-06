@@ -13,11 +13,11 @@ arrangement and familiar command order. The initial sidebar log table was remove
 ## Search fields
 
 The search row now has a native Search in menu with independent Subject,
-Messages, Paths, Authors, Emails, Revisions, Refname, Tag Info and Notes checkboxes. Subject searches only the
+Messages, Paths, Authors, Emails, Revisions, Refname, Tag Info and Notes checkboxes, plus Bug IDs when issue-tracker configuration enables its column. Subject searches only the
 summary; Messages searches both summary and body. Authors includes both author and
 committer names; Emails includes both identities. Multiple fields match by OR.
 Field selection is saved under SelectedLogFilters and reused by subsequent Log
-windows. Unset/invalid preferences default to all nine implemented fields; an
+windows. Unset/invalid preferences default to all ten implemented fields; an
 explicit empty selection stays empty. Stored unsupported bits are masked out.
 All selects the implemented field set; Toggle filters inverts it. Changing fields
 or case mode only reloads when search text is entered, preserving a loaded list
@@ -76,8 +76,7 @@ This currently materializes the scoped log output in memory; incremental filteri
 for large histories remain unfinished. A single positive message term still uses Git's result limit; compound queries
 are filtered before the matching-result limit. Returned rows now retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
-bug IDs and the complete
-upstream default field set remain pending. This is partial upstream filter parity; see
+match highlighting and the complete upstream default field set remain pending. This is partial upstream filter parity; see
 [the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up
 checks are recorded [separately](qa/log-search-case-2026-10-06.json).
 
@@ -104,7 +103,7 @@ and highlighting remain pending.
 The search field now describes term syntax in its tooltip. Single positive
 message terms retain Git grep's bounded fast path. Compound/inverted and
 multi-field queries walk the scoped history and apply the result limit after
-matching, so older qualifying commits remain discoverable. Bug IDs, match highlighting, incremental loading and native displayed search acceptance
+matching, so older qualifying commits remain discoverable. Match highlighting, incremental loading and native displayed search acceptance
 remain unfinished. See [the query record](qa/log-query-2026-10-06.json).
 
 ## Regular-expression search
@@ -135,6 +134,34 @@ existing 16 MiB helper input limit can report an error for very large requests.
 Incremental batches, Windows locale/case-folding edge cases, match highlighting,
 actual native toggle/persistence gestures and signed sandbox acceptance remain
 unverified. See [the regex record](qa/log-regex-2026-10-06.json).
+
+## Bug IDs column and search
+
+Log now reads one issue-tracker configuration snapshot per native history reload
+and passes it into history, so the column gate and extracted row IDs use the same
+properties. The Bug IDs column and Search in item appear when `bugtraq.url` or
+`bugtraq.logregex` is nonempty, matching `UpdateProjectProperties`. The field bit
+participates in saved selection, All and Toggle filters. Returned rows retain their
+extracted IDs, and the native table refresh signature includes them so changed
+configuration updates displayed values even if commit hashes are unchanged.
+
+IDs come from the existing ProjectProperties port: `.tgitconfig`/include and
+Git scope precedence, one/two ECMAScript extraction expressions or a message
+`%BUGID%` template, duplicate removal, numeric ordering and space-separated
+output. Bug IDs queries search those extracted IDs rather than arbitrary message
+numbers. They combine with other fields and work with plain terms, regex/case
+mode and matching limits. Bare repositories read the committed project config.
+The Log-specific extraction helper mode ignores invalid regex syntax, as the
+upstream `FindBugIDPositions` does; existing strict Commit/config validation
+behavior is preserved. Missing helpers, timeouts and cancellation still propagate.
+Property Git reads and regex extraction receive the owned history token.
+
+Configured regex extraction currently starts one helper per candidate/returned
+commit (cached within that history read); batched extraction remains pending.
+Windows `StrCmpLogicalW` locale/punctuation and case-equivalent duplicate behavior
+are not fully reproduced by Swift natural sorting. Native displayed column/menu
+visibility, preference/config refresh, links/highlighting and signed sandbox
+acceptance remain unverified. See [the Bug IDs record](qa/log-bugs-2026-10-06.json).
 
 ## History-load cancellation
 

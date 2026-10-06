@@ -99,8 +99,16 @@ extension IssueTrackerProperties {
         result.sort { $0.1.location < $1.1.location }
         return result
     }
-    public func issueFieldValue(in message: String, executable: URL? = nil) throws -> String {
-        try Self.naturalIssueIDs(identifiers(in: message, executable: executable))
+    /// FindBugID used by Log silently ignores invalid extraction regex syntax.
+    func logIssueIDs(in message: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        if checkExpression.isEmpty { return try issueFieldValue(in: message, executable: executable, cancellation: cancellation) }
+        let match = try IssueRegexRuntime.match(message: message, check: checkExpression, extract: extractionExpression,
+            executable: executable, cancellation: cancellation, ignoreInvalidPattern: true)
+        return Self.naturalIssueIDs(match.identifiers(in: message))
+    }
+    public func issueFieldValue(in message: String, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> String {
+        try Self.naturalIssueIDs(identifiers(in: message, executable: executable, cancellation: cancellation))
     }
     static func naturalIssueIDs(_ ids: [String]) -> String {
         Set(ids).sorted { $0.compare($1, options: [.numeric, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX")) == .orderedAscending }.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)

@@ -87,8 +87,9 @@ static void styles(const std::wstring& checkUnits, const std::wstring& extractUn
 int main(int argc, char** argv) {
     const bool styling = argc == 5 && std::string(argv[4]) == "--styles-utf8";
     const bool code = argc == 5 && std::string(argv[4]) == "--code-captures";
+    const bool issueIDs = argc == 5 && std::string(argv[4]) == "--issue-ids";
     const bool logFilter = argc == 5 && (std::string(argv[4]) == "--log-case" || std::string(argv[4]) == "--log-insensitive");
-    if (argc != 4 && !styling && !code && !logFilter) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
+    if (argc != 4 && !styling && !code && !logFilter && !issueIDs) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
     try {
         const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter);
         if (logFilter) {
@@ -137,7 +138,12 @@ int main(int argc, char** argv) {
         }
         if (styling) { styles(check, extract, text); return 0; }
         if (check.empty()) { std::cout << "matched\t0\n"; return 0; }
-        const std::wregex first(check), second(extract);
+        std::wregex first, second;
+        try { first.assign(check); second.assign(extract); }
+        catch (const std::regex_error&) {
+            if (!issueIDs) throw;
+            std::cout << "matched\t0\n"; return 0;
+        }
         std::cout << "matched\t" << (std::regex_search(text, first) ? 1 : 0) << '\n';
         const std::wsregex_iterator end;
         for (std::wsregex_iterator match(text.cbegin(), text.cend(), first); match != end; ++match) {

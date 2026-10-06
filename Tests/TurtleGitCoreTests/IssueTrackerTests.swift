@@ -22,6 +22,19 @@ final class IssueTrackerTests: XCTestCase {
         XCTAssertEqual(prepended.separateIssueLine(from: "Issue ABC-42\nBody").message, "Body")
         XCTAssertEqual(properties.label, "Ticket:")
     }
+    func testLogColumnVisibilityExtractionOrderingAndInvalidRegex() throws {
+        XCTAssertFalse(IssueTrackerProperties().showsBugIDColumn)
+        XCTAssertFalse(IssueTrackerProperties(values: ["bugtraq.message": "Issue %BUGID%"]).showsBugIDColumn)
+        XCTAssertTrue(IssueTrackerProperties(values: ["bugtraq.url": "https://example.invalid/%BUGID%"]).showsBugIDColumn)
+        let properties = IssueTrackerProperties(values: ["bugtraq.logregex": "issue #(\\d+)"])
+        XCTAssertTrue(properties.showsBugIDColumn)
+        XCTAssertEqual(try properties.logIssueIDs(in: "issue #100 issue #2 issue #2", executable: parser), "2 100")
+        let invalid = IssueTrackerProperties(values: ["bugtraq.logregex": "(?<=#)42"])
+        XCTAssertEqual(try invalid.logIssueIDs(in: "#42", executable: parser), "")
+        XCTAssertThrowsError(try invalid.identifiers(in: "#42", executable: parser))
+        let stopped = OperationCancellation(); stopped.cancel()
+        XCTAssertThrowsError(try properties.logIssueIDs(in: "issue #2", executable: parser, cancellation: stopped)) { XCTAssertTrue($0 is OperationCancellationFailure) }
+    }
     func testWarningsDuplicateComparisonAndURLComponentEscaping() throws {
         let properties = IssueTrackerProperties(values: ["bugtraq.message": "Issue %BUGID%", "bugtraq.warnifnoissue": "true", "bugtraq.logregex": " issues (\\d+) \n (\\d+) ", "bugtraq.url": "https://example.invalid/%BUGID%"])
         XCTAssertEqual(properties.checkExpression, "issues (\\d+)"); XCTAssertEqual(properties.extractionExpression, "(\\d+)")

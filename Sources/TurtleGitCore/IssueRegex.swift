@@ -35,9 +35,10 @@ public enum IssueRegexRuntime {
         return file
     }
     /// Uses C++ ECMAScript matching with Windows UTF-16 offsets. Call off the UI thread.
-    public static func match(message: String, check: String, extract: String = "", executable: URL? = nil, bundle: Bundle = .main) throws -> IssueRegexMatch {
+    public static func match(message: String, check: String, extract: String = "", executable: URL? = nil, bundle: Bundle = .main, cancellation: OperationCancellation? = nil, ignoreInvalidPattern: Bool = false) throws -> IssueRegexMatch {
+        try cancellation?.check()
         guard !check.isEmpty else { return IssueRegexMatch(hasMatch: false, ranges: []) }
-        let output = try capture(message: message, check: check, extract: extract, executable: executable, bundle: bundle)
+        let output = try capture(message: message, check: check, extract: extract, executable: executable, bundle: bundle, mode: ignoreInvalidPattern ? ["--issue-ids"] : [], cancellation: cancellation)
         guard let text = String(data: output, encoding: .utf8) else { throw IssueRegexFailure.failed("Invalid helper output.") }
         let rows = text.split(separator: "\n")
         guard let first = rows.first, first == "matched\t0" || first == "matched\t1" else { throw IssueRegexFailure.failed("Invalid helper output.") }

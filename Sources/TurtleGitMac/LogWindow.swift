@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 /// Native persistence for the filter fields currently implemented in Log.
 private enum LogSearchSelection {
-    static let all: HistorySearchFields = [.subject, .messages, .authors, .emails, .revisions, .referenceNames, .notes, .tagInfo, .paths]
+    static let all: HistorySearchFields = [.subject, .messages, .authors, .emails, .revisions, .referenceNames, .notes, .tagInfo, .paths, .bugIDs]
     static func load(defaults: UserDefaults = .standard) -> HistorySearchFields {
         guard let stored = defaults.object(forKey: "SelectedLogFilters") as? NSNumber, stored.intValue >= 0 else { return all }
         return HistorySearchFields(rawValue: stored.intValue).intersection(all)
@@ -181,6 +181,7 @@ struct LogCommandRequest: Identifiable {
     private var detailCancellation: OperationCancellation?
     private var historyCancellation: OperationCancellation?
     var loadingHistory: Bool { historyCancellation != nil }
+    @Published var issueProperties = IssueTrackerProperties()
     @Published var search = ""
     @Published var searchFields = LogSearchSelection.load()
     @Published var searchRegex = UserDefaults.standard.bool(forKey: "UseRegexFilter")
@@ -282,9 +283,10 @@ struct LogCommandRequest: Identifiable {
         Task {
             do {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
-                let result = try await repository.history(options: options, cancellation: cancellation)
+                let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
+                let result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 guard request == generation else { return }
-                self.bare = bare
+                self.bare = bare; self.issueProperties = issueProperties
                 entries = result; graph = CommitGraph.layout(result)
                 selected.formIntersection(Set(result.map(\.hash)))
                 if selected.isEmpty, let first = result.first { selected = [first.hash] }
@@ -557,6 +559,13 @@ struct LogDialog: View {
                             model.selectSearchFields(selected)
                         }))
                     }
+                    if model.issueProperties.showsBugIDColumn {
+                        Toggle("Bug IDs", isOn: Binding(get: { model.searchFields.contains(.bugIDs) }, set: { enabled in
+                            var fields = model.searchFields
+                            if enabled { fields.insert(.bugIDs) } else { fields.remove(.bugIDs) }
+                            model.selectSearchFields(fields)
+                        }))
+                    }
                     Divider()
                     Button("Toggle filters") { model.toggleSearchFields() }
                     Button("All") { model.selectAllSearchFields() }
@@ -676,8 +685,9 @@ struct RevisionTable: NSViewRepresentable {
         table.rowHeight = 24; table.intercellSpacing = NSSize(width: 4, height: 0)
         table.usesAlternatingRowBackgroundColors = false
         table.allowsMultipleSelection = true; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
-        for (id, title, width) in [("graph", "Graph", 65.0), ("hash", "SHA-1", 92.0), ("message", "Message", 420.0), ("author", "Author", 140.0), ("date", "Date", 170.0)] {
+        for (id, title, width) in [("graph", "Graph", 65.0), ("hash", "SHA-1", 92.0), ("message", "Message", 420.0), ("author", "Author", 140.0), ("date", "Date", 170.0), ("bugs", "Bug IDs", 110.0)] {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width
+            column.isHidden = id == "bugs" && !model.issueProperties.showsBugIDColumn
             column.minWidth = id == "graph" ? 38 : 70; table.addTableColumn(column)
         }
         table.delegate = context.coordinator; table.dataSource = context.coordinator
@@ -692,7 +702,8 @@ struct RevisionTable: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model
         guard let table = coordinator.table else { return }
         coordinator.updating = true
-        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) }
+        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn
+        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs }
         if signature != coordinator.signature {
             coordinator.signature = signature
             table.reloadData()
@@ -722,6 +733,7 @@ struct RevisionTable: NSViewRepresentable {
             text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular)
             switch column?.identifier.rawValue {
             case "hash": text.stringValue = String(entry.hash.prefix(10)); text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+            case "bugs": text.stringValue = entry.issueIDs
             case "author": text.stringValue = entry.author
             case "date": text.stringValue = entry.date.replacingOccurrences(of: "T", with: " ").prefix(19).description
             default:

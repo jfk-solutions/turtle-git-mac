@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-06",
+  "scope": "Log Bug IDs column and extracted-ID filter; full application parity remains incomplete",
+  "baseCommit": "036991f",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Saved bugIDs field bit and default all-ten implemented fields; Bug IDs menu item and native table column gated by nonempty URL/check regex like UpdateProjectProperties",
+    "Native reload captures one cancellable project configuration snapshot shared by history and column visibility; table signature includes issue IDs for config-only refresh",
+    "History retains naturally ordered extracted issue IDs using existing template/one/two ECMAScript configuration support; Bug IDs search combines with plain/regex fields before result limit and supports bare project config",
+    "Log-specific helper mode ignores invalid regex syntax, preserving existing strict extraction consumers; owned history token reaches config Git reads and issue matcher"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 29,
+      "failures": 0,
+      "scope": "Final-source CommitHistoryTests (18), IssueTrackerTests (6), IssueRegexTests (5). New real Git fixture verifies template IDs, old matching commit before limit, exclusion of unrelated message numbers, message/ID combination, local regex override and unique/numeric ordering, regex query, invalid extraction yielding empty row IDs, unchanged exact index bytes, committed config in bare clone and pre-cancel properties rejection. Existing precedence/includes/linked-worktree/regex/cancellation fixtures pass."
+    },
+    "nativeAcceptance": "Compiled and source-reviewed conditional table/menu rendering, saved filter bit and config-sensitive signature. Actual displayed column/menu visibility and refresh/preference interactions unverified.",
+    "fullRegression": "Focused affected suites only. Historical 505-test full-suite evidence remains scoped to 122a2ac.",
+    "runtime": "Universal runtime build and actual arm64/x86_64 validator passed with prior and new tolerant extraction fixtures.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "site": "Documentation generation passed after README update."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "8568e068c9427a5904371651d7c025580353e352268a233848206cf5d5696dd0",
+    "Sources/TurtleGitCore/GitModels.swift": "e2dbfce9761817c4e8ec847b34febaa3e502d938ba59a042a5c54a4e6aee8021",
+    "Sources/TurtleGitCore/IssueMessageStyle.swift": "a7ed64070acd10bd69d34d849cfd21ed67be63397b8c395c27d55344c76f933f",
+    "Sources/TurtleGitCore/IssueRegex.swift": "719436fdd353e677e51f05a490077fbe4bde9523db3d2e0b079cf44900bbbc0e",
+    "Sources/TurtleGitCore/IssueTracker.swift": "2f55206b74ff6001c15dfa7cd885650fdccecd4746084ed02077aaf662ff03b2",
+    "Sources/TurtleGitIssueRegex/main.cpp": "5ef1adcc14bde47e186a44122ae4906cdbd8ac263092a6f08f12df3d9ea38a9a",
+    "Sources/TurtleGitMac/LogWindow.swift": "b2d5df173f984b160f2decb10f0557226e5978af3eab098e595bb31feb03d3c8",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "d09f5950d052d027c54b7f90ba63c2742f5f79c6f59d8af1e956e5710668e721",
+    "Tests/TurtleGitCoreTests/IssueTrackerTests.swift": "1a43a0cab89f00b69c9e90466391bfb437c1c61d36d660d7af159314295fabf9",
+    "scripts/validate-issue-regex-runtime.py": "c4548f883a1b7b1434edf12d9344e01ac0214104c74a40bcfe8015567e5e89be"
+  },
+  "pending": [
+    "Batched ID extraction for large histories",
+    "Windows StrCmpLogicalW locale/punctuation and case-equivalent duplicate behavior",
+    "Native column/menu/config refresh/preferences and links/highlighting",
+    "Signed sandbox/quit/App Store distribution acceptance",
+    "Remaining dialog/Finder and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-bugs-tests.log",
+      "sha256": "7ba70568f3635bb2a198ffa5b031d25fcaee538856b5086bc2ef58e7d02cb8eb"
+    },
+    "runtime": {
+      "path": "/tmp/turtlegit-log-bugs-runtime.log",
+      "sha256": "e6fe43915651fab968d7d555409559a532dbbd3d85613a142e69e74d1daa3228"
+    },
+    "architectures": {
+      "path": "/tmp/turtlegit-log-bugs-architectures.log",
+      "sha256": "347f6ff6cbc40fc934dc7804750ae7cc6faa8cb28655222d5bb387466f43e9a9"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-bugs-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-bugs-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-bugs-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-bugs-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-bugs-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

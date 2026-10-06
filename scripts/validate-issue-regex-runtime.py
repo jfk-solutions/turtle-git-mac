@@ -79,6 +79,15 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitIssueRegexAudit-') as folder:
                 file.write_bytes(value.encode('utf-16-le'))
             output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--code-captures'], text=True, timeout=6)
             assert output == expected, (prefix, message, output, expected)
+        for check, extract, message, expected in [
+            (r'issue (\d+)', '', 'issue 42', 'matched\t1\n6\t2\n'),
+            (r'(?<=#)42', '', '#42', 'matched\t0\n'),
+            ('issue.*', '(', 'issue 42', 'matched\t0\n'),
+        ]:
+            for file, value in zip(inputs, (check, extract, message)):
+                file.write_bytes(value.encode('utf-16-le'))
+            output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + ['--issue-ids'], text=True, timeout=6)
+            assert output == expected, (check, output, expected)
         for pattern, mode, texts, expected in [
             (r'^red.*fox$', '--log-case', ['red fox', 'RED fox', 'blue fox', ''], 'log\tactive\n1\n0\n0\n0\n'),
             (r'fox|snow', '--log-insensitive', ['FOX', 'snow', 'green', ''], 'log\tactive\n1\n1\n0\n0\n'),

@@ -23,6 +23,7 @@ public struct HistorySearchFields: OptionSet, Sendable {
     public static let notes = Self(rawValue: 1 << 6)
     public static let tagInfo = Self(rawValue: 1 << 7)
     public static let paths = Self(rawValue: 1 << 8)
+    public static let bugIDs = Self(rawValue: 1 << 9)
 }
 
 /// Plain-text query rules ported from upstream FilterHelper.cpp (GPL-2.0-or-later).
@@ -242,7 +243,7 @@ public enum CommitGraph {
 }
 
 extension GitRepository {
-    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil) throws -> [LogEntry] {
+    public func history(options: HistoryOptions = HistoryOptions(), cancellation: OperationCancellation? = nil, issueProperties: IssueTrackerProperties? = nil) throws -> [LogEntry] {
         try cancellation?.check()
         func historyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(arguments, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
@@ -252,6 +253,13 @@ extension GitRepository {
         if !options.allBranches && options.endRevision == nil {
             do { _ = try historyRun(["rev-parse", "--verify", "--quiet", "HEAD"]) }
             catch let failure as GitFailure where failure.code == 1 { return [] }
+        }
+        let issueProperties = try issueProperties ?? issueTrackerProperties(cancellation: cancellation)
+        var issueCache: [String: String] = [:]
+        func issueIDs(_ hash: String, message: String) throws -> String {
+            if let value = issueCache[hash] { return value }
+            let value = try issueProperties.logIssueIDs(in: message, executable: options.regexExecutable, cancellation: cancellation)
+            issueCache[hash] = value; return value
         }
         let filtering = !options.search.isEmpty
         let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
@@ -344,6 +352,7 @@ extension GitRepository {
                     let message = fields[6]
                     searchable.append(message.firstIndex(of: "\n").map { String(message[message.index(after: $0)...]) } ?? "")
                 }
+                if options.searchFields.contains(.bugIDs) { searchable.append(try issueIDs(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), message: fields[6])) }
                 if options.searchFields.contains(.authors) { searchable += [fields[2], fields[7]] }
                 if options.searchFields.contains(.emails) { searchable += [fields[3], fields[8]] }
                 if options.searchFields.contains(.revisions) { searchable.append(fields[0].trimmingCharacters(in: .newlines)) }
@@ -363,6 +372,7 @@ extension GitRepository {
             var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
                 parents: fields[1].split(separator: " ").map(String.init), email: fields[3], message: fields[6],
                 committer: fields[7], committerEmail: fields[8])
+            entry.issueIDs = try issueIDs(hash, message: fields[6])
             entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
             if filtering && !options.searchRegex && options.limit > 0 && entries.count >= options.limit { break }
         }

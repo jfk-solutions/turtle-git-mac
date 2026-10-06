@@ -193,9 +193,12 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.
-  Refreshing or closing Log cancels its owned history Git work.
-  Search offers saved Subject/Message/Paths/Author/Email/Revision/Refname/Tag Info/Notes choices,
-  All/Toggle filters and a saved case-sensitive option. Author and email searches
+  Refreshing or closing Log cancels its owned history, changed-file and clipboard
+  detail reads.
+  Search offers saved Subject/Message/Paths/Author/Email/Revision/Refname/Tag Info/Notes
+  choices and configured Bug IDs, with a matching issue column. All/Toggle filters,
+  case sensitivity, plain term/exclusion/phrase queries and ECMAScript regex mode
+  are implemented. Author and email searches
   include committer identities; the message pane also shows commit notes and annotated tag information. [Log parity details](docs/LOG-PARITY.md) describe
   the remaining search modes and native acceptance checks.
   Full revision clipboard details include notes, tags and paths, with an option
