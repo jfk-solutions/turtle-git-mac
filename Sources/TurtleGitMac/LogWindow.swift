@@ -677,6 +677,22 @@ struct LogDialog: View {
 
 }
 
+/// Normal Log column labels/defaults from GitLogListBase and TortoiseLoglistCommon.
+/// Rebase/ID/Actions/SVN-specific columns still require their own backend ports.
+private enum LogRevisionColumns {
+    static let definitions: [(id: String, title: String, width: Double, visible: Bool)] = [
+        ("graph", "Graph", 65, true), ("hash", "SHA-1", 92, false),
+        ("message", "Message", 420, true), ("author", "Author", 140, true),
+        ("date", "Date", 170, true), ("email", "Email", 200, false),
+        ("committer", "Commit Name", 140, false), ("committerEmail", "Commit Email", 200, false),
+        ("committerDate", "Commit Date", 170, false), ("bugs", "Bug-ID", 110, true)
+    ]
+    static func visible(_ id: String) -> Bool {
+        guard let definition = definitions.first(where: { $0.id == id }) else { return false }
+        return (UserDefaults.standard.object(forKey: "Log.Column.Visible." + id) as? NSNumber)?.boolValue ?? definition.visible
+    }
+}
+
 struct RevisionTable: NSViewRepresentable {
     @ObservedObject var model: LogWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
@@ -685,11 +701,17 @@ struct RevisionTable: NSViewRepresentable {
         table.rowHeight = 24; table.intercellSpacing = NSSize(width: 4, height: 0)
         table.usesAlternatingRowBackgroundColors = false
         table.allowsMultipleSelection = true; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
-        for (id, title, width) in [("graph", "Graph", 65.0), ("hash", "SHA-1", 92.0), ("message", "Message", 420.0), ("author", "Author", 140.0), ("date", "Date", 170.0), ("bugs", "Bug IDs", 110.0)] {
-            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width
-            column.isHidden = id == "bugs" && !model.issueProperties.showsBugIDColumn
+        for definition in LogRevisionColumns.definitions {
+            let id = definition.id
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = definition.title; column.width = definition.width
+            column.isHidden = !LogRevisionColumns.visible(id) || id == "bugs" && !model.issueProperties.showsBugIDColumn
             column.minWidth = id == "graph" ? 38 : 70; table.addTableColumn(column)
         }
+        table.allowsColumnReordering = true; table.allowsColumnResizing = true
+        table.autosaveName = "TurtleGit.Log.RevisionColumns"
+        table.autosaveTableColumns = true
+        let headerMenu = NSMenu(); headerMenu.delegate = context.coordinator
+        table.headerView?.menu = headerMenu; context.coordinator.headerMenu = headerMenu
         table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.doubleAction = #selector(Coordinator.showDiff); table.target = context.coordinator
         table.menu = NSMenu(); table.menu?.delegate = context.coordinator
@@ -702,13 +724,13 @@ struct RevisionTable: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model
         guard let table = coordinator.table else { return }
         coordinator.updating = true
-        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn
+        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
         let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs }
         if signature != coordinator.signature {
             coordinator.signature = signature
             table.reloadData()
-            if let column = table.tableColumns.first {
-                column.width = CGFloat(max(65, min(240, (model.graph.map(\.width).max() ?? 1) * 14 + 24)))
+            if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
+                column.width = max(column.width, CGFloat(max(65, min(240, (model.graph.map(\.width).max() ?? 1) * 14 + 24))))
             }
         }
         let indices = IndexSet(model.entries.enumerated().compactMap { model.selected.contains($0.element.hash) ? $0.offset : nil })
@@ -718,6 +740,7 @@ struct RevisionTable: NSViewRepresentable {
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         var model: LogWindowModel
         weak var table: NSTableView?
+        var headerMenu: NSMenu?
         var updating = false
         var signature: [String] = []
         init(model: LogWindowModel) { self.model = model }
@@ -732,7 +755,11 @@ struct RevisionTable: NSViewRepresentable {
             text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
             text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular)
             switch column?.identifier.rawValue {
-            case "hash": text.stringValue = String(entry.hash.prefix(10)); text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+            case "hash": text.stringValue = entry.hash; text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+            case "email": text.stringValue = entry.email
+            case "committer": text.stringValue = entry.committer
+            case "committerEmail": text.stringValue = entry.committerEmail
+            case "committerDate": text.stringValue = entry.committerDate.replacingOccurrences(of: "T", with: " ").prefix(19).description
             case "bugs": text.stringValue = entry.issueIDs
             case "author": text.stringValue = entry.author
             case "date": text.stringValue = entry.date.replacingOccurrences(of: "T", with: " ").prefix(19).description
@@ -759,6 +786,19 @@ struct RevisionTable: NSViewRepresentable {
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems()
+            if menu === headerMenu {
+                menu.autoenablesItems = false
+                let reset = NSMenuItem(title: "Reset columns", action: #selector(requestResetColumns), keyEquivalent: ""); reset.target = self; menu.addItem(reset)
+                menu.addItem(.separator())
+                for definition in LogRevisionColumns.definitions {
+                    if definition.id == "bugs" && !model.issueProperties.showsBugIDColumn { continue }
+                    let item = NSMenuItem(title: definition.title, action: #selector(toggleColumn), keyEquivalent: "")
+                    item.representedObject = definition.id; item.target = self
+                    item.state = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(definition.id))?.isHidden == false ? .on : .off
+                    menu.addItem(item)
+                }
+                return
+            }
             func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(); item.target = self; item.isEnabled = enabled; menu.addItem(item)
             }
@@ -790,6 +830,34 @@ struct RevisionTable: NSViewRepresentable {
             }
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
+        }
+        @objc func toggleColumn(_ sender: NSMenuItem) {
+            guard let id = sender.representedObject as? String,
+                let column = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(id)) else { return }
+            if id == "bugs" && !model.issueProperties.showsBugIDColumn { return }
+            column.isHidden.toggle()
+            UserDefaults.standard.set(!column.isHidden, forKey: "Log.Column.Visible." + id)
+        }
+        @objc func requestResetColumns() {
+            guard let window = table?.window, window.attachedSheet == nil else { return }
+            let alert = NSAlert(); alert.messageText = "Are you sure to reset columns?"
+            alert.addButton(withTitle: "Yes").keyEquivalent = "\r"
+            alert.addButton(withTitle: "No").keyEquivalent = "\u{1b}"
+            alert.beginSheetModal(for: window) { response in
+                if response == .alertFirstButtonReturn { self.resetColumns() }
+            }
+        }
+        @objc func resetColumns() {
+            guard let table else { return }
+            for (index, definition) in LogRevisionColumns.definitions.enumerated() {
+                UserDefaults.standard.removeObject(forKey: "Log.Column.Visible." + definition.id)
+                let id = NSUserInterfaceItemIdentifier(definition.id)
+                guard let column = table.tableColumn(withIdentifier: id) else { continue }
+                column.isHidden = !definition.visible || definition.id == "bugs" && !model.issueProperties.showsBugIDColumn
+                column.width = definition.width
+                let current = table.column(withIdentifier: id)
+                if current != index { table.moveColumn(current, toColumn: index) }
+            }
         }
         @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }
         @objc func formatPatch() { if let preset = model.formatPatchPreset, !model.busy { model.onFormatPatch?(preset) } }

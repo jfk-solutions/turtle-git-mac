@@ -10,6 +10,29 @@ The implementation target is the actual TortoiseGit Log Messages dialog and its
 selection-dependent context menus. Native macOS controls retain the three-pane
 arrangement and familiar command order. The initial sidebar log table was removed.
 
+## Revision metadata columns
+
+The native revision table now includes the source labels Email, Commit Name,
+Commit Email and Commit Date alongside Graph, SHA-1, Message, Author, Date and
+Bug-ID. Core history retains `%cI` independently of `%aI`; a real repository test
+uses different author/committer dates and zones across multiple commits, filtered
+older matches and pinned revision scope. SHA-1 cells retain the full hash (the
+visible control truncates to column width).
+
+Normal defaults show Graph, Message, Author and Date, plus configured Bug-ID;
+SHA-1 and the four extra identity columns start hidden, matching the normal Log
+source definitions. A native header menu offers Reset columns followed by column
+visibility checkboxes. Bug-ID is available only with the configured issue column.
+Visibility saves per column; AppKit autosave handles width/order, and columns can
+be resized and dragged. Reset asks the source Yes/No question in a native sheet; Yes restores default
+visibility, widths and order. An attached sheet blocks another reset request.
+Graph resizing now addresses the graph column by identifier rather than whichever
+column happens to be first after reordering, and keeps wider user-set widths.
+
+Actions, ID/rebase replacement and SVN-specific columns remain unported. Date-format/relative-time preferences, native header/confirmation gestures,
+cross-launch width/order persistence and signed sandbox acceptance remain pending.
+See [the metadata-column record](qa/log-columns-2026-10-06.json).
+
 ## Search fields
 
 The search row now has a native Search in menu with independent Subject,

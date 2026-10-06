@@ -265,7 +265,7 @@ extension GitRepository {
         let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
         // Git fixed-string grep is equivalent only for one positive message term.
         let filterInMemory = filtering && (options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
-        var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00"]
+        var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]
         if !filterInMemory { args.append("-\(options.limit)") }
         if let revision = options.endRevision {
             let hash = try historyRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
@@ -341,10 +341,10 @@ extension GitRepository {
         var entries: [LogEntry] = []
         var regexTexts: [String] = []
         var record = 0
-        while record + 8 < fieldsInHistory.count {
+        while record + 9 < fieldsInHistory.count {
             try cancellation?.check()
-            let fields = Array(fieldsInHistory[record..<(record + 9)])
-            record += 9
+            let fields = Array(fieldsInHistory[record..<(record + 10)])
+            record += 10
             if filterInMemory {
                 var searchable: [String] = []
                 if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(fields[5]) }
@@ -371,7 +371,7 @@ extension GitRepository {
             guard !hash.isEmpty else { continue }
             var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
                 parents: fields[1].split(separator: " ").map(String.init), email: fields[3], message: fields[6],
-                committer: fields[7], committerEmail: fields[8])
+                committer: fields[7], committerEmail: fields[8], committerDate: fields[9])
             entry.issueIDs = try issueIDs(hash, message: fields[6])
             entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
             if filtering && !options.searchRegex && options.limit > 0 && entries.count >= options.limit { break }

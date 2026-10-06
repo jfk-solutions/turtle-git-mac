@@ -193,6 +193,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, changed paths and added/removed line counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.
+  Optional email/committer/date columns and a header menu support saved visibility,
+  resizing/reordering and resetting columns.
   Refreshing or closing Log cancels its owned history, changed-file and clipboard
   detail reads.
   Search offers saved Subject/Message/Paths/Author/Email/Revision/Refname/Tag Info/Notes

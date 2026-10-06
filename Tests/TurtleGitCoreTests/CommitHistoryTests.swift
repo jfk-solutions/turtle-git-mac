@@ -447,6 +447,29 @@ final class CommitHistoryTests: XCTestCase {
         let stopped = OperationCancellation(); stopped.cancel()
         do { _ = try await repo.issueTrackerProperties(cancellation: stopped); XCTFail("Cancelled properties succeeded") } catch is OperationCancellationFailure {}
     }
+    func testHistoryPreservesIndependentAuthorAndCommitterDatesAcrossRecordsAndScopes() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Date Tests"])
+        _ = try await repo.run(["config", "user.email", "date@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        let authorDate = "2001-02-03T04:05:06+02:00", commitDate = "2020-04-05T06:07:08-07:00"
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "older timestamp"], environmentOverrides: ["GIT_AUTHOR_DATE": authorDate, "GIT_COMMITTER_DATE": commitDate])
+        let initial = try await repo.history(); let older = try XCTUnwrap(initial.first)
+        XCTAssertEqual(older.date, authorDate); XCTAssertEqual(older.committerDate, commitDate)
+        let secondDate = "2020-04-06T06:07:08-07:00"
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "newer timestamp"], environmentOverrides: ["GIT_AUTHOR_DATE": authorDate, "GIT_COMMITTER_DATE": secondDate])
+        let all = try await repo.history()
+        XCTAssertEqual(all.map(\.committerDate), [secondDate, commitDate])
+        XCTAssertEqual(all.map(\.date), [authorDate, authorDate])
+        var options = HistoryOptions(); options.limit = 1; options.search = "older timestamp"
+        let filtered = try await repo.history(options: options); XCTAssertEqual(filtered.first?.hash, older.hash); XCTAssertEqual(filtered.first?.committerDate, commitDate)
+        options.search = ""; options.endRevision = older.hash
+        let pinned = try await repo.history(options: options); XCTAssertEqual(pinned.first?.committerDate, commitDate)
+    }
     func testHistoryCancellationStopsOwnedPathReadAndLeavesOtherReaderAndIndexIntact() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native Log metadata columns and header choices; full application parity remains incomplete",
+  "baseCommit": "ed47b54",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Optional Email/Commit Name/Commit Email/Commit Date with independent author/committer timestamps; source Bug-ID title and full SHA-1 cell text",
+    "Normal source visibility defaults and header Reset columns/checkbox order; Bug-ID gated by configuration and saved user choice",
+    "Saved per-column visibility, AppKit width/order autosave, reorder/resize, default reset; graph sizing uses stable identifier and retains wider widths",
+    "Source Yes/No reset question in native sheet, attached-sheet guard; existing dialog close/sheet rules apply"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 19,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final core source. New real Git fixture preserves independent author and committer timestamps/zones across records, older filtered match before limit and pinned revision scope. Previous identity/query/regex/issue/ref/path/notes/tag and cancellation cases pass."
+    },
+    "nativeReceiver": "Actual native sources compiled into a receiver with app entrypoint removed. NSApplication activation prohibited, actual NSHostingView RevisionTable instantiated without window. Actual Coordinator/header actions and metadata cells verified column order/default visibility, conditional Bug-ID menu, saved Commit Name toggle, full SHA-1/identity/date values, reorder/resize and defaults reset. No windows displayed.",
+    "nativeReceiverSource": {
+      "path": "/tmp/turtlegit-log-columns-receiver.swift",
+      "sha256": "7f51e0fe77dcaa890ec1fcf47f84ed7cadc2d94ef777255c3f53d45a4bc46369"
+    },
+    "fullRegression": "Focused history suite only; historical 505-test full-suite result retains its 122a2ac snapshot scope.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "a8f6020d0a2849072ce6357947b370344cddd9e7dd3b4dc249134fd0481901ec",
+    "Sources/TurtleGitMac/LogWindow.swift": "396746c75a213bd5fd2b4171646db46301f35db2ba0191ed4ab7a02fed388412",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "0cc09fdffb24065d98a3a8417fd972575abdb0fa94a81c38ca8f4453727f6cf6"
+  },
+  "pending": [
+    "Displayed header/resize/reorder/reset Yes-No/close gestures",
+    "Cross-launch width/order autosave and preference migration",
+    "Date-format/relative-time preferences and local timezone display",
+    "Actions/ID/rebase/SVN-specific columns",
+    "Signed sandbox/App Store acceptance",
+    "Remaining dialog/Finder and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-columns-tests.log",
+      "sha256": "69a40b8a85e963b8d3e6bc59330415da9a40358fadb4b7c0e274aa414923cd9e"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-log-columns-native.log",
+      "sha256": "642fe532de0ba9738f846b67f1a2620dc395cb4b8ca7169811106cb9bb6f0b8a"
+    },
+    "native-build": {
+      "path": "/tmp/turtlegit-log-columns-native-build.log",
+      "sha256": "d585f38ee20a4232f97be35f194d5181b8973a092d83365f57000440206b9d4a"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-columns-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-columns-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-columns-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-columns-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-columns-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}
