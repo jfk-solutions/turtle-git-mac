@@ -35,5 +35,6 @@ Dialog and viewer handoffs are injected; clipboard checks use a private pasteboa
 
 This does not establish displayed menu positioning, keyboard accessibility,
 modal focus, signed sandbox execution or visual parity. Advanced upstream Log
-commands, completed-row display/reopening and further post-operation controls
-remain pending. See the dated QA record for test versions and build results.
+commands and further post-operation controls remain pending. Completed rows in
+custom sessions now remain visible and recover on reopening; see
+[replay rows](REBASE-PROGRESS-ROWS.md). See the dated QA record for test versions and build results.

@@ -587,6 +587,12 @@ final class RebaseTests: XCTestCase {
             let reopened = GitRepository(root: root)
             let recovered = try await reopened.remainingRebaseEntries()
             XCTAssertEqual(recovered.map(\.id), [merge.hash]); XCTAssertEqual(recovered[0].commit.parents, merge.parents)
+            let replayRows = try await reopened.rebaseReplayEntries()
+            XCTAssertEqual(replayRows.map(\.id), [merge.hash])
+            XCTAssertEqual(replayRows.map(\.mainline), [mainline])
+            XCTAssertEqual(replayRows.map(\.action), [.edit])
+            XCTAssertEqual(replayRows.map(\.progress), [.current])
+
             let actualTree = try await reopened.run(["rev-parse", "HEAD^{tree}"]).text
             let actualAuthor = try await reopened.run(["show", "-s", "--format=%an%x00%ae%x00%aI%x00%B", "HEAD"]).stdout
             XCTAssertEqual(actualTree, expectedTree); XCTAssertEqual(actualAuthor, expectedAuthor)
@@ -710,6 +716,20 @@ final class RebaseTests: XCTestCase {
         let second = try await reopened.continueRebase(); XCTAssertEqual(second.exitCode, 0, second.output); XCTAssertTrue(second.state.active)
         XCTAssertEqual(second.state.stoppedCommit, commit.hash); XCTAssertEqual(second.state.stoppedEntryID, plan.entries[1].id)
         let finalRows = try await reopened.remainingRebaseEntries(); XCTAssertEqual(finalRows.map(\.id), [plan.entries[1].id])
+        let allRows = try await reopened.rebaseReplayEntries()
+        XCTAssertEqual(allRows.map(\.id), plan.entries.map(\.id))
+        XCTAssertEqual(allRows.map(\.action), [.edit, .edit])
+        XCTAssertEqual(allRows.map(\.progress), [.completed, .current])
+        let identityFile = root.appendingPathComponent(".git/rebase-merge/turtlegit-replay-identities.json")
+        var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: identityFile)) as! [[String: Any]]
+        for index in legacy.indices { legacy[index].removeValue(forKey: "action"); legacy[index].removeValue(forKey: "mainline") }
+        try JSONSerialization.data(withJSONObject: legacy).write(to: identityFile, options: .atomic)
+        let legacyRows = try await reopened.rebaseReplayEntries()
+        XCTAssertEqual(legacyRows.map(\.id), plan.entries.map(\.id))
+        XCTAssertEqual(legacyRows.map(\.action), [.edit, .edit])
+        XCTAssertEqual(legacyRows.map(\.progress), [.completed, .current])
+
+
         let done = try await reopened.continueRebase(); XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
         let count = try await reopened.run(["rev-list", "--count", original.branchHash + "..HEAD"]).text; XCTAssertEqual(count, "2\n")
     }

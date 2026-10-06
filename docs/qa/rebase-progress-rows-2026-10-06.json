@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "b633111",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Retain completed custom Rebase/Cherry Pick rows, recover action/mainline metadata, stable occurrence IDs and progress presentation",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "4417982da3e73fa2f4e0e321c0dcbc93c7a404aa7d13b0baa33f3b9edb82ee7f",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "2a1f3992e6cca87f42f9f6a08b9b6a3a8b700d110f41744b160367137c88b45f",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "8decb5f5d23f4b0c8d5ff3d1b72ca0b12fdd17dcbf13a271e3a2777b7236002a",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "f9f1397afb3f8a6dc9c06345bf2db8a1698f51e1f9294c6e1de3c4a16bb0e205",
+    "README.md": "0e0710131a238fdeec6bbe7a42ef6aed8dc9ffe9d3d8a74352bf77f5203d61d6",
+    "docs/REBASE-PARITY.md": "45a66091fcde81368041484ea9a33152e5799a481baa660e602aed5f36b288e0",
+    "docs/CHERRY-PICK-PARITY.md": "4f7d59d85ae61c30ff209825990de2e569d7d5664c241acb4fe3629b6b4e840e",
+    "docs/REBASE-ROW-MENUS.md": "7c2bdcba2b67064aaaff29760037d126cb09e1e25af537a7c44edea64e39aab6",
+    "docs/REBASE-PROGRESS-ROWS.md": "79700c47d0816f43c753e03ece0c3c3e238f61aeb13cda646357c14b4531b6c0",
+    "docs/site/index.html": "cc1e61d42f2e9aa420edaa98cf49b85b394db741a36601e08d21df8038d30c33"
+  },
+  "all_native_sources_manifest_sha256": "c2a96ef43764dc12fc54e09981874adff14974c24ab6b85e8be280933d50bc3e",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 51,
+      "failures": 0,
+      "scope": "Includes repeated-occurrence full-list recovery; precedes additional legacy/merge assertions below"
+    },
+    "legacy_metadata_rerun": {
+      "command": "swift test --filter RebaseTests.testRepeatedAddedCommitsKeepDistinctIDsAcrossEditReopeningAndContinue",
+      "tests": 1,
+      "failures": 0,
+      "coverage": "Original and repeated occurrence at second Edit; full actions/progress; metadata without action/mainline fields still recovers"
+    },
+    "merge_metadata_rerun": {
+      "command": "swift test --filter RebaseTests.testCherryPickBothMergeMainlinesMatchGitAndKeepOriginalMetadataOnRecovery",
+      "tests": 1,
+      "failures": 0,
+      "coverage": "Both mainlines retained with original merge identity, Edit action and Current progress"
+    },
+    "native_menus_and_rows": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "receiver_sha256_at_run": "b11d5005684c25bc122383a8ee95d25a2bf44b088b510defad88ef54604cf73c",
+      "coverage": [
+        "Real native custom Pick/Skip/Edit progress list with repeated Add rows",
+        "Reopened full list, stable occurrence numbering, newest-first display",
+        "Completed-row private clipboard inspection",
+        "Hidden actual view host",
+        "Retained full completed list after Continue",
+        "Final manual Skip is shown as Skip and Completed",
+        "Previous native row-menu checks remain passing"
+      ],
+      "receiver_followup": "Three legacy full-receiver assertions subsequently updated to expect completed rows; menus-only code unchanged"
+    },
+    "full_native_receiver": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git",
+      "passed": "2.50.1 Apple Git-155",
+      "receiver_sha256": "f9f1397afb3f8a6dc9c06345bf2db8a1698f51e1f9294c6e1de3c4a16bb0e205",
+      "coverage": [
+        "List interaction and Log Cherry Pick handoffs",
+        "Add, draft Add, duplicates and recovered selection",
+        "Empty patch choices, Squash, multiline Edit and Split",
+        "Conflict selection, conflict hints and recovered applied Edit",
+        "Squash conflicts, empty groups and repeated conflicts/retry",
+        "Group, repeated and omitted reference updates",
+        "New full progress rows and row-menu regression"
+      ]
+    },
+    "builds": {
+      "SwiftPM": "passed through tests, including editor executable",
+      "Debug unsigned final": "passed",
+      "AppStore unsigned": "passed"
+    },
+    "bundle_audits": "Both passed; exact NOTICE in both bundles; Store --require-git passed",
+    "site_generation": "passed",
+    "process_audit": "No main app or receiver processes running",
+    "logs_sha256": {
+      "core": "0311ab2c86248d69d174bce0aca8e96e917dd6fe642569609ad4d42d93c507c5",
+      "legacy": "f9f4a37a92bb25c9734368b08ef064a1fc2717e00ac2dea0055ddc0acf352108",
+      "merge": "bd33c2d8ec704955a3d7f2083d6ec4a3c8c394a5b9e85f1d5b3bd7d0daa2c0e5",
+      "debug-final": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "store": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "native": "593188ff58c72625cdd56ed2d2b1778a75d7bf470e73ad8de977350c9af37b71",
+      "native-full": "da0a0b39990db96d3df5ae177f56c26372158b1a06314ffe61326ccc02f435aa",
+      "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+      "store-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5"
+    }
+  },
+  "limitations": [
+    "Hidden hosted views and injected prompts; displayed color/selection contrast, keyboard/accessibility interaction and modal focus unverified",
+    "Existing screenshots predate this styling",
+    "Full row recovery requires custom replay metadata; external sessions and structural Preserve Merges still use pending-row fallback",
+    "Reopening a finished session as a persistent report remains unimplemented",
+    "Source rows are not a mapping to rewritten result commit hashes",
+    "Unsigned static audits do not prove signed sandbox/Finder/App Store execution",
+    "No push, hosted CI or publication performed; full app port remains incomplete"
+  ]
+}

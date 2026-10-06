@@ -20,8 +20,8 @@ It is disabled during replay and with Preserve Merges. See [Add audit](REBASE-AD
 Changed Files, Commit Message and Progress tabs occupy the resizable lower pane,
 followed by progress, status and Start/Continue, Abort/Cancel and Help controls.
 
-Active sessions recover the stopped and pending commits from Git's persistent
-metadata. They expose Working Tree, Refresh State, Skip, a message editor and
+Custom active sessions recover the full original list, including completed,
+stopped and pending occurrences, from persistent replay metadata. They expose Working Tree, Refresh State, Skip, a message editor and
 phase-specific Commit/Continue/Amend and Abort controls. The Conflict Files tab
 now routes resolution through the native conflict editors and Resolve workflow,
 retaining resolved changes until the step advances. Start, Skip and Abort have
@@ -93,7 +93,8 @@ interaction remain QA work. Automation also lost window access after closing an
 operation window; a process sample showed the app waiting normally for events.
 
 Actual light/dark screenshots are `site/assets/rebase.png` and `rebase-dark.png`.
-These establish the pictured layout, not full behavior or accessibility parity.
+These predate the completed-row styling and establish only the pictured layout,
+not current visual, behavior or accessibility parity.
 
 ## Remaining workflows
 
@@ -174,3 +175,7 @@ update after Edit approval. See [repeated/omitted references](REBASE-REFERENCE-R
 Row menus now reuse native Log inspection/reference/notes/clipboard commands
 with original icons and occurrence-aware selection. Advanced Log commands and
 displayed acceptance remain pending. See [row menus](REBASE-ROW-MENUS.md).
+
+Custom replay lists now retain completed occurrences, original action/mainline
+metadata, stable numbering and current/completed styling through reopening.
+[Replay rows](REBASE-PROGRESS-ROWS.md) records scope and remaining differences.

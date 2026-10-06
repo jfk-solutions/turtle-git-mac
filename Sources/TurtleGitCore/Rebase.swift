@@ -1,6 +1,7 @@
 import Foundation
 
 public enum RebaseAction: String, CaseIterable, Sendable { case pick, skip = "drop", edit, squash }
+public enum RebaseEntryProgress: Sendable { case pending, current, completed }
 public enum RebaseEmptyChoice: Sendable { case commit, skip, cancel }
 public enum RebaseSquashDate: Int, Codable, Sendable { case first = 0, latest = 1, current = 2 }
 public struct RebaseSquashMessage: Codable, Sendable {
@@ -35,6 +36,7 @@ public struct RebaseEntry: Identifiable, Sendable {
     public var occurrence = 0
     public let commit: LogEntry
     public var action: RebaseAction = .pick
+    public var progress: RebaseEntryProgress = .pending
     /// Required for retained merge commits in a Cherry Pick plan.
     public var mainline: Int? = nil
 }
@@ -235,6 +237,8 @@ private struct RebaseMessageConfiguration: Codable {
 private struct RebaseReplayIdentity: Codable {
     let hash: String
     let occurrence: Int
+    var action: String? = nil
+    var mainline: Int? = nil
     var id: String { occurrence == 0 ? hash : hash + ":" + String(occurrence) }
 }
 extension GitRepository {
@@ -382,6 +386,31 @@ extension GitRepository {
         }
         return result
     }
+    /// Full original replay list for native progress display, including completed occurrences.
+    public func rebaseReplayEntries() throws -> [RebaseEntry] {
+        let state = try rebaseState()
+        guard state.active else { return [] }
+        let directory = try rebasePath("rebase-merge")
+        let identities = replayIdentities(directory)
+        // Older sessions retain hashes/occurrences; recover their actions from Git's commands.
+        let done = (try? String(contentsOf: directory.appendingPathComponent("done"), encoding: .utf8)) ?? ""
+        let commands = (done.components(separatedBy: .newlines) + state.remainingCommands).compactMap { line -> RebaseAction? in
+            guard let word = line.split(separator: " ").first else { return nil }
+            return RebaseAction(rawValue: String(word))
+        }
+        guard !identities.isEmpty else { return try remainingRebaseEntries() }
+        let skipped = (try? JSONDecoder().decode(Set<Int>.self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-skipped-steps.json")))) ?? []
+        return try identities.enumerated().map { index, identity in
+            var entry = RebaseEntry(commit: try rebaseCommit(identity.hash))
+            entry.occurrence = identity.occurrence
+            entry.action = identity.action.flatMap(RebaseAction.init(rawValue:)) ?? (commands.indices.contains(index) ? commands[index] : .pick)
+            if skipped.contains(index + 1) { entry.action = .skip }
+            entry.mainline = identity.mainline
+            if index + 1 < state.currentStep { entry.progress = .completed }
+            else if index + 1 == state.currentStep { entry.progress = .current }
+            return entry
+        }
+    }
     public func rebaseTodo(_ plan: RebasePlan) throws -> String {
         let ids = plan.entries.map(\.id)
         try validateRebaseIdentities(plan)
@@ -449,7 +478,7 @@ extension GitRepository {
         try Data((replay.entries.isEmpty ? "noop\n" : todo).utf8).write(to: path)
         var environment = ["GIT_SEQUENCE_EDITOR": RebaseEditor.command(executable: editorExecutable), "TURTLEGIT_REBASE_PLAN": path.path, "GIT_EDITOR": "/usr/bin/true"]
         let identityFile = temporary.appendingPathComponent("identities.json")
-        try JSONEncoder().encode(plan.entries.map { RebaseReplayIdentity(hash: $0.commit.hash, occurrence: $0.occurrence) }).write(to: identityFile)
+        try JSONEncoder().encode(plan.entries.map { RebaseReplayIdentity(hash: $0.commit.hash, occurrence: $0.occurrence, action: $0.action.rawValue, mainline: $0.mainline) }).write(to: identityFile)
         environment["TURTLEGIT_REPLAY_IDENTITIES"] = identityFile.path
         if plan.entries.contains(where: { $0.action == .squash }) {
             let messageFile = temporary.appendingPathComponent("replay-messages.json")

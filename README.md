@@ -309,6 +309,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   [Empty-result workflow](docs/REBASE-EMPTY-RESULTS.md).
   Rebase rows now provide native Log inspection, reference, notes and clipboard
   commands with original icons. [Row menus](docs/REBASE-ROW-MENUS.md).
+  Custom replay lists retain completed rows and recover actions, occurrence IDs
+  and progress when reopened. [Replay rows](docs/REBASE-PROGRESS-ROWS.md).
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Native Cherry Pick plans from single/multiple Log selections, colored action icons,

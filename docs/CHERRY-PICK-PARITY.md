@@ -159,3 +159,7 @@ update after Edit approval. See [repeated/omitted references](REBASE-REFERENCE-R
 Row menus now reuse native Log inspection/reference/notes/clipboard commands
 with original icons and occurrence-aware selection. Advanced Log commands and
 displayed acceptance remain pending. See [row menus](REBASE-ROW-MENUS.md).
+
+Custom replay lists now retain completed occurrences, original action/mainline
+metadata, stable numbering and current/completed styling through reopening.
+[Replay rows](REBASE-PROGRESS-ROWS.md) records scope and remaining differences.
