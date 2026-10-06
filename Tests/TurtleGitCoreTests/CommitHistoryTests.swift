@@ -237,6 +237,48 @@ final class CommitHistoryTests: XCTestCase {
         options.search = ""; options.endRevision = nil
         found = try await repo.history(options: options); XCTAssertEqual(found.count, 2); XCTAssertEqual(found.last?.hash, old.hash)
     }
+    func testAnnotatedTagInfoSearchUsesTagObjectsAndExcludesLightweightRefs() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Tagger Person"])
+        _ = try await repo.run(["config", "user.email", "tagger@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        try Data("old\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "old")
+        let initial = try await repo.history(), old = try XCTUnwrap(initial.first)
+        _ = try await repo.run(["tag", "-a", "release-tag", "-m", "AnnotationMarker 雪\nSecond line", old.hash])
+        let object = try await repo.run(["rev-parse", "refs/tags/release-tag"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-ref", "refs/tags/alias-only-name", object])
+        _ = try await repo.run(["tag", "light-only-name", old.hash])
+        _ = try await repo.run(["tag", "-a", "nested", "-m", "NestedAnnotation", "release-tag"])
+        try Data("new\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "AnnotationMarker only-message")
+        var options = HistoryOptions(); options.searchFields = .tagInfo; options.search = "annotationmarker"; options.limit = 1
+        var found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        XCTAssertTrue(found.first?.tagInfo.contains("tag release-tag") == true)
+        XCTAssertTrue(found.first?.tagInfo.contains("Tagger Person <tagger@example.invalid>") == true)
+        XCTAssertTrue(found.first?.tagInfo.contains("Second line") == true)
+        XCTAssertFalse(found.first!.tagInfo.contains("object " + old.hash))
+        for query in ["NestedAnnotation", "release-tag", "tagger@example.invalid", "Tagger Person"] {
+            options.search = query; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        }
+        for query in ["light-only-name", "alias-only-name", "only-message", old.hash] {
+            options.search = query; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty, query)
+        }
+        options.search = "annotationmarker"; options.searchCaseSensitive = true
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "AnnotationMarker"; options.searchFields = [.messages, .tagInfo]; options.limit = 2
+        found = try await repo.history(options: options); XCTAssertEqual(found.count, 2); XCTAssertEqual(found.last?.hash, old.hash)
+        options.searchFields = .tagInfo; options.paths = ["absent.txt"]
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.paths = []; options.endRevision = old.hash
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [old.hash])
+        options.search = ""; found = try await repo.history(options: options)
+        XCTAssertEqual(found.map(\.hash), [old.hash]); XCTAssertTrue(found.first?.tagInfo.contains("NestedAnnotation") == true)
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

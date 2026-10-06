@@ -13,11 +13,11 @@ arrangement and familiar command order. The initial sidebar log table was remove
 ## Search fields
 
 The search row now has a native Search in menu with independent Subject,
-Messages, Authors, Emails, Revisions, Refname and Notes checkboxes. Subject searches only the
+Messages, Authors, Emails, Revisions, Refname, Tag Info and Notes checkboxes. Subject searches only the
 summary; Messages searches both summary and body. Authors includes both author and
 committer names; Emails includes both identities. Multiple fields match by OR.
 Field selection is saved under SelectedLogFilters and reused by subsequent Log
-windows. Unset/invalid preferences default to all seven implemented fields; an
+windows. Unset/invalid preferences default to all eight implemented fields; an
 explicit empty selection stays empty. Stored unsupported bits are masked out.
 All selects the implemented field set; Toggle filters inverts it. Changing fields
 or case mode only reloads when search text is entered, preserving a loaded list
@@ -40,6 +40,17 @@ embedded NUL data cannot break the commit-record parser. Repositories without
 notes refs/configuration skip per-commit note reads. Repositories with notes still
 use individual Git reads, so batched/incremental loading remains unfinished. See
 [the notes record](qa/log-notes-search-2026-10-06.json).
+Tag Info searches annotation text, internal tag names and tagger identity from
+annotated tag objects associated with the commit. Lightweight tag names and
+renamed/alias ref names remain in Refname search. Tag objects are pinned in the
+reference snapshot and cached by object ID; multiple annotated tags on a commit
+are included, including tags pointing to tags. The target object header and direct
+commit type header are removed, matching the upstream CLI tag-info reader. Returned
+rows retain tag information, and the selected message pane appends a Tag Info
+section. Native tagger date formatting/relative-date preferences remain unfinished;
+this pass retains the tagger's raw Git timestamp and zone. Displayed layout, links,
+colors and signed acceptance remain unverified. See
+[the annotated-tag record](qa/log-tag-search-2026-10-06.json).
 The menu also offers the upstream Case-sensitive toggle, default off. It applies
 to every selected field and is saved under FilterCaseSensitively for subsequent
 Log windows. Names, emails and revision IDs use literal matching; message-only
@@ -55,7 +66,7 @@ and cancellation for large histories remain unfinished. The existing message-onl
 search still uses Git's result limit. Returned rows now retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
 regex options, multi-term/exclusion query syntax,
-bug IDs and annotated-tag fields and the complete upstream default field
+bug IDs and the complete upstream default field
 set remain
 pending. This is partial upstream filter parity; see
 [the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up

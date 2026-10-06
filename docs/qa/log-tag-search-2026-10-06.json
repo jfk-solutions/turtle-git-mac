@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native Log annotated-tag information search/display; full port remains incomplete",
+  "baseCommit": "4eaba90f5d0ad7146d6eea9e011b896f3b442d00",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/LogDlgFilter.cpp LOGFILTER_ANNOTATEDTAG searches GetTagInfo for annotated tag refs",
+    "src/TortoiseProc/GitLogListBase.cpp GetTagInfo: annotated peeled refs, multiple tags",
+    "src/Git/Git.cpp GetTagInfo CLI path: cat-file tag, removes object and direct commit type headers, formats tagger date; native date formatting remains pending",
+    "src/Resources/TortoiseProcENG.rc Tag Info label"
+  ],
+  "implemented": [
+    "Tag Info checkbox in native saved selection/All/Toggle supported mask, now eight default implemented fields",
+    "Annotated tag object IDs pinned by reference snapshot and payloads cached by object ID",
+    "Literal search over internal tag names, tagger identity and annotation body; multiple and nested annotated tags included",
+    "Lightweight and alias ref names stay in Refname search; target object header omitted from tag-info search/display",
+    "Returned LogEntry retains tag info and selected native message pane appends Tag Info section; existing case/OR/limit/path/pinned scope behavior retained"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 10,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final source. New real Git fixture verifies older annotation matches beyond limit, multiple/alias/nested annotated tags, internal tag name and tagger name/email/body, lightweight/alias ref isolation, tag-only exclusion of message text and omitted target commit hash, case mode, mixed message/tag OR, path and pinned revision scopes, unfiltered retained tag info. Prior notes/reference/identity/metadata/merge/clipboard cases pass."
+    },
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "nativeAcceptance": "Native menu/default-mask and selected message rendering compiled in both configurations. Displayed menu/message/color/link/date acceptance not performed.",
+    "fullRegression": "Focused history suite run; full-suite repeat not performed. Prior full-suite evidence retains its recorded snapshot scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "2a3cb7bbcf3086027cfb50fd40f2200067847446275147d3cfa4763b9abf131c",
+    "Sources/TurtleGitCore/GitModels.swift": "20cea5787a7783df4c7f94a514d98934af861e4acc161c2383587fd8c3e98aa5",
+    "Sources/TurtleGitMac/LogWindow.swift": "57f758073b96bad0596998387feb80613dfba6e2c4467f58a6a12130557f5659",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "c588d6e1967e227982b89d15294c1bc735e7fd8e49f2cd3b6d37dea64945fb0b"
+  },
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-tags-tests.log",
+      "sha256": "668526749c0b4beed4cd63ede174a18136ed5d3f0a0d1b7d341fffae869b60e2"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-tags-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-tags-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-tags-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-tags-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-tags-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Native tagger-date formatting and relative-date preferences; raw Git timestamp/zone retained in this pass",
+    "Changed-path/issue-ID fields, regex and advanced query syntax",
+    "Batched/incremental metadata and large-history streaming/cancellation",
+    "Displayed menu/preferences/message/light/dark acceptance",
+    "Signed Finder/App Store verification and complete application parity"
+  ]
+}

@@ -21,6 +21,7 @@ public struct HistorySearchFields: OptionSet, Sendable {
     public static let subject = Self(rawValue: 1 << 4)
     public static let referenceNames = Self(rawValue: 1 << 5)
     public static let notes = Self(rawValue: 1 << 6)
+    public static let tagInfo = Self(rawValue: 1 << 7)
 }
 
 public struct HistoryOptions: Sendable {
@@ -188,11 +189,15 @@ extension GitRepository {
         let fields = String(decoding: refs, as: UTF8.self).components(separatedBy: "\0")
         var references: [String: [RevisionReference]] = [:]
         var peeledReferenceNames: [String: [String]] = [:]
+        var annotatedObjects: [String: [String]] = [:]
         var i = 0
         while i + 2 < fields.count {
             let hash = (fields[i + 1].isEmpty ? fields[i] : fields[i + 1]).trimmingCharacters(in: .whitespacesAndNewlines)
             references[hash, default: []].append(RevisionReference(name: fields[i + 2]))
-            if !fields[i + 1].isEmpty { peeledReferenceNames[hash, default: []].append(fields[i + 2] + "^{}") }
+            if !fields[i + 1].isEmpty {
+                peeledReferenceNames[hash, default: []].append(fields[i + 2] + "^{}")
+                if fields[i + 2].hasPrefix("refs/tags/") { annotatedObjects[hash, default: []].append(fields[i].trimmingCharacters(in: .whitespacesAndNewlines)) }
+            }
             i += 3
         }
         // Notes are separate payloads: their text can contain NUL bytes, unlike
@@ -208,6 +213,19 @@ extension GitRepository {
             let value = try run(["show", "-s", "--notes", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
             notesCache[hash] = value; return value
         }
+        var tagCache: [String: String] = [:]
+        func tagInfo(_ hash: String) throws -> String {
+            try (annotatedObjects[hash] ?? []).map { object in
+                if let cached = tagCache[object] { return cached }
+                var value = try run(["cat-file", "tag", object]).text
+                if value.hasPrefix("object "), let newline = value.firstIndex(of: "\n") {
+                    value = String(value[value.index(after: newline)...])
+                    if value.hasPrefix("type commit\n") { value.removeFirst("type commit\n".count) }
+                }
+                value = value.trimmingCharacters(in: .newlines)
+                tagCache[object] = value; return value
+            }.joined(separator: "\n")
+        }
         let fieldsInHistory = String(decoding: try run(args).stdout, as: UTF8.self).components(separatedBy: "\0")
         var entries: [LogEntry] = []
         var record = 0
@@ -216,6 +234,7 @@ extension GitRepository {
             record += 9
             if filterInMemory {
                 var searchable: [String] = []
+                if options.searchFields.contains(.tagInfo) { searchable.append(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
                 if options.searchFields.contains(.notes) { searchable.append(try notes(fields[0].trimmingCharacters(in: .whitespacesAndNewlines))) }
                 if options.searchFields.contains(.subject) { searchable.append(fields[5]) }
                 if options.searchFields.contains(.messages) { searchable.append(fields[6]) }
@@ -233,7 +252,7 @@ extension GitRepository {
             var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
                 parents: fields[1].split(separator: " ").map(String.init), email: fields[3], message: fields[6],
                 committer: fields[7], committerEmail: fields[8])
-            entry.notes = try notes(hash); entries.append(entry)
+            entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
             if filtering && options.limit > 0 && entries.count >= options.limit { break }
         }
         let head = try? run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
