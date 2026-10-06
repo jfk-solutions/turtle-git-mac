@@ -26,6 +26,31 @@ public struct HistorySearchFields: OptionSet, Sendable {
     public static let bugIDs = Self(rawValue: 1 << 9)
 }
 
+/// Fixed action slots from the upstream Log list: copied files share Added.
+public struct LogRevisionActions: OptionSet, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let modified = Self(rawValue: 1 << 0)
+    public static let added = Self(rawValue: 1 << 1)
+    public static let deleted = Self(rawValue: 1 << 2)
+    public static let replaced = Self(rawValue: 1 << 3)
+    public static let conflicted = Self(rawValue: 1 << 4)
+    static func classify(_ files: [CommitFile]) -> Self {
+        var actions = Self()
+        for file in files {
+            switch file.action.first {
+            case "M", "T": actions.insert(.modified)
+            case "A", "C": actions.insert(.added)
+            case "D": actions.insert(.deleted)
+            case "R": actions.insert(.replaced)
+            case "U": actions.insert(.conflicted)
+            default: break
+            }
+        }
+        return actions
+    }
+}
+
 /// Plain-text query rules ported from upstream FilterHelper.cpp (GPL-2.0-or-later).
 /// Conditions operate on the combined selected-field text, not each field alone.
 struct HistoryTextQuery {
@@ -435,6 +460,22 @@ extension GitRepository {
         }
         try cancellation?.check()
         return text + "\n"
+    }
+    /// Lightweight name-status union across all parents for the lazy Log Actions column.
+    public func revisionActions(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> LogRevisionActions {
+        try cancellation?.check()
+        var actions = LogRevisionActions()
+        for parent in entry.parents.isEmpty ? [nil] : entry.parents.map({ Optional($0) }) {
+            try cancellation?.check()
+            var args = ["diff-tree", "--root", "--no-commit-id", "--name-status", "-z", "-r", "-M", "--no-ext-diff", "--no-color"]
+            if let parent { args.append(parent) }
+            args += [entry.hash, "--"]
+            let names = try run(args, cancellation: cancellation).stdout
+            try cancellation?.check()
+            actions.formUnion(LogRevisionActions.classify(CommitFile.parse(names: names, statistics: Data())))
+        }
+        try cancellation?.check()
+        return actions
     }
     public func files(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()

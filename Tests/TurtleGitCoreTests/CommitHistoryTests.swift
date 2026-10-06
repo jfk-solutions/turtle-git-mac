@@ -470,6 +470,12 @@ final class CommitHistoryTests: XCTestCase {
         options.search = ""; options.endRevision = older.hash
         let pinned = try await repo.history(options: options); XCTAssertEqual(pinned.first?.committerDate, commitDate)
     }
+    func testActionSlotsClassifyCopyTypeChangeRenameAndConflict() {
+        let names = Data("M\0modified\0T\0type\0A\0added\0C100\0old\0copy\0D\0deleted\0R100\0before\0after\0U\0conflict\0".utf8)
+        let actions = LogRevisionActions.classify(CommitFile.parse(names: names, statistics: Data()))
+        XCTAssertEqual(actions, [.modified, .added, .deleted, .replaced, .conflicted])
+        XCTAssertEqual(LogRevisionActions.classify([]), [])
+    }
     func testHistoryCancellationStopsOwnedPathReadAndLeavesOtherReaderAndIndexIntact() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -576,6 +582,60 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertEqual(final.first?.added, 1)
         XCTAssertEqual(final.first?.removed, 0)
     }
+    func testActionCancellationStopsOwnedNameReadAndLeavesOtherReaderAndIndexIntact() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Cancel Tests"])
+        _ = try await repo.run(["config", "user.email", "cancel@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        try Data("base\n".utf8).write(to: root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"])
+        _ = try await repo.commit(message: "base")
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let history = try await repo.history()
+        let entry = try XCTUnwrap(history.first)
+        let expected = try await repo.revisionActions(in: entry)
+        let stopped = OperationCancellation(); stopped.cancel()
+        do { _ = try await repo.revisionActions(in: entry, cancellation: stopped); XCTFail("Cancelled details read succeeded") } catch is OperationCancellationFailure {}
+        let helper = root.appendingPathComponent("slow-actions")
+        let script = """
+        #!/bin/sh
+        case "$*" in
+          *diff-tree*)
+            /bin/sleep 30 &
+            task_actions_child=$!
+            trap 'kill "$task_actions_child" 2>/dev/null; wait "$task_actions_child" 2>/dev/null; exit 143' TERM INT
+            echo "$$ $task_actions_child" > "$0.started"
+            wait "$task_actions_child"
+            ;;
+        esac
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let slow = GitRepository(root: root, executable: helper), token = OperationCancellation()
+        let read = Task { try await slow.revisionActions(in: entry, cancellation: token) }
+        defer { token.cancel() }
+        let marker = URL(fileURLWithPath: helper.path + ".started"), deadline = Date().addingTimeInterval(5)
+        while !FileManager.default.fileExists(atPath: marker.path) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        guard FileManager.default.fileExists(atPath: marker.path) else { token.cancel(); _ = await read.result; XCTFail("Action read never started"); return }
+        let pids = try String(contentsOf: marker, encoding: .utf8).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
+        XCTAssertEqual(pids.count, 2)
+        let independent = try await repo.revisionActions(in: entry); XCTAssertEqual(independent, expected)
+        let began = Date(); token.cancel()
+        do { _ = try await read.value; XCTFail("Cancelled action read succeeded") }
+        catch is OperationCancellationFailure {}
+        catch is GitCommandCancellationFailure {}
+        XCTAssertLessThan(Date().timeIntervalSince(began), 5)
+        let reaped = Date().addingTimeInterval(3)
+        while Date() < reaped && pids.contains(where: { kill($0, 0) == 0 }) { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertTrue(pids.allSatisfy { kill($0, 0) != 0 })
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), before)
+        let final = try await repo.revisionActions(in: entry)
+        XCTAssertEqual(final, expected)
+        XCTAssertEqual(final, .added)
+    }
     func testClipboardCancellationStopsOwnedTagReadAndLeavesOtherReaderAndIndexIntact() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -656,6 +716,7 @@ final class CommitHistoryTests: XCTestCase {
         let initialFiles = try await repo.files(in: initial)
         XCTAssertEqual(initialFiles.first?.path, weird)
         XCTAssertEqual(initialFiles.first?.added, 2)
+        let rootActions = try await repo.revisionActions(in: initial); XCTAssertEqual(rootActions, .added)
         _ = try await repo.run(["switch", "-c", "feature"])
         _ = try await repo.run(["mv", "--", weird, "renamed.txt"])
         _ = try await repo.commit(message: "Rename on feature")
@@ -665,6 +726,7 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertEqual(renamedFiles.first?.oldPath, weird)
         XCTAssertEqual(renamedFiles.first?.status, "Renamed")
         XCTAssertEqual(renamedFiles.first?.removed, 0)
+        let renameActions = try await repo.revisionActions(in: renamed); XCTAssertEqual(renameActions, .replaced)
         _ = try await repo.run(["tag", "-a", "v1", "-m", "Annotated tag"])
         _ = try await repo.run(["switch", "main"])
         try Data("main change\n".utf8).write(to: root.appendingPathComponent("main.txt"))
@@ -676,6 +738,7 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertTrue(history.first { $0.hash == renamed.hash }!.references.contains { $0.name == "refs/tags/v1" })
         let mergeFiles = try await repo.files(in: history[0])
         XCTAssertEqual(mergeFiles.first?.status, "Renamed")
+        let mergeActions = try await repo.revisionActions(in: history[0]); XCTAssertEqual(mergeActions, [.added, .replaced])
         var options = HistoryOptions(); options.search = "Multiline body"
         let filtered = try await repo.history(options: options)
         XCTAssertEqual(filtered.map(\.hash), [initial.hash])

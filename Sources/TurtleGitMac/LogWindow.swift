@@ -168,6 +168,13 @@ struct LogCommandRequest: Identifiable {
     // Keep the security-scoped grant alive if the main repository window changes.
     private let access: RepositoryAccessLease?
     @Published var entries: [LogEntry] = []
+    @Published var revisionActions: [String: LogRevisionActions] = [:]
+    @Published var actionFailures = Set<String>()
+    private var actionQueue: [LogEntry] = []
+    private var actionCancellation: OperationCancellation?
+    private var activeActionHash: String?
+    private var actionGeneration = 0
+    var loadingActions: Bool { actionCancellation != nil }
     @Published var graph: [CommitGraphRow] = []
     @Published var selected = Set<String>()
     @Published var files: [CommitFile] = []
@@ -262,7 +269,35 @@ struct LogCommandRequest: Identifiable {
         guard historyPaths != scope || showWholeProject != scope.isEmpty else { return }
         historyPaths = scope; showWholeProject = scope.isEmpty; reload()
     }
+    private func cancelActionReads() {
+        actionCancellation?.cancel(); actionCancellation = nil
+        actionQueue = []; activeActionHash = nil; actionGeneration += 1
+    }
+    func requestActions(_ entry: LogEntry) {
+        guard !busy, revisionActions[entry.hash] == nil, !actionFailures.contains(entry.hash),
+            activeActionHash != entry.hash, !actionQueue.contains(where: { $0.hash == entry.hash }) else { return }
+        actionQueue.append(entry)
+        guard actionCancellation == nil else { return }
+        let cancellation = OperationCancellation(); actionCancellation = cancellation
+        let request = actionGeneration
+        Task {
+            while request == actionGeneration && !actionQueue.isEmpty && !cancellation.isCancelled {
+                let entry = actionQueue.removeFirst(); activeActionHash = entry.hash
+                do {
+                    let actions = try await repository.revisionActions(in: entry, cancellation: cancellation)
+                    guard request == actionGeneration else { return }
+                    revisionActions[entry.hash] = actions
+                } catch {
+                    guard request == actionGeneration else { return }
+                    if !cancellation.isCancelled { actionFailures.insert(entry.hash) }
+                }
+                activeActionHash = nil
+            }
+            if request == actionGeneration { actionCancellation = nil; activeActionHash = nil }
+        }
+    }
     func invalidate() {
+        cancelActionReads()
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
         if loadingHistory { historyCancellation?.cancel(); historyCancellation = nil; busy = false }
@@ -270,6 +305,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload(more: Bool = false) {
         guard !busy || loadingHistory else { return }
+        cancelActionReads(); actionFailures = []
         detailCancellation?.cancel(); detailCancellation = nil; detailGeneration += 1
         historyCancellation?.cancel()
         let cancellation = OperationCancellation(); historyCancellation = cancellation
@@ -288,6 +324,7 @@ struct LogCommandRequest: Identifiable {
                 guard request == generation else { return }
                 self.bare = bare; self.issueProperties = issueProperties
                 entries = result; graph = CommitGraph.layout(result)
+                let hashes = Set(result.map(\.hash)); revisionActions = revisionActions.filter { hashes.contains($0.key) }
                 selected.formIntersection(Set(result.map(\.hash)))
                 if selected.isEmpty, let first = result.first { selected = [first.hash] }
                 historyCancellation = nil; busy = false; select(selected)
@@ -681,7 +718,7 @@ struct LogDialog: View {
 /// Rebase/ID/Actions/SVN-specific columns still require their own backend ports.
 private enum LogRevisionColumns {
     static let definitions: [(id: String, title: String, width: Double, visible: Bool)] = [
-        ("graph", "Graph", 65, true), ("hash", "SHA-1", 92, false),
+        ("graph", "Graph", 65, true), ("hash", "SHA-1", 92, false), ("actions", "Actions", 90, true),
         ("message", "Message", 420, true), ("author", "Author", 140, true),
         ("date", "Date", 170, true), ("email", "Email", 200, false),
         ("committer", "Commit Name", 140, false), ("committerEmail", "Commit Email", 200, false),
@@ -725,7 +762,7 @@ struct RevisionTable: NSViewRepresentable {
         guard let table = coordinator.table else { return }
         coordinator.updating = true
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
-        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs }
+        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) }
         if signature != coordinator.signature {
             coordinator.signature = signature
             table.reloadData()
@@ -736,6 +773,14 @@ struct RevisionTable: NSViewRepresentable {
         let indices = IndexSet(model.entries.enumerated().compactMap { model.selected.contains($0.element.hash) ? $0.offset : nil })
         if table.selectedRowIndexes != indices { table.selectRowIndexes(indices, byExtendingSelection: false) }
         coordinator.updating = false
+        // A refresh may retain the same hashes while cancelling pending reads.
+        // Restart visible missing cells even when the row signature is unchanged.
+        if table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("actions"))?.isHidden == false {
+            let visible = table.rows(in: table.visibleRect)
+            if visible.location != NSNotFound {
+                for row in visible.location..<min(NSMaxRange(visible), model.entries.count) { model.requestActions(model.entries[row]) }
+            }
+        }
     }
     @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate {
         var model: LogWindowModel
@@ -750,6 +795,29 @@ struct RevisionTable: NSViewRepresentable {
             if column?.identifier.rawValue == "graph" {
                 let view = GraphCell(); view.graph = model.graph[row]; view.setAccessibilityLabel("\(entry.parents.count) parents, graph lane \(model.graph[row].column + 1)")
                 return view
+            }
+            if column?.identifier.rawValue == "actions" {
+                model.requestActions(entry)
+                let cell = NSTableCellView()
+                let slots: [(LogRevisionActions, MenuIcon, String)] = [(.modified, .actionModified, "Modified"), (.added, .actionAdded, "Added/copied"), (.deleted, .actionDeleted, "Deleted"), (.replaced, .actionReplaced, "Replaced/renamed"), (.conflicted, .actionConflicted, "Conflicted")]
+                var views: [NSView] = [], labels: [String] = []
+                if let actions = model.revisionActions[entry.hash] {
+                    for (flag, icon, title) in slots {
+                        let view = NSImageView(); view.image = actions.contains(flag) ? icon.image() : nil
+                        views.append(view); if actions.contains(flag) { labels.append(title) }
+                    }
+                    if labels.isEmpty { labels = ["No changed files"] }
+                } else {
+                    let failed = model.actionFailures.contains(entry.hash)
+                    let view = NSImageView(); view.image = (failed ? MenuIcon.actionError : .actionFetching).image()
+                    views = [view]; labels = [failed ? "Could not read changed files" : "Reading changed files"]
+                }
+                for view in views { view.translatesAutoresizingMaskIntoConstraints = false; view.widthAnchor.constraint(equalToConstant: 16).isActive = true; view.heightAnchor.constraint(equalToConstant: 16).isActive = true }
+                let stack = NSStackView(views: views); stack.orientation = .horizontal; stack.spacing = 0
+                stack.translatesAutoresizingMaskIntoConstraints = false; cell.addSubview(stack)
+                NSLayoutConstraint.activate([stack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), stack.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
+                cell.toolTip = labels.joined(separator: ", "); cell.setAccessibilityLabel(cell.toolTip)
+                return cell
             }
             let text = NSTextField(labelWithString: "")
             text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1

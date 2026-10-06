@@ -191,7 +191,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   F5 refresh and light/dark appearance; Finder and app-menu routing.
   [Revert parity details](docs/REVERT-PARITY.md) record the remaining workflows.
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
-  commit message, changed paths and added/removed line counts; search/date filters,
+  commit message, lazy colored Actions icons, changed paths and added/removed line
+  counts; search/date filters,
   all-branches and loading older commits; revision and working-tree comparisons.
   Optional email/committer/date columns and a header menu support saved visibility,
   resizing/reordering and resetting columns.

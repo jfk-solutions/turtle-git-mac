@@ -29,9 +29,32 @@ visibility, widths and order. An attached sheet blocks another reset request.
 Graph resizing now addresses the graph column by identifier rather than whichever
 column happens to be first after reordering, and keeps wider user-set widths.
 
-Actions, ID/rebase replacement and SVN-specific columns remain unported. Date-format/relative-time preferences, native header/confirmation gestures,
+ID/rebase replacement and SVN-specific columns remain unported. Date-format/relative-time preferences, native header/confirmation gestures,
 cross-launch width/order persistence and signed sandbox acceptance remain pending.
 See [the metadata-column record](qa/log-columns-2026-10-06.json).
+
+## Actions column
+
+The default-visible native Actions column now uses the seven pinned original
+`action*.ico` assets: five fixed Modified, Added/Copied, Deleted,
+Replaced/Renamed and Conflicted slots, plus fetching/error indicators. Icons keep
+their source colors and use the original slot order/spacing; tooltips and
+accessibility labels identify present statuses. The column participates in header
+visibility, width/order settings and Reset columns.
+
+Core action reads use only NUL-delimited name-status data, aggregate changes
+against every merge parent and handle roots, renames and type changes without
+reading line statistics. The native table lazily requests visible rows through
+one owned queue, deduplicates queued/in-flight hashes and caches immutable results.
+Refresh/invalidation/close cancel that queue and its current Git process group;
+stale completions cannot update a newer cache or show errors. Failed rows show the
+source error artwork and refresh retries them. Successful history reloads retain
+only results belonging to the returned list. Missing visible rows restart after a
+refresh even if their hashes are unchanged.
+
+Copy-detection/configuration variants, working-copy pseudo rows, incremental/batched
+reads, displayed scroll/header/light/dark acceptance and signed sandbox behavior
+remain pending. See [the Actions record](qa/log-actions-2026-10-06.json).
 
 ## Search fields
 

@@ -1,0 +1,80 @@
+{
+  "date": "2026-10-06",
+  "scope": "Pinned original lazy Log Actions column; full application parity remains incomplete",
+  "baseCommit": "94ed013",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Original seven action ICO resources with pinned source hashes/GPL alternative; five fixed Modified/Added-Copied/Deleted/Replaced-Renamed/Conflicted slots and fetching/error artwork",
+    "Default-visible Actions column participates in saved header visibility/width/order/reset; labels/tooltips/accessibility, cache/error signature refresh",
+    "Lightweight core name-status union over root/all merge parents with rename/type/copy/conflict classification and owned cancellation",
+    "Native deduplicated visible-row queue and immutable commit cache, cancelled on reload/close/invalidation; stale generation guards, retry-on-refresh, pruned scope cache and unchanged-hash visible restart"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 24,
+      "failures": 0,
+      "scope": "Final-source CommitHistoryTests (21), MenuIconTests (1), MenuPresentationTests (2). Real Git root/rename/all-parent merge action unions, classification including C/T/U, pre-cancel and stalled owned name read with independent reader, exact unchanged index and subsequent success; all prior history/query/metadata cases and icon decoding/preferences pass."
+    },
+    "nativeReceiver": "Actual native sources hosted into AppKit receiver with main app entry removed and activation prohibited. Five slots/three active originals, all seven original image resources, fetching/error cells, existing metadata/header cases; actual Actions queue real Git completion and invalidation cancellation with owned wrapper/child reaped, no stale cache/error, exact unchanged index. No windows displayed.",
+    "nativeReceiverSource": {
+      "path": "/tmp/turtlegit-log-actions-receiver.swift",
+      "sha256": "1692c00bc91982300b3189b2a04f55bd76cab4a2e7807aae32eafa493d01a5d5"
+    },
+    "fullRegression": "Focused affected suites only; historical 505-test full-suite evidence retains original 122a2ac snapshot scope.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; all 83 upstream icon hashes and Store bundled Git audit passed.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "dd7f213e71a04d6c22258cda5eb31b98a4a72bec5aff2a4e52e79443b05a0d58",
+    "Sources/TurtleGitCore/MenuIcons.swift": "d4b94d983527d1f0dfd758793b30fd4794a93f9518a4df257e6d2d8f5fc25552",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "5ede068201145c5e9e5cce9a359c875b91a53d5c5a4ed1204ce170706409355c",
+    "Sources/TurtleGitMac/LogWindow.swift": "3c6d224baa1e1bff01bd9c2ffa9286cdc9c93be851adbf46b95faf41a23305db",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "1e3fc2402a77d7a1e5adbefa7ce028ec6e7f512ebf749dba27707650d31ed6fc"
+  },
+  "pending": [
+    "Displayed scrolling/loading/refresh/close, header/reset and light/dark acceptance",
+    "Copy-detection configuration variants and working-copy pseudo rows",
+    "Incremental/batched action reads and broad performance acceptance",
+    "Cross-launch autosave and remaining ID/rebase/SVN columns",
+    "Signed Finder/sandbox/App Store validation",
+    "Remaining dialog and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-actions-tests.log",
+      "sha256": "c8773f897240080c29981e9219d7381849de10a7937913a6f1abcc2b1bc59883"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-log-actions-native.log",
+      "sha256": "5c2ffd4d19d82ecf036d62da24d3c7476a2432ef2c749844ae777ca9a06c93cb"
+    },
+    "native-build": {
+      "path": "/tmp/turtlegit-log-actions-native-build.log",
+      "sha256": "bd254c085c5954573be6746e6eabd82f42c887fcff75c75b1e5742c88d9f6ed0"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-actions-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-actions-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-actions-debug-audit.log",
+      "sha256": "8eb1b75b672510e328055013fa5ced637ac0b22e38e1d552bda9228c821b2584"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-actions-store-audit.log",
+      "sha256": "4ce97b9c2f5ff6fdc8351d8c7fd83f8b1d4deef511ab6ac550cd9c2182ffb294"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-actions-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

@@ -382,6 +382,41 @@
       "asset": "AddBackground.ico",
       "source": "src/Resources/AddBackground.ico",
       "sha256": "bcd7b2c4b5e6c1915dcde0ece331bdc84d9b97cd3c341ce2977abd596a00dfa9"
+    },
+    {
+      "asset": "actionmodified.ico",
+      "source": "src/Resources/actionmodified.ico",
+      "sha256": "4d5937e132726d9345cc7a8e7d7a36f412a78e91339e3b1144cf5a7811a4c10f"
+    },
+    {
+      "asset": "actionadded.ico",
+      "source": "src/Resources/actionadded.ico",
+      "sha256": "ce3e029bd9374030f7522318adff5ecae8a852d98e93b7537a2b4ffa38697644"
+    },
+    {
+      "asset": "actiondeleted.ico",
+      "source": "src/Resources/actiondeleted.ico",
+      "sha256": "457bdc17ba40a2c6e7fdfcf2f184dbd46b0df3b631bd4a6c49783199a490f987"
+    },
+    {
+      "asset": "actionreplaced.ico",
+      "source": "src/Resources/actionreplaced.ico",
+      "sha256": "59aef8c63a72fcd1b6b5dc617cdf69ea90541ead8b8544b9015ceae49aa3b04a"
+    },
+    {
+      "asset": "actionconflicted.ico",
+      "source": "src/Resources/actionconflicted.ico",
+      "sha256": "b77d3358bae1e83cd4d7bcf51c8873f4943db0d7c743bcc1f17e9d8ff7af4c26"
+    },
+    {
+      "asset": "actionfetching.ico",
+      "source": "src/Resources/actionfetching.ico",
+      "sha256": "a8d01092a8450f978a227166b8812705e8cbf6b509ce74a9851590125bf9f083"
+    },
+    {
+      "asset": "actionerror.ico",
+      "source": "src/Resources/actionerror.ico",
+      "sha256": "26ee77f3ac2bd131fae89f4b4ecd532d13772ecadd5bbba8e0677d67b2975c53"
     }
   ]
 }
