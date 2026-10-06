@@ -39,7 +39,9 @@ rejected. Post-actions and new-branch/amend-mode changes are disabled.
 
 A recovered Edit pauses for multiline message approval after the amendment loop.
 A recovered Pick resumes replay once the tree is clean. Split can subsequently
-divide an applied Edit commit through the separate Split workflow. A rejected
+divide an applied Edit commit through the separate Split workflow. Cancelling
+the first Split dialog restores the applied conflict Edit pause and message,
+including after reopening. A rejected
 Edit message leaves the continuation record intact for retry.
 
 Empty results now offer Commit/Skip/Cancel, and conflict messages have an

@@ -127,3 +127,7 @@ See [Conflict Files](REBASE-CONFLICT-FILES.md).
 Already-applied Pick/Edit patches and empty checkbox results now offer
 Commit/Skip/Cancel through the shared replay dialog; conflict-message hints
 offer Ignore/Abort. See [empty-result workflow](REBASE-EMPTY-RESULTS.md).
+
+The shared Split workflow restores checked-conflict Edit recovery when the
+first Split dialog is cancelled, including reopening and message approval.
+See [Split return QA](qa/rebase-split-return-2026-10-06.json).

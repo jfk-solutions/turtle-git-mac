@@ -21,7 +21,12 @@ ignore, revert and rename interactions, and expose Commit without ReCommit or
 Commit & Push. New-branch and amend-mode changes are disabled for this workflow.
 
 Cancel before the first part changes no commit, index or file and returns to the
-Edit pause. Cancel after a part retains the partial history and remaining files;
+Edit pause. When that pause came from a checked conflict-resolution commit,
+unstarted Split retains a return record. Cancel restores the prior applied Edit
+phase, approved message and recovery count without moving HEAD or altering the
+index or working files. Repeated Split/Cancel and reopening remain possible.
+A changed recovery HEAD is rejected before replacing the prior record.
+Cancel after a part retains the partial history and remaining files;
 reopening Rebase or Cherry Pick restores split mode and Continue opens the next
 normal Commit dialog. Abort restores the original destination branch and HEAD.
 Parent replay controls remain disabled while a child selection is open.
@@ -45,7 +50,7 @@ execution are not established. The parent is native macOS; upstream's Windows
 modal Commit dialogs are adapted as native sheets. No new screenshots establish
 the layout of this workflow yet.
 
-31 focused Rebase tests pass, including file-selected first amendments, later
+Focused Rebase tests cover file-selected first amendments, later
 parts and future replay, stale part rejection, unchanged-HEAD cancellation,
 multiline Edit continuation (including originally empty commits), Abort and
 squash splitting without a second amend. The whole-native receiver passes with
@@ -59,3 +64,7 @@ comparisons and site generation pass. Evidence: `qa/rebase-split-2026-10-06.json
 Pinned upstream: `src/TortoiseProc/RebaseDlg.cpp` (Edit/Squash_Edit,
 `m_bSplitCommit`, the Commit dialog loop and `IDS_REBASE_ADDANOTHERCOMMIT`), and
 `src/Git/Git.cpp` (`CheckCleanWorkTree`).
+
+The checked-conflict Edit → Split → first-dialog Cancel transition has a real
+Git regression fixture and whole-native coverage, including reopening and final
+message approval. Evidence: [Split return QA](qa/rebase-split-return-2026-10-06.json).

@@ -9,6 +9,12 @@ public struct RebaseSquashMessage: Codable, Sendable {
     public let latestDate: String
     public let step: Int
 }
+public struct RebaseSplitReturn: Codable, Sendable {
+    public let parts: Int
+    public let firstAuthor: String
+    public let firstDate: String
+    public let squashDate: RebaseSquashDate?
+}
 public struct RebaseSplitState: Codable, Sendable {
     public let entryID: String
     public let step: Int
@@ -19,6 +25,8 @@ public struct RebaseSplitState: Codable, Sendable {
     public let squashDate: RebaseSquashDate?
     /// Conflict recovery keeps amending the applied commit, rather than creating split parts.
     public var conflictRecovery: Bool? = nil
+    /// Return to the applied conflict Edit if the first Split dialog is cancelled.
+    public var conflictRecoveryReturn: RebaseSplitReturn? = nil
 }
 public struct RebaseEntry: Identifiable, Sendable {
     public var id: String { occurrence == 0 ? commit.hash : commit.hash + ":" + String(occurrence) }
@@ -198,11 +206,11 @@ extension GitRepository {
         let split = active && manager.fileExists(atPath: splitURL.path) ? try JSONDecoder().decode(RebaseSplitState.self, from: Data(contentsOf: splitURL)) : nil
         let lastCommand = read("done").split(separator: "\n").last?.split(separator: " ").first.map(String.init)
         let action = lastCommand.flatMap(RebaseAction.init(rawValue:))
-        let editPause = active && conflicts.isEmpty && action == .edit && (manager.fileExists(atPath: directory.appendingPathComponent("amend").path) || split?.step == step && split?.conflictRecovery == true && (split?.parts ?? 0) > 0)
+        let editPause = active && conflicts.isEmpty && action == .edit && (manager.fileExists(atPath: directory.appendingPathComponent("amend").path) || split?.step == step && (split?.conflictRecovery == true && (split?.parts ?? 0) > 0 || split?.conflictRecoveryReturn != nil))
         let pending = request?.step == step && conflicts.isEmpty ? request : nil
         let activeSplit = split?.step == step && split?.entryID == stoppedIdentity ? split : nil
         return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
-                           stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: activeSplit?.conflictRecovery == true ? try rebaseCommit("HEAD").message : read("message"), currentStep: step,
+                           stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD").message : read("message"), currentStep: step,
                            total: Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
                            isEditPause: editPause, needsFileRecovery: active && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil))
@@ -454,9 +462,13 @@ extension GitRepository {
         guard state.canSplit else { throw RebaseFailure.plan }
         if let split = state.split, split.conflictRecovery != true { return split }
         let head = try rebaseCommit("HEAD")
-        let split = RebaseSplitState(entryID: state.stoppedEntryID, step: state.currentStep, expectedHead: head.hash, parts: 0,
+        if let recovery = state.split, recovery.conflictRecovery == true, recovery.expectedHead != head.hash { throw RebaseFailure.changed }
+        var split = RebaseSplitState(entryID: state.stoppedEntryID, step: state.currentStep, expectedHead: head.hash, parts: 0,
                                      firstAuthor: head.author + " <" + head.email + ">", firstDate: state.squashMessage?.datePolicy == .latest ? state.squashMessage!.latestDate : head.date,
                                      squashDate: state.squashMessage?.datePolicy)
+        if let recovery = state.split, recovery.conflictRecovery == true {
+            split.conflictRecoveryReturn = RebaseSplitReturn(parts: recovery.parts, firstAuthor: recovery.firstAuthor, firstDate: recovery.firstDate, squashDate: recovery.squashDate)
+        }
         try JSONEncoder().encode(split).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
         return split
     }
@@ -495,7 +507,13 @@ extension GitRepository {
     }
     public func cancelUnstartedRebaseSplit() throws {
         guard let split = try rebaseState().split, split.parts == 0, try rebaseRevision("HEAD") == split.expectedHead else { throw RebaseFailure.changed }
-        try FileManager.default.removeItem(at: rebasePath("rebase-merge/turtlegit-split.json"))
+        let path = try rebasePath("rebase-merge/turtlegit-split.json")
+        if let origin = split.conflictRecoveryReturn {
+            guard origin.parts > 0 else { throw RebaseFailure.changed }
+            var restored = RebaseSplitState(entryID: split.entryID, step: split.step, expectedHead: split.expectedHead, parts: origin.parts, firstAuthor: origin.firstAuthor, firstDate: origin.firstDate, squashDate: origin.squashDate)
+            restored.conflictRecovery = true
+            try JSONEncoder().encode(restored).write(to: path, options: .atomic)
+        } else { try FileManager.default.removeItem(at: path) }
     }
     /// Commit each split part through the same complete selection/index backend.
     /// The first part replaces the stopped commit; later parts create children.
@@ -505,7 +523,7 @@ extension GitRepository {
               saved.expectedHead == expected.expectedHead, try rebaseRevision("HEAD") == saved.expectedHead,
               options.newBranch == nil, options.amend == (saved.conflictRecovery == true || saved.parts == 0), saved.conflictRecovery == true ? options.amendDiffToLastCommit : saved.parts != 0 || !options.amendDiffToLastCommit else { throw RebaseFailure.changed }
         let output = try (staging ? commitIndex(message: message, options: options) : commitSelected(message: message, paths: paths, options: options))
-        var updated = saved; updated.parts += 1; updated.expectedHead = try rebaseRevision("HEAD")
+        var updated = saved; updated.conflictRecoveryReturn = nil; updated.parts += 1; updated.expectedHead = try rebaseRevision("HEAD")
         try JSONEncoder().encode(updated).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
         if saved.parts == 0, state.squashMessage != nil { try FileManager.default.removeItem(at: rebasePath("rebase-merge/turtlegit-squash-message.json")) }
         return output

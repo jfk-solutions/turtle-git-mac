@@ -157,13 +157,23 @@ import TurtleGitCore
     let closing = Date().addingTimeInterval(30)
     while restored.selectingSplit && Date() < closing { try await Task.sleep(nanoseconds: 10_000_000) }
     try await settle(restored); precondition(restored.active && restored.state?.isEditPause == true && restored.tab == 1)
-    restored.amendMessage = "Native recovery Edit approved"; restored.request("continue"); try await settle(restored)
-    precondition(restored.finished && !restored.active && !restored.fileRecovery)
+    let beforeSplitCancel = try await repo.rebaseCommit("HEAD"), beforeSplitIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    restored.splitCommit = true; restored.request("continue"); try await settle(restored)
+    precondition(children.count == 3 && restored.selectingSplit)
+    let cancelledSplit = children[2]; try await settleCommit(cancelledSplit)
+    precondition(cancelledSplit.amendToParent && cancelledSplit.replaySplit?.parts == 0 && cancelledSplit.replaySplit?.conflictRecoveryReturn != nil)
+    cancelledSplit.cancel(); try await settle(restored)
+    let afterSplitCancel = try await repo.rebaseCommit("HEAD"), afterSplitIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    precondition(afterSplitCancel.hash == beforeSplitCancel.hash && afterSplitIndex == beforeSplitIndex && restored.state?.isEditPause == true)
+    let afterCancel = RebaseWindowModel(repository: repo, access: nil); afterCancel.editorExecutable = editor; afterCancel.load(); try await settle(afterCancel)
+    precondition(afterCancel.state?.split?.conflictRecovery == true && afterCancel.state?.isEditPause == true && afterCancel.canSplit && !afterCancel.splitCommit)
+    afterCancel.amendMessage = "Native recovery Edit approved"; afterCancel.request("continue"); try await settle(afterCancel)
+    precondition(afterCancel.finished && !afterCancel.active && !afterCancel.fileRecovery)
     let complete = try await repo.rebaseCommit("HEAD"), completeFiles = try await repo.files(in: complete)
     precondition(complete.parents == partial.parents && Set(completeFiles.map(\.path)) == [path, clean] && complete.subject == "Native recovery Edit approved")
     let preserved = try await repo.rebaseCommit(destination.hash); precondition(preserved.subject == "recovery onto")
     let ancestor = try await repo.run(["merge-base", "--is-ancestor", base.hash, "HEAD"]); precondition(ancestor.exitCode == 0)
-    print("Actual Conflict Files: six-column checkbox native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application checked-file commit, unchecked retention, amendment sheet Cancel/reopening, applied Edit approval and final Continue passed. Conflict-hint Abort leaves HEAD/index and child selection unchanged; Ignore continues. Sheets/editor/confirmation routing injected.")
+    print("Actual Conflict Files: six-column checkbox native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application checked-file commit, unchecked retention, amendment sheet Cancel/reopening, applied Edit approval and final Continue passed. Conflict-hint Abort leaves HEAD/index and child selection unchanged; Ignore continues. Applied conflict Edit survives unstarted Split Cancel with unchanged HEAD/index and reopened multiline approval. Sheets/editor/confirmation routing injected.")
 }
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)

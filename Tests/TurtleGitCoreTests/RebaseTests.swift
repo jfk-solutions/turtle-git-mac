@@ -124,6 +124,46 @@ final class RebaseTests: XCTestCase {
         let restored = try await reopened.rebaseCommit("HEAD"); XCTAssertEqual(restored.hash, plan.branchHash)
         let branch = try await reopened.branch(); XCTAssertEqual(branch, "topic")
     }
+    func testCancelFirstSplitAfterCheckedConflictRestoresAppliedEditPause() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
+        _ = try await repo.startRebase(plan, editorExecutable: editor)
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let state = try await repo.rebaseState(), destination = try await repo.rebaseCommit("HEAD")
+        let applied = try await repo.commitRebaseConflictSelection(message: "checked conflict Edit", paths: [path], expected: state, expectedHead: destination.hash)
+        let beforeIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let split = try await repo.beginRebaseSplit(); XCTAssertEqual(split.parts, 0); XCTAssertNotEqual(split.conflictRecovery, true)
+        let reopened = GitRepository(root: root), during = try await reopened.rebaseState()
+        XCTAssertTrue(during.isEditPause); XCTAssertEqual(during.message, "checked conflict Edit\n")
+        try await reopened.cancelUnstartedRebaseSplit()
+        let recovered = try await reopened.rebaseState()
+        XCTAssertTrue(recovered.isEditPause); XCTAssertTrue(recovered.canSplit)
+        XCTAssertEqual(recovered.split?.conflictRecovery, true); XCTAssertEqual(recovered.split?.parts, applied.state.split?.parts)
+        XCTAssertEqual(recovered.split?.expectedHead, applied.state.split?.expectedHead)
+        XCTAssertEqual(recovered.message, "checked conflict Edit\n")
+        XCTAssertEqual(recovered.split?.firstAuthor, applied.state.split?.firstAuthor)
+        XCTAssertEqual(recovered.split?.firstDate, applied.state.split?.firstDate)
+        _ = try await reopened.beginRebaseSplit(); try await reopened.cancelUnstartedRebaseSplit()
+        let repeated = try await reopened.rebaseState(); XCTAssertTrue(repeated.isEditPause); XCTAssertEqual(repeated.split?.parts, applied.state.split?.parts)
+        let afterIndex = try await reopened.run(["ls-files", "--stage", "-z"]).stdout; XCTAssertEqual(beforeIndex, afterIndex)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path), encoding: .utf8), "resolved\n")
+        let finished = try await reopened.continueRebase(editMessage: "approved after Split Cancel")
+        XCTAssertEqual(finished.exitCode, 0, finished.output); XCTAssertFalse(finished.state.active)
+        let history = try await reopened.run(["log", "--format=%s", "upstream..HEAD"]).text
+        XCTAssertEqual(history, "second\napproved after Split Cancel\n")
+    }
+    func testRecoveredConflictSplitRejectsChangedHeadWithoutReplacingRecovery() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
+        _ = try await repo.startRebase(plan, editorExecutable: editor)
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let state = try await repo.rebaseState(), destination = try await repo.rebaseCommit("HEAD")
+        let applied = try await repo.commitRebaseConflictSelection(message: "checked Edit", paths: [path], expected: state, expectedHead: destination.hash)
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "external HEAD change"])
+        do { _ = try await repo.beginRebaseSplit(); XCTFail("Must reject changed recovery HEAD") } catch RebaseFailure.changed {}
+        let unchanged = try await repo.rebaseState(); XCTAssertEqual(unchanged.split?.expectedHead, applied.state.split?.expectedHead); XCTAssertEqual(unchanged.split?.conflictRecovery, true)
+        _ = try await repo.abortRebase()
+    }
     func testEmptyResolutionPreflightDoesNotMutateIndexAndCommitKeepsSourceMetadata() async throws {
         let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
         let plan = try await repo.rebasePlan(options()); _ = try await repo.startRebase(plan, editorExecutable: editor)

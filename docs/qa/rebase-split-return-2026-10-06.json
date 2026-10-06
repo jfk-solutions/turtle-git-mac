@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "16f30b9",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Preserve applied checked-conflict Edit recovery across unstarted Split cancellation/reopening",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "c6ca19dd4079ff9c49737db659ab8239a9dcfb0c91eded8a464240d551ba248f",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "ff7bc51e9fdef7e80726891add1ca15c20c27fbedeb3e506d2ac752cca2c3418",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "40ea1eefeac7984118488db62ce5e82590a178c8145ed576ce67e2df86cf5ae6",
+    "README.md": "5c7e15c1c3d08e2853362dffd6c2fb7c758b28d4c7eb6dcbb0cc30c75c0c7311",
+    "docs/REBASE-PARITY.md": "dce619c0420235f9d4780d78143da43ff90352305f7acd710fb92ceda7ebe893",
+    "docs/CHERRY-PICK-PARITY.md": "ee64699094bd4eff39278c16af5a66d8f108fb48141f28e0da2c2f4af011edf2",
+    "docs/REBASE-CONFLICT-FILES.md": "a3e74616eb62c069fa6bf7d82bb3d6d9df5e43b8c7f536cc861c86cde3071eb6",
+    "docs/REBASE-SPLIT.md": "29ac619c0313a650bab5917571b6bef8108a13a8d6b2d4ed629a7b5a6eaaea14"
+  },
+  "all_native_sources_manifest_sha256": "8dbcd8ecec844bb1198c22e6f85b66884d95fd29364e3aa9aaa6150418878f4f",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "before_fix": {
+      "command": "swift test --filter RebaseTests.testCancelFirstSplitAfterCheckedConflictRestoresAppliedEditPause",
+      "tests": 1,
+      "assertion_failures": 7,
+      "result": "Reproduced lost applied Edit phase/metadata and ignored later message approval"
+    },
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 40,
+      "failures": 0,
+      "new_coverage": [
+        "Split conversion records the prior checked-conflict recovery",
+        "Reopened and repeated first-part cancellation restores applied Edit, message, author/date and part count",
+        "HEAD/index/working contents remain unchanged",
+        "Later Continue applies approved message and replays future commit",
+        "Changed HEAD rejects Split without replacing recovery"
+      ]
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Actual checked-conflict Edit enters parent-based Split Commit model",
+        "Cancel leaves HEAD/index unchanged and restores applied Edit",
+        "Reopened native replay shows applied Edit, recovery marker and Split availability",
+        "Multiline approval applies after cancellation and finishes replay"
+      ],
+      "regressions": "Existing Log, keyboard/reorder, Add/draft/repeated identities, merge/Edit/reopening, empty prompt choices, squash, Split parts, checked conflict loop and hint warning checks pass",
+      "limits": "Hidden hosted views; sheets and answers injected. Displayed gestures/focus/accessibility and signed execution unverified"
+    },
+    "swift_build": "passed",
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "before": "0708edad73afe872bcf4f9c8d401b037276dab6b6eabd81f6171c392b54e894d",
+    "build": "7f254ad3ea8619ec8dc8d570cc92d89386d1f350406f6b0cc8a272056750df69",
+    "tests": "5ddb565adda4923894ce2e30c4a0af0d8c2b0e5a429e8574eb6f2b0f1ce2c86f",
+    "native": "18669bc2691fc5d19c862543a1d1256680495d2610ce704a5e26521fbbebaf23",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Displayed Split sheets and checkbox persistence parity",
+    "Complete Squash conflict recovery and grouped empty-result acceptance",
+    "Strip Commented Lines preference",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Audit full Squash conflict \u2192 resolution \u2192 combined-message approval against upstream Squash_Conclict, including date policies and empty groups. Upstream does not run the Pick/Edit checked-file index loop in this branch; verify its actual checkbox semantics rather than assuming shared selection behavior.",
+    "sources": [
+      "src/TortoiseProc/RebaseDlg.cpp: Squash_Conclict in OnBnClickedContinue, DoRebase and ListConflictFile",
+      "Sources/TurtleGitCore/Rebase.swift: squashMessage and recoverRebase",
+      "Sources/TurtleGitMac/RebaseWindow.swift: supportsConflictSelection and execute Continue"
+    ]
+  },
+  "processes": "No main app launched; receiver-owned hidden windows closed, receivers exited; final app/receiver process audit empty"
+}

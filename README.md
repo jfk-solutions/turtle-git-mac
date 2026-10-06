@@ -296,7 +296,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   shortcuts checked through a headless native receiver. Squash groups pause for
   multiline message approval and apply the first/latest/current author-date setting.
   [Squash workflow](docs/REBASE-SQUASH.md). Edit uses multiline approval, and Split
-  reuses full Commit selection with partial-history recovery.
+  reuses full Commit selection with partial-history recovery. Cancelling an
+  unstarted Split preserves an applied conflict Edit pause and its message.
   [Edit/Split workflow](docs/REBASE-SPLIT.md). Conflict Files now retains resolved
   changes and routes native conflict editors and Resolve commands. Pick/Edit
   Continue commits checked files and recovers remaining changes through native

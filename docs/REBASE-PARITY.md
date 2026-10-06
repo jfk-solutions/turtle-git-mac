@@ -140,3 +140,8 @@ the numbered-row and formatted-date changes and do not establish the current lay
 Pick/Edit empty results now offer Commit/Skip/Cancel, including already-applied
 patches and all-unchecked selections. Conflict-message hints offer Ignore/Abort.
 See [empty-result workflow](REBASE-EMPTY-RESULTS.md).
+
+Cancelling the first Split dialog after a checked conflict Edit now restores
+the applied Edit recovery and message without changing HEAD/index/files. The
+transition rejects an externally changed HEAD and supports reopening.
+See [Split return QA](qa/rebase-split-return-2026-10-06.json).
