@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native Revert progress Action/Path table; full port remains incomplete",
+  "baseCommit": "530cd5c150f30d9a6c22310d1b1d9cfb092bb49a",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/GitProgressList.cpp Init: shared Action and Path columns",
+    "src/TortoiseProc/ProgressCommands/RevertProgressCommand.cpp: shared progress receiver"
+  ],
+  "implemented": [
+    "Native resizable/scrollable two-column table replaces extra Status column",
+    "Original Revert icon in Action cells; adaptive shared colors and operation-state tooltips in both columns",
+    "Copy to Clipboard matches two displayed columns and retains terminal information"
+  ],
+  "verification": {
+    "actualReceiver": "Swift 6/macOS 13 actual progress model and native table cells; real Revert operation verifies column names, original icon, exact path, completed tooltip, shared color, out-of-bounds guard and two-column clipboard text. All existing Add receiver checks passed. No windows displayed or system clipboard changed.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and bundled NOTICE byte comparisons passed; Store bundled Git audit passed.",
+    "lastFullRegression": {
+      "count": 495,
+      "failures": 0,
+      "record": "add-revert-2026-10-06.json",
+      "note": "No core code changed; full suite not repeated for this native table change."
+    },
+    "site": "Documentation site generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/RevertProgressWindow.swift": "815272c3b5b05874e74f0cd6919e7cf74f4d0956d6bada5b38fc029ccff5ea04",
+    "scripts/test-add-dialog.py": "da1c766972a5bca7cb81ecc13542e39094d1fba3226bf4a081ad105925ca084b"
+  },
+  "logs": {
+    "native": {
+      "path": "/tmp/turtlegit-revert-table-native.log",
+      "sha256": "682b41aaf54455df84fbe8a4bd300e00aeae075b0da3272f14d3784636ae4880"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-revert-table-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-revert-table-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-revert-table-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-revert-table-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-revert-table-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Displayed light/dark table and menu/clipboard gestures",
+    "Signed Finder and App Store distribution acceptance",
+    "Remaining shared progress notifications/menu behavior and full application parity",
+    "GitHub execution of these local changes"
+  ]
+}

@@ -71,7 +71,13 @@ selections start the existing Revert progress workflow directly. No preserves
 checks and files. Add is blocked while progress runs; its Cancel/close request
 forwards cancellation to that specific progress worker and waits for the terminal
 refresh before closing. The shared progress window retains errors/cancellation,
-Trash recovery and submodule follow-up; simple success auto-closes.
+Trash recovery and submodule follow-up; simple success auto-closes. Revert progress
+now uses a native Action/Path table, matching the two-column upstream shared
+progress list. Both columns use shared adaptive status colors; action cells retain
+the original Revert icon. Per-operation state remains in tooltips, and Copy to
+Clipboard exports the two displayed columns followed by the result information.
+See [the progress-table record](qa/revert-table-2026-10-06.json); displayed
+light/dark appearance and native clipboard/menu gestures remain pending.
 
 Added files remain on disk, become unversioned and stay unchecked after success.
 Clean reverted file rows leave the Add list, unrelated checks/staged contents are

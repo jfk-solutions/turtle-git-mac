@@ -108,24 +108,20 @@ private struct RevertProgressRow: Identifiable {
         close(); onHandleSubmodules(revision, submodulePaths)
     }
     func revealCopies() { guard !trashedFiles.isEmpty else { return }; NSWorkspace.shared.activateFileViewerSelecting(trashedFiles) }
+    var clipboardOutput: String {
+        rows.map { [$0.action, $0.path].joined(separator: "\t") }.joined(separator: "\n") + "\n\n" + information
+    }
     func copyOutput() {
-        let text = rows.map { [$0.action, $0.path, $0.status].joined(separator: "\t") }.joined(separator: "\n") + "\n\n" + information
+        let text = clipboardOutput
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
 }
 
 private struct RevertProgressDialog: View {
     @ObservedObject var model: RevertProgressWindowModel
-    private func color(_ status: String) -> Color {
-        switch status { case "Completed": return .green; case "Failed": return .red; case "Cancelled": return .orange; default: return .primary }
-    }
     var body: some View {
         VStack(spacing: 10) {
-            Table(model.rows) {
-                TableColumn("Action") { row in CommandLabel(title: row.action, icon: .revert) }.width(160)
-                TableColumn("Path") { row in Text(row.path).lineLimit(1).help(row.path) }.width(min: 330, ideal: 530)
-                TableColumn("Status") { row in Text(row.status).foregroundStyle(color(row.status)) }.width(115)
-            }.contextMenu {
+            RevertProgressTable(model: model).contextMenu {
                 TurtleGitContextMenu {
                     Button { model.copyOutput() } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }
                 }
@@ -150,5 +146,47 @@ private struct RevertProgressDialog: View {
                 Button("Cancel") { model.cancel() }.disabled(!model.busy || model.cancelRequested)
             }
         }.padding(12)
+    }
+}
+
+/// The shared upstream progress list has Action and Path columns. Keep worker
+/// state in tooltips and color rather than adding a third visible column.
+struct RevertProgressTable: NSViewRepresentable {
+    @ObservedObject var model: RevertProgressWindowModel
+    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
+    func makeNSView(context: Context) -> NSScrollView { context.coordinator.make() }
+    func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.table.reloadData() }
+    @MainActor final class Coordinator: NSObject, NSTableViewDataSource, NSTableViewDelegate {
+        let model: RevertProgressWindowModel
+        let table = NSTableView()
+        init(model: RevertProgressWindowModel) { self.model = model }
+        func make() -> NSScrollView {
+            let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder
+            table.dataSource = self; table.delegate = self; table.rowHeight = 22
+            table.allowsMultipleSelection = true; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
+            for (id, title, width) in [("action", "Action", 180.0), ("path", "Path", 650.0)] {
+                let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width; table.addTableColumn(column)
+            }
+            scroll.documentView = table; return scroll
+        }
+        func numberOfRows(in tableView: NSTableView) -> Int { model.rows.count }
+        func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+            guard model.rows.indices.contains(row), let tableColumn else { return nil }
+            let item = model.rows[row]
+            let field = NSTextField(labelWithString: tableColumn.identifier.rawValue == "action" ? item.action : item.path)
+            field.lineBreakMode = .byTruncatingMiddle; field.toolTip = item.path + "\n" + item.status
+            switch item.status {
+            case "Completed": field.textColor = NSColor(FileState.modified.textColor)
+            case "Failed": field.textColor = NSColor(FileState.conflicted.textColor)
+            case "Cancelled": field.textColor = .systemOrange
+            default: field.textColor = .labelColor
+            }
+            guard tableColumn.identifier.rawValue == "action" else { return field }
+            let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: tableColumn.width, height: 22))
+            let image = NSImageView(frame: NSRect(x: 2, y: 3, width: 16, height: 16)); image.image = MenuIcon.revert.image()
+            cell.imageView = image; cell.textField = field; cell.toolTip = field.toolTip
+            cell.addSubview(image); field.frame = NSRect(x: 23, y: 2, width: max(0, tableColumn.width - 26), height: 18)
+            field.autoresizingMask = [.width]; cell.addSubview(field); return cell
+        }
     }
 }

@@ -111,7 +111,8 @@ Recent Add receiver checks and unsigned build/package results are recorded in
 [Add current-column clipboard](qa/add-current-column-2026-10-06.json) and
 [Add unified diff](qa/add-unified-2026-10-06.json) and
 [Add restoration copies](qa/add-restore-2026-10-06.json) and
-[Add Revert](qa/add-revert-2026-10-06.json).
+[Add Revert](qa/add-revert-2026-10-06.json) and
+[Revert progress table](qa/revert-table-2026-10-06.json).
 These checks do not establish full application parity, displayed-window acceptance,
 signed Finder activation or distribution readiness. Workflow-specific parity files
 record the remaining requirements.
