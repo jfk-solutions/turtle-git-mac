@@ -34,6 +34,10 @@ final class RebaseTests: XCTestCase {
         XCTAssertNil(RebaseEditor.handle(arguments: ["app"], environment: [:]))
         XCTAssertEqual(RebaseEditor.handle(arguments: ["app", RebaseEditor.argument, target.path], environment: ["TURTLEGIT_REBASE_PLAN": source.path]), 0)
         XCTAssertEqual(try Data(contentsOf: target), try Data(contentsOf: source))
+        let identityFile = directory.appendingPathComponent("identities.json"), before = try Data(contentsOf: target)
+        try Data(#"[{"hash":"abc","occurrence":0},{"hash":"abc","occurrence":0}]"#.utf8).write(to: identityFile)
+        XCTAssertEqual(RebaseEditor.handle(arguments: ["app", RebaseEditor.argument, target.path], environment: ["TURTLEGIT_REBASE_PLAN": source.path, "TURTLEGIT_REPLAY_IDENTITIES": identityFile.path]), 1)
+        XCTAssertEqual(try Data(contentsOf: target), before)
         XCTAssertEqual(RebaseEditor.handle(arguments: ["app", RebaseEditor.argument, target.path], environment: [:]), 1)
     }
     func testPickSkipAndReorderedPlanUseRealApplicationEditor() async throws {
@@ -321,6 +325,41 @@ final class RebaseTests: XCTestCase {
         let head = try await repo.rebaseCommit("HEAD"), parent = try await repo.rebaseCommit("HEAD^"), firstRef = try await repo.rebaseCommit("first-ref"), secondRef = try await repo.rebaseCommit("second-ref"), pinned = try await repo.rebaseCommit("pinned-ref")
         XCTAssertEqual(head.subject, "first"); XCTAssertEqual(parent.subject, "second")
         XCTAssertEqual(firstRef.hash, head.hash); XCTAssertEqual(secondRef.hash, parent.hash); XCTAssertEqual(pinned.hash, first.hash)
+    }
+    func testReferenceUpdatesFollowOriginalOccurrenceAfterRepeatedAddAndReorder() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        guard try await repo.run(["rebase", "-h"], successfulExitCodes: 0...129).text.contains("update-refs") else { throw XCTSkip("Git runtime does not support reference updates") }
+        let first = try await repo.rebaseCommit("HEAD^"), second = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["branch", "original-first-ref", first.hash]); _ = try await repo.run(["branch", "original-second-ref", second.hash]); _ = try await repo.run(["config", "rebase.updateRefs", "true"])
+        let initial = try await repo.rebasePlan(options())
+        var plan = try await repo.addingRebaseCommits(initial, revisions: [first.hash])
+        plan.entries[0].action = .edit; plan.entries[2].action = .skip; plan.entries.swapAt(0, 2)
+        let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertEqual(stopped.exitCode, 0, stopped.output); XCTAssertTrue(stopped.state.isEditPause); XCTAssertEqual(stopped.state.stoppedEntryID, first.hash); XCTAssertEqual(stopped.state.currentStep, 3)
+        guard stopped.state.isEditPause else { if stopped.state.active { _ = try await repo.abortRebase() }; return }
+        let finished = try await GitRepository(root: root).continueRebase(editMessage: "approved original occurrence")
+        XCTAssertEqual(finished.exitCode, 0, finished.output); XCTAssertFalse(finished.state.active)
+        let head = try await repo.rebaseCommit("HEAD"), parent = try await repo.rebaseCommit("HEAD^"), firstRef = try await repo.rebaseCommit("original-first-ref"), secondRef = try await repo.rebaseCommit("original-second-ref")
+        XCTAssertEqual(head.subject, "approved original occurrence"); XCTAssertEqual(firstRef.hash, head.hash); XCTAssertEqual(secondRef.hash, parent.hash); XCTAssertEqual(parent.subject, "second")
+    }
+    func testPatchEquivalentOmittedSourceRefFollowsGitSemanticsWhileRetainedRefUpdates() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        guard try await repo.run(["rebase", "-h"], successfulExitCodes: 0...129).text.contains("update-refs") else { throw XCTSkip("Git runtime does not support reference updates") }
+        let base = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["checkout", "-b", "topic"])
+        try Data("equivalent\n".utf8).write(to: root.appendingPathComponent("equivalent.txt")); try await repo.stage(["equivalent.txt"]); _ = try await repo.commit(message: "source equivalent")
+        let equivalent = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", "equivalent-ref", equivalent.hash])
+        try Data("retained\n".utf8).write(to: root.appendingPathComponent("retained.txt")); try await repo.stage(["retained.txt"]); _ = try await repo.commit(message: "source retained"); _ = try await repo.run(["branch", "retained-ref", "HEAD"])
+        _ = try await repo.run(["checkout", "-b", "upstream", base.hash]); _ = try await repo.run(["cherry-pick", "--no-commit", equivalent.hash]); _ = try await repo.commit(message: "upstream equivalent with different identity")
+        _ = try await repo.run(["checkout", "topic"]); _ = try await repo.run(["config", "rebase.updateRefs", "true"])
+        var plan = try await repo.rebasePlan(options()); XCTAssertEqual(plan.entries[0].action, .skip); plan.entries[1].action = .edit
+        let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertEqual(stopped.exitCode, 0, stopped.output); XCTAssertTrue(stopped.state.isEditPause); XCTAssertEqual(stopped.state.currentStep, 2)
+        XCTAssertTrue(stopped.output.contains("skipped previously applied commit"))
+        let finished = try await GitRepository(root: root).continueRebase(editMessage: "approved retained commit")
+        XCTAssertEqual(finished.exitCode, 0, finished.output)
+        let head = try await repo.rebaseCommit("HEAD"), onto = try await repo.rebaseCommit("upstream"), omittedRef = try await repo.rebaseCommit("equivalent-ref"), retainedRef = try await repo.rebaseCommit("retained-ref")
+        XCTAssertEqual(head.parents, [onto.hash]); XCTAssertEqual(retainedRef.hash, head.hash); XCTAssertEqual(omittedRef.hash, equivalent.hash)
     }
     func testEmptySquashSkipInLinkedWorktreeKeepsMainWorktreeAndSourceRefs() async throws {
         let (root, repo, path, _) = try await squashConflictFixture(policy: .latest, empty: true); defer { try? FileManager.default.removeItem(at: root) }

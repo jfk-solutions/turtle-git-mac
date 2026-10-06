@@ -150,3 +150,8 @@ The internal Cherry Pick replay overrides `rebase.updateRefs=false` to keep
 source branches unchanged even when that repository setting is enabled.
 Linked-worktree empty-group Skip recovery is exercised independently of the main
 worktree. See [reference recovery](REBASE-REFERENCE-RECOVERY.md).
+
+Configured Rebase references remain associated with the original occurrence
+after repeated Add and reordering. Automatically omitted patch-equivalent
+references follow Git's unchanged-reference behavior, while retained references
+update after Edit approval. See [repeated/omitted references](REBASE-REFERENCE-RECOVERY.md#repeated-add-and-omitted-commits).

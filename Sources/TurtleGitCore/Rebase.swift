@@ -116,14 +116,20 @@ public enum RebaseEditor {
             let target = URL(fileURLWithPath: arguments[2])
             let custom = try String(contentsOf: URL(fileURLWithPath: source), encoding: .utf8)
             let generated = FileManager.default.fileExists(atPath: target.path) ? try String(contentsOf: target, encoding: .utf8) : ""
-            let merged = try mergeReferenceUpdates(generated: generated, custom: custom)
+            let identityData = try environment["TURTLEGIT_REPLAY_IDENTITIES"].map { try Data(contentsOf: URL(fileURLWithPath: $0)) }
+            let identities = try identityData.map { try JSONDecoder().decode([RebaseReplayIdentity].self, from: $0) } ?? []
+            var originals: [String: Int] = [:]
+            for (index, identity) in identities.enumerated() where identity.occurrence == 0 {
+                guard originals.updateValue(index, forKey: identity.hash) == nil else { throw RebaseFailure.plan }
+            }
+            let merged = try mergeReferenceUpdates(generated: generated, custom: custom, originalPositions: originals)
             try Data(merged.todo.utf8).write(to: target, options: .atomic)
             if merged.hasUpdates { try Data().write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-update-refs"), options: .atomic) }
             if let metadata = environment["TURTLEGIT_CHERRY_PICK_METADATA"] {
                 try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-cherry-pick.json"), options: .atomic)
             }
-            if let metadata = environment["TURTLEGIT_REPLAY_IDENTITIES"] {
-                try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-replay-identities.json"), options: .atomic)
+            if let identityData {
+                try identityData.write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-replay-identities.json"), options: .atomic)
             }
             if let metadata = environment["TURTLEGIT_REPLAY_MESSAGES"] {
                 try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-message-editor.json"), options: .atomic)
@@ -138,7 +144,7 @@ public enum RebaseEditor {
     public static func messageCommand(executable: URL) -> String {
         "'" + executable.path.replacingOccurrences(of: "'", with: "'\\''") + "' " + messageArgument
     }
-    static func mergeReferenceUpdates(generated: String, custom: String) throws -> (todo: String, hasUpdates: Bool) {
+    static func mergeReferenceUpdates(generated: String, custom: String, originalPositions: [String: Int] = [:]) throws -> (todo: String, hasUpdates: Bool) {
         let rows = custom.split(separator: "\n").map(String.init)
         let fields = rows.map { $0.split(separator: " ", maxSplits: 2).map(String.init) }
         var updates: [Int: [String]] = [:], preceding = ""
@@ -149,7 +155,10 @@ public enum RebaseEditor {
             if command == "update-ref" || command == "u" {
                 guard parts.count == 2, parts[1].hasPrefix("refs/heads/"), !preceding.isEmpty else { throw RebaseFailure.plan }
                 let matches = fields.indices.filter { fields[$0].count >= 2 && fields[$0][1].hasPrefix(preceding) }
-                guard matches.count == 1, var index = matches.first else { throw RebaseFailure.plan }
+                guard let match = matches.first else { throw RebaseFailure.plan }
+                var index: Int
+                if let original = originalPositions[fields[match][1]], matches.contains(original) { index = original }
+                else { guard matches.count == 1 else { throw RebaseFailure.plan }; index = match }
                 // References inside a Squash group must name its final result,
                 // including the destination parent when the whole group is skipped.
                 var next = index + 1

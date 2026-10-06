@@ -349,6 +349,46 @@ import TurtleGitCore
     }
     print("Actual native Rebase reference updates: prefix/group/future branch refs preserved through custom plan, correct commit-step identity despite update-ref commands, reopened empty-group Commit/Skip and first author/latest date passed. Prompts injected.")
 }
+@MainActor func verifyNativeRepeatedAndOmittedReferences(_ repo: GitRepository, editor: URL?) async throws {
+    let help = try await repo.run(["rebase", "-h"], successfulExitCodes: 0...129).text
+    guard help.contains("update-refs") else { print("Native repeated/omitted references: Git runtime lacks update-refs; feature check skipped."); return }
+    _ = try await repo.run(["checkout", "-b", "native-repeat-reference-source"])
+    let firstPath = "native-reference-original 雪\n.txt", secondPath = "native-reference-second.txt"
+    try Data("first reference\n".utf8).write(to: repo.root.appendingPathComponent(firstPath)); try await repo.stage([firstPath]); _ = try await repo.commit(message: "Native original first")
+    let first = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", "native-repeat-first-ref", first.hash])
+    try Data("second reference\n".utf8).write(to: repo.root.appendingPathComponent(secondPath)); try await repo.stage([secondPath]); _ = try await repo.commit(message: "Native original second")
+    let second = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", "native-repeat-second-ref", second.hash]); _ = try await repo.run(["config", "rebase.updateRefs", "true"])
+    let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.load(upstream: "target"); try await settle(model)
+    model.addCommits([first.hash]); try await settle(model)
+    let duplicate = first.hash + ":1"; precondition(Set(model.entries.map(\.id)) == [first.hash, second.hash, duplicate])
+    model.setAction(.skip, ids: [duplicate]); model.selection = [duplicate]; model.move(up: false, toEnd: true)
+    model.setAction(.edit, ids: [first.hash]); model.selection = [first.hash]; model.move(up: true, toEnd: true)
+    precondition(model.plan?.entries.map(\.id) == [duplicate, second.hash, first.hash])
+    model.request("start"); precondition(model.confirmation != nil); model.confirmation = nil; model.execute("start"); try await settle(model)
+    precondition(model.state?.isEditPause == true && model.state?.currentStep == 3 && model.state?.stoppedEntryID == first.hash)
+    let reopened = RebaseWindowModel(repository: repo, access: nil); reopened.editorExecutable = editor; reopened.load(); try await settle(reopened)
+    precondition(reopened.selection == [first.hash] && reopened.state?.stoppedEntryID == first.hash)
+    reopened.amendMessage = "Native approved original occurrence"; reopened.request("continue"); try await settle(reopened); precondition(reopened.finished)
+    let head = try await repo.rebaseCommit("HEAD"), parent = try await repo.rebaseCommit("HEAD^"), firstRef = try await repo.rebaseCommit("native-repeat-first-ref"), secondRef = try await repo.rebaseCommit("native-repeat-second-ref")
+    precondition(firstRef.hash == head.hash && secondRef.hash == parent.hash && head.subject == "Native approved original occurrence" && parent.subject == "Native original second")
+    _ = try await repo.run(["config", "--unset", "rebase.updateRefs"]); _ = try await repo.run(["checkout", "target"])
+    let equivalentPath = "native-equivalent-reference.txt", retainedPath = "native-retained-reference.txt"
+    _ = try await repo.run(["checkout", "-b", "native-omitted-reference-source"])
+    try Data("equivalent native\n".utf8).write(to: repo.root.appendingPathComponent(equivalentPath)); try await repo.stage([equivalentPath]); _ = try await repo.commit(message: "Native source equivalent")
+    let equivalent = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", "native-equivalent-ref", equivalent.hash])
+    try Data("retained native\n".utf8).write(to: repo.root.appendingPathComponent(retainedPath)); try await repo.stage([retainedPath]); _ = try await repo.commit(message: "Native retained source")
+    let retained = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", "native-retained-ref", retained.hash]); _ = try await repo.run(["checkout", "target"])
+    _ = try await repo.run(["cherry-pick", "--no-commit", equivalent.hash]); _ = try await repo.commit(message: "Native upstream equivalent identity")
+    let destination = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", "native-omitted-reference-source"]); _ = try await repo.run(["config", "rebase.updateRefs", "true"])
+    let omitted = RebaseWindowModel(repository: repo, access: nil); omitted.editorExecutable = editor; omitted.load(upstream: "target"); try await settle(omitted)
+    precondition(omitted.plan?.entries.first?.action == .skip); omitted.setAction(.edit, ids: [retained.hash]); omitted.request("start"); precondition(omitted.confirmation != nil); omitted.confirmation = nil; omitted.execute("start"); try await settle(omitted)
+    precondition(omitted.state?.isEditPause == true && omitted.state?.currentStep == 2 && omitted.state?.stoppedEntryID == retained.hash && omitted.output.contains("skipped previously applied commit"))
+    let approval = RebaseWindowModel(repository: repo, access: nil); approval.editorExecutable = editor; approval.load(); try await settle(approval); approval.amendMessage = "Native approved retained source"; approval.request("continue"); try await settle(approval); precondition(approval.finished)
+    let completed = try await repo.rebaseCommit("HEAD"), omittedRef = try await repo.rebaseCommit("native-equivalent-ref"), retainedRef = try await repo.rebaseCommit("native-retained-ref")
+    precondition(completed.parents == [destination.hash] && retainedRef.hash == completed.hash && omittedRef.hash == equivalent.hash)
+    _ = try await repo.run(["config", "--unset", "rebase.updateRefs"]); _ = try await repo.run(["checkout", "target"])
+    print("Actual native repeated/omitted references: Add duplicate IDs, Skip and end moves, original occurrence Edit/reopening, original ref associations, omitted patch-equivalent ref unchanged and retained ref updated passed. Prompts injected.")
+}
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
     model.load(cherryPick: revisions); try await settle(model)
@@ -436,7 +476,7 @@ import TurtleGitCore
     _ = try await repo.run(["merge", "--no-ff", "--no-edit", "side"])
     let merge = try await repo.rebaseCommit("HEAD")
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
-    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); try await verifyNativeRepeatedAndOmittedReferences(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
 
     let log = LogWindowModel(repository: repo, access: nil)
@@ -650,6 +690,7 @@ import TurtleGitCore
     try await verifyNativeEmptySquash(repo, editor: model.editorExecutable)
     try await verifyNativeEmptySquash(repo, editor: model.editorExecutable, repeatedConflicts: true)
     try await verifyNativeSquashReferenceUpdates(repo, editor: model.editorExecutable)
+    try await verifyNativeRepeatedAndOmittedReferences(repo, editor: model.editorExecutable)
 
 
 

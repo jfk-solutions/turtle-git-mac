@@ -1,0 +1,108 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "de19fac",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Reference updates anchored to original occurrences after repeated Add/reorder; omitted patch-equivalent reference semantics",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "16839bf8d01baced3e0be1c4af6874aa110f53ada6ef6b99bdf2e548ca56837e",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "14b02dac0aa2eac753464e2b3614d12fe7d44978758880cc7169ac4741adca19",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "d41409a93de5870c69f69fe798ef45f26c5b16165ec2710c67ba2bd1987d5627",
+    "README.md": "e70f328932f15f547d1df73540df5bded4660c242abe9e4f3b3e68c9e4351bf6",
+    "docs/REBASE-PARITY.md": "7f92f293c2f30aceeca5284ef695c347fa8f5ed1df92f61973a1d4116df90f14",
+    "docs/CHERRY-PICK-PARITY.md": "743e8e021bccadae93f1f60e4108a6bfc2731ac10acd954d4c8d3fca88fec3c7",
+    "docs/REBASE-REFERENCE-RECOVERY.md": "be01823a9b9bc4658409fb501620bc13fb2297674d65adf248f74201f35e13af",
+    "docs/site/index.html": "d73d8bd67483b9fa2a3804e759760ec510fa537057e07a7ab86386b10dbfe729"
+  },
+  "all_native_sources_manifest_sha256": "d3f61e22ba307b4b8adbf221c3efa532be9ef44483f00cfc55155bd99f7f9a85",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "initial_probe": {
+      "tests": 2,
+      "assertion_failures": 4,
+      "result": "Omitted-source reference fixture passed; repeated Add/reorder failed in the editor before replay because two hashes matched one reference anchor"
+    },
+    "targeted_after_fix": {
+      "tests": 2,
+      "failures": 0
+    },
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 51,
+      "failures": 0,
+      "new_coverage": [
+        "Repeated original/copy IDs, dropped copy moved ahead of original and reordered source commits",
+        "Reopened original-occurrence Edit maps its ref to approved HEAD",
+        "Other source reference follows its own reordered commit",
+        "Git actually omits a patch-equivalent source from generated todo",
+        "Omitted source ref remains unchanged; retained ref updates after Edit approval",
+        "Existing group/ref/date/Split/conflict/linked-worktree/recovery regressions"
+      ]
+    },
+    "editor_error_rerun": {
+      "tests": 1,
+      "failures": 0,
+      "additional_coverage": "Duplicate original identities return failure without overwriting Git todo, avoiding a duplicate-key trap"
+    },
+    "native_reference_receiver": {
+      "command": "python3 scripts/check-cherry-pick-native.py --references-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "architecture": "arm64",
+      "supported_passes": [
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "unsupported_feature_skip": [
+        "2.37.1"
+      ],
+      "new_coverage": [
+        "Actual native Add duplicate IDs and action changes",
+        "Actual end moves place the dropped copy before the original",
+        "Reopened original-occurrence Edit and final reference associations",
+        "Native omitted patch-equivalent row defaults to Skip",
+        "Retained Edit reopening and source/retained reference behavior"
+      ],
+      "regressions": "Prefix/group/future refs, correct commit-step identity, full/abbreviated todo, reopened empty-group Commit/Skip and first author/latest date remain passing",
+      "limits": "Hidden hosted views; injected prompts/model actions. Displayed menus/gestures/accessibility and signed execution unverified"
+    },
+    "swift_build": "passed",
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "probe": "60a0cf02c6391185f7481ce9749a3e0367512433cf8b7b822ef85e37e15ccd92",
+    "targeted": "61aace78ac4e1d6467536d98aba11a60575634fd02894c2426a597d8fb958dba",
+    "build": "a74f3b14f216d722166b6f60ef4e2870a040ac6e6901210d065a4e7de2c21e40",
+    "tests": "8069b6592e558dc4cadd94a7c4471a177e76917f9f2fc65082a2e88718df6856",
+    "editor-errors": "62f30fd81114133549c7d5525e6497938ae2d576a9fa3f53a7660d127705d813",
+    "native": "3c35d71be2f993b04a3cb44a1e12706fd3a0316de2a95a32004b94261b052782",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "source_check": {
+    "git": "Pinned packaged Git 2.55.0 sequencer.c: todo_list_add_update_ref_commands attaches ref decorations only to commit items present in the generated todo",
+    "tortoisegit": "RebaseDlg.cpp initialization removes specific normal Log commands from the context mask; native Rebase row menu currently contains only Pick/Skip/Edit/Squash"
+  },
+  "not_verified": [
+    "Notes/post-rewrite mapping after empty whole-group Skip",
+    "Arbitrary external todo edits",
+    "Full Rebase row context menus and completed-row presentation",
+    "Displayed dialogs and accessibility",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Port the permitted normal Log row commands to Rebase, using the upstream context mask and existing native handoffs. Current menu only offers Pick/Skip/Edit/Squash. Preserve completed rows/reopening and then verify notes rewrite mapping for skipped groups.",
+    "sources": [
+      "src/TortoiseProc/RebaseDlg.cpp: initialization context-mask exclusions, OnRebaseUpdateUI and RewriteNotes",
+      "Sources/TurtleGitMac/RebaseWindow.swift: commit Table contextMenu and recovered rows",
+      "Sources/TurtleGitMac/LogWindow.swift: existing row commands and native handoffs"
+    ]
+  },
+  "processes": "No main app launched; receivers exited and owned hidden windows closed; final app/receiver process audit empty"
+}

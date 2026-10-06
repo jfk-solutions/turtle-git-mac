@@ -165,3 +165,8 @@ Configured Git reference updates survive the native custom plan, with group refs
 following the final Squash result. Commit-step identity ignores those additional
 commands; Cherry Pick keeps source branches unchanged. Linked-worktree empty
 Skip recovery is covered. See [reference recovery](REBASE-REFERENCE-RECOVERY.md).
+
+Configured Rebase references remain associated with the original occurrence
+after repeated Add and reordering. Automatically omitted patch-equivalent
+references follow Git's unchanged-reference behavior, while retained references
+update after Edit approval. See [repeated/omitted references](REBASE-REFERENCE-RECOVERY.md#repeated-add-and-omitted-commits).
