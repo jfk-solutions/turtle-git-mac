@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-06",
+  "scope": "Native first-pass Add selector, file-only progress route and cancellable reviewed forced add; complete application parity remains unfinished",
+  "baseCommit": "8313ae606932d170d52e107f387f2983469ffd01",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "focusedCoreTests": {
+    "count": 21,
+    "failures": 0,
+    "newTests": 3
+  },
+  "fullCoreTests": {
+    "count": 489,
+    "failures": 0,
+    "durationSeconds": 298.185
+  },
+  "actualNativeReceiver": "Actual Add model/table and progress compiled for Swift 6/macOS 13, checked defaults, refresh retention, captured path checkboxes, disabled controls, checked-only OK and real add/cancellation. No windows or menus displayed; native gesture acceptance pending.",
+  "finderReceiver": "Actual 32-entry menu projection, source order and selection/icon/cache routes passed without activating Finder.",
+  "builds": [
+    "Debug unsigned built and audited",
+    "AppStore unsigned built and audited; existing metric locale deprecation remains"
+  ],
+  "bundles": "Both validators and exact bundled NOTICE comparisons pass; 75 upstream icons and universal helpers retained.",
+  "ci": "Add receiver wired into macOS workflow; these local changes have not run on GitHub. Publication blocked by unavailable GitHub authentication.",
+  "pending": [
+    "Index-only executable/symlink progress post-actions",
+    "Full shared status context commands and progress notifications",
+    "Original background artwork and preferences",
+    "Real native visual light/dark, keyboard, table and drop acceptance",
+    "Signed Finder, permissions, authentication and distribution acceptance",
+    "Remaining full application dialogs/settings/helpers/localization"
+  ],
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/Add.swift": "daab5b0bca76028538c4431ed86513cc5b3ad1a7ee88dc756a83c606a75aed5f",
+    "Sources/TurtleGitCore/WorkingFileAdd.swift": "3f22f833cd05f095e6bda9f01d355ca6b02df91145b6414e48e51d7565037e4a",
+    "Sources/TurtleGitCore/FinderCache.swift": "e65f4180d241a2e7ddcc65e3e86846772d91419158250a6fcac665d81a3d6a67",
+    "Sources/TurtleGitMac/AddWindow.swift": "f81f1c84716a6681e018255f97c98d67ca3d8b805e69028cc9d19b0847a4eca2",
+    "Sources/TurtleGitMac/AddFileTable.swift": "58236d4f95c43f08970ef6a9713e820dea1c331a65e5798a5eb2148be1df7e3a",
+    "Sources/TurtleGitMac/AddProgressWindow.swift": "45376a7c35572a6189732c53ca762ae88ef12a5fecfaa95bb4677c77253060c5",
+    "Sources/TurtleGitMac/SelectionAllCheckbox.swift": "2365531a3274982127c7e5ac323fda3490c0e12a1779ef800fe929987d73e546",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "07ef1fd4ca9257fa35a9cb75f52c5fa70a0df1f8a509485e2080473bf856998c",
+    "Tests/TurtleGitCoreTests/AddTests.swift": "d10331b8a8fd99a8f7bd8103309d68af2d811608b6233f945110b31e97b9ee4d",
+    "scripts/test-add-dialog.py": "42eea6828a2fc6eac62adc5a1acce31f99b5cb8ef8e829468e0d928d18f01275",
+    "scripts/test-finder-menu.py": "ee7821c5cf7a59dfaf46d35274eeb2e62c1731bebce1a89ac397431ffb28d97e",
+    "NOTICE": "457af3d41ef7289807f434874205332cfdddc88e4a2dc4baeff099359cfd1f58"
+  },
+  "logs": {
+    "focused": {
+      "path": "/tmp/turtlegit-add-focused.log",
+      "sha256": "c86091ea5b8e8e20c4511a4c127475eea7990b170254f2f1205bfd2b9000171b"
+    },
+    "fullCore": {
+      "path": "/tmp/turtlegit-add-full-core.log",
+      "sha256": "688b5159d87ff956e6802d007968b41b3ed96f4ea90df2897d52fbe6d632119c"
+    },
+    "nativeReceiver": {
+      "path": "/tmp/turtlegit-add-native.log",
+      "sha256": "bc3350edb86b27e0c7c3cf2d9117c29332f30273f0c7424594a59f1678600840"
+    },
+    "finderReceiver": {
+      "path": "/tmp/turtlegit-add-menu.log",
+      "sha256": "5d758e2757770bba1960781661fa2ff8db18b24f178b08202b508b95648a249b"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-add-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "appProcesses": "No main app or receiver running at final audit; no main app launched for these checks",
+  "site": "Static documentation generation passed"
+}

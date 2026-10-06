@@ -16,9 +16,9 @@ final class FinderShellRulesTests: XCTestCase {
             "ITEMIS_WCROOT": .workingTreeRoot, "ITEMIS_BISECT": .bisect, "ITEMIS_MERGEACTIVE": .merge,
             "ITEMIS_ADDED": .added, "ITEMIS_NORMAL": .normal, "ITEMIS_CONFLICTED": .conflicted,
             "ITEMIS_INVERSIONEDFOLDER": .inVersionedFolder, "ITEMIS_SUBMODULE": .submodule,
-            "ITEMIS_STASH": .stash, "ITEMIS_SUBMODULECONTAINER": .submoduleContainer
+            "ITEMIS_DELETED": .deleted, "ITEMIS_STASH": .stash, "ITEMIS_SUBMODULECONTAINER": .submoduleContainer
         ]
-        XCTAssertEqual(fixture.rules.count, 31)
+        XCTAssertEqual(fixture.rules.count, 32)
         XCTAssertEqual(Set(fixture.rules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))
         func mask(_ names: [String]) throws -> FinderShellFlags {
             try names.reduce(into: FinderShellFlags()) { $0.formUnion(try XCTUnwrap(tokens[$1], $1)) }

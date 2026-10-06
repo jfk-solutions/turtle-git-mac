@@ -228,12 +228,13 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, revert, submoduleUpdate, log, repositoryBrowser, formatPatch, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
+    case status, commit, add, revert, submoduleUpdate, log, repositoryBrowser, formatPatch, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
         case .status: return "Check for modifications"
         case .commit: return "Commit…"
+        case .add: return "Add…"
         case .revert: return "Revert…"
         case .submoduleUpdate: return "Submodule Update…"
         case .log: return "Show log"
@@ -282,7 +283,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .revert, .submoduleUpdate, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .add, .revert, .submoduleUpdate, .diff, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"
@@ -355,6 +356,7 @@ public struct FinderShellFlags: OptionSet, Sendable {
     public static let submodule = Self(rawValue: 1 << 16)
     public static let stash = Self(rawValue: 1 << 17)
     public static let submoduleContainer = Self(rawValue: 1 << 18)
+    public static let deleted = Self(rawValue: 1 << 19)
 }
 public struct FinderShellCondition: Sendable {
     public let required: FinderShellFlags
@@ -366,6 +368,7 @@ public struct FinderShellCondition: Sendable {
 }
 public enum FinderShellRules {
     public static let conditions: [RepositoryAction: [FinderShellCondition]] = [
+        .add: [.init([.inVersionedFolder], [.inGit]), .init([.inGit, .folder], []), .init([.ignored], []), .init([.deleted], [.folder, .onlyOne])],
         .clone: [.init([.folder], [.inGit, .folderInGit, .bare, .inaccessible]), .init([.folder, .ignored], []), .init([.folder, .extended], []), .init([], [])],
         .pull: [.init([.folderInGit, .onlyOne], [.bisect, .merge]), .init([.workingTreeRoot], [.bisect, .merge]), .init([], []), .init([], [])],
         .fetch: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([.workingTreeRoot], []), .init([], [])],
@@ -430,7 +433,7 @@ public enum FinderShellRules {
             case .normal: flags.insert(.normal)
             case .modified: break
             case .added: flags.insert(.added)
-            case .deleted: break
+            case .deleted: flags.insert(.deleted)
             case .conflicted: flags.insert(.conflicted)
             case .ignored: flags.remove(.inGit); flags.insert(.ignored)
             case .untracked, nil: flags.remove(.inGit)

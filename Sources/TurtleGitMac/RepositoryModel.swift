@@ -41,6 +41,8 @@ import TurtleGitCore
     private var referenceWindows: [String: BranchTagWindowController] = [:]
     private var switchWindows: [String: SwitchWindowController] = [:]
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
+    private var addWindows: [String: AddWindowController] = [:]
+    private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
     private var revertWindows: [String: RevertWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
     private var mergeWindows: [String: MergeWindowController] = [:]
@@ -283,6 +285,9 @@ import TurtleGitCore
         case .submoduleUpdate:
             guard let repository else { return }
             showSubmoduleUpdate(repository: repository, access: activeAccess, scope: paths.isEmpty ? selectedPaths : paths)
+        case .add:
+            guard let repository else { return }
+            showAdd(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths)
         case .revert:
             guard let repository else { return }
             showRevert(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths)
@@ -582,6 +587,31 @@ import TurtleGitCore
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
         } catch { self.error = error.localizedDescription }
     }
+    private func showAdd(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        Task {
+            do {
+                if try await repository.addSelectionIsFiles(paths) { showAddProgress(repository: repository, access: access, paths: paths); return }
+                let key = repository.root.path
+                let controller = addWindows[key] ?? AddWindowController(repository: repository, access: access)
+                guard !controller.model.busy else { controller.window?.makeKeyAndOrderFront(nil); return }
+                controller.onClosed = { [weak self] in self?.addWindows.removeValue(forKey: key) }
+                controller.model.onAccepted = { [weak self] paths in self?.showAddProgress(repository: repository, access: access, paths: paths) }
+                controller.model.onPreview = { [weak self] path in self?.showWorkingFiles(repository: repository, access: access, paths: [path]) }
+                addWindows[key] = controller; controller.model.setScope(paths); controller.model.reload()
+                controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        let id = UUID(), controller = AddProgressWindowController(repository: repository, access: access, paths: paths)
+        controller.onClosed = { [weak self] in self?.addProgressWindows.removeValue(forKey: id) }
+        controller.model.onFinished = { [weak self] text, _ in
+            self?.output = text
+            if self?.root?.path == repository.root.path { Task { await self?.refresh() } }
+        }
+        controller.model.onCommit = { [weak self] in self?.openSession(access ?? RepositoryAccessLease(url: repository.root), selected: FinderRequest(action: .commit, paths: [repository.root]), action: .commit) }
+        addProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
+    }
     private func showRevert(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let root = repository.root
         let controller = revertWindows[root.path] ?? RevertWindowController(repository: repository, access: access)
@@ -742,7 +772,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .add && action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller

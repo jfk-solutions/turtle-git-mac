@@ -89,6 +89,7 @@ extension RepositoryAction {
         switch self {
         case .status: return .status
         case .commit: return .commit
+        case .add: return .add
         case .revert: return .revert
         case .log, .stashList, .reflog: return .log
         case .repositoryBrowser: return .repositoryBrowser

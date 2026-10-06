@@ -21,7 +21,7 @@ import TurtleGitCore
         struct SourceOrder: Decodable { let groups: [[String]] }
         let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
         let mapping: [RepositoryAction: String] = [
-            .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
+            .add: "Add", .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
             .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .reflog: "RefLog", .repositoryBrowser: "RepoBrowse",
             .status: "ShowChanged", .rebase: "Rebase", .stash: "StashSave", .stashApply: "StashApply",
             .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .rename: "Rename",
@@ -218,7 +218,7 @@ import TurtleGitCore
         print("Actual pair menu receiver: two outside files expose only Diff and retain ordered paths; file/folder selection is excluded. Native comparison activation remains pending.")
         verifyOrder(outsideFileMenu)
         precondition(outsideFileMenu.items[0].submenu!.items.count == 1, "A lone mark command needs no leading separator")
-        print("Actual layout receiver: all 31 implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")
+        print("Actual layout receiver: all 32 implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")
         let actualRoot = folder.appendingPathComponent("actual-parent", isDirectory: true)
         let actualSource = folder.appendingPathComponent("actual-source", isDirectory: true)
         for directory in [actualRoot, actualSource] {

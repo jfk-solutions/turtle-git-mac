@@ -16,6 +16,8 @@ import AppKit
         if sender.windows.compactMap({ $0.delegate as? WorktreeListWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
         let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
+        let adds = sender.windows.compactMap { $0.delegate as? AddWindowController }
+        let addProgress = sender.windows.compactMap { $0.delegate as? AddProgressWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
         let browsers = sender.windows.compactMap { $0.delegate as? RepositoryBrowserWindowController }
         let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
@@ -23,7 +25,7 @@ import AppKit
         let comparisons = sender.windows.compactMap { $0.delegate as? RevisionComparisonWindowController }
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
-        guard !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
+        guard !adds.contains(where: { $0.model.busy }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
         guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         repositoryModel?.confirmingQuit = true
@@ -32,6 +34,7 @@ import AppKit
         for diff in submoduleDiffs { diff.model.confirmingQuit = true }
         for comparison in comparisons { comparison.model.confirmingQuit = true; comparison.model.patchWindow?.model.confirmingQuit = true; for viewer in comparison.model.unifiedWindows.values { viewer.model.confirmingQuit = true } }
         for update in updates { update.model.confirmingQuit = true }
+        for add in adds { add.model.confirmingQuit = true }; for add in addProgress { add.model.confirmingQuit = true }
         for revert in reverts { revert.model.confirmingQuit = true }
         for commit in commits { commit.setQuitConfirmation(true) }
         for controller in controllers { controller.model.confirmingQuit = true }
@@ -80,6 +83,7 @@ import AppKit
             for comparison in fileComparisons { comparison.model.confirmingQuit = false }
             for comparison in comparisons { comparison.model.confirmingQuit = false; comparison.model.patchWindow?.model.confirmingQuit = false; for viewer in comparison.model.unifiedWindows.values { viewer.model.confirmingQuit = false } }
             for update in updates { update.model.confirmingQuit = false }
+            for add in adds { add.model.confirmingQuit = false }; for add in addProgress { add.model.confirmingQuit = false }
             for revert in reverts { revert.model.confirmingQuit = false }
             for commit in commits { commit.setQuitConfirmation(false) }
             repositoryModel?.confirmingQuit = false

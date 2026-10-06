@@ -308,3 +308,16 @@ submodule status and metadata using the attributed registration rules. Native
 cache subtree replacement drops stale child roots and preserves parent gitlink
 badge severity. This is an app-side cache adaptation, not complete TGitCache
 background/FSEvents or signed Finder equivalence.
+
+Native Add dialog/progress adapts AddDlg.cpp (Copyright (C) 2008-2021,
+2023-2024 TortoiseGit; Copyright (C) 2003-2008 TortoiseSVN), AddDlg.h
+(Copyright (C) 2011, 2013, 2016, 2017, 2023 TortoiseGit; Copyright (C) 2003-2007
+TortoiseSVN), AddCommand.cpp (Copyright (C) 2008-2013, 2016, 2018-2019, 2026
+TortoiseGit; Copyright (C) 2007-2008 TortoiseSVN), AddProgressCommand.cpp
+(Copyright (C) 2011-2016, 2018-2020, 2023, 2025 TortoiseGit) and
+AddProgressCommand.h (Copyright (C) 2014, 2016, 2018-2019, 2023 TortoiseGit),
+under GPL version 2 or later. AppKit controls replace MFC lists/dialogs;
+source selection, ignored-file policy and file/folder routing use the existing
+forced-add private-index transaction with owned cancellation. Full status-list
+menus, post-action file modes, native visual/signed acceptance and all progress
+behavior remain unfinished.

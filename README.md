@@ -31,6 +31,11 @@ bundle structure; it is not a signed distribution.
 
 ## Implemented first pass
 
+Native Add now uses the upstream file-only progress route and folder checked-list
+route, with Include ignored files, original icons and checked-only forced staging.
+The cancellable private-index transaction preserves unrelated staging.
+[Add parity](docs/ADD-PARITY.md) records unfinished menus, post-actions and native QA.
+
 Create Patch Serial now has a native Format Patch dialog with Since, Number
 Commits and Range choices, no-prefix output, history fields, Log pickers and a
 read-only unified-diff viewer. The repository export has binary patch round-trip

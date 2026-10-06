@@ -854,6 +854,41 @@
           "no": []
         }
       ]
+    },
+    "add": {
+      "command": "Add",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INVERSIONEDFOLDER"
+          ],
+          "no": [
+            "ITEMIS_INGIT"
+          ]
+        },
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_FOLDER"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_IGNORED"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_DELETED"
+          ],
+          "no": [
+            "ITEMIS_FOLDER",
+            "ITEMIS_ONLYONE"
+          ]
+        }
+      ]
     }
   }
 }
