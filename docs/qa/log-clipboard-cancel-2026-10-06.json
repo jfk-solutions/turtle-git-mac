@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-06",
+  "scope": "Owned full-detail Log clipboard cancellation; full application port remains incomplete",
+  "baseCommit": "e793505",
+  "implemented": [
+    "Optional commitLogText cancellation before work and during tag/path assembly, passed to every revision/message/notes/ref/tag command and each parent changed-file reader",
+    "Native clipboard read owns one token; replacement copy, simple copy, revision selection, history refresh and invalidate/close cancel it and advance generation",
+    "Cancelled reads cannot publish pasteboard text, clear newer indicators or display cancellation errors; successful selected revisions publish atomically together"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 14,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final source. New real repository regression pre-cancels and stalls annotated-tag read with includePaths false; owned wrapper/child reaped, independent reader succeeds, exact index unchanged, subsequent details equal baseline including notes/tag information, path-enabled text includes expected file. Shared detail reader cancellation and prior history/filter regressions pass."
+    },
+    "nativeAcceptance": "Clipboard token ownership and generation paths compiled and source-reviewed. Actual pasteboard/selection/refresh/close gestures, signed grants and quit acceptance not performed.",
+    "fullRegression": "Focused history suite only; previous full-suite evidence retains its original snapshot scope.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "10314ec89e0790e0842ac938cd96bd9a5148f2a60f87dd09f28a27a8d51e22d5",
+    "Sources/TurtleGitMac/LogWindow.swift": "c8183a88570838ee90af15a2b6857461079615f262570346750d1be22c0021c1",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "71cff8d31ad4c7e1a507c09e3449a5915aeca78a01771338ab803bf39d053499"
+  },
+  "pending": [
+    "Native pasteboard and displayed selection/refresh/close races",
+    "Signed grant/quit and App Store distribution acceptance",
+    "Cancellation of other Log/viewer operation workers",
+    "Incremental detail/history parsing and loading",
+    "Remaining dialog/Finder and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-clipboard-cancel-tests.log",
+      "sha256": "88d3ee1aeee0a7f11070431eb392523bbb20dace7265fbce1b1331fa46e8aeac"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-clipboard-cancel-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-clipboard-cancel-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-clipboard-cancel-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-clipboard-cancel-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-clipboard-cancel-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

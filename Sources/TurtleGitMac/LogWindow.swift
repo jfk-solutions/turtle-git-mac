@@ -196,6 +196,7 @@ struct LogCommandRequest: Identifiable {
     @Published var commandRequest: LogCommandRequest?
     private var generation = 0
     private var detailGeneration = 0
+    private var clipboardCancellation: OperationCancellation?
     private var clipboardGeneration = 0
     @Published var copyingDetails = false
     private var limit = 200
@@ -254,9 +255,10 @@ struct LogCommandRequest: Identifiable {
         historyPaths = scope; showWholeProject = scope.isEmpty; reload()
     }
     func invalidate() {
+        cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
         if loadingHistory { historyCancellation?.cancel(); historyCancellation = nil; busy = false }
-        generation += 1; detailGeneration += 1; clipboardGeneration += 1; copyingDetails = false
+        generation += 1; detailGeneration += 1
     }
     func reload(more: Bool = false) {
         guard !busy || loadingHistory else { return }
@@ -264,7 +266,7 @@ struct LogCommandRequest: Identifiable {
         historyCancellation?.cancel()
         let cancellation = OperationCancellation(); historyCancellation = cancellation
         if more { limit += 200 } else { limit = 200 }
-        clipboardGeneration += 1; copyingDetails = false
+        cancelClipboardRead()
         generation += 1; let request = generation
         var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.limit = limit
         if !showWholeProject { options.paths = historyPaths }
@@ -284,6 +286,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func select(_ hashes: Set<String>) {
+        cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
         selected = hashes; selectedFiles = []; files = []
         detailGeneration += 1; let request = detailGeneration
@@ -327,8 +330,12 @@ struct LogCommandRequest: Identifiable {
             catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
-    func copy(_ text: String) {
+    private func cancelClipboardRead() {
+        clipboardCancellation?.cancel(); clipboardCancellation = nil
         clipboardGeneration += 1; copyingDetails = false
+    }
+    func copy(_ text: String) {
+        cancelClipboardRead()
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false) {
@@ -354,7 +361,9 @@ struct LogCommandRequest: Identifiable {
     }
     func copyDetails(includePaths: Bool = true) {
         let hashes = revisions.map(\.hash); guard !hashes.isEmpty else { return }
-        clipboardGeneration += 1; let request = clipboardGeneration
+        cancelClipboardRead()
+        let cancellation = OperationCancellation(); clipboardCancellation = cancellation
+        let request = clipboardGeneration
         copyingDetails = true; error = nil
         Task {
             do {
@@ -362,12 +371,12 @@ struct LogCommandRequest: Identifiable {
                 var text = ""
                 for hash in hashes {
                     guard request == clipboardGeneration else { return }
-                    text += try await repository.commitLogText(revision: hash, includePaths: includePaths)
+                    text += try await repository.commitLogText(revision: hash, includePaths: includePaths, cancellation: cancellation)
                 }
                 guard request == clipboardGeneration else { return }
                 copy(text)
             } catch {
-                if request == clipboardGeneration { self.error = error.localizedDescription; copyingDetails = false }
+                if request == clipboardGeneration { clipboardCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription }; copyingDetails = false }
             }
         }
     }

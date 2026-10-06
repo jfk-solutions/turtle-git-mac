@@ -290,36 +290,46 @@ extension GitRepository {
     }
     /// Full log clipboard details for a pinned commit, including every parent's
     /// changed paths, Git notes and annotated tags. Use native LF line endings.
-    public func commitLogText(revision: String, includePaths: Bool = true) throws -> String {
-        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
-        let data = try run(["show", "-s", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"]).stdout
+    public func commitLogText(revision: String, includePaths: Bool = true, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        func clipboardRun(_ arguments: [String]) throws -> GitResult {
+            try cancellation?.check()
+            return try run(arguments, cancellation: cancellation)
+        }
+        let hash = try clipboardRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        let data = try clipboardRun(["show", "-s", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"]).stdout
         guard let entry = LogEntry.parseHistory(data).first, entry.hash == hash else { throw RevisionComparisonFailure.range }
         var text = "Revision: \(hash)\nAuthor: \(entry.author) <\(entry.email)>\nDate: \(entry.date)\nMessage:\n\(entry.message)"
         if !text.hasSuffix("\n") { text += "\n" }
-        let notes = try run(["show", "-s", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
+        let notes = try clipboardRun(["show", "-s", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
         if !notes.isEmpty { text += "----\nNotes:\n\(notes)\n" }
-        let refs = try run(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00", "refs/tags/"]).text.components(separatedBy: "\0")
+        let refs = try clipboardRun(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00", "refs/tags/"]).text.components(separatedBy: "\0")
         var index = 0
         while index + 2 < refs.count {
+            try cancellation?.check()
             let object = refs[index].trimmingCharacters(in: .newlines), peeled = refs[index + 1], name = refs[index + 2]
             if peeled == hash {
-                let tag = try run(["cat-file", "tag", object]).text
+                let tag = try clipboardRun(["cat-file", "tag", object]).text
                 text += "----\nTag info: \(name)\n\(tag)"
                 if !text.hasSuffix("\n") { text += "\n" }
             }
             index += 3
         }
+        try cancellation?.check()
         guard includePaths else { return text + "\n" }
         text += "----\n"
         // Upstream's full clipboard includes paths against each merge parent.
         for parent in entry.parents.isEmpty ? [nil] : entry.parents.map({ Optional($0) }) {
+            try cancellation?.check()
             var side = entry; side.parents = parent.map { [$0] } ?? []
-            for file in try files(in: side) {
+            for file in try files(in: side, cancellation: cancellation) {
+                try cancellation?.check()
                 text += "\(file.status): \(file.path)"
                 if let old = file.oldPath { text += " (from \(old))" }
                 text += "\n"
             }
         }
+        try cancellation?.check()
         return text + "\n"
     }
     public func files(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {

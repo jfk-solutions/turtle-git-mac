@@ -96,9 +96,8 @@ callers. It checks before any work (including zero-limit/unborn reads), during r
 and commit parsing and between merge parents, and passes the token through every
 Git command, including notes, tag objects, path diffs and final HEAD/ref metadata.
 The shared process runner terminates only the owned child process group. A cancelled
-read never returns its rows. Clipboard reads and other Log operations still need
-their own cancellation coverage; large-output buffering and incremental loading
-remain unfinished. See [the cancellation record](qa/log-history-cancel-2026-10-06.json).
+read never returns its rows. Other Log operations still need their own cancellation coverage; large-output
+buffering and incremental loading remain unfinished. See [the cancellation record](qa/log-history-cancel-2026-10-06.json).
 
 ## Changed-file detail cancellation
 
@@ -115,6 +114,25 @@ A real repository regression stalls numstat after name-status, cancels its owned
 wrapper and child, verifies independent detail reads and exact unchanged index
 bytes, and then reads the correct file/statistics again. Native gesture and signed
 close/quit acceptance remain unverified. See [the detail cancellation record](qa/log-detail-cancel-2026-10-06.json).
+
+## Full-detail clipboard cancellation
+
+Full-detail copy now owns its own cancellation token. Another copy (including a
+simple copy), revision selection, history refresh or window invalidation/close
+cancels that read. Generation checks prevent stopped work from changing the
+pasteboard, clearing a newer request's indicator or showing a cancellation error.
+A cancelled read preserves existing pasteboard contents; a successful read writes
+all selected revision details together.
+
+`commitLogText(revision:includePaths:cancellation:)` passes the token through
+revision pinning, message/notes/ref/tag reads and changed-file reads for each
+merge parent, checking cancellation during tag/path assembly and before return.
+A real repository regression stalls the annotated-tag read with paths disabled;
+it verifies process/child cleanup, pre-cancel rejection, independent read success,
+unchanged index bytes and identical subsequent clipboard text including notes and
+tags. Existing changed-file cancellation tests cover the shared path reader.
+Native pasteboard and displayed selection/refresh/close gestures remain unverified.
+See [the clipboard cancellation record](qa/log-clipboard-cancel-2026-10-06.json).
 
 ## Specification
 
