@@ -400,7 +400,7 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 | References | Branch/ref chooser, remote ref deletion and tracking menus |
 | Search/filter | Full history scope controls, search highlighting, displayed jump/selection-history acceptance and keyboard navigation; implemented fields/modes are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
-| Revision menus | Repository browser, rebase onto selection, export, format patch, bisect, squash, ref containment/search |
+| Revision menus | Clicked-ref targeting, revision export, bisect, squash, ref containment/search; see later sections for implemented browser/patch commands |
 | Mutations | Full branch/tag options, checkout branches, advanced Cherry Pick options and displayed acceptance ([audit](CHERRY-PICK-PARITY.md)), multi-commit Revert and other operations, conflict continue/abort |
 | Footer | Statistics, walk behavior, View options and upstream settings persistence |
 | Comparison | Native side-by-side/three-way editor, merge combined diffs and external tool configuration |
@@ -940,3 +940,7 @@ through the external preview, with a real Git apply-check regression. The
 built-in sheet remains available through the same choice. Native launches and
 Shift interaction remain unverified; merge-parent/combined variants and full Log
 parity are still pending. See [unified diff viewer parity](UNIFIED-DIFF-VIEWER-PARITY.md).
+
+Native revision menus now include Merge and Rebase onto selection, with original
+icons, reference/hash presets and fresh repository-state guards.
+[Merge/Rebase handoffs](LOG-MERGE-REBASE.md) records origin recovery and limits.

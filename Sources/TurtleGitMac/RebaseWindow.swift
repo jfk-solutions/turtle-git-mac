@@ -121,6 +121,7 @@ import TurtleGitCore
     @Published var finished = false
     @Published var completedSuccessfully = false
     var completionAfterFetch = false
+    var completionFromLog = false
     var completionAutoStart = false
     var onCompletedLog: (() -> Void)?
     var onCompletedPush: ((String) -> Void)?
@@ -208,12 +209,12 @@ import TurtleGitCore
     }
     private func restoreSessionContext() {
         guard let context = state?.session else { return }
-        completionAfterFetch = context.afterFetch; completionAutoStart = context.autoStart
+        completionFromLog = context.fromLog ?? false; completionAfterFetch = context.afterFetch; completionAutoStart = context.autoStart
         options.branch = context.branch; options.upstream = context.upstream; options.onto = context.onto
         options.force = context.force; options.preserveMerges = context.preserveMerges; ontoEnabled = !context.onto.isEmpty
     }
     var completionActions: [RebaseCompletionAction] {
-        guard finished, completedSuccessfully, !active, !isCherryPick else { return [] }
+        guard finished, completedSuccessfully, !active, !isCherryPick, !completionFromLog else { return [] }
         return completionAfterFetch ? [.log, .push, .mail, .rebase] : [.log, .restart]
     }
     func canPerformCompletionAction(_ action: RebaseCompletionAction) -> Bool {
@@ -495,7 +496,7 @@ import TurtleGitCore
                 try requireAccess()
                 let result: RebaseExecution
                 switch action {
-                case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable, afterFetch: completionAfterFetch, autoStart: completionAutoStart)
+                case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; replayRows = snapshot.entries; result = try await repository.startRebase(snapshot, editorExecutable: executable, afterFetch: completionAfterFetch, autoStart: completionAutoStart, fromLog: completionFromLog)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
                 default:

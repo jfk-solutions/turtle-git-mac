@@ -60,10 +60,11 @@ public struct RebaseSessionContext: Codable, Sendable {
     public let preserveMerges: Bool
     public let afterFetch: Bool
     public let autoStart: Bool
-    init(options: RebaseOptions, afterFetch: Bool, autoStart: Bool) {
+    public let fromLog: Bool?
+    init(options: RebaseOptions, afterFetch: Bool, autoStart: Bool, fromLog: Bool) {
         version = 1; branch = options.branch; upstream = options.upstream; onto = options.onto
         force = options.force; preserveMerges = options.preserveMerges
-        self.afterFetch = afterFetch && !options.isCherryPick; self.autoStart = autoStart && self.afterFetch
+        self.afterFetch = afterFetch && !options.isCherryPick; self.autoStart = autoStart && self.afterFetch; self.fromLog = fromLog && !options.isCherryPick
     }
 }
 
@@ -445,7 +446,7 @@ extension GitRepository {
         if plan.entries.isEmpty { return "noop\n" }
         return plan.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
     }
-    public func startRebase(_ plan: RebasePlan, editorExecutable: URL, afterFetch: Bool = false, autoStart: Bool = false) throws -> RebaseExecution {
+    public func startRebase(_ plan: RebasePlan, editorExecutable: URL, afterFetch: Bool = false, autoStart: Bool = false, fromLog: Bool = false) throws -> RebaseExecution {
         guard !(try rebaseState().active) else { throw RebaseFailure.active }
         guard try rebaseRevision(plan.options.branch) == plan.branchHash,
               try rebaseRevision(plan.options.upstream) == plan.upstreamHash,
@@ -523,7 +524,7 @@ extension GitRepository {
         if result.state.active {
             let merge = try rebasePath("rebase-merge")
             let directory = FileManager.default.fileExists(atPath: merge.path) ? merge : try rebasePath("rebase-apply")
-            let context = RebaseSessionContext(options: plan.options, afterFetch: afterFetch, autoStart: autoStart)
+            let context = RebaseSessionContext(options: plan.options, afterFetch: afterFetch, autoStart: autoStart, fromLog: fromLog)
             try JSONEncoder().encode(context).write(to: directory.appendingPathComponent("turtlegit-session.json"), options: .atomic)
             return RebaseExecution(output: result.output, exitCode: result.exitCode, state: try rebaseState())
         }

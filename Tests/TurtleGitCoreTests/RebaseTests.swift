@@ -65,6 +65,19 @@ final class RebaseTests: XCTestCase {
         let aborted = try await repo.abortRebase(); XCTAssertFalse(aborted.state.active); XCTAssertNil(aborted.state.session)
     }
 
+    func testLogOriginContextRecoversAndAcceptsOlderMetadata() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
+        let paused = try await repo.startRebase(plan, editorExecutable: editor, fromLog: true)
+        XCTAssertTrue(paused.state.session?.fromLog == true)
+        let context = try await GitRepository(root: root).rebaseState(); XCTAssertTrue(context.session?.fromLog == true)
+        let file = root.appendingPathComponent(".git/rebase-merge/turtlegit-session.json")
+        var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: file)) as! [String: Any]; legacy.removeValue(forKey: "fromLog")
+        try JSONSerialization.data(withJSONObject: legacy).write(to: file)
+        let old = try await repo.rebaseState(); XCTAssertNotNil(old.session); XCTAssertNil(old.session?.fromLog)
+        _ = try await repo.abortRebase()
+    }
+
     func testHeadlessEditorWritesOnlyRequestedPlanAndReturnsErrors() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString); try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: directory) }
         let source = directory.appendingPathComponent("plan"), target = directory.appendingPathComponent("todo"); try Data("pick abc subject\n".utf8).write(to: source)

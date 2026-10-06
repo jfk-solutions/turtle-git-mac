@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "c18f781",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log Merge/Rebase revision commands, original icons, verified reference/hash handoffs, native Merge presets and recovered Log Rebase origin",
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "4a5ccb41805819926a0094c835e931641650c213f2588cbe3f41647c8a2998d9",
+    "Sources/TurtleGitMac/MergeWindow.swift": "ab3c23fc54dd8e88fbca2c6f2986727f18cb1a2ea2b20b953aec342550760300",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "62218ed1f301c2a8485e760e6b7abff9b4f4d4aff9de3fef7c5f6de627f38964",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "c9c0b847a8f43c6c4fc9eac4426ea9a264679c300a9e79523540a0b490df0cff",
+    "Sources/TurtleGitCore/Rebase.swift": "e1b35a742da9054f507253a4680c5c1417992e2fe691da32c2c11977fa2e4fcc",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "0a3f72dd046833f1663f80ee2933085c6dc23a6d18f4e14f1fcbb5c032d49539",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "b67aad21e10c024b1fed1f54a3f6ce9eaebc394973819780c7c9ead146d0ec94",
+    "README.md": "99dd7d3fef34affa2a261a5d00f95a4266d56ba8006611b362b78c349573cbeb",
+    "docs/LOG-PARITY.md": "36949c0b559a4522b04294f2c9dbfa5a13bf159b621edb9b017b5cfd9579e8b3",
+    "docs/LOG-MERGE-REBASE.md": "5688154cc2ceb517057a36378250f0db245cdfdb852630ecb38d453241fc0d24",
+    "docs/REBASE-COMPLETION-ACTIONS.md": "ec8aee83b6196a01d8ac33e472d5bd341138311001fa4c694989d928704c3611",
+    "docs/REBASE-SESSION-CONTEXT.md": "c0282371aa941b8de292f4f79743bc6cbeef357c72173cce186103679aa66759",
+    "docs/site/index.html": "81df44ffd1cd5c42793a726b1b013fc1c59a8bdb10732ae8058c3264f19498c6"
+  },
+  "all_native_sources_manifest_sha256": "d89863d54e4213c8141a3f4351bfd67fcdb37a03cf06d7b305ac55244b6aaf34",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 54,
+      "failures": 0,
+      "new_coverage": "Normal Log-origin metadata recovers; old version-1 context without optional fromLog still decodes"
+    },
+    "native_focus": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "receiver_sha256_at_run": "978872fcd9d5e6e2dfccd950b42860a3bb89e57e2bc821a2ccabcbdfdf070fcf",
+      "coverage": [
+        "Actual AppKit Log menu titles/icons/coordinator selectors",
+        "Merge first-valid-tag and Rebase preferred short local-branch handoffs",
+        "Moved reference fallback and unlabeled hash handoff",
+        "Branch/Tag/Commit preset selections in actual native Merge model",
+        "Multiple/HEAD/stash/bare/stale-selection guards",
+        "Fresh active Merge/Rebase rejection despite stale cached state",
+        "Actual normal Log-origin Rebase, fresh model reopening and successful finish without post buttons",
+        "Abort/reset restores disposable HEAD and logical index; existing completion/session/row/menu fixtures pass"
+      ],
+      "followup": "Only temporary-tag cleanup was added after this run; full native receiver below verifies final source"
+    },
+    "native_full": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git",
+      "passed": "2.50.1 Apple Git-155",
+      "coverage": "New integration fixture with tag cleanup plus prior Log/list/Add/draft/empty/Split/conflict/Squash/reference/session/row-menu flows",
+      "receiver_sha256": "b67aad21e10c024b1fed1f54a3f6ce9eaebc394973819780c7c9ead146d0ec94"
+    },
+    "initial_fixture_repairs": [
+      "Replaced inaccessible Core reference constructors with actual Git history/ref reads",
+      "Supplied normal graph data before hosting the actual Log table",
+      "Initialized bare status from repository before menu eligibility assertions"
+    ],
+    "builds": {
+      "SwiftPM final": "passed",
+      "Debug unsigned final": "passed",
+      "AppStore unsigned": "passed"
+    },
+    "bundle_audits": "Both passed, exact NOTICE in both, 86 original icons; Store --require-git passed",
+    "site_generation": "passed",
+    "process_audit": "No main app or native receiver processes running",
+    "log_sha256": {
+      "core": "fc2542a9047bafcb6ca54be4e78b242e5da02749c200ecf3f84e19a1d310cbf3",
+      "build-final": "2ba507b7c2013a610dcb43da14d36a5a80dd043a31233da29585f6b602a152d1",
+      "debug-final": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "store": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "native-verified": "f3b7308b7d2fb113a3953ac9dd7d2bc6d5511bb8593c7aea77661e9c4543fb82",
+      "native-full": "1cf96ee6e4278c16c6ae960b6938c388052ba4cd21e2b59a5b3df742b7c28337",
+      "debug-audit": "524a234addd8b8e8366b55e22533cc9736d8979fa77ace113cb86b8f82e323fb",
+      "store-audit": "65bcab67068f3a1a770ff06b35e1fedf3fb90de95ac93038c81fc670adac14b1"
+    }
+  },
+  "limitations": [
+    "Hidden views and injected dialog handoffs; displayed navigation/focus/keyboard/accessibility and signed sandbox execution unverified",
+    "Explicit clicked-reference targeting remains pending",
+    "No fresh screenshots, hosted CI, push or publication",
+    "Full Log and full application port remain incomplete"
+  ]
+}

@@ -920,6 +920,8 @@ import TurtleGitCore
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
         controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
+        controller.model.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
+        controller.model.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
         controller.model.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
@@ -947,7 +949,7 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
-    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?) {
+    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
         let root = repository.root
         let controller = mergeWindows[root.path] ?? MergeWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: root.path) }
@@ -962,10 +964,12 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
+            log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
                 log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
-        mergeWindows[root.path] = controller; controller.model.load()
+        mergeWindows[root.path] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showStash(repository: GitRepository, access: RepositoryAccessLease?) {
@@ -1007,11 +1011,13 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
+            log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
             log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
     }
-    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
+    private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil, afterFetch: Bool = false, fromLog: Bool = false) {
         let root = repository.root
         let existing = rebaseWindows[root.path]
         let controller = existing ?? RebaseWindowController(repository: repository, access: access)
@@ -1029,7 +1035,8 @@ import TurtleGitCore
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
-        controller.model.completionAfterFetch = upstream != nil
+        controller.model.completionAfterFetch = afterFetch
+        controller.model.completionFromLog = fromLog
         controller.model.completionAutoStart = autoStart
         controller.model.onCompletedLog = { [weak self] in self?.showLog(repository: repository, access: access, paths: []) }
         controller.model.onCompletedPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
@@ -1050,6 +1057,8 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
+            log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
         rebaseWindows[root.path] = controller
@@ -1071,7 +1080,7 @@ import TurtleGitCore
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in
-            self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges)
+            self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true)
         }
         fetchWindows[key] = controller; controller.model.load()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

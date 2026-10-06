@@ -174,6 +174,18 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
+enum LogIntegrationCommand { case merge, rebase }
+private enum LogIntegrationFailure: LocalizedError {
+    case worktree, head, active
+    var errorDescription: String? {
+        switch self {
+        case .worktree: return "This operation requires a working tree."
+        case .head: return "The selected revision is already HEAD. Refresh the Log."
+        case .active: return "Finish or abort the active Merge or Rebase before starting another operation."
+        }
+    }
+}
+
 enum LogRevisionCommand: String, Identifiable {
     case branch = "Create branch at this version…"
     case tag = "Create tag at this version…"
@@ -208,6 +220,9 @@ struct LogCommandRequest: Identifiable {
     var loadingActions: Bool { actionCancellation != nil }
     @Published var parentMetadata: [String: [LogParentChoice]] = [:]
     @Published var mergeActive = false
+    @Published var currentBranch = ""
+    var onMergeRevision: ((String) -> Void)?
+    var onRebaseRevision: ((String) -> Void)?
     var confirmRevert: (LogCommandRequest) async -> Bool = { _ in false }
     var offerRevertCommit: () async -> Bool = { false }
     var onCommit: () -> Void = {}
@@ -260,6 +275,41 @@ struct LogCommandRequest: Identifiable {
     func requestCherryPick() {
         guard canCherryPick else { return }
         onCherryPick?(cherryPickSelection.map(\.hash))
+    }
+    var integrationAvailable: Bool { revision != nil && revision?.isHead == false && !bare && !mergeActive && !selectedIsStash }
+    func canIntegrate(_ command: LogIntegrationCommand) -> Bool {
+        integrationAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails && (command == .merge ? onMergeRevision != nil : onRebaseRevision != nil)
+    }
+    func integrationTitle(_ command: LogIntegrationCommand) -> String {
+        let branch = currentBranch.isEmpty ? "HEAD" : currentBranch
+        return command == .merge ? "Merge to \"\(branch)\"…" : "Rebase \"\(branch)\" onto this…"
+    }
+    func requestIntegration(_ command: LogIntegrationCommand) {
+        guard canIntegrate(command), let chosen = revision else { return }
+        let request = generation; busy = true; error = nil
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let isBare = try await repository.isBare()
+                let merging = try await repository.logMergeActive()
+                let rebasing = try await repository.rebaseState().active
+                let head = try await repository.rebaseCommit("HEAD").hash
+                guard !isBare else { throw LogIntegrationFailure.worktree }
+                guard !merging, !rebasing else { throw LogIntegrationFailure.active }
+                guard head != chosen.hash else { throw LogIntegrationFailure.head }
+                var references = chosen.references.map(\.name).filter { $0.hasPrefix("refs/") && !$0.hasPrefix("refs/stash") }
+                if command == .rebase { references = references.filter { $0.hasPrefix("refs/heads/") } + references.filter { !$0.hasPrefix("refs/heads/") } }
+                var target = chosen.hash
+                for reference in references {
+                    let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", reference + "^{commit}"], successfulExitCodes: 0...128)
+                    if resolved.exitCode == 0 && resolved.text.trimmingCharacters(in: .newlines) == chosen.hash { target = command == .rebase && reference.hasPrefix("refs/heads/") ? String(reference.dropFirst("refs/heads/".count)) : reference; break }
+                }
+                guard request == generation, revision?.hash == chosen.hash, selected.count == 1 else { return }
+                busy = false
+                if command == .merge { onMergeRevision?(target) } else { onRebaseRevision?(target) }
+            } catch { if request == generation { self.error = error.localizedDescription } }
+        }
     }
     var canEditNotes: Bool { revision != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !selectedIsStash }
     var canSaveNote: Bool { !savingNote && noteRequest?.accepts(noteText) == true }
@@ -492,10 +542,11 @@ struct LogCommandRequest: Identifiable {
             do {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let mergeActive = try await repository.logMergeActive(cancellation: cancellation)
+                let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 let result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 guard request == generation else { return }
-                self.bare = bare; self.mergeActive = mergeActive; self.issueProperties = issueProperties
+                self.bare = bare; self.mergeActive = mergeActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
                 entries = result; graph = CommitGraph.layout(result)
                 let hashes = Set(result.map(\.hash)); revisionActions = revisionActions.filter { hashes.contains($0.key) }
                 parentMetadata = parentMetadata.filter { hashes.contains($0.key) }
@@ -1139,11 +1190,17 @@ struct RevisionTable: NSViewRepresentable {
             item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: (one || two) && !model.busy)
             menu.addItem(.separator())
             item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: one && !model.busy && model.onBrowseRepository != nil)
+            if model.integrationAvailable {
+                item(model.integrationTitle(.merge), #selector(mergeRevision), icon: .merge, enabled: model.canIntegrate(.merge))
+            }
             item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
             item("Switch/Checkout to this…", #selector(checkout), icon: .checkout, enabled: one && !model.busy && !model.bare)
             item("Create branch at this version…", #selector(branch), icon: .branch, enabled: one && !model.busy)
             item("Create tag at this version…", #selector(tag), icon: .tag, enabled: one && !model.busy)
             item("Push…", #selector(push), icon: .push, enabled: one && !model.busy)
+            if model.integrationAvailable {
+                item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase))
+            }
             menu.addItem(.separator())
             if model.revertAvailable {
                 if let revision = model.revision, revision.parents.count > 1 {
@@ -1208,6 +1265,8 @@ struct RevisionTable: NSViewRepresentable {
         @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }
         @objc func formatPatch() { if let preset = model.formatPatchPreset, !model.busy { model.onFormatPatch?(preset) } }
         @objc func editNotes() { model.editNotes() }
+        @objc func mergeRevision() { model.requestIntegration(.merge) }
+        @objc func rebaseRevision() { model.requestIntegration(.rebase) }
         @objc func reset() { model.request(.reset) }
         @objc func push() { model.request(.push) }
         @objc func checkout() { model.request(.checkout) }

@@ -3,7 +3,9 @@
 Active Rebase sessions now store `turtlegit-session.json` in the session's actual
 Git state directory, resolved with `rev-parse --git-path`. It records schema
 version 1, original branch/upstream/onto choices, Force, Preserve Merges, Fetch/Pull
-origin and configured auto-start. Cherry Pick never records after-Fetch origin.
+origin and configured auto-start. Optional `fromLog` distinguishes Log-origin
+Rebase, which has no configured completion buttons; older context without that
+field remains readable. Cherry Pick never records after-Fetch origin.
 
 The backend writes context after Git returns an active session, including a
 conflict or Edit pause. This works without relying on the custom sequence editor

@@ -12,7 +12,8 @@ with original icons. Done remains the primary closing button. The original
 
 The control requires a successful native Rebase completion. It is absent during
 replay, after Abort, after an externally ended session of unknown outcome and in
-Cherry Pick, where upstream does not configure these post buttons. Busy and
+Cherry Pick or a Rebase opened from Log, where upstream does not configure these
+post buttons. Busy and
 child-operation guards also apply.
 
 Show Log, Push and Send Mail close Rebase and hand off to the existing native

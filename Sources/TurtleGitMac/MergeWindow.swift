@@ -54,7 +54,7 @@ import TurtleGitCore
     var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
     var revision: String { switch target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    func load() {
+    func load(revision preset: String? = nil) {
         guard !busy else { return }; busy = true
         Task {
             defer { busy = false }
@@ -65,6 +65,11 @@ import TurtleGitCore
                 let tracked = "refs/remotes/" + defaults.remote + "/" + destination
                 branchRevision = branches.first { $0.name == tracked }?.name ?? branches.first?.name ?? ""
                 tagRevision = tags.first?.name ?? ""; messageCount = String(await repository.mergeMessageCount())
+                if let preset {
+                    if branches.contains(where: { $0.name == preset }) { target = .branch; branchRevision = preset }
+                    else if tags.contains(where: { $0.name == preset }) { target = .tag; tagRevision = preset }
+                    else { target = .commit; commitRevision = preset }
+                }
             } catch { self.error = error.localizedDescription }
         }
     }

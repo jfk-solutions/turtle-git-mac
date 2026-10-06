@@ -290,6 +290,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   and preserved existing contents. Bare repositories open in the workspace and Log;
   worktree-only actions are disabled. [Create Repository parity](docs/INIT-PARITY.md)
   records picker, signed integration and remaining native verification.
+- Log revision context menus now hand Merge/Rebase selections to native dialogs
+  with original icons, branch/tag/hash presets and fresh state checks.
+  [Log Merge/Rebase](docs/LOG-MERGE-REBASE.md).
 - Separate native Rebase window with ordered Pick/Skip/Edit/Squash actions, original
   action icons, branch/upstream/onto controls and lower file/message/progress tabs.
   Multiple selected rows move together, with Shift-to-end and focused-list action

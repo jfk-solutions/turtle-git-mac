@@ -389,6 +389,73 @@ import TurtleGitCore
     _ = try await repo.run(["config", "--unset", "rebase.updateRefs"]); _ = try await repo.run(["checkout", "target"])
     print("Actual native repeated/omitted references: Add duplicate IDs, Skip and end moves, original occurrence Edit/reopening, original ref associations, omitted patch-equivalent ref unchanged and retained ref updated passed. Prompts injected.")
 }
+@MainActor func verifyLogIntegration(_ repo: GitRepository, revisions: [LogEntry], editor: URL) async throws {
+    let log = LogWindowModel(repository: repo, access: nil); log.entries = revisions; log.graph = CommitGraph.layout(revisions); log.selected = [revisions[0].hash]; log.currentBranch = "target"
+    log.bare = try await repo.isBare(); log.currentBranch = try await repo.branch()
+    var merges: [String] = [], rebases: [String] = []
+    log.onMergeRevision = { merges.append($0) }; log.onRebaseRevision = { rebases.append($0) }
+    func wait() async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while log.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!log.busy)
+    }
+    let head = try await repo.rebaseCommit("HEAD"), index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    _ = try await repo.run(["tag", "integration-tag", revisions[0].hash])
+    var historyOptions = HistoryOptions(); historyOptions.allBranches = true
+    let referenceRows = try await repo.history(options: historyOptions)
+    log.entries[0].references = referenceRows.first { $0.hash == revisions[0].hash }!.references.sorted { $0.name.hasPrefix("refs/tags/") && !$1.name.hasPrefix("refs/tags/") }
+    let host = NSHostingView(rootView: RevisionTable(model: log)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 300); host.layoutSubtreeIfNeeded()
+    guard let table = findTable(host), let coordinator = table.delegate as? RevisionTable.Coordinator, let menu = table.menu else { fatalError("Integration menu unavailable") }
+    coordinator.menuNeedsUpdate(menu)
+    for title in [log.integrationTitle(.merge), log.integrationTitle(.rebase)] { guard let item = menu.items.first(where: { $0.title == title }) else { fatalError("Missing integration menu: \(title), available=\(log.integrationAvailable), bare=\(log.bare)") }; precondition(item.isEnabled && item.image != nil) }
+    coordinator.mergeRevision(); try await wait(); precondition(log.error == nil && merges == ["refs/tags/integration-tag"])
+    coordinator.rebaseRevision(); try await wait(); precondition(log.error == nil && rebases == ["main"])
+    let mergeModel = MergeWindowModel(repository: repo, access: nil); mergeModel.load(revision: merges[0])
+    let mergeDeadline = Date().addingTimeInterval(30); while mergeModel.busy && Date() < mergeDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!mergeModel.busy && mergeModel.error == nil && mergeModel.target == .tag && mergeModel.revision == merges[0])
+    for (preset, target) in [("refs/heads/main", CheckoutTarget.branch), (revisions.last!.hash, .commit)] {
+        mergeModel.load(revision: preset)
+        let deadline = Date().addingTimeInterval(30); while mergeModel.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!mergeModel.busy && mergeModel.error == nil && mergeModel.target == target && mergeModel.revision == preset)
+    }
+
+    _ = try await repo.run(["update-ref", "refs/tags/integration-tag", revisions.last!.hash])
+    coordinator.mergeRevision(); try await wait(); precondition(merges.last == "refs/heads/main")
+    log.selected = [revisions.last!.hash]; log.requestIntegration(.rebase); try await wait(); precondition(rebases.last == revisions.last!.hash)
+    log.selected = [revisions[0].hash, revisions[2].hash]; precondition(!log.integrationAvailable)
+    log.selected = [revisions[0].hash]; log.entries[0].isHead = true; precondition(!log.integrationAvailable); log.entries[0].isHead = false
+    log.bare = true; precondition(!log.canIntegrate(.merge)); log.bare = false
+    log.mergeActive = true; precondition(!log.canIntegrate(.rebase)); log.mergeActive = false
+    _ = try await repo.run(["update-ref", "refs/stash", revisions[0].hash])
+    let stashRows = try await repo.history(options: historyOptions)
+    log.entries[0].references = stashRows.first { $0.hash == revisions[0].hash }!.references
+    precondition(!log.integrationAvailable); log.entries[0].references = []
+    _ = try await repo.run(["update-ref", "-d", "refs/stash"])
+    let count = merges.count; log.requestIntegration(.merge); log.selected = [revisions[2].hash]; try await wait(); precondition(merges.count == count)
+    log.selected = [head.hash]; log.requestIntegration(.merge); try await wait(); precondition(log.error?.contains("already HEAD") == true && merges.count == count); log.error = nil
+    _ = try await repo.run(["merge", "--no-commit", "--no-ff", "side"])
+    log.selected = [revisions[0].hash]; log.requestIntegration(.rebase); try await wait(); precondition(log.error?.contains("active Merge or Rebase") == true); log.error = nil
+    _ = try await repo.run(["merge", "--abort"])
+    var plan = try await repo.cherryPickPlan(revisions: [revisions[2].hash]); plan.entries[0].action = .edit
+    let paused = try await repo.startRebase(plan, editorExecutable: editor, fromLog: true); precondition(paused.state.active)
+    log.requestIntegration(.merge); try await wait(); precondition(log.error?.contains("active Merge or Rebase") == true); log.error = nil
+    let recovered = RebaseWindowModel(repository: repo, access: nil); recovered.load(); try await settle(recovered)
+    precondition(!recovered.completionFromLog) // Cherry Pick origin is deliberately not a normal Log Rebase.
+    _ = try await repo.abortRebase()
+    var settings = RebaseOptions(); settings.branch = "target"; settings.upstream = "side"
+    var normal = try await repo.rebasePlan(settings); precondition(!normal.entries.isEmpty, "Normal Log-origin fixture has no replay entries"); normal.entries[0].action = .edit
+    let logPause = try await repo.startRebase(normal, editorExecutable: editor, fromLog: true); precondition(logPause.state.active)
+    let logOrigin = RebaseWindowModel(repository: repo, access: nil); logOrigin.editorExecutable = editor; logOrigin.load(); try await settle(logOrigin)
+    precondition(logOrigin.completionFromLog && !logOrigin.completionAfterFetch)
+    logOrigin.execute("continue"); try await settle(logOrigin)
+    precondition(logOrigin.finished && logOrigin.completedSuccessfully && logOrigin.completionActions.isEmpty)
+    _ = try await repo.run(["reset", "--hard", head.hash])
+    let after = try await repo.rebaseCommit("HEAD"), afterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    precondition(after.hash == head.hash && afterIndex == index)
+    _ = try await repo.run(["tag", "-d", "integration-tag"])
+    print("Actual native Log integration: original menu titles/icons/selectors, Merge/tag and Rebase/local-branch presets, moved-ref and hash fallback, native Merge model preset, stale/multiple/HEAD/stash/bare/busy-state guards, fresh active Merge/Rebase rejection and unchanged HEAD/index passed. Handoffs injected.")
+}
+
 @MainActor func verifyNativeRebaseMenus(_ repo: GitRepository, editor: URL?, revisions: [LogEntry]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.load(cherryPick: revisions.map(\.hash)); try await settle(model)
     let log = model.revisionMenuLog, one = Set([revisions[0].hash]), pair = Set([revisions[1].hash, revisions[2].hash])
@@ -624,6 +691,7 @@ import TurtleGitCore
     let merge = try await repo.rebaseCommit("HEAD")
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); try await verifyNativeRepeatedAndOmittedReferences(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
+    try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
 
