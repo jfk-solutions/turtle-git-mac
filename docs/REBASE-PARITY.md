@@ -22,17 +22,18 @@ followed by progress, status and Start/Continue, Abort/Cancel and Help controls.
 
 Active sessions recover the stopped and pending commits from Git's persistent
 metadata. They expose Working Tree, Refresh State, Skip, an amend-message field,
-Amend, Continue and Abort. Resolution edits and staging take place in Working Tree
-or an external editor. Start, Skip and Abort have confirmations. Selecting commits
+Amend, Continue and Abort. The Conflict Files tab now routes resolution through the native conflict editors
+and Resolve workflow, retaining resolved changes until the step advances. Start, Skip and Abort have confirmations. Selecting commits
 loads their files/message without invalidating a concurrently loading plan.
 
 Branch/upstream fields are currently editable native combo boxes rather than
 upstream's dropdown-only controls. Browse is a filtered reference list, not the
 complete reference/log browser. Edit now uses a multiline message tab and Continue
 applies it. Split opens full Commit selection dialogs, with durable part recovery.
-See [Edit/Split workflow](REBASE-SPLIT.md). Full row menus,
-completed-row display, conflict tabs and
-post-operation controls still need porting and comparison.
+See [Edit/Split workflow](REBASE-SPLIT.md) and
+[Conflict Files](REBASE-CONFLICT-FILES.md). Checkbox-selected conflict Continue,
+full row menus, completed-row display and post-operation controls still need
+porting and comparison.
 
 When the commit list has focus, P/S/Q/E choose Pick/Skip/Squash/Edit. Space cycles
 each selected row Pick → Skip → Edit → Squash → Pick, bypassing Squash for the

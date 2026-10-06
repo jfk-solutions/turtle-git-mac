@@ -74,6 +74,50 @@ import TurtleGitCore
     precondition(log == "Native split future\nNative split right\nNative split left\n")
     print("Actual native Split: multiline Edit host, first parent-based full Commit selection, post-action guard, automatic remaining-part dialog, Cancel/reopened normal part, metadata identity and final Continue/future replay passed. Sheets and answers injected; no displayed gestures.")
 }
+@MainActor func verifyNativeRecoveryFiles(_ repo: GitRepository, editor: URL?) async throws {
+    let path = "native recovery 雪\n.txt", clean = "native-recovery-clean.txt"
+    try Data("base-recovery\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "recovery base")
+    let base = try await repo.rebaseCommit("HEAD")
+    _ = try await repo.run(["checkout", "-b", "native-recovery-source"])
+    try Data("from-replay\n".utf8).write(to: repo.root.appendingPathComponent(path)); try Data("clean replay\n".utf8).write(to: repo.root.appendingPathComponent(clean))
+    try await repo.stage([path, clean]); _ = try await repo.commit(message: "recovery source")
+    let source = try await repo.rebaseCommit("HEAD")
+    _ = try await repo.run(["checkout", "target"])
+    try Data("from-onto\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "recovery onto")
+    let destination = try await repo.rebaseCommit("HEAD")
+    let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor
+    model.load(cherryPick: [source.hash]); try await settle(model); model.setAction(.edit, ids: [source.hash]); model.request("start")
+    let deadline = Date().addingTimeInterval(30)
+    while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!model.busy && model.error != nil && model.fileRecovery && model.tab == 0 && !model.canSplit)
+    model.error = nil
+    precondition(model.conflicts.map(\.path) == [path] && Set(model.conflictRows.map(\.path)) == [path, clean])
+    let host = NSHostingView(rootView: RebaseConflictFiles(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1000, height: 300); host.layoutSubtreeIfNeeded()
+    guard let table = findTable(host) else { fatalError("Actual Conflict Files table unavailable") }
+    precondition(table.numberOfRows == 2 && table.tableColumns.count == 5)
+    model.compareConflicts([path]); try await settle(model); precondition(model.conflictPatch?.contains("base-recovery") == true); model.conflictPatch = nil
+    var edited: [String] = [], resolve: ResolveWindowModel?
+    model.onConflictAction = { action, paths in
+        if action == .editConflict { edited = paths; return }
+        let receiver = ResolveWindowModel(repository: repo, access: nil, paths: paths, quick: action.resolveChoice); resolve = receiver
+        receiver.confirm = { [weak receiver] choice, entries in DispatchQueue.main.async { receiver?.apply(entries, using: choice) } }
+        receiver.onChanged = { _ in model.refreshState() }; receiver.load()
+    }
+    model.conflictAction(.editConflict, ids: [path]); precondition(edited == [path])
+    edited = []; model.conflictAction(.editConflict, ids: [path, clean]); precondition(edited.isEmpty)
+    model.conflictAction(.resolveTheirs, ids: [path])
+    let resolvedDeadline = Date().addingTimeInterval(30)
+    while (!model.conflicts.isEmpty || model.busy || resolve?.busy == true) && Date() < resolvedDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(resolve?.error == nil && model.error == nil && model.conflicts.isEmpty && model.fileRecovery && !model.canSplit)
+    precondition(Set(model.conflictRows.map(\.path)) == [path, clean])
+    let resolvedText = try String(contentsOf: repo.root.appendingPathComponent(path), encoding: .utf8); precondition(resolvedText == "from-replay\n")
+    let reopened = RebaseWindowModel(repository: repo, access: nil); reopened.editorExecutable = editor; reopened.load(); try await settle(reopened)
+    precondition(reopened.fileRecovery && !reopened.canSplit && Set(reopened.conflictRows.map(\.path)) == [path, clean])
+    reopened.request("continue"); try await settle(reopened); precondition(reopened.finished && !reopened.active && !reopened.fileRecovery)
+    let preserved = try await repo.rebaseCommit(destination.hash); precondition(preserved.subject == "recovery onto")
+    let ancestor = try await repo.run(["merge-base", "--is-ancestor", base.hash, "HEAD"]); precondition(ancestor.exitCode == 0)
+    print("Actual Conflict Files: five-column native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application and final Continue passed. Editor/confirmation routing injected.")
+}
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
     model.load(cherryPick: revisions); try await settle(model)
@@ -361,6 +405,7 @@ import TurtleGitCore
     precondition(approvedText == approved + "\n")
     print("Actual native squash: Advanced SquashDate captured, editor pause without error alert, original selected identity, reopened Cherry Pick/multiline editor, exact Unicode/comment message approval, first author/latest date and Continue passed.")
     try await verifyNativeSplit(repo, editor: model.editorExecutable)
+    try await verifyNativeRecoveryFiles(repo, editor: model.editorExecutable)
 
 
 

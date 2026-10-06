@@ -542,4 +542,20 @@ final class RebaseTests: XCTestCase {
         let log = try await repo.run(["log", "-2", "--format=%s"]).text; XCTAssertEqual(log, "squash remainder\nsquash left\n")
     }
 
+    func testConflictedEditCannotSplitBeforeItsCommitIsApplied() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
+        let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertTrue(stopped.state.needsFileRecovery); XCTAssertFalse(stopped.state.isEditPause); XCTAssertFalse(stopped.state.canSplit)
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        let resolved = try await GitRepository(root: root).rebaseState()
+        XCTAssertTrue(resolved.needsFileRecovery); XCTAssertTrue(resolved.conflicts.isEmpty); XCTAssertFalse(resolved.isEditPause); XCTAssertFalse(resolved.canSplit)
+        let head = try await repo.rebaseCommit("HEAD")
+        do { _ = try await repo.beginRebaseSplit(); XCTFail("Edit has not been applied") } catch RebaseFailure.plan {}
+        let unchanged = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(unchanged.hash, head.hash)
+        let done = try await repo.continueRebase(editMessage: "Must not amend destination")
+        XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+        let message = try await repo.run(["log", "-1", "--format=%s", "upstream"]).text; XCTAssertEqual(message, "upstream\n")
+    }
+
 }

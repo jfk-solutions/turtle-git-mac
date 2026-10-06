@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "b3cfe81",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Rebase/Cherry Pick Conflict Files tab, existing editor/Resolve handoffs and applied-Edit phase guards",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "de18ba49d037e5e9707b21d009c97f6b4d573b0c2c2c087f102dabcc1959bc6f",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "c3331acecac00045198adc282a84dc7a0a09966e82aec95a852acf4effdd70d7",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "b6d3c1f733086bfc2453bc4c1c5cdc74625cfece85c13089fa697d1e00a21f93",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "06bafa6f3e72b93baaf700535f9ba94e165cf9797356e5fc0f6f6c6099f95ae5",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "5dd9df2bd61af01d8be6458c9736a260fcf46172b638628a89609c22a2ab22f0",
+    "README.md": "1fc38bb9998325c06108b0da40edeca27b896dbd7fb6cb723f2fd08c77dacbcc",
+    "docs/REBASE-PARITY.md": "5880bac93fd1a0f7385df9bfcc30659aa55e072a9779621a2020856771a9a3dd",
+    "docs/CHERRY-PICK-PARITY.md": "35da8af1209b0af870235ec31057f4b6b923a2b6fdf44c05bbcc11d661009be7",
+    "docs/REBASE-CONFLICT-FILES.md": "63dd793e5d35c4f6f00882b75f13f9409ec8c1f11e529060fb9e00e6c13835f3",
+    "docs/site/index.html": "b76bf9b8d0eed9c711083f1e3145d2d9bb42f5093178aeb4db612068b28f08cf"
+  },
+  "all_native_sources_manifest_sha256": "43eb18c9b29eb2f7675cf49347079dfe09c721c5683729f9fbcc666e65b3bd2e",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON mapping relative Swift source paths to file SHA256, default json.dumps separators",
+  "verification": {
+    "focused_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 32,
+      "failures": 0,
+      "new_coverage": "Conflicted Edit, resolved-before-Continue state, premature Split rejection and destination history preservation"
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Actual five-column native Conflict Files table, clean/conflicted rows and Unicode/newline path",
+        "Stage-1 base comparison and single-path Edit routing",
+        "Actual quick Resolve replayed-side selection and parent refresh",
+        "Resolved row retention and reopening before Continue",
+        "Premature Split blocked, Continue preserves destination history"
+      ],
+      "regressions": "Existing Log, list shortcuts/reorder, Add/draft/repeated identities, mainline/Edit/reopening, empty patch, squash and Split checks pass",
+      "limits": "Hidden hosted views; editor routing and confirmation answers injected. Displayed editor/gestures/layout/accessibility and signed execution unverified"
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "tests": "c012fa4960141da69faa20af5c0dc93e00667eb777bc8c4e8ea067e232a4a581",
+    "native": "9041262a91b76aacd0ed92867d0bd5fb464e5e47bbabd68af3325f92e47ed4e6",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Checkbox-selected conflict Continue and partial-file preservation",
+    "Conflict commit message editing and all contextual commands",
+    "Displayed layout, keyboard/accessibility and editor handoff acceptance",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Port upstream checked conflict-file selection into Continue while preserving excluded changes; current Continue consumes existing staged resolutions.",
+    "sources": [
+      "src/TortoiseProc/RebaseDlg.cpp: conflict Continue checked-file handling",
+      "Sources/TurtleGitMac/RebaseWindow.swift: RebaseConflictFiles and execute Continue"
+    ]
+  },
+  "processes": "No main app launched; hidden receiver-owned windows closed and receivers exited; final process audit empty"
+}

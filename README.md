@@ -297,7 +297,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   multiline message approval and apply the first/latest/current author-date setting.
   [Squash workflow](docs/REBASE-SQUASH.md). Edit uses multiline approval, and Split
   reuses full Commit selection with partial-history recovery.
-  [Edit/Split workflow](docs/REBASE-SPLIT.md).
+  [Edit/Split workflow](docs/REBASE-SPLIT.md). Conflict Files now retains resolved
+  changes and routes native conflict editors and Resolve commands.
+  [Conflict workflow](docs/REBASE-CONFLICT-FILES.md).
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Native Cherry Pick plans from single/multiple Log selections, colored action icons,

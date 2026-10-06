@@ -115,3 +115,9 @@ the first author retained. See [Squash workflow](REBASE-SQUASH.md).
 Edit now has a multiline tab; Continue applies its message. Split reuses full
 native Commit selection with parent-based first amendments, normal subsequent
 parts and reopening after cancellation. See [Edit/Split](REBASE-SPLIT.md).
+
+The shared Conflict Files tab now retains resolved changes and routes existing
+native editors and Resolve commands with replay-specific side labels. A
+conflicted Edit cannot Split or amend destination HEAD before application.
+Checkbox-selected Continue and displayed acceptance remain pending.
+See [Conflict Files](REBASE-CONFLICT-FILES.md).

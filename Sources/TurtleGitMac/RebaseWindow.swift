@@ -78,6 +78,13 @@ import TurtleGitCore
     @Published var state: RebaseState?
     @Published var selection = Set<String>()
     @Published var files: [CommitFile] = []
+    @Published var conflictRows: [StatusEntry] = []
+    @Published var conflictStatistics: [String: CommitFile] = [:]
+    @Published var conflicts: [ConflictEntry] = []
+    @Published var selectedConflicts = Set<String>()
+    @Published var fileRecovery = false
+    var onConflictAction: (RepositoryAction, [String]) -> Void = { _, _ in }
+    @Published var conflictPatch: String?
     @Published var selectedFiles = Set<String>()
     @Published var message = ""
     @Published var amendMessage = ""
@@ -108,6 +115,34 @@ import TurtleGitCore
     var helpURL: URL { URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-" + (isCherryPick ? "cherrypick" : "rebase") + ".html")! }
     private var planGeneration = 0
     private var detailGeneration = 0
+    private var conflictStep: Int?
+    private func loadConflictFiles() async throws {
+        let current = state?.currentStep
+        if !active || conflictStep != current { conflictStep = nil }
+        if state?.needsFileRecovery == true { conflictStep = current }
+        fileRecovery = active && conflictStep == current
+        if fileRecovery {
+            conflicts = try await repository.conflicts(paths: [])
+            conflictRows = try await repository.status().filter { $0.state != .untracked && $0.state != .ignored }
+            conflictStatistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+            selectedConflicts.formIntersection(Set(conflictRows.map(\.id)))
+        } else { conflicts = []; conflictRows = []; conflictStatistics = [:]; selectedConflicts = [] }
+    }
+    func conflictAction(_ action: RepositoryAction, ids: Set<String>) {
+        guard !busy, !selectingSplit else { return }
+        let paths = conflicts.filter { ids.contains($0.id) }.map(\.path)
+        guard !paths.isEmpty, action != .editConflict || paths.count == 1 && ids.count == 1 else { return }
+        onConflictAction(action, paths)
+    }
+    func compareConflicts(_ ids: Set<String>) {
+        let paths = conflicts.filter { ids.contains($0.id) }.map(\.path)
+        guard !busy, !selectingSplit, !paths.isEmpty else { return }; busy = true
+        Task {
+            defer { busy = false; loadPendingHandoff() }
+            do { try requireAccess(); conflictPatch = try await repository.run(["diff", "--no-ext-diff", "--no-color", "--base", "--"] + paths).text }
+            catch { self.error = error.localizedDescription }
+        }
+    }
     private var completion = "Rebase finished"
     private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?)?
     private func loadPendingHandoff() {
@@ -153,7 +188,8 @@ import TurtleGitCore
             do {
                 try requireAccess()
                 references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil; draftEntries = []
-                if active { splitCommit = state?.split != nil; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.stoppedAction == .edit { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
+                try await loadConflictFiles(); if fileRecovery { tab = 0 }
+                if active { splitCommit = state?.split != nil; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
                 finished = false; plan = nil; recovered = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
                 if let cherryPick {
                     plan = try await repository.cherryPickPlan(revisions: cherryPick)
@@ -296,7 +332,7 @@ import TurtleGitCore
         guard !busy, !selectingSplit else { return }; busy = true
         Task {
             defer { busy = false; loadPendingHandoff() }
-            do { let wasActive = active; state = try await repository.rebaseState(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.stoppedAction == .edit { tab = 1 }; selectCommit() } else if wasActive { finished = true; completion = "\(operationTitle) session ended" }; onChanged() }
+            do { let wasActive = active; state = try await repository.rebaseState(); try await loadConflictFiles(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; selectCommit() } else if wasActive { finished = true; completion = "\(operationTitle) session ended" }; onChanged() }
             catch { self.error = error.localizedDescription }
         }
     }
@@ -320,11 +356,13 @@ import TurtleGitCore
                 case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; result = try await repository.startRebase(snapshot, editorExecutable: executable)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
-                default: result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage, editMessage: state?.stoppedAction == .edit && state?.split == nil ? amendMessage : nil)
+                default: result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage, editMessage: state?.isEditPause == true && state?.split == nil ? amendMessage : nil)
                 }
                 output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
-                if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.stoppedAction == .edit { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
+                try await loadConflictFiles()
+                if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
                 if result.state.squashMessage != nil { tab = 1 }
+                else if fileRecovery { tab = 0; if result.exitCode != 0 { error = result.output } }
                 else if result.exitCode != 0 { error = result.output }
                 onChanged()
             } catch { self.error = error.localizedDescription }
@@ -407,15 +445,20 @@ struct RebaseDialog: View {
                     }.disabled(!model.editable)
                 }.frame(minHeight: 180)
                 TabView(selection: $model.tab) {
+                    Group {
+                    if model.fileRecovery { RebaseConflictFiles(model: model) }
+                    else {
                     Table(model.files, selection: $model.selectedFiles) {
                         TableColumn("Path", value: \.path)
                         TableColumn("Extension") { file in Text((file.path as NSString).pathExtension) }.width(70)
                         TableColumn("Status", value: \.status).width(100)
                         TableColumn("Lines added") { file in Text(file.added.map(String.init) ?? "–") }.width(85)
                         TableColumn("Lines removed") { file in Text(file.removed.map(String.init) ?? "–") }.width(95)
-                    }.tabItem { Text("Revision Files") }.tag(0)
+                    }
+                    }
+                    }.tabItem { Text(model.fileRecovery ? "Conflict Files" : "Revision Files") }.tag(0)
                     Group {
-                        if model.state?.squashMessage != nil || model.state?.stoppedAction == .edit || model.state?.split != nil {
+                        if model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
                                 TextEditor(text: $model.amendMessage).font(.system(.body, design: .monospaced)).accessibilityLabel(model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message")
@@ -453,6 +496,27 @@ struct RebaseDialog: View {
             Button("Cancel", role: .cancel) {}
         } message: { Text(model.confirmation ?? "") }
         .sheet(isPresented: $model.browsing) { RebaseReferenceChooser(model: model) }
+        .sheet(isPresented: Binding(get: { model.conflictPatch != nil }, set: { if !$0 { model.conflictPatch = nil } })) {
+            VStack { Text("Compare with base").font(.headline); OutputView(text: model.conflictPatch ?? "").frame(minWidth: 850, minHeight: 520); Button("Close") { model.conflictPatch = nil }.keyboardShortcut(.cancelAction) }.padding(12)
+        }
+    }
+}
+struct RebaseConflictFiles: View {
+    @ObservedObject var model: RebaseWindowModel
+    var body: some View {
+        Table(model.conflictRows, selection: $model.selectedConflicts) {
+            TableColumn("Path") { entry in HStack(spacing: 5) { Image(nsImage: entry.state.icon.image() ?? NSImage()); Text(entry.path).foregroundStyle(entry.state.textColor) } }
+            TableColumn("Extension") { Text(($0.path as NSString).pathExtension) }.width(70)
+            TableColumn("Status") { Text($0.state.rawValue.capitalized).foregroundStyle($0.state.textColor) }.width(110)
+            TableColumn("Lines added") { Text(model.conflictStatistics[$0.path]?.added.map(String.init) ?? "–") }.width(85)
+            TableColumn("Lines removed") { Text(model.conflictStatistics[$0.path]?.removed.map(String.init) ?? "–") }.width(95)
+        }.contextMenu(forSelectionType: String.self) { ids in
+            TurtleGitContextMenu {
+                Button { model.compareConflicts(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(!model.conflicts.contains { ids.contains($0.id) } || model.busy)
+                Divider()
+                ResolveSelectionMenu(paths: model.conflicts.filter { ids.contains($0.id) }.map(\.path), rebase: true, canEdit: ids.count == 1 && model.conflicts.contains { ids.contains($0.id) }) { action, _ in model.conflictAction(action, ids: ids) }
+            }
+        } primaryAction: { ids in model.conflictAction(.editConflict, ids: ids) }
     }
 }
 private struct RebaseReferenceChooser: View {
