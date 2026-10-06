@@ -160,3 +160,8 @@ Repeated Squash conflicts retain no-change middle messages in the final draft,
 exclude deliberate Skip steps, and preserve the latest source date. Reopening,
 empty-group choices and subsequent ancestry are covered by real/headless native
 fixtures. See [repeated conflicts](REBASE-SQUASH-CONFLICTS.md#repeated-conflicts-within-a-group).
+
+Configured Git reference updates survive the native custom plan, with group refs
+following the final Squash result. Commit-step identity ignores those additional
+commands; Cherry Pick keeps source branches unchanged. Linked-worktree empty
+Skip recovery is covered. See [reference recovery](REBASE-REFERENCE-RECOVERY.md).

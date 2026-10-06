@@ -1,0 +1,120 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "abc58a2",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Preserve configured Git reference updates through custom plans and Squash groups; recover linked-worktree empty Skip",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "37de3659d8a0b882e6519801ae3a502eebde275ea8daa76eb61a146956f0c4e9",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "318619f124a1eac8118798fb3e803c3082cf62227410cfdccb647ba75c0c181a",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "e7e51b61c41ab6c08897af7e6a1a30a2b5e07bbb07cd41464214a34035c29799",
+    "scripts/check-cherry-pick-native.py": "bd27d314ace139018790503ed86d7c67d4ff635bf0bf45bef5e6bbe19a67be90",
+    "README.md": "42e63b0546a330ff23419af1d42aae5915bdf4bd6f9e31a1248ffe28d2bf7bf3",
+    "docs/REBASE-PARITY.md": "2451aedb1eaf2888415e7621769490411931ff4c9b57b0ac815c47e87af09712",
+    "docs/CHERRY-PICK-PARITY.md": "dd30180c4a57ac30f863be076782a385d44074bc4caf0df67c5952f31d9a5655",
+    "docs/REBASE-EMPTY-SQUASH.md": "9d13f89f4faaadb0dcdad7a997076805c00cccf1981010ea20abb63ee2957ae6",
+    "docs/REBASE-REFERENCE-RECOVERY.md": "fceead606b8be1b7ed0b07ba7a06b5a65818ba8a4e04d5e85eb0249cafbd9f9c",
+    "docs/site/index.html": "f2a1ec4d78bc36632b3043218c2a2ec871143bd4fd46183ccd285348b588b108"
+  },
+  "all_native_sources_manifest_sha256": "d3f61e22ba307b4b8adbf221c3efa532be9ef44483f00cfc55155bd99f7f9a85",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "initial_probe": {
+      "tests": 2,
+      "assertion_failures": 2,
+      "result": "Linked-worktree recovery passed; group branch refs remained on old source commits because the sequence editor discarded update-ref commands"
+    },
+    "initial_targeted_after_fix": {
+      "tests": 2,
+      "failures": 0
+    },
+    "rebase_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 49,
+      "failures": 0,
+      "coverage": [
+        "Empty and normal group Commit and empty whole-group Skip update both group refs",
+        "Refs before/after the group follow the correct commits",
+        "Source identity/progress/date policy excludes update-ref commands from commit count",
+        "Full and abbreviated generated commands retained",
+        "Reordered plans associate references with source commits",
+        "Checked-out other-worktree branch remains untouched",
+        "Linked-worktree soft-reset/Skip failure reopens and retries without main-worktree activity",
+        "Existing Squash/first/latest/current/Edit/Split/checked-conflict/attribution/legacy-editor regressions"
+      ]
+    },
+    "final_targeted_rerun": {
+      "tests": 2,
+      "failures": 0,
+      "reason": "Added capability guards for Git runtimes without reference-update support"
+    },
+    "whole_native_regressions": {
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "result": "passed all four executables before the final abbreviated-command/capability-matcher extension",
+      "coverage": "Existing Log/list/Add/Cherry Pick/conflict/Split/Squash/empty/repeated-conflict models; Cherry Pick retains source branches with updateRefs configured",
+      "limit": "This earlier run used a literal --update-refs help match, so system/packaged feature checks were skipped. It is regression evidence, not final reference-feature evidence."
+    },
+    "final_native_reference_checks": {
+      "command": "python3 scripts/check-cherry-pick-native.py --references-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "architecture": "arm64",
+      "supported_passes": [
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "unsupported_feature_skip": [
+        "2.37.1"
+      ],
+      "coverage": [
+        "Actual native Rebase plan with prefix/group/future refs",
+        "Correct stopped row/step/total with injected update-ref commands",
+        "Reopened approval and empty-group Commit/Skip",
+        "First author/latest date retained",
+        "Full and abbreviated todo forms"
+      ],
+      "limits": "Hidden hosted views and injected prompts; displayed interaction and signed execution unverified"
+    },
+    "swift_build": "passed",
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; exact NOTICE cmp passed for both",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "probe": "bdc3ae562d2fe4162977a79f3644056c22b4b935a8c05e7dd871f74951efe387",
+    "targeted": "78a74b89de341aafdb7c68f8736fd3a2141c14b8cac4a6715d7c237eb45dc5b2",
+    "build": "fbe831ae6da4f8eff282e35bf2eeb8273db30847ec71cb7414d73835213de42a",
+    "tests": "5294528331efa0e3ac76de055a9df0290f984b3f0b7a8bee99d4cdb204a1ca13",
+    "final-targeted": "4c00e8ebb896b35078e26ba718c69200bd580dc60c4eb54f7673b7da1694b7a0",
+    "native": "7bd8a9a75328c5ff255166866d67a0f8909e592a87e3c985f5ce305f82b48392",
+    "native-final": "c5b0e2636da31fb4ed37151d0aa979ec2dcc89980ec7ee07828308aa1e177fb1",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "References on automatically omitted patch-equivalent source commits",
+    "Repeated Add occurrences with configured updateRefs",
+    "Arbitrary external todo edits",
+    "Notes/post-rewrite mapping after empty whole-group Skip",
+    "Displayed dialogs and accessibility",
+    "Signed Finder/sandbox integration and App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit port"
+  ],
+  "next_finding": {
+    "issue": "Use real fixtures for automatically omitted patch-equivalent commits and repeated Add occurrences with updateRefs; then verify notes/post-rewrite mapping for skipped empty groups. Continue missing Rebase row menus/completed presentation/post-operation controls.",
+    "sources": [
+      "Git generated todo update-ref anchors and rebase-merge/update-refs metadata",
+      "src/TortoiseProc/RebaseDlg.cpp: m_rewrittenCommitsMap and RewriteNotes",
+      "Sources/TurtleGitCore/Rebase.swift: mergeReferenceUpdates and resumeEmptySquashSkip"
+    ]
+  },
+  "processes": "No main app launched; receivers exited and owned hidden windows closed; final app/receiver process audit empty"
+}

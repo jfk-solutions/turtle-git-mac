@@ -145,3 +145,8 @@ Repeated Squash conflicts retain no-change middle messages in the final draft,
 exclude deliberate Skip steps, and preserve the latest source date. Reopening,
 empty-group choices and subsequent ancestry are covered by real/headless native
 fixtures. See [repeated conflicts](REBASE-SQUASH-CONFLICTS.md#repeated-conflicts-within-a-group).
+
+The internal Cherry Pick replay overrides `rebase.updateRefs=false` to keep
+source branches unchanged even when that repository setting is enabled.
+Linked-worktree empty-group Skip recovery is exercised independently of the main
+worktree. See [reference recovery](REBASE-REFERENCE-RECOVERY.md).

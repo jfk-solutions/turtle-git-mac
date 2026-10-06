@@ -164,19 +164,22 @@ final class RebaseTests: XCTestCase {
         let unchanged = try await repo.rebaseState(); XCTAssertEqual(unchanged.split?.expectedHead, applied.state.split?.expectedHead); XCTAssertEqual(unchanged.split?.conflictRecovery, true)
         _ = try await repo.abortRebase()
     }
-    func squashConflictFixture(policy: RebaseSquashDate, empty: Bool = false) async throws -> (URL, GitRepository, String, RebasePlan) {
+    func squashConflictFixture(policy: RebaseSquashDate, empty: Bool = false, prefix: Bool = false) async throws -> (URL, GitRepository, String, RebasePlan) {
         let (root, repo, path) = try await GitPatchTests().fixture()
         let base = try await repo.rebaseCommit("HEAD")
         _ = try await repo.run(["checkout", "-b", "upstream"])
         try Data("upstream conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "upstream conflict")
         _ = try await repo.run(["checkout", "-b", "topic", base.hash])
+        if prefix {
+            try Data("prefix\n".utf8).write(to: root.appendingPathComponent("prefix-group.txt")); try await repo.stage(["prefix-group.txt"]); _ = try await repo.commit(message: "prefix before group")
+        }
         try Data("first group file\n".utf8).write(to: root.appendingPathComponent("group-first.txt")); try await repo.stage(["group-first.txt"])
         _ = try await repo.run(["commit", "--author", "First Group <first@example.test>", "-m", "first group\n\n# literal first"], environmentOverrides: ["GIT_AUTHOR_DATE": "2001-02-03T04:05:06+02:00"])
         if empty { _ = try await repo.run(["rm", "--", "group-first.txt"]) }
         try Data("squashed conflict\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
         _ = try await repo.run(["commit", "--author", "Last Group <last@example.test>", "-m", "last group\n\n# literal last"], environmentOverrides: ["GIT_AUTHOR_DATE": "2002-03-04T05:06:07-03:00"])
         var settings = options(); settings.squashDate = policy
-        var plan = try await repo.rebasePlan(settings); plan.entries[1].action = .squash
+        var plan = try await repo.rebasePlan(settings); plan.entries[plan.entries.count - 1].action = .squash
         return (root, repo, path, plan)
     }
     func testSquashConflictResolutionReopensCombinedMessageAndKeepsDatePolicies() async throws {
@@ -279,6 +282,66 @@ final class RebaseTests: XCTestCase {
             }
             XCTAssertEqual(FileManager.default.fileExists(atPath: root.appendingPathComponent("group-first.txt").path), !empty)
         }
+    }
+    func testEmptySquashSkipUpdatesGroupReferencesWhenConfigured() async throws {
+        for (empty, choice) in [(true, RebaseEmptyChoice.skip), (true, .commit), (false, .commit)] {
+            let (root, repo, path, _) = try await squashConflictFixture(policy: .latest, empty: empty, prefix: true); defer { try? FileManager.default.removeItem(at: root) }
+            guard try await repo.run(["rebase", "-h"], successfulExitCodes: 0...129).text.contains("update-refs") else { throw XCTSkip("Git runtime does not support reference updates") }
+            let first = try await repo.rebaseCommit("HEAD^"), last = try await repo.rebaseCommit("HEAD"), prefix = try await repo.rebaseCommit("HEAD^^")
+            _ = try await repo.run(["branch", "group-prefix-ref", prefix.hash]); _ = try await repo.run(["branch", "group-first-ref", first.hash]); _ = try await repo.run(["branch", "group-final-ref", last.hash])
+            _ = try await repo.run(["config", "rebase.updateRefs", "true"])
+            _ = try await repo.run(["config", "rebase.abbreviateCommands", choice == .skip ? "true" : "false"])
+            try Data("future\n".utf8).write(to: root.appendingPathComponent("future-group.txt")); try await repo.stage(["future-group.txt"]); _ = try await repo.commit(message: "future after reference group")
+            _ = try await repo.run(["branch", "group-future-ref", "HEAD"])
+            var plan = try await repo.rebasePlan(options()); plan.options.squashDate = .latest; plan.entries[2].action = .squash
+            let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+            XCTAssertEqual(stopped.state.currentStep, 3); XCTAssertEqual(stopped.state.total, 4); XCTAssertEqual(stopped.state.stoppedEntryID, plan.entries[2].id)
+            try Data((empty ? "upstream conflict\n" : "resolved reference group\n").utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+            let paused = try await repo.continueRebase(); XCTAssertEqual(paused.state.squashMessage?.latestDate, last.date)
+            let result = try await GitRepository(root: root).continueRebase(squashMessage: "approved reference group", emptySquashChoice: empty ? choice : nil)
+            XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertFalse(result.state.active)
+            let onto = try await repo.rebaseCommit("upstream"), rewrittenPrefix = try await repo.rebaseCommit("group-prefix-ref"), rewrittenFirst = try await repo.rebaseCommit("group-first-ref"), rewrittenLast = try await repo.rebaseCommit("group-final-ref"), future = try await repo.rebaseCommit("HEAD"), rewrittenFuture = try await repo.rebaseCommit("group-future-ref")
+            XCTAssertEqual(rewrittenPrefix.parents, [onto.hash]); XCTAssertNotEqual(rewrittenPrefix.hash, prefix.hash)
+            XCTAssertEqual(rewrittenFirst.hash, rewrittenLast.hash); XCTAssertEqual(future.parents, [rewrittenLast.hash]); XCTAssertEqual(rewrittenFuture.hash, future.hash)
+            if choice == .skip { XCTAssertEqual(rewrittenLast.hash, rewrittenPrefix.hash) }
+            else { XCTAssertEqual(rewrittenLast.parents, [rewrittenPrefix.hash]); XCTAssertEqual(rewrittenLast.author, first.author); XCTAssertEqual(rewrittenLast.date, last.date) }
+        }
+    }
+    func testReorderedPlanUpdatesAssociatedRefsButNotCheckedOutWorktreeRef() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        guard try await repo.run(["rebase", "-h"], successfulExitCodes: 0...129).text.contains("update-refs") else { throw XCTSkip("Git runtime does not support reference updates") }
+        let first = try await repo.rebaseCommit("HEAD^"), second = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["branch", "first-ref", first.hash]); _ = try await repo.run(["branch", "second-ref", second.hash])
+        let linkedRoot = root.appendingPathComponent("pinned-linked")
+        _ = try await repo.run(["worktree", "add", "-b", "pinned-ref", linkedRoot.path, first.hash])
+        _ = try await repo.run(["config", "rebase.updateRefs", "true"])
+        var plan = try await repo.rebasePlan(options()); plan.entries.reverse()
+        let result = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertFalse(result.state.active)
+        let head = try await repo.rebaseCommit("HEAD"), parent = try await repo.rebaseCommit("HEAD^"), firstRef = try await repo.rebaseCommit("first-ref"), secondRef = try await repo.rebaseCommit("second-ref"), pinned = try await repo.rebaseCommit("pinned-ref")
+        XCTAssertEqual(head.subject, "first"); XCTAssertEqual(parent.subject, "second")
+        XCTAssertEqual(firstRef.hash, head.hash); XCTAssertEqual(secondRef.hash, parent.hash); XCTAssertEqual(pinned.hash, first.hash)
+    }
+    func testEmptySquashSkipInLinkedWorktreeKeepsMainWorktreeAndSourceRefs() async throws {
+        let (root, repo, path, _) = try await squashConflictFixture(policy: .latest, empty: true); defer { try? FileManager.default.removeItem(at: root) }
+        let first = try await repo.rebaseCommit("HEAD^"), last = try await repo.rebaseCommit("HEAD"), original = last.hash
+        _ = try await repo.run(["config", "rebase.updateRefs", "true"])
+        let linkedRoot = root.appendingPathComponent("linked")
+        _ = try await repo.run(["worktree", "add", "--detach", linkedRoot.path, "upstream"])
+        let linked = GitRepository(root: linkedRoot)
+        var plan = try await linked.cherryPickPlan(revisions: [last.hash, first.hash]); plan.entries[1].action = .squash
+        _ = try await linked.startRebase(plan, editorExecutable: editor)
+        try Data("upstream conflict\n".utf8).write(to: linkedRoot.appendingPathComponent(path)); try await linked.stage([path]); _ = try await linked.continueRebase()
+        let lockPath = try await linked.run(["rev-parse", "--path-format=absolute", "--git-path", "index.lock"]).text.trimmingCharacters(in: .newlines)
+        let lock = URL(fileURLWithPath: lockPath); try Data().write(to: lock); defer { try? FileManager.default.removeItem(at: lock) }
+        let failed = try await linked.continueRebase(emptySquashChoice: .skip)
+        XCTAssertNotEqual(failed.exitCode, 0); XCTAssertFalse(failed.state.canSplit)
+        let mainState = try await repo.rebaseState(); XCTAssertFalse(mainState.active)
+        try FileManager.default.removeItem(at: lock)
+        let result = try await GitRepository(root: linkedRoot).continueRebase()
+        XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertFalse(result.state.active)
+        let source = try await repo.rebaseCommit("topic"), mainHead = try await repo.rebaseCommit("HEAD"), onto = try await repo.rebaseCommit("upstream"), linkedHead = try await linked.rebaseCommit("HEAD")
+        XCTAssertEqual(source.hash, original); XCTAssertEqual(mainHead.hash, original); XCTAssertEqual(linkedHead.hash, onto.hash)
     }
     func testEmptySquashSkipRejectsUnstagedChangesAndStaleHeadWithoutLosingRequest() async throws {
         let (root, repo, path, plan) = try await squashConflictFixture(policy: .latest, empty: true); defer { try? FileManager.default.removeItem(at: root) }
@@ -673,7 +736,7 @@ final class RebaseTests: XCTestCase {
             }
             let first = try await repo.rebaseCommit("HEAD^"), last = try await repo.rebaseCommit("HEAD")
             var settings = RebaseOptions(); settings.upstream = base.hash; settings.force = true; settings.squashDate = policy
-            var plan = try await repo.rebasePlan(settings); plan.entries[1].action = .squash
+            var plan = try await repo.rebasePlan(settings); plan.entries[plan.entries.count - 1].action = .squash
             let stopped = try await repo.startRebase(plan, editorExecutable: editor)
             let pending = try XCTUnwrap(stopped.state.squashMessage)
             XCTAssertTrue(stopped.state.active); XCTAssertNotEqual(stopped.exitCode, 0); XCTAssertTrue(stopped.state.conflicts.isEmpty)

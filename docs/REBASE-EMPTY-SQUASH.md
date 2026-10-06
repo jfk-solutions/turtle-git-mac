@@ -43,3 +43,7 @@ Pinned upstream: `7338078f8ddd924b8cddee35f512f2286072136d`,
 `src/TortoiseProc/RebaseDlg.cpp` (`Squash_Edit`, `IsResultingCommitBecomeEmpty`,
 `IDS_CHERRYPICK_EMPTY` and `ResetParentForSquash`).
 Evidence: [QA record](qa/rebase-empty-squash-2026-10-06.json).
+
+Linked-worktree failure/reopening and configured group reference updates also
+have real fixtures. See [reference recovery](REBASE-REFERENCE-RECOVERY.md) for
+their scope and the remaining rewrite/notes checks.

@@ -13,6 +13,7 @@ import tempfile
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append', help='Git to test; may be repeated (default: /usr/bin/git).')
+parser.add_argument("--references-only", action="store_true", help="Run only native Rebase reference-update fixtures.")
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
@@ -37,6 +38,10 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-cherry-pick-check-') as tempo
                     '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
+    if args.references_only:
+        environment['TURTLEGIT_NATIVE_REFERENCE_ONLY'] = '1'
+    else:
+        environment.pop('TURTLEGIT_NATIVE_REFERENCE_ONLY', None)
     for git in git_paths:
         print('Checking Git: ' + str(git.resolve()), flush=True)
         environment['TURTLEGIT_TEST_GIT'] = str(git.resolve())

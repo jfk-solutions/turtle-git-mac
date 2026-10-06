@@ -223,6 +223,7 @@ import TurtleGitCore
     print("Actual native Squash conflict: whole-group file list, Unicode/newline path, Continue/Commit/Done captions, staged resolution and repeated reopening, multiline/literal-comment approval, first author and first/latest/current dates passed. Hidden hosted views; prompt answers injected.")
 }
 @MainActor func verifyNativeEmptySquash(_ repo: GitRepository, editor: URL?, repeatedConflicts: Bool = false) async throws {
+    _ = try await repo.run(["config", "rebase.updateRefs", "true"])
     let preference = UserDefaults.standard.object(forKey: "SquashDate")
     defer { if let preference { UserDefaults.standard.set(preference, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") } }
     for (variant, choice) in [("commit", RebaseEmptyChoice.commit), ("skip", .skip), ("cancel", .cancel)] {
@@ -303,8 +304,50 @@ import TurtleGitCore
             precondition(files.isEmpty && parent.parents == [destination.hash] && parent.subject == "Native approved empty " + name && parent.author == first.author && parent.date == last.date)
         }
         precondition(!FileManager.default.fileExists(atPath: repo.root.appendingPathComponent(firstPath).path))
+        let source = try await repo.rebaseCommit("native-empty-squash-" + name); precondition(source.hash == future.hash, "Cherry Pick must not update source branches")
     }
+    _ = try await repo.run(["config", "--unset", "rebase.updateRefs"])
     print((repeatedConflicts ? "Actual native repeated Squash conflicts: two conflict stops/reopening, retained middle message and final date; " : "Actual native empty Squash groups: ") + "reopened Commit/Skip/Cancel choices, Cancel retains message/HEAD/index, Commit keeps message-only group with first author/latest date, Skip drops entire group, index-lock failure reopens and retries approved Skip without another prompt, future replay follows the correct parent. Answers injected.")
+}
+@MainActor func verifyNativeSquashReferenceUpdates(_ repo: GitRepository, editor: URL?) async throws {
+    let help = try await repo.run(["rebase", "-h"], successfulExitCodes: 0...129).text
+    guard help.contains("update-refs") else { print("Native Rebase reference updates: Git runtime does not advertise update-refs; feature check skipped."); return }
+    let preference = UserDefaults.standard.object(forKey: "SquashDate")
+    defer { if let preference { UserDefaults.standard.set(preference, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") } }
+    UserDefaults.standard.set(1, forKey: "SquashDate")
+    for (name, choice) in [("commit", RebaseEmptyChoice.commit), ("skip", .skip)] {
+        let stem = "native-reference-" + name, path = stem + " 雪\n.txt", firstPath = stem + "-first.txt", prefixPath = stem + "-prefix.txt", futurePath = stem + "-future.txt"
+        try Data("reference base\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: stem + " base")
+        _ = try await repo.run(["checkout", "-b", stem])
+        try Data("prefix\n".utf8).write(to: repo.root.appendingPathComponent(prefixPath)); try await repo.stage([prefixPath]); _ = try await repo.commit(message: stem + " prefix")
+        _ = try await repo.run(["branch", stem + "-prefix-ref", "HEAD"])
+        try Data("first\n".utf8).write(to: repo.root.appendingPathComponent(firstPath)); try await repo.stage([firstPath]); _ = try await repo.run(["commit", "--author", "Reference First <first@example.test>", "-m", stem + " first"], environmentOverrides: ["GIT_AUTHOR_DATE": "2001-02-03T04:05:06+02:00"])
+        let first = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", stem + "-first-ref", first.hash])
+        _ = try await repo.run(["rm", "--", firstPath]); try Data("source reference\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path])
+        _ = try await repo.run(["commit", "--author", "Reference Last <last@example.test>", "-m", stem + " last"], environmentOverrides: ["GIT_AUTHOR_DATE": "2002-03-04T05:06:07-03:00"])
+        let last = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", stem + "-last-ref", last.hash])
+        try Data("future\n".utf8).write(to: repo.root.appendingPathComponent(futurePath)); try await repo.stage([futurePath]); _ = try await repo.commit(message: stem + " future")
+        _ = try await repo.run(["branch", stem + "-future-ref", "HEAD"]); _ = try await repo.run(["checkout", "target"])
+        try Data("destination reference\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: stem + " destination")
+        let destination = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", stem]); _ = try await repo.run(["config", "rebase.updateRefs", "true"]); _ = try await repo.run(["config", "rebase.abbreviateCommands", choice == .skip ? "true" : "false"])
+        let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.confirmConflictHints = { true }; model.load(upstream: "target"); try await settle(model)
+        model.setAction(.squash, ids: [last.hash]); model.request("start"); precondition(model.confirmation != nil); model.confirmation = nil; model.execute("start")
+        let deadline = Date().addingTimeInterval(30)
+        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!model.busy && model.error != nil && model.state?.currentStep == 3 && model.state?.total == 4 && model.state?.stoppedEntryID == last.hash); model.error = nil
+        try Data("destination reference\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); model.refreshState(); try await settle(model)
+        model.request("continue"); try await settle(model); precondition(model.state?.squashMessage?.latestDate == last.date)
+        let reopened = RebaseWindowModel(repository: repo, access: nil); reopened.editorExecutable = editor; reopened.confirmConflictHints = { true }; reopened.load(); try await settle(reopened)
+        precondition(reopened.primaryActionTitle == "Commit" && reopened.state?.currentStep == 3)
+        let host = NSHostingView(rootView: RebaseDialog(model: reopened)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
+        reopened.amendMessage = stem + " approved"; reopened.chooseEmptyResult = { choice }; reopened.request("continue"); try await settle(reopened); precondition(reopened.finished)
+        let prefix = try await repo.rebaseCommit(stem + "-prefix-ref"), groupFirst = try await repo.rebaseCommit(stem + "-first-ref"), groupLast = try await repo.rebaseCommit(stem + "-last-ref"), future = try await repo.rebaseCommit(stem + "-future-ref"), head = try await repo.rebaseCommit("HEAD")
+        precondition(prefix.parents == [destination.hash] && groupFirst.hash == groupLast.hash && future.hash == head.hash && future.parents == [groupLast.hash])
+        if choice == .skip { precondition(groupLast.hash == prefix.hash) }
+        else { precondition(groupLast.parents == [prefix.hash] && groupLast.author == first.author && groupLast.date == last.date) }
+        _ = try await repo.run(["config", "--unset", "rebase.updateRefs"]); _ = try await repo.run(["config", "--unset", "rebase.abbreviateCommands"]); _ = try await repo.run(["checkout", "target"])
+    }
+    print("Actual native Rebase reference updates: prefix/group/future branch refs preserved through custom plan, correct commit-step identity despite update-ref commands, reopened empty-group Commit/Skip and first author/latest date passed. Prompts injected.")
 }
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
@@ -393,6 +436,7 @@ import TurtleGitCore
     _ = try await repo.run(["merge", "--no-ff", "--no-edit", "side"])
     let merge = try await repo.rebaseCommit("HEAD")
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
 
     let log = LogWindowModel(repository: repo, access: nil)
@@ -605,6 +649,7 @@ import TurtleGitCore
     try await verifyNativeSquashConflict(repo, editor: model.editorExecutable)
     try await verifyNativeEmptySquash(repo, editor: model.editorExecutable)
     try await verifyNativeEmptySquash(repo, editor: model.editorExecutable, repeatedConflicts: true)
+    try await verifyNativeSquashReferenceUpdates(repo, editor: model.editorExecutable)
 
 
 

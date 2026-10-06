@@ -114,7 +114,11 @@ public enum RebaseEditor {
         guard arguments.count == 3, let source = environment["TURTLEGIT_REBASE_PLAN"] else { return 1 }
         do {
             let target = URL(fileURLWithPath: arguments[2])
-            try Data(contentsOf: URL(fileURLWithPath: source)).write(to: target, options: .atomic)
+            let custom = try String(contentsOf: URL(fileURLWithPath: source), encoding: .utf8)
+            let generated = FileManager.default.fileExists(atPath: target.path) ? try String(contentsOf: target, encoding: .utf8) : ""
+            let merged = try mergeReferenceUpdates(generated: generated, custom: custom)
+            try Data(merged.todo.utf8).write(to: target, options: .atomic)
+            if merged.hasUpdates { try Data().write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-update-refs"), options: .atomic) }
             if let metadata = environment["TURTLEGIT_CHERRY_PICK_METADATA"] {
                 try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-cherry-pick.json"), options: .atomic)
             }
@@ -134,6 +138,42 @@ public enum RebaseEditor {
     public static func messageCommand(executable: URL) -> String {
         "'" + executable.path.replacingOccurrences(of: "'", with: "'\\''") + "' " + messageArgument
     }
+    static func mergeReferenceUpdates(generated: String, custom: String) throws -> (todo: String, hasUpdates: Bool) {
+        let rows = custom.split(separator: "\n").map(String.init)
+        let fields = rows.map { $0.split(separator: " ", maxSplits: 2).map(String.init) }
+        var updates: [Int: [String]] = [:], preceding = ""
+        for line in generated.split(separator: "\n") {
+            let parts = line.split(separator: " ", maxSplits: 2).map(String.init)
+            guard let command = parts.first else { continue }
+            if ["pick", "p", "drop", "d", "edit", "e", "squash", "s", "reword", "r", "fixup", "f"].contains(command), parts.count >= 2 { preceding = parts[1] }
+            if command == "update-ref" || command == "u" {
+                guard parts.count == 2, parts[1].hasPrefix("refs/heads/"), !preceding.isEmpty else { throw RebaseFailure.plan }
+                let matches = fields.indices.filter { fields[$0].count >= 2 && fields[$0][1].hasPrefix(preceding) }
+                guard matches.count == 1, var index = matches.first else { throw RebaseFailure.plan }
+                // References inside a Squash group must name its final result,
+                // including the destination parent when the whole group is skipped.
+                var next = index + 1
+                while next < fields.count {
+                    if fields[next].first == RebaseAction.skip.rawValue { next += 1; continue }
+                    guard fields[next].first == RebaseAction.squash.rawValue else { break }
+                    index = next; next += 1
+                }
+                updates[index, default: []].append(line.description)
+            }
+        }
+        guard !updates.isEmpty else { return (custom, false) }
+        return (rows.indices.flatMap { [rows[$0]] + (updates[$0] ?? []) }.joined(separator: "\n") + "\n", true)
+    }
+    static func currentStep(in directory: URL) -> Int {
+        if FileManager.default.fileExists(atPath: directory.appendingPathComponent("turtlegit-update-refs").path) {
+            let done = (try? String(contentsOf: directory.appendingPathComponent("done"), encoding: .utf8)) ?? ""
+            return done.split(separator: "\n").filter { $0.split(separator: " ").first.flatMap { RebaseAction(rawValue: String($0)) } != nil }.count
+        }
+        for file in ["msgnum", "next"] {
+            if let text = try? String(contentsOf: directory.appendingPathComponent(file), encoding: .utf8), let step = Int(text.trimmingCharacters(in: .newlines)) { return step }
+        }
+        return 0
+    }
     private static func handleMessage(arguments: [String]) -> Int32 {
         guard arguments.count == 3 else { return 1 }
         let directory = URL(fileURLWithPath: arguments[2]).deletingLastPathComponent().appendingPathComponent("rebase-merge")
@@ -142,7 +182,7 @@ public enum RebaseEditor {
         guard FileManager.default.fileExists(atPath: configuration.path), FileManager.default.fileExists(atPath: squash.path) else { return 0 }
         do {
             let config = try JSONDecoder().decode(RebaseMessageConfiguration.self, from: Data(contentsOf: configuration))
-            let step = Int(try String(contentsOf: directory.appendingPathComponent("msgnum"), encoding: .utf8).trimmingCharacters(in: .newlines)) ?? 0
+            let step = currentStep(in: directory)
             guard config.dates.indices.contains(step - 1) else { return 1 }
             let text = try String(contentsOf: squash, encoding: .utf8)
             // Remove only Git's combination headings. Literal comment-prefixed
@@ -216,7 +256,7 @@ extension GitRepository {
             if fields.count >= 2, let original = mapping[fields[1]] { fields[1] = original }
             return fields.joined(separator: " ")
         }
-        let step = Int(line("msgnum")) ?? Int(line("next")) ?? 0
+        let step = RebaseEditor.currentStep(in: directory)
         let identities = replayIdentities(directory)
         let originalStopped = mapping[stopped] ?? stopped
         let stoppedIdentity = identities.indices.contains(step - 1) && identities[step - 1].hash == originalStopped ? identities[step - 1].id : originalStopped
@@ -224,14 +264,16 @@ extension GitRepository {
         let request = active && manager.fileExists(atPath: requestURL.path) ? try JSONDecoder().decode(RebaseSquashMessage.self, from: Data(contentsOf: requestURL)) : nil
         let splitURL = directory.appendingPathComponent("turtlegit-split.json")
         let split = active && manager.fileExists(atPath: splitURL.path) ? try JSONDecoder().decode(RebaseSplitState.self, from: Data(contentsOf: splitURL)) : nil
-        let lastCommand = read("done").split(separator: "\n").last?.split(separator: " ").first.map(String.init)
+        let referenceUpdates = manager.fileExists(atPath: directory.appendingPathComponent("turtlegit-update-refs").path)
+        let done = read("done").split(separator: "\n")
+        let lastCommand = (referenceUpdates ? done.filter { $0.split(separator: " ").first.flatMap { RebaseAction(rawValue: String($0)) } != nil } : done).last?.split(separator: " ").first.map(String.init)
         let action = lastCommand.flatMap(RebaseAction.init(rawValue:))
         let editPause = active && conflicts.isEmpty && action == .edit && (manager.fileExists(atPath: directory.appendingPathComponent("amend").path) || split?.step == step && (split?.conflictRecovery == true && (split?.parts ?? 0) > 0 || split?.conflictRecoveryReturn != nil))
         let pending = request?.step == step && conflicts.isEmpty ? request : nil
         let activeSplit = split?.step == step && split?.entryID == stoppedIdentity ? split : nil
         return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
                            stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: activeSplit?.conflictRecovery == true || activeSplit?.conflictRecoveryReturn != nil ? try rebaseCommit("HEAD").message : read("message"), currentStep: step,
-                           total: Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
+                           total: referenceUpdates ? identities.count : Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: commands, squashMessage: pending, stoppedAction: action, split: activeSplit,
                            isEditPause: editPause, needsFileRecovery: active && (!conflicts.isEmpty || !originalStopped.isEmpty && !editPause && pending == nil && activeSplit == nil))
     }
@@ -416,6 +458,7 @@ extension GitRepository {
         if plan.options.force || plan.options.isCherryPick || plan.hasAddedCommits { args += ["--force-rebase", "--reapply-cherry-picks"] }
         // Interactive replay stops for patches that become empty, including on Git versions predating --empty=stop.
         if plan.options.isCherryPick { args.append("--keep-empty") }
+        if plan.options.isCherryPick { args = ["-c", "rebase.updateRefs=false"] + args }
         if plan.options.preserveMerges { args.append("--rebase-merges") }
         else { args.append("--interactive") }
         args += ["--onto", plan.ontoHash, "--", plan.upstreamHash, plan.branchReference.isEmpty ? plan.branchHash : String(plan.branchReference.dropFirst(11))]
