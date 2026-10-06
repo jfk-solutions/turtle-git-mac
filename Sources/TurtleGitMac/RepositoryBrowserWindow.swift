@@ -52,10 +52,10 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     private func chooseRevision() {
         guard let window, window.attachedSheet == nil else { return }
-        let controller = LogWindowController(repository: model.repository, access: model.access) { [weak self] entry in
+        let controller = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] entry in
             self?.picker = nil
             if let entry { self?.model.revision = entry.hash; self?.model.refresh() }
-        }
+        })
         controller.model.endRevision = model.snapshot?.objectID; controller.model.reload()
         picker = controller
         if let child = controller.window { window.beginSheet(child) }

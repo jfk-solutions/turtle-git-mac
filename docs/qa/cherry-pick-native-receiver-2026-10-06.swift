@@ -118,5 +118,47 @@ import TurtleGitCore
     precondition(reopened.finished && !reopened.active && reopened.status == "Cherry Pick finished")
     let branch = try await repo.branch(); precondition(branch == "target")
     print("Actual Cherry Pick model/dialog host: order/IDs/actions, attribution persistence, cancel leaves HEAD unchanged, merge parent metadata, Edit, reopened mode and Continue passed. No displayed windows or alerts.")
+    let multiplePicker = LogWindowModel(repository: repo, access: nil, selecting: true, selectingMultiple: true)
+    multiplePicker.entries = [merge, parent, side]; multiplePicker.selected = [side.hash, merge.hash]
+    var chosen: [LogEntry] = []
+    multiplePicker.finishMultipleSelection = { chosen = $0 ?? [] }
+    precondition(multiplePicker.canAcceptSelection)
+    multiplePicker.accept(); precondition(chosen.map(\.hash) == [merge.hash, side.hash])
+    chosen = []; multiplePicker.busy = true; multiplePicker.accept(); precondition(chosen.isEmpty)
+    multiplePicker.busy = false; multiplePicker.selected = []; precondition(!multiplePicker.canAcceptSelection)
+    let singlePicker = LogWindowModel(repository: repo, access: nil, selecting: true)
+    singlePicker.entries = multiplePicker.entries; singlePicker.selected = [merge.hash, side.hash]
+    precondition(!singlePicker.canAcceptSelection)
+    singlePicker.selected = [merge.hash]; var selectedOne: LogEntry?
+    singlePicker.finishSelection = { selectedOne = $0 }; singlePicker.accept(); precondition(selectedOne?.hash == merge.hash)
+
+    _ = try await repo.run(["checkout", "side"])
+    _ = try await repo.run(["commit", "--allow-empty", "-m", "Repeated native empty"])
+    let empty = try await repo.rebaseCommit("HEAD")
+    _ = try await repo.run(["checkout", "target"])
+    let adding = RebaseWindowModel(repository: repo, access: nil); adding.editorExecutable = model.editorExecutable
+    adding.load(cherryPick: [empty.hash]); try await settle(adding)
+    precondition(adding.canAdd)
+    let addHost = NSHostingView(rootView: RebaseDialog(model: adding)); addHost.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); addHost.layoutSubtreeIfNeeded(); precondition(addHost.fittingSize.width > 0)
+    let originalPlan = adding.plan!
+    adding.pickingCommits = true; precondition(!adding.canAdd && !adding.canStart)
+    adding.finishPickingCommits(nil); precondition(adding.plan!.originalCommits == originalPlan.originalCommits)
+    adding.pickingCommits = true; adding.finishPickingCommits([empty.hash]); try await settle(adding)
+    precondition(adding.entries.map(\.occurrence) == [1, 0])
+    precondition(adding.selection == [adding.entries[0].id] && adding.entries[0].action == .pick)
+    adding.options.preserveMerges = true; precondition(!adding.canAdd); adding.options.preserveMerges = false
+    adding.setAction(.edit, ids: Set(adding.entries.map(\.id)))
+    adding.request("start"); try await settle(adding)
+    precondition(adding.active && adding.state?.stoppedEntryID == empty.hash && !adding.canAdd)
+    adding.execute("continue"); try await settle(adding)
+    precondition(adding.active && adding.state?.stoppedEntryID == empty.hash + ":1")
+    precondition(adding.selection == [empty.hash + ":1"] && adding.entries.map(\.id) == [empty.hash + ":1"])
+    let reopenedDuplicate = RebaseWindowModel(repository: GitRepository(root: root, executable: git), access: nil)
+    reopenedDuplicate.load(); try await settle(reopenedDuplicate)
+    precondition(reopenedDuplicate.entries.map(\.id) == [empty.hash + ":1"])
+    reopenedDuplicate.execute("continue"); try await settle(reopenedDuplicate)
+    precondition(reopenedDuplicate.finished && !reopenedDuplicate.active)
+    print("Actual native Add: multiple-picker OK order/busy/empty checks, single-picker regression, cancel preserves plan, repeated Add uses distinct row IDs, active/Preserve Merges guards, repeated Edit/Continue selection and reopening passed.")
+
 }
 @main struct Receiver { @MainActor static func main() async throws { try await verify() } }

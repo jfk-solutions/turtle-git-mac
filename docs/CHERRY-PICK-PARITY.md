@@ -47,7 +47,9 @@ the operation ends.
 
 ## Verification and remaining work
 
-Focused `RebaseTests`: 16 tests, zero failures on 2026-10-06. These include
+The Cherry Pick checkpoint `a2a00d8` recorded 16 focused `RebaseTests`, zero failures
+on 2026-10-06. The subsequent [Add audit](REBASE-ADD-PARITY.md) records 19 passing
+focused tests and the extended native checks. These include
 ordinary Rebase regression coverage and Cherry Pick selection/Skip, stale branch
 identity, both merge mainlines, Edit/reopening/Continue, conflict/reopening/Abort,
 merge-conflict/Skip, reordered Squash, detached HEAD, originally empty commits
@@ -90,7 +92,10 @@ Edit/reopening/mode recovery and Continue. Parent answers are injected: this doe
 not establish displayed NSAlert appearance, default focus, keyboard behavior or
 window title/close gestures. No displayed app or receiver windows were launched.
 
-Pending: Add/Split, squash message and author/date choices; root/Octopus replay,
+Add now uses a native multi-select Log sheet, preserving picker order and repeated
+row identities through recovery. See [Add audit](REBASE-ADD-PARITY.md).
+
+Pending: Split, squash message and author/date choices; root/Octopus replay,
 linked-worktree Cherry Pick, patch-becomes-empty and dirty-target interactions;
 full conflict tabs and stash/restore; displayed layout/keyboard/accessibility and
 signed sandbox execution. Existing Rebase screenshots predate these changes and

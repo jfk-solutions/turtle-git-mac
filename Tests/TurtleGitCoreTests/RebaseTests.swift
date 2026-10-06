@@ -261,4 +261,59 @@ final class RebaseTests: XCTestCase {
         }
     }
 
+    func testAddingCommitsKeepsPlanSnapshotAndAppendsInPickerOrder() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let revisions = try await repo.run(["rev-list", "main..topic"]).text.split(separator: "\n").map(String.init)
+        _ = try await repo.run(["checkout", "main"])
+        let original = try await repo.cherryPickPlan(revisions: [revisions[1]])
+        var extended = try await repo.addingRebaseCommits(original, revisions: [revisions[0], revisions[1]])
+        XCTAssertEqual(extended.entries.map { $0.commit.subject }, ["first", "first", "second"])
+        XCTAssertEqual(extended.entries.map(\.occurrence), [0, 1, 0])
+        XCTAssertEqual(Set(extended.entries.map(\.id)).count, 3)
+        XCTAssertEqual(extended.branchHash, original.branchHash); XCTAssertEqual(extended.branchReference, original.branchReference)
+        XCTAssertTrue(extended.hasAddedCommits); XCTAssertTrue(extended.entries.allSatisfy { $0.action == .pick })
+        do { _ = try await repo.addingRebaseCommits(extended, revisions: ["no-such-commit"]); XCTFail("Invalid additions must fail atomically") } catch RebaseFailure.revision {}
+        XCTAssertEqual(original.entries.count, 1)
+        extended.entries[1].action = .skip
+        let result = try await repo.startRebase(extended, editorExecutable: editor); XCTAssertEqual(result.exitCode, 0, result.output)
+        let subjects = try await repo.run(["log", "--format=%s", original.branchHash + "..HEAD"]).text
+        XCTAssertEqual(subjects, "second\nfirst\n")
+        let branch = try await repo.branch(); XCTAssertEqual(branch, "main")
+    }
+
+    func testRepeatedAddedCommitsKeepDistinctIDsAcrossEditReopeningAndContinue() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "repeatable empty"])
+        let commit = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["checkout", "main"])
+        let original = try await repo.cherryPickPlan(revisions: [commit.hash])
+        var plan = try await repo.addingRebaseCommits(original, revisions: [commit.hash])
+        plan.entries[0].action = .edit; plan.entries[1].action = .edit
+        let first = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertEqual(first.exitCode, 0, first.output); XCTAssertTrue(first.state.active)
+        XCTAssertEqual(first.state.stoppedEntryID, plan.entries[0].id)
+        let reopened = GitRepository(root: root)
+        let remaining = try await reopened.remainingRebaseEntries(); XCTAssertEqual(remaining.map(\.id), plan.entries.map(\.id))
+        let second = try await reopened.continueRebase(); XCTAssertEqual(second.exitCode, 0, second.output); XCTAssertTrue(second.state.active)
+        XCTAssertEqual(second.state.stoppedCommit, commit.hash); XCTAssertEqual(second.state.stoppedEntryID, plan.entries[1].id)
+        let finalRows = try await reopened.remainingRebaseEntries(); XCTAssertEqual(finalRows.map(\.id), [plan.entries[1].id])
+        let done = try await reopened.continueRebase(); XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+        let count = try await reopened.run(["rev-list", "--count", original.branchHash + "..HEAD"]).text; XCTAssertEqual(count, "2\n")
+    }
+
+    func testAddMakesUpToDateRebaseReplayAndPreserveMergesDisallowsAdd() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let upstream = try await repo.rebaseCommit("upstream")
+        var settings = options(); settings.upstream = "main"
+        let original = try await repo.rebasePlan(settings); XCTAssertEqual(original.disposition, .upToDate)
+        let plan = try await repo.addingRebaseCommits(original, revisions: [upstream.hash])
+        XCTAssertEqual(plan.disposition, .ready); XCTAssertFalse(plan.options.force)
+        let result = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(result.exitCode, 0, result.output)
+        let branch = try await repo.branch(); XCTAssertEqual(branch, "topic")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("upstream.txt").path))
+        settings.preserveMerges = true
+        let structural = try await repo.rebasePlan(settings)
+        do { _ = try await repo.addingRebaseCommits(structural, revisions: [upstream.hash]); XCTFail("Preserve Merges disables Add") } catch RebaseFailure.preservePlan {}
+    }
+
 }

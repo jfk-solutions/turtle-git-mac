@@ -37,9 +37,9 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
             reflogPicker = picker; picker.onClosed = { [weak self] in self?.reflogPicker = nil }
             if let child = picker.window { window.beginSheet(child) }
         } else {
-            let picker = LogWindowController(repository: model.repository, access: model.access) { [weak model] entry in
+            let picker = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak model] entry in
                 if let entry { model?.choose(entry.hash, side: side) }
-            }
+            })
             logPicker = picker; picker.onClosed = { [weak self] in self?.logPicker = nil }
             let revision = side == .base ? model.snapshot?.from : model.snapshot?.to
             if case .revision(let hash) = revision { picker.model.endRevision = hash; picker.model.reload() }

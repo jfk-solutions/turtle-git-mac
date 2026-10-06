@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "a2a00d8",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Add commits to captured Rebase/Cherry Pick plans, multi-selection Log picker and repeated-row recovery",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "53ef43a8c9a4fa4cd1260f563666907a12193da27e437eb485e869a636f5e308",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "1a3489c4922b361985da9528d7cc99ed06cc57e8890252bdf7a1ed16187b5560",
+    "Sources/TurtleGitMac/LogWindow.swift": "7e55e1f88ff1b443a2b166987d472e47a3d4825ada1604e99702d0636e395ab4",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "73656210f377fe8c07f45251500f75bc217b28a0b5056fbc52bc4623284c5b41",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "47aeba54efa474f513f4919e10a28f4a59f46df4bcfa41e059636b0229dd8151",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "b8420745367b6ea7ec56cbabc3c6eda3c76b4784b7147e56400417a460699c33",
+    "docs/REBASE-ADD-PARITY.md": "719ecccac160563b6487d9c258a2c7ac2202ba73eaa541cfb9eec7174f958ae1",
+    "docs/CHERRY-PICK.md": "c2cdcb6030b768ef4541a0c0ab88cb278b431855f2626ae99bad9f78a5c1c9e9",
+    "docs/CHERRY-PICK-PARITY.md": "a444d538f53efa9def20677c27e04dcf18a4e8f23616f5e6c6f09de2c8f02225",
+    "docs/REBASE-PARITY.md": "030123532f7a43831896c435882a9be63efe7050a4b232265d95a87dd1f370db",
+    "docs/site/index.html": "4511513d18a74039853930a7c17a34f14a9e170e77b6ed71485345a2d0af11de"
+  },
+  "all_native_sources_manifest_sha256": "26dec34879247c6e0e7694b2e26d403a96e9b692eb2b051eb0f3ea3ae58d2ec9",
+  "verification": {
+    "focused_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 19,
+      "failures": 0,
+      "new_coverage": [
+        "Added immutable revisions retain destination snapshot and replay in picker order",
+        "Duplicate occurrence IDs remain distinct through real Edit/reopening/Continue",
+        "Add changes up-to-date Rebase to executable custom plan without changing Force checkbox",
+        "Preserve Merges rejects additions"
+      ]
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for system and packaged Git",
+      "architecture": "arm64",
+      "new_coverage": [
+        "Multiple-picker OK preserves visible order; busy/empty selection guards",
+        "Single-picker multiple selection remains disabled; single acceptance works",
+        "Actual Rebase view/model: Cancel preserves plan; new repeated row defaults Pick with distinct ID",
+        "Active/Preserve Merges Add guards",
+        "Repeated Edit/Continue selects distinct stopped row; reopen retains duplicate identity"
+      ],
+      "limits": [
+        "Picker results injected; actual displayed sheet and gestures not tested",
+        "Window title/close/focus/keyboard acceptance not tested"
+      ]
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; both NOTICE cmp passed",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "tests": "13eb621e00a479ae5f87eaa2af8af0e5ce87f3d15ba500a03d0aebd0403e661e",
+    "debug": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "native": "4c42cce20a56db57f96442f474907a596480d2fd3b269671b3013fb92ab47d07",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Add before initial branch-plan loading",
+    "Displayed Add sheet/screenshots and keyboard/accessibility",
+    "Signed App Store sandbox execution",
+    "GitHub CI/publication",
+    "Complete TortoiseGit parity"
+  ],
+  "processes": "No main app launched; receiver-owned hidden windows closed"
+}

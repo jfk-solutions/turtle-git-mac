@@ -295,7 +295,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Native Cherry Pick plans from single/multiple Log selections, colored action icons,
-  Pick/Skip/Edit/Squash and ordering, merge-parent prompts, attribution and recovery.
+  Pick/Skip/Edit/Squash, ordering, Add via multi-select Log, merge-parent prompts,
+  attribution and recovery.
   Displayed acceptance and advanced controls remain pending.
   [Guide](docs/CHERRY-PICK.md), [parity audit](docs/CHERRY-PICK-PARITY.md).
 - Follow System, Light and Dark appearance choices, with upstream file-status colors

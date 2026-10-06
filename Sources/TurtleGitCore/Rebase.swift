@@ -2,7 +2,8 @@ import Foundation
 
 public enum RebaseAction: String, CaseIterable, Sendable { case pick, skip = "drop", edit, squash }
 public struct RebaseEntry: Identifiable, Sendable {
-    public var id: String { commit.hash }
+    public var id: String { occurrence == 0 ? commit.hash : commit.hash + ":" + String(occurrence) }
+    public var occurrence = 0
     public let commit: LogEntry
     public var action: RebaseAction = .pick
     /// Required for retained merge commits in a Cherry Pick plan.
@@ -28,6 +29,7 @@ public struct RebasePlan: Sendable {
     public let branchReference: String
     public let originalCommits: [String]
     public var entries: [RebaseEntry]
+    public var hasAddedCommits = false
 }
 public struct RebaseState: Sendable {
     public let active: Bool
@@ -35,6 +37,7 @@ public struct RebaseState: Sendable {
     public let branch: String
     public let originalHead: String
     public let onto: String
+    public let stoppedEntryID: String
     public let stoppedCommit: String
     public let message: String
     public let currentStep: Int
@@ -76,6 +79,9 @@ public enum RebaseEditor {
             if let metadata = environment["TURTLEGIT_CHERRY_PICK_METADATA"] {
                 try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-cherry-pick.json"), options: .atomic)
             }
+            if let metadata = environment["TURTLEGIT_REPLAY_IDENTITIES"] {
+                try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-replay-identities.json"), options: .atomic)
+            }
             return 0
         }
         catch { return 1 }
@@ -83,6 +89,11 @@ public enum RebaseEditor {
     public static func command(executable: URL) -> String {
         "'" + executable.path.replacingOccurrences(of: "'", with: "'\\''") + "' " + argument
     }
+}
+private struct RebaseReplayIdentity: Codable {
+    let hash: String
+    let occurrence: Int
+    var id: String { occurrence == 0 ? hash : hash + ":" + String(occurrence) }
 }
 extension GitRepository {
     private func rebaseRevision(_ name: String) throws -> String {
@@ -112,10 +123,40 @@ extension GitRepository {
             if fields.count >= 2, let original = mapping[fields[1]] { fields[1] = original }
             return fields.joined(separator: " ")
         }
+        let step = Int(line("msgnum")) ?? Int(line("next")) ?? 0
+        let identities = replayIdentities(directory)
+        let originalStopped = mapping[stopped] ?? stopped
+        let stoppedIdentity = identities.indices.contains(step - 1) && identities[step - 1].hash == originalStopped ? identities[step - 1].id : originalStopped
         return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
-                           stoppedCommit: mapping[stopped] ?? stopped, message: read("message"), currentStep: Int(line("msgnum")) ?? Int(line("next")) ?? 0,
+                           stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: read("message"), currentStep: step,
                            total: Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
                            remainingCommands: commands)
+    }
+    private func replayIdentities(_ directory: URL) -> [RebaseReplayIdentity] {
+        (try? JSONDecoder().decode([RebaseReplayIdentity].self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
+    }
+    private func validateRebaseIdentities(_ plan: RebasePlan) throws {
+        let ids = plan.entries.map(\.id)
+        guard ids.count == plan.originalCommits.count, Set(ids).count == ids.count, Set(ids) == Set(plan.originalCommits),
+              plan.entries.allSatisfy({ $0.occurrence >= 0 }) else { throw RebaseFailure.plan }
+    }
+    /// Insert picker selections above the visible newest-first list, replaying them after existing entries.
+    public func addingRebaseCommits(_ plan: RebasePlan, revisions: [String]) throws -> RebasePlan {
+        guard !(try rebaseState().active) else { throw RebaseFailure.active }
+        guard !plan.options.preserveMerges else { throw RebaseFailure.preservePlan }
+        try validateRebaseIdentities(plan)
+        if revisions.isEmpty { return plan }
+        let commits = try revisions.reversed().map { try rebaseCommit($0) }
+        var entries = plan.entries
+        for commit in commits {
+            var entry = RebaseEntry(commit: commit)
+            entry.occurrence = entries.filter { $0.commit.hash == commit.hash }.map(\.occurrence).max().map { $0 + 1 } ?? 0
+            entries.append(entry)
+        }
+        var value = RebasePlan(disposition: .ready, options: plan.options, branchHash: plan.branchHash, upstreamHash: plan.upstreamHash,
+                               ontoHash: plan.ontoHash, branchReference: plan.branchReference, originalCommits: entries.map(\.id), entries: entries)
+        value.hasAddedCommits = true
+        return value
     }
     private func currentRebaseBranch() throws -> String {
         ((try? run(["symbolic-ref", "--quiet", "HEAD"]).text) ?? "").trimmingCharacters(in: .newlines)
@@ -164,18 +205,25 @@ extension GitRepository {
     public func remainingRebaseEntries() throws -> [RebaseEntry] {
         let state = try rebaseState()
         guard state.active else { return [] }
+        let identities = replayIdentities(try rebasePath("rebase-merge"))
         var result: [RebaseEntry] = []
-        if !state.stoppedCommit.isEmpty { result.append(RebaseEntry(commit: try rebaseCommit(state.stoppedCommit), action: .edit)) }
+        func recovered(_ hash: String, action: RebaseAction, position: Int) throws -> RebaseEntry {
+            var entry = RebaseEntry(commit: try rebaseCommit(hash), action: action)
+            if identities.indices.contains(position), identities[position].hash == entry.commit.hash { entry.occurrence = identities[position].occurrence }
+            return entry
+        }
+        if !state.stoppedCommit.isEmpty { result.append(try recovered(state.stoppedCommit, action: .edit, position: state.currentStep - 1)) }
+        var position = state.currentStep
         for line in state.remainingCommands {
             let fields = line.split(separator: " ", maxSplits: 2)
             guard fields.count >= 2, let action = RebaseAction(rawValue: String(fields[0])) else { continue }
-            result.append(RebaseEntry(commit: try rebaseCommit(String(fields[1])), action: action))
+            result.append(try recovered(String(fields[1]), action: action, position: position)); position += 1
         }
         return result
     }
     public func rebaseTodo(_ plan: RebasePlan) throws -> String {
         let ids = plan.entries.map(\.id)
-        guard ids.count == plan.originalCommits.count, Set(ids).count == ids.count, Set(ids) == Set(plan.originalCommits) else { throw RebaseFailure.plan }
+        try validateRebaseIdentities(plan)
         guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
         if plan.options.preserveMerges, ids != plan.originalCommits || plan.entries.contains(where: { $0.action != .pick }) { throw RebaseFailure.preservePlan }
         if plan.options.isCherryPick {
@@ -207,7 +255,7 @@ extension GitRepository {
             for index in replay.entries.indices {
                 let entry = replay.entries[index]
                 // Read immutable objects again rather than trusting caller-supplied parent metadata.
-                let original = try rebaseCommit(entry.id)
+                let original = try rebaseCommit(entry.commit.hash)
                 guard original.parents == entry.commit.parents else { throw RebaseFailure.plan }
                 guard entry.action != .skip, original.parents.count > 1 || plan.options.addCherryPickedFrom else { continue }
                 let parent: String?
@@ -230,22 +278,25 @@ extension GitRepository {
                                    environmentOverrides: ["GIT_AUTHOR_NAME": original.author, "GIT_AUTHOR_EMAIL": original.email, "GIT_AUTHOR_DATE": original.date]).text.trimmingCharacters(in: .newlines)
                 mapping[hash] = original.hash
                 var replacement = RebaseEntry(commit: try rebaseCommit(hash), action: entry.action)
-                replacement.mainline = nil
+                replacement.mainline = nil; replacement.occurrence = entry.occurrence
                 replay.entries[index] = replacement
             }
         }
         let path = temporary.appendingPathComponent("todo")
         // Validate the original plan first; synthetic merge IDs intentionally differ from its selections.
-        let todo = replay.entries.map { $0.action.rawValue + " " + $0.id + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
+        let todo = replay.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
         try Data((replay.entries.isEmpty ? "noop\n" : todo).utf8).write(to: path)
         var environment = ["GIT_SEQUENCE_EDITOR": RebaseEditor.command(executable: editorExecutable), "TURTLEGIT_REBASE_PLAN": path.path, "GIT_EDITOR": "/usr/bin/true"]
+        let identityFile = temporary.appendingPathComponent("identities.json")
+        try JSONEncoder().encode(plan.entries.map { RebaseReplayIdentity(hash: $0.commit.hash, occurrence: $0.occurrence) }).write(to: identityFile)
+        environment["TURTLEGIT_REPLAY_IDENTITIES"] = identityFile.path
         if plan.options.isCherryPick {
             let metadata = temporary.appendingPathComponent("cherry-pick.json")
             try JSONEncoder().encode(mapping).write(to: metadata)
             environment["TURTLEGIT_CHERRY_PICK_METADATA"] = metadata.path
         }
         var args = ["rebase", "--no-autostash"]
-        if plan.options.force || plan.options.isCherryPick { args += ["--force-rebase", "--reapply-cherry-picks"] }
+        if plan.options.force || plan.options.isCherryPick || plan.hasAddedCommits { args += ["--force-rebase", "--reapply-cherry-picks"] }
         if plan.options.isCherryPick { args += ["--keep-empty", "--empty=stop"] }
         if plan.options.preserveMerges { args.append("--rebase-merges") }
         else { args.append("--interactive") }

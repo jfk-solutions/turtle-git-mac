@@ -42,13 +42,13 @@ import TurtleGitCore
     }
     private func chooseRevision(_ target: FormatPatchWindowModel.Mode) {
         guard let window, window.attachedSheet == nil else { return }
-        let controller = LogWindowController(repository: model.repository, access: model.access) { [weak self] entry in
+        let controller = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] entry in
             self?.picker = nil
             guard let self, let entry else { return }
             if target == .since { self.model.since = entry.hash; self.model.mode = .since }
             else if target == .from { self.model.from = entry.hash; self.model.mode = .from }
             else { self.model.to = entry.hash; self.model.mode = .from }
-        }
+        })
         picker = controller; controller.model.reload()
         if let child = controller.window { window.beginSheet(child) }
     }

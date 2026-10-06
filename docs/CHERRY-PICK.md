@@ -12,8 +12,11 @@ from the oldest retained entry. Its numbered rows show the action, commit hash,
 message, author and date. Select a row to inspect its changed files and message.
 Use the row's context menu to choose **Pick**, **Skip**, **Edit** or **Squash**.
 **Up** and **Down** change the replay order; **Pick ALL** and **Options** change
-multiple rows. The first retained entry cannot be Squash. Adding further commits
-inside an existing plan is still pending; close the plan and select them in Log.
+multiple rows. The first retained entry cannot be Squash. **Add** opens a native Log picker that accepts multiple commits. They appear
+above the existing list, default to Pick and replay after the existing entries.
+Cancel leaves the plan unchanged. You can add the same commit again; repeated
+rows remain separately selectable after an interruption. An already-applied patch
+may stop as empty and require recovery.
 
 Enable **add "cherry picked from"** to append the original selected commit ID to
 the copied commit's message, like Git's `-x` option. This preference is remembered.
@@ -39,7 +42,7 @@ again recovers the operation in Cherry Pick mode, with the original selected
 commit IDs, remaining actions and recovery controls. Closing its window leaves
 that state available for reopening.
 
-This is a partial port. Full conflict tabs, Add/Split, squash message and author/date
+This is a partial port. Full conflict tabs, Split, squash message and author/date
 choices, complete keyboard/accessibility parity, displayed acceptance checks and
 signed App Store execution remain unfinished. See the [parity audit](CHERRY-PICK-PARITY.md)
 for the verification scope. Current macOS screenshots are pending.

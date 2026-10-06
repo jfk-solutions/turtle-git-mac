@@ -5,6 +5,7 @@ import TurtleGitCore
 @MainActor final class RebaseWindowController: NSWindowController, NSWindowDelegate {
     let model: RebaseWindowModel
     var onClosed: () -> Void = {}
+    private var logPicker: LogWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = RebaseWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -13,6 +14,17 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
         model.onModeChanged = { [weak window, weak model] in
             window?.title = "\(repository.root.lastPathComponent) – \(model?.operationTitle ?? "Rebase") – TurtleGit"
+        }
+        model.pickAdditionalCommits = { [weak self] in
+            guard let self, self.model.canAdd, let window = self.window, window.attachedSheet == nil, self.logPicker == nil else { return }
+            self.model.pickingCommits = true
+            let picker = LogWindowController(repository: repository, access: access, onChooseMultiple: { [weak self] revisions in
+                guard let self else { return }; self.model.finishPickingCommits(revisions?.map(\.hash))
+            })
+            self.logPicker = picker
+            picker.onClosed = { [weak self] in self?.logPicker = nil }
+            self.model.configureLogPicker(picker.model)
+            if let child = picker.window { window.beginSheet(child) } else { self.logPicker = nil; self.model.pickingCommits = false }
         }
         model.chooseMainline = { [weak window] commit, choices in
             guard let window, window.attachedSheet == nil else { return nil }
@@ -27,7 +39,7 @@ import TurtleGitCore
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { logPicker?.close(); logPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RebaseWindowModel: ObservableObject {
@@ -51,10 +63,13 @@ import TurtleGitCore
     @Published var error: String?
     @Published var confirmation: String?
     @Published var browsing = false
+    @Published var pickingCommits = false
     var close: () -> Void = {}
     var onChanged: () -> Void = {}
     var onShowStatus: () -> Void = {}
     var onModeChanged: () -> Void = {}
+    var configureLogPicker: (LogWindowModel) -> Void = { _ in }
+    var pickAdditionalCommits: () -> Void = {}
     var chooseMainline: (LogEntry, [LogParentChoice]) async -> Int? = { _, _ in nil }
     var editorExecutable: URL? = Bundle.main.executableURL
     var isCherryPick: Bool { options.isCherryPick || state?.isCherryPick == true }
@@ -66,12 +81,13 @@ import TurtleGitCore
     private var completion = "Rebase finished"
     private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?)?
     private func loadPendingHandoff() {
-        guard !busy, let pending = pendingLoad else { return }
+        guard !busy, !pickingCommits, let pending = pendingLoad else { return }
         pendingLoad = nil
         load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick)
     }
     var active: Bool { state?.active == true }
-    var editable: Bool { !busy && !active && !finished }
+    var editable: Bool { !busy && !active && !finished && !pickingCommits }
+    var canAdd: Bool { editable && plan != nil && !options.preserveMerges }
     // Upstream displays newest first, while replay proceeds from the oldest commit.
     var entries: [RebaseEntry] {
         if active { return recovered.reversed() }
@@ -95,7 +111,7 @@ import TurtleGitCore
     }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
     func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
-        guard !busy else {
+        guard !busy, !pickingCommits else {
             if upstream != nil || cherryPick != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick) }
             return
         }; busy = true; planGeneration += 1; detailGeneration += 1
@@ -159,6 +175,23 @@ import TurtleGitCore
             } catch { busy = false; self.error = error.localizedDescription; loadPendingHandoff() }
         }
     }
+    func finishPickingCommits(_ revisions: [String]?) {
+        pickingCommits = false
+        if let revisions, !revisions.isEmpty { addCommits(revisions) }
+        else { loadPendingHandoff() }
+    }
+    func addCommits(_ revisions: [String]) {
+        guard canAdd, let snapshot = plan, !revisions.isEmpty else { return }
+        busy = true; planGeneration += 1; detailGeneration += 1
+        Task {
+            defer { busy = false; loadPendingHandoff() }
+            do {
+                try requireAccess()
+                let value = try await repository.addingRebaseCommits(snapshot, revisions: revisions)
+                plan = value; selection = Set(value.entries.suffix(revisions.count).map(\.id)); selectCommit()
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     func setAction(_ action: RebaseAction, ids: Set<String>? = nil) {
         guard editable, !options.preserveMerges, var value = plan else { return }
         let targets = ids ?? selection
@@ -196,7 +229,7 @@ import TurtleGitCore
         else { execute(action) }
     }
     func execute(_ action: String) {
-        guard !busy, action != "start" || canStart else { return }
+        guard !busy, !pickingCommits, action != "start" || canStart else { return }
         let snapshot = plan; busy = true; tab = 2
         Task {
             defer { busy = false; loadPendingHandoff() }
@@ -210,7 +243,7 @@ import TurtleGitCore
                 default: result = try await repository.continueRebase()
                 }
                 output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
-                if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedCommit.isEmpty == false ? [state!.stoppedCommit] : []) }
+                if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
                 if result.exitCode != 0 { error = result.output }
                 onChanged()
             } catch { self.error = error.localizedDescription }
@@ -264,7 +297,7 @@ struct RebaseDialog: View {
                         }.disabled(!model.editable || model.options.preserveMerges)
                         Button("Up") { model.move(up: true) }.disabled(!model.editable || model.options.preserveMerges || model.selection.count != 1)
                         Button("Down") { model.move(up: false) }.disabled(!model.editable || model.options.preserveMerges || model.selection.count != 1)
-                        Button("Add") {}.disabled(true).help("Adding commits outside this plan is still being ported.")
+                        Button { model.pickAdditionalCommits() } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canAdd)
                         Spacer()
                         if model.isCherryPick { Toggle("add \"cherry picked from\"", isOn: $model.options.addCherryPickedFrom) }
                         else { Toggle("Preserve merges", isOn: $model.options.preserveMerges); Toggle("Force Rebase", isOn: $model.options.force) }

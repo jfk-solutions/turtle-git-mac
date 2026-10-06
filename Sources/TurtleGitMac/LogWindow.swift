@@ -35,9 +35,10 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
     let model: LogWindowModel
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, onChoose: ((LogEntry?) -> Void)? = nil) {
-        model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil)
-        selectionCompletion = onChoose
+    private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
+    init(repository: GitRepository, access: RepositoryAccessLease?, onChooseMultiple: (([LogEntry]?) -> Void)? = nil, onChoose: ((LogEntry?) -> Void)? = nil) {
+        model = LogWindowModel(repository: repository, access: access, selecting: onChoose != nil || onChooseMultiple != nil, selectingMultiple: onChooseMultiple != nil)
+        selectionCompletion = onChoose; multipleSelectionCompletion = onChooseMultiple
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 780),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Log Messages – TurtleGit"
@@ -73,6 +74,7 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
             }
         }
         model.finishSelection = { [weak self] revision in self?.finishSelection(revision) }
+        model.finishMultipleSelection = { [weak self] revisions in self?.finishMultipleSelection(revisions) }
         model.presentHistoricalSave = { [weak self] content, short in
             // Let the originating context-menu tracking finish before presenting AppKit UI.
             DispatchQueue.main.async { [weak self] in self?.saveHistoricalFile(content, short: short) }
@@ -149,9 +151,16 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
     }
     private func finishSelection(_ revision: LogEntry?) {
         guard !model.unifiedViewerBusy else { return }
+        if multipleSelectionCompletion != nil { finishMultipleSelection(nil); return }
         guard let completion = selectionCompletion else { return }; selectionCompletion = nil
         if let window { window.sheetParent?.endSheet(window); window.close() }
         completion(revision)
+    }
+    private func finishMultipleSelection(_ revisions: [LogEntry]?) {
+        guard !model.unifiedViewerBusy, let completion = multipleSelectionCompletion else { return }
+        multipleSelectionCompletion = nil
+        if let window { window.sheetParent?.endSheet(window); window.close() }
+        completion(revisions)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard (!model.busy || model.loadingHistory), !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
@@ -159,7 +168,8 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
     }
     func windowWillClose(_ notification: Notification) {
         let completion = selectionCompletion; selectionCompletion = nil
-        model.unifiedWindow?.close(); model.invalidate(); completion?(nil); onClosed()
+        let multiple = multipleSelectionCompletion; multipleSelectionCompletion = nil
+        model.unifiedWindow?.close(); model.invalidate(); completion?(nil); multiple?(nil); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -185,6 +195,7 @@ struct LogCommandRequest: Identifiable {
 @MainActor final class LogWindowModel: ObservableObject {
     let repository: GitRepository
     let selecting: Bool
+    let selectingMultiple: Bool
     // Keep the security-scoped grant alive if the main repository window changes.
     private let access: RepositoryAccessLease?
     @Published var entries: [LogEntry] = []
@@ -379,6 +390,7 @@ struct LogCommandRequest: Identifiable {
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
+    var finishMultipleSelection: ([LogEntry]?) -> Void = { _ in }
     var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
     var revision: LogEntry? { revisions.count == 1 ? revisions.first : nil }
     var visibleFiles: [CommitFile] { files.filter { filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths) } }
@@ -387,7 +399,7 @@ struct LogCommandRequest: Identifiable {
         return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false) { self.repository = repository; self.access = access; self.selecting = selecting }
+    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false) { self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple }
     func selectSearchFields(_ fields: HistorySearchFields) {
         guard !busy else { return }
         searchFields = fields.intersection(LogSearchSelection.all)
@@ -408,8 +420,13 @@ struct LogCommandRequest: Identifiable {
         UserDefaults.standard.set(enabled, forKey: "FilterCaseSensitively")
         if !search.isEmpty { reload() }
     }
+    var canAcceptSelection: Bool { !busy && (selectingMultiple ? !selected.isEmpty && entries.filter { selected.contains($0.hash) }.count == selected.count : revision != nil) }
     func accept() {
-        if selecting { guard !busy, let revision else { return }; finishSelection(revision) }
+        if selecting {
+            guard canAcceptSelection else { return }
+            if selectingMultiple { finishMultipleSelection(entries.filter { selected.contains($0.hash) }) }
+            else if let revision { finishSelection(revision) }
+        }
         else { close() }
     }
     func setPathScope(_ paths: [String]) {
@@ -856,7 +873,7 @@ struct LogDialog: View {
                 if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
                 Spacer()
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html")!) }
-                Button("OK") { model.accept() }.disabled(model.selecting && (model.busy || model.revision == nil)).keyboardShortcut(.defaultAction)
+                Button("OK") { model.accept() }.disabled(model.selecting && !model.canAcceptSelection).keyboardShortcut(.defaultAction)
                 if model.selecting { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }
             }
         }.padding(12).frame(minWidth: 1040, minHeight: 650)

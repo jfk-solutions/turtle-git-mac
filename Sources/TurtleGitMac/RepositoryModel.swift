@@ -1021,6 +1021,12 @@ import TurtleGitCore
             if self.root == root { self.activate(.status) }
             else if let access { self.openSession(access, action: .status) }
         }
+        controller.model.configureLogPicker = { [weak self] log in
+            log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+            log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
+            log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
+        }
         rebaseWindows[root.path] = controller
         if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)

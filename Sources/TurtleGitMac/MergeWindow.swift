@@ -17,9 +17,9 @@ import TurtleGitCore
         model.close = { [weak window] in window?.close() }
         model.pickCommit = { [weak self] in
             guard let self, let window = self.window, self.picker == nil else { return }
-            let picker = LogWindowController(repository: repository, access: access) { [weak self] revision in
+            let picker = LogWindowController(repository: repository, access: access, onChoose: { [weak self] revision in
                 if let revision { self?.model.commitRevision = revision.hash }
-            }
+            })
             self.picker = picker; picker.onClosed = { [weak self] in self?.picker = nil }
             self.model.configureLogPicker(picker.model)
             if let child = picker.window { window.beginSheet(child) }

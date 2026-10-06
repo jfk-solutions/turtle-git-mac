@@ -138,10 +138,10 @@ import UniformTypeIdentifiers
     }
     private func showRevisionPicker(message: Bool, insert: @escaping (String) -> Void) {
         guard let window, logPicker == nil else { return }
-        let picker = LogWindowController(repository: model.repository, access: model.access) { [weak self] revision in
+        let picker = LogWindowController(repository: model.repository, access: model.access, onChoose: { [weak self] revision in
             if let revision { insert(message ? revision.message : revision.hash) }
             if let self, !self.closingCommit { self.model.reload() }
-        }
+        })
         logPicker = picker
         picker.onClosed = { [weak self] in self?.logPicker = nil }
         model.configureLogPicker(picker.model)
