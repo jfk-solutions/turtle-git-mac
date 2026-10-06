@@ -171,6 +171,7 @@ struct LogCommandRequest: Identifiable {
     @Published var showWholeProject = true
     @Published var search = ""
     @Published var searchFields: HistorySearchFields = .messages
+    @Published var searchCaseSensitive = UserDefaults.standard.bool(forKey: "FilterCaseSensitively")
     @Published var filterPaths = ""
     @Published var from = Date(timeIntervalSince1970: 0)
     @Published var to = Date()
@@ -233,7 +234,7 @@ struct LogCommandRequest: Identifiable {
         if more { limit += 200 } else { limit = 200 }
         clipboardGeneration += 1; copyingDetails = false
         generation += 1; let request = generation
-        var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.limit = limit
+        var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.limit = limit
         if !showWholeProject { options.paths = historyPaths }
         if useDates { options.since = Calendar.current.startOfDay(for: from); options.until = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) }
         busy = true
@@ -499,12 +500,18 @@ struct LogDialog: View {
                 DatePicker("From:", selection: $model.from, displayedComponents: .date).disabled(!model.useDates)
                 DatePicker("To:", selection: $model.to, displayedComponents: .date).disabled(!model.useDates)
                 Menu {
-                    ForEach([("Messages", HistorySearchFields.messages), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions)], id: \.0) { title, field in
+                    ForEach([("Subject", HistorySearchFields.subject), ("Messages", .messages), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions)], id: \.0) { title, field in
                         Toggle(title, isOn: Binding(get: { model.searchFields.contains(field) }, set: { enabled in
                             if enabled { model.searchFields.insert(field) } else { model.searchFields.remove(field) }
                             model.reload()
                         }))
                     }
+                    Divider()
+                    Toggle("Case-sensitive", isOn: Binding(get: { model.searchCaseSensitive }, set: { enabled in
+                        model.searchCaseSensitive = enabled
+                        UserDefaults.standard.set(enabled, forKey: "FilterCaseSensitively")
+                        model.reload()
+                    }))
                 } label: { CommandLabel(title: "Search in", icon: .log) }.disabled(model.busy)
                 TextField("Search log", text: $model.search).textFieldStyle(.roundedBorder).onSubmit { model.reload() }
                 Button("Search") { model.reload() }.disabled(model.busy)

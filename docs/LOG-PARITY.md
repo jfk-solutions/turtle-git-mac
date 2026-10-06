@@ -12,11 +12,14 @@ arrangement and familiar command order. The initial sidebar log table was remove
 
 ## Search fields
 
-The search row now has a native Search in menu with independent Messages,
-Authors, Emails and Revisions checkboxes. Authors includes both author and
+The search row now has a native Search in menu with independent Subject,
+Messages, Authors, Emails and Revisions checkboxes. Subject searches only the
+summary; Messages searches both summary and body. Authors includes both author and
 committer names; Emails includes both identities. Multiple fields match by OR.
-Names, emails and revision IDs use case-insensitive literal matching; message-only
-search keeps Git's fixed-string, case-insensitive matching. Empty search shows
+The menu also offers the upstream Case-sensitive toggle, default off. It applies
+to every selected field and is saved under FilterCaseSensitively for subsequent
+Log windows. Names, emails and revision IDs use literal matching; message-only
+search keeps Git's fixed-string matching with the chosen case mode. Empty search shows
 unfiltered history regardless of field selection; a nonempty search with no fields
 returns no matches. Changing a field reloads the list, and Search/Return preserves
 the selected field set. Existing date, path, branch and pinned-end-revision scopes
@@ -28,10 +31,11 @@ This currently materializes the scoped log output in memory; incremental filteri
 and cancellation for large histories remain unfinished. The existing message-only
 search still uses Git's result limit. Returned rows now retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
-regex/case-sensitive options, multi-term/exclusion query syntax, subject-only,
+regex options, multi-term/exclusion query syntax,
 notes, bug IDs, refs, annotated-tag fields and persistent field preferences remain
 pending. This is partial upstream filter parity; see
-[the verification record](qa/log-search-2026-10-06.json).
+[the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up
+checks are recorded [separately](qa/log-search-case-2026-10-06.json).
 
 ## Specification
 

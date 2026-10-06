@@ -134,6 +134,21 @@ final class CommitHistoryTests: XCTestCase {
         options.search = ""; options.limit = 1; found = try await repo.history(options: options); XCTAssertEqual(found.count, 1)
         options.search = "Contributor"; options.searchFields = .authors; options.paths = ["absent.txt"]
         found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.paths = []; options.searchFields = .authors; options.search = "CONTRIBUTOR"; options.searchCaseSensitive = true
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "Contributor"; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.searchFields = .emails; options.search = "INTEGRATOR@"
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "integrator@"; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.searchFields = .messages; options.search = "body only token"
+        found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "Body only token"; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.searchFields = .subject; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.search = "literal [needle]"; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
+        options.searchCaseSensitive = false; found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.searchFields = [.subject, .messages]; options.search = "BODY ONLY TOKEN"
+        found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])
+        options.searchFields = .authors; options.search = "Contributor"
         options.paths = []; options.limit = 0; found = try await repo.history(options: options); XCTAssertTrue(found.isEmpty)
         options.limit = 1; options.endRevision = older.hash
         found = try await repo.history(options: options); XCTAssertEqual(found.map(\.hash), [older.hash])

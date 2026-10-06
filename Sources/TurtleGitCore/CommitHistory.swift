@@ -18,6 +18,7 @@ public struct HistorySearchFields: OptionSet, Sendable {
     public static let authors = Self(rawValue: 1 << 1)
     public static let emails = Self(rawValue: 1 << 2)
     public static let revisions = Self(rawValue: 1 << 3)
+    public static let subject = Self(rawValue: 1 << 4)
 }
 
 public struct HistoryOptions: Sendable {
@@ -26,6 +27,7 @@ public struct HistoryOptions: Sendable {
     public var limit = 200
     public var search = ""
     public var searchFields: HistorySearchFields = .messages
+    public var searchCaseSensitive = false
     public var path: String?
     public var paths: [String] = []
     public var since: Date?
@@ -170,7 +172,11 @@ extension GitRepository {
             let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
             args.append(hash)
         } else if options.allBranches { args.append("--all") }
-        if filtering && !filterInMemory { args += ["--fixed-strings", "--regexp-ignore-case", "--grep=" + options.search] }
+        if filtering && !filterInMemory {
+            args.append("--fixed-strings")
+            if !options.searchCaseSensitive { args.append("--regexp-ignore-case") }
+            args.append("--grep=" + options.search)
+        }
         if let since = options.since { args.append("--since=@\(Int(since.timeIntervalSince1970))") }
         if let until = options.until { args.append("--until=@\(Int(until.timeIntervalSince1970))") }
         args.append("--")
@@ -184,11 +190,12 @@ extension GitRepository {
             record += 9
             if filterInMemory {
                 var searchable: [String] = []
+                if options.searchFields.contains(.subject) { searchable.append(fields[5]) }
                 if options.searchFields.contains(.messages) { searchable.append(fields[6]) }
                 if options.searchFields.contains(.authors) { searchable += [fields[2], fields[7]] }
                 if options.searchFields.contains(.emails) { searchable += [fields[3], fields[8]] }
                 if options.searchFields.contains(.revisions) { searchable.append(fields[0].trimmingCharacters(in: .newlines)) }
-                guard searchable.contains(where: { $0.range(of: options.search, options: .caseInsensitive) != nil }) else { continue }
+                guard searchable.contains(where: { $0.range(of: options.search, options: options.searchCaseSensitive ? [] : .caseInsensitive) != nil }) else { continue }
             }
             let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !hash.isEmpty else { continue }

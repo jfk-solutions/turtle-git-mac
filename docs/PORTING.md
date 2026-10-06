@@ -114,7 +114,8 @@ Recent Add receiver checks and unsigned build/package results are recorded in
 [Add Revert](qa/add-revert-2026-10-06.json) and
 [Revert progress table](qa/revert-table-2026-10-06.json) and
 [Add index flags](qa/add-flags-2026-10-06.json) and
-[Log search fields](qa/log-search-2026-10-06.json).
+[Log search fields](qa/log-search-2026-10-06.json) and
+[Log subject and case search](qa/log-search-case-2026-10-06.json).
 These checks do not establish full application parity, displayed-window acceptance,
 signed Finder activation or distribution readiness. Workflow-specific parity files
 record the remaining requirements.
