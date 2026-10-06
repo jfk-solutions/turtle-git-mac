@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-06",
+  "scope": "Log Edit Notes native input dialog and active-ref save workflow; full application parity remains incomplete",
+  "baseCommit": "b5f74d6",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Single-revision Edit Notes menu with original edit icon and upstream stash/adjacent-index-parent guards",
+    "Owned fresh identity/active-ref/exact-blob note loading, cancelled on selection/reload/close with stale response guards",
+    "Input dialog hint/plain editor/OK/Cancel mapping, seeded Unicode text/end caret/Undo setting and disabled text substitutions; Command-/Control-Return and Escape wiring",
+    "Project minimum UTF-16 length with shared system/global/project-includes/local/worktree/command precedence and bare HEAD settings",
+    "Captured-ref forced exact UTF-8/whitespace/empty note writes; noninterruptible save guards, displayed aggregate/message refresh and retryable drafts on write failure",
+    "Successful-save/display-read-failure distinction closes editor and reports that notes were saved",
+    "User guide, source comparison and bundled Git notes behavior audit"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 36,
+      "failures": 0,
+      "scope": "Final-source CommitHistoryTests (30) and IssueTrackerTests (6). Exact Unicode/whitespace/comment/no-final-LF and empty blob storage, active/captured refs, index/worktree/HEAD unchanged, project includes/local override/UTF-16 minimum, bare save, completed-write/display-failure reporting, pre-cancel and stalled owned note read with child reaping and independent read; existing shared configuration/history cases."
+    },
+    "nativeReceiver": "Actual final native sources, activation prohibited: loaded plain editor text/Undo/substitution settings, minimum length, Cancel unchanged note, save busy/Cancel guard, exact saved text and refreshed message, successful-write/display-failure reporting. Existing date/metadata/Actions/Jump checks also passed. SwiftUI allocated a TUINSWindow helper verified invisible and explicitly closed; no windows displayed. Displayed gestures are unverified.",
+    "nativeReceiverSource": {
+      "path": "/tmp/turtlegit-log-notes-edit-receiver.swift",
+      "sha256": "83490bac5fc68ffba061429f5997452c3dc47cc69fe0a0bf842321dec40d8d35"
+    },
+    "builds": [
+      "Final Debug unsigned passed",
+      "Final AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; 85 pinned icons. Store bundled Git 2.55 real notes exact/empty/ref and unchanged HEAD/index/worktree fixtures passed alongside existing runtime checks.",
+    "fullRegression": "Focused affected suites only; historical 505-test full-suite evidence retains original 122a2ac scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "541c8e2bb495ab7e03020b04dca001f64fe6abc111b8c3269c936616dfe1a277",
+    "Sources/TurtleGitCore/IssueTracker.swift": "f92a2013ca47ba6ef0171a4b9598d71d1c64227994d16a0c5a2b4b06204c075a",
+    "Sources/TurtleGitMac/LogWindow.swift": "818904701f09cdf7a7635d05e7cae4a24ec5b0809911f4f456b48ec5216c8fa7",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "e118e2b68aacaa9472b7ed416cf5443c7e49ff98284bcc0ce8dd28939dd24b6c",
+    "scripts/validate-git-runtime.py": "4d458f5eb2412870e6389ec40782ebe1abed6585fe83d2060b950a59a2199270"
+  },
+  "pending": [
+    "Displayed menu/editor/keyboard/focus/Undo/resize/light-dark acceptance",
+    "Saved geometry and log-font/width settings",
+    "Project issue highlighting, link/spelling behavior and missing-identity Settings handoff",
+    "Broader multi-ref and malformed-note compatibility; existing Notes searches require refresh",
+    "Signed sandbox/Finder/App Store acceptance",
+    "Remaining dialogs and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-notes-edit-tests.log",
+      "sha256": "414bac56462d82feff8518aa5e4c0cf57b1b1b536126b539604b7387aa7de09a"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-log-notes-edit-native.log",
+      "sha256": "9c365b92a6563a1dab52f356e0a80cd54076a5c79dd0579e7f4429f260fe7f1a"
+    },
+    "native-build": {
+      "path": "/tmp/turtlegit-log-notes-edit-native-build.log",
+      "sha256": "d25354497cf23ace831fa4fa45df52f6b00be1c73ccd5cab9b390dc7a078837a"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-notes-edit-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-notes-edit-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-notes-edit-debug-audit.log",
+      "sha256": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-notes-edit-store-audit.log",
+      "sha256": "24d106950a6b7a280d32565beb9ab857582f4b11f7d798145d84a2f1ad89aedc"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-notes-edit-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

@@ -115,6 +115,17 @@ exhaustion and invalidation. Displayed controls, arrow gestures, scroll/highligh
 appearance in light/dark, warning suppression/relaunch, keyboard navigation and
 signed sandbox acceptance remain pending. See [the jump record](qa/log-jump-2026-10-06.json).
 
+## Edit Notes
+
+A single ordinary revision now offers Edit Notes with original edit artwork.
+The native editor loads the active note, honors project minimum message length,
+provides OK/Cancel and writes exact Unicode/whitespace/empty content. It refreshes
+the selected revision's displayed notes after saving. Owned loading cancels on
+selection/reload/close; saving keeps the editor guarded until completion.
+Stash and its adjacent index parent are excluded following the source rules.
+See [the user guide](GIT-NOTES.md) and [Edit Notes parity](EDIT-NOTES-PARITY.md) for
+configuration, recovery and outstanding editor/UI/signed acceptance.
+
 ## Search fields
 
 The search row now has a native Search in menu with independent Subject,
@@ -378,7 +389,7 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 | References | Branch/ref chooser, remote ref deletion and tracking menus |
 | Search/filter | Full history scope controls, search highlighting, displayed jump/selection-history acceptance and keyboard navigation; implemented fields/modes are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
-| Revision menus | Repository browser, rebase onto selection, edit notes, export, format patch, bisect, squash, ref containment/search |
+| Revision menus | Repository browser, rebase onto selection, export, format patch, bisect, squash, ref containment/search |
 | Mutations | Full branch/tag options, checkout branches, mainline choices for merge revert/cherry-pick, multi-commit operations, conflict continue/abort |
 | Footer | Statistics, walk behavior, View options and upstream settings persistence |
 | Comparison | Native side-by-side/three-way editor, merge combined diffs and external tool configuration |

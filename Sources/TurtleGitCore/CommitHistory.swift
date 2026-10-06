@@ -374,7 +374,61 @@ public enum CommitGraph {
     }
 }
 
+public struct CommitNoteSnapshot: Identifiable, Sendable {
+    public let revision: String
+    public let notesRef: String
+    public let text: String
+    public let minimumLength: Int
+    public var id: String { revision }
+    public func accepts(_ text: String) -> Bool { text.utf16.count >= minimumLength && !text.contains("\0") }
+}
+public enum CommitNoteFailure: LocalizedError {
+    case invalidText, minimumLength(Int), savedButRefreshFailed(String)
+    public var errorDescription: String? {
+        switch self {
+        case .invalidText: return "The note is not valid UTF-8 text or contains a NUL character."
+        case .minimumLength(let size): return "The note must contain at least \(size) characters."
+        case .savedButRefreshFailed(let message): return "Notes saved, but the displayed notes could not be refreshed: " + message
+        }
+    }
+}
+
 extension GitRepository {
+    /// Read the active notes ref, independently of additional log display refs.
+    public func editableCommitNote(revision: String, cancellation: OperationCancellation? = nil) throws -> CommitNoteSnapshot {
+        try cancellation?.check()
+        _ = try run(["var", "GIT_AUTHOR_IDENT"], cancellation: cancellation)
+        _ = try run(["var", "GIT_COMMITTER_IDENT"], cancellation: cancellation)
+        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let ref = try run(["notes", "get-ref"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let note = try run(["notes", "--ref=" + ref, "list", hash], successfulExitCodes: 0...1, cancellation: cancellation)
+        var text = ""
+        if note.exitCode == 0 {
+            let blob = note.text.trimmingCharacters(in: .newlines)
+            let data = try run(["cat-file", "blob", blob], cancellation: cancellation).stdout
+            guard let value = String(data: data, encoding: .utf8), !value.contains("\0") else { throw CommitNoteFailure.invalidText }
+            text = value
+        }
+        let properties = try projectConfiguration(pattern: "^tgit[.]logminsize$", cancellation: cancellation)
+        let minimum = max(0, (properties["tgit.logminsize"] as NSString?)?.integerValue ?? 0)
+        try cancellation?.check()
+        return CommitNoteSnapshot(revision: hash, notesRef: ref, text: text, minimumLength: minimum)
+    }
+    /// The synchronous mutation is not interruptible; callers keep its dialog open until completion.
+    /// --allow-empty/--no-stripspace preserve the libgit2 note-create behavior, including empty notes.
+    public func saveCommitNote(_ note: CommitNoteSnapshot, text: String) throws -> String {
+        guard !text.contains("\0") else { throw CommitNoteFailure.invalidText }
+        guard note.accepts(text) else { throw CommitNoteFailure.minimumLength(note.minimumLength) }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitNote-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appendingPathComponent("note.txt")
+        try Data(text.utf8).write(to: file)
+        _ = try run(["notes", "--ref=" + note.notesRef, "add", "--force", "--allow-empty", "--no-stripspace", "--file", file.path, note.revision])
+        // Refresh the display-ref aggregate used by the existing Log message pane.
+        do { return try run(["show", "-s", "--notes", "--format=%N", note.revision, "--"]).text.trimmingCharacters(in: .newlines) }
+        catch { throw CommitNoteFailure.savedButRefreshFailed(error.localizedDescription) }
+    }
     /// FF jumps inspect the actual graph, including ancestors omitted by filters/limits.
     public func historyJump(entries: [LogEntry], selected: Set<String>, kind: HistoryJumpKind, up: Bool, cancellation: OperationCancellation? = nil) throws -> Int? {
         try cancellation?.check()

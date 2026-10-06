@@ -210,7 +210,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Full revision clipboard details include notes, tags and paths, with an option
   to omit changed paths and support for multiple selected revisions. Author and
   tagger dates use the Log preferences in the message pane and copied details;
-  tag-info searches include the formatted tagger date.
+  tag-info searches include the formatted tagger date. Single revisions offer
+  [Edit Notes](docs/GIT-NOTES.md), with exact text preservation and project minimum
+  message length; [parity details](docs/EDIT-NOTES-PARITY.md) record remaining checks.
 - Original TortoiseGit command icons in app context menus and the Finder submenu;
   original XPStyle status artwork for Finder badges and app file status.
   Advanced Settings → ShowAppContextMenuIcons controls app menu artwork while

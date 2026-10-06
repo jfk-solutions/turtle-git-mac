@@ -193,6 +193,60 @@ struct LogCommandRequest: Identifiable {
     @Published var searchFields = LogSearchSelection.load()
     @Published var searchRegex = UserDefaults.standard.bool(forKey: "UseRegexFilter")
     @Published var searchCaseSensitive = UserDefaults.standard.bool(forKey: "FilterCaseSensitively")
+    @Published var noteRequest: CommitNoteSnapshot?
+    @Published var noteText = ""
+    @Published var noteError: String?
+    @Published var loadingNote = false
+    @Published var savingNote = false
+    private var noteCancellation: OperationCancellation?
+    private var noteGeneration = 0
+    var canEditNotes: Bool {
+        guard let revision, !busy, !jumping, !loadingNote, !savingNote, noteRequest == nil,
+              !revision.references.contains(where: { $0.name == "refs/stash" }) else { return false }
+        if let index = entries.firstIndex(where: { $0.hash == revision.hash }), index > 0 {
+            let previous = entries[index - 1]
+            if previous.references.contains(where: { $0.name == "refs/stash" }), previous.parents.count == 2, previous.parents[1] == revision.hash { return false }
+        }
+        return true
+    }
+    var canSaveNote: Bool { !savingNote && noteRequest?.accepts(noteText) == true }
+    private func cancelNoteRead() {
+        noteCancellation?.cancel(); noteCancellation = nil; loadingNote = false; noteGeneration += 1
+    }
+    func editNotes() {
+        guard canEditNotes, let revision else { return }
+        cancelNoteRead(); let token = OperationCancellation(); noteCancellation = token
+        let request = noteGeneration; loadingNote = true; error = nil
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let note = try await repository.editableCommitNote(revision: revision.hash, cancellation: token)
+                guard request == noteGeneration else { return }
+                noteCancellation = nil; loadingNote = false; noteText = note.text; noteError = nil; noteRequest = note
+            } catch {
+                guard request == noteGeneration else { return }
+                noteCancellation = nil; loadingNote = false
+                if !token.isCancelled { self.error = error.localizedDescription }
+            }
+        }
+    }
+    func cancelNote() { guard !savingNote else { return }; noteRequest = nil; noteText = ""; noteError = nil }
+    func saveNote() {
+        guard canSaveNote, let note = noteRequest else { return }
+        let text = noteText; savingNote = true; busy = true; noteError = nil
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let display = try await repository.saveCommitNote(note, text: text)
+                if let index = entries.firstIndex(where: { $0.hash == note.revision }) { entries[index].notes = display }
+                savingNote = false; busy = false; cancelNote()
+            } catch let failure as CommitNoteFailure {
+                savingNote = false; busy = false
+                if case .savedButRefreshFailed = failure { cancelNote(); error = failure.localizedDescription }
+                else { noteError = failure.localizedDescription }
+            } catch { savingNote = false; busy = false; noteError = error.localizedDescription }
+        }
+    }
     @Published var jumpKind = HistoryJumpKind.authorEmail
     @Published var jumping = false
     @Published var highlightedRevision: String?
@@ -348,6 +402,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func invalidate() {
+        cancelNoteRead()
         cancelJump()
         cancelActionReads()
         cancelClipboardRead()
@@ -357,6 +412,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload(more: Bool = false) {
         guard !busy || loadingHistory else { return }
+        cancelNoteRead()
         cancelJump(); highlightedRevision = nil; scrollRevision = nil
         cancelActionReads(); actionFailures = []
         detailCancellation?.cancel(); detailCancellation = nil; detailGeneration += 1
@@ -385,6 +441,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func select(_ hashes: Set<String>) {
+        cancelNoteRead()
         cancelJump(); highlightedRevision = nil
         for entry in entries where hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
         cancelClipboardRead()
@@ -718,6 +775,7 @@ struct LogDialog: View {
                 Button("Refresh") { model.reload() }.disabled(model.busy)
                 Button("Show next 200") { model.reload(more: true) }.disabled(model.busy)
                 if model.busy { ProgressView().controlSize(.small) }
+                if model.loadingNote { ProgressView("Reading notes…").controlSize(.small) }
                 if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
                 Spacer()
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-showlog.html")!) }
@@ -731,6 +789,7 @@ struct LogDialog: View {
         .alert("Log navigation", isPresented: Binding(get: { model.navigationNotice != nil }, set: { if !$0 { model.navigationNotice = nil } })) {
             Button("OK") { model.navigationNotice = nil }
         } message: { Text(model.navigationNotice ?? "") }
+        .sheet(item: $model.noteRequest) { _ in LogNotesDialog(model: model) }
         .sheet(item: $model.commandRequest) { request in LogRevisionDialog(model: model, request: request) }
 
     }
@@ -990,6 +1049,7 @@ struct RevisionTable: NSViewRepresentable {
             menu.addItem(.separator())
             item("Revert changes by this commit…", #selector(revert), icon: .revert, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
             item("Cherry Pick this commit…", #selector(cherryPick), icon: .cherryPick, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
+            item("Edit Notes", #selector(editNotes), icon: .rebaseEdit, enabled: model.canEditNotes)
             item("Format Patch…", #selector(formatPatch), icon: .patch, enabled: model.formatPatchPreset != nil && !model.busy && model.onFormatPatch != nil)
             menu.addItem(.separator())
             let clipboard = NSMenu(title: "Copy to clipboard")
@@ -1034,6 +1094,7 @@ struct RevisionTable: NSViewRepresentable {
         }
         @objc func browseRepository() { if let revision = model.revision { model.onBrowseRepository?(revision.hash) } }
         @objc func formatPatch() { if let preset = model.formatPatchPreset, !model.busy { model.onFormatPatch?(preset) } }
+        @objc func editNotes() { model.editNotes() }
         @objc func reset() { model.request(.reset) }
         @objc func push() { model.request(.push) }
         @objc func checkout() { model.request(.checkout) }
@@ -1085,6 +1146,65 @@ final class GraphCell: NSView {
         let rect = NSRect(x: position.x - 3.5, y: position.y - 3.5, width: 7, height: 7)
         colors[graph.color % colors.count].setFill()
         (graph.junction ? NSBezierPath(rect: rect) : NSBezierPath(ovalIn: rect)).fill()
+    }
+}
+
+/// IDD_INPUTDLG as configured by CAppUtils::EditNote: hint, editor, OK/Cancel; no checkbox.
+struct LogNotesDialog: View {
+    @ObservedObject var model: LogWindowModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Edit Notes").font(.headline)
+            LogNotesEditor(text: $model.noteText, enabled: !model.savingNote, accept: model.saveNote)
+                .frame(minHeight: 190, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
+            HStack {
+                if model.savingNote { ProgressView().controlSize(.small) }
+                Spacer()
+                Button("OK") { model.saveNote() }.disabled(!model.canSaveNote).keyboardShortcut(.return, modifiers: .command)
+                Button("Cancel") { model.cancelNote() }.disabled(model.savingNote).keyboardShortcut(.cancelAction)
+            }
+        }.padding(12).frame(minWidth: 560, idealWidth: 680, minHeight: 280, idealHeight: 360)
+        .interactiveDismissDisabled(model.savingNote)
+        .alert("Saving notes failed.", isPresented: Binding(get: { model.noteError != nil }, set: { if !$0 { model.noteError = nil } })) {
+            Button("OK") { model.noteError = nil }
+        } message: { Text(model.noteError ?? "") }
+    }
+}
+struct LogNotesEditor: NSViewRepresentable {
+    @Binding var text: String
+    let enabled: Bool
+    var accept: () -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    func makeNSView(context: Context) -> NSScrollView {
+        let scroll = NSScrollView(); scroll.hasVerticalScroller = true
+        let editor = NotesTextView(frame: NSRect(x: 0, y: 0, width: 640, height: 240))
+        editor.isAutomaticQuoteSubstitutionEnabled = false; editor.isAutomaticDashSubstitutionEnabled = false; editor.isAutomaticTextReplacementEnabled = false
+        editor.isRichText = false; editor.allowsUndo = true; editor.font = .monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        editor.textContainerInset = NSSize(width: 5, height: 5); editor.isVerticallyResizable = true; editor.isHorizontallyResizable = false
+        editor.autoresizingMask = [.width]; editor.textContainer?.widthTracksTextView = true
+        editor.setAccessibilityLabel("Notes"); editor.delegate = context.coordinator
+        editor.string = text; editor.undoManager?.removeAllActions(); editor.setSelectedRange(NSRange(location: (text as NSString).length, length: 0))
+        scroll.documentView = editor
+        DispatchQueue.main.async { [weak editor] in if let editor { editor.window?.makeFirstResponder(editor) } }
+        return scroll
+    }
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        context.coordinator.parent = self
+        guard let editor = scroll.documentView as? NotesTextView else { return }
+        editor.accept = accept; editor.isEditable = enabled
+        if editor.string != text { editor.string = text }
+    }
+    final class Coordinator: NSObject, NSTextViewDelegate {
+        var parent: LogNotesEditor
+        init(_ parent: LogNotesEditor) { self.parent = parent }
+        func textDidChange(_ notification: Notification) { if let editor = notification.object as? NSTextView { parent.text = editor.string } }
+    }
+}
+final class NotesTextView: NSTextView {
+    var accept: () -> Void = {}
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 36 && !event.modifierFlags.intersection([.command, .control]).isEmpty { accept(); return }
+        super.keyDown(with: event)
     }
 }
 

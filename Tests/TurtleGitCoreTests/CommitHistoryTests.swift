@@ -830,6 +830,115 @@ final class CommitHistoryTests: XCTestCase {
         let independent = try await repo.historyJump(entries: rows, selected: [b], kind: .tagFF, up: true); XCTAssertEqual(independent, 1)
         XCTAssertEqual(try? Data(contentsOf: root.appendingPathComponent(".git/index")), before)
     }
+    func testEditableNotesPreserveExactBytesEmptyNotesRefAndWorkingState() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await repo.history()[0]
+        let head = entry.hash, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        try Data("unstaged note test\n".utf8).write(to: root.appendingPathComponent(path))
+        let initial = try await repo.editableCommitNote(revision: head)
+        XCTAssertEqual(initial.text, ""); XCTAssertEqual(initial.notesRef, "refs/notes/commits")
+        let exact = "  leading  \n# literal comment\n雪😀\r\n\ntrailing  "
+        _ = try await repo.saveCommitNote(initial, text: exact)
+        let loaded = try await repo.editableCommitNote(revision: head); XCTAssertEqual(loaded.text, exact)
+        let blob = try await repo.run(["notes", "list", head]).text.trimmingCharacters(in: .newlines)
+        let bytes = try await repo.run(["cat-file", "blob", blob]).stdout; XCTAssertEqual(bytes, Data(exact.utf8))
+        _ = try await repo.run(["config", "core.notesRef", "refs/notes/review"])
+        let review = try await repo.editableCommitNote(revision: head); XCTAssertEqual(review.text, "")
+        _ = try await repo.run(["config", "core.notesRef", "refs/notes/other"])
+        _ = try await repo.saveCommitNote(review, text: "review note")
+        let written = try await repo.run(["notes", "--ref=refs/notes/review", "show", head]).text; XCTAssertTrue(written.contains("review note"))
+        _ = try await repo.run(["config", "core.notesRef", "refs/notes/commits"])
+        _ = try await repo.saveCommitNote(loaded, text: "")
+        let empty = try await repo.editableCommitNote(revision: head); XCTAssertEqual(empty.text, "")
+        let emptyID = try await repo.run(["notes", "list", head]).text.trimmingCharacters(in: .newlines)
+        let emptyBytes = try await repo.run(["cat-file", "blob", emptyID]).stdout; XCTAssertTrue(emptyBytes.isEmpty) // An empty note is stored, not removed.
+        do { _ = try await repo.saveCommitNote(empty, text: "nul\0text"); XCTFail() } catch is CommitNoteFailure {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("unstaged note test\n".utf8))
+        let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(after, head)
+    }
+    func testNoteMinimumLengthProjectIncludesLocalOverrideAndBareRepository() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        let bareRoot = root.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: bareRoot) }
+        try Data("[include]\n path = note-settings\n".utf8).write(to: root.appendingPathComponent(".tgitconfig"))
+        try Data("[tgit]\n logminsize = 4\n".utf8).write(to: root.appendingPathComponent("note-settings"))
+        let entry = try await repo.history()[0]
+        let project = try await repo.editableCommitNote(revision: entry.hash)
+        XCTAssertEqual(project.minimumLength, 4); XCTAssertFalse(project.accepts("abc")); XCTAssertTrue(project.accepts("😀😀"))
+        do { _ = try await repo.saveCommitNote(project, text: "abc"); XCTFail() } catch is CommitNoteFailure {}
+        _ = try await repo.run(["config", "tgit.logminsize", "2"])
+        let local = try await repo.editableCommitNote(revision: entry.hash); XCTAssertEqual(local.minimumLength, 2)
+        _ = try await repo.run(["config", "--unset", "tgit.logminsize"])
+        try Data("[tgit]\n logminsize = 3\n".utf8).write(to: root.appendingPathComponent(".tgitconfig"))
+        try await repo.stage([".tgitconfig"]); _ = try await repo.commit(message: "project notes settings")
+        _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        let bare = GitRepository(root: bareRoot)
+        _ = try await bare.run(["config", "user.name", "Note"]); _ = try await bare.run(["config", "user.email", "note@example.invalid"])
+        let snapshot = try await bare.editableCommitNote(revision: "HEAD"); XCTAssertEqual(snapshot.minimumLength, 3)
+        _ = try await bare.saveCommitNote(snapshot, text: "Bare note 雪")
+        let reread = try await bare.editableCommitNote(revision: "HEAD"); XCTAssertEqual(reread.text, "Bare note 雪")
+    }
+    func testNoteSavedButDisplayRefreshFailureReportsCompletedWrite() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let note = try await repo.editableCommitNote(revision: "HEAD")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let wrapper = root.appendingPathComponent("fail-note-display")
+        let script = """
+        #!/bin/sh
+        case "$*" in
+          *--format=%N*) echo 'display refresh failed' >&2; exit 91 ;;
+        esac
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
+        let failing = GitRepository(root: root, executable: wrapper)
+        do { _ = try await failing.saveCommitNote(note, text: "written before display failure"); XCTFail() }
+        catch CommitNoteFailure.savedButRefreshFailed(let message) { XCTAssertTrue(message.contains("display refresh failed")) }
+        let read = try await repo.editableCommitNote(revision: note.revision); XCTAssertEqual(read.text, "written before display failure")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, note.revision)
+    }
+    func testOwnedNoteReadCancellationAndIndependentRead() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let entry = try await repo.history()[0], snapshot = try await repo.editableCommitNote(revision: "HEAD")
+        _ = try await repo.saveCommitNote(snapshot, text: "cancel read note")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let stopped = OperationCancellation(); stopped.cancel()
+        do { _ = try await repo.editableCommitNote(revision: entry.hash, cancellation: stopped); XCTFail() } catch is OperationCancellationFailure {}
+        let wrapper = root.appendingPathComponent("slow-note-read")
+        let script = """
+        #!/bin/sh
+        case "$*" in
+          *cat-file*)
+            /bin/sleep 30 &
+            task_note_child=$!
+            trap 'kill "$task_note_child" 2>/dev/null; wait "$task_note_child" 2>/dev/null; exit 143' TERM INT
+            echo "$$ $task_note_child" > "$0.started"
+            wait "$task_note_child"
+            ;;
+        esac
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
+        let slow = GitRepository(root: root, executable: wrapper), token = OperationCancellation()
+        let task = Task { try await slow.editableCommitNote(revision: entry.hash, cancellation: token) }
+        defer { token.cancel() }
+        let marker = URL(fileURLWithPath: wrapper.path + ".started"), deadline = Date().addingTimeInterval(5)
+        while !FileManager.default.fileExists(atPath: marker.path) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        guard FileManager.default.fileExists(atPath: marker.path) else { token.cancel(); _ = await task.result; XCTFail("Note read never started"); return }
+        let pids = try String(contentsOf: marker).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
+        token.cancel()
+        do { _ = try await task.value; XCTFail() } catch is OperationCancellationFailure {} catch is GitCommandCancellationFailure {}
+        let reaped = Date().addingTimeInterval(3)
+        while Date() < reaped && pids.contains(where: { kill($0, 0) == 0 }) { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertEqual(pids.count, 2); XCTAssertTrue(pids.allSatisfy { kill($0, 0) != 0 })
+        let independent = try await repo.editableCommitNote(revision: entry.hash); XCTAssertEqual(independent.text, "cancel read note")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

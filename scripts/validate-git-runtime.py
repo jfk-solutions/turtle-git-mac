@@ -89,6 +89,21 @@ def main():
         assert (repository / '.git/index').read_bytes() == index
         assert run('-C', str(repository), 'rev-parse', 'HEAD').strip() == head
         assert b'+working' in run('-C', str(repository), 'diff', '--', path.name)
+        # Edit Notes requires exact bytes, empty note associations and an explicit notes ref.
+        note_file = pathlib.Path(temporary) / 'note.txt'
+        note_bytes = '  leading  \n# literal comment\n雪😀\r\n\ntrailing  '.encode('utf-8')
+        note_file.write_bytes(note_bytes)
+        notes_ref = 'refs/notes/runtime-review'
+        assert run('-C', str(repository), 'notes', 'get-ref').strip() == b'refs/notes/commits'
+        run('-C', str(repository), 'notes', '--ref=' + notes_ref, 'add', '--force', '--allow-empty', '--no-stripspace', '--file', str(note_file), head.decode('ascii'))
+        note_blob = run('-C', str(repository), 'notes', '--ref=' + notes_ref, 'list', head.decode('ascii')).strip()
+        assert run('-C', str(repository), 'cat-file', 'blob', note_blob.decode('ascii')) == note_bytes
+        note_file.write_bytes(b'')
+        run('-C', str(repository), 'notes', '--ref=' + notes_ref, 'add', '--force', '--allow-empty', '--no-stripspace', '--file', str(note_file), head.decode('ascii'))
+        empty_blob = run('-C', str(repository), 'notes', '--ref=' + notes_ref, 'list', head.decode('ascii')).strip()
+        assert run('-C', str(repository), 'cat-file', 'blob', empty_blob.decode('ascii')) == b''
+        assert run('-C', str(repository), 'rev-parse', 'HEAD').strip() == head
+        assert (repository / '.git/index').read_bytes() == index and path.read_bytes() == b'working\n'
         run('-C', str(repository), 'stash', 'push', '-m', 'runtime stash')
         assert path.read_bytes() == b'base\n'
         run('-C', str(repository), 'stash', 'pop')
@@ -123,6 +138,6 @@ def main():
             result = run('ls-remote', '--exit-code', 'https://github.com/TortoiseGit/TortoiseGit.git', 'HEAD', timeout=60, cwd=directory)
         assert result.rstrip().endswith(b'\tHEAD'), 'Missing HTTPS remote HEAD'
         print('Public HTTPS ls-remote passed with bundled git-remote-https.')
-    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/blame (UTF-8, UTF-16, legacy code pages and first-parent merge attribution) passed.')
+    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/notes/blame (UTF-8, UTF-16, legacy code pages and first-parent merge attribution) passed.')
 
 if __name__ == '__main__': main()

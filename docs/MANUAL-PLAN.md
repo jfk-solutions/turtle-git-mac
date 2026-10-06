@@ -25,3 +25,6 @@ Use upstream material as a reference, preserving attribution/license requirement
 for anything reused. Do not copy Windows instructions or screenshots into the Mac
 manual as though they describe TurtleGit behavior. Published pages should describe
 the shipped behavior; engineering parity documents track what still needs work.
+
+The [Edit Notes guide](GIT-NOTES.md) now documents that implemented workflow and
+its recovery behavior. Its macOS screenshots remain pending.

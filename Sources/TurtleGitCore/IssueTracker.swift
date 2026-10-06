@@ -147,12 +147,15 @@ public struct IssueTrackerProperties: Sendable, Equatable {
 
 extension GitRepository {
     public func issueTrackerProperties(environmentOverrides: [String: String] = [:], cancellation: OperationCancellation? = nil) throws -> IssueTrackerProperties {
+        try IssueTrackerProperties(values: projectConfiguration(pattern: "^(bugtraq\\.|tgit\\.warnnosignedoffby$)", environmentOverrides: environmentOverrides, cancellation: cancellation))
+    }
+    /// Shared source precedence: system/global, project includes, local/worktree/command.
+    func projectConfiguration(pattern: String, environmentOverrides: [String: String] = [:], cancellation: OperationCancellation? = nil) throws -> [String: String] {
         try cancellation?.check()
         func propertyRun(_ arguments: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
             try run(arguments, environmentOverrides: environmentOverrides, successfulExitCodes: successfulExitCodes, cancellation: cancellation)
         }
         let bare = try propertyRun(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) == "true"
-        let pattern = "^(bugtraq\\.|tgit\\.warnnosignedoffby$)"
         let configured = try propertyRun(["config", "--null", "--show-scope", "--get-regexp", pattern], successfulExitCodes: 0...1).stdout
         var records = configured.split(separator: 0, omittingEmptySubsequences: false)
         if records.last?.isEmpty == true { records.removeLast() }
@@ -184,7 +187,7 @@ extension GitRepository {
         }
         try cancellation?.check()
         low.merge(high) { _, higher in higher }
-        return IssueTrackerProperties(values: low)
+        return low
     }
     private static func issueConfigPair(_ record: Data) -> (String, String) {
         guard let split = record.firstIndex(of: 10) else {
