@@ -140,4 +140,108 @@ final class RebaseTests: XCTestCase {
         let empty = try await reopened.remainingRebaseEntries(); XCTAssertTrue(empty.isEmpty)
     }
 
+    func testCherryPickPlanAppendsSelectedCommitsAndRejectsChangedBranch() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let selected = try await repo.run(["rev-list", "main..topic"]).text.split(separator: "\n").map(String.init)
+        _ = try await repo.run(["checkout", "main"])
+        var plan = try await repo.cherryPickPlan(revisions: selected)
+        XCTAssertTrue(plan.options.isCherryPick)
+        XCTAssertEqual(plan.entries.map { $0.commit.subject }, ["first", "second"])
+        do { _ = try await repo.cherryPickPlan(revisions: [selected[0], selected[0]]); XCTFail("Duplicate selections must fail") } catch RebaseFailure.plan {}
+        _ = try await repo.run(["checkout", "-b", "other"])
+        do { _ = try await repo.startRebase(plan, editorExecutable: editor); XCTFail("Same hash on a different branch must fail") } catch RebaseFailure.changed {}
+        _ = try await repo.run(["checkout", "main"])
+        plan.entries[0].action = .skip
+        let result = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertEqual(result.exitCode, 0, result.output); XCTAssertFalse(result.state.active)
+        let branch = try await repo.branch(); XCTAssertEqual(branch, "main")
+        let parent = try await repo.run(["rev-parse", "HEAD^"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(parent, plan.branchHash)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("second.txt").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("first.txt").path))
+    }
+
+    func testCherryPickBothMergeMainlinesMatchGitAndKeepOriginalMetadataOnRecovery() async throws {
+        for mainline in 1...2 {
+            let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            _ = try await repo.run(["merge", "--no-ff", "--no-edit", "upstream"])
+            let merge = try await repo.rebaseCommit("HEAD")
+            _ = try await repo.run(["checkout", "-b", "expected", merge.parents[mainline - 1]])
+            _ = try await repo.run(["cherry-pick", "-m", String(mainline), merge.hash])
+            let expectedTree = try await repo.run(["rev-parse", "HEAD^{tree}"]).text
+            let expectedAuthor = try await repo.run(["show", "-s", "--format=%an%x00%ae%x00%aI%x00%B", "HEAD"]).stdout
+            _ = try await repo.run(["checkout", "-b", "actual", merge.parents[mainline - 1]])
+            var plan = try await repo.cherryPickPlan(revisions: [merge.hash])
+            do { _ = try await repo.startRebase(plan, editorExecutable: editor); XCTFail("Merge parent must be explicit") } catch RebaseFailure.mainline {}
+            plan.entries[0].mainline = mainline; plan.entries[0].action = .edit
+            let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+            XCTAssertEqual(stopped.exitCode, 0, stopped.output); XCTAssertTrue(stopped.state.active); XCTAssertTrue(stopped.state.isCherryPick)
+            XCTAssertEqual(stopped.state.stoppedCommit, merge.hash)
+            let reopened = GitRepository(root: root)
+            let recovered = try await reopened.remainingRebaseEntries()
+            XCTAssertEqual(recovered.map(\.id), [merge.hash]); XCTAssertEqual(recovered[0].commit.parents, merge.parents)
+            let actualTree = try await reopened.run(["rev-parse", "HEAD^{tree}"]).text
+            let actualAuthor = try await reopened.run(["show", "-s", "--format=%an%x00%ae%x00%aI%x00%B", "HEAD"]).stdout
+            XCTAssertEqual(actualTree, expectedTree); XCTAssertEqual(actualAuthor, expectedAuthor)
+            let completed = try await reopened.continueRebase(); XCTAssertEqual(completed.exitCode, 0, completed.output); XCTAssertFalse(completed.state.isCherryPick)
+            let branch = try await reopened.branch(); XCTAssertEqual(branch, "actual")
+            let parent = try await reopened.run(["rev-parse", "HEAD^"]).text.trimmingCharacters(in: .newlines)
+            XCTAssertEqual(parent, merge.parents[mainline - 1])
+        }
+    }
+
+    func testCherryPickConflictReopensAndAbortRestoresTarget() async throws {
+        let (root, repo, path) = try await fixture(conflict: true); defer { try? FileManager.default.removeItem(at: root) }
+        let selected = try await repo.run(["rev-list", "main..topic"]).text.split(separator: "\n").map(String.init)
+        _ = try await repo.run(["checkout", "upstream"])
+        let plan = try await repo.cherryPickPlan(revisions: selected)
+        let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertNotEqual(stopped.exitCode, 0); XCTAssertTrue(stopped.state.isCherryPick); XCTAssertEqual(stopped.state.conflicts, [path])
+        let reopened = GitRepository(root: root)
+        let entries = try await reopened.remainingRebaseEntries(); XCTAssertEqual(entries.map(\.id), plan.originalCommits)
+        let aborted = try await reopened.abortRebase(); XCTAssertEqual(aborted.exitCode, 0, aborted.output); XCTAssertFalse(aborted.state.active)
+        let head = try await reopened.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(head, plan.branchHash)
+        let branch = try await reopened.branch(); XCTAssertEqual(branch, "upstream")
+    }
+
+    func testCherryPickSquashReorderEmptyCommitAndDetachedTarget() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let selected = try await repo.run(["rev-list", "main..topic"]).text.split(separator: "\n").map(String.init)
+        _ = try await repo.run(["checkout", "--detach", "main"])
+        var plan = try await repo.cherryPickPlan(revisions: selected)
+        plan.entries.reverse(); plan.entries[1].action = .squash
+        let completed = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertEqual(completed.exitCode, 0, completed.output); XCTAssertFalse(completed.state.active)
+        let symbolic = try await repo.run(["symbolic-ref", "--quiet", "HEAD"], successfulExitCodes: 0...1); XCTAssertEqual(symbolic.exitCode, 1)
+        let message = try await repo.run(["log", "-1", "--format=%B"]).text
+        XCTAssertTrue(message.contains("first")); XCTAssertTrue(message.contains("second"))
+        let parent = try await repo.run(["rev-parse", "HEAD^"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(parent, plan.branchHash)
+        _ = try await repo.run(["checkout", "topic"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "empty source"])
+        let empty = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["checkout", "main"])
+        plan = try await repo.cherryPickPlan(revisions: [empty.hash])
+        let kept = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(kept.exitCode, 0, kept.output)
+        let subject = try await repo.run(["log", "-1", "--format=%s"]).text; XCTAssertEqual(subject, "empty source\n")
+    }
+
+    func testCherryPickMergeConflictRestoresOriginalIDsAndSkipContinues() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["merge", "--no-ff", "--no-edit", "upstream"])
+        let merge = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["checkout", "-b", "target", merge.parents[0]])
+        try Data("target conflict\n".utf8).write(to: root.appendingPathComponent("upstream.txt"))
+        try await repo.stage(["upstream.txt"]); _ = try await repo.commit(message: "target change")
+        var plan = try await repo.cherryPickPlan(revisions: [merge.hash]); plan.entries[0].mainline = 1
+        let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertNotEqual(stopped.exitCode, 0); XCTAssertTrue(stopped.state.isCherryPick)
+        XCTAssertEqual(stopped.state.stoppedCommit, merge.hash); XCTAssertEqual(stopped.state.conflicts, ["upstream.txt"])
+        let reopened = GitRepository(root: root)
+        let recovered = try await reopened.remainingRebaseEntries(); XCTAssertEqual(recovered.map(\.id), [merge.hash])
+        let skipped = try await reopened.skipRebase(); XCTAssertEqual(skipped.exitCode, 0, skipped.output); XCTAssertFalse(skipped.state.active)
+        let head = try await reopened.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, plan.branchHash)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("upstream.txt"), encoding: .utf8), "target conflict\n")
+    }
+
 }

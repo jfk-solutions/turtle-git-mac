@@ -401,7 +401,7 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 | Search/filter | Full history scope controls, search highlighting, displayed jump/selection-history acceptance and keyboard navigation; implemented fields/modes are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
 | Revision menus | Repository browser, rebase onto selection, export, format patch, bisect, squash, ref containment/search |
-| Mutations | Full branch/tag options, checkout branches, merge Cherry Pick, multi-commit Revert and other operations, conflict continue/abort |
+| Mutations | Full branch/tag options, checkout branches, native Cherry Pick plan handoff and options ([backend audit](CHERRY-PICK-PARITY.md)), multi-commit Revert and other operations, conflict continue/abort |
 | Footer | Statistics, walk behavior, View options and upstream settings persistence |
 | Comparison | Native side-by-side/three-way editor, merge combined diffs and external tool configuration |
 | Accessibility | Full VoiceOver acceptance, keyboard shortcuts and focus parity |

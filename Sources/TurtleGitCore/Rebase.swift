@@ -5,6 +5,8 @@ public struct RebaseEntry: Identifiable, Sendable {
     public var id: String { commit.hash }
     public let commit: LogEntry
     public var action: RebaseAction = .pick
+    /// Required for retained merge commits in a Cherry Pick plan.
+    public var mainline: Int? = nil
 }
 public struct RebaseOptions: Sendable {
     public var branch = "HEAD"
@@ -12,6 +14,7 @@ public struct RebaseOptions: Sendable {
     public var onto = ""
     public var force = false
     public var preserveMerges = false
+    public var isCherryPick = false
     public init() {}
 }
 public enum RebaseDisposition: Sendable { case ready, fastForward, upToDate, equal }
@@ -27,6 +30,7 @@ public struct RebasePlan: Sendable {
 }
 public struct RebaseState: Sendable {
     public let active: Bool
+    public let isCherryPick: Bool
     public let branch: String
     public let originalHead: String
     public let onto: String
@@ -43,7 +47,7 @@ public struct RebaseExecution: Sendable {
     public let state: RebaseState
 }
 public enum RebaseFailure: LocalizedError {
-    case revision, active, inactive, changed, plan, squash, preservePlan, message
+    case revision, active, inactive, changed, plan, squash, preservePlan, message, mainline
     public var errorDescription: String? {
         switch self {
         case .revision: return "Choose valid branch, upstream and onto revisions."
@@ -54,6 +58,7 @@ public enum RebaseFailure: LocalizedError {
         case .squash: return "The first retained commit cannot be squashed."
         case .preservePlan: return "Preserve Merges uses Git's structural plan; custom actions and ordering require further porting."
         case .message: return "Enter a commit message."
+        case .mainline: return "Choose a valid mainline parent for each retained merge commit."
         }
     }
 }
@@ -64,7 +69,14 @@ public enum RebaseEditor {
     public static func handle(arguments: [String], environment: [String: String]) -> Int32? {
         guard arguments.dropFirst().first == argument else { return nil }
         guard arguments.count == 3, let source = environment["TURTLEGIT_REBASE_PLAN"] else { return 1 }
-        do { try Data(contentsOf: URL(fileURLWithPath: source)).write(to: URL(fileURLWithPath: arguments[2]), options: .atomic); return 0 }
+        do {
+            let target = URL(fileURLWithPath: arguments[2])
+            try Data(contentsOf: URL(fileURLWithPath: source)).write(to: target, options: .atomic)
+            if let metadata = environment["TURTLEGIT_CHERRY_PICK_METADATA"] {
+                try Data(contentsOf: URL(fileURLWithPath: metadata)).write(to: target.deletingLastPathComponent().appendingPathComponent("turtlegit-cherry-pick.json"), options: .atomic)
+            }
+            return 0
+        }
         catch { return 1 }
     }
     public static func command(executable: URL) -> String {
@@ -91,12 +103,35 @@ extension GitRepository {
         func read(_ file: String) -> String { (try? String(contentsOf: directory.appendingPathComponent(file), encoding: .utf8)) ?? "" }
         func line(_ file: String) -> String { read(file).trimmingCharacters(in: .newlines) }
         let conflicts = active ? try run(["diff", "--name-only", "--diff-filter=U", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) } : []
-        return RebaseState(active: active, branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
-                           stoppedCommit: line("stopped-sha"), message: read("message"), currentStep: Int(line("msgnum")) ?? Int(line("next")) ?? 0,
+        let metadataURL = directory.appendingPathComponent("turtlegit-cherry-pick.json")
+        let mapping = (try? JSONDecoder().decode([String: String].self, from: Data(contentsOf: metadataURL))) ?? [:]
+        let stopped = line("stopped-sha")
+        let commands = read("git-rebase-todo").split(separator: "\n").map(String.init).filter { !$0.hasPrefix("#") }.map { command -> String in
+            var fields = command.split(separator: " ", maxSplits: 2).map(String.init)
+            if fields.count >= 2, let original = mapping[fields[1]] { fields[1] = original }
+            return fields.joined(separator: " ")
+        }
+        return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
+                           stoppedCommit: mapping[stopped] ?? stopped, message: read("message"), currentStep: Int(line("msgnum")) ?? Int(line("next")) ?? 0,
                            total: Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
-                           remainingCommands: read("git-rebase-todo").split(separator: "\n").map(String.init).filter { !$0.hasPrefix("#") })
+                           remainingCommands: commands)
+    }
+    private func currentRebaseBranch() throws -> String {
+        ((try? run(["symbolic-ref", "--quiet", "HEAD"]).text) ?? "").trimmingCharacters(in: .newlines)
+    }
+    /// Input follows the Log's newest-first visible selection; execution is oldest-first.
+    public func cherryPickPlan(revisions: [String]) throws -> RebasePlan {
+        guard !(try rebaseState().active) else { throw RebaseFailure.active }
+        guard !revisions.isEmpty else { throw RebaseFailure.plan }
+        let commits = try revisions.reversed().map { try rebaseCommit($0) }
+        guard Set(commits.map(\.hash)).count == commits.count else { throw RebaseFailure.plan }
+        let head = try rebaseRevision("HEAD"), branch = try currentRebaseBranch()
+        var options = RebaseOptions(); options.branch = "HEAD"; options.upstream = head; options.force = true; options.isCherryPick = true
+        return RebasePlan(disposition: .ready, options: options, branchHash: head, upstreamHash: head, ontoHash: head,
+                          branchReference: branch, originalCommits: commits.map(\.hash), entries: commits.map { RebaseEntry(commit: $0) })
     }
     public func rebasePlan(_ options: RebaseOptions) throws -> RebasePlan {
+        guard !options.isCherryPick else { throw RebaseFailure.plan }
         guard !(try rebaseState().active) else { throw RebaseFailure.active }
         let branchHash = try rebaseRevision(options.branch), upstreamHash = try rebaseRevision(options.upstream)
         let ontoHash = options.onto.isEmpty ? upstreamHash : try rebaseRevision(options.onto)
@@ -142,6 +177,13 @@ extension GitRepository {
         guard ids.count == plan.originalCommits.count, Set(ids).count == ids.count, Set(ids) == Set(plan.originalCommits) else { throw RebaseFailure.plan }
         guard plan.entries.first(where: { $0.action != .skip })?.action != .squash else { throw RebaseFailure.squash }
         if plan.options.preserveMerges, ids != plan.originalCommits || plan.entries.contains(where: { $0.action != .pick }) { throw RebaseFailure.preservePlan }
+        if plan.options.isCherryPick {
+            for entry in plan.entries where entry.action != .skip {
+                if entry.commit.parents.count > 1 {
+                    guard let parent = entry.mainline, (1...entry.commit.parents.count).contains(parent) else { throw RebaseFailure.mainline }
+                } else if entry.mainline != nil { throw RebaseFailure.mainline }
+            }
+        }
         if plan.entries.isEmpty { return "noop\n" }
         return plan.entries.map { $0.action.rawValue + " " + $0.commit.hash + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
     }
@@ -150,18 +192,55 @@ extension GitRepository {
         guard try rebaseRevision(plan.options.branch) == plan.branchHash,
               try rebaseRevision(plan.options.upstream) == plan.upstreamHash,
               (plan.options.onto.isEmpty ? plan.upstreamHash : try rebaseRevision(plan.options.onto)) == plan.ontoHash else { throw RebaseFailure.changed }
-        let todo = try rebaseTodo(plan)
+        if plan.options.isCherryPick {
+            guard try currentRebaseBranch() == plan.branchReference, !plan.options.preserveMerges,
+                  plan.options.branch == "HEAD", plan.upstreamHash == plan.branchHash, plan.ontoHash == plan.branchHash else { throw RebaseFailure.changed }
+        }
+        _ = try rebaseTodo(plan)
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
+        var replay = plan
+        var mapping: [String: String] = [:]
+        if plan.options.isCherryPick {
+            for index in replay.entries.indices {
+                let entry = replay.entries[index]
+                // Read immutable objects again rather than trusting caller-supplied parent metadata.
+                let original = try rebaseCommit(entry.id)
+                guard original.parents == entry.commit.parents else { throw RebaseFailure.plan }
+                guard entry.action != .skip, original.parents.count > 1 else { continue }
+                guard let mainline = entry.mainline, original.parents.indices.contains(mainline - 1) else { throw RebaseFailure.mainline }
+                let object = try run(["cat-file", "commit", original.hash]).stdout
+                guard let separator = object.range(of: Data([10, 10])) else { throw RebaseFailure.plan }
+                let messageFile = temporary.appendingPathComponent("message")
+                try object.subdata(in: separator.upperBound..<object.count).write(to: messageFile)
+                let tree = try run(["rev-parse", original.hash + "^{tree}"]).text.trimmingCharacters(in: .newlines)
+                // A one-parent object applies precisely the merge-to-mainline patch. It changes no ref or index.
+                let hash = try run(["commit-tree", tree, "-p", original.parents[mainline - 1], "-F", messageFile.path],
+                                   environmentOverrides: ["GIT_AUTHOR_NAME": original.author, "GIT_AUTHOR_EMAIL": original.email, "GIT_AUTHOR_DATE": original.date]).text.trimmingCharacters(in: .newlines)
+                mapping[hash] = original.hash
+                var replacement = RebaseEntry(commit: try rebaseCommit(hash), action: entry.action)
+                replacement.mainline = nil
+                replay.entries[index] = replacement
+            }
+        }
         let path = temporary.appendingPathComponent("todo")
-        try Data(todo.utf8).write(to: path)
+        // Validate the original plan first; synthetic merge IDs intentionally differ from its selections.
+        let todo = replay.entries.map { $0.action.rawValue + " " + $0.id + " " + $0.commit.subject.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ") }.joined(separator: "\n") + "\n"
+        try Data((replay.entries.isEmpty ? "noop\n" : todo).utf8).write(to: path)
+        var environment = ["GIT_SEQUENCE_EDITOR": RebaseEditor.command(executable: editorExecutable), "TURTLEGIT_REBASE_PLAN": path.path, "GIT_EDITOR": "/usr/bin/true"]
+        if plan.options.isCherryPick {
+            let metadata = temporary.appendingPathComponent("cherry-pick.json")
+            try JSONEncoder().encode(mapping).write(to: metadata)
+            environment["TURTLEGIT_CHERRY_PICK_METADATA"] = metadata.path
+        }
         var args = ["rebase", "--no-autostash"]
-        if plan.options.force { args += ["--force-rebase", "--reapply-cherry-picks"] }
+        if plan.options.force || plan.options.isCherryPick { args += ["--force-rebase", "--reapply-cherry-picks"] }
+        if plan.options.isCherryPick { args += ["--keep-empty", "--empty=stop"] }
         if plan.options.preserveMerges { args.append("--rebase-merges") }
         else { args.append("--interactive") }
         args += ["--onto", plan.ontoHash, "--", plan.upstreamHash, plan.branchReference.isEmpty ? plan.branchHash : String(plan.branchReference.dropFirst(11))]
-        return try executeRebase(args, environment: ["GIT_SEQUENCE_EDITOR": RebaseEditor.command(executable: editorExecutable), "TURTLEGIT_REBASE_PLAN": path.path, "GIT_EDITOR": "/usr/bin/true"])
+        return try executeRebase(args, environment: environment)
     }
     public func continueRebase() throws -> RebaseExecution { try recoverRebase("--continue") }
     public func skipRebase() throws -> RebaseExecution { try recoverRebase("--skip") }

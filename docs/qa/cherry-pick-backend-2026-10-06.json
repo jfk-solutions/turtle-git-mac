@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-06",
+  "scope": "Cherry Pick backend; native handoff/dialog still pending",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "6847bee0ffcea28ad54983110c333e68fc801505bdbce0b840b364f88663dc78",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "6aa49e528dd2cf5eddcb663f5893b405df90bfa917932ff137723fb908f01169",
+    "docs/CHERRY-PICK-PARITY.md": "661a8083e01b61b47b7b7d7f8826b62c2d9c19daebcc33c61f00a2be467d4fb5",
+    "docs/LOG-PARITY.md": "a2a8df1683c6e6457b40b87a97c824de07c03d634a370e4fb4688c6fdbb6364c"
+  },
+  "verification": {
+    "focused_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 15,
+      "failures": 0,
+      "log_sha256": "a156cbe02217a8dd6587232f4de7110414c313f48d22e23c1649e67565704bb3"
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "debug_bundle_audit": "passed; NOTICE identical",
+    "appstore_bundle_audit": "passed with --require-git; NOTICE identical",
+    "appstore_git_audit": "packaged Git 2.55.0; 11 universal Mach-O files; existing local runtime fixture passed (does not cover new Cherry Pick backend)",
+    "site_generation": "passed"
+  },
+  "not_verified": [
+    "Native Cherry Pick plan handoff and displayed dialog",
+    "Signed sandbox execution",
+    "GitHub CI/publication",
+    "Complete TortoiseGit parity",
+    "Cherry Pick backend with packaged Git"
+  ],
+  "processes": "No displayed app or native receiver launched for this milestone"
+}
