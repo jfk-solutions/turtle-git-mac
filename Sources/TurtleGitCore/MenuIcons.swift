@@ -97,7 +97,10 @@ extension RepositoryAction {
         case .revert: return .revert
         case .log, .stashList, .reflog: return .log
         case .repositoryBrowser: return .repositoryBrowser
-        case .bisect: return .bisect
+        case .bisect, .bisectStart, .bisectSkip: return .bisect
+        case .bisectGood: return .bisectGood
+        case .bisectBad: return .bisectBad
+        case .bisectReset: return .bisectReset
         case .export: return .export
         case .formatPatch: return .unifiedDiff
         case .diff, .diffLater, .clearComparisonMark: return .compare

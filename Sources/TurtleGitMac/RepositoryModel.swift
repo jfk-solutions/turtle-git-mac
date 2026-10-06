@@ -322,9 +322,9 @@ import TurtleGitCore
         case .worktreeCreate:
             guard let repository else { return }
             showWorktreeCreate(repository: repository, access: activeAccess)
-        case .bisect:
+        case .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset:
             guard let repository else { return }
-            showBisect(repository: repository, access: activeAccess)
+            showBisect(repository: repository, access: activeAccess, operation: action.bisectOperation, requireStart: action == .bisectStart)
         case .export:
             guard let repository else { return }
             showExport(repository: repository, access: activeAccess, revision: "HEAD", paths: paths)
@@ -781,7 +781,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .add && action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .export && action != .bisect && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .add && action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller
@@ -958,13 +958,13 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
-    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil) {
+    private func showBisect(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false) {
         let root = repository.root
         let controller: BisectWindowController
         if let existing = bisectWindows[root.path] {
             controller = existing
-            if !existing.activeOperation { existing.model.load(good: good, bad: bad) }
-        } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad) }
+            if !existing.activeOperation { existing.model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart) }
+        } else { controller = BisectWindowController(repository: repository, access: access, good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart) }
         controller.onClosed = { [weak self] in self?.bisectWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] output in
             guard let self else { return }

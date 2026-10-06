@@ -109,6 +109,8 @@ public struct FinderRepositoryMetadata: Codable, Equatable, Sendable {
     public func allows(_ action: RepositoryAction) -> Bool {
         if bare { return [.fetch, .push, .log, .reflog, .repositoryBrowser, .export, .worktreeList].contains(action) }
         if [.pull, .merge, .rebase].contains(action) && (bisectActive || mergeActive) { return false }
+        if action == .bisectStart && (bisectActive || mergeActive) { return false }
+        if action.bisectOperation != nil && !bisectActive { return false }
         if action == .stash && mergeActive { return false }
         if [.stashApply, .stashPop, .stashList].contains(action) && !hasStash { return false }
         if action == .submoduleUpdate && !hasSubmoduleConfig { return false }
@@ -228,7 +230,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, add, revert, submoduleUpdate, log, repositoryBrowser, export, bisect, formatPatch, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
+    case status, commit, add, revert, submoduleUpdate, log, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -240,6 +242,11 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .log: return "Show log"
         case .repositoryBrowser: return "Repo-browser…"
         case .bisect: return "Bisect…"
+        case .bisectStart: return "Bisect start…"
+        case .bisectGood: return "Bisect good"
+        case .bisectBad: return "Bisect bad"
+        case .bisectSkip: return "Bisect skip"
+        case .bisectReset: return "Bisect reset"
         case .export: return "Export…"
         case .formatPatch: return "Create Patch Serial…"
         case .worktreeCreate: return "New Worktree…"
@@ -277,6 +284,9 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .resolveTheirs: return "Resolve conflict using ‘theirs’"
         }
     }
+    public var bisectOperation: BisectOperation? {
+        switch self { case .bisectGood: return .good; case .bisectBad: return .bad; case .bisectSkip: return .skip; case .bisectReset: return .reset; default: return nil }
+    }
     public var resolveChoice: ResolveChoice? {
         switch self { case .resolveCurrent: return .current; case .resolveMine: return .mine; case .resolveTheirs: return .theirs; default: return nil }
     }
@@ -285,7 +295,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .add, .revert, .submoduleUpdate, .diff, .bisect, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .add, .revert, .submoduleUpdate, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"
@@ -387,6 +397,11 @@ public enum FinderShellRules {
         .stashApply: [.init([.folderInGit, .onlyOne, .stash], []), .init([], []), .init([], []), .init([], [])],
         .stashPop: [.init([.folderInGit, .onlyOne, .stash], []), .init([], []), .init([], []), .init([], [])],
         .stashList: [.init([.folderInGit, .onlyOne, .stash], []), .init([], []), .init([], []), .init([], [])],
+        .bisectStart: [.init([.folderInGit, .onlyOne], [.bisect, .merge]), .init([], []), .init([], []), .init([], [])],
+        .bisectGood: [.init([.folderInGit, .onlyOne, .bisect], []), .init([], []), .init([], []), .init([], [])],
+        .bisectBad: [.init([.folderInGit, .onlyOne, .bisect], []), .init([], []), .init([], []), .init([], [])],
+        .bisectSkip: [.init([.folderInGit, .onlyOne, .bisect], []), .init([], []), .init([], []), .init([], [])],
+        .bisectReset: [.init([.folderInGit, .onlyOne, .bisect], []), .init([], []), .init([], []), .init([], [])],
         .resolve: [.init([.inGit, .conflicted], []), .init([.inGit, .folder], []), .init([.folderInGit], []), .init([], [])],
         .rename: [.init([.inGit, .onlyOne, .inVersionedFolder], [.workingTreeRoot]), .init([.workingTreeRoot, .submodule], []), .init([], []), .init([], [])],
         .remove: [.init([.inGit, .inVersionedFolder], [.added, .workingTreeRoot]), .init([.folderInGit, .workingTreeRoot, .submodule], []), .init([], []), .init([], [])],

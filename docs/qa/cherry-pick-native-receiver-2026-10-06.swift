@@ -769,6 +769,22 @@ import TurtleGitCore
     precondition(reopened.model.title(.good) == "Bisect old" && reopened.model.title(.bad) == "Bisect new")
     reopened.model.perform(.good, revisions: [hashes[1]]); try await wait(reopened.model); precondition(reopened.model.error == nil)
     reopened.model.perform(.reset); try await wait(reopened.model)
+    // Finder requests must refresh state, then classify the checked-out commit.
+    _ = try await repo.startBisect(good: hashes[0], bad: "HEAD")
+    let candidate = try await repo.bisectState().head
+    reopened.model.load(requireStart: true); try await wait(reopened.model)
+    precondition(reopened.model.error == BisectFailure.active.localizedDescription)
+    let unchangedCandidate = try await repo.bisectState().head; precondition(unchangedCandidate == candidate)
+    reopened.model.error = nil
+    reopened.model.load(operation: .good); try await wait(reopened.model)
+    precondition(reopened.model.error == nil && reopened.model.state?.log.contains("git bisect good " + candidate) == true)
+    reopened.model.load(operation: .reset); try await wait(reopened.model); precondition(reopened.model.state?.active == false)
+    let afterReset = try await repo.bisectState()
+    reopened.model.load(operation: .bad); try await wait(reopened.model)
+    precondition(reopened.model.error == BisectFailure.inactive.localizedDescription && reopened.model.state?.active == false)
+    let afterStale = try await repo.bisectState(); precondition(afterStale.head == afterReset.head && !afterStale.active)
+    reopened.model.error = nil
+    print("Native Finder Bisect dispatch: fresh active Start refusal, current-commit Good after load, Reset handoff and stale ended-session Bad refusal preserve HEAD/state passed.")
     let branch = try await repo.branch(); precondition(branch == "main")
     do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }
     var closed = false; reopened.onClosed = { closed = true }; reopened.close(); precondition(closed && !window.isVisible)

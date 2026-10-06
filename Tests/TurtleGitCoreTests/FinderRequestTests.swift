@@ -2,6 +2,21 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderRequestTests: XCTestCase {
+    func testBisectRequestsUseNativeWorkflowAndRequireWorktree() throws {
+        let folder = URL(fileURLWithPath: "/repo 雪/subdir", isDirectory: true)
+        for action in [RepositoryAction.bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset] {
+            let request = FinderRequest(action: action, paths: [folder])
+            let decoded = try XCTUnwrap(FinderRequest(url: XCTUnwrap(request.url)))
+            XCTAssertEqual(decoded.action, action); XCTAssertEqual(decoded.paths.map(\.path), [folder.path])
+            XCTAssertTrue(action.requiresWorkingTree); XCTAssertNil(action.arguments(value: ""))
+            XCTAssertNotNil(action.icon.image())
+        }
+        XCTAssertEqual(RepositoryAction.bisectGood.bisectOperation, .good)
+        XCTAssertEqual(RepositoryAction.bisectBad.bisectOperation, .bad)
+        XCTAssertEqual(RepositoryAction.bisectSkip.bisectOperation, .skip)
+        XCTAssertEqual(RepositoryAction.bisectReset.bisectOperation, .reset)
+        XCTAssertNil(RepositoryAction.bisectStart.bisectOperation)
+    }
     func testExportRoundTripUsesDialogAndAllowsBareRepository() throws {
         let folder = URL(fileURLWithPath: "/repo 雪/subfolder", isDirectory: true)
         let request = FinderRequest(action: .export, paths: [folder])

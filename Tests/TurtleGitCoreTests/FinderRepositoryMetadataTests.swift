@@ -32,6 +32,12 @@ final class FinderRepositoryMetadataTests: XCTestCase {
         }
         XCTAssertTrue(FinderRepositoryMetadata(bisectActive: true).allows(.stash))
         XCTAssertFalse(FinderRepositoryMetadata(mergeActive: true).allows(.stash))
+        XCTAssertTrue(ordinary.allows(.bisectStart))
+        XCTAssertFalse(FinderRepositoryMetadata(bisectActive: true).allows(.bisectStart))
+        XCTAssertFalse(FinderRepositoryMetadata(mergeActive: true).allows(.bisectStart))
+        for action in [RepositoryAction.bisectGood, .bisectBad, .bisectSkip, .bisectReset] {
+            XCTAssertFalse(ordinary.allows(action)); XCTAssertTrue(FinderRepositoryMetadata(bisectActive: true).allows(action))
+        }
         let bare = FinderRepositoryMetadata(bare: true, hasStash: true, hasSubmoduleConfig: true)
         for action in RepositoryAction.allCases {
             XCTAssertEqual(bare.allows(action), [RepositoryAction.fetch, .push, .log, .reflog, .repositoryBrowser, .export, .worktreeList].contains(action))

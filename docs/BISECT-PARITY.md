@@ -3,7 +3,7 @@
 The repository engine now implements Bisect Start, Good, Bad, Skip and Reset.
 The repository sidebar now opens a native Bisect window. The start view follows
 upstream's two-row Good/Bad layout; the same window expands to show Git output
-and continuation controls. **Log and Finder entry points remain pending.**
+and continuation controls. **Log entry points remain pending.** Finder commands now use the native workflow.
 This does not establish complete Bisect or application parity.
 
 ## Upstream contract
@@ -86,10 +86,36 @@ This adapts upstream's separate start/progress windows to a native start window
 that expands for progress. It retains the two-field start layout and operation
 choices; displayed sizing and appearance are not yet verified.
 
+## Finder commands
+
+Finder now projects the five upstream Bisect commands in their own source menu
+group between Stash and conflict/removal commands. **Bisect start…** requires a
+single repository folder and excludes active Bisect and Merge. **Bisect good**,
+**Bisect bad**, **Bisect skip** and **Bisect reset** require one repository folder
+with an active Bisect session. Bare repositories, individual files and multiple
+folders do not offer these commands. Original icons follow Finder's icon setting.
+
+The shared URL request retains the folder selected when the menu was built.
+The request grants no filesystem permission; normal repository authorization
+still applies. Finder does not execute Git. The foreground app loads fresh
+session state before dispatching a continuation command. Good/Bad/Skip classify
+the current checked-out commit, and custom terms are recovered before command
+execution. Reset uses Git's original branch. A stale Start request is refused
+if another session or merge has begun; a stale classification request is
+refused if its session has ended. Reused windows retain the same fresh guards.
+
+The source condition fixture now projects 38 command rules. Finder-related core
+tests and the actual native menu-builder receiver cover the pinned order,
+inactive/active conditions, icons, selector, captured folder and URL round-trip.
+The native Bisect receiver also checks load-then-dispatch, current-commit Good,
+Reset, and stale active Start/ended-session Bad refusal against real Git state.
+These receivers do not activate the Finder extension or exercise real URL opening.
+
 ## Remaining work
 
-Log/Finder command entry points, selected-revision classification and fresh-state
-menu rules remain pending. So do activated Log pickers, native alert interaction,
+Log command entry points, selected-revision classification and fresh-state Log
+menu rules remain pending. Activated Finder URL opening and signed handoff are
+also unverified. So do activated Log pickers, native alert interaction,
 Submodule Update handoff acceptance, progress cancellation, displayed light/dark verification, keyboard
 and accessibility checks, screenshots and signed sandbox acceptance. Broader Git
 session variants need additional acceptance alongside the normal checkout

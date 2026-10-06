@@ -23,6 +23,7 @@ import TurtleGitCore
         let mapping: [RepositoryAction: String] = [
             .add: "Add", .clone: "Clone", .pull: "Pull", .fetch: "Fetch", .push: "Push", .commit: "Commit",
             .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .reflog: "RefLog", .repositoryBrowser: "RepoBrowse",
+            .bisectStart: "BisectStart", .bisectGood: "BisectGood", .bisectBad: "BisectBad", .bisectSkip: "BisectSkip", .bisectReset: "BisectReset",
             .status: "ShowChanged", .rebase: "Rebase", .stash: "StashSave", .stashApply: "StashApply",
             .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .rename: "Rename",
             .remove: "Remove", .removeKeep: "RemoveKeep", .revert: "Revert", .switchBranch: "Switch",
@@ -191,6 +192,18 @@ import TurtleGitCore
         let bisecting = metadataMenu(FinderRepositoryMetadata(bisectActive: true))
         verifyOrder(bisecting)
         precondition([RepositoryAction.pull, .merge, .rebase].allSatisfy { !rootActions(bisecting).contains($0) } && rootActions(bisecting).contains(.stash))
+        precondition(rootActions(ordinary).contains(.bisectStart) && !rootActions(bisecting).contains(.bisectStart) && !rootActions(merging).contains(.bisectStart))
+        let bisectOperations: [RepositoryAction] = [.bisectGood, .bisectBad, .bisectSkip, .bisectReset]
+        precondition(bisectOperations.allSatisfy { rootActions(bisecting).contains($0) && !rootActions(ordinary).contains($0) })
+        for action in [.bisectStart] + bisectOperations {
+            let menu = action == .bisectStart ? ordinary : bisecting
+            let item = items(menu).first { ($0.representedObject as? FinderMenuCommand)?.request.action == action }!
+            let request = (item.representedObject as! FinderMenuCommand).request
+            precondition(item.image != nil && item.isEnabled && item.target === target && item.action == selector)
+            precondition(request.paths == [folder] && FinderRequest(url: request.url!)?.action == action)
+        }
+        precondition(!trackedActions.contains(.bisectStart) && !multiple.contains(.bisectStart))
+        print("Actual Finder Bisect: inactive Start, active Good/Bad/Skip/Reset, merge/file/multiple exclusion, original icons, selectors, captured folder and URL round-trip passed.")
         let registered = metadataMenu(FinderRepositoryMetadata(submoduleParentRoot: folder.deletingLastPathComponent().path))
         verifyOrder(registered)
         precondition(rootActions(registered).contains(.rename) && rootActions(registered).contains(.remove) && !rootActions(registered).contains(.removeKeep))

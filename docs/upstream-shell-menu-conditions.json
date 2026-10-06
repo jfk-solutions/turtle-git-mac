@@ -915,6 +915,133 @@
           "no": []
         }
       ]
+    },
+    "bisectStart": {
+      "command": "BisectStart",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": [
+            "ITEMIS_BISECT",
+            "ITEMIS_MERGEACTIVE"
+          ]
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "bisectGood": {
+      "command": "BisectGood",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_BISECT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "bisectBad": {
+      "command": "BisectBad",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_BISECT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "bisectSkip": {
+      "command": "BisectSkip",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_BISECT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "bisectReset": {
+      "command": "BisectReset",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE",
+            "ITEMIS_BISECT"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
   }
 }

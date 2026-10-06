@@ -8,7 +8,7 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
     var activeOperation: Bool { model.busy || window?.attachedSheet != nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, good: String? = nil, bad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false) {
         model = BisectWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 180), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Bisect start – TurtleGit"
@@ -28,7 +28,7 @@ import TurtleGitCore
             alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Stash")
             return await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertSecondButtonReturn) } }
         }
-        model.load(good: good, bad: bad)
+        model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart)
     }
     private func chooseRevision(good: Bool) {
         guard !model.busy, let window, window.attachedSheet == nil else { return }
@@ -68,21 +68,25 @@ import TurtleGitCore
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
-    func load(good presetGood: String? = nil, bad presetBad: String? = nil) {
+    func load(good presetGood: String? = nil, bad presetBad: String? = nil, operation: BisectOperation? = nil, revisions: [String] = [], requireStart: Bool = false) {
         guard !busy else { return }; busy = true; error = nil
         Task {
-            defer { busy = false }
             do {
                 try validateAccess()
                 guard try await !repository.isBare() else { throw BisectFailure.workingTree }
                 choices = Array(Set(try await repository.checkoutReferences().filter { $0.symbolicTarget == nil }.map(\.label))).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
-                state = try await repository.bisectState(); hasSubmodules = try await repository.finderMetadata().hasSubmoduleConfig
+                let freshState = try await repository.bisectState(), metadata = try await repository.finderMetadata()
+                state = freshState; hasSubmodules = metadata.hasSubmoduleConfig
+                if freshState.active { if output.isEmpty { output = freshState.log }; onProgress() }
+                if requireStart && (freshState.active || metadata.mergeActive) { throw BisectFailure.active }
+                if operation != nil && !freshState.active { throw BisectFailure.inactive }
                 if let presetGood { good = presetGood }
                 if let presetBad { bad = presetBad }
                 else if bad.isEmpty { let branch = try await repository.branch(); bad = branch.isEmpty ? "HEAD" : branch }
                 lastExitCode = nil
-                if state?.active == true { if output.isEmpty { output = state?.log ?? "" }; onProgress() }
             } catch { self.error = error.localizedDescription }
+            busy = false
+            if error == nil, let operation { perform(operation, revisions: revisions) }
         }
     }
     func start() {

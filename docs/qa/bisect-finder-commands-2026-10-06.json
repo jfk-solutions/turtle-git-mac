@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "13fc07c",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Finder Bisect Start/Good/Bad/Skip/Reset with pinned clauses/order/icons and fresh native dispatch",
+  "sha256": {
+    "FinderSync/FinderSync.swift": "c687ca9f9d8709af01c5978ac24f1506e507f051c18f2342172d7bf0baa732c0",
+    "Sources/TurtleGitCore/FinderCache.swift": "0793070125c450f5588f7a246532962b303adf107e9a74adc90b46334c735776",
+    "Sources/TurtleGitCore/MenuIcons.swift": "2128a3281c14baa0383a961ae6dd185328d4304c5066389e89440cc966b4ffaa",
+    "Sources/TurtleGitMac/BisectWindow.swift": "4c690415e757fe5665e02582a7fef0e153b6d929d2e26b58451c916b4dacd132",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "03d71bf40ae4876df791d6fb5e0bbe4723cbdd7f6c84bec07deeafdfa1b454b6",
+    "Tests/TurtleGitCoreTests/FinderRequestTests.swift": "30eda8d11c0ead9f3aa886eab4841acbbb97da8baaa6ffb85163837ea3d9b892",
+    "Tests/TurtleGitCoreTests/FinderRepositoryMetadataTests.swift": "12e5f29fc50c5e58339e2d25c313c716d77eaac889184d3d8d96fb6094b5b20f",
+    "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift": "7b1742104ba810f0c78a4c36bb580f901e473faaab7a949c41f40060959c24b9",
+    "docs/upstream-shell-menu-conditions.json": "1ddb20a594821c7dbff83cddd0de461f0d3c62bca6b87ace276f4aed41d38c58",
+    "scripts/test-finder-menu.py": "de1c175e21c88d55d6a2c39a910be2af63e95e1ed4bded07518a90b641315ecb",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "f548e5ac964732665aafd760b9764c578d57bb094b824fab72a8b44ef5f89d60",
+    "README.md": "612c7c80265b5cc2aff935e46626bde385b39be350107635f0a1b8ee5a8b0d5e",
+    "docs/BISECT-PARITY.md": "96a09a5e732a215eb2acc6d82e82d9e29d6ac408fd9909418acb71a4e08b3958",
+    "docs/site/index.html": "d840a3acaf677c6e3b3c8b749f1f394cc23dffd964f27071b166a3dcc2e3140e"
+  },
+  "all_native_sources_manifest_sha256": "6326ff2c5bca05fceb3458af2a799b03c0a3a14a8b6bfdd3ec5971e985491e83",
+  "verification": {
+    "core": {
+      "command": "swift test --filter Finder",
+      "tests": 39,
+      "failures": 0,
+      "coverage": "38 pinned shell rule projection, metadata state clauses, Bisect URL/action/icon/working-tree checks and prior Finder-related regressions"
+    },
+    "finder_menu": {
+      "command": "python3 scripts/test-finder-menu.py",
+      "passed": true,
+      "coverage": "Actual native builder: inactive Start, active four continuation commands, merge/file/multiple exclusion, original images, selector/target, captured folder and URL round-trip; all 38 implemented root entries match source order/group projection"
+    },
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "new_coverage": "Fresh active Start refusal preserves candidate; load then current-commit Good; Reset dispatch; stale ended-session Bad refusal preserves HEAD and inactive state. Prior native Bisect workflow, Export, integration and Rebase focused fixtures pass",
+      "limitations": "Hidden owned windows; real URL opening/Finder activation, real alert interaction, displayed screenshots and signed sandbox not exercised"
+    },
+    "builds": [
+      "SwiftPM via swift test",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE cmp passed; Store require-git; all 90 original icons and universal helper runtimes audited",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app, menu check or native receiver remained"
+  },
+  "logs": {
+    "/tmp/turtlegit-bisect-finder-core-final.log": "c94d7d1ec85233e3e5682433ac37de04760776ffbc79e8331d19027f9f5409c2",
+    "/tmp/turtlegit-bisect-finder-menu.log": "8e186ff4278273487e597b34f9f2a7e45844e90496123f13eae216c4b26f5467",
+    "/tmp/turtlegit-bisect-finder-native.log": "28ae7648f01d2df0a7fcbef8bd23a887735f4fbe3a9f3aa21b6a23bc2eba6ef8",
+    "/tmp/turtlegit-bisect-finder-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-bisect-finder-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-bisect-finder-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-bisect-finder-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-bisect-finder-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "remaining": [
+    "Log selected-revision Bisect commands, IsBisect ref exclusion and working-tree Reset entry",
+    "Progress cancellation and Submodule Update acceptance",
+    "Activated Finder URL handoff, displayed native UI/keyboard/accessibility/screenshots and signed sandbox",
+    "Full port and AppStore distribution remain incomplete"
+  ]
+}
