@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-06",
+  "scope": "Owned Log changed-file detail cancellation; full application port remains incomplete",
+  "baseCommit": "83ad6aeeb4f55ca5ea8691a6251db839dfcd979b",
+  "implemented": [
+    "Optional files(in:cancellation:) API checks before work, between name-status/numstat/raw commands and after parsing; each Git command receives the token",
+    "Native Log owns a separate token per detail request; selection replacement, empty selection, history reload and invalidate/close cancel previous detail work and advance its generation",
+    "Only current-generation completions clear the detail token or publish files; cancelled errors suppressed; existing first-parent semantics preserved"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 13,
+      "failures": 0,
+      "scope": "All CommitHistoryTests on final source. New real repository test cancels a stalled numstat command after name-status; wrapper and sleeping child reaped within bounded deadline, independent reader succeeds, exact index bytes unchanged, pre-cancel rejected, and subsequent details return expected path and line statistics."
+    },
+    "nativeAcceptance": "Model ownership/generation paths compiled and source reviewed; displayed selection/refresh/close gestures and signed quit acceptance not performed.",
+    "fullRegression": "Focused history suite only; older full-suite evidence retains its original snapshot scope.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; Store bundled Git audit passed.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "51b8fba90cdde200b64ff20f661d189ca0f74926753dbc5b80539e4028b53d29",
+    "Sources/TurtleGitMac/LogWindow.swift": "4412a8fdab286fd876b71fa7f704a2dc67bf4d83ac9d957cfae7cd887b225e94",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "e27026eed7aa31bafe25c6784472b557d7950b4bd15a81e89c00ce0f0a0ac700"
+  },
+  "pending": [
+    "Native displayed selection/refresh/close races and signed quit/grant acceptance",
+    "Clipboard and other Log operation cancellation",
+    "Incremental detail/history parsing and loading",
+    "Remaining dialog, Finder and full application parity",
+    "Signed App Store distribution verification"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-detail-cancel-tests.log",
+      "sha256": "e3f07f36de508af61181519294ea5b26412ec18d70cfe009727ae8070355a5f5"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-detail-cancel-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-detail-cancel-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-detail-cancel-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-detail-cancel-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-detail-cancel-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

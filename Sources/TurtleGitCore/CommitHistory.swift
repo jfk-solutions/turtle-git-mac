@@ -322,14 +322,23 @@ extension GitRepository {
         }
         return text + "\n"
     }
-    public func files(in entry: LogEntry) throws -> [CommitFile] {
+    public func files(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+        try cancellation?.check()
         var args = ["diff-tree", "--root", "--no-commit-id", "-r", "-M", "--no-ext-diff", "--no-color"]
         if let parent = entry.parents.first { args.append(parent) }
         args += [entry.hash, "--"]
         var names = args; names.insert(contentsOf: ["--name-status", "-z"], at: 1)
         var numbers = args; numbers.insert(contentsOf: ["--numstat", "-z"], at: 1)
         var raw = args; raw.insert(contentsOf: ["--raw", "-z"], at: 1)
-        return CommitFile.parse(names: try run(names).stdout, statistics: try run(numbers).stdout, raw: try run(raw).stdout)
+        let nameData = try run(names, cancellation: cancellation).stdout
+        try cancellation?.check()
+        let numberData = try run(numbers, cancellation: cancellation).stdout
+        try cancellation?.check()
+        let rawData = try run(raw, cancellation: cancellation).stdout
+        try cancellation?.check()
+        let files = CommitFile.parse(names: nameData, statistics: numberData, raw: rawData)
+        try cancellation?.check()
+        return files
     }
     /// Upstream status-list unified diff concatenates each selected file's
     /// patch in visible list order, without including unselected changes.

@@ -96,9 +96,25 @@ callers. It checks before any work (including zero-limit/unborn reads), during r
 and commit parsing and between merge parents, and passes the token through every
 Git command, including notes, tag objects, path diffs and final HEAD/ref metadata.
 The shared process runner terminates only the owned child process group. A cancelled
-read never returns its rows. Native detail/clipboard reads and other Log operations
-still need their own cancellation coverage; large-output buffering and incremental
-loading remain unfinished. See [the cancellation record](qa/log-history-cancel-2026-10-06.json).
+read never returns its rows. Clipboard reads and other Log operations still need
+their own cancellation coverage; large-output buffering and incremental loading
+remain unfinished. See [the cancellation record](qa/log-history-cancel-2026-10-06.json).
+
+## Changed-file detail cancellation
+
+Each native changed-file detail selection owns a separate cancellation token.
+Selecting another revision (including clearing selection), refreshing history or
+closing/invalidating Log cancels the previous detail read and advances its
+generation. Stale results cannot replace current files or clear a newer token;
+cancelled reads do not display an error. Existing first-parent detail semantics
+are preserved.
+
+The core `files(in:cancellation:)` API checks before work, between name-status,
+numstat and raw Git commands and after parsing, passing the token to each command.
+A real repository regression stalls numstat after name-status, cancels its owned
+wrapper and child, verifies independent detail reads and exact unchanged index
+bytes, and then reads the correct file/statistics again. Native gesture and signed
+close/quit acceptance remain unverified. See [the detail cancellation record](qa/log-detail-cancel-2026-10-06.json).
 
 ## Specification
 

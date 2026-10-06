@@ -178,6 +178,7 @@ struct LogCommandRequest: Identifiable {
     @Published var endRevision: String?
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
+    private var detailCancellation: OperationCancellation?
     private var historyCancellation: OperationCancellation?
     var loadingHistory: Bool { historyCancellation != nil }
     @Published var search = ""
@@ -253,11 +254,13 @@ struct LogCommandRequest: Identifiable {
         historyPaths = scope; showWholeProject = scope.isEmpty; reload()
     }
     func invalidate() {
+        detailCancellation?.cancel(); detailCancellation = nil
         if loadingHistory { historyCancellation?.cancel(); historyCancellation = nil; busy = false }
         generation += 1; detailGeneration += 1; clipboardGeneration += 1; copyingDetails = false
     }
     func reload(more: Bool = false) {
         guard !busy || loadingHistory else { return }
+        detailCancellation?.cancel(); detailCancellation = nil; detailGeneration += 1
         historyCancellation?.cancel()
         let cancellation = OperationCancellation(); historyCancellation = cancellation
         if more { limit += 200 } else { limit = 200 }
@@ -281,15 +284,17 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func select(_ hashes: Set<String>) {
+        detailCancellation?.cancel(); detailCancellation = nil
         selected = hashes; selectedFiles = []; files = []
         detailGeneration += 1; let request = detailGeneration
         guard let revision else { return }
+        let cancellation = OperationCancellation(); detailCancellation = cancellation
         Task {
             do {
-                let result = try await repository.files(in: revision)
+                let result = try await repository.files(in: revision, cancellation: cancellation)
                 guard request == detailGeneration else { return }
-                files = result
-            } catch { if request == detailGeneration { self.error = error.localizedDescription } }
+                detailCancellation = nil; files = result
+            } catch { if request == detailGeneration { detailCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription } } }
         }
     }
     func request(_ command: LogRevisionCommand) {
