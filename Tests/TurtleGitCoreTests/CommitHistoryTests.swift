@@ -939,6 +939,90 @@ final class CommitHistoryTests: XCTestCase {
         let independent = try await repo.editableCommitNote(revision: entry.hash); XCTAssertEqual(independent.text, "cancel read note")
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
+    func testMergeRevertEachMainlinePreservesUnrelatedChangesAndDoesNotCommit() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["config", "user.name", "Revert"]); _ = try await repo.run(["config", "user.email", "revert@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
+        for (name, text) in [("main.txt", "M0\n"), ("side.txt", "S0\n"), ("unrelated.txt", "U0\n")] { try Data(text.utf8).write(to: root.appendingPathComponent(name)) }
+        try await repo.stage(["main.txt", "side.txt", "unrelated.txt"]); _ = try await repo.commit(message: "base")
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["checkout", "-b", "side"])
+        try Data("S1\n".utf8).write(to: root.appendingPathComponent("side.txt")); try await repo.stage(["side.txt"]); _ = try await repo.commit(message: "Side change & title")
+        _ = try await repo.run(["checkout", "main"])
+        try Data("M1\n".utf8).write(to: root.appendingPathComponent("main.txt")); try await repo.stage(["main.txt"]); _ = try await repo.commit(message: "Main change with a very long title")
+        let normal = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["merge", "--no-ff", "side", "-m", "merge"])
+        let merge = try await repo.history()[0], index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        for parent in [nil, 0, 3] as [Int?] {
+            do { _ = try await repo.revertLogRevision(revision: merge.hash, mainline: parent); XCTFail() } catch is LogRevertFailure {}
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        }
+        do { _ = try await repo.revertLogRevision(revision: base); XCTFail() } catch LogRevertFailure.root {}
+        try Data((normal + "\n").utf8).write(to: root.appendingPathComponent(".git/MERGE_HEAD"))
+        let active = try await repo.logMergeActive(); XCTAssertTrue(active)
+        do { _ = try await repo.revertLogRevision(revision: merge.hash, mainline: 1); XCTFail() } catch LogRevertFailure.mergeActive {}
+        try FileManager.default.removeItem(at: root.appendingPathComponent(".git/MERGE_HEAD"))
+        for parent in [1, 2] {
+            _ = try await repo.run(["reset", "--hard", merge.hash])
+            try Data("US\n".utf8).write(to: root.appendingPathComponent("unrelated.txt")); try await repo.stage(["unrelated.txt"])
+            try Data("UW\n".utf8).write(to: root.appendingPathComponent("unrelated.txt"))
+            _ = try await repo.revertLogRevision(revision: merge.hash, mainline: parent)
+            XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("main.txt")), parent == 1 ? "M1\n" : "M0\n")
+            XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("side.txt")), parent == 1 ? "S0\n" : "S1\n")
+            let staged = try await repo.run(["show", ":unrelated.txt"]).stdout; XCTAssertEqual(staged, Data("US\n".utf8))
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("unrelated.txt")), Data("UW\n".utf8))
+            let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, merge.hash)
+        }
+        _ = try await repo.run(["reset", "--hard", merge.hash]); _ = try await repo.revertLogRevision(revision: normal)
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("main.txt")), "M0\n")
+        _ = try await repo.run(["reset", "--hard", merge.hash])
+        try Data("later incompatible\n".utf8).write(to: root.appendingPathComponent("side.txt")); try await repo.stage(["side.txt"]); _ = try await repo.commit(message: "later")
+        let later = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        do { _ = try await repo.revertLogRevision(revision: merge.hash, mainline: 1); XCTFail() } catch is GitFailure {}
+        let unmerged = try await repo.run(["ls-files", "--unmerged"]).stdout; XCTAssertFalse(unmerged.isEmpty)
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, later)
+    }
+    func testParentMetadataLabelsFallbackAndOwnedCancellation() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let head = try await repo.history()[0], index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        var entry = head; entry.parents = [head.hash, String(repeating: "a", count: 40)]
+        let choices = try await repo.logParentChoices(entry)
+        XCTAssertEqual(choices.map(\.number), [1, 2]); XCTAssertEqual(choices[0].subject, head.subject); XCTAssertNil(choices[1].subject)
+        XCTAssertEqual(choices[1].title, "Parent 2 (aaaaaaaa)")
+        XCTAssertEqual(LogParentChoice(number: 3, hash: head.hash, subject: "12345678901234567890 & after").title, "Parent 3: \"12345678901234567890...\" (" + head.hash.prefix(8) + ")")
+        XCTAssertTrue(LogParentChoice(number: 1, hash: head.hash, subject: "A & B").title.contains("A & B"))
+        let stopped = OperationCancellation(); stopped.cancel()
+        do { _ = try await repo.logParentChoices(entry, cancellation: stopped); XCTFail() } catch is OperationCancellationFailure {}
+        let wrapper = root.appendingPathComponent("slow-parent-read")
+        let script = """
+        #!/bin/sh
+        /bin/sleep 30 &
+        task_parent_child=$!
+        trap 'kill "$task_parent_child" 2>/dev/null; wait "$task_parent_child" 2>/dev/null; exit 143' TERM INT
+        echo "$$ $task_parent_child" > "$0.started"
+        wait "$task_parent_child"
+        exec /usr/bin/git "$@"
+        """
+        try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
+        let slow = GitRepository(root: root, executable: wrapper), token = OperationCancellation(), snapshot = entry
+        let task = Task { try await slow.logParentChoices(snapshot, cancellation: token) }
+        defer { token.cancel() }
+        let marker = URL(fileURLWithPath: wrapper.path + ".started"), deadline = Date().addingTimeInterval(5)
+        while !FileManager.default.fileExists(atPath: marker.path) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        guard FileManager.default.fileExists(atPath: marker.path) else { token.cancel(); _ = await task.result; XCTFail("Parent read never started"); return }
+        let pids = try String(contentsOf: marker).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }; token.cancel()
+        do { _ = try await task.value; XCTFail() } catch is OperationCancellationFailure {} catch is GitCommandCancellationFailure {}
+        let reaped = Date().addingTimeInterval(3)
+        while Date() < reaped && pids.contains(where: { kill($0, 0) == 0 }) { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertEqual(pids.count, 2); XCTAssertTrue(pids.allSatisfy { kill($0, 0) != 0 })
+        let independent = try await repo.logParentChoices(entry); XCTAssertEqual(independent, choices)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
     func testRealHistoryDetailsRefsFilteringAndMerge() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

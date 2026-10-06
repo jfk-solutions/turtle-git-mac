@@ -374,6 +374,31 @@ public enum CommitGraph {
     }
 }
 
+/// Parent labels from GitLogListBase.cpp: 1-based number, 20 UTF-16 units and 8 hex digits.
+public struct LogParentChoice: Sendable, Equatable {
+    public let number: Int
+    public let hash: String
+    public let subject: String?
+    public init(number: Int, hash: String, subject: String? = nil) { self.number = number; self.hash = hash; self.subject = subject }
+    public var title: String {
+        let prefix = "Parent \(number)"
+        guard let subject else { return prefix + " (" + hash.prefix(8) + ")" }
+        let short = subject.utf16.count > 20 ? String(decoding: Array(subject.utf16.prefix(20)), as: UTF16.self) + "..." : subject
+        return prefix + ": \"" + short + "\" (" + hash.prefix(8) + ")"
+    }
+}
+public enum LogRevertFailure: LocalizedError {
+    case parent, root, bare, mergeActive
+    public var errorDescription: String? {
+        switch self {
+        case .parent: return "Choose a valid parent of this merge commit."
+        case .root: return "Select a non-root commit to revert."
+        case .bare: return "This operation requires a working tree."
+        case .mergeActive: return "Finish the active merge before reverting a commit."
+        }
+    }
+}
+
 public struct CommitNoteSnapshot: Identifiable, Sendable {
     public let revision: String
     public let notesRef: String
@@ -394,6 +419,41 @@ public enum CommitNoteFailure: LocalizedError {
 }
 
 extension GitRepository {
+    public func logMergeActive(cancellation: OperationCancellation? = nil) throws -> Bool {
+        let path = try run(["rev-parse", "--git-path", "MERGE_HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        try cancellation?.check()
+        let url = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+    public func logParentChoices(_ entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> [LogParentChoice] {
+        var choices: [LogParentChoice] = []
+        for (index, parent) in entry.parents.enumerated() {
+            try cancellation?.check()
+            guard (parent.count == 40 || parent.count == 64) && parent.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw LogRevertFailure.parent }
+            do {
+                let result = try run(["show", "-s", "--no-notes", "--format=%s", parent, "--"], cancellation: cancellation)
+                var subject = String(decoding: result.stdout, as: UTF8.self)
+                if subject.hasSuffix("\n") { subject.removeLast() }
+                choices.append(LogParentChoice(number: index + 1, hash: parent, subject: subject))
+            } catch is GitFailure { choices.append(LogParentChoice(number: index + 1, hash: parent)) }
+        }
+        try cancellation?.check()
+        return choices
+    }
+    /// Source GitRevert: reverse the chosen mainline into index/worktree without committing.
+    public func revertLogRevision(revision: String, mainline: Int? = nil) throws -> GitResult {
+        guard try run(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true" else { throw LogRevertFailure.bare }
+        guard try !logMergeActive() else { throw LogRevertFailure.mergeActive }
+        let hash = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        let parents = try run(["show", "-s", "--no-notes", "--format=%P", hash, "--"]).text.split(whereSeparator: \.isWhitespace)
+        guard !parents.isEmpty else { throw LogRevertFailure.root }
+        if parents.count > 1 { guard let mainline, (1...parents.count).contains(mainline) else { throw LogRevertFailure.parent } }
+        else if mainline != nil { throw LogRevertFailure.parent }
+        var arguments = ["revert", "--no-edit", "--no-commit"]
+        if let mainline { arguments += ["--mainline", String(mainline)] }
+        arguments.append(hash)
+        return try run(arguments)
+    }
     /// Read the active notes ref, independently of additional log display refs.
     public func editableCommitNote(revision: String, cancellation: OperationCancellation? = nil) throws -> CommitNoteSnapshot {
         try cancellation?.check()

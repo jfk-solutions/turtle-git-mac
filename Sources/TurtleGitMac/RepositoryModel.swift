@@ -949,6 +949,15 @@ import TurtleGitCore
         controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
+        controller.model.onCommit = { [weak self] in
+            guard let self else { return }
+            if self.root == root { self.activate(.commit) }
+            else if let access { self.openSession(access, action: .commit) }
+        }
+        controller.model.onRevisionChanged = { [weak self] output in
+            self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
         controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
         logWindows[key] = controller
         controller.model.endRevision = endRevision

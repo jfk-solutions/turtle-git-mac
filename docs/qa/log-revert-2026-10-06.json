@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-06",
+  "scope": "Single-revision Log Revert merge-parent menus and confirmation/result workflow; full application parity remains incomplete",
+  "baseCommit": "fee4dbb",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implemented": [
+    "Source Revert label and original icon; all merge parent submenu choices with subject/20 UTF-16 unit truncation/8-digit hashes and per-parent fallback",
+    "Owned parent metadata on selection with shared detail cancellation/stale guards and pruned immutable cache",
+    "Root/bare/active-merge/stash/index-parent omission rules; fresh core bare/active-merge/actual-parent validation",
+    "Pinned revision/mainline confirmation with native Yes/No and explicit No default; source --no-edit/--no-commit reverse changes",
+    "OK/Commit result and repository-grant Commit route; status/Commit/workspace refresh callbacks on success/failure",
+    "User guide and source comparison; App Store bundled Git audit extended for both merge mainlines"
+  ],
+  "verification": {
+    "focusedRegression": {
+      "count": 32,
+      "failures": 0,
+      "scope": "CommitHistoryTests final core/test sources. Both mainlines, ordinary revert, invalid/missing parent and root/active-merge rejection, unrelated staged/working preservation, HEAD unchanged, conflict state retained; parent labels/fallback and stalled owned metadata cancellation/child reaping with independent read. Native omission/label refinements after this run were checked separately."
+    },
+    "nativeReceiver": "Actual final native sources, activation prohibited: real two-parent menu titles/icon/tags, bare/merge/root omission; menu selector routes pinned parent/revision into mocked No/Yes confirmation callbacks; No unchanged index, Yes actual expected reverse and unchanged HEAD, result Commit/changed callbacks. Existing table/Actions/Jump/Notes checks also pass. No confirmation/result prompts displayed; any hidden SwiftUI helper windows verified invisible and closed before exit.",
+    "nativeReceiverSource": {
+      "path": "/tmp/turtlegit-log-revert-receiver.swift",
+      "sha256": "ab7ce1cf9c15d7942d921113884972b9df0b05251cd8b0cef72b6cfdd6c19815"
+    },
+    "builds": [
+      "Final Debug unsigned passed",
+      "Final AppStore unsigned passed"
+    ],
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; 85 pinned icons. Store Git 2.55 real both-mainline reverts, exact expected contents, staged path and unchanged HEAD passed alongside existing notes/blame/runtime fixtures.",
+    "fullRegression": "Focused affected suite only; historical 505-test full-suite evidence retains its 122a2ac snapshot scope.",
+    "site": "Documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "864daef23e3c24353b32345e070cd943910d49386249bd89e38e32fb0a41552f",
+    "Sources/TurtleGitMac/LogWindow.swift": "d09da2cdc8f46a15e431c5b5547dfcd10c2270c8856a073bd59286f43da00a19",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "2168e3dc84653eb3b08b0cac04e2b3840fdc970a66d3c79677036f841747f3bc",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "06bbd1560688c587ec063acceb46be1f313d828ad9823ab66e549dff0c836ffa",
+    "scripts/validate-git-runtime.py": "1d64bae1efe587b3091553817eea143d2cd336627cf7642db8426953c604492b"
+  },
+  "pending": [
+    "Displayed parent menu and confirmation/result prompts, No default/focus/keyboard and Commit handoff acceptance",
+    "Progress and light/dark acceptance",
+    "Multi-revision Revert and Skip/Abort continuation",
+    "Detailed conflict/continue/abort and linked-worktree acceptance",
+    "Upstream Cherry Pick Rebase-dialog workflow and merge Cherry Pick",
+    "Signed sandbox/Finder/App Store validation",
+    "Remaining dialogs and full application parity"
+  ],
+  "logs": {
+    "tests": {
+      "path": "/tmp/turtlegit-log-revert-tests.log",
+      "sha256": "6e3db1ca401b1d9eda91e567161d3e422724d3e795be520b762a8a23ab2b4ac7"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-log-revert-native.log",
+      "sha256": "568bfe8bcd1722c825c93b7b5f136a4d859cce0734ad317e470d8014cd643f0f"
+    },
+    "native-build": {
+      "path": "/tmp/turtlegit-log-revert-native-build.log",
+      "sha256": "b01c35d5caab10b326ce93c28914b3204f71f5c994e42d1090aadfc2e2b4788f"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-log-revert-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-log-revert-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debug-audit": {
+      "path": "/tmp/turtlegit-log-revert-debug-audit.log",
+      "sha256": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a"
+    },
+    "store-audit": {
+      "path": "/tmp/turtlegit-log-revert-store-audit.log",
+      "sha256": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-log-revert-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}

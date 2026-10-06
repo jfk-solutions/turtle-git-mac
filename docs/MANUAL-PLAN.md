@@ -28,3 +28,6 @@ the shipped behavior; engineering parity documents track what still needs work.
 
 The [Edit Notes guide](GIT-NOTES.md) now documents that implemented workflow and
 its recovery behavior. Its macOS screenshots remain pending.
+
+The [Revert from Log guide](REVERT-COMMIT.md) now covers the single-revision and
+merge-parent workflow. Displayed screenshots and remaining workflows are pending.

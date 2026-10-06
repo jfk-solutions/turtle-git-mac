@@ -115,6 +115,17 @@ exhaustion and invalidation. Displayed controls, arrow gestures, scroll/highligh
 appearance in light/dark, warning suppression/relaunch, keyboard navigation and
 signed sandbox acceptance remain pending. See [the jump record](qa/log-jump-2026-10-06.json).
 
+## Revert merge parents
+
+Single-revision Revert now uses the upstream parent submenu for merges, populated
+with parent subjects and hashes. The native Yes/No confirmation defaults to No;
+core applies the selected mainline without committing. Success offers OK/Commit,
+and Commit routes to the existing repository's Commit workflow. Root/bare/merge/
+stash conditions omit the command. Parent metadata shares owned detail
+cancellation and caches immutable results. See [the user guide](REVERT-COMMIT.md)
+and [Log Revert parity](LOG-REVERT-PARITY.md) for evidence and remaining multi-commit,
+conflict, displayed UI and signed checks.
+
 ## Edit Notes
 
 A single ordinary revision now offers Edit Notes with original edit artwork.
@@ -390,7 +401,7 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 | Search/filter | Full history scope controls, search highlighting, displayed jump/selection-history acceptance and keyboard navigation; implemented fields/modes are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
 | Revision menus | Repository browser, rebase onto selection, export, format patch, bisect, squash, ref containment/search |
-| Mutations | Full branch/tag options, checkout branches, mainline choices for merge revert/cherry-pick, multi-commit operations, conflict continue/abort |
+| Mutations | Full branch/tag options, checkout branches, merge Cherry Pick, multi-commit Revert and other operations, conflict continue/abort |
 | Footer | Statistics, walk behavior, View options and upstream settings persistence |
 | Comparison | Native side-by-side/three-way editor, merge combined diffs and external tool configuration |
 | Accessibility | Full VoiceOver acceptance, keyboard shortcuts and focus parity |

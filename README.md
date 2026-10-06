@@ -213,6 +213,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   tag-info searches include the formatted tagger date. Single revisions offer
   [Edit Notes](docs/GIT-NOTES.md), with exact text preservation and project minimum
   message length; [parity details](docs/EDIT-NOTES-PARITY.md) record remaining checks.
+  [Revert from Log](docs/REVERT-COMMIT.md) offers merge-parent choices and the
+  upstream confirmation/result prompts, with a Commit handoff.
 - Original TortoiseGit command icons in app context menus and the Finder submenu;
   original XPStyle status artwork for Finder badges and app file status.
   Advanced Settings → ShowAppContextMenuIcons controls app menu artwork while

@@ -133,11 +133,17 @@ def main():
         assert hashes('--first-parent') == [main_hash, origin, merge_hash]
         assert (merge_repo / '.git/index').read_bytes() == merge_index and merge_file.read_bytes() == b'working replacement\n'
         assert merge_run('rev-parse', 'HEAD').strip() == merge_hash
+        for mainline, expected in [(1, base.replace(b'main base', b'main change')), (2, base.replace(b'side base', b'side change'))]:
+            merge_run('reset', '--hard', merge_hash.decode('ascii'))
+            merge_run('revert', '--no-edit', '--no-commit', '--mainline', str(mainline), merge_hash.decode('ascii'))
+            assert merge_file.read_bytes() == expected, f'Merge revert mainline {mainline} mismatch'
+            assert merge_run('rev-parse', 'HEAD').strip() == merge_hash, 'Revert must not commit automatically'
+            assert merge_run('diff', '--cached', '--name-only', '-z') == merge_file.name.encode('utf-8') + b'\0'
     if args.https:
         with tempfile.TemporaryDirectory(prefix='turtlegit-runtime-https-') as directory:
             result = run('ls-remote', '--exit-code', 'https://github.com/TortoiseGit/TortoiseGit.git', 'HEAD', timeout=60, cwd=directory)
         assert result.rstrip().endswith(b'\tHEAD'), 'Missing HTTPS remote HEAD'
         print('Public HTTPS ls-remote passed with bundled git-remote-https.')
-    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/notes/blame (UTF-8, UTF-16, legacy code pages and first-parent merge attribution) passed.')
+    print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/notes/revert/blame (UTF-8, UTF-16, legacy code pages and first-parent merge attribution) passed.')
 
 if __name__ == '__main__': main()

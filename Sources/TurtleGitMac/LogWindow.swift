@@ -53,6 +53,25 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
             guard let self else { return }
             if self.model.selecting { self.finishSelection(nil) } else { self.window?.performClose(nil) }
         }
+        model.confirmRevert = { [weak self] request in
+            guard let window = self?.window, window.attachedSheet == nil else { return false }
+            return await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.messageText = "Revert the selected commit(s)?"; alert.alertStyle = .warning
+                if let parent = request.mainline { alert.informativeText = self?.model.parentChoices(for: request.revision).first(where: { $0.number == parent })?.title ?? "Parent \(parent)" }
+                alert.addButton(withTitle: "Yes").keyEquivalent = ""
+                let no = alert.addButton(withTitle: "No"); no.keyEquivalent = "\r"
+                alert.window.defaultButtonCell = no.cell as? NSButtonCell
+                alert.beginSheetModal(for: window) { response in continuation.resume(returning: response == .alertFirstButtonReturn) }
+            }
+        }
+        model.offerRevertCommit = { [weak self] in
+            guard let window = self?.window, window.attachedSheet == nil else { return false }
+            return await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.messageText = "Revision(s) reverted. All changes are integrated into your working tree now."
+                alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Commit")
+                alert.beginSheetModal(for: window) { response in continuation.resume(returning: response == .alertSecondButtonReturn) }
+            }
+        }
         model.finishSelection = { [weak self] revision in self?.finishSelection(revision) }
         model.presentHistoricalSave = { [weak self] content, short in
             // Let the originating context-menu tracking finish before presenting AppKit UI.
@@ -152,7 +171,7 @@ enum LogRevisionCommand: String, Identifiable {
     case push = "Push…"
     case reset = "Reset current branch to this…"
     case cherryPick = "Cherry Pick this commit…"
-    case revert = "Revert changes by this commit…"
+    case revert = "Revert change by this commit"
     var id: String { rawValue }
 }
 
@@ -160,6 +179,7 @@ struct LogCommandRequest: Identifiable {
     let id = UUID()
     let command: LogRevisionCommand
     let revision: LogEntry
+    var mainline: Int? = nil
 }
 
 @MainActor final class LogWindowModel: ObservableObject {
@@ -175,6 +195,17 @@ struct LogCommandRequest: Identifiable {
     private var activeActionHash: String?
     private var actionGeneration = 0
     var loadingActions: Bool { actionCancellation != nil }
+    @Published var parentMetadata: [String: [LogParentChoice]] = [:]
+    @Published var mergeActive = false
+    var confirmRevert: (LogCommandRequest) async -> Bool = { _ in false }
+    var offerRevertCommit: () async -> Bool = { false }
+    var onCommit: () -> Void = {}
+    var onRevisionChanged: (String) -> Void = { _ in }
+    func parentChoices(for entry: LogEntry) -> [LogParentChoice] {
+        parentMetadata[entry.hash] ?? entry.parents.enumerated().map { LogParentChoice(number: $0.offset + 1, hash: $0.element) }
+    }
+    var revertAvailable: Bool { revision != nil && !bare && !mergeActive && !selectedIsStash && revision?.parents.isEmpty == false }
+    var canRevertRevision: Bool { revertAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil }
     @Published var graph: [CommitGraphRow] = []
     @Published var selected = Set<String>()
     @Published var files: [CommitFile] = []
@@ -200,15 +231,16 @@ struct LogCommandRequest: Identifiable {
     @Published var savingNote = false
     private var noteCancellation: OperationCancellation?
     private var noteGeneration = 0
-    var canEditNotes: Bool {
-        guard let revision, !busy, !jumping, !loadingNote, !savingNote, noteRequest == nil,
-              !revision.references.contains(where: { $0.name == "refs/stash" }) else { return false }
+    var selectedIsStash: Bool {
+        guard let revision else { return false }
+        if revision.references.contains(where: { $0.name == "refs/stash" }) { return true }
         if let index = entries.firstIndex(where: { $0.hash == revision.hash }), index > 0 {
             let previous = entries[index - 1]
-            if previous.references.contains(where: { $0.name == "refs/stash" }), previous.parents.count == 2, previous.parents[1] == revision.hash { return false }
+            if previous.references.contains(where: { $0.name == "refs/stash" }), previous.parents.count == 2, previous.parents[1] == revision.hash { return true }
         }
-        return true
+        return false
     }
+    var canEditNotes: Bool { revision != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !selectedIsStash }
     var canSaveNote: Bool { !savingNote && noteRequest?.accepts(noteText) == true }
     private func cancelNoteRead() {
         noteCancellation?.cancel(); noteCancellation = nil; loadingNote = false; noteGeneration += 1
@@ -428,12 +460,14 @@ struct LogCommandRequest: Identifiable {
         Task {
             do {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
+                let mergeActive = try await repository.logMergeActive(cancellation: cancellation)
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 let result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 guard request == generation else { return }
-                self.bare = bare; self.issueProperties = issueProperties
+                self.bare = bare; self.mergeActive = mergeActive; self.issueProperties = issueProperties
                 entries = result; graph = CommitGraph.layout(result)
                 let hashes = Set(result.map(\.hash)); revisionActions = revisionActions.filter { hashes.contains($0.key) }
+                parentMetadata = parentMetadata.filter { hashes.contains($0.key) }
                 selected.formIntersection(Set(result.map(\.hash)))
                 if selected.isEmpty, let first = result.first { selected = [first.hash] }
                 historyCancellation = nil; busy = false; select(selected)
@@ -454,13 +488,32 @@ struct LogCommandRequest: Identifiable {
             do {
                 let result = try await repository.files(in: revision, cancellation: cancellation)
                 guard request == detailGeneration else { return }
-                detailCancellation = nil; files = result
+                files = result
+                if revision.parents.count > 1 {
+                    let choices = try? await repository.logParentChoices(revision, cancellation: cancellation)
+                    guard request == detailGeneration else { return }
+                    if let choices { parentMetadata[revision.hash] = choices }
+                }
+                detailCancellation = nil
             } catch { if request == detailGeneration { detailCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription } } }
         }
     }
-    func request(_ command: LogRevisionCommand) {
+    func request(_ command: LogRevisionCommand, mainline: Int? = nil) {
         guard !busy, let revision else { return }
         guard !bare || ![LogRevisionCommand.checkout, .cherryPick, .revert].contains(command) else { return }
+        if command == .revert {
+            guard canRevertRevision else { return }
+            if revision.parents.count > 1 { guard let mainline, (1...revision.parents.count).contains(mainline) else { return } }
+            else if mainline != nil { return }
+            let request = LogCommandRequest(command: command, revision: revision, mainline: mainline)
+            busy = true
+            Task {
+                let accepted = await confirmRevert(request)
+                busy = false
+                if accepted { execute(request, value: "") }
+            }
+            return
+        }
         if command == .branch || command == .tag { onCreateReference(command == .tag, revision.hash); return }
         if command == .push { onPush(revision.hash); return }
         if command == .checkout { onCheckout(revision.hash); return }
@@ -468,6 +521,7 @@ struct LogCommandRequest: Identifiable {
         commandRequest = LogCommandRequest(command: command, revision: revision)
     }
     func execute(_ request: LogCommandRequest, value: String) {
+        guard !busy else { return }
         if bare && [LogRevisionCommand.checkout, .cherryPick, .revert].contains(request.command) {
             error = "This operation requires a working tree."; return
         }
@@ -484,8 +538,19 @@ struct LogCommandRequest: Identifiable {
         }
         commandRequest = nil; busy = true
         Task {
-            do { _ = try await repository.run(args); busy = false; reload() }
-            catch { self.error = error.localizedDescription; busy = false; reload() }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let result: GitResult
+                if request.command == .revert { result = try await repository.revertLogRevision(revision: hash, mainline: request.mainline) }
+                else { result = try await repository.run(args) }
+                onRevisionChanged(result.text)
+                if request.command == .revert {
+                    let commit = await offerRevertCommit()
+                    busy = false
+                    if commit { onCommit() }
+                } else { busy = false }
+                reload()
+            } catch { self.error = error.localizedDescription; onRevisionChanged(error.localizedDescription); busy = false; reload() }
         }
     }
     private func cancelClipboardRead() {
@@ -1047,7 +1112,20 @@ struct RevisionTable: NSViewRepresentable {
             item("Create tag at this version…", #selector(tag), icon: .tag, enabled: one && !model.busy)
             item("Push…", #selector(push), icon: .push, enabled: one && !model.busy)
             menu.addItem(.separator())
-            item("Revert changes by this commit…", #selector(revert), icon: .revert, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
+            if model.revertAvailable {
+                if let revision = model.revision, revision.parents.count > 1 {
+                    let parent = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
+                    parent.image = MenuIcon.revert.contextImage(); parent.isEnabled = model.canRevertRevision
+                    let submenu = NSMenu(title: parent.title); submenu.autoenablesItems = false
+                    for choice in model.parentChoices(for: revision) {
+                        let child = NSMenuItem(title: choice.title, action: #selector(revertParent), keyEquivalent: "")
+                        child.tag = choice.number; child.target = self; child.isEnabled = model.canRevertRevision; submenu.addItem(child)
+                    }
+                    parent.submenu = submenu; menu.addItem(parent)
+                } else {
+                    item("Revert change by this commit", #selector(revert), icon: .revert, enabled: model.canRevertRevision)
+                }
+            }
             item("Cherry Pick this commit…", #selector(cherryPick), icon: .cherryPick, enabled: one && !model.busy && !model.bare && model.revision?.parents.count == 1)
             item("Edit Notes", #selector(editNotes), icon: .rebaseEdit, enabled: model.canEditNotes)
             item("Format Patch…", #selector(formatPatch), icon: .patch, enabled: model.formatPatchPreset != nil && !model.busy && model.onFormatPatch != nil)
@@ -1101,6 +1179,7 @@ struct RevisionTable: NSViewRepresentable {
         @objc func branch() { model.request(.branch) }
         @objc func tag() { model.request(.tag) }
         @objc func revert() { model.request(.revert) }
+        @objc func revertParent(_ sender: NSMenuItem) { model.request(.revert, mainline: sender.tag) }
         @objc func cherryPick() { model.request(.cherryPick) }
         @objc func showDiff() { model.diff(alternate: NSEvent.modifierFlags.contains(.shift)) }
         @objc func compare() { model.compare() }
