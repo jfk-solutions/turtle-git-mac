@@ -184,6 +184,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Refreshed registered submodule roots now expose Rename/Remove and route them
   through the parent repository; [submodule root audit](docs/FINDER-SUBMODULE-ROOT-PARITY.md)
   records cache and signed-permission gaps.
+  Parent refresh now collects initialized nested submodule caches without opening
+  each child. [Cache-tree audit](docs/FINDER-SUBMODULE-TREE-PARITY.md) records
+  deinitialization cleanup, retained independent roots and remaining background work.
   Finder folder creation menus and a toolbar entry point route Clone/Create
   repository to native dialogs/pickers. Targetless toolbar requests are supported;
   signed activation remains unverified. See [creation audit](docs/FINDER-CREATION-PARITY.md).

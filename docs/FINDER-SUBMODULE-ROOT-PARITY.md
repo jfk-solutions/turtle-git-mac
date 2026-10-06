@@ -47,8 +47,9 @@ ordinary roots exclude Rename/Remove. No Finder controller/extension/window is
 activated. App parent-picker routing is compiled/source-audited, not native
 picker or signed-scope acceptance.
 
-Only refreshed child roots have this metadata. Collecting all submodule roots
-and child statuses while refreshing a parent, uninitialized/removed/conflicted
+The subsequent [foreground cache-tree collection](FINDER-SUBMODULE-TREE-PARITY.md)
+collects initialized child roots/statuses from a parent refresh and removes known
+deinitialized child caches. Uninitialized/removed/conflicted
 registration cases, symlink/nonregular `.gitmodules` equivalence, multiple-root
 selections, background monitoring and fresh signed handoff remain pending. A
 child-only sandbox grant can prevent parent metadata discovery; the flag remains

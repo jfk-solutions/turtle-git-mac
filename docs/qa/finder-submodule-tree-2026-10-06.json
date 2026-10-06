@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-06",
+  "scope": "Foreground parent collection of initialized registered nested submodule caches; shared subtree replacement and actual collected-data menu receiver; full app/Finder goal remains incomplete",
+  "baseCommit": "fbd9aab7d7e1442eb1d5fb5a3f222419b78a3cdb",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceRegistration": "TGitPath.cpp GetAdminDirMask/IsRegisteredSubmoduleOfParentProject as previously audited; foreground native collection is not complete TGitCache equivalence",
+  "focusedCoreTests": {
+    "count": 5,
+    "failures": 0,
+    "newTests": 5
+  },
+  "actualCoreEvidence": [
+    "Real nested Unicode/newline submodules collected without separately opening them",
+    "Inner modified working file and outer real stash remain separate facts",
+    "Parent HEAD and logical index entries and child index entries are unchanged",
+    "Real deinitialization drops owned child roots/status/metadata",
+    "Parent gitlink severity survives clean registered child root, while child file states remain separate",
+    "Sibling and independently opened nested cache roots retain data",
+    "Unsafe traversal, outside symlink and non-directory targets reported; missing target skipped; insufficient root boundary rejected"
+  ],
+  "actualNativeReceiver": "Actual extension source Swift 6/macOS 13 creates real parent/unopened child, collects cache, serializes/restores it, builds enabled captured Rename/Remove menus and verifies parent resolver; prior menu/order/icons/pair/path checks pass; no controller/extension/menu/window activated",
+  "productionBinding": "RepositoryModel passes active lease location, replaces cached tree, writes existing atomic snapshot and notifies; compiled/source-audited, not real entitled handoff",
+  "compatibility": "No persisted schema changes. Existing optional registered-parent field, comparison marks and preferences retained",
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed; existing Locale metric deprecation retained"
+  ],
+  "regressionCorrection": "Earlier full run was intentionally interrupted after confirming independent nested roots needed preservation. Recorded final regression uses corrected code. Removed-child fixture now records known registered ownership, matching cleanup semantics.",
+  "pending": [
+    "Background/FSEvents monitoring and independent repository freshness",
+    "Cancellation/scalable scan scheduling",
+    "Legacy roots lacking ownership metadata can remain stale",
+    "Failed child scans unavailable until successful refresh",
+    "Signed scope/publication/picker/menu/visual acceptance",
+    "Uninitialized/conflicted action acceptance and full shell classification",
+    "Full application/App Store/release parity and GitHub publication authentication"
+  ],
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "ff944a2a30f44624240293b58e11c096e2668706ebeeb62d8c20eacdb2af7cac",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "1b5eb61e8afc911b797224062241fafee3e4676cf32990dbd2e8a21f731a165c",
+    "Tests/TurtleGitCoreTests/FinderSubmoduleScanTests.swift": "93ed7d3c226be292efb19535532e69ab88fdbd13ad32d4bac8cec7f796b1b47b",
+    "scripts/test-finder-menu.py": "9a0af5115fc11839348da88185d754ab7041cb6b7950241d4cddc8047934bbbb",
+    "NOTICE": "bb4bae1e32b83deaa073a11f1d372ccf91687d3a01909aea4c508e21b641b2d1"
+  },
+  "logs": {
+    "focused": {
+      "path": "/tmp/turtlegit-finder-submodule-tree-final-focused.log",
+      "sha256": "bb5a7406d9d24d8875dd075c951c3dc5cbac348fb4eaa932b0a169f4e57cf9ff"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-finder-submodule-tree-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-finder-submodule-tree-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-finder-submodule-tree-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "menu": {
+      "path": "/tmp/turtlegit-finder-submodule-tree-menu.log",
+      "sha256": "b1ad8439f4375f9d746aa3a5d43fd21162caf8eaae0b3a13402fc84d0a6b851b"
+    },
+    "fullCore": {
+      "path": "/tmp/turtlegit-finder-submodule-tree-final-full-core.log",
+      "sha256": "8392561e43b03716c42d70672ecadc060ebe478594947c9e2b5f7e6a29203cdf"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-finder-submodule-tree-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-finder-submodule-tree-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "fullCoreTests": {
+    "count": 486,
+    "failures": 0,
+    "durationSeconds": 277.635
+  },
+  "bundles": "Both audits and exact bundled NOTICE comparisons pass; all 75 upstream icons, universal helpers and Store Git 2.55.0 retained",
+  "appProcesses": "No main app or native receiver remained at final audit; no main app launched during checks"
+}

@@ -207,15 +207,15 @@ import TurtleGitCore
         branch = try await repository.branch()
         let tracked = bare ? [] : try await repository.trackedPaths()
         let metadata = try await repository.finderMetadata(knownBare: bare)
-        let snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
-        cacheRepositories[root.path] = metadata
-        cacheStates = cacheStates.filter { $0.key != root.path && !$0.key.hasPrefix(root.path + "/") }
-        cacheStates.merge(snapshot.states) { _, new in new }
-        if !monitoredRoots.contains(root.path) { monitoredRoots.append(root.path) }
+        var snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
+        snapshot.repositories[root.path] = metadata
+        let children = bare ? FinderSubmoduleScan() : try await repository.finderSubmoduleSnapshots(authorizedRoot: activeAccess?.url ?? root)
+        var cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates, repositories: cacheRepositories)
+        cached.replaceSubtree(root: root, snapshots: [snapshot] + children.snapshots)
+        monitoredRoots = cached.roots; cacheStates = cached.states; cacheRepositories = cached.repositories
         do {
-            let cached = FinderSnapshot(roots: monitoredRoots, states: cacheStates, repositories: cacheRepositories)
             let written = try await Task.detached(operation: { try cached.write() }).value
-            finderStatus = written ? "Finder cache updated" : "Finder cache unavailable: App Group access required"
+            finderStatus = written ? (children.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(children.failures.count) submodule scan(s) failed: " + children.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
             if written { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) }
         } catch { finderStatus = "Finder cache unavailable: " + error.localizedDescription }
     }

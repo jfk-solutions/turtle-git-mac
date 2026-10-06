@@ -459,3 +459,97 @@ extension GitRepository {
         return nil
     }
 }
+
+public struct FinderSubmoduleScan: Sendable {
+    public var snapshots: [FinderSnapshot] = []
+    public var failures: [String: String] = [:]
+    public init() {}
+}
+
+extension GitRepository {
+    /// Foreground app refresh only. Finder consumes the resulting cache without Git.
+    public func finderSubmoduleSnapshots(authorizedRoot: URL) async throws -> FinderSubmoduleScan {
+        guard RepositoryAccessLease.pathIsContained(root, by: authorizedRoot) else {
+            throw RepositoryAccessFailure.securityScopeUnavailable
+        }
+        return await scanFinderSubmodules(authorizedRoot: authorizedRoot, ancestors: [])
+    }
+    private func configuredFinderSubmodulePaths() throws -> Set<String> {
+        let modules = root.appendingPathComponent(".gitmodules")
+        guard FileManager.default.fileExists(atPath: modules.path) else { return [] }
+        guard (try FileManager.default.attributesOfItem(atPath: modules.path)[.type] as? FileAttributeType) == .typeRegular else {
+            throw SubmoduleComparisonFailure.unsafeCheckout
+        }
+        let names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1).stdout.split(separator: 0)
+        var paths = Set<String>()
+        for name in names {
+            let values = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", String(decoding: name, as: UTF8.self)], successfulExitCodes: 0...1).stdout.split(separator: 0)
+            paths.formUnion(values.map { String(decoding: $0, as: UTF8.self) })
+        }
+        return paths
+    }
+    private func scanFinderSubmodules(authorizedRoot: URL, ancestors: Set<String>) async -> FinderSubmoduleScan {
+        var result = FinderSubmoduleScan()
+        let canonical = root.resolvingSymlinksInPath().path
+        guard !ancestors.contains(canonical) else { return result }
+        let visited = ancestors.union([canonical])
+        let paths: Set<String>
+        do { paths = try configuredFinderSubmodulePaths() }
+        catch { result.failures[root.path] = error.localizedDescription; return result }
+        for path in paths.sorted() {
+            var failurePath = root.appendingPathComponent(path).path
+            do {
+                let location = try restoreLocation(path)
+                failurePath = location.path
+                guard RepositoryAccessLease.pathIsContained(location, by: authorizedRoot) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                var directory: ObjCBool = false
+                guard FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) else { continue }
+                guard directory.boolValue else { throw SubmoduleComparisonFailure.unsafeCheckout }
+                let child = GitRepository(root: location, executable: executable)
+                let discovered = try await child.discoverRoot()
+                // An uninitialized directory inherits its parent's root; it is not a child repository.
+                guard discovered.path == location.path, try await !child.isBare() else { continue }
+                let metadata = try await child.finderMetadata(knownBare: false)
+                guard metadata.submoduleParentRoot == root.path else { continue }
+                let tracked = try await child.trackedPaths(), changes = try await child.status()
+                var snapshot = FinderSnapshot.build(root: location, tracked: tracked, changes: changes)
+                snapshot.repositories[location.path] = metadata
+                result.snapshots.append(snapshot)
+                let nested = await child.scanFinderSubmodules(authorizedRoot: authorizedRoot, ancestors: visited)
+                result.snapshots.append(contentsOf: nested.snapshots)
+                result.failures.merge(nested.failures) { _, latest in latest }
+            } catch { result.failures[failurePath] = error.localizedDescription }
+        }
+        return result
+    }
+}
+
+extension FinderSnapshot {
+    /// Replace one refreshed tree, dropping stale removed/deinitialized child roots.
+    /// Other opened repositories survive. Parent gitlink dirtiness contributes to a child-root badge.
+    public mutating func replaceSubtree(root: URL, snapshots: [FinderSnapshot]) {
+        let path = root.standardizedFileURL.path
+        func contains(_ candidate: String) -> Bool { candidate == path || candidate.hasPrefix(path.hasSuffix("/") ? path : path + "/") }
+        let incoming = Set(snapshots.flatMap(\.roots))
+        let independent = roots.filter { $0 != path && contains($0) && repositories[$0]?.submoduleParentRoot == nil && !incoming.contains($0) }
+        let preserved = independent.map { candidate -> FinderSnapshot in
+            func belongs(_ value: String) -> Bool { value == candidate || value.hasPrefix(candidate + "/") }
+            return FinderSnapshot(roots: roots.filter(belongs), states: states.filter { belongs($0.key) },
+                repositories: repositories.filter { belongs($0.key) })
+        }
+        roots.removeAll(where: contains)
+        states = states.filter { !contains($0.key) }
+        repositories = repositories.filter { !contains($0.key) }
+        let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
+        for snapshot in (snapshots + preserved).sorted(by: { ($0.roots.first?.count ?? 0) < ($1.roots.first?.count ?? 0) }) {
+            let accepted = snapshot.roots.filter(contains)
+            guard !accepted.isEmpty else { continue }
+            for candidate in accepted where !roots.contains(candidate) { roots.append(candidate) }
+            let rootStates = Dictionary(uniqueKeysWithValues: accepted.compactMap { candidate in states[candidate].map { (candidate, $0) } })
+            states.merge(snapshot.states.filter { contains($0.key) }) { _, latest in latest }
+            for (candidate, state) in rootStates where snapshot.repositories[candidate]?.submoduleParentRoot != nil && priority[state, default: 0] > priority[states[candidate] ?? .normal, default: 0] { states[candidate] = state }
+            repositories.merge(snapshot.repositories.filter { contains($0.key) }) { _, latest in latest }
+        }
+        updated = Date()
+    }
+}

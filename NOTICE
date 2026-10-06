@@ -302,3 +302,9 @@ IsRegisteredSubmoduleOfParentProject .gitmodules path comparison, under the GPL
 version 2 or later attribution above. App-collected parent-root metadata drives
 source root clauses; Rename/Remove revalidate registration and indexed gitlinks
 before selecting the parent repository. Signed parent grants remain unverified.
+
+Foreground parent refresh now recursively collects registered initialized
+submodule status and metadata using the attributed registration rules. Native
+cache subtree replacement drops stale child roots and preserves parent gitlink
+badge severity. This is an app-side cache adaptation, not complete TGitCache
+background/FSEvents or signed Finder equivalence.

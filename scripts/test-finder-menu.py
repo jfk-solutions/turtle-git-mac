@@ -16,7 +16,7 @@ import TurtleGitCore
     @objc func openAction(_ item: NSMenuItem) {}
 }
 @main struct FinderMenuVerification {
-    @MainActor static func main() throws {
+    @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         struct SourceOrder: Decodable { let groups: [[String]] }
         let sourceOrder = try JSONDecoder().decode(SourceOrder.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2])))
@@ -219,6 +219,41 @@ import TurtleGitCore
         verifyOrder(outsideFileMenu)
         precondition(outsideFileMenu.items[0].submenu!.items.count == 1, "A lone mark command needs no leading separator")
         print("Actual layout receiver: all 31 implemented root entries match pinned MenuInfo fixture order/groups; six-case visible projections, nested Ignore positions, sparse toolbar/outside-file separators and manager-only New Worktree passed. Activated Finder still pending.")
+        let actualRoot = folder.appendingPathComponent("actual-parent", isDirectory: true)
+        let actualSource = folder.appendingPathComponent("actual-source", isDirectory: true)
+        for directory in [actualRoot, actualSource] {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let repo = GitRepository(root: directory)
+            _ = try await repo.run(["init", "-b", "main"])
+            _ = try await repo.run(["config", "user.name", "Finder receiver"])
+            _ = try await repo.run(["config", "user.email", "finder@example.invalid"])
+            _ = try await repo.run(["config", "commit.gpgsign", "false"])
+            try Data("base".utf8).write(to: directory.appendingPathComponent("file.txt"))
+            try await repo.stage(["file.txt"]); _ = try await repo.commit(message: "base")
+        }
+        let parentRepo = GitRepository(root: actualRoot)
+        let childPath = "child 雪\n"
+        _ = try await parentRepo.run(["-c", "protocol.file.allow=always", "submodule", "add", "--name", "child", "--", actualSource.path, childPath])
+        try await parentRepo.stage([".gitmodules", childPath]); _ = try await parentRepo.commit(message: "module")
+        let discoveredChildren = try await parentRepo.finderSubmoduleSnapshots(authorizedRoot: actualRoot)
+        precondition(discoveredChildren.failures.isEmpty && discoveredChildren.snapshots.count == 1)
+        var freshBase = FinderSnapshot.build(root: actualRoot, tracked: try await parentRepo.trackedPaths(), changes: try await parentRepo.status())
+        freshBase.repositories[actualRoot.path] = try await parentRepo.finderMetadata()
+        var fresh = FinderSnapshot(roots: [], states: [:])
+        fresh.replaceSubtree(root: actualRoot, snapshots: [freshBase] + discoveredChildren.snapshots)
+        let sharedBytes = try JSONEncoder().encode(fresh)
+        let restoredFresh = try JSONDecoder().decode(FinderSnapshot.self, from: sharedBytes)
+        let actualChild = actualRoot.appendingPathComponent(childPath, isDirectory: true)
+        let scannedMenu = FinderMenuBuilder.make(paths: [actualChild], snapshot: restoredFresh, settings: FinderMenuSettings(), comparisonMark: nil, target: target, actionSelector: selector)
+        verifyOrder(scannedMenu)
+        for action in [RepositoryAction.rename, .remove] {
+            let item = scannedMenu.items[0].submenu!.items.first { FinderShellMenuLayout.action($0) == action }!
+            precondition(item.isEnabled && (item.representedObject as! FinderMenuCommand).request.paths == [actualChild])
+        }
+        let realChildRepo = GitRepository(root: actualChild)
+        let owner = try await realChildRepo.discoverSelectionRoot(for: .rename, selected: actualChild)
+        precondition(owner.path == actualRoot.path)
+        print("Actual collected-cache receiver: real parent refresh discovers unopened Unicode/newline child; serialized snapshot drives enabled captured Rename/Remove and verified parent selection routing. No entitled publication/native activation performed.")
         for state in FileState.allCases { precondition(state.icon.image() != nil, "Badge artwork stays available") }
         print("Actual Finder menu builder: parent/action/nested-ignore/marked-compare images toggle; six selection cases preserve titles, enabled states and routing; fresh cache reset and badge artwork pass. No Finder controller/extension/window activated; signed integration and gestures remain pending.")
     }
