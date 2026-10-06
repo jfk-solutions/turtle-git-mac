@@ -46,11 +46,22 @@ import TurtleGitCore
         await progress.run(); precondition(finishes == 1)
         let staged = try await repo.run(["diff", "--cached", "--name-only", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
         precondition(Set(staged) == [file, ignored])
+        let originalBlob = try await repo.run(["show", ":" + file]).stdout
+        try Data("edited after Add".utf8).write(to: folder.appendingPathComponent(file))
+        await progress.changeMode(.executable); precondition(progress.success && !progress.busy && finishes == 2)
+        let executable = try await repo.run(["ls-files", "--stage", "-z", "--", file]).stdout
+        precondition(String(decoding: executable, as: UTF8.self).hasPrefix("100755 "))
+        try FileManager.default.removeItem(at: folder.appendingPathComponent(file))
+        await progress.changeMode(.symlink); precondition(progress.success && !progress.busy && finishes == 3)
+        let link = try await repo.run(["ls-files", "--stage", "-z", "--", file]).stdout
+        let preserved = try await repo.run(["show", ":" + file]).stdout
+        precondition(String(decoding: link, as: UTF8.self).hasPrefix("120000 ") && preserved == originalBlob)
+        progress.confirmingQuit = true; await progress.changeMode(.executable); precondition(finishes == 3); progress.confirmingQuit = false
         let cancelled = AddProgressWindowModel(repository: repo, access: nil, paths: [unchecked]); cancelled.cancel(); await cancelled.run()
         precondition(cancelled.cancelled && !cancelled.success && !cancelled.busy)
         let after = try await repo.run(["diff", "--cached", "--name-only", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
         precondition(Set(after) == [file, ignored])
-        print("Actual Add receiver: ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        print("Actual Add receiver: ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''

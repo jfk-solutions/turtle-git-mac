@@ -23,7 +23,7 @@ struct AddProgressRow: Identifiable { var id: String { path }; let path: String 
     let repository: GitRepository
     let paths: [String]
     private let access: RepositoryAccessLease?
-    private let cancellation = OperationCancellation()
+    private var cancellation = OperationCancellation()
     private var started = false
     @Published var busy = true
     @Published var confirmingQuit = false
@@ -44,6 +44,18 @@ struct AddProgressRow: Identifiable { var id: String { path }; let path: String 
         } catch { cancelled = cancellation.isCancelled; information = cancelled ? "Cancelled. The index was not replaced." : error.localizedDescription }
         busy = false; onFinished(information, success)
     }
+    func changeMode(_ mode: WorkingFileAddMode) async {
+        guard success, !busy, !confirmingQuit, mode != .normal else { return }
+        cancellation = OperationCancellation(); busy = true; information = mode.rawValue + "…"
+        do {
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            try await repository.setAddedFileMode(paths: paths, mode: mode, cancellation: cancellation)
+            information = mode.rawValue + ": staged file modes updated."
+        } catch {
+            information = cancellation.isCancelled ? "Mode change cancelled. The index was not replaced." : error.localizedDescription
+        }
+        busy = false; onFinished(information, success)
+    }
     func start() { Task { await run() } }
 }
 struct AddProgressView: View {
@@ -57,7 +69,17 @@ struct AddProgressView: View {
             }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.information).textSelection(.enabled); Spacer() }
             HStack {
-                if model.success { Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) } }
+                if model.success {
+                    HStack(spacing: 2) {
+                        Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) }
+                        Menu {
+                        Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) }
+                        Button { Task { await model.changeMode(.executable) } } label: { CommandLabel(title: WorkingFileAddMode.executable.rawValue, icon: .add) }
+                        Button { Task { await model.changeMode(.symlink) } } label: { CommandLabel(title: WorkingFileAddMode.symlink.rawValue, icon: .add) }
+                        } label: { Image(systemName: "chevron.down").accessibilityLabel("Add post-actions") }
+                        .menuStyle(.borderlessButton).fixedSize()
+                    }.disabled(model.busy)
+                }
                 Spacer()
                 if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }

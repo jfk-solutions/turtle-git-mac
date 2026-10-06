@@ -52,7 +52,41 @@ final class WorkingFileAddTests: XCTestCase {
         try await repository.addWorkingFiles(paths: ["folder"], mode: .executable)
         let staged = try await repository.run(["ls-files", "--stage", "-z"]).stdout
         XCTAssertTrue(String(decoding: staged, as: UTF8.self).hasPrefix("100644 "), "Upstream leaves directory children’s modes unchanged")
+        try await repository.setAddedFileMode(paths: ["folder"], mode: .symlink)
+        let afterMode = try await repository.run(["ls-files", "--stage", "-z"]).stdout
+        XCTAssertEqual(afterMode, staged)
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent(".git/index.lock").path))
+    }
+    func testProgressModeChangesPreserveStagedBlobAfterDiskEditAndDeletion() async throws {
+        let (root, repository, tracked) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = ":(glob)雪,\npost.txt", file = root.appendingPathComponent(path)
+        let original = Data("staged target\n".utf8)
+        try original.write(to: file)
+        try await repository.addWorkingFiles(paths: [path])
+        let other = try await repository.run(["ls-files", "--stage", "-z", "--", tracked]).stdout
+        try Data("later disk edit\n".utf8).write(to: file)
+        try await repository.setAddedFileMode(paths: [path], mode: .executable)
+        let executable = try await repository.run(["ls-files", "--stage", "-z", "--", path]).stdout
+        let blob = try await repository.run(["show", ":" + path]).stdout
+        XCTAssertTrue(String(decoding: executable, as: UTF8.self).hasPrefix("100755 ")); XCTAssertEqual(blob, original)
+        XCTAssertEqual(try Data(contentsOf: file), Data("later disk edit\n".utf8))
+        try FileManager.default.removeItem(at: file)
+        try await repository.setAddedFileMode(paths: [path], mode: .symlink)
+        let symlink = try await repository.run(["ls-files", "--stage", "-z", "--", path]).stdout
+        let finalBlob = try await repository.run(["show", ":" + path]).stdout
+        let finalOther = try await repository.run(["ls-files", "--stage", "-z", "--", tracked]).stdout
+        XCTAssertTrue(String(decoding: symlink, as: UTF8.self).hasPrefix("120000 ")); XCTAssertEqual(finalBlob, original); XCTAssertEqual(finalOther, other)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+        let index = root.appendingPathComponent(".git/index"), before = try Data(contentsOf: index)
+        for paths in [[path, "missing"], ["../escape"], [".git/index"], []] {
+            do { try await repository.setAddedFileMode(paths: paths, mode: .executable); XCTFail("Invalid mode selection accepted") } catch {}
+            XCTAssertEqual(try Data(contentsOf: index), before)
+        }
+        let token = OperationCancellation(); token.cancel()
+        do { try await repository.setAddedFileMode(paths: [path], mode: .executable, cancellation: token); XCTFail("Cancellation ignored") } catch {}
+        XCTAssertEqual(try Data(contentsOf: index), before)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: index.path + ".lock"))
     }
     func testLinkedWorktreeUpdatesOnlyItsOwnIndex() async throws {
         let (root, repository, _) = try await GitPatchTests().fixture()

@@ -55,7 +55,7 @@ require review; a dialog count is not a count of all upstream UI.
 | Workflow | First-pass implementation | Remaining upstream behavior |
 | --- | --- | --- |
 | Check for modifications | Native standalone Working Tree dialog; columns, scope/filters, statistics, dates, sorting, diff export and basic menus | Full menus, remote checks, progress/cancellation and persistent preferences; see STATUS-PARITY.md |
-| Add | Native scoped checked list, ignored defaults, direct-file progress route, original icons and cancellable private-index add | Full menus/post-mode actions/background artwork, native visual/gesture/signed acceptance; see ADD-PARITY.md |
+| Add | Native scoped checked list, ignored defaults, direct-file progress route, original icons, cancellable private-index add and index-only executable/symlink post-actions | Full menus/background artwork, native visual/gesture/signed acceptance; see ADD-PARITY.md |
 | Commit | Native checked-file dialog; optional three-state staging; amend, author, sign-off, statistics | Unsupported partial-stage file types, full history/completion, hooks UI, issue trackers, remaining action menu |
 | Log | Separate native three-pane window; graph, refs, message/files/line counts, search/date filters, load more, comparisons and revision actions | Working-tree row, actions column, branch/ref chooser, author search, walk/view controls, statistics, multi-revision file union, remaining context commands; see LOG-PARITY.md |
 | Diff | Index/worktree/commit textual patches | Side-by-side, syntax highlighting, binary/image handling, external tools |

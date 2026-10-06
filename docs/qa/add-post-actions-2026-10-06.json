@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-06",
+  "baseCommit": "720a724596ff95b666ab3413c622e624b0cabee2",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Add progress index-only executable/symlink post-actions; full port still incomplete",
+  "sourceComparison": "Pinned AddProgressCommand.cpp post callback and SetFileMode; native Commit button plus adjacent action menu preserves default Commit handoff and uses original icons.",
+  "backend": "Shared locked private-index transaction changes exact stage-zero modes and preserves current staged blob IDs, unrelated entries and disk files; skips directory children and gitlinks; invalid/missing/conflicted selections and cancellation do not replace real index.",
+  "nativeReceiver": "Actual Swift 6/macOS 13 Add progress model verified both post-actions preserve staged content after edit and deletion; post-operation callback, quit guard and existing selector/cancellation checks pass. No windows/menus displayed.",
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/WorkingFileAdd.swift": "cc937facc6b17c2d3568bdc860d4fb9f418709abc61495d9d001b51d8f2310ed",
+    "Sources/TurtleGitMac/AddProgressWindow.swift": "7d26dc82d22ada83e0aa08b7323814f97d63699f9282f9782b84dd6fbd7a76b2",
+    "Tests/TurtleGitCoreTests/WorkingFileAddTests.swift": "223c2770a009758b78caeee8584f996210f11e2eb68d6b7cc33ad87ab6ac0fca",
+    "scripts/test-add-dialog.py": "e517bd74774277a32af66f14f8f4b7e811c4a626ca9cee745c2ae8cb935559f3"
+  },
+  "pending": [
+    "Real native split-control/menu activation and light/dark comparison",
+    "Full progress context menus/artwork/notifications/preferences",
+    "Signed sandbox/Finder and distribution acceptance",
+    "GitHub publication/authentication and execution of local changes"
+  ],
+  "fullCoreTests": {
+    "count": 490,
+    "failures": 0,
+    "durationSeconds": 270.8
+  },
+  "builds": [
+    "Debug unsigned passed",
+    "AppStore unsigned passed"
+  ],
+  "bundleAudits": "Both audits and bundled NOTICE comparisons passed; all 75 original icons, extension and universal helpers present; Store Git runtime verified.",
+  "appProcesses": "No main app or receiver remains; no app launched for these checks",
+  "logs": {
+    "fullCore": {
+      "path": "/tmp/turtlegit-add-post-full.log",
+      "sha256": "237d9b228b52ac18d833e1f53f2548ecde632b94622e90a0ca648de7f072e221"
+    },
+    "debug": {
+      "path": "/tmp/turtlegit-add-post-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-post-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-post-native.log",
+      "sha256": "aa5e1f803cf56de42181b8d6a152827de09ea525d0f731a852abe7aede8da23f"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-post-debug-audit.log",
+      "sha256": "fe75104e8b3388cee1e45680632ab7dd62eb11fd7d9e3fd3579bfbfd14c54a95"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-post-store-audit.log",
+      "sha256": "0af6852cafc8fc3920fe66f55a050dbdb74f6e840de56be6831aca0e458f6dbd"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-post-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  }
+}
