@@ -16,6 +16,18 @@ final class RebaseTests: XCTestCase {
         return (root, repo, path)
     }
     func options() -> RebaseOptions { var o = RebaseOptions(); o.branch = "topic"; o.upstream = "upstream"; return o }
+    func splitFixture() async throws -> (URL, GitRepository, RebasePlan) {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        let base = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.run(["checkout", "-b", "upstream"])
+        try Data("upstream\n".utf8).write(to: root.appendingPathComponent("upstream.txt")); try await repo.stage(["upstream.txt"]); _ = try await repo.commit(message: "upstream")
+        _ = try await repo.run(["checkout", "-b", "topic", base.hash])
+        for name in ["left 雪\n.txt", "right.txt"] { try Data(name.utf8).write(to: root.appendingPathComponent(name)) }
+        try await repo.stage(["left 雪\n.txt", "right.txt"]); _ = try await repo.commit(message: "two files")
+        try Data("future\n".utf8).write(to: root.appendingPathComponent("future.txt")); try await repo.stage(["future.txt"]); _ = try await repo.commit(message: "future")
+        var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
+        return (root, repo, plan)
+    }
     func testHeadlessEditorWritesOnlyRequestedPlanAndReturnsErrors() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString); try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: directory) }
         let source = directory.appendingPathComponent("plan"), target = directory.appendingPathComponent("todo"); try Data("pick abc subject\n".utf8).write(to: source)
@@ -228,6 +240,10 @@ final class RebaseTests: XCTestCase {
         plan = try await repo.cherryPickPlan(revisions: [empty.hash])
         let kept = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertEqual(kept.exitCode, 0, kept.output)
         let subject = try await repo.run(["log", "-1", "--format=%s"]).text; XCTAssertEqual(subject, "empty source\n")
+        plan = try await repo.cherryPickPlan(revisions: [empty.hash]); plan.entries[0].action = .edit
+        let edit = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertTrue(edit.state.active)
+        let editedEmpty = try await repo.continueRebase(editMessage: "Edited originally empty\n\nBody")
+        XCTAssertEqual(editedEmpty.exitCode, 0, editedEmpty.output); XCTAssertFalse(editedEmpty.state.active)
     }
 
     func testCherryPickMergeConflictRestoresOriginalIDsAndSkipContinues() async throws {
@@ -469,6 +485,61 @@ final class RebaseTests: XCTestCase {
         let skipped = try await repo.skipRebase(); XCTAssertTrue(skipped.state.active); XCTAssertEqual(skipped.state.currentStep, 3); XCTAssertNil(skipped.state.squashMessage)
         let reopened = GitRepository(root: root), state = try await reopened.rebaseState(); XCTAssertNil(state.squashMessage)
         let done = try await reopened.continueRebase(); XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+    }
+
+    func testSplitFirstParentSelectionAndLaterCommitResumeAsThreeCommits() async throws {
+        let (root, repo, plan) = try await splitFixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let pause = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertTrue(pause.state.canSplit)
+        let startingHead = try await repo.rebaseCommit("HEAD")
+        let split = try await repo.beginRebaseSplit(); XCTAssertEqual(split.parts, 0)
+        let unchanged = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(unchanged.hash, startingHead.hash)
+        var firstOptions = CommitOptions(); firstOptions.amend = true; firstOptions.amendDiffToLastCommit = false
+        _ = try await repo.commitRebaseSplit(message: "left part", paths: ["left 雪\n.txt"], staging: false, options: firstOptions, expected: split)
+        let first = try await repo.run(["ls-tree", "--name-only", "HEAD"]).text; XCTAssertTrue(first.contains("left")); XCTAssertFalse(first.contains("right.txt"))
+        do { _ = try await repo.commitRebaseSplit(message: "stale", paths: ["right.txt"], staging: false, options: firstOptions, expected: split); XCTFail("Stale part") } catch RebaseFailure.changed {}
+        let reopened = GitRepository(root: root), recovered = try await reopened.rebaseState()
+        XCTAssertEqual(recovered.split?.parts, 1); let remaining = try await reopened.rebaseSplitHasRemainingChanges(); XCTAssertTrue(remaining)
+        do { _ = try await reopened.continueRebase(); XCTFail("Uncommitted tracked parts") } catch RebaseFailure.plan {}
+        _ = try await reopened.commitRebaseSplit(message: "right part", paths: ["right.txt"], staging: false, options: CommitOptions(), expected: recovered.split!)
+        let done = try await reopened.continueRebase(); XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+        let log = try await reopened.run(["log", "-3", "--format=%s"]).text; XCTAssertEqual(log, "future\nright part\nleft part\n")
+        let count = try await reopened.run(["rev-list", "--count", "upstream..topic"]).text; XCTAssertEqual(count, "3\n")
+        for name in ["left 雪\n.txt", "right.txt", "future.txt", "upstream.txt"] { XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent(name).path)) }
+    }
+
+    func testUnstartedSplitCancelAndMultilineEditContinueLeaveReplayUsable() async throws {
+        let (root, repo, plan) = try await splitFixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.startRebase(plan, editorExecutable: editor)
+        let original = try await repo.rebaseCommit("HEAD")
+        _ = try await repo.beginRebaseSplit(); try await repo.cancelUnstartedRebaseSplit()
+        let state = try await repo.rebaseState(); XCTAssertNil(state.split); XCTAssertTrue(state.canSplit)
+        let unchanged = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(unchanged.hash, original.hash)
+        do { _ = try await repo.continueRebase(editMessage: " \n "); XCTFail("Blank edit") } catch RebaseFailure.message {}
+        let done = try await repo.continueRebase(editMessage: "Edited first 雪\n\nMultiline body")
+        XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+        let text = try await repo.run(["log", "-1", "--format=%B", "HEAD^"]).text; XCTAssertTrue(text.contains("Edited first 雪\n\nMultiline body"))
+    }
+
+    func testSplitAbortRestoresOriginalBranchAfterPartialAmend() async throws {
+        let (root, repo, plan) = try await splitFixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.startRebase(plan, editorExecutable: editor); let split = try await repo.beginRebaseSplit()
+        var options = CommitOptions(); options.amend = true; options.amendDiffToLastCommit = false
+        _ = try await repo.commitRebaseSplit(message: "partial", paths: ["left 雪\n.txt"], staging: false, options: options, expected: split)
+        let aborted = try await GitRepository(root: root).abortRebase(); XCTAssertEqual(aborted.exitCode, 0, aborted.output)
+        let restored = try await repo.rebaseCommit("HEAD"); XCTAssertEqual(restored.hash, plan.branchHash)
+        let branch = try await repo.branch(); XCTAssertEqual(branch, "topic")
+    }
+
+    func testSquashSplitConsumesPendingMessageThenContinuesWithoutSecondAmend() async throws {
+        let (root, repo, original) = try await splitFixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var plan = original; plan.entries[0].action = .pick; plan.entries[1].action = .squash
+        let pause = try await repo.startRebase(plan, editorExecutable: editor); XCTAssertNotNil(pause.state.squashMessage); XCTAssertTrue(pause.state.canSplit)
+        let split = try await repo.beginRebaseSplit(); var options = CommitOptions(); options.amend = true; options.amendDiffToLastCommit = false
+        _ = try await repo.commitRebaseSplit(message: "squash left", paths: ["left 雪\n.txt"], staging: false, options: options, expected: split)
+        let state = try await repo.rebaseState(); XCTAssertNil(state.squashMessage); XCTAssertEqual(state.split?.parts, 1)
+        _ = try await repo.commitRebaseSplit(message: "squash remainder", paths: ["right.txt", "future.txt"], staging: false, options: CommitOptions(), expected: state.split!)
+        let done = try await repo.continueRebase(); XCTAssertEqual(done.exitCode, 0, done.output); XCTAssertFalse(done.state.active)
+        let log = try await repo.run(["log", "-2", "--format=%s"]).text; XCTAssertEqual(log, "squash remainder\nsquash left\n")
     }
 
 }

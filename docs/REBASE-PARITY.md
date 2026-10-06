@@ -28,8 +28,10 @@ loads their files/message without invalidating a concurrently loading plan.
 
 Branch/upstream fields are currently editable native combo boxes rather than
 upstream's dropdown-only controls. Browse is a filtered reference list, not the
-complete reference/log browser. The amend field is single-line. Full row menus,
-completed-row display, conflict tabs, Edit/Split and
+complete reference/log browser. Edit now uses a multiline message tab and Continue
+applies it. Split opens full Commit selection dialogs, with durable part recovery.
+See [Edit/Split workflow](REBASE-SPLIT.md). Full row menus,
+completed-row display, conflict tabs and
 post-operation controls still need porting and comparison.
 
 When the commit list has focus, P/S/Q/E choose Pick/Skip/Squash/Edit. Space cycles
@@ -91,7 +93,7 @@ These establish the pictured layout, not full behavior or accessibility parity.
 ## Remaining workflows
 
 - Fetch/Pull handoffs, old-upstream detection, fast-forward choices and config defaults.
-- Split, advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
+- Remaining advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
 - Remaining reword/author editing and complete conflict/resolution menus and tabs.
 - Remaining row targeting/shortcuts and drag reordering, customizable columns and persisted layout. Action and move shortcuts now have headless native coverage; displayed acceptance remains pending.
 - Hooks, signing/editor/authentication prompts, stash restoration, streaming progress,

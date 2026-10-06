@@ -1,0 +1,90 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "0267e0a",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Multiline Rebase Edit and durable full Commit selection workflow for Split",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "ba58af8bd848be2b3a66f6b29bea934ba300c514bb8e1865aef140c5f3e111cb",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "7b04a6ccac71cc9a1ef2f318b26fa5ef7955d50674f3d0462849676a58a2d0c6",
+    "Sources/TurtleGitMac/CommitWindow.swift": "4542aec06bc07a6885964dc18c3f932a708d8dfe5022ad6ed00ea58894697007",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "a8bf4f51fac00178b9132401dea008a98a35352eaf615f9b1de7c900bccda8e2",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "788e132450ef45b3f5fbea3e87fad35a4ae06722ee5db81592136b0db9bf4d49",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "a35955eaa161aa520ec6e9dc68896327a7facb3b5564312048acd64f55711923",
+    "README.md": "ca440f3a37ab809125c59126aeb2b9232ef1606f02f38c72d4296940e016fb5b",
+    "docs/REBASE-PARITY.md": "37d341e3d213291bd893a160e19ad7b605a1585a0bff01f9608184f8adbe742e",
+    "docs/CHERRY-PICK-PARITY.md": "2b94977d327b4fd85f85f639e58fe02ee884a5666c5fc94d2c73095a6db0e8b4",
+    "docs/CHERRY-PICK.md": "ac4553c2aa55314d8be0f2b333d5a094d4c67b3c67f6613812a8c395df8f2380",
+    "docs/REBASE-SQUASH.md": "af36b7ce9b85e6e5a79a472a34bf4d3ba2264cc80fc87a6a0d986035d78decaf",
+    "docs/REBASE-SPLIT.md": "ef8c816d274871bb7f73082a9260bc00ad631e292557f35d20107ea95b521658",
+    "docs/site/index.html": "f530937a3700321598e836bc7ff432f50e24e9b7f63f1e584e42d82b4a48751f"
+  },
+  "all_native_sources_manifest_sha256": "5b4d95ec97a29ce79e3168c71ccfcae3429a86fef67f45643c0e263a0ba39261",
+  "verification": {
+    "focused_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 31,
+      "failures": 0,
+      "new_coverage": [
+        "First parent-based checkbox selection replaces stopped commit with a subset",
+        "Later normal part plus future replay produces three commits",
+        "Stale part rejection, tracked-dirty Continue rejection and metadata reopening",
+        "Unstarted cancellation with unchanged HEAD; multiline Edit Continue and blank rejection",
+        "Originally-empty Edit continuation retained via conditional --allow-empty",
+        "Abort restores original branch after partial amendment",
+        "Squash split consumes pending request without a second amendment"
+      ]
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for all four executables",
+      "architecture": "arm64",
+      "git_versions": [
+        "2.37.1",
+        "2.39.5",
+        "2.50.1 Apple Git-155",
+        "2.55.0"
+      ],
+      "new_coverage": [
+        "Actual Rebase multiline Edit host and Split state/parent guards",
+        "Full CommitDialog and CommitWindowModel with loadReplaySplit first amend/parent mode",
+        "Post-action guard rejects Commit & Push",
+        "Remaining tracked changes automatically produce normal part selection",
+        "Actual Commit Cancel then reopened Cherry Pick split resumes normal second part",
+        "Final Continue replays future commit and preserves three expected subjects",
+        "Captured squash author date survives dateChanged callback"
+      ],
+      "regressions": "Existing Log, keyboard/reorder, Add/draft/repeated identities, merge mainline/Edit/reopening/Continue, empty-patch and squash checks remain passing",
+      "limits": "Hidden hosted views; child sheets and prompt answers injected. Displayed gestures/layout/focus/accessibility and signed sandbox are unverified"
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; both exact NOTICE cmp passed",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "tests": "55a3fec03a0b399b97ddf00e84e1311d221f3ae8453e431a3c6168647120df14",
+    "native": "04fa4599c4d824c1d25c738071f43de91e6645e557dcdf6a7e66c452a7c5bf4a",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Displayed child sheets, prompt focus and gestures",
+    "Complete keyboard/accessibility parity",
+    "Split index/hunk acceptance in displayed UI",
+    "Empty-result choices and full conflict tabs",
+    "Signed sandbox execution/App Store acceptance",
+    "Hosted GitHub CI/publication",
+    "Complete TortoiseGit parity"
+  ],
+  "next_finding": {
+    "issue": "Rebase still directs conflicts to generic Working Tree rather than the upstream Conflict Files tab and its resolution commands. Port that native tab and integrate existing text/delete/submodule conflict receivers with refresh/recovery/Continue.",
+    "sources": [
+      "src/TortoiseProc/RebaseDlg.cpp: REBASE_TAB_CONFLICT and UpdateCurrentStatus",
+      "Sources/TurtleGitMac/RebaseWindow.swift: current Revision Files/Open Working Tree controls"
+    ]
+  },
+  "processes": "No main app launched; receivers exited; hidden receiver-owned windows closed; final app/receiver process audit empty"
+}

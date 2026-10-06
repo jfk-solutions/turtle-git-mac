@@ -6,6 +6,7 @@ import TurtleGitCore
     let model: RebaseWindowModel
     var onClosed: () -> Void = {}
     private var logPicker: LogWindowController?
+    private var splitCommitPicker: CommitWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = RebaseWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1040, height: 720), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -26,6 +27,12 @@ import TurtleGitCore
             self.model.configureLogPicker(picker.model)
             if let child = picker.window { window.beginSheet(child) } else { self.logPicker = nil; self.model.pickingCommits = false }
         }
+        model.showSplitSelection = { [weak self] split, message in self?.showSplitSelection(split, message: message) }
+        model.chooseAnotherSplit = { [weak window] in
+            guard let window, window.attachedSheet == nil else { return false }
+            let alert = NSAlert(); alert.messageText = "Add another commit?"; alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+            return await alert.beginSheetModal(for: window) == .alertSecondButtonReturn
+        }
         model.chooseMainline = { [weak window] commit, choices in
             guard let window, window.attachedSheet == nil else { return nil }
             let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.alertStyle = .informational
@@ -38,13 +45,30 @@ import TurtleGitCore
             return choices.indices.contains(index) ? choices[index].number : nil
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { logPicker?.close(); logPicker = nil; onClosed() }
+    private func showSplitSelection(_ split: RebaseSplitState, message: String) {
+        guard let window, window.attachedSheet == nil, splitCommitPicker == nil else { model.splitSelectionClosed(committed: false); return }
+        let child = CommitWindowController(repository: model.repository, access: model.repositoryAccess)
+        splitCommitPicker = child
+        let commit = child.model
+        model.configureCommitSelection(commit)
+        var committed = false
+        commit.onCommitted = { [weak model] text in committed = true; model?.output += text + "\n"; model?.onChanged() }
+        let originalClose = commit.close
+        commit.close = { [weak window, weak child] in
+            if let sheet = child?.window { window?.endSheet(sheet); sheet.orderOut(nil) }; originalClose()
+        }
+        child.onClosed = { [weak self] in self?.splitCommitPicker = nil; self?.model.splitSelectionClosed(committed: committed) }
+        commit.loadReplaySplit(split, message: message)
+        if let sheet = child.window { window.beginSheet(sheet) } else { splitCommitPicker = nil; model.splitSelectionClosed(committed: false) }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.selectingSplit && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class RebaseWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    var repositoryAccess: RepositoryAccessLease? { access }
     @Published var options = RebaseOptions()
     @Published var ontoEnabled = false
     @Published var references: [CheckoutReference] = []
@@ -65,6 +89,11 @@ import TurtleGitCore
     @Published var confirmation: String?
     @Published var browsing = false
     @Published var pickingCommits = false
+    @Published var splitCommit = false
+    @Published var selectingSplit = false
+    var showSplitSelection: (RebaseSplitState, String) -> Void = { _, _ in }
+    var configureCommitSelection: (CommitWindowModel) -> Void = { _ in }
+    var chooseAnotherSplit: () async -> Bool = { false }
     var close: () -> Void = {}
     var onChanged: () -> Void = {}
     var onShowStatus: () -> Void = {}
@@ -82,12 +111,12 @@ import TurtleGitCore
     private var completion = "Rebase finished"
     private var pendingLoad: (upstream: String?, autoStart: Bool, preserveMerges: Bool, cherryPick: [String]?)?
     private func loadPendingHandoff() {
-        guard !busy, !pickingCommits, let pending = pendingLoad else { return }
+        guard !busy, !pickingCommits, !selectingSplit, let pending = pendingLoad else { return }
         pendingLoad = nil
         load(upstream: pending.upstream, autoStart: pending.autoStart, preserveMerges: pending.preserveMerges, cherryPick: pending.cherryPick)
     }
     var active: Bool { state?.active == true }
-    var editable: Bool { !busy && !active && !finished && !pickingCommits }
+    var editable: Bool { !busy && !active && !finished && !pickingCommits && !selectingSplit }
     var canAdd: Bool { editable && !options.preserveMerges }
     // Upstream displays newest first, while replay proceeds from the oldest commit.
     var entries: [RebaseEntry] {
@@ -114,7 +143,7 @@ import TurtleGitCore
     }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
     func load(upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
-        guard !busy, !pickingCommits else {
+        guard !busy, !pickingCommits, !selectingSplit else {
             if upstream != nil || cherryPick != nil { pendingLoad = (upstream, autoStart, preserveMerges, cherryPick) }
             return
         }; busy = true; planGeneration += 1; detailGeneration += 1
@@ -124,7 +153,7 @@ import TurtleGitCore
             do {
                 try requireAccess()
                 references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil; draftEntries = []
-                if active { options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
+                if active { splitCommit = state?.split != nil; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.stoppedAction == .edit { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
                 finished = false; plan = nil; recovered = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
                 if let cherryPick {
                     plan = try await repository.cherryPickPlan(revisions: cherryPick)
@@ -264,14 +293,15 @@ import TurtleGitCore
         }
     }
     func refreshState() {
-        guard !busy else { return }; busy = true
+        guard !busy, !selectingSplit else { return }; busy = true
         Task {
             defer { busy = false; loadPendingHandoff() }
-            do { let wasActive = active; state = try await repository.rebaseState(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil { tab = 1 }; selectCommit() } else if wasActive { finished = true; completion = "\(operationTitle) session ended" }; onChanged() }
+            do { let wasActive = active; state = try await repository.rebaseState(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.stoppedAction == .edit { tab = 1 }; selectCommit() } else if wasActive { finished = true; completion = "\(operationTitle) session ended" }; onChanged() }
             catch { self.error = error.localizedDescription }
         }
     }
     func request(_ action: String) {
+        if action == "continue", splitCommit || state?.split != nil { beginSplitSelection(); return }
         if action == "start", isCherryPick { prepareCherryPick(); return }
         if action == "start" { guard canStart else { return }; confirmation = "Start rewriting the selected branch using this commit plan?" }
         else if action == "abort" { confirmation = "Abort this \(operationTitle.lowercased()) and restore its original branch? Current conflict-resolution edits will be discarded." }
@@ -279,7 +309,7 @@ import TurtleGitCore
         else { execute(action) }
     }
     func execute(_ action: String) {
-        guard !busy, !pickingCommits, action != "start" || canStart else { return }
+        guard !busy, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan; busy = true; tab = 2
         Task {
             defer { busy = false; loadPendingHandoff() }
@@ -290,18 +320,40 @@ import TurtleGitCore
                 case "start": guard let snapshot, let executable = editorExecutable else { throw RebaseFailure.plan }; result = try await repository.startRebase(snapshot, editorExecutable: executable)
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
-                default: result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage)
+                default: result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage, editMessage: state?.stoppedAction == .edit && state?.split == nil ? amendMessage : nil)
                 }
                 output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
-                if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
+                if active { recovered = try await repository.remainingRebaseEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.stoppedAction == .edit { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selection = Set(state?.stoppedEntryID.isEmpty == false ? [state!.stoppedEntryID] : []) }
                 if result.state.squashMessage != nil { tab = 1 }
                 else if result.exitCode != 0 { error = result.output }
                 onChanged()
             } catch { self.error = error.localizedDescription }
         }
     }
+    var canSplit: Bool { !busy && !selectingSplit && state?.canSplit == true }
+    func beginSplitSelection() {
+        guard canSplit else { return }; busy = true
+        Task {
+            do { try requireAccess(); let split = try await repository.beginRebaseSplit(); state = try await repository.rebaseState(); busy = false; selectingSplit = true; showSplitSelection(split, amendMessage) }
+            catch { busy = false; self.error = error.localizedDescription }
+        }
+    }
+    func splitSelectionClosed(committed: Bool) {
+        guard selectingSplit else { return }; selectingSplit = false; busy = true
+        Task {
+            do {
+                state = try await repository.rebaseState(); splitCommit = state?.split != nil
+                guard committed else { if state?.split?.parts == 0 { try await repository.cancelUnstartedRebaseSplit(); state = try await repository.rebaseState(); splitCommit = false }; busy = false; loadPendingHandoff(); return }
+                let remaining = try await repository.rebaseSplitHasRemainingChanges()
+                let another = remaining ? true : await chooseAnotherSplit()
+                busy = false
+                if another { beginSplitSelection() }
+                else { splitCommit = false; execute("continue") }
+            } catch { busy = false; self.error = error.localizedDescription; loadPendingHandoff() }
+        }
+    }
     func amend() {
-        guard active, !busy, state?.squashMessage == nil else { return }; busy = true; let text = amendMessage
+        guard active, !busy, !selectingSplit, state?.split == nil, state?.squashMessage == nil else { return }; busy = true; let text = amendMessage
         Task { defer { busy = false; loadPendingHandoff() }; do { try requireAccess(); output += try await repository.amendRebaseCommit(message: text); onChanged() } catch { self.error = error.localizedDescription } }
     }
 
@@ -363,11 +415,11 @@ struct RebaseDialog: View {
                         TableColumn("Lines removed") { file in Text(file.removed.map(String.init) ?? "–") }.width(95)
                     }.tabItem { Text("Revision Files") }.tag(0)
                     Group {
-                        if let squash = model.state?.squashMessage {
+                        if model.state?.squashMessage != nil || model.state?.stoppedAction == .edit || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("Combined commit message:")
-                                TextEditor(text: $model.amendMessage).font(.system(.body, design: .monospaced)).accessibilityLabel("Combined commit message")
-                                Text("Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption)
+                                Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
+                                TextEditor(text: $model.amendMessage).font(.system(.body, design: .monospaced)).accessibilityLabel(model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message")
+                                if let squash = model.state?.squashMessage { Text("Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption) }
                             }.padding(8)
                         } else { ScrollView { Text(model.message).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }
                     }.tabItem { Text("Commit Message") }.tag(1)
@@ -376,7 +428,7 @@ struct RebaseDialog: View {
             }
             if model.active {
                 HStack { Button("Open Working Tree") { model.onShowStatus() }; Button("Refresh State") { model.refreshState() }; Spacer(); Button("Skip") { model.request("skip") } }
-                if model.state?.squashMessage == nil { HStack { Text("Edit commit message:"); TextField("Commit message", text: $model.amendMessage); Button("Amend") { model.amend() }.disabled(model.amendMessage.isEmpty || model.state?.conflicts.isEmpty != true) } }
+                HStack { if model.state?.canSplit == true { Toggle("Split commit", isOn: $model.splitCommit).disabled(!model.canSplit || model.state?.split != nil) }; if model.state?.squashMessage == nil && model.state?.split == nil { Button("Amend") { model.amend() }.disabled(model.amendMessage.isEmpty || model.state?.conflicts.isEmpty != true) } }
             }
             if model.busy { ProgressView().progressViewStyle(.linear) }
             else { ProgressView(value: model.finished ? 1 : Double(model.state?.currentStep ?? 0), total: model.finished ? 1 : Double(max(model.state?.total ?? 1, 1))) }
@@ -386,7 +438,7 @@ struct RebaseDialog: View {
                 Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.close() } }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(model.helpURL) }
             }
-        }.padding(12).disabled(model.busy)
+        }.padding(12).disabled(model.busy || model.selectingSplit)
         .onChange(of: model.options.branch) { _ in model.reloadPlan() }
         .onChange(of: model.options.upstream) { _ in model.reloadPlan() }
         .onChange(of: model.options.onto) { _ in model.reloadPlan() }

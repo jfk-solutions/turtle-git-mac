@@ -17,6 +17,63 @@ import TurtleGitCore
     if let probe = view as? RebaseListInteraction.Probe { return probe }
     return view.subviews.compactMap { findRebaseProbe($0) }.first
 }
+@MainActor func settleCommit(_ model: CommitWindowModel) async throws {
+    let deadline = Date().addingTimeInterval(30)
+    while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!model.busy && model.error == nil, model.error ?? "Commit timed out")
+}
+@MainActor func verifyNativeSplit(_ repo: GitRepository, editor: URL?) async throws {
+    _ = try await repo.run(["checkout", "-b", "native-split-source"])
+    for name in ["native-split-left.txt", "native-split-right.txt"] { try Data(name.utf8).write(to: repo.root.appendingPathComponent(name)) }
+    try await repo.stage(["native-split-left.txt", "native-split-right.txt"]); _ = try await repo.commit(message: "Native split source")
+    let source = try await repo.rebaseCommit("HEAD")
+    try Data("future\n".utf8).write(to: repo.root.appendingPathComponent("native-split-future.txt")); try await repo.stage(["native-split-future.txt"]); _ = try await repo.commit(message: "Native split future")
+    let future = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", "target"])
+    let parent = RebaseWindowModel(repository: repo, access: nil); parent.editorExecutable = editor
+    parent.load(cherryPick: [future.hash, source.hash]); try await settle(parent)
+    parent.setAction(.edit, ids: [source.hash]); parent.request("start"); try await settle(parent)
+    precondition(parent.state?.stoppedAction == .edit && parent.canSplit && parent.tab == 1)
+    let editHost = NSHostingView(rootView: RebaseDialog(model: parent)); editHost.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); editHost.layoutSubtreeIfNeeded()
+    precondition(editHost.fittingSize.width > 0)
+    var children: [CommitWindowModel] = []
+    func install(_ owner: RebaseWindowModel) {
+        owner.chooseAnotherSplit = { false }
+        owner.showSplitSelection = { [weak owner] split, text in
+            guard let owner else { return }
+            let child = CommitWindowModel(repository: repo, access: nil); children.append(child)
+            var committed = false
+            child.onCommitted = { _ in committed = true }
+            child.close = { [weak owner] in owner?.splitSelectionClosed(committed: committed) }
+            child.confirmCancel = { choose in choose(true) }
+            child.loadReplaySplit(split, message: text)
+        }
+    }
+    install(parent); parent.splitCommit = true; parent.request("continue"); try await settle(parent)
+    precondition(parent.selectingSplit && !parent.canSplit && children.count == 1)
+    let first = children[0]; try await settleCommit(first)
+    precondition(first.replaySplit?.parts == 0 && first.amend && first.amendToParent && first.showWholeProject)
+    precondition(Set(first.entries.map(\.path)).isSuperset(of: ["native-split-left.txt", "native-split-right.txt"]))
+    let firstHost = NSHostingView(rootView: CommitDialog(model: first)); firstHost.frame = NSRect(x: 0, y: 0, width: 1000, height: 760); firstHost.layoutSubtreeIfNeeded(); precondition(firstHost.fittingSize.width > 0)
+    first.stagingEnabled = false; first.checked = ["native-split-left.txt"]; first.message = "Native split left"
+    precondition(first.canCommit); first.commit(.push); precondition(!first.busy) // Post actions blocked in this mode.
+    first.commit(); try await settleCommit(first); try await settle(parent)
+    precondition(children.count == 2 && parent.selectingSplit && parent.state?.split?.parts == 1)
+    let second = children[1]; try await settleCommit(second); precondition(!second.amend && second.replaySplit?.parts == 1)
+    second.cancel()
+    let deadline = Date().addingTimeInterval(30)
+    while parent.selectingSplit && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    try await settle(parent); precondition(!parent.selectingSplit && parent.active && parent.state?.split?.parts == 1)
+    let reopened = RebaseWindowModel(repository: repo, access: nil); reopened.editorExecutable = editor; install(reopened)
+    reopened.load(); try await settle(reopened); precondition(reopened.splitCommit && reopened.isCherryPick && reopened.canSplit)
+    reopened.request("continue"); try await settle(reopened); precondition(children.count == 3)
+    let resumed = children[2]; try await settleCommit(resumed); precondition(!resumed.amend && resumed.replaySplit?.parts == 1)
+    resumed.stagingEnabled = false; resumed.checked = ["native-split-right.txt"]; resumed.message = "Native split right"; precondition(resumed.canCommit)
+    resumed.commit(); try await settleCommit(resumed); try await settle(reopened)
+    precondition(reopened.finished && !reopened.active && !reopened.selectingSplit)
+    let log = try await repo.run(["log", "-3", "--format=%s"]).text
+    precondition(log == "Native split future\nNative split right\nNative split left\n")
+    print("Actual native Split: multiline Edit host, first parent-based full Commit selection, post-action guard, automatic remaining-part dialog, Cancel/reopened normal part, metadata identity and final Continue/future replay passed. Sheets and answers injected; no displayed gestures.")
+}
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
     model.load(cherryPick: revisions); try await settle(model)
@@ -278,6 +335,13 @@ import TurtleGitCore
     precondition(squash.active && !squash.finished && squash.state?.squashMessage != nil && squash.tab == 1 && squash.error == nil)
     precondition(squash.amendMessage.contains("Squash one") && squash.amendMessage.contains("Squash two") && squash.amendMessage.contains("# literal source 雪"))
     precondition(squash.selection == [squashCommits[1].hash])
+    let splitDateState = try await repo.beginRebaseSplit()
+    let splitDateModel = CommitWindowModel(repository: repo, access: nil)
+    splitDateModel.loadReplaySplit(splitDateState, message: squash.amendMessage); try await settleCommit(splitDateModel)
+    let selectedDate = splitDateModel.authorDate
+    splitDateModel.dateChanged(); try await Task.sleep(nanoseconds: 100_000_000)
+    precondition(splitDateModel.authorDate == selectedDate && ISO8601DateFormatter().string(from: selectedDate) == ISO8601DateFormatter().string(from: ISO8601DateFormatter().date(from: squashCommits[1].date)!))
+    try await repo.cancelUnstartedRebaseSplit()
     let squashReopened = RebaseWindowModel(repository: GitRepository(root: root, executable: git), access: nil)
     squashReopened.editorExecutable = model.editorExecutable; squashReopened.load(); try await settle(squashReopened)
     precondition(squashReopened.isCherryPick && squashReopened.tab == 1 && squashReopened.amendMessage == squash.amendMessage)
@@ -296,6 +360,7 @@ import TurtleGitCore
     let approvedText = try await repo.run(["log", "-1", "--format=%B"]).text
     precondition(approvedText == approved + "\n")
     print("Actual native squash: Advanced SquashDate captured, editor pause without error alert, original selected identity, reopened Cherry Pick/multiline editor, exact Unicode/comment message approval, first author/latest date and Continue passed.")
+    try await verifyNativeSplit(repo, editor: model.editorExecutable)
 
 
 

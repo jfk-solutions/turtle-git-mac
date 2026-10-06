@@ -49,7 +49,10 @@ Squash groups pause in the Commit Message tab for multiline editing and Continue
 approval. Advanced `SquashDate` controls the author date; the first author is kept.
 See [Squash workflow](REBASE-SQUASH.md).
 
-This is a partial port. Full conflict tabs, Split, author overrides,
+Edit also supports multiline message approval through Continue and Split commit
+through the full Commit selection workflow. See [Edit/Split](REBASE-SPLIT.md).
+
+This is a partial port. Full conflict tabs, remaining author overrides,
 complete keyboard/accessibility parity, displayed acceptance checks and
 signed App Store execution remain unfinished. See the [parity audit](CHERRY-PICK-PARITY.md)
 for the verification scope. Current macOS screenshots are pending.

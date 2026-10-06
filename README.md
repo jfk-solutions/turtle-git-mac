@@ -295,7 +295,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Multiple selected rows move together, with Shift-to-end and focused-list action
   shortcuts checked through a headless native receiver. Squash groups pause for
   multiline message approval and apply the first/latest/current author-date setting.
-  [Squash workflow](docs/REBASE-SQUASH.md).
+  [Squash workflow](docs/REBASE-SQUASH.md). Edit uses multiline approval, and Split
+  reuses full Commit selection with partial-history recovery.
+  [Edit/Split workflow](docs/REBASE-SPLIT.md).
   Native Start/Skip selection and recovered Edit/Amend were exercised; full recovery
   UI remains pending; Pull/Fetch handoffs were verified. [Rebase parity](docs/REBASE-PARITY.md).
 - Native Cherry Pick plans from single/multiple Log selections, colored action icons,

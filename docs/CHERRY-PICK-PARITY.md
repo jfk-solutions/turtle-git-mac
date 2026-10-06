@@ -95,7 +95,7 @@ window title/close gestures. No displayed app or receiver windows were launched.
 Add now uses a native multi-select Log sheet, preserving picker order and repeated
 row identities through recovery. See [Add audit](REBASE-ADD-PARITY.md).
 
-Pending: Split and author overrides; root/Octopus replay,
+Pending: remaining author overrides; root/Octopus replay,
 linked-worktree Cherry Pick and dirty-target interactions;
 full conflict tabs and stash/restore; displayed layout/keyboard/accessibility and
 signed sandbox execution. Existing Rebase screenshots predate these changes and
@@ -111,3 +111,7 @@ See [Git compatibility](REPLAY-GIT-COMPATIBILITY.md) and
 Squash now pauses for an editable combined message and applies the captured
 first/latest/current author-date preference. Each group requires approval, with
 the first author retained. See [Squash workflow](REBASE-SQUASH.md).
+
+Edit now has a multiline tab; Continue applies its message. Split reuses full
+native Commit selection with parent-based first amendments, normal subsequent
+parts and reopening after cancellation. See [Edit/Split](REBASE-SPLIT.md).

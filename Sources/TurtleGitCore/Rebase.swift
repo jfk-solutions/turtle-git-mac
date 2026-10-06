@@ -8,6 +8,15 @@ public struct RebaseSquashMessage: Codable, Sendable {
     public let latestDate: String
     public let step: Int
 }
+public struct RebaseSplitState: Codable, Sendable {
+    public let entryID: String
+    public let step: Int
+    public var expectedHead: String
+    public var parts: Int
+    public let firstAuthor: String
+    public let firstDate: String
+    public let squashDate: RebaseSquashDate?
+}
 public struct RebaseEntry: Identifiable, Sendable {
     public var id: String { occurrence == 0 ? commit.hash : commit.hash + ":" + String(occurrence) }
     public var occurrence = 0
@@ -53,6 +62,9 @@ public struct RebaseState: Sendable {
     public let conflicts: [String]
     public let remainingCommands: [String]
     public let squashMessage: RebaseSquashMessage?
+    public let stoppedAction: RebaseAction?
+    public let split: RebaseSplitState?
+    public var canSplit: Bool { active && conflicts.isEmpty && (stoppedAction == .edit || squashMessage != nil || split != nil) }
 }
 public struct RebaseExecution: Sendable {
     public let output: String
@@ -176,10 +188,14 @@ extension GitRepository {
         let stoppedIdentity = identities.indices.contains(step - 1) && identities[step - 1].hash == originalStopped ? identities[step - 1].id : originalStopped
         let requestURL = directory.appendingPathComponent("turtlegit-squash-message.json")
         let request = active && manager.fileExists(atPath: requestURL.path) ? try JSONDecoder().decode(RebaseSquashMessage.self, from: Data(contentsOf: requestURL)) : nil
+        let splitURL = directory.appendingPathComponent("turtlegit-split.json")
+        let split = active && manager.fileExists(atPath: splitURL.path) ? try JSONDecoder().decode(RebaseSplitState.self, from: Data(contentsOf: splitURL)) : nil
+        let lastCommand = read("done").split(separator: "\n").last?.split(separator: " ").first.map(String.init)
         return RebaseState(active: active, isCherryPick: active && manager.fileExists(atPath: metadataURL.path), branch: line("head-name"), originalHead: line("orig-head"), onto: line("onto"),
                            stoppedEntryID: stoppedIdentity, stoppedCommit: originalStopped, message: read("message"), currentStep: step,
                            total: Int(line("end")) ?? Int(line("last")) ?? 0, conflicts: conflicts,
-                           remainingCommands: commands, squashMessage: request?.step == step && conflicts.isEmpty ? request : nil)
+                           remainingCommands: commands, squashMessage: request?.step == step && conflicts.isEmpty ? request : nil,
+                           stoppedAction: lastCommand.flatMap(RebaseAction.init(rawValue:)), split: split?.step == step && split?.entryID == stoppedIdentity ? split : nil)
     }
     private func replayIdentities(_ directory: URL) -> [RebaseReplayIdentity] {
         (try? JSONDecoder().decode([RebaseReplayIdentity].self, from: Data(contentsOf: directory.appendingPathComponent("turtlegit-replay-identities.json")))) ?? []
@@ -367,10 +383,17 @@ extension GitRepository {
         args += ["--onto", plan.ontoHash, "--", plan.upstreamHash, plan.branchReference.isEmpty ? plan.branchHash : String(plan.branchReference.dropFirst(11))]
         return try executeRebase(args, environment: environment)
     }
-    public func continueRebase(squashMessage: String? = nil) throws -> RebaseExecution {
+    public func continueRebase(squashMessage: String? = nil, editMessage: String? = nil) throws -> RebaseExecution {
         let state = try rebaseState()
         guard state.active else { throw RebaseFailure.inactive }
+        if let split = state.split {
+            guard split.parts > 0, try rebaseRevision("HEAD") == split.expectedHead, !(try rebaseSplitHasRemainingChanges()) else { throw RebaseFailure.plan }
+            try FileManager.default.removeItem(at: rebasePath("rebase-merge/turtlegit-split.json"))
+        }
         var output = ""
+        if state.stoppedAction == .edit, state.split == nil, state.squashMessage == nil, let editMessage {
+            output = try amendRebaseCommit(message: editMessage)
+        }
         if var pending = state.squashMessage {
             guard let squashMessage, !squashMessage.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
             pending.message = squashMessage
@@ -405,8 +428,42 @@ extension GitRepository {
     }
     public func amendRebaseCommit(message: String) throws -> String {
         guard try rebaseState().active else { throw RebaseFailure.inactive }
-        guard try rebaseState().squashMessage == nil else { throw RebaseFailure.plan }
+        let state = try rebaseState()
+        guard state.squashMessage == nil && state.split == nil else { throw RebaseFailure.plan }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw RebaseFailure.message }
-        return try run(["commit", "--amend", "-m", message]).text
+        let base = try commitComparisonBase(amendToParent: true)
+        let originallyEmpty = try run(["diff", "--quiet", base, "HEAD", "--"], successfulExitCodes: 0...1).exitCode == 0
+        return try run(["commit", "--amend", "-m", message] + (originallyEmpty ? ["--allow-empty"] : [])).text
+    }
+    public func beginRebaseSplit() throws -> RebaseSplitState {
+        let state = try rebaseState()
+        guard state.canSplit else { throw RebaseFailure.plan }
+        if let split = state.split { return split }
+        let head = try rebaseCommit("HEAD")
+        let split = RebaseSplitState(entryID: state.stoppedEntryID, step: state.currentStep, expectedHead: head.hash, parts: 0,
+                                     firstAuthor: head.author + " <" + head.email + ">", firstDate: state.squashMessage?.datePolicy == .latest ? state.squashMessage!.latestDate : head.date,
+                                     squashDate: state.squashMessage?.datePolicy)
+        try JSONEncoder().encode(split).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
+        return split
+    }
+    public func rebaseSplitHasRemainingChanges() throws -> Bool {
+        try status().contains { $0.state != .untracked && $0.state != .ignored }
+    }
+    public func cancelUnstartedRebaseSplit() throws {
+        guard let split = try rebaseState().split, split.parts == 0, try rebaseRevision("HEAD") == split.expectedHead else { throw RebaseFailure.changed }
+        try FileManager.default.removeItem(at: rebasePath("rebase-merge/turtlegit-split.json"))
+    }
+    /// Commit each split part through the same complete selection/index backend.
+    /// The first part replaces the stopped commit; later parts create children.
+    public func commitRebaseSplit(message: String, paths: Set<String>, staging: Bool, options: CommitOptions, expected: RebaseSplitState) throws -> String {
+        let state = try rebaseState()
+        guard let saved = state.split, state.canSplit, saved.parts == expected.parts, saved.entryID == expected.entryID,
+              saved.expectedHead == expected.expectedHead, try rebaseRevision("HEAD") == saved.expectedHead,
+              options.newBranch == nil, options.amend == (saved.parts == 0), saved.parts != 0 || !options.amendDiffToLastCommit else { throw RebaseFailure.changed }
+        let output = try (staging ? commitIndex(message: message, options: options) : commitSelected(message: message, paths: paths, options: options))
+        var updated = saved; updated.parts += 1; updated.expectedHead = try rebaseRevision("HEAD")
+        try JSONEncoder().encode(updated).write(to: rebasePath("rebase-merge/turtlegit-split.json"), options: .atomic)
+        if saved.parts == 0, state.squashMessage != nil { try FileManager.default.removeItem(at: rebasePath("rebase-merge/turtlegit-squash-message.json")) }
+        return output
     }
 }

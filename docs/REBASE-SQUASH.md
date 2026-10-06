@@ -37,7 +37,8 @@ and attempted draft available for recovery.
 
 The metadata lives in the worktree's own `rebase-merge` directory, including for
 linked worktrees. Requests are tied to their replay step so Skip cannot expose a
-stale message as a later commit's editor. Complete conflict tabs, Split, empty
+stale message as a later commit's editor. [Split](REBASE-SPLIT.md) now opens full
+Commit selection dialogs at Edit or squash pauses. Complete conflict tabs, empty
 combined-commit choices, author overrides and full displayed keyboard/layout/
 accessibility acceptance remain unfinished. Signed sandbox execution and App Store
 acceptance are not established.

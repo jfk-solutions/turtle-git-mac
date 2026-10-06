@@ -307,31 +307,7 @@ import TurtleGitCore
             }
             let access = controller.model.access
             controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
-            controller.model.onCompare = { [weak self] paths, amendToParent in
-                self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent)
-            }
-            controller.model.onCompareTwoFiles = { [weak self] paths in
-                self?.showWorkingFilePair(repository: repository, access: access, paths: paths)
-            }
-            controller.model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
-            controller.model.onFileBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
-            controller.model.onResolve = { [weak self] action, paths in
-                if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
-                else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
-            }
-            controller.model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
-            controller.model.onRevert = { [weak self, weak model = controller.model] entries, amend, againstHead, done in
-                guard let self else { done(false); return }
-                self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), completion: done)
-            }
-            controller.model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
-            controller.model.configureLogPicker = { [weak self] log in
-                log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
-                log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
-                log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
-                log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
-            log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
-            }
+            configureCommitInteractions(controller.model, repository: repository, access: access)
             commitWindows[root.path] = controller
             controller.model.reload(paths: paths)
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -1007,6 +983,33 @@ import TurtleGitCore
         stashWindows[root.path] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func configureCommitInteractions(_ model: CommitWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onCompare = { [weak self] paths, amendToParent in
+            self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent)
+        }
+        model.onCompareTwoFiles = { [weak self] paths in
+            self?.showWorkingFilePair(repository: repository, access: access, paths: paths)
+        }
+        model.onFileLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
+        model.onFileBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
+        model.onResolve = { [weak self] action, paths in
+            if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
+            else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
+        }
+        model.onIgnore = { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
+        model.onRevert = { [weak self, weak model] entries, amend, againstHead, done in
+            guard let self else { done(false); return }
+            self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), completion: done)
+        }
+        model.onRename = { [weak self] path in self?.showRename(repository: repository, access: access, source: path) }
+        model.configureLogPicker = { [weak self] log in
+            log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+            log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
+            log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
+        log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
+        }
+    }
     private func showRebase(repository: GitRepository, access: RepositoryAccessLease?, upstream: String? = nil, autoStart: Bool = false, preserveMerges: Bool = false, cherryPick: [String]? = nil) {
         let root = repository.root
         let existing = rebaseWindows[root.path]
@@ -1021,6 +1024,7 @@ import TurtleGitCore
             if self.root == root { self.activate(.status) }
             else if let access { self.openSession(access, action: .status) }
         }
+        controller.model.configureCommitSelection = { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }
         controller.model.configureLogPicker = { [weak self] log in
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }

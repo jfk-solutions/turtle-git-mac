@@ -324,6 +324,7 @@ import UniformTypeIdentifiers
     @Published var operation: CommitOperation?
     @Published var hasHead = false
     @Published var hasParent = false
+    var replaySplit: RebaseSplitState?
     @Published var amend = false
     @Published var amendDiffToLastCommit = false
     private var nonAmendMessage = ""
@@ -563,6 +564,16 @@ import UniformTypeIdentifiers
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
     }
+    func loadReplaySplit(_ split: RebaseSplitState, message: String) {
+        replaySplit = split; amend = split.parts == 0; amendDiffToLastCommit = false
+        self.message = split.parts == 0 ? message : ""
+        if split.parts == 0, let date = split.squashDate {
+            setAuthor = true; author = split.firstAuthor
+            if date != .current, let value = ISO8601DateFormatter().date(from: split.firstDate) { setAuthorDate = true; authorDate = value }
+            else if date == .current { setAuthorDate = true; resetAuthorDate = true }
+        }
+        reload(paths: ["."])
+    }
     func reload(paths: [String]? = nil) {
         guard !busy else { return }; busy = true
         let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
@@ -656,6 +667,7 @@ import UniformTypeIdentifiers
         else { checked.subtract(visibleEntries.map(\.id)) }
     }
     func amendChanged() {
+        if replaySplit != nil { comparisonChanged(); return }
         if amend {
             nonAmendMessage = message
             Task {
@@ -693,6 +705,7 @@ import UniformTypeIdentifiers
         }
     }
     func dateChanged() {
+        guard replaySplit == nil else { return }
         resetAuthorDate = false
         guard setAuthorDate else { return }
         if !amend { authorDate = Date(); return }
@@ -740,7 +753,7 @@ import UniformTypeIdentifiers
         }
     }
     func commit(_ action: CompletionAction = .commit) {
-        guard canCommit else { return }
+        guard canCommit, replaySplit == nil || action == .commit else { return }
         let rawMessage = message, rawIssueID = issueID, properties = issueProperties, paths = checked, staging = stagingEnabled
         let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : messageOnly ? Set<String>() : paths
         let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
@@ -774,7 +787,8 @@ import UniformTypeIdentifiers
                 text = prepared.message; message = text
                 let output: String
                 commitAttempted = true
-                if staging { output = try await repository.commitIndex(message: text, options: options) }
+                if let replaySplit { output = try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit) }
+                else if staging { output = try await repository.commitIndex(message: text, options: options) }
                 else { output = try await repository.commitSelected(message: text, paths: paths, options: options) }
                 messageHistory?.add(text)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
@@ -865,7 +879,7 @@ struct CommitDialog: View {
                 Text("Commit to:")
                 if model.createBranch { TextField("New branch name", text: $model.newBranch).frame(width: 250) }
                 else { Text(model.branch.isEmpty ? "Detached / unborn HEAD" : model.branch).foregroundStyle(.blue) }
-                Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil)
+                Toggle("new branch", isOn: $model.createBranch).toggleStyle(.checkbox).disabled(model.operation != nil || model.replaySplit != nil)
                 Spacer()
                 if model.issueProperties.showsIssueField {
                     Text(model.issueProperties.label)
@@ -912,11 +926,11 @@ struct CommitDialog: View {
                 Spacer()
                 HStack(spacing: 0) {
                     Button("Commit") { model.commit() }.keyboardShortcut(.return, modifiers: [.command])
-                    Menu {
+                    if model.replaySplit == nil { Menu {
                         ForEach(CommitWindowModel.CompletionAction.allCases, id: \.self) { action in
                             Button { model.commit(action) } label: { CommandLabel(title: action.rawValue, icon: action == .push ? .push : .commit) }
                         }
-                    } label: { Image(systemName: "chevron.down") }.menuIndicator(.hidden).fixedSize().accessibilityLabel("Commit actions")
+                    } label: { Image(systemName: "chevron.down") }.menuIndicator(.hidden).fixedSize().accessibilityLabel("Commit actions") }
                 }.disabled(!model.canCommit)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-commit.html")!) }
@@ -952,8 +966,8 @@ GroupBox("Message:") {
                 VStack(alignment: .leading, spacing: 8) {
                     CommitMessageEditor(model: model).frame(minHeight: 100, maxHeight: .infinity).border(Color.secondary.opacity(0.3))
                     HStack {
-                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead || model.operation != nil).onChange(of: model.amend) { _ in model.amendChanged() }
-                        if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent) }
+                        Toggle("Amend Last Commit", isOn: $model.amend).toggleStyle(.checkbox).disabled(!model.hasHead || model.operation != nil || model.replaySplit != nil).onChange(of: model.amend) { _ in model.amendChanged() }
+                        if model.amend { Toggle("Show diff to last commit", isOn: $model.amendDiffToLastCommit).toggleStyle(.checkbox).disabled(!model.hasParent || model.replaySplit != nil) }
                         Spacer(); Text("\(model.message.count) characters").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack {
