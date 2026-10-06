@@ -279,12 +279,55 @@ import TurtleGitCore
         receiver.showLog(); receiver.blame(); receiver.compareBase()
         precondition(logged == [".gitignore"] && blamed == [".gitignore"] && baseComparisons == [[".gitignore"]])
         var historyOptions = HistoryOptions(); historyOptions.paths = [".gitignore"]
+        precondition(model.hasHead && receiver.canUnifiedDiff)
+        var unifiedPatches: [(Data, Bool)] = []
+        model.onUnifiedPatch = { bytes, alternate in unifiedPatches.append((bytes, alternate)) }
+        let unifiedIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let expectedUnified = try await repo.run(["diff", "--no-ext-diff", "--no-color", "--stat", "-p", "--end-of-options", "HEAD", "--", ".gitignore"]).stdout
+        let unifiedTask = model.startUnifiedDiff(paths: [".gitignore"], alternate: true)
+        precondition(model.busy && unifiedTask != nil && !model.canApply)
+        await unifiedTask?.value
+        precondition(!model.busy && unifiedPatches.count == 1 && unifiedPatches[0].0 == expectedUnified && unifiedPatches[0].1)
+        receiver.unifiedDiff(); precondition(model.busy)
+        for _ in 0..<300 { if !model.busy { break }; try await Task.sleep(nanoseconds: 50_000_000) }
+        precondition(!model.busy && unifiedPatches.count == 2 && !unifiedPatches[1].1 && unifiedPatches[1].0 == expectedUnified)
+        model.unifiedViewerBusy = { true }; precondition(!receiver.canUnifiedDiff && model.startUnifiedDiff(paths: [".gitignore"]) == nil)
+        model.unifiedViewerBusy = { false }
+        model.confirmingQuit = true; precondition(model.startUnifiedDiff(paths: [".gitignore"]) == nil); model.confirmingQuit = false
+        let closesBeforeUnifiedCancel = closed
+        let cancelledUnified = model.startUnifiedDiff(paths: [".gitignore"]); model.cancel(); await cancelledUnified?.value
+        precondition(!model.busy && unifiedPatches.count == 2 && closed == closesBeforeUnifiedCancel + 1)
+        let afterUnified = try await repo.run(["ls-files", "--stage", "-z"]).stdout; precondition(afterUnified == unifiedIndex)
+        model.setScope([".gitignore", addedHistoryPath]); try await model.read(); model.highlighted = [".gitignore", addedHistoryPath]; model.selectionMark = ".gitignore"; receiver.refresh()
+        let unifiedPaths = receiver.selectedRows.map(\.path)
+        var expectedMany = Data()
+        for path in unifiedPaths { expectedMany.append(try await repo.run(["diff", "--no-ext-diff", "--no-color", "--stat", "-p", "--end-of-options", "HEAD", "--", path]).stdout) }
+        precondition(String(decoding: expectedMany, as: UTF8.self).components(separatedBy: "diff --git").count == 3)
+        await model.startUnifiedDiff(paths: unifiedPaths)?.value
+        precondition(unifiedPatches.count == 3 && unifiedPatches.last!.0 == expectedMany)
+        let patchesBeforeBusyRace = unifiedPatches.count
+        let busyRace = model.startUnifiedDiff(paths: unifiedPaths)
+        model.unifiedViewerBusy = { true }; await busyRace?.value
+        precondition(!model.busy && unifiedPatches.count == patchesBeforeBusyRace && model.error?.contains("Finish the open unified diff operation") == true)
+        model.unifiedViewerBusy = { false }
+        let checksBeforeViewerError = model.checked
+        model.onUnifiedPatch = { _, _ in throw NSError(domain: "Add viewer QA", code: 1, userInfo: [NSLocalizedDescriptionKey: "viewer unavailable"]) }
+        await model.startUnifiedDiff(paths: unifiedPaths)?.value
+        precondition(!model.busy && model.error == "viewer unavailable" && model.checked == checksBeforeViewerError)
+        model.onUnifiedPatch = { bytes, alternate in unifiedPatches.append((bytes, alternate)) }
+        let unbornFolder = folder.deletingLastPathComponent().appendingPathComponent("unborn-diff")
+        try FileManager.default.createDirectory(at: unbornFolder, withIntermediateDirectories: false)
+        let unbornRepo = GitRepository(root: unbornFolder); _ = try await unbornRepo.run(["init", "-b", "main"])
+        try Data("first\n".utf8).write(to: unbornFolder.appendingPathComponent("first.txt")); try await unbornRepo.stage(["first.txt"])
+        let unbornModel = AddWindowModel(repository: unbornRepo, access: nil); unbornModel.setScope(["first.txt"]); try await unbornModel.read(); unbornModel.highlighted = ["first.txt"]
+        let unbornReceiver = AddFileTable.Coordinator(model: unbornModel); _ = unbornReceiver.make()
+        precondition(unbornReceiver.canCompareBase && !unbornModel.hasHead && !unbornReceiver.canUnifiedDiff && unbornModel.startUnifiedDiff(paths: ["first.txt"]) == nil)
         let history = try await repo.history(options: historyOptions)
         precondition(!history.isEmpty)
         let annotation = try await repo.blame(path: ".gitignore", revision: "HEAD")
         precondition(annotation.contents == Data("*.log\n".utf8))
         model.setScope(["."]); try await model.read(); model.highlighted = [copyPath, unchecked]; receiver.refresh()
-        precondition(!receiver.canCompareBase && !receiver.canLog && !receiver.canBlame && receiver.canCompareTwo)
+        precondition(!receiver.canCompareBase && !receiver.canLog && !receiver.canBlame && !receiver.canUnifiedDiff && receiver.canCompareTwo)
         receiver.compareTwo(); precondition(pairs == [receiver.selectedRows.map(\.path)])
         let pair = try await repo.workingFilePairComparison(paths: pairs[0]); precondition(pair.files.count == 1)
         model.confirmingQuit = true; receiver.showLog(); receiver.blame(); receiver.compareBase(); receiver.compareTwo()
@@ -324,7 +367,7 @@ import TurtleGitCore
         precondition(!receiver.canCompareTwo)
         try FileManager.default.removeItem(at: folder.appendingPathComponent(nestedDirectory))
         precondition(!receiver.canCompareTwo)
-        print("Actual Add receiver: current-column clipboard without headings, named icon menu, stable column identity after reorder, marked-row capture, hidden-column/invalid-hit/quit guards and checkbox-to-Path mapping; disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
+        print("Actual Add receiver: unified HEAD-to-working patch bytes and ordered multi-file scope, default/alternate captured viewer routing, unchanged index, unborn/untracked suppression, queued cancellation and viewer/quit guards; current-column clipboard without headings, named icon menu, stable column identity after reorder, marked-row capture, hidden-column/invalid-hit/quit guards and checkbox-to-Path mapping; disappeared tracked file comparison offers pinned HEAD bytes without index changes; nested directory exclusion persists after removal; tracked Log/HEAD Blame/base routes, hidden untracked history/base, ordered working-file pair, rename old-name history, marked-row gates and quit guards; exact original translucent colored Add artwork, default/preference/viewport anchoring and native Action/Path progress table; Save/Export captured routing, exact binary copies and relative paths, unchanged staging/checks, queued-copy cancellation/quit guards and source overwrite rejection; Delete menu/keyboard requests, cancelled confirmations, recoverable binary Trash and ignored files, permanent fixture delete, owned cancellation and stale-index rejection; Ignore names/masks/folder menu projections and captured requests, real Ignore model writes and Add refresh, cancelled child/check/index retention; context command dispatch without launching apps, selection/clipboard ordering and dotted extensions, disabled menu/quit guards, check toggles; ignored defaults, refresh check retention, path-captured checkbox, native columns/disabled worker, checked-only OK/close, real forced add, one-shot progress, executable/symlink post-actions preserving staged bytes after disk edit/deletion, quit guard and cancelled unchanged-index case passed. No windows/menus displayed; gestures/signed acceptance pending.")
     }
 }
 '''

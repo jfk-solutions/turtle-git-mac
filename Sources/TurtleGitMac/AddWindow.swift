@@ -107,6 +107,7 @@ private final class AddNativeWindow: NSWindow {
     @Published var checked = Set<String>()
     @Published var highlighted = Set<String>()
     @Published var selectionMark: String?
+    @Published private(set) var hasHead = false
     @Published var includeIgnored = false
     @Published var busy = false
     @Published var confirmingQuit = false
@@ -123,6 +124,8 @@ private final class AddNativeWindow: NSWindow {
     var onPreview: (String) -> Void = { _ in }
     var onCompare: ([String]) -> Void = { _ in }
     var onCompareTwo: ([String]) -> Void = { _ in }
+    var unifiedViewerBusy: () -> Bool = { false }
+    var onUnifiedPatch: (Data, Bool) async throws -> Void = { _, _ in }
     var onLog: (String) -> Void = { _ in }
     var onBlame: (String) -> Void = { _ in }
     var onOpen: (String, AddFileOpenAction) -> Void = { _, _ in }
@@ -186,15 +189,41 @@ private final class AddNativeWindow: NSWindow {
             busy = false
         }
     }
+    @discardableResult func startUnifiedDiff(paths: [String], alternate: Bool = false) -> Task<Void, Never>? {
+        let marked = entries.first { $0.path == selectionMark && paths.contains($0.path) } ?? entries.first { $0.path == paths.first }
+        guard !busy, !confirmingQuit, !unifiedViewerBusy(), hasHead, !paths.isEmpty,
+              Set(paths).count == paths.count, paths.allSatisfy({ path in entries.contains { $0.path == path } }),
+              marked?.status.canCompareWithBaseFromStatusList == true else { return nil }
+        busy = true; cancellation = OperationCancellation()
+        return Task {
+            defer {
+                busy = false
+                if cancellation.isCancelled { close() }
+                cancellation = OperationCancellation()
+            }
+            do {
+                try validateAccess(); if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                var bytes = Data()
+                for path in paths {
+                    bytes.append(try await repository.run(["diff", "--no-ext-diff", "--no-color", "--stat", "-p", "--end-of-options", "HEAD", "--", path], cancellation: cancellation).stdout)
+                }
+                if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                if unifiedViewerBusy() { throw NSError(domain: "TurtleGit.Add", code: 1, userInfo: [NSLocalizedDescriptionKey: "Finish the open unified diff operation before showing another comparison."]) }
+                try await onUnifiedPatch(bytes, alternate)
+            } catch { if !cancellation.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
     var canApply: Bool { !busy && !confirmingQuit && !checked.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    func setScope(_ paths: [String]) { self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = []; selectionMark = nil }
+    func setScope(_ paths: [String]) { self.paths = paths.isEmpty ? ["."] : paths; loaded = false; checked = []; highlighted = []; selectionMark = nil; hasHead = false }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func read() async throws {
         try validateAccess()
         let selection = try await repository.addDialogSelection(paths: paths, includeIgnored: includeIgnored, cancellation: cancellation)
+        let head = try? await repository.run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation)
+        if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }; hasHead = head != nil
         let previous = Set(entries.map(\.path))
         entries = selection.entries
         if loaded { checked.formIntersection(Set(entries.map(\.path))); checked.formUnion(selection.initiallyChecked.subtracting(previous)) }

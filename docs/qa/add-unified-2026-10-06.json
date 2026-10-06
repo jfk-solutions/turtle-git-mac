@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-06",
+  "scope": "Add Show changes as unified diff, source selection gates, per-file statistics/patch order and shared viewer handoff; full port remains incomplete",
+  "baseCommit": "a54853bb53a09d6abffc76e61833ac34dfcffdf1",
+  "upstreamCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceComparison": [
+    "src/TortoiseProc/AddDlg.cpp retains GITSLC_POPGNUDIFF in Add status menu mask",
+    "src/Git/GitStatusListCtrl.cpp gates GNUDIFF1 by marked versioned row and non-initial repository; loops selected entries in list order and reads HEAD-to-working diff; read-only viewer supports Shift alternative",
+    "src/Git/Git.cpp GetUnifiedDiffCmd working-copy route uses diff --stat -p --end-of-options HEAD -- path; macOS also disables color and external diff for read-only bytes"
+  ],
+  "implemented": [
+    "Original menudiff icon and Show changes as unified diff entry with source-shaped versioned/non-unborn gates",
+    "Captured display-order paths each append their own HEAD-to-working statistics/patch bytes",
+    "Owned cancellable Git run and unchanged checked selection/index; cancellation before viewer handoff closes Add after worker finishes",
+    "Existing built-in read-only Patch viewer or configured external/Shift alternative route; built-in reused per repository and retains originating access lease",
+    "Independent patch window remains after Add closes, matching separate upstream helper; generic application Patch window busy/sheet quit guards retained",
+    "Existing viewer busy/sheet state checked before load and again before handoff; errors preserve selection/checks"
+  ],
+  "verification": {
+    "actualReceiver": "Swift 6/macOS 13 actual Add model/table: exact raw diff/stat bytes against real Git; ordered two-file concatenation; normal selector and alternate captured patch handoff; unchanged index; owned queued cancellation/close; unborn staged-file and untracked suppression; viewer-busy/quit gates; viewer-busy race before handoff and thrown-viewer-error recovery with retained checks. Prior Add/Ignore/Delete/copy/history/HEAD comparison/artwork/clipboard checks pass. No windows/menus displayed and no external apps launched.",
+    "builds": [
+      "Debug unsigned passed",
+      "AppStore unsigned passed"
+    ],
+    "lastFullCoreRegression": {
+      "count": 493,
+      "failures": 0,
+      "scope": "Previous milestone; no repository/API/resource changes. New native patch command/effects and selectors verified on real disposable repositories rather than repeating unchanged core suite."
+    },
+    "bundleAudits": "Both validators and exact bundled NOTICE comparisons passed; 76 original upstream icons, embedded Finder and universal helper runtimes; Store bundled Git audit passed.",
+    "site": "Static documentation generation passed."
+  },
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AddWindow.swift": "964da7437f84c3fe6c6a8f3fc86635edc30eb3ce6ea12e7d1ba25b9a64b7096d",
+    "Sources/TurtleGitMac/AddFileTable.swift": "50f3587fb7332fd0695fa072e63bd0ab1d26340358865bbd00ddea9e318e8141",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "2a676af2c0019e70fac0d64ad3285e3cc8bc225a3aec1143b9429497700e73da",
+    "scripts/test-add-dialog.py": "c42e34bac203b35278f2d4d680fad538123836d2e671a51c98e99498999e8316"
+  },
+  "logs": {
+    "debug": {
+      "path": "/tmp/turtlegit-add-unified-debug.log",
+      "sha256": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+    },
+    "native": {
+      "path": "/tmp/turtlegit-add-unified-native.log",
+      "sha256": "92bf3d216aec33c869273edcf4019d63af83cd3dadaf71dd120a96db793cfb10"
+    },
+    "debugAudit": {
+      "path": "/tmp/turtlegit-add-unified-debug-audit.log",
+      "sha256": "c8ecbf7e2f93ea3c462090ad8509f8cb2e8c65b00ca0998b7db8d4d9ba18c6ee"
+    },
+    "store": {
+      "path": "/tmp/turtlegit-add-unified-store.log",
+      "sha256": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+    },
+    "storeAudit": {
+      "path": "/tmp/turtlegit-add-unified-store-audit.log",
+      "sha256": "13957edfbe7f586cef8d060c1c01a7bf82692bd2be7e28ed239c9e4d6c70d6db"
+    },
+    "site": {
+      "path": "/tmp/turtlegit-add-unified-site.log",
+      "sha256": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+    }
+  },
+  "pending": [
+    "Actual displayed built-in viewer/Save As/reuse/no-change state, independent parent close and configured external/Shift launches",
+    "Native menu/Cancel/quit gestures, long-running cancellation and signed repository/application grants",
+    "Remaining Add/shared menus, helper/settings/localization parity and full source audit",
+    "Signed Finder/sandbox/AppStore release acceptance and GitHub publication authentication"
+  ],
+  "appProcesses": "No TurtleGitMac, legacy TortoiseGitMac or native receiver remains at final audit; no main app launched for checks"
+}

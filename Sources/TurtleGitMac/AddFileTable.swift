@@ -74,7 +74,7 @@ struct AddFileTable: NSViewRepresentable {
             }
             header.delegate = self; table.headerView?.menu = header
             let menu = NSMenu(); menu.delegate = self; menu.autoenablesItems = false
-            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Compare with base", #selector(compareBase), .compare), ("Compare two files", #selector(compareTwo), .compare), ("Show log", #selector(showLog), .log), ("Show log of old name", #selector(showOldLog), .log), ("Blame", #selector(blame), .blame), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Save As…", #selector(saveAs), .saveAs), ("Export…", #selector(export), .export), ("Delete", #selector(deleteItem), .remove)] {
+            for (title, action, icon) in [("Check selected files", #selector(check), MenuIcon.add), ("Uncheck selected files", #selector(uncheck), .revert), ("Compare with base", #selector(compareBase), .compare), ("Show changes as unified diff", #selector(unifiedDiff), .unifiedDiff), ("Compare two files", #selector(compareTwo), .compare), ("Show log", #selector(showLog), .log), ("Show log of old name", #selector(showOldLog), .log), ("Blame", #selector(blame), .blame), ("View revision in alternative editor", #selector(editor), .editor), ("Open", #selector(open), .open), ("Open With…", #selector(openWith), .open), ("Explore to", #selector(reveal), .explore), ("Save As…", #selector(saveAs), .saveAs), ("Export…", #selector(export), .export), ("Delete", #selector(deleteItem), .remove)] {
                 let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = icon.contextImage(); menu.addItem(item)
             }
             menu.addItem(.separator())
@@ -188,6 +188,8 @@ struct AddFileTable: NSViewRepresentable {
         }
         var markedRow: AddDialogEntry? { selectedRows.first { $0.path == model.selectionMark } ?? selectedRows.first }
         var canCompareBase: Bool { canAct && markedRow?.status.canCompareWithBaseFromStatusList == true }
+        var canUnifiedDiff: Bool { canCompareBase && model.hasHead && !model.unifiedViewerBusy() }
+        @objc func unifiedDiff() { guard canUnifiedDiff else { return }; _ = model.startUnifiedDiff(paths: selectedRows.map(\.path), alternate: NSApp.currentEvent?.modifierFlags.contains(.shift) == true) }
         var canCompareTwo: Bool {
             canAct && selectedRows.count == 2 && selectedRows.allSatisfy { !$0.isDirectory }
         }
@@ -255,13 +257,14 @@ struct AddFileTable: NSViewRepresentable {
             if menu === table.menu {
                 updateIgnoreMenu(menu)
                 for item in menu.items where !item.isSeparatorItem {
-                    let icon: MenuIcon = item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(saveAs) ? .saveAs : item.action == #selector(export) ? .export : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(compareBase) || item.action == #selector(compareTwo) ? .compare : item.action == #selector(showLog) || item.action == #selector(showOldLog) ? .log : item.action == #selector(blame) ? .blame : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
+                    let icon: MenuIcon = item.action == #selector(unifiedDiff) ? .unifiedDiff : item.representedObject as? String == "Add.Ignore" ? .ignore : item.action == #selector(saveAs) ? .saveAs : item.action == #selector(export) ? .export : item.action == #selector(deleteItem) ? .remove : item.action == #selector(check) ? .add : item.action == #selector(uncheck) ? .revert : item.action == #selector(compareBase) || item.action == #selector(compareTwo) ? .compare : item.action == #selector(showLog) || item.action == #selector(showOldLog) ? .log : item.action == #selector(blame) ? .blame : item.action == #selector(editor) ? .editor : item.action == #selector(open) || item.action == #selector(openWith) ? .open : item.submenu != nil ? .copy : .explore
                     item.image = icon.contextImage()
                     let single = [#selector(preview), #selector(editor), #selector(open), #selector(openWith), #selector(reveal)].contains(item.action)
                     let opensFile = [#selector(editor), #selector(open), #selector(openWith)].contains(item.action)
                     let eligibility: Bool
                     switch item.action {
                     case #selector(compareBase): eligibility = canCompareBase
+                    case #selector(unifiedDiff): eligibility = canUnifiedDiff
                     case #selector(compareTwo): eligibility = canCompareTwo
                     case #selector(showLog): eligibility = canLog
                     case #selector(showOldLog): eligibility = oldLogPath != nil

@@ -42,6 +42,7 @@ import TurtleGitCore
     private var switchWindows: [String: SwitchWindowController] = [:]
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
     private var addWindows: [String: AddWindowController] = [:]
+    private var addUnifiedWindows: [String: PatchWindowController] = [:]
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
     private var revertWindows: [String: RevertWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
@@ -599,6 +600,13 @@ import TurtleGitCore
                 controller.model.onPreview = { [weak self] path in self?.showWorkingFiles(repository: repository, access: access, paths: [path]) }
                 controller.model.onCompare = { [weak self] paths in self?.showWorkingFiles(repository: repository, access: access, paths: paths) }
                 controller.model.onCompareTwo = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
+                controller.model.unifiedViewerBusy = { [weak self] in self?.addUnifiedWindows[key]?.model.busy == true || self?.addUnifiedWindows[key]?.window?.attachedSheet != nil }
+                controller.model.onUnifiedPatch = { [weak self] bytes, alternate in
+                    guard let self else { return }
+                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                        self.addUnifiedWindows[key] = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.addUnifiedWindows[key], title: "HEAD → Working tree", onClosed: { [weak self] in self?.addUnifiedWindows.removeValue(forKey: key) })
+                    }
+                }
                 controller.model.onLog = { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
                 controller.model.onBlame = { [weak self] path in self?.showBlame(repository: repository, access: access, path: path, revision: "HEAD") }
                 controller.model.onIgnoreChanged = { [weak self] output in

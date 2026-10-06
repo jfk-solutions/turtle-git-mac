@@ -64,6 +64,23 @@ selection; base comparison, Ignore and Delete availability follows that row.
 Actions preserve the Add window's repository lease and are blocked during Add
 work and quit confirmation. See [the history verification record](qa/add-history-2026-10-06.json).
 
+Show changes as unified diff now follows the same marked-row eligibility as base
+comparison and is hidden in repositories without a commit. It captures selected
+paths in displayed order and loads HEAD-to-working diff statistics and patch
+bytes for each path. The existing read-only unified viewer retains original bytes
+for Save As; an existing Add viewer is reused, with no-change feedback for empty
+comparisons. The configured external viewer is supported, with Shift selecting
+the alternative choice. Viewers retain their originating repository permission
+and remain independent of the Add parent, matching upstream's separate helper.
+Add blocks actions while patch loading/launch is active; cancellation terminates
+owned Git work and prevents an outstanding patch from reaching the viewer.
+An already-started external launch finishes before the parent can close.
+Viewer errors preserve checks and leave the index unchanged. Existing viewer
+work/sheets and quit confirmation block replacement; viewer busy state is rechecked
+after patch loading to avoid replacing contents beneath an active operation. See
+[the unified-diff record](qa/add-unified-2026-10-06.json) for native receiver
+verification and remaining displayed/signed acceptance.
+
 Unversioned rows start checked; ignored rows are hidden until Include ignored is
 selected and start unchecked unless directly requested. Direct files in a mixed
 scope and removed-but-present copies are included. Refresh retains existing
