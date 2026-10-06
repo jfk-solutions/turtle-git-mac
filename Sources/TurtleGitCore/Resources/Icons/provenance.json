@@ -427,6 +427,11 @@
       "asset": "jumpdown.ico",
       "source": "src/Resources/jumpdown.ico",
       "sha256": "d4a261284b30d5a60c2e57ba56fa5dda9e4c4de1e305f88cf81828527627b208"
+    },
+    {
+      "asset": "menusendmail.ico",
+      "source": "src/Resources/menusendmail.ico",
+      "sha256": "97d40fbf59decb0bba367e1d9d89fd6a7785a0a44e753dfc9ab48ab43907681b"
     }
   ]
 }

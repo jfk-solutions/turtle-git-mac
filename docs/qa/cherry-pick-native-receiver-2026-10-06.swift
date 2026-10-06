@@ -478,6 +478,40 @@ import TurtleGitCore
     skipLast.execute("start"); try await settle(skipLast); precondition(skipLast.active)
     skipLast.execute("skip"); try await settle(skipLast)
     precondition(skipLast.finished && skipLast.entries.count == 1 && skipLast.entries[0].action == .skip && skipLast.entries[0].progress == .completed)
+    let completed = RebaseWindowModel(repository: repo, access: nil); completed.editorExecutable = editor
+    var completionRoutes: [String] = [], completionClosed = 0, mailPreset: FormatPatchPreset?
+    completed.close = { completionClosed += 1 }
+    completed.onCompletedLog = { completionRoutes.append("log") }
+    completed.onCompletedPush = { completionRoutes.append("push:" + $0) }
+    completed.onCompletedMail = { mailPreset = $0; completionRoutes.append("mail") }
+    completed.load(upstream: "main"); try await settle(completed)
+    precondition(completed.completionActions.isEmpty && !completed.canPerformCompletionAction(.log))
+    completed.execute("start"); try await settle(completed)
+    precondition(completed.finished && completed.completedSuccessfully && completed.completionActions == [.log, .restart])
+    let completionHead = try await repo.rebaseCommit("HEAD"), completionIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    completed.performCompletionAction(.log); precondition(completionRoutes == ["log"] && completionClosed == 1)
+    completed.completionAfterFetch = true
+    precondition(completed.completionActions == [.log, .push, .mail, .rebase])
+    completed.busy = true; completed.performCompletionAction(.push); precondition(completionRoutes.count == 1); completed.busy = false
+    completed.performCompletionAction(.push); precondition(completionRoutes.last == "push:HEAD" && completionClosed == 2)
+    completed.performCompletionAction(.mail); precondition(completionRoutes.last == "mail" && completionClosed == 3)
+    precondition(mailPreset?.selection == .range(from: completed.options.upstream, to: completed.options.branch))
+    let patchController = FormatPatchWindowController(repository: repo, access: nil, preset: mailPreset, sendMail: true)
+    precondition(patchController.model.sendMail && patchController.model.mode == .from)
+    let patchDeadline = Date().addingTimeInterval(30)
+    while patchController.model.busy && Date() < patchDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    patchController.close()
+    let completionAfter = try await repo.rebaseCommit("HEAD"), completionAfterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    precondition(completionAfter.hash == completionHead.hash && completionAfterIndex == completionIndex)
+    for action in RebaseCompletionAction.allCases { precondition(action.icon.contextImage() != nil) }
+    completed.completedSuccessfully = false; completed.performCompletionAction(.mail); precondition(completionRoutes.count == 3 && completed.completionActions.isEmpty)
+    completed.completedSuccessfully = true; completed.performCompletionAction(.rebase); try await settle(completed)
+    precondition(!completed.finished && !completed.completedSuccessfully && completed.options.upstream == "main")
+    completed.finished = true; completed.completedSuccessfully = true; completed.completionAfterFetch = false
+    completed.performCompletionAction(.restart); try await settle(completed)
+    precondition(!completed.finished && !completed.completedSuccessfully)
+    precondition(skipLast.completionActions.isEmpty) // Cherry Pick does not add upstream's Rebase-only buttons.
+    print("Actual native Rebase completion: successful direct/after-Fetch commands, busy/unsuccessful/Cherry Pick guards, Log/Push/mail range handoffs, close ordering, mail-enabled native Format Patch controller, unchanged HEAD/index and restart/reset passed. Hidden views/windows; no mail sent.")
     print("Actual native replay rows: completed/current/pending occurrences, Pick/Skip/Edit actions, reopened ordering/numbering, completed-row clipboard inspection and finished retained list passed. Hidden hosted view.")
     print("Actual native Rebase row commands: original icons/allowed command policy, single/root/merge/two/duplicate revision comparisons, unified diff data and alternate handoff, Log/Browse/Branch/Tag/Push/Format Patch handoffs, isolated clipboard recipes/details, notes save/refresh without HEAD/index changes, busy/stale/bare guards, active Edit inspection and Abort passed. Hidden views; dialog/viewer handoffs injected.")
 }

@@ -119,6 +119,12 @@ import TurtleGitCore
     @Published var tab = 0
     @Published var busy = false
     @Published var finished = false
+    @Published var completedSuccessfully = false
+    var completionAfterFetch = false
+    var completionAutoStart = false
+    var onCompletedLog: (() -> Void)?
+    var onCompletedPush: ((String) -> Void)?
+    var onCompletedMail: ((FormatPatchPreset) -> Void)?
     @Published var error: String?
     @Published var confirmation: String?
     @Published var browsing = false
@@ -199,6 +205,31 @@ import TurtleGitCore
     func entryNumber(_ entry: RebaseEntry) -> Int {
         if active || finished && !replayRows.isEmpty { return (replayRows.firstIndex(where: { $0.id == entry.id }) ?? 0) + 1 }
         return ((plan?.entries ?? draftEntries).firstIndex(where: { $0.id == entry.id }) ?? 0) + 1
+    }
+    var completionActions: [RebaseCompletionAction] {
+        guard finished, completedSuccessfully, !active, !isCherryPick else { return [] }
+        return completionAfterFetch ? [.log, .push, .mail, .rebase] : [.log, .restart]
+    }
+    func canPerformCompletionAction(_ action: RebaseCompletionAction) -> Bool {
+        guard !busy, !pickingCommits, !selectingSplit, revisionMenuAvailable, completionActions.contains(action) else { return false }
+        switch action {
+        case .log: return onCompletedLog != nil
+        case .push: return onCompletedPush != nil
+        case .mail: return onCompletedMail != nil && !options.upstream.isEmpty
+        case .restart, .rebase: return true
+        }
+    }
+    func performCompletionAction(_ action: RebaseCompletionAction) {
+        guard canPerformCompletionAction(action) else { return }
+        switch action {
+        case .log: let callback = onCompletedLog; close(); callback?()
+        case .push: let callback = onCompletedPush; close(); callback?("HEAD")
+        case .mail:
+            guard let preset = FormatPatchPreset(startRevision: options.upstream, endRevision: options.branch) else { return }
+            let callback = onCompletedMail; close(); callback?(preset)
+        case .restart: load()
+        case .rebase: load(upstream: options.upstream, autoStart: completionAutoStart, preserveMerges: options.preserveMerges)
+        }
     }
     var canStart: Bool { editable && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first(where: { $0.action != .skip })?.action != .squash }
     var primaryActionTitle: String {
@@ -289,7 +320,7 @@ import TurtleGitCore
             do {
                 try requireAccess()
                 revisionMenuLog.bare = try await repository.isBare()
-                references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil; draftEntries = []
+                references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; completedSuccessfully = false; output = ""; error = nil; confirmation = nil; draftEntries = []
                 try await loadConflictFiles(); if fileRecovery { tab = 0 }
                 if active { splitCommit = state?.split != nil && state?.split?.conflictRecovery != true; options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
                 finished = false; plan = nil; recovered = []; replayRows = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
@@ -434,7 +465,7 @@ import TurtleGitCore
         guard !busy, !selectingSplit else { return }; busy = true
         Task {
             defer { busy = false; loadPendingHandoff() }
-            do { let wasActive = active; state = try await repository.rebaseState(); try await loadConflictFiles(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; selectCommit() } else if wasActive { finished = true; completion = "\(operationTitle) session ended" }; onChanged() }
+            do { let wasActive = active; state = try await repository.rebaseState(); try await loadConflictFiles(); onModeChanged(); if active { recovered = try await repository.remainingRebaseEntries(); replayRows = try await repository.rebaseReplayEntries(); amendMessage = state?.squashMessage?.message ?? state?.message ?? ""; if state?.squashMessage != nil || state?.isEditPause == true { tab = 1 }; selectCommit() } else if wasActive { finished = true; completedSuccessfully = false; completion = "\(operationTitle) session ended" }; onChanged() }
             catch { self.error = error.localizedDescription }
         }
     }
@@ -481,7 +512,7 @@ import TurtleGitCore
                         else { result = try await repository.commitRebaseConflictSelection(message: text, paths: paths, expected: captured, expectedHead: head, allowEmpty: empty) }
                     } else { result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage, editMessage: state?.isEditPause == true ? amendMessage : nil) }
                 }
-                output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
+                output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completedSuccessfully = finished && action != "abort"; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
                 if result.exitCode == 0, let skippedID { replayRows = replayRows.map { var row = $0; if row.id == skippedID { row.action = .skip }; return row } }
                 if finished, action != "abort" { replayRows = replayRows.map { var row = $0; row.progress = .completed; return row } }
                 try await loadConflictFiles()
@@ -537,6 +568,13 @@ import TurtleGitCore
 
 
 }
+enum RebaseCompletionAction: String, CaseIterable {
+    case log = "Show log", restart = "Restart rebase", push = "Push…", mail = "Send Mail…", rebase = "Rebase…"
+    var icon: MenuIcon {
+        switch self { case .log: return .log; case .push: return .push; case .mail: return .sendMail; case .restart, .rebase: return .rebase }
+    }
+}
+
 enum RebaseRevisionCommand: String, CaseIterable {
     case workingTree = "Compare with working tree", compare = "Compare with previous revision", unified = "Show changes as unified diff"
     case log = "Show log", browse = "Browse repository", branch = "Create branch at this version…", tag = "Create tag at this version…", push = "Push…", notes = "Edit Notes", patch = "Format Patch…"
@@ -687,7 +725,18 @@ struct RebaseDialog: View {
             if model.busy { ProgressView().progressViewStyle(.linear) }
             else { ProgressView(value: model.finished ? 1 : Double(model.state?.currentStep ?? 0), total: model.finished ? 1 : Double(max(model.state?.total ?? 1, 1))) }
             HStack {
-                Text(model.status).font(.caption); Spacer()
+                if model.completionActions.isEmpty { Text(model.status).font(.caption) }
+                else {
+                    HStack(spacing: 0) {
+                        Button { model.performCompletionAction(.log) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(!model.canPerformCompletionAction(.log))
+                        Menu {
+                            ForEach(model.completionActions, id: \.self) { action in
+                                Button { model.performCompletionAction(action) } label: { CommandLabel(title: action.rawValue, icon: action.icon) }.disabled(!model.canPerformCompletionAction(action))
+                            }
+                        } label: { Image(systemName: "chevron.down") }.menuStyle(.borderlessButton).fixedSize()
+                    }
+                }
+                Spacer()
                 Button(model.primaryActionTitle) { if model.finished { model.close() } else { model.request(model.active ? "continue" : "start") } }.keyboardShortcut(.defaultAction).disabled(!model.finished && !model.active && !model.canStart)
                 Button(model.active || model.isCherryPick ? "Abort" : "Cancel") { if model.active { model.request("abort") } else { model.close() } }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(model.helpURL) }

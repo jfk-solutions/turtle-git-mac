@@ -179,3 +179,7 @@ displayed acceptance remain pending. See [row menus](REBASE-ROW-MENUS.md).
 Custom replay lists now retain completed occurrences, original action/mainline
 metadata, stable numbering and current/completed styling through reopening.
 [Replay rows](REBASE-PROGRESS-ROWS.md) records scope and remaining differences.
+
+Successful Rebase now exposes upstream completion commands through a native
+split control. [Completion actions](REBASE-COMPLETION-ACTIONS.md) records direct
+and after-Fetch behavior, mail/export adaptation and remaining acceptance.

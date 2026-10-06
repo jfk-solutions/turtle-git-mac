@@ -325,3 +325,6 @@ source selection, ignored-file policy and file/folder routing use the existing
 forced-add private-index transaction with owned cancellation. Full status-list
 menus, post-action file modes, native visual/signed acceptance and all progress
 behavior remain unfinished.
+
+Original menusendmail.ico is retained unchanged for Rebase-after-Fetch completion
+controls; provenance records its upstream resource and exact SHA-256.

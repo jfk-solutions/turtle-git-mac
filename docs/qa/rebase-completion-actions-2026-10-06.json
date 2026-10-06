@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "257d4a5",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Rebase completion split controls, direct/after-Fetch commands, mail-enabled Format Patch handoff and original Send Mail icon",
+  "sha256": {
+    "Sources/TurtleGitMac/RebaseWindow.swift": "d048164b24dd749a135a0fa9aff37a7719f16985f0db6b6e6cffdd0d78c2f783",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "90e21848098e28c9273ccd1115383ef319041b7ff0ce8bc08a2e3041efdee3fa",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "1357eea167ea594ea57324607eb080da9b24229cf5368a02f0c793d6fd32ee84",
+    "Sources/TurtleGitCore/MenuIcons.swift": "15dcf4e02ae95724425edc2e777875db218f2843fc80ff2f6deb69101252d0e3",
+    "Sources/TurtleGitCore/Resources/Icons/menusendmail.ico": "97d40fbf59decb0bba367e1d9d89fd6a7785a0a44e753dfc9ab48ab43907681b",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "edac4b613bff50867b812478e26819f64cd9a93750fe9da0bcf03ff036636280",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "a717ea8066333cf6a032b27b7fde250bb1791c4eae6e3cddfc26249a38dbb9fd",
+    "NOTICE": "5f82b45161109c3321d90e8343204d7858860a78b5b3f40be18cf5e7697718b2",
+    "README.md": "c161caa298103d425b467a61adf23786f0d7ef07dea8e474955d0631195d091f",
+    "docs/REBASE-PARITY.md": "afd9578bba5090706a0e91ae574a547992d8f1739caa7330a56de902ea0d5980",
+    "docs/REBASE-ROW-MENUS.md": "d5446133870438b5f88e82fb6d1d03d5443e4290c070d33f6caaa392752ecc91",
+    "docs/REBASE-COMPLETION-ACTIONS.md": "98c24130ff5cac4c0e104ac13f9df86cd4ce997b33d7bafb179b75ed9ee69f2b",
+    "docs/site/index.html": "ae3c4c9108dd6d51b6408e086522214aaf451e5c84652971fa8f858a2e324f06"
+  },
+  "all_native_sources_manifest_sha256": "e60f7a60d6ef8e832ace71e6851ae97796fdf21d2dfd9cad56495e1312ba0557",
+  "all_native_sources_manifest_encoding": "SHA256 of sorted-key JSON relative Swift source path to SHA256 mapping, default json.dumps separators",
+  "verification": {
+    "native_receiver": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": [
+        "Actual normal Rebase completes successfully",
+        "Direct Show Log/restart and after-Fetch Log/Push/mail/Rebase command sets",
+        "Busy/unsuccessful/Cherry Pick guards",
+        "Log and HEAD Push callbacks, close callback counts, upstream/branch mail range",
+        "Actual hidden Format Patch controller starts with Send Mail enabled and range mode",
+        "Completion handoffs leave HEAD/index unchanged",
+        "After-Fetch Rebase preserves upstream; direct restart resets completed state",
+        "Completion original icons decode; previous full-row and row-menu checks remain passing"
+      ],
+      "limits": "After-Fetch origin is injected into the completed native model; Root callbacks compile but no displayed navigation or actual message composition is verified"
+    },
+    "icon_tests": {
+      "command": "swift test --filter MenuIconTests",
+      "tests": 1,
+      "failures": 0,
+      "coverage": "All enum icons including newly copied Send Mail decode/render; existing transparency/template checks"
+    },
+    "builds": {
+      "SwiftPM": "passed",
+      "Debug unsigned": "passed",
+      "AppStore unsigned": "passed"
+    },
+    "bundle_audits": "Both passed; 86 exact upstream icon resources; exact NOTICE in both; Store --require-git passed",
+    "site_generation": "passed",
+    "process_audit": "No main app or receiver instances running",
+    "logs_sha256": {
+      "build": "e00298e29dec5b4977c22b7f1f45de910b431ab500262125021e5ce36cedd9a4",
+      "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+      "store": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+      "icons": "5b86c715f8250fe64dd332e0a5dfc8a95e185a1829efdf9654f82eff69d9bf4f",
+      "native": "0fc70016d28c286ad09ccca374010dd1efb4d8a82bd0ae848ccf80d052fdef4a",
+      "debug-audit": "524a234addd8b8e8366b55e22533cc9736d8979fa77ace113cb86b8f82e323fb",
+      "store-audit": "65bcab67068f3a1a770ff06b35e1fedf3fb90de95ac93038c81fc670adac14b1"
+    }
+  },
+  "limitations": [
+    "Displayed split-control layout/focus/accessibility and current screenshots pending",
+    "Mail handoff uses native export directory selection before composition rather than immediate upstream worktree patch generation",
+    "No message sent; signed sandbox export/mail composition unverified",
+    "Fetch-origin completion context currently in controller, not recovered after closing/reopening active session",
+    "No full-suite or broader native receiver rerun for this callback/control addition",
+    "No hosted CI, push or publication; full application port remains incomplete"
+  ]
+}

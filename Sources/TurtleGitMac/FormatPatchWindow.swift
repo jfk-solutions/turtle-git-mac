@@ -9,9 +9,10 @@ import TurtleGitCore
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
     var activeOperation: Bool { model.busy || model.composingMail || model.openingViewer }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false) {
         model = FormatPatchWindowModel(repository: repository, access: access)
         model.apply(preset)
+        if sendMail { model.sendMail = true }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 365), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Format Patch – TurtleGit"
         window.isReleasedWhenClosed = false

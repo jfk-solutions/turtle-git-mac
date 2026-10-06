@@ -831,7 +831,7 @@ import TurtleGitCore
         worktreeCreateWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil) {
+    private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false) {
         let rootKey = repository.root.path
         let suffix: String
         switch preset?.selection {
@@ -842,8 +842,9 @@ import TurtleGitCore
         }
         let key = rootKey + suffix
         let existing = formatPatchWindows[key]
-        let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset)
+        let controller = existing ?? FormatPatchWindowController(repository: repository, access: access, preset: preset, sendMail: sendMail)
         if existing != nil { controller.model.apply(preset) }
+        if sendMail && !controller.model.busy && !controller.model.progress && !controller.model.composingMail { controller.model.sendMail = true }
         controller.onClosed = { [weak self] in self?.formatPatchWindows.removeValue(forKey: key) }
         controller.model.onOutputChanged = { [weak self] output in
             self?.statusWindows[rootKey]?.model.reload()
@@ -1028,6 +1029,11 @@ import TurtleGitCore
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
+        controller.model.completionAfterFetch = upstream != nil
+        controller.model.completionAutoStart = autoStart
+        controller.model.onCompletedLog = { [weak self] in self?.showLog(repository: repository, access: access, paths: []) }
+        controller.model.onCompletedPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.model.onCompletedMail = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset, sendMail: true) }
         controller.model.configureCommitSelection = { [weak self] commit in self?.configureCommitInteractions(commit, repository: repository, access: access) }
         let revisionLog = controller.model.revisionMenuLog
         revisionLog.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }

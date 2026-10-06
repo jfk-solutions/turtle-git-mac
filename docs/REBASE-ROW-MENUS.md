@@ -38,3 +38,7 @@ modal focus, signed sandbox execution or visual parity. Advanced upstream Log
 commands and further post-operation controls remain pending. Completed rows in
 custom sessions now remain visible and recover on reopening; see
 [replay rows](REBASE-PROGRESS-ROWS.md). See the dated QA record for test versions and build results.
+
+Successful Rebase now exposes upstream completion commands through a native
+split control. [Completion actions](REBASE-COMPLETION-ACTIONS.md) records direct
+and after-Fetch behavior, mail/export adaptation and remaining acceptance.
