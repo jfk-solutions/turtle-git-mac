@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-06",
+  "parent_checkpoint": "c86aa06",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Rebase draft Add before branch/upstream plan loading",
+  "sha256": {
+    "Sources/TurtleGitCore/Rebase.swift": "5752a872d99ea5ad1314933f515e7d90a4c96a1dbdcbedf152fa0a836fc95dce",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "b8272d063018c9d5835047761e19701e9b62b84a2f129abe2cd1b7125a0baafc",
+    "Tests/TurtleGitCoreTests/RebaseTests.swift": "a299e49ff4fe873b2ab66d0e1b966561f89993ebd74e279619e4dbb719ba91e8",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "d029d1daf2d3c51ca2ab92c82a9e1c8c54314040bc5a85f1c72dc1978feb7aef",
+    "docs/REBASE-ADD-PARITY.md": "017c6c5e86523260f83c8987b4b27cacb6babe8e3fd6da5b007994bdc35f3cde",
+    "docs/REBASE-PARITY.md": "a316cc1c1ec848fee90fa6b3d38f283f5d253b790cb97dddd2160d27307fb595",
+    "docs/CHERRY-PICK-PARITY.md": "a984ba8e5f09bebc824c59e63832297ccec88a683c3932d870193a841afff043",
+    "docs/site/index.html": "ebc6609f0c59bdf21c950b9d10e37d47c39846c72258350a879a7a792aaa2779"
+  },
+  "all_native_sources_manifest_sha256": "26dae274334836db0f4843a99880d583de8dd2f2e7cd2472703227e2b358de8b",
+  "verification": {
+    "focused_tests": {
+      "command": "swift test --filter RebaseTests",
+      "tests": 20,
+      "failures": 0,
+      "new_coverage": "Draft revision resolution/order/repeated IDs and failure atomicity with unchanged HEAD/index and no active replay"
+    },
+    "headless_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "result": "passed for both executables",
+      "architecture": "arm64",
+      "new_coverage": [
+        "Add enabled with no upstream or captured plan; Start disabled",
+        "Actual draft view/model: row order/IDs/actions/move, cancellation and Preserve Merges guard",
+        "Invalid-reference Add retains editable draft without revision alert",
+        "Valid-reference reload replaces draft with reference plan",
+        "Add while valid reference reload has no completed plan captures destination and keeps accepted selection"
+      ],
+      "limits": "Results are injected; displayed sheets/gestures/focus/screenshots are not verified"
+    },
+    "debug_build": "unsigned passed",
+    "appstore_build": "unsigned passed",
+    "bundle_audits": "Debug and AppStore --require-git passed; both NOTICE cmp passed",
+    "site_generation": "passed"
+  },
+  "log_sha256": {
+    "tests": "d81a13904509e767877ff1175a1f13f02307fbfc8c678649a1ae1002038cca72",
+    "debug": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "appstore": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "native": "8170311554c99f8db8f1eef72c41a9c03763eb3186a1fc59a186b978845e6faa",
+    "debug-audit": "a071d5d977d1034ffbd8a48096f2366c28fc969073700d5d8a99ea09676fc03a",
+    "appstore-audit": "0fe55fc01e132cf5741ef9b14253e2fd1e9c84b4a86daed24c0bd1140e5ec5c5",
+    "site": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "not_verified": [
+    "Displayed picker/keyboard/accessibility acceptance",
+    "Signed sandbox execution/App Store acceptance",
+    "GitHub CI/publication",
+    "Complete TortoiseGit parity"
+  ],
+  "next_finding": {
+    "issue": "Explicit --empty=stop is not listed by Git 2.39; --interactive implies stop/ask semantics in both inspected versions. Compatibility fix/runtime verification pending.",
+    "sources": [
+      "https://git-scm.com/docs/git-rebase/2.39.0",
+      "https://git-scm.com/docs/git-rebase/2.50.0"
+    ]
+  },
+  "processes": "Headless only; hidden receiver-owned windows closed; no main app launched"
+}

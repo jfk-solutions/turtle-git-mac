@@ -48,7 +48,7 @@ the operation ends.
 ## Verification and remaining work
 
 The Cherry Pick checkpoint `a2a00d8` recorded 16 focused `RebaseTests`, zero failures
-on 2026-10-06. The subsequent [Add audit](REBASE-ADD-PARITY.md) records 19 passing
+on 2026-10-06. The subsequent [Add audit](REBASE-ADD-PARITY.md) records 20 passing
 focused tests and the extended native checks. These include
 ordinary Rebase regression coverage and Cherry Pick selection/Skip, stale branch
 identity, both merge mainlines, Edit/reopening/Continue, conflict/reopening/Abort,

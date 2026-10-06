@@ -11,8 +11,9 @@ The branch/reverse/upstream/browse/onto row sits above the commit action list.
 Commits display newest first and replay oldest first, as upstream documents.
 Pick, Skip, Edit and Squash use the original upstream artwork in action rows and
 context menus. Up/Down reorder one selected commit. The all/unselected action
-menu, Force Rebase and Preserve Merges sit below the list. Add opens a native multiple-selection Log picker for a loaded plan; it is disabled
-during replay and with Preserve Merges. See [Add audit](REBASE-ADD-PARITY.md).
+menu, Force Rebase and Preserve Merges sit below the list. Add opens a native multiple-selection Log picker even before branch/upstream
+fields are complete; draft entries remain editable while Start stays disabled.
+It is disabled during replay and with Preserve Merges. See [Add audit](REBASE-ADD-PARITY.md).
 Changed Files, Commit Message and Progress tabs occupy the resizable lower pane,
 followed by progress, status and Start/Continue, Abort/Cancel and Help controls.
 
@@ -70,7 +71,7 @@ These establish the pictured layout, not full behavior or accessibility parity.
 ## Remaining workflows
 
 - Fetch/Pull handoffs, old-upstream detection, fast-forward choices and config defaults.
-- Add before branch-plan loading, Split, advanced Cherry Pick options, patch-becomes-empty interaction and custom structural merge plans.
+- Split, advanced Cherry Pick options, patch-becomes-empty interaction and custom structural merge plans.
 - Native squash/reword message editing, complete conflict/resolution menus and tabs.
 - Full row targeting/shortcuts, customizable columns and persisted layout. ID and formatted dates are now present; displayed acceptance remains pending.
 - Hooks, signing/editor/authentication prompts, stash restoration, streaming progress,

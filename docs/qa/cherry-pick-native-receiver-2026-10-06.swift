@@ -159,6 +159,33 @@ import TurtleGitCore
     reopenedDuplicate.execute("continue"); try await settle(reopenedDuplicate)
     precondition(reopenedDuplicate.finished && !reopenedDuplicate.active)
     print("Actual native Add: multiple-picker OK order/busy/empty checks, single-picker regression, cancel preserves plan, repeated Add uses distinct row IDs, active/Preserve Merges guards, repeated Edit/Continue selection and reopening passed.")
+    let draftModel = RebaseWindowModel(repository: repo, access: nil)
+    draftModel.load(); try await settle(draftModel)
+    precondition(draftModel.plan == nil && draftModel.options.upstream.isEmpty && draftModel.canAdd && !draftModel.canStart)
+    let draftHost = NSHostingView(rootView: RebaseDialog(model: draftModel)); draftHost.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); draftHost.layoutSubtreeIfNeeded()
+    draftModel.addCommits([merge.hash, side.hash]); try await settle(draftModel)
+    precondition(draftModel.entries.map { $0.commit.hash } == [merge.hash, side.hash] && !draftModel.canStart && draftModel.canAdd)
+    precondition(draftModel.entries.map { draftModel.entryNumber($0) } == [2, 1])
+    draftModel.selection = [merge.hash]; draftModel.setAction(.skip)
+    precondition(draftModel.entries[0].action == .skip)
+    draftModel.move(up: false); precondition(draftModel.entries.map { $0.commit.hash } == [side.hash, merge.hash])
+    let preservedDraft = draftModel.entries.map(\.id)
+    draftModel.pickingCommits = true; draftModel.finishPickingCommits(nil)
+    precondition(draftModel.entries.map(\.id) == preservedDraft)
+    draftModel.options.preserveMerges = true; precondition(!draftModel.canAdd); draftModel.options.preserveMerges = false
+    draftModel.options.upstream = "missing-upstream"; draftModel.plan = nil; draftModel.draftEntries = []
+    draftModel.addCommits([side.hash]); try await settle(draftModel)
+    precondition(draftModel.entries.map { $0.commit.hash } == [side.hash] && !draftModel.canStart)
+    draftModel.options.upstream = "side"; draftModel.reloadPlan()
+    let loadedPlan = Date().addingTimeInterval(30)
+    while draftModel.plan == nil && Date() < loadedPlan { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(draftModel.plan != nil && draftModel.draftEntries.isEmpty)
+    // Represent a reference reload superseded by opening Add: valid references, no completed plan yet.
+    draftModel.plan = nil; draftModel.draftEntries = []
+    draftModel.addCommits([empty.hash]); try await settle(draftModel)
+    precondition(draftModel.plan?.hasAddedCommits == true && draftModel.entries.first?.commit.hash == empty.hash && draftModel.canStart)
+    print("Actual draft Add: enabled without upstream/plan, newest-first draft rows/IDs/actions/order, Cancel/Preserve guards, invalid-reference drafts, valid-reference rebuild and Add during pending reload passed.")
+
 
 }
 @main struct Receiver { @MainActor static func main() async throws { try await verify() } }

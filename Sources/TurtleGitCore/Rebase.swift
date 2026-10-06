@@ -146,17 +146,24 @@ extension GitRepository {
         guard !plan.options.preserveMerges else { throw RebaseFailure.preservePlan }
         try validateRebaseIdentities(plan)
         if revisions.isEmpty { return plan }
+        let entries = try addingRebaseEntries(plan.entries, revisions: revisions)
+        var value = RebasePlan(disposition: .ready, options: plan.options, branchHash: plan.branchHash, upstreamHash: plan.upstreamHash,
+                               ontoHash: plan.ontoHash, branchReference: plan.branchReference, originalCommits: entries.map(\.id), entries: entries)
+        value.hasAddedCommits = true
+        return value
+    }
+    /// Resolve Add selections without requiring branch/upstream fields to be complete.
+    public func addingRebaseEntries(_ existing: [RebaseEntry], revisions: [String]) throws -> [RebaseEntry] {
+        guard !(try rebaseState().active) else { throw RebaseFailure.active }
+        guard Set(existing.map(\.id)).count == existing.count, existing.allSatisfy({ $0.occurrence >= 0 }) else { throw RebaseFailure.plan }
         let commits = try revisions.reversed().map { try rebaseCommit($0) }
-        var entries = plan.entries
+        var entries = existing
         for commit in commits {
             var entry = RebaseEntry(commit: commit)
             entry.occurrence = entries.filter { $0.commit.hash == commit.hash }.map(\.occurrence).max().map { $0 + 1 } ?? 0
             entries.append(entry)
         }
-        var value = RebasePlan(disposition: .ready, options: plan.options, branchHash: plan.branchHash, upstreamHash: plan.upstreamHash,
-                               ontoHash: plan.ontoHash, branchReference: plan.branchReference, originalCommits: entries.map(\.id), entries: entries)
-        value.hasAddedCommits = true
-        return value
+        return entries
     }
     private func currentRebaseBranch() throws -> String {
         ((try? run(["symbolic-ref", "--quiet", "HEAD"]).text) ?? "").trimmingCharacters(in: .newlines)

@@ -316,4 +316,20 @@ final class RebaseTests: XCTestCase {
         do { _ = try await repo.addingRebaseCommits(structural, revisions: [upstream.hash]); XCTFail("Preserve Merges disables Add") } catch RebaseFailure.preservePlan {}
     }
 
+    func testAddDraftResolvesRepeatedEntriesWithoutCapturingOrChangingReferences() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let revisions = try await repo.run(["rev-list", "main..topic"]).text.split(separator: "\n").map(String.init)
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        let entries = try await repo.addingRebaseEntries([], revisions: revisions)
+        XCTAssertEqual(entries.map { $0.commit.subject }, ["first", "second"])
+        let repeated = try await repo.addingRebaseEntries(entries, revisions: [revisions[1]])
+        XCTAssertEqual(repeated.map(\.occurrence), [0, 0, 1]); XCTAssertEqual(Set(repeated.map(\.id)).count, 3)
+        do { _ = try await repo.addingRebaseEntries(repeated, revisions: [revisions[0], "missing"]); XCTFail("Bad draft selection must fail atomically") } catch RebaseFailure.revision {}
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let afterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+        XCTAssertEqual(afterHead, head); XCTAssertEqual(afterIndex, index)
+        let state = try await repo.rebaseState(); XCTAssertFalse(state.active)
+    }
+
 }

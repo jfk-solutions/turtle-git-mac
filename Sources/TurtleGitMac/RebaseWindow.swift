@@ -50,6 +50,7 @@ import TurtleGitCore
     @Published var references: [CheckoutReference] = []
     @Published var plan: RebasePlan?
     @Published var recovered: [RebaseEntry] = []
+    @Published var draftEntries: [RebaseEntry] = []
     @Published var state: RebaseState?
     @Published var selection = Set<String>()
     @Published var files: [CommitFile] = []
@@ -87,21 +88,22 @@ import TurtleGitCore
     }
     var active: Bool { state?.active == true }
     var editable: Bool { !busy && !active && !finished && !pickingCommits }
-    var canAdd: Bool { editable && plan != nil && !options.preserveMerges }
+    var canAdd: Bool { editable && !options.preserveMerges }
     // Upstream displays newest first, while replay proceeds from the oldest commit.
     var entries: [RebaseEntry] {
         if active { return recovered.reversed() }
         if plan?.disposition == .upToDate || plan?.disposition == .equal { return [] }
-        return Array((plan?.entries ?? []).reversed())
+        return Array((plan?.entries ?? draftEntries).reversed())
     }
     func entryNumber(_ entry: RebaseEntry) -> Int {
         if active { return (state?.currentStep ?? 1) + (recovered.firstIndex(where: { $0.id == entry.id }) ?? 0) }
-        return (plan?.entries.firstIndex(where: { $0.id == entry.id }) ?? 0) + 1
+        return ((plan?.entries ?? draftEntries).firstIndex(where: { $0.id == entry.id }) ?? 0) + 1
     }
     var canStart: Bool { editable && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first(where: { $0.action != .skip })?.action != .squash }
     var status: String {
         if finished { return completion }
         if active { return "Step \(state?.currentStep ?? 0) of \(state?.total ?? 0) • \(state?.conflicts.count ?? 0) unresolved paths" }
+        if plan == nil { return "Choose valid branch and upstream revisions before starting." }
         switch plan?.disposition {
         case .equal: return "Branch and upstream are the same revision."
         case .upToDate: return "Branch is up to date. Enable Force Rebase to replay its commits."
@@ -120,7 +122,7 @@ import TurtleGitCore
             defer { if !started { busy = false; loadPendingHandoff() } }
             do {
                 try requireAccess()
-                references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil
+                references = try await repository.checkoutReferences(); state = try await repository.rebaseState(); finished = false; output = ""; error = nil; confirmation = nil; draftEntries = []
                 if active { options.isCherryPick = state?.isCherryPick == true; onModeChanged(); options.branch = state?.branch ?? "HEAD"; options.upstream = state?.onto ?? ""; plan = nil; recovered = try await repository.remainingRebaseEntries(); selection = Set(recovered.first.map { [$0.id] } ?? []); amendMessage = state?.message ?? ""; if amendMessage.isEmpty, let commit = recovered.first { amendMessage = commit.commit.message }; selectCommit(); return }
                 finished = false; plan = nil; recovered = []; selection = []; files = []; message = ""; options = RebaseOptions(); options.preserveMerges = preserveMerges; ontoEnabled = false
                 if let cherryPick {
@@ -143,7 +145,7 @@ import TurtleGitCore
     func reloadPlan() {
         guard editable, !isCherryPick else { return }; planGeneration += 1; detailGeneration += 1
         let request = planGeneration; var snapshot = options; if !ontoEnabled { snapshot.onto = "" }
-        plan = nil; selection = []; files = []; message = ""
+        plan = nil; draftEntries = []; selection = []; files = []; message = ""
         Task {
             do { let value = try await repository.rebasePlan(snapshot); guard request == planGeneration, editable else { return }; plan = value; selection = Set(entries.first.map { [$0.id] } ?? []); selectCommit() }
             catch RebaseFailure.revision { /* Keep incomplete editable references without interrupting typing. */ }
@@ -181,27 +183,46 @@ import TurtleGitCore
         else { loadPendingHandoff() }
     }
     func addCommits(_ revisions: [String]) {
-        guard canAdd, let snapshot = plan, !revisions.isEmpty else { return }
+        guard canAdd, !revisions.isEmpty else { return }
+        let snapshot = plan, draft = draftEntries
+        var settings = options; if !ontoEnabled { settings.onto = "" }
         busy = true; planGeneration += 1; detailGeneration += 1
         Task {
             defer { busy = false; loadPendingHandoff() }
             do {
                 try requireAccess()
-                let value = try await repository.addingRebaseCommits(snapshot, revisions: revisions)
-                plan = value; selection = Set(value.entries.suffix(revisions.count).map(\.id)); selectCommit()
+                let added: [RebaseEntry]
+                if let snapshot {
+                    let value = try await repository.addingRebaseCommits(snapshot, revisions: revisions)
+                    plan = value; added = value.entries
+                } else {
+                    let draftResult = try await repository.addingRebaseEntries(draft, revisions: revisions)
+                    var captured: RebasePlan?
+                    do { captured = try await repository.rebasePlan(settings) }
+                    catch RebaseFailure.revision { /* Draft Add is available before references are complete. */ }
+                    if let captured {
+                        let value = try await repository.addingRebaseCommits(captured, revisions: draftResult.reversed().map { $0.commit.hash })
+                        plan = value; draftEntries = []; added = value.entries
+                    } else { draftEntries = draftResult; added = draftResult }
+                }
+                selection = Set(added.suffix(revisions.count).map(\.id)); selectCommit()
             } catch { self.error = error.localizedDescription }
         }
     }
     func setAction(_ action: RebaseAction, ids: Set<String>? = nil) {
-        guard editable, !options.preserveMerges, var value = plan else { return }
+        guard editable, !options.preserveMerges else { return }
+        var values = plan?.entries ?? draftEntries
         let targets = ids ?? selection
-        for index in value.entries.indices where targets.contains(value.entries[index].id) { value.entries[index].action = action }
-        plan = value
+        for index in values.indices where targets.contains(values[index].id) { values[index].action = action }
+        if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
     func move(up: Bool) {
-        guard editable, !options.preserveMerges, selection.count == 1, let id = selection.first, var value = plan, let index = value.entries.firstIndex(where: { $0.id == id }) else { return }
+        guard editable, !options.preserveMerges, selection.count == 1, let id = selection.first else { return }
+        var values = plan?.entries ?? draftEntries
+        guard let index = values.firstIndex(where: { $0.id == id }) else { return }
         let destination = index + (up ? 1 : -1)
-        guard value.entries.indices.contains(destination) else { return }; value.entries.swapAt(index, destination); plan = value
+        guard values.indices.contains(destination) else { return }; values.swapAt(index, destination)
+        if plan != nil { plan?.entries = values } else { draftEntries = values }
     }
     func selectCommit() {
         detailGeneration += 1; let request = detailGeneration
