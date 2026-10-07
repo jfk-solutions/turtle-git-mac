@@ -987,8 +987,20 @@ continue to use actual paths and the selected commit, not the occurrence ID.
 
 Headers currently occupy the Path column as native table rows; full-width group
 styling, collapse controls and displayed light/dark/keyboard/VoiceOver acceptance
-remain pending. The source’s MERGE_MASK combined-merge group and external
-two-pane tool selection also remain separate parity work. Root viewer batch
+remain pending. The pinned reader emits per-parent rows; MERGE_MASK has handlers and a reserved
+group header but no row producer in the current source. A combined-merge viewer
+requires further source/runtime evidence. External two-pane tool selection remains
+separate parity work. Root viewer batch
 wiring is compiled and inspected; the native fixture injects its callback and
 reads actual Core comparisons. Successful displayed viewer dispatch and signed
 sandbox access remain unverified.
+
+## Working-file Add and Commit
+
+The working-tree file menu now offers Add for selections containing an unversioned
+file, plus Commit for the selected paths, using the original icons. Both read fresh
+working status and retain selection/invalidation guards before handing off. Add
+reuses the native Add progress route; Commit reuses the existing scoped Commit
+dialog and now refreshes repository Logs on completion. These commands pass paths,
+not the whole repository. Shift Add as executable/symlink, the remaining file
+commands and displayed menu/dialog acceptance are still pending.

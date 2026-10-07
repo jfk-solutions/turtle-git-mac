@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "a6f9a13",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log working-file Add and scoped Commit routes, fresh-status handoff guards and Commit completion repository Log refresh",
+  "upstream_source": [
+    "src/TortoiseProc/LogDlg.cpp:308 all file menus except Restore/Changelists",
+    "src/Git/GitStatusListCtrl.cpp:1715-1735 and 1818-1825 Add/Commit conditions",
+    "src/Git/GitStatusListCtrl.cpp:2370-2395 Add selected paths",
+    "src/Git/GitStatusListCtrl.cpp:2547-2560 Commit selected paths"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "25b5879e068f9ca5e1331c917ae24d297a2dedf27fbddfa6e565cb00d7e24e3a",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "5910aa24647dbf5ca6d269293223d87e4d3ed5944c9a2f61e25b8d16f3d7aefb",
+    "docs/LOG-PARITY.md": "f4eb854fcb168ab55ce7da62e24da26f3a1745509a36464887bc8e3a07cd524c",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "63614c614e69a63a8309ee9b46f7c97731ed5824b6453d82ec3982d2633f5c9f"
+  },
+  "all_sources_manifest_sha256": "be8a5fc9bef7f5cfe73b1e811ddfd9f13de098b08632edfe48cddfa779ae0ac3",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Real repository and literal Unicode/newline/glob-looking unversioned path. Model selected-path Add/Commit callbacks; actual CommitWindowModel reload yields only selected path scope/checks without commit. Actual AddProgressWindowModel stages selected bytes and injected completion refresh reclassifies Log row as Added. Unrelated file remains untracked; tracked index and working bytes and HEAD preserved. Busy/bare/empty/selection/invalidation guards, stale Add after independent staging. Existing focused native fixtures pass."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; all 90 upstream icons and universal Git/EditorConfig/IssueRegex helpers verified; Store --require-git passed.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Root handoffs injected; actual native models used without displayed windows. Root Commit helper, per-file SwiftUI menu icons and repository-wide completion callback compiled/source-inspected, not activated. No new Core behavior/unit tests. Shift Add executable/symlink and remaining file menus are pending. Signed sandbox, GitHub CI and publication unverified. Full port incomplete."
+  },
+  "source_audit": "MERGE_MASK handlers/reserved header exist, but no combined-row producer found in pinned current reader; docs corrected to record evidence requirement instead of inventing rows.",
+  "logs": {
+    "build/qa/log-working-file-add-commit/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-working-file-add-commit/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-working-file-add-commit/native.log": "0a136eb8bf8f44fca198b07fd38e064c18563be1be0cfe71b9066dce2c0b8d43",
+    "build/qa/log-working-file-add-commit/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-working-file-add-commit/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-working-file-add-commit/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-working-file-add-commit/swift.log": "226089c3e80bbcd083f88cdba89a86d5d8ca8f6e6ba8e074db06be022582b13d"
+  },
+  "remaining": "Remaining working-file menus, group styling/displayed acceptance, alternate tools, all dialogs/Finder parity, screenshots/publication and signed App Store acceptance."
+}

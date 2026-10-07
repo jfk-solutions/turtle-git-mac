@@ -298,21 +298,8 @@ import TurtleGitCore
             guard let repository else { return }
             showStatus(repository: repository, access: activeAccess, paths: paths)
         case .commit:
-            guard let repository, let root else { return }
-            let controller = commitWindows[root.path] ?? CommitWindowController(repository: repository, access: activeAccess)
-            controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
-            controller.model.onCommitted = { [weak self] output in
-                self?.statusWindows[root.path]?.model.reload()
-                guard let self, self.root == root else { return }
-                self.output = output
-                Task { await self.refresh() }
-            }
-            let access = controller.model.access
-            controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
-            configureCommitInteractions(controller.model, repository: repository, access: access)
-            commitWindows[root.path] = controller
-            controller.model.reload(paths: paths)
-            controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+            guard let repository else { return }
+            showCommitDialog(repository: repository, access: activeAccess, paths: paths)
         case .repositoryBrowser:
             guard let repository else { return }
             showRepositoryBrowser(repository: repository, access: activeAccess)
@@ -572,6 +559,23 @@ import TurtleGitCore
             removeWindows[key] = controller
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.start()
         } catch { self.error = error.localizedDescription }
+    }
+    private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        let root = repository.root
+        let controller = commitWindows[root.path] ?? CommitWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
+        controller.model.onCommitted = { [weak self] output in
+            self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            guard let self, self.root == root else { return }
+            self.output = output
+            Task { await self.refresh() }
+        }
+        let access = controller.model.access
+        controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
+        configureCommitInteractions(controller.model, repository: repository, access: access)
+        commitWindows[root.path] = controller
+        controller.model.reload(paths: paths)
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showAdd(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         Task {
@@ -974,6 +978,10 @@ import TurtleGitCore
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
         controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
         controller.model.onFilePairCompare = { [weak self] revision, files in self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files) }
+        controller.model.onWorkingFiles = { [weak self] action, paths in
+            if action == .add { self?.showAdd(repository: repository, access: access, paths: paths) }
+            else if action == .commit { self?.showCommitDialog(repository: repository, access: access, paths: paths) }
+        }
         controller.model.onWorkingFilePairCompare = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
         controller.model.onConflictAction = { [weak self] action, paths in
             if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path) }

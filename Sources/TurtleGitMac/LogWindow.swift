@@ -653,6 +653,7 @@ struct LogCommandRequest: Identifiable {
     var onConflictAction: ((RepositoryAction, [String]) -> Void)?
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     var onFilePairCompare: ((String, [CommitFile]) -> Void)?
+    var onWorkingFiles: ((RepositoryAction, [String]) -> Void)?
     var onWorkingFilePairCompare: (([String]) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var onFileComparisons: (([(ComparisonRevision, ComparisonRevision, [String])]) -> Void)?
@@ -1136,6 +1137,30 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription }
         }
     }
+    func canWorkingFiles(_ action: RepositoryAction, ids: Set<String>) -> Bool {
+        guard !busy, !isInvalidated, !bare, selectedWorkingTree, onWorkingFiles != nil else { return false }
+        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        guard !chosen.isEmpty else { return false }
+        if action == .add { return chosen.contains { $0.action == "?" } }
+        return action == .commit
+    }
+    func requestWorkingFiles(_ action: RepositoryAction, ids: Set<String>) {
+        guard canWorkingFiles(action, ids: ids), let onWorkingFiles else { return }
+        let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.path)
+        let request = generation, selection = selected
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
+                guard let fresh = try await repository.workingTreeHistory() else { throw RevisionComparisonFailure.selection }
+                let available = fresh.files + fresh.unversioned
+                guard Set(paths).isSubset(of: Set(available.map(\.path))), action != .add || available.contains(where: { paths.contains($0.path) && $0.action == "?" }) else { throw RevisionComparisonFailure.selection }
+                guard request == generation, selection == selected, !isInvalidated else { return }
+                busy = false; onWorkingFiles(action, paths)
+            } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
+        }
+    }
     func selectedFileDiff(_ ids: Set<String>, alternate: Bool = false) {
         guard !busy, !isInvalidated, !unifiedViewerBusy, selectedWorkingTree || revision != nil else { return }
         let working = selectedWorkingTree, revision = self.revision
@@ -1368,6 +1393,13 @@ struct LogDialog: View {
 
     }
     @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
+        if model.selectedWorkingTree {
+            if model.visibleFiles.contains(where: { ids.contains($0.id) && $0.action == "?" }) {
+                Button { model.requestWorkingFiles(.add, ids: ids) } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canWorkingFiles(.add, ids: ids))
+            }
+            Button { model.requestWorkingFiles(.commit, ids: ids) } label: { CommandLabel(title: "Commit…", icon: .commit) }.disabled(!model.canWorkingFiles(.commit, ids: ids))
+            Divider()
+        }
         let conflicts = model.workingConflictPaths(ids)
         if !conflicts.isEmpty {
             ResolveSelectionMenu(paths: conflicts, rebase: model.conflictRebase, canEdit: ids.count == 1) { action, _ in model.requestWorkingConflict(action, ids: ids) }

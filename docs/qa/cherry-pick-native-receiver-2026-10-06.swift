@@ -710,6 +710,68 @@ import TurtleGitCore
     precondition(!window.isVisible)
     print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy/Preserve guards passed. Events injected; no displayed keyboard acceptance.")
 }
+@MainActor func verifyNativeLogWorkingAddCommit(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-add-commit-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgSign", "false"])
+    try Data("base\n".utf8).write(to: root.appendingPathComponent("tracked"))
+    try await repo.stage(["tracked"]); _ = try await repo.commit(message: "base")
+    let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    try Data("working\n".utf8).write(to: root.appendingPathComponent("tracked"))
+    let path = "new :(glob)* 雪\n.txt"
+    try Data("new selected\n".utf8).write(to: root.appendingPathComponent(path))
+    try Data("unrelated\n".utf8).write(to: root.appendingPathComponent("unrelated"))
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    func until(_ condition: () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition())
+    }
+    var requests: [(RepositoryAction, [String])] = []
+    log.onWorkingFiles = { requests.append(($0, $1)) }
+    log.showUnversionedFiles = true; log.reload(); try await until { !log.busy }; log.select([""])
+    let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    precondition(log.canWorkingFiles(.add, ids: [path]) && log.canWorkingFiles(.commit, ids: [path]))
+    precondition(!log.canWorkingFiles(.add, ids: ["tracked"]))
+    log.requestWorkingFiles(.commit, ids: [path]); try await until { !log.busy }
+    precondition(requests.last?.0 == .commit && requests.last?.1 == [path])
+    let commit = CommitWindowModel(repository: repo, access: nil)
+    commit.reload(paths: requests.last!.1); try await until { !commit.busy }
+    precondition(commit.scopePaths == [path] && commit.checked == [path] && !commit.showWholeProject)
+    let commitIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(commitIndex == index)
+    log.requestWorkingFiles(.add, ids: [path]); try await until { !log.busy }
+    precondition(requests.last?.0 == .add && requests.last?.1 == [path])
+    let add = AddProgressWindowModel(repository: repo, access: nil, paths: requests.last!.1)
+    var completed = false
+    add.onFinished = { _, ok in precondition(ok); completed = true; log.requestRepositoryRefresh() }
+    add.start(); try await until { completed && !log.busy && log.files.contains { $0.path == path && $0.action == "A" } }
+    let staged = try await repo.run(["show", ":" + path]).stdout
+    precondition(staged == Data("new selected\n".utf8))
+    let unrelated = try await repo.run(["ls-files", "--error-unmatch", "--", "unrelated"], successfulExitCodes: 0...1)
+    let unchangedTracked = try await repo.run(["show", ":tracked"]).stdout
+    let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    precondition(unrelated.exitCode == 1 && unchangedTracked == Data("base\n".utf8) && finalHead == head)
+    let trackedBytes = try Data(contentsOf: root.appendingPathComponent("tracked")); precondition(trackedBytes == Data("working\n".utf8))
+    let count = requests.count
+    log.busy = true; log.requestWorkingFiles(.commit, ids: [path]); log.busy = false
+    log.bare = true; log.requestWorkingFiles(.commit, ids: [path]); log.bare = false
+    log.requestWorkingFiles(.commit, ids: ["missing"])
+    log.requestWorkingFiles(.commit, ids: [path]); log.selected = [String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)]; try await until { !log.busy }
+    precondition(requests.count == count)
+    log.select([""]); log.requestWorkingFiles(.commit, ids: [path]); log.invalidate(); try await until { !log.busy }
+    precondition(log.isInvalidated && requests.count == count)
+    // Cached unversioned menu refuses Add after another client stages the file.
+    log.reload(); try await until { !log.busy }; log.select([""])
+    try await repo.stage(["unrelated"])
+    log.error = nil; log.requestWorkingFiles(.add, ids: ["unrelated"]); try await until { !log.busy }
+    precondition(log.error != nil)
+    print("Native Log working Add/Commit: literal selected path handoffs, actual Commit model scope/checks without committing, actual Add progress stages only selected path and refreshes Log, tracked index/work and HEAD preserved, busy/bare/empty/selection/invalidation/stale-Add guards passed. Root handoffs injected; no windows shown.")
+}
+
 @MainActor func verifyNativeLogParentWorkingComparison(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-parent-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1509,6 +1571,7 @@ import TurtleGitCore
     try await verifyNativeLogDeferredRefresh(executable: repo.executable)
     try await verifyNativeLogUnifiedViewerRouting(executable: repo.executable)
     try await verifyNativeLogParentWorkingComparison(executable: repo.executable)
+    try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
