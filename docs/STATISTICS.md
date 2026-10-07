@@ -10,11 +10,11 @@ Choose a graph type at the top:
 - **Statistics** shows totals and activity averages/minimums/maximums.
 - **Commits by date** compares commit activity over time.
 - **Commits by author** compares commit counts.
-- **Percentage of authorship** uses TortoiseGit's weighted commit/file-change
+- **Percent of authorship** uses TortoiseGit's weighted commit/file-change
   measure. It is different from line ownership shown by Blame.
-- **Lines changed by date including added/deleted files** includes those files'
+- **Changed lines including added/deleted files by date** includes those files'
   line totals.
-- **Lines changed by date excluding added/deleted files** counts changes to other
+- **Changed lines not including added/deleted files by date** counts changes to other
   files.
 
 The initial summary avoids reading every commit's diff. Choose **Calculate** to
@@ -29,8 +29,11 @@ are grouped as **Others**. If only one author would remain, that author keeps th
 name. These settings and the last graph page are remembered when the window closes.
 
 The five original graph icons select pie, stacked line, line, stacked bar and bar.
-Line styles are unavailable for the author comparison graphs. Graph colors follow
-light or dark appearance.
+Line styles are unavailable for the author comparison graphs. Stacked bar for
+author comparisons shows one colored stack of authors. Ordinary bar and line
+graphs include the source average guide. Integer tick labels reflect commit/line
+counts. Graph titles and axis units follow the chosen metric and time interval;
+colors follow light or dark appearance.
 
 With a graph selected, choose **File → Save Graph As…**. Select PDF, PNG, JPEG,
 BMP or GIF in the save sheet's **Format** field and choose a destination. PDF is
@@ -39,6 +42,6 @@ include all date groups and legends, even when scrolling is needed in the window
 Other exports use the current graph area size. The text summary cannot be exported
 through this command.
 
-This dialog is still being compared with TortoiseGit. Exact graph labels, colors,
+This dialog is still being compared with TortoiseGit. Exact displayed label geometry, colors,
 dense history layouts, displayed save-sheet behavior and signed sandbox checks
 remain pending; see [the parity record](LOG-STATISTICS-PARITY.md).

@@ -36,4 +36,34 @@ final class LogStatisticsGraphTests: XCTestCase {
         XCTAssertEqual(graph.points.last?.value, rounded)
         XCTAssertEqual(graph.includedAuthors[0], summary.authorshipPercent.max { $0.value < $1.value }!.key)
     }
+    func testAverageGuideTruncatesEachOriginalIntervalSeries() throws {
+        let entries = [
+            LogEntry(hash: "a", author: "A", date: "2024-01-01T12:00:00Z", subject: "", committerDate: "2024-01-01T12:00:00Z"),
+            LogEntry(hash: "b", author: "A", date: "2024-01-02T12:00:00Z", subject: "", committerDate: "2024-01-02T12:00:00Z"),
+            LogEntry(hash: "c", author: "A", date: "2024-01-02T12:00:00Z", subject: "", committerDate: "2024-01-02T12:00:00Z"),
+            LogEntry(hash: "d", author: "B", date: "2024-01-02T12:00:00Z", subject: "", committerDate: "2024-01-02T12:00:00Z")
+        ]
+        let summary = try LogStatistics.analyze(entries)
+        let dates = try LogStatisticsGraph.make(summary, metric: .commitsByDate, authorsShown: 2)
+        XCTAssertEqual(dates.averageGuide, 0) // (1 / 2 + 3 / 2) / 2, not 4 / 4.
+        let authors = try LogStatisticsGraph.make(summary, metric: .commitsByAuthor, authorsShown: 2)
+        XCTAssertEqual(authors.averageGuide, 2)
+        let empty = try LogStatisticsGraph.make(LogStatistics.analyze([]), metric: .commitsByDate, authorsShown: 1)
+        XCTAssertEqual(empty.averageGuide, 0)
+    }
+
+    func testIntegerTicksUseStackTotalsForAuthorStackAndSourceStepBoundaries() throws {
+        let values = try summary(["A": 5, "B": 3, "C": 2, "D": 1])
+        let graph = try LogStatisticsGraph.make(values, metric: .commitsByAuthor, authorsShown: 4)
+        XCTAssertEqual(graph.yAxisMaximum(style: .bar), 5)
+        XCTAssertEqual(graph.yAxisTicks(style: .bar), [1, 2, 3, 4, 5])
+        XCTAssertEqual(graph.yAxisMaximum(style: .stackedBar), 11)
+        XCTAssertEqual(graph.yAxisTicks(style: .stackedBar), [2, 4, 6, 8, 10])
+        let larger = try LogStatisticsGraph.make(summary(["A": 25, "B": 25]), metric: .commitsByAuthor, authorsShown: 2)
+        XCTAssertEqual(larger.yAxisTicks(style: .bar), [5, 10, 15, 20, 25])
+        XCTAssertEqual(larger.yAxisTicks(style: .stackedBar), [10, 20, 30, 40, 50])
+        let empty = try LogStatisticsGraph.make(LogStatistics.analyze([]), metric: .commitsByDate, authorsShown: 1)
+        XCTAssertEqual(empty.yAxisTicks(style: .bar), [1])
+    }
+
 }

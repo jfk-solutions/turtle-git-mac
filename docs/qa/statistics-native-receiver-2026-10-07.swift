@@ -57,6 +57,21 @@ import PDFKit
                 }
             }
         }
+        for metric in LogStatisticsMetric.allCases where metric != .statistics {
+            model.selectMetric(metric); precondition(!model.busy && model.graph != nil)
+            model.style = .bar
+            let file = root.appendingPathComponent("labels-\(metric.rawValue).pdf")
+            try controller.exportGraph(to: file, format: .pdf)
+            let document = PDFDocument(url: file)!
+            let rendered = document.string!.filter { !$0.isWhitespace }
+            for label in [metric.title, model.graph!.xAxisLabel, model.graph!.yAxisLabel] {
+                precondition(rendered.contains(label.filter { !$0.isWhitespace }), "PDF lost graph title/axis label: " + label)
+            }
+            if let path = ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_EXPORT_QA_DIR"] {
+                try Data(contentsOf: file).write(to: URL(fileURLWithPath: path).appendingPathComponent(file.lastPathComponent))
+            }
+        }
+        model.selectMetric(.commitsByDate)
         let sample = [
             LogEntry(hash: "a", author: "Ada", date: "2024-01-01T12:00:00Z", subject: "", committerDate: "2024-01-01T12:00:00Z"),
             LogEntry(hash: "b", author: "Linus", date: "2024-01-03T12:00:00Z", subject: "", committerDate: "2024-01-03T12:00:00Z"),
@@ -88,7 +103,7 @@ import PDFKit
         let unwritable = root.appendingPathComponent("missing/graph.png")
         do { try controller.exportGraph(to: unwritable, format: .png); preconditionFailure("Write failure swallowed") } catch { }
         model.busy = true; precondition(!model.canExportGraph); model.busy = false
-        print("Statistics export: five actual encodings × five styles × light/dark decoded; PDF labels, raster colors, multi-author/date-group/empty content, summary/busy refusal and write failure passed")
+        print("Statistics export: five actual encodings × five styles × light/dark decoded; PDF labels, raster colors, multi-author/date-group/empty content, all metric titles/axis labels, summary/busy refusal and write failure passed")
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)

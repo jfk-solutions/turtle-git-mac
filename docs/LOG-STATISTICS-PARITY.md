@@ -78,6 +78,20 @@ Authorship ranks by contribution, omits percentages rounded to zero and rounds
 each author before summing Others. Date series run oldest first with explicit zero
 values. Slider count is bounded at 250 with the source lone-author exception.
 Native date labels use regional day formats and week/month/quarter/year units.
+Graph titles and axis captions use the pinned resource wording, including
+`Percents`, `author (>= 0.5%)` and `quarter of year`. Pie graphs show the x-axis unit
+caption below the groups, without Cartesian axes. Author stacked bar now uses one
+stack of all included authors/Others, following MyGraph's one original series.
+
+Ordinary bars and lines show the source average guide. MyGraph averages each
+original series with integer truncation, then averages those results. Date series
+contain one interval's authors; author graphs have one series containing all
+individual authors/Others. This can differ from averaging all plotted points.
+Stacked styles omit the guide. Y-axis range uses the maximum individual value for
+ordinary styles or maximum interval/author-stack total for stacked styles, with a
+minimum of one. MyGraph's target-five-ticks 1/2/5 progression supplies integer
+labels; the native graph no longer uses automatic fractional count ticks or full
+grid lines. Native font/spacing/axis placement still needs displayed comparison.
 
 Authorship and line metrics calculate diffs automatically; the summary also has
 Calculate. The owned event stream updates progress and drains before ending busy
@@ -125,10 +139,13 @@ selection and failed writes. This does not prove displayed save-sheet interactio
 overwrite confirmation, focus routing or signed sandbox acceptance. See
 [the export QA record](qa/statistics-export-2026-10-07.json).
 
+Source labels/average/stack/tick verification: [graph presentation QA](qa/statistics-labels-2026-10-07.json).
+
 ## Remaining work
 
 - Displayed File-menu/save-sheet/overwrite/cancel and signed export acceptance.
-- Full axis/title labels, tooltips/selection, high-density legends/graphs and exact
+- Displayed axis/title/average-guide geometry, tooltips/selection, high-density
+  legends/graphs and exact
   original color/geometry comparison, plus sparse-date/year-wrap acceptance.
 - Displayed layout, regional/DST/case acceptance, keyboard/VoiceOver and signed
   sandbox/App Store verification. The full application port remains incomplete.

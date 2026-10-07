@@ -194,15 +194,28 @@ struct StatisticsChart: View {
     let byAuthor: Bool
     var exporting = false
     var body: some View {
+        VStack(spacing: 8) {
+            Text(graph.metric.title).font(.headline).multilineTextAlignment(.center)
+            plot
+        }
+    }
+    @ViewBuilder private var plot: some View {
         if graph.points.isEmpty { Text("No graph data available.") }
         else if style == .pie { StatisticsPies(graph: graph, byAuthor: byAuthor, exporting: exporting) }
         else {
             Chart(Array(graph.points.enumerated()), id: \.offset) { _, point in
                 if style == .line { LineMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", graph.seriesLabels[point.series])).symbol(by: .value("Author", graph.seriesLabels[point.series])) }
                 else if style == .stackedLine { AreaMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", graph.seriesLabels[point.series])) }
-                else if style == .stackedBar { BarMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series])) }
+                else if style == .stackedBar { BarMark(x: .value("Interval", byAuthor ? "" : String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series])) }
                 else { BarMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value), stacking: .unstacked).foregroundStyle(by: .value("Author", byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series])).position(by: .value("Author", graph.seriesLabels[point.series])) }
-            }.chartXAxis { AxisMarks(values: graph.categoryLabels.indices.map { String($0) }) { value in AxisGridLine(); AxisTick(); AxisValueLabel { if let key = value.as(String.self), let index = Int(key), graph.categoryLabels.indices.contains(index) { Text(graph.categoryLabels[index]).font(.caption2) } } } }.padding(10)
+                if [.bar, .line].contains(style) {
+                    RuleMark(y: .value("Average", graph.averageGuide)).foregroundStyle(Color.primary).lineStyle(StrokeStyle(lineWidth: 1))
+                        .accessibilityLabel("Average: \(graph.averageGuide) \(graph.yAxisLabel)")
+                }
+            }.chartXAxisLabel(graph.xAxisLabel, position: .bottom, alignment: .center).chartYAxisLabel(graph.yAxisLabel, position: .leading)
+            .chartYScale(domain: 0...graph.yAxisMaximum(style: style))
+            .chartYAxis { AxisMarks(position: .leading, values: graph.yAxisTicks(style: style)) { AxisTick(); AxisValueLabel() } }
+            .chartXAxis { AxisMarks(values: byAuthor && style == .stackedBar ? [""] : graph.categoryLabels.indices.map { String($0) }) { value in AxisTick(); AxisValueLabel { if let key = value.as(String.self), let index = Int(key), graph.categoryLabels.indices.contains(index) { Text(graph.categoryLabels[index]).font(.caption2) } } } }.padding(10)
         }
     }
 }
@@ -231,6 +244,7 @@ private struct StatisticsPies: View {
                     }.frame(height: 220)
                     ForEach(Array(points.enumerated()), id: \.offset) { index, point in HStack { Circle().fill(colors[index % colors.count]).frame(width: 10, height: 10); Text(byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series]); Text("\(point.value)") } }
                 }
+                Text(graph.xAxisLabel).font(.caption)
             }
     }
 }

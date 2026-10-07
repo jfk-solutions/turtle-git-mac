@@ -346,3 +346,7 @@ metafile export. Original graph-bar, graph-bar-stacked, graph-line,
 graph-line-stacked and graph-pie artwork is retained unchanged with pinned
 provenance; the upstream resource license and GPL alternative apply as above.
 Exact displayed graph and signed export acceptance remain pending.
+The graph presentation also adapts MyGraph.cpp/.h's per-series integer average,
+1/2/5 integer axis-tick progression and author stacked-bar arrangement from
+src/Utils/MiscUI, retained under the upstream source/license attribution above.
+Their pinned source blob IDs are recorded in the Statistics graph QA record.
