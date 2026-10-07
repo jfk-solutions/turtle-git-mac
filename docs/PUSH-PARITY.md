@@ -32,8 +32,8 @@ Six existing real Git integration tests cover named destinations/upstream config
 selected and renamed tags, commit hashes to new branches, all branches plus tags,
 non-fast-forward rejection, stale and valid force-with-lease, partial all-remotes
 failure, arbitrary paths, saved defaults, remote deletion, invalid input and a
-literal server option containing spaces and punctuation. The current focused Push suite has seven passing tests, including a
-pre-cancelled request that preserves remote refs and local config. Mixed staged/unstaged contents are preserved by push.
+literal server option containing spaces and punctuation. The current focused Push suite has eight passing tests, including read-only
+submission validation and a pre-cancelled request that preserves remote refs and local config. Mixed staged/unstaged contents are preserved by push.
 
 Native QA used only a disposable documentation repository and local bare remote.
 The window pushed main to preview-main and set its upstream. Native Create Tag
@@ -51,7 +51,8 @@ Force-with-lease enablement was checked in the running window. Actual captures a
 - Full Remote Settings: multiple URLs, refspecs, proxy and advanced settings;
   partial configuration failures need recovery. Native Fetch QA opened the shared Manage sheet, read a selected remote
   and closed it; mutation/recovery interaction checks remain pending.
-- URL/reference/server-option histories, complete preference and size persistence.
+- History deletion/completion acceptance, local-reference history/chooser parity,
+  complete preference and size persistence.
 - Native all-remotes/all-branches/deletion, submodule and server-option QA,
   keyboard, resize, light appearance and accessibility checks.
 - Signed sandbox/App Store runtime and network credential access verification.
@@ -90,3 +91,44 @@ refs and closes on success. These are model/Git checks, not physical sheets,
 Cancel/Escape/window-close/default-button, layout/theme/accessibility or signed
 sandbox acceptance. Streaming output, full progress/post-operation UI, project
 hooks and network/authentication/signing parity remain incomplete.
+
+
+## Repository-scoped editable histories and clipboard
+
+Push now presents native editable dropdowns for destination URL, remote branch
+and server push option. The source's `PushURLS`, `RemoteBranch` and `PushOption`
+histories are scoped to the repository path, unlike shared Pull/Fetch history.
+URL/option duplicate matching is case-sensitive and preserves exact UTF-16
+spelling; destination duplicates match case-insensitively. Entries keep source
+order, line-folding/trimming and the 26-save/25-load boundary from HistoryCombo.
+
+History load fills the dropdowns but leaves URL and server-option text empty,
+matching source LoadHistory's cleared selection. Destination load adds/selects
+a configured push branch, keeping an existing duplicate's spelling. Source
+changes reload its history/default; clearing the local source keeps the remote
+destination for deletion and updates tracking enablement. Browsing inserts the
+chosen destination into memory without saving. Selecting URL mode parses copied
+`git pull` then `git fetch` text, as PushDlg does, or selects the latest saved URL.
+The existing source parser retains its quote/offset/prefix quirks and native
+POSIX/file-URL additions; copied `git push` is not recognized by this source path.
+Selection does not execute Git or save history.
+
+After confirmation and read-only option validation, ordinary submissions save
+the destination history and save URL history only in URL mode, before transport.
+Remote deletion (empty source with nonempty destination) and all-branch pushes
+exclude URL/branch saving. Server-option history saves for all accepted forms.
+Transport failures retain saved entries and input fields; invalid submissions
+do not add history. Transport revalidates before writing config/executing Git.
+Saving uses the submitted snapshot, so a queued field/default update cannot
+replace its values during validation. History normalization does not rewrite the
+actual server-option argument.
+
+[History QA](qa/push-history-2026-10-08.json) records native-model URL and named
+pushes, failed transport, invalid submission, confirmation and deletion/all-branch
+exclusions, repository isolation, default/browse/case/ordering/limit behavior,
+clipboard prefilling, exact local HEAD/index and a hidden native combo selection.
+The cancellation matrix is also rerun against the new validation boundary. These
+are headless model/Git/hidden-control checks; physical dropdown editing/completion,
+Shift-Delete history removal, source locale trim/case equivalence, user pasteboard,
+keyboard/theme/VoiceOver and signed sandbox acceptance remain pending. Full Push
+and application parity remain incomplete.

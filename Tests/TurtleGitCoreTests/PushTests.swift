@@ -99,4 +99,21 @@ final class PushTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), before)
     }
 
+    func testSubmissionValidationIsReadOnlyBeforeTransportOrSavedDefaults() async throws {
+        let (root, repo, remote, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var options = PushOptions(); options.remote = "origin"; options.source = "refs/heads/main"; options.destination = "validated"
+        options.savePushRemote = true; options.savePushBranch = true
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        try await repo.validatePushOptions(options)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), before)
+        let refs = try await remote.checkoutReferences(); XCTAssertTrue(refs.isEmpty)
+        options.destination = "../invalid"
+        do { try await repo.validatePushOptions(options); XCTFail("Invalid branch must reject before history saving") }
+        catch PushValidationFailure.destination {}
+        options.destination = "validated"; options.setUpstream = true
+        do { try await repo.validatePushOptions(options); XCTFail("Incompatible save/upstream settings must reject") }
+        catch PushValidationFailure.combination {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), before)
+    }
+
 }

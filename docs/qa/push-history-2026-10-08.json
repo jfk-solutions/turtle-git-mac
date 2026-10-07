@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "4f5b7f0031a53aa9ff309d0b16f1eb4572734050",
+  "scope": "Push repository-scoped editable URL/destination/server-option histories, source clipboard prefilling and validated submission gates. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/PushDlg.cpp": "9fc65e54a987e17aece767b750732f723d97becc",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/Utils/MiscUI/HistoryCombo.cpp": "f52dcb94e8403eb3bcb0a6b0d80db47e92d61657",
+    "src/Utils/MiscUI/HistoryCombo.h": "bf4a584d39c698ca13afa236b2ea3d0e6fe128ba",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "2779aac39945151e67dd2adfa114225d96fd725ed06c0fe2c3bff91ef9ec4bbe",
+    "NOTICE": "9bca015d3d40e5d205809d121722b61554fd0db378e679b7ae827f2d82378479",
+    "Sources/TurtleGitCore/Push.swift": "37f165b5b8363a1bcb655acc6f9ea266004fac3997f21732ab25c14b804a227c",
+    "Sources/TurtleGitMac/PushWindow.swift": "8181cf53fa6a0d5380a138c68ca381a7d2259be8414ae4a017fe1fb8eafac795",
+    "Tests/TurtleGitCoreTests/PushTests.swift": "f30dcca620c59a41c0f7d6394466b3d842a24f0d4af9d2ef1d953c6e8d903359",
+    "docs/PUSH-PARITY.md": "de1de3777ba53f5a0f1bd42f7689b55fbfd87a02915f3b1944bb2e9a52144d87",
+    "docs/qa/push-history-native-2026-10-08.swift": "85e946b61cae75594c5c6f818ce86ddae3db6290d477496c5cf7ea1f8f31a2bc",
+    "docs/upstream-files.csv": "fb8c1e3fcbbcc425c21c932634832152e73ddac086696425e1a567450b13bac5",
+    "scripts/test-push-history.py": "ed5de21bc89514d474981cc567173f5f70206e924754194c7fab7974324a259f"
+  },
+  "all_sources_manifest_sha256": "7d920b519a570c9c18db1fec915320712b47f7cef7e5a613fb22fb9bcd9618cd",
+  "verification": {
+    "core": "All eight selected Push tests passed. New read-only submission validation preserves local config and bare-remote refs, rejecting invalid branch and incompatible save/upstream options before history saving. Existing transport, partial remotes, lease, tags, deletion, options and pre-cancel checks retained.",
+    "native": "Final headless native history receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. URL and option case-sensitive histories keep order; branch history selects existing case-insensitive default spelling; load leaves URL/server-option text empty. Browse inserts without saving, nil clipboard selects latest URL, injected copied git pull prefills literal URL/branch. Actual URL and named pushes and deletion operate on fixture bare refs; option with surrounding spaces/embedded punctuation is accepted and trimmed only in history. Failed transport persists histories; invalid destination does not save any; all-branch confirmation and all-branch/deletion URL/branch exclusions verified. Empty local-source change retains destination and disables tracking. Exact local HEAD/index remain. Other repository histories empty. 26-save/25-load and CR/LF folding checked. Hidden native combo preserves ordered case-distinct entries and actual selection delegate; its window closes. Queued field changes after submission do not change transported or saved snapshot values. No user pasteboard read/written.",
+    "cancellation_regression": "Existing Push cancellation receiver passed all four Git versions against final validation/history behavior: owned transport/helper stops, unrelated process survives, No/Yes, partial remotes and branch/tag phases retained, retry succeeds with fresh token and idle close. Both native matrices also passed before final snapshot-saving refinement.",
+    "iterations": "Initial core/Debug compilation failed because parser reuse called a nonexistent parse API; corrected to FetchClipboardInput.selection(isPull:true). Empty-source destination retention fixed before verification. Eight core tests and Debug passed. Final review changed history saving to submitted snapshot; rebuilt Debug and reran both four-Git native matrices with added queued-field-update check. Core not repeated for the native snapshot-only refinement. Initial failure logs retained.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git Mach-O files and fixture operations. EditorConfig/IssueRegex audits passed.",
+    "documentation": "Push parity, source inventory and NOTICE updated. Inventory pin regression and seven-column CSV validation passed. Local site generated, unpublished.",
+    "ci": "Added native Push history receiver to macOS workflow. Hosted CI/push remain unverified; authentication unavailable, no retry.",
+    "processes": "All core/compiler/native/audit sessions terminal. No main GUI launch or displayed prompt. Hidden combo windows closed, cancellation decoys terminated/reaped by receiver cleanup. Final app/receiver audit empty. Eight empty owned PushHistory and eight empty owned PushCancellation QA UUID preference files removed across two matrices; unrelated preferences retained.",
+    "limitations": "Physical dropdown editing/completion/Shift-Delete/pasteboard/keyboard/resize/theme/VoiceOver, Windows locale trim/case behavior, full chooser/local-reference history/settings/preferences, project hooks/network credentials/signing and signed sandbox runtime remain pending. Existing source-validation and config/default differences outside this mapping are not claimed complete. Full application/dialog parity, Finder activation, genuine updated screenshots/full manual, hosted publication and signed App Store distribution/license clearance remain incomplete."
+  },
+  "logs": {
+    "build/qa/push-history/cancellation-native-before-snapshot.log": "eec35e4bbb79ac7d443a2c5cdefd5d8ca2846169a5c67f360570f6978c9714c8",
+    "build/qa/push-history/cancellation-native.log": "eec35e4bbb79ac7d443a2c5cdefd5d8ca2846169a5c67f360570f6978c9714c8",
+    "build/qa/push-history/core-initial.log": "a4718658dcf2ba848006482da777afa45b9525be060b3f1a5241a887256eb819",
+    "build/qa/push-history/core.log": "c64ec4c6d35c0bf01d9843f336a30c8d84fe780ac940dc12507f941886a48982",
+    "build/qa/push-history/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/push-history/debug-before-snapshot.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-history/debug-initial.log": "d88d110a1dd6ff49d19a5456eb80a04f2f6283f212465c4d0ae5eb5367b53cd8",
+    "build/qa/push-history/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-history/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/push-history/native-before-snapshot.log": "c51fd1957a6034a1c995bd5d32750ab62307a9702e81874978b472a72d53a018",
+    "build/qa/push-history/native.log": "c51fd1957a6034a1c995bd5d32750ab62307a9702e81874978b472a72d53a018",
+    "build/qa/push-history/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/push-history/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-history/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/push-history/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/push-history/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

@@ -419,3 +419,9 @@ Push transport cancellation also adapts CAppUtils::DoPush's CProgressDlg command
 queue and OnCancel under the upstream source license. Native process groups stop
 the current push; completed destinations/phases remain reported and are not
 rolled back. ConfirmKillProcess is shared with Pull/Fetch.
+
+Push URL, destination-branch and server-option histories and clipboard prefilling
+adapt PushDlg::OnInitDialog/GetRemoteBranch/OnBnClickedRd/OnBnClickedOk and
+HistoryCombo under the upstream source license. Repository-scoped macOS
+preferences replace registry histories; existing native editable combos and
+Unicode clipboard parsing retain source ordering and submission exclusions.

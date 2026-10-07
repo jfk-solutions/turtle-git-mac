@@ -72,7 +72,7 @@ extension GitRepository {
                             setUpstream: branch != nil && merge.isEmpty, localBranch: branch)
     }
     public func pushSubmoduleDefault() -> PushSubmodules { PushSubmodules(rawValue: pushConfig("push.recurseSubmodules")) ?? .none }
-    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil) throws -> String {
+    private func validatedPush(_ options: PushOptions, cancellation: OperationCancellation?) throws -> (source: String, destination: String, remotes: [String], localBranch: String?, destinationRef: String) {
         try cancellation?.check()
         let names = try remoteNames(), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
         let destination = options.destination.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -93,7 +93,19 @@ extension GitRepository {
         let destinationRef = destination.isEmpty || destination.hasPrefix("refs/") ? destination : (symbolic.hasPrefix("refs/tags/") ? "refs/tags/" : "refs/heads/") + destination
         try cancellation?.check()
         if options.savePushRemote || options.savePushBranch {
-            guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, let branch = defaults.localBranch else { throw PushValidationFailure.combination }
+            guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, defaults.localBranch != nil else { throw PushValidationFailure.combination }
+        }
+        return (source, destination, remotes, defaults.localBranch, destinationRef)
+    }
+    /// Read-only submission validation, shared by the native history gate and transport.
+    public func validatePushOptions(_ options: PushOptions, cancellation: OperationCancellation? = nil) throws {
+        _ = try validatedPush(options, cancellation: cancellation)
+    }
+    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil) throws -> String {
+        let plan = try validatedPush(options, cancellation: cancellation)
+        let source = plan.source, destination = plan.destination, remotes = plan.remotes, destinationRef = plan.destinationRef
+        if options.savePushRemote || options.savePushBranch {
+            guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, let branch = plan.localBranch else { throw PushValidationFailure.combination }
             if options.savePushRemote { _ = try run(["config", "--local", "branch." + branch + ".pushRemote", options.remote]) }
             if options.savePushBranch {
                 let key = "branch." + branch + ".pushbranch"

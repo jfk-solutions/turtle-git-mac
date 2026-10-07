@@ -46,14 +46,21 @@ import TurtleGitCore
     var canCancel: Bool { !busy || transportRunning && !cancelling && !confirmingCancellation }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var url = ""
+    @Published var urls: [String] = []
+    @Published var destinationHistory: [String] = []
+    @Published var pushOptionHistory: [String] = []
     @Published var managingRemotes = false
     @Published var error: String?
     @Published var confirmation: String?
     @Published var browsingDestination: Bool?
+    var clipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
     var close: () -> Void = {}
     var onPushed: (String) -> Void = { _ in }
     private var generation = 0
     private var key: String { "Push." + repository.root.path }
+    var urlHistoryKey: String { "History.PushURLS." + repository.root.path }
+    var destinationHistoryKey: String { "History.RemoteBranch." + repository.root.path }
+    var pushOptionHistoryKey: String { "History.PushOption." + repository.root.path }
     var canSave: Bool { !options.arbitraryURL && !options.allRemotes && !options.allBranches && localBranch != nil && !options.setUpstream }
     var canTrack: Bool { !options.arbitraryURL && (options.allBranches || localBranch != nil) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
@@ -64,23 +71,27 @@ import TurtleGitCore
             do {
                 remotes = try await repository.remoteNames(); references = try await repository.checkoutReferences()
                 options = PushOptions()
+                urls = FetchDialogHistory.load(preferences, key: urlHistoryKey, caseSensitive: true)
+                pushOptionHistory = FetchDialogHistory.load(preferences, key: pushOptionHistoryKey, caseSensitive: true)
+                url = ""
                 let current = try await repository.branch()
                 options.source = source ?? (current.isEmpty ? "HEAD" : "refs/heads/" + current)
                 options.allBranches = source == nil && preferences.bool(forKey: key + ".allBranches")
                 options.submodules = await repository.pushSubmoduleDefault()
                 let defaults = try await repository.pushDefaults(source: options.source)
-                options.remote = defaults.remote; options.destination = defaults.destination; options.setUpstream = defaults.setUpstream; localBranch = defaults.localBranch
+                options.remote = defaults.remote; loadDestination(defaults.destination); options.setUpstream = defaults.setUpstream; localBranch = defaults.localBranch
                 if options.remote.isEmpty, let saved = preferences.string(forKey: key + ".remote"), remotes.contains(saved) { options.remote = saved }
             } catch { self.error = error.localizedDescription }
         }
     }
     func sourceChanged() {
         generation += 1; let request = generation, source = options.source
+        guard !FetchDialogHistory.trim(source).isEmpty else { localBranch = nil; adjustSettings(); return }
         Task {
             do {
                 let defaults = try await repository.pushDefaults(source: source)
                 guard request == generation else { return }
-                localBranch = defaults.localBranch; options.destination = defaults.destination
+                localBranch = defaults.localBranch; loadDestination(defaults.destination)
                 if !options.arbitraryURL, !options.allRemotes { options.remote = defaults.remote }
                 options.setUpstream = defaults.setUpstream; adjustSettings()
             } catch { if request == generation { self.error = error.localizedDescription } }
@@ -89,6 +100,31 @@ import TurtleGitCore
     func adjustSettings() {
         if !canTrack { options.setUpstream = false }
         if !canSave { options.savePushRemote = false; options.savePushBranch = false }
+    }
+    private func loadDestination(_ destination: String) {
+        destinationHistory = FetchDialogHistory.load(preferences, key: destinationHistoryKey, caseSensitive: false)
+        options.destination = ""
+        if !destination.isEmpty { selectDestination(destination, atFront: false) }
+    }
+    func selectDestination(_ destination: String, atFront: Bool = true) {
+        destinationHistory = FetchDialogHistory.inserting(destination, into: destinationHistory, atFront: atFront, caseSensitive: false)
+        let normalized = FetchDialogHistory.trim(destination.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " "))
+        options.destination = destinationHistory.first { $0.compare(normalized, options: .caseInsensitive) == .orderedSame } ?? destination
+    }
+    func selectArbitraryURL() {
+        options.arbitraryURL = true; options.allRemotes = false
+        if let input = clipboardText().flatMap({ FetchClipboardInput.selection($0, isPull: true) }) {
+            url = input.url; if let branch = input.branch { options.destination = branch }
+        } else { url = urls.first ?? "" }
+        adjustSettings()
+    }
+    private func saveHistories(_ snapshot: PushOptions) {
+        // PushDlg excludes all-branch submissions and remote deletions from URL/branch history.
+        if !snapshot.allBranches && !(snapshot.source.isEmpty && !snapshot.destination.isEmpty) {
+            if snapshot.arbitraryURL { urls = FetchDialogHistory.save(snapshot.remote, entries: urls, preferences: preferences, key: urlHistoryKey, caseSensitive: true) }
+            destinationHistory = FetchDialogHistory.save(snapshot.destination, entries: destinationHistory, preferences: preferences, key: destinationHistoryKey, caseSensitive: false)
+        }
+        pushOptionHistory = FetchDialogHistory.save(snapshot.pushOption, entries: pushOptionHistory, preferences: preferences, key: pushOptionHistoryKey, caseSensitive: true)
     }
     func cancel() {
         guard busy else { close(); return }
@@ -112,7 +148,8 @@ import TurtleGitCore
             }
         }
         var snapshot = options
-        if snapshot.arbitraryURL { snapshot.remote = url }
+        snapshot.source = FetchDialogHistory.trim(snapshot.source); snapshot.destination = FetchDialogHistory.trim(snapshot.destination)
+        if snapshot.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url) }
         let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
         busy = true
         preferences.set(snapshot.allBranches, forKey: key + ".allBranches")
@@ -120,6 +157,9 @@ import TurtleGitCore
         Task {
             defer { cancellation = nil; cancelling = false; confirmingCancellation = false; busy = false }
             do {
+                try await repository.validatePushOptions(snapshot, cancellation: token)
+                guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+                saveHistories(snapshot)
                 let output = try await repository.push(snapshot, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 onPushed(output); close()
@@ -132,7 +172,7 @@ import TurtleGitCore
         else {
             for remote in remotes.sorted(by: { $0.count > $1.count }) {
                 let prefix = "refs/remotes/" + remote + "/"
-                if reference.name.hasPrefix(prefix) { options.remote = remote; options.destination = String(reference.name.dropFirst(prefix.count)); options.arbitraryURL = false; options.allRemotes = false; break }
+                if reference.name.hasPrefix(prefix) { options.remote = remote; selectDestination(String(reference.name.dropFirst(prefix.count))); options.arbitraryURL = false; options.allRemotes = false; break }
             }
         }
         browsingDestination = nil
@@ -149,7 +189,7 @@ private struct PushDialog: View {
                 HStack { Text("Local:").frame(width: 115, alignment: .leading); PushRefCombo(value: $model.options.source, choices: ["HEAD"] + model.references.map(\.name), local: true)
                     Button("…") { model.browsingDestination = false }.accessibilityLabel("Browse local references")
                 }.disabled(model.options.allBranches)
-                HStack { Text("Remote:").frame(width: 115, alignment: .leading); PushRefCombo(value: $model.options.destination, choices: model.references.filter(\.remote).map { String($0.name.dropFirst("refs/remotes/".count).split(separator: "/", maxSplits: 1).last ?? "") }, local: false)
+                HStack { Text("Remote:").frame(width: 115, alignment: .leading); FetchHistoryCombo(value: $model.options.destination, choices: model.destinationHistory, label: "Remote branch or tag")
                     Button("…") { model.browsingDestination = true }.accessibilityLabel("Browse remote references")
                 }.disabled(model.options.allBranches)
             }.padding(8) }
@@ -159,8 +199,8 @@ private struct PushDialog: View {
                         selection: Binding(get: { model.options.allRemotes ? "*" : model.options.remote }, set: { model.options.allRemotes = $0 == "*"; if $0 != "*" { model.options.remote = $0 } })).disabled(model.options.arbitraryURL)
                     Button("Manage") { model.managingRemotes = true }.disabled(model.options.arbitraryURL)
                 }
-                HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.options.arbitraryURL = true; model.options.allRemotes = false }.frame(width: 115)
-                    TextField("Destination URL or path", text: $model.url).disabled(!model.options.arbitraryURL)
+                HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.selectArbitraryURL() }.frame(width: 115)
+                    FetchHistoryCombo(value: $model.url, choices: model.urls, label: "Destination URL or path").disabled(!model.options.arbitraryURL)
                 }
             }.padding(8) }
             GroupBox("Options") { VStack(alignment: .leading, spacing: 8) {
@@ -172,7 +212,7 @@ private struct PushDialog: View {
                 Toggle("Always push to the selected remote archive for this local branch", isOn: $model.options.savePushRemote).disabled(!model.canSave)
                 Toggle("Always push to the selected remote branch for this local branch", isOn: $model.options.savePushBranch).disabled(!model.canSave)
                 HStack { Text("Recurse submodule").frame(width: 155, alignment: .leading); Picker("Recurse submodule", selection: $model.options.submodules) { Text("None").tag(PushSubmodules.none); Text("Check").tag(PushSubmodules.check); Text("On-demand").tag(PushSubmodules.onDemand) }.labelsHidden(); Spacer() }
-                HStack { Text("Push option:").frame(width: 155, alignment: .leading); TextField("Option sent to server", text: $model.options.pushOption) }
+                HStack { Text("Push option:").frame(width: 155, alignment: .leading); FetchHistoryCombo(value: $model.options.pushOption, choices: model.pushOptionHistory, label: "Push option") }
             }.padding(8) }
             }.disabled(model.busy)
             Spacer(minLength: 0)
