@@ -117,7 +117,7 @@ A separate owned progress window previews or executes cleanup. A successful dry
 run offers Trash and permanent deletion in the selected preference order. Each
 post-action takes a fresh plan. Retry repeats the last attempted action. Cancellation
 belongs to the current attempt; closing a busy window requests cancellation and
-waits for completion. Output retains Git preview text and completed/partial results,
+waits for completion. Live output retains Git preview text and completed/partial results,
 including recoverable Trash locations. Finished mutations refresh open repository
 views. The parent access lease is retained throughout; Store builds refuse cleanup
 unless it covers every discovered checkout/Git/common directory. This refusal does
@@ -148,11 +148,36 @@ into the real options model. The actual Finder menu builder is checked against t
 independent pinned source order. These checks do not activate Finder or verify a
 signed app handoff. See [the Finder routing QA record](qa/clean-finder-2026-10-07.json).
 
+## Live cleanup progress
+
+`CleanProgress` reports the repository root, literal relative path, started/finished
+state and completed/total item counts. A directory candidate counts as one item.
+Events begin after lock acquisition and accepted-plan revalidation; preflight or
+lock failure emits no removal events. Started events precede fingerprint/removal,
+and cancellation is checked again after the callback. Finished events count only
+successful removals. Recursive batches translate each checkout's count into one
+whole-batch total while retaining the original repository and path.
+
+The native model drains an owned asynchronous event stream before ending its busy
+lifetime. It updates the current path, determinate progress and completed output
+while the operation is running. Cancellation keeps the Cancelling message, and
+Retry resets counters for a fresh attempt. Earlier completed removals remain
+visible on later failure; no failed item is marked complete. Core callbacks run on
+the repository executor; native callers marshal them through the event stream.
+
+Core fixtures verify actual removal boundaries, literal newline/Unicode paths,
+failed-item omission, cancellation before the current removal, no events for stale
+plans/foreign locks, global recursive counts and retained child files after
+cancellation. Native subscriptions verify path/count updates while busy, alongside
+real Trash/permanent execution, failure and Retry counts. Displayed progress-bar and
+VoiceOver acceptance still require physical UI checks. See
+[the progress QA record](qa/clean-progress-2026-10-07.json).
+
 ## Remaining work
 
 - Activated Finder URL handoff and signed nearest-repository permission acceptance.
 - Native access-grant integration for recursive checkouts and external Git/common
   directories, plus signed traversal acceptance.
-- Detailed per-file live progress events and signed Trash acceptance.
+- Signed Trash acceptance.
 - Displayed light/dark layout, original icons, keyboard/VoiceOver and signed sandbox
   acceptance. The Core checks do not establish native dialog parity.

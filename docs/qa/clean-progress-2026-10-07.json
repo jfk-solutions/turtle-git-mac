@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "dc5b1967c8e7037c195c31fc3819409a2a70d02a",
+  "previous_goal_turn": "Progress: shared Clean action/Finder construction, URL route and selection handling locally committed.",
+  "scope": "Clean accepted-item progress callbacks, global recursive counts, native event stream and live path/output/determinate progress",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "README.md": "cc17b7b711773b77fdf7e242badfde34c54d6afea824844fca7b9b4889290deb",
+    "Sources/TurtleGitCore/Clean.swift": "1b9621c3c500d764c6947d59a470b455f6824e1adecbe88a771b348c4bf8ad45",
+    "Sources/TurtleGitMac/CleanWindow.swift": "e3ef1837b105a4dadfdd36f4d953e570b60a1ab826bf88305eec5ac583cf68fe",
+    "Tests/TurtleGitCoreTests/CleanSubmoduleTests.swift": "e3778d30a71ea55b64b53221af96b8729e72b7e3cb30eb11aae4009d308123da",
+    "docs/CLEAN-PARITY.md": "0bcb5f050cfd9a6402db07961602b8cacc7f8ac112eb7b454b45e104d75b7ec8",
+    "docs/qa/clean-native-receiver-2026-10-07.swift": "2d1fd9d7b4edf08fdaabe5c194099a8affb9188abcbdab1929e001eabb337cec",
+    "docs/upstream-files.csv": "c597f013b24d5c9cf1f9bc38cfc0d6b8db4e8e1742b7b59ad615c9fde4f3270f",
+    "Tests/TurtleGitCoreTests/CleanProgressTests.swift": "637c59525de59540afc188f3b1b27913725fbd86a049ef79fea39f32c9bf7903"
+  },
+  "all_sources_manifest_sha256": "a1c6f9aabdfb121b56fdce01f7e92e48a43dac238df56c165b03628aa4485efd",
+  "verification": {
+    "core": "18 Clean/recursive/progress tests passed on system Git. Six new progress cases verify actual removal start/finish boundaries, literal Unicode/newline paths, completed counts, failed-item omission, cancellation from started callback before removal, no events for stale plans/foreign lock, global parent/child/grandchild/sibling counts, partial parent result and unprocessed child retention after completion-callback cancellation. Existing cleanup/Trash/revalidation/index/state checks passed.",
+    "compatibility": "Six progress cases passed on explicitly injected Git 2.37.1, 2.39.5 and bundled 2.55.0.",
+    "native": "Hidden owned options/progress controllers, prohibited activation, private preferences and actual Git cleanup passed on all four Git versions. Combine subscriptions observed literal path and completed count while busy; final permanent/Trash counts, locked failure zero progress, Retry reset/completion and pre-start cancellation counters checked alongside previous actual Trash-byte recovery and unchanged tracked/index/config/HEAD assertions. Owned windows/fixtures/recovered Trash copies removed.",
+    "builds": "Unsigned Debug and AppStore builds passed.",
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; 91 original icons, embedded Finder and third-party runtime licenses. Store --require-git universal runtime checks passed.",
+    "site": "Local generation passed; unpublished.",
+    "limits": "Counts represent accepted Git candidates: a directory is one item. Preflight can be lengthy and remains indeterminate; progress starts after accepted-plan/lock checks. Cancellation after a completed removal retains it, possibly in the current repository partial result. Hidden checks do not prove physical progress-bar layout, keyboard/VoiceOver or signed sandbox/Trash/Finder activation. External grants, full port/manual/genuine screenshots, signed Store acceptance and hosted CI/site publication remain incomplete. No push or authentication retry attempted."
+  },
+  "logs": {
+    "build/qa/clean-progress/core.log": "f0538ca46f65557f07eb48d9c7253f6d8fa35e601da5a0597d55abb453a2d73f",
+    "build/qa/clean-progress/core-2.37.1.log": "93a9a257d1e0f8a155958396d269ccd1823bc3d1345d181d45945ace0bcb5264",
+    "build/qa/clean-progress/core-2.39.5.log": "30959a574d91b1b9b84b961795704d3a99f7e4c302d908296e25f86af3708f45",
+    "build/qa/clean-progress/core-2.55.0.log": "68e23c334dab9c65d4f7310ec2c1e0902567908f1e39745bf22dc144b7d87b18",
+    "build/qa/clean-progress/native.log": "f514eae0887df45bcd4e81ff2140d254714b725de222b9e8e3b7814826d82cc9",
+    "build/qa/clean-progress/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/clean-progress/debug-audit.log": "9e2c757a2c34a49b6423dfbda33b82a47eac4eae4b752f0a3137e91a875a3e3c",
+    "build/qa/clean-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/clean-progress/store-audit.log": "c530e4979d3d277cc095a0241f655c589a54fa42c26a4bd453f1c1c4e9b0f078",
+    "build/qa/clean-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

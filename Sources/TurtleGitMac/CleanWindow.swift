@@ -116,6 +116,8 @@ private struct CleanDialog: View {
     @Published var failed = false
     @Published var previewSucceeded = false
     @Published var output = ""
+    @Published var completed = 0
+    @Published var total = 0
     @Published var current = "Preparing Clean…"
     @Published var trashedFiles: [URL] = []
     var close: () -> Void = {}
@@ -132,6 +134,7 @@ private struct CleanDialog: View {
         guard !busy else { return }
         lastPreviewOnly = previewOnly; lastPermanent = permanently
         busy = true; failed = false; previewSucceeded = false; cancelRequested = false; output = ""; trashedFiles = []
+        completed = 0; total = 0
         current = previewOnly ? "Previewing cleanup…" : permanently ? "Removing files…" : "Moving files to Trash…"
         let cancellation = OperationCancellation(); self.cancellation = cancellation
         Task {
@@ -142,9 +145,21 @@ private struct CleanDialog: View {
                 output = plan.repositories.map { $0.repository.path + "\n" + String(decoding: $0.preview.output, as: UTF8.self) }.joined(separator: "\n")
                 if previewOnly { previewSucceeded = true; current = "Dry run finished" }
                 else {
-                    let results = try await repository.executeCleanBatch(plan, permanently: permanently, cancellation: cancellation)
+                    total = plan.repositories.reduce(0) { $0 + $1.preview.candidates.count }
+                    current = "Checking cleanup candidates…"
+                    let (stream, continuation) = AsyncStream<CleanProgress>.makeStream()
+                    let operation = Task {
+                        defer { continuation.finish() }
+                        return try await repository.executeCleanBatch(plan, permanently: permanently, cancellation: cancellation) { continuation.yield($0) }
+                    }
+                    for await event in stream {
+                        completed = event.completed; total = event.total
+                        if !cancelRequested { current = (permanently ? "Deleting: " : "Moving to Trash: ") + event.repository.appendingPathComponent(event.path).path }
+                        if event.finished { output += "\nRemoved: " + event.repository.appendingPathComponent(event.path).path }
+                    }
+                    let results = try await operation.value
                     trashedFiles = results.flatMap { $0.result.trashedFiles }
-                    output += "\n" + results.flatMap { item in item.result.removedPaths.map { "Removed: " + item.repository.appendingPathComponent($0).path } }.joined(separator: "\n")
+                    output += "\n\(completed) item(s) cleaned."
                     if !trashedFiles.isEmpty { output += "\nRecoverable Trash items:\n" + trashedFiles.map(\.path).joined(separator: "\n") }
                     current = "Finished"
                 }
@@ -185,8 +200,9 @@ private struct CleanProgressDialog: View {
             OutputView(text: model.output)
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
-                Text(model.current).foregroundStyle(model.failed ? Color.red : Color.primary)
+                Text(model.current).lineLimit(1).help(model.current).foregroundStyle(model.failed ? Color.red : Color.primary)
                 Spacer()
+                if model.total > 0 { ProgressView(value: Double(model.completed), total: Double(model.total)).frame(width: 120); Text("\(model.completed)/\(model.total)").monospacedDigit() }
                 if model.failed { Button("Retry") { model.retry() }.disabled(model.busy) }
                 if model.previewSucceeded {
                     if model.permanentFirst { permanentButton; trashButton } else { trashButton; permanentButton }

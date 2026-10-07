@@ -111,18 +111,29 @@ public struct CleanExecutionFailure: LocalizedError, Sendable {
     }
 }
 
+/// One accepted cleanup item (a directory is one item). Started events precede
+/// filesystem work; finished events count only successful removals. Batch counts
+/// include every repository and retain literal per-repository paths.
+public struct CleanProgress: Sendable {
+    public let repository: URL
+    public let path: String
+    public let completed: Int
+    public let total: Int
+    public let finished: Bool
+}
+
 extension GitRepository {
     /// Execute only an accepted preview. Native callers must confirm the chosen
     /// Trash/permanent action and hold repository access for this operation.
-    public func executeClean(_ preview: CleanPreview, permanently: Bool = false, cancellation: OperationCancellation? = nil) throws -> CleanExecutionResult {
-        try executeClean(preview, permanently: permanently, cancellation: cancellation) { location, permanent in
+    public func executeClean(_ preview: CleanPreview, permanently: Bool = false, cancellation: OperationCancellation? = nil, progress: (@Sendable (CleanProgress) -> Void)? = nil) throws -> CleanExecutionResult {
+        try executeClean(preview, permanently: permanently, cancellation: cancellation, progress: progress) { location, permanent in
             if permanent { try FileManager.default.removeItem(at: location); return nil }
             var trashed: NSURL?
             try FileManager.default.trashItem(at: location, resultingItemURL: &trashed)
             return trashed.map { $0 as URL }
         }
     }
-    func executeClean(_ preview: CleanPreview, permanently: Bool, cancellation: OperationCancellation?, removal: @Sendable (URL, Bool) throws -> URL?) throws -> CleanExecutionResult {
+    func executeClean(_ preview: CleanPreview, permanently: Bool, cancellation: OperationCancellation?, progress: (@Sendable (CleanProgress) -> Void)? = nil, removal: @Sendable (URL, Bool) throws -> URL?) throws -> CleanExecutionResult {
         try cancellation?.check()
         guard preview.root == root else { throw CleanFailure.changed }
         var indexPath = try run(["rev-parse", "--git-path", "index"]).stdout
@@ -143,9 +154,12 @@ extension GitRepository {
             for (path, location) in zip(preview.candidates, locations) {
                 current = path
                 try cancellation?.check()
+                progress?(CleanProgress(repository: root, path: path, completed: removed.count, total: locations.count, finished: false))
+                try cancellation?.check()
                 guard try cleanFingerprint(location, cancellation: cancellation) == preview.fingerprints[path] else { throw CleanFailure.changed }
                 if let recovered = try removal(location, permanently) { trash.append(recovered) }
                 removed.append(path); current = nil
+                progress?(CleanProgress(repository: root, path: path, completed: removed.count, total: locations.count, finished: true))
             }
             try cancellation?.check()
         } catch {
@@ -269,7 +283,7 @@ extension GitRepository {
         }
         return CleanBatchPreview(repositories: separate, options: options, paths: paths, includesSubmodules: includeSubmodules, root: root)
     }
-    public func executeCleanBatch(_ batch: CleanBatchPreview, permanently: Bool = false, cancellation: OperationCancellation? = nil) async throws -> [CleanRepositoryResult] {
+    public func executeCleanBatch(_ batch: CleanBatchPreview, permanently: Bool = false, cancellation: OperationCancellation? = nil, progress: (@Sendable (CleanProgress) -> Void)? = nil) async throws -> [CleanRepositoryResult] {
         try cancellation?.check()
         guard batch.root == root else { throw CleanFailure.changed }
         // Check every child before the first removal, including initialization,
@@ -280,12 +294,16 @@ extension GitRepository {
                   current.repository == accepted.repository && current.requiredAccess == accepted.requiredAccess &&
                   current.preview.candidates == accepted.preview.candidates && current.preview.fingerprints == accepted.preview.fingerprints
               }) else { throw CleanFailure.changed }
+        let total = batch.repositories.reduce(0) { $0 + $1.preview.candidates.count }
         var completed: [CleanRepositoryResult] = []
         for accepted in batch.repositories {
             do {
                 try cancellation?.check()
                 let repository = GitRepository(root: accepted.repository, executable: executable)
-                let result = try await repository.executeClean(accepted.preview, permanently: permanently, cancellation: cancellation)
+                let offset = completed.reduce(0) { $0 + $1.result.removedPaths.count }
+                let result = try await repository.executeClean(accepted.preview, permanently: permanently, cancellation: cancellation) { event in
+                    progress?(CleanProgress(repository: event.repository, path: event.path, completed: offset + event.completed, total: total, finished: event.finished))
+                }
                 completed.append(CleanRepositoryResult(repository: accepted.repository, result: result))
             } catch {
                 let partial = error as? CleanExecutionFailure

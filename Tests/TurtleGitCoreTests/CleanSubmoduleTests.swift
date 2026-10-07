@@ -2,6 +2,43 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CleanSubmoduleTests: XCTestCase {
+    func testBatchProgressKeepsGlobalCountsAndLiteralRepositoryPaths() async throws {
+        let (base, parent, _, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        let plan = try await parent.cleanBatchPreview(includeSubmodules: true)
+        let recorder = CleanProgressRecorder()
+        let results = try await parent.executeCleanBatch(plan, permanently: true) { recorder.append($0) }
+        let items = plan.repositories.flatMap { item in item.preview.candidates.map { (item.repository, $0) } }
+        let events = recorder.events
+        XCTAssertEqual(events.count, items.count * 2)
+        for (index, item) in items.enumerated() {
+            let start = events[index * 2], finish = events[index * 2 + 1]
+            XCTAssertEqual(start.repository, item.0); XCTAssertEqual(finish.repository, item.0)
+            XCTAssertEqual(start.path, item.1); XCTAssertEqual(finish.path, item.1)
+            XCTAssertEqual(start.completed, index); XCTAssertEqual(finish.completed, index + 1)
+            XCTAssertEqual(start.total, items.count); XCTAssertEqual(finish.total, items.count)
+            XCTAssertFalse(start.finished); XCTAssertTrue(finish.finished)
+        }
+        XCTAssertEqual(results.flatMap { $0.result.removedPaths }.count, items.count)
+    }
+    func testBatchProgressCancellationRetainsCompletedParentAndUnprocessedChildren() async throws {
+        let (base, parent, _, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        let plan = try await parent.cleanBatchPreview(includeSubmodules: true)
+        let recorder = CleanProgressRecorder(), cancellation = OperationCancellation()
+        do {
+            _ = try await parent.executeCleanBatch(plan, permanently: true, cancellation: cancellation) { event in
+                recorder.append(event); if event.finished { cancellation.cancel() }
+            }; XCTFail("Batch cancellation ignored")
+        } catch let failure as CleanBatchExecutionFailure {
+            XCTAssertTrue(failure.cancelled); XCTAssertTrue(failure.completed.isEmpty)
+            XCTAssertEqual(failure.failedRepository, parent.root)
+            XCTAssertEqual(failure.partial?.removedPaths, ["parent-junk"])
+        }
+        XCTAssertEqual(recorder.events.map(\.completed), [0, 1])
+        XCTAssertTrue(recorder.events.allSatisfy { $0.total == 4 && $0.repository == parent.root })
+        for item in plan.repositories.dropFirst() {
+            for path in item.preview.candidates { XCTAssertTrue(FileManager.default.fileExists(atPath: item.repository.appendingPathComponent(path).path)) }
+        }
+    }
     private func fixture() async throws -> (URL, GitRepository, [GitRepository], String) {
         let base = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitCleanModules-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: false)

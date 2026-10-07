@@ -220,7 +220,7 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   upstream confirmation/result prompts, with a Commit handoff.
 - [Clean](docs/CLEAN-PARITY.md) has native cleanup type/directory/Trash/dry-run/
   Submodules options, remembered repository preferences and a separate progress
-  window with Retry and dry-run actions. App commands and Finder's “Clean up…”
+  window with live item progress, Retry and dry-run actions. App commands and Finder's “Clean up…”
   entry retain selected folder scopes and use the original cleanup icon. Real
   Trash/permanent cleanup and cancellation are tested; activated Finder handoff,
   external sandbox grants and displayed/signed acceptance remain pending.
