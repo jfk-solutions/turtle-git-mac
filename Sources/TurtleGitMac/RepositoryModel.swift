@@ -787,6 +787,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.revertProgressWindows.removeValue(forKey: id) }
         controller.model.onFinished = { [weak self] output, succeeded in
             completion(succeeded)
+            self?.refreshRepositoryLogs(root)
             self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
@@ -981,6 +982,7 @@ import TurtleGitCore
         controller.model.onWorkingFiles = { [weak self] action, paths in
             if action == .add { self?.showAdd(repository: repository, access: access, paths: paths) }
             else if action == .commit { self?.showCommitDialog(repository: repository, access: access, paths: paths) }
+            else if action == .revert { self?.showRevert(repository: repository, access: access, paths: paths) }
         }
         controller.model.onWorkingFilePairCompare = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
         controller.model.onConflictAction = { [weak self] action, paths in
@@ -997,6 +999,7 @@ import TurtleGitCore
             else if let access { self.openSession(access, action: .commit) }
         }
         controller.model.onRevisionChanged = { [weak self] output in
+            self?.refreshRepositoryLogs(root)
             self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }

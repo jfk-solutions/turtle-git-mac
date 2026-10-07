@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "7edd6d0",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Working-file Log Revert, confirmed skip-worktree/assume-unchanged/clear, retained flagged rows and repository-scoped completion refresh",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:1815-1833 Revert/index flag availability",
+    "src/Git/GitStatusListCtrl.cpp:2561-2606 Revert confirmation/progress",
+    "src/Git/GitStatusListCtrl.cpp index flag handlers and current marked-row policy"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "6537ccce0dba033f716cad981b85706c618cdba64192faa5294a040f98e93734",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "195505326a2db6614bd6c0c19c3ded3307bd00e4808efde948a46e32bb240f94",
+    "docs/LOG-PARITY.md": "4729291d4f1c180ff0f52bf4192485e704b20b33116142e83bbb265a3c8e8e19",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "e6e3f440cddf975967663205436aee8b2256836e229ef1109e5b52ed63827e87"
+  },
+  "all_sources_manifest_sha256": "c506116e1f6c4ee1a31ab934889e79bacd77e192565e1c84c266dcdcf8109ee4",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Declined confirmation preserves exact index. Actual assume-unchanged then skip-worktree then clear retains visible row/status, Commit guard and unchanged staged/working bytes. External flag change rejects cached Skip action. Held confirmation drops on revision-selection change and invalidation. Actual flagged gitlink retains submodule type and clears. Revert callback filters mixed untracked selection; actual RevertWindowModel chooser checks selected path and RevertProgressWindowModel restores base bytes, refreshes Log, preserves HEAD/untracked/other file contents. Fixture defers removal of owned Trash results (cleanup failure not asserted). Existing focused native fixtures pass. Matrix rerun after root completion refresh wiring."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; 90 upstream icons and universal Git/EditorConfig/IssueRegex helpers verified; Store --require-git passed.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Flag confirmations and root Revert callbacks injected; actual native/Core models execute. Root repository-wide completion wiring and SwiftUI file menus compiled/source-inspected, not activated. Revert uses existing chooser instead of upstream direct list confirmation/progress. Locally ignored Revert, new-route partial flag failure, displayed dialogs/input events and signed sandbox acceptance remain unverified/incomplete. Core engines unchanged; no new Core unit tests. GitHub CI and publication unverified. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-working-revert-flags/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-working-revert-flags/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-working-revert-flags/native-before-refresh-wiring.log": "35409df737e96c7535acd840890306b0ed54f1936093efcf6e732110521ea63e",
+    "build/qa/log-working-revert-flags/native.log": "35409df737e96c7535acd840890306b0ed54f1936093efcf6e732110521ea63e",
+    "build/qa/log-working-revert-flags/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-working-revert-flags/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-working-revert-flags/store.log": "a8f6bc2d3ea4c416fadaacd897ed8dec7ece2d432a429e26a8f7b1c32da55293",
+    "build/qa/log-working-revert-flags/swift.log": "b53f1cc60bdc27b54dc9062aa4c4639a1c8ba99c751d29b2caa361fa8ce4d32a"
+  },
+  "remaining": "Remaining file commands and exact interaction/layout parity, historical file Revert, group styling, alternate tools, full Finder/dialog coverage, screenshots/publication and signed App Store acceptance."
+}

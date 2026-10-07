@@ -48,6 +48,7 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
         window.contentViewController = NSHostingController(rootView: LogDialog(model: model))
         super.init(window: window)
         model.window = window
+        model.confirmWorkingFlags = { action in confirmIndexFlags(action) }
         window.delegate = self
         window.setContentSize(NSSize(width: 1120, height: 780))
         window.center()
@@ -335,12 +336,17 @@ struct LogCommandRequest: Identifiable {
     @Published var showWorkingTree = true
     @Published var showUnversionedFiles = false
     @Published private(set) var workingTreeSnapshot: WorkingTreeHistory?
+    @Published private(set) var workingIndexFiles: [WorkingTreeFile] = []
+    private var workingSubmodules = Set<String>()
     var selectedWorkingTree: Bool { selected == [""] && workingTreeSnapshot != nil }
     var includesWorkingTree: Bool { selected.contains("") && workingTreeSnapshot != nil }
     func updateWorkingFiles() {
         guard selectedWorkingTree, let snapshot = workingTreeSnapshot else { return }
         let tracked = Set(snapshot.files.map(\.path))
-        files = (snapshot.files + (showUnversionedFiles ? snapshot.unversioned.filter { !tracked.contains($0.path) } : [])).filter { file in
+        let ignored = workingIndexFiles.filter { ($0.assumeUnchanged || $0.skipWorktree) && !tracked.contains($0.id) }.map {
+            CommitFile(path: $0.id, oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: workingSubmodules.contains($0.id))
+        }
+        files = (snapshot.files + ignored + (showUnversionedFiles ? snapshot.unversioned.filter { !tracked.contains($0.path) } : [])).filter { file in
             showWholeProject || historyPaths.contains { scope in file.path == scope || file.path.hasPrefix(scope + "/") || file.oldPath == scope || file.oldPath?.hasPrefix(scope + "/") == true }
         }
     }
@@ -771,13 +777,15 @@ struct LogCommandRequest: Identifiable {
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 let working = showWorkingTree && !selecting && !bare ? try await repository.workingTreeHistory(cancellation: cancellation) : nil
+                let indexFiles = working == nil ? [] : try await repository.workingTreeStatus(refreshIndex: false)
+                let submodules = working == nil ? Set<String>() : try await repository.submodulePaths()
                 if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
                 self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
                 self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
                 entries = result; graph = CommitGraph.layout(result)
-                workingTreeSnapshot = working
+                workingTreeSnapshot = working; workingIndexFiles = indexFiles; workingSubmodules = submodules
                 if let working { revisionActions[""] = .classify(working.files) } else { revisionActions.removeValue(forKey: "") }
                 let hashes = Set(result.map(\.hash)); revisionActions = revisionActions.filter { hashes.contains($0.key) }
                 parentMetadata = parentMetadata.filter { hashes.contains($0.key) }
@@ -1137,16 +1145,49 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription }
         }
     }
+    var confirmWorkingFlags: (IndexFlagAction) async -> Bool = { _ in false }
+    func workingFlagMark(_ ids: Set<String>) -> WorkingTreeFile? {
+        guard selectedWorkingTree, let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return nil }
+        return workingIndexFiles.first { $0.id == file.path }
+    }
+    func canWorkingFlag(_ action: IndexFlagAction, ids: Set<String>) -> Bool {
+        guard !busy, !isInvalidated, !bare, let mark = workingFlagMark(ids) else { return false }
+        return action.isAvailable(for: [mark])
+    }
+    func setWorkingFlag(_ action: IndexFlagAction, ids: Set<String>) {
+        guard canWorkingFlag(action, ids: ids), let mark = workingFlagMark(ids) else { return }
+        let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.path)
+        let request = generation, selection = selected
+        busy = true
+        Task {
+            defer { busy = false }
+            guard await confirmWorkingFlags(action), request == generation, selection == selected, !isInvalidated else { return }
+            do {
+                for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
+                try await repository.setIndexFlags(action, paths: paths, markedPath: mark.id)
+                onRevisionChanged(action.rawValue); requestRepositoryRefresh()
+            } catch {
+                if let partial = error as? IndexFlagPartialFailure, !partial.updatedPaths.isEmpty { onRevisionChanged(partial.localizedDescription); requestRepositoryRefresh() }
+                if request == generation, !isInvalidated { self.error = error.localizedDescription }
+            }
+        }
+    }
+    func fileStatus(_ file: CommitFile) -> String {
+        if selectedWorkingTree, let flags = workingIndexFiles.first(where: { $0.id == file.path }), flags.assumeUnchanged || flags.skipWorktree { return flags.status }
+        return file.status
+    }
     func canWorkingFiles(_ action: RepositoryAction, ids: Set<String>) -> Bool {
         guard !busy, !isInvalidated, !bare, selectedWorkingTree, onWorkingFiles != nil else { return false }
         let chosen = visibleFiles.filter { ids.contains($0.id) }
         guard !chosen.isEmpty else { return false }
         if action == .add { return chosen.contains { $0.action == "?" } }
+        if action == .revert { return chosen.contains { $0.action != "?" } }
+        if action == .commit, let mark = workingIndexFiles.first(where: { $0.id == chosen[0].path }), mark.assumeUnchanged || mark.skipWorktree { return false }
         return action == .commit
     }
     func requestWorkingFiles(_ action: RepositoryAction, ids: Set<String>) {
         guard canWorkingFiles(action, ids: ids), let onWorkingFiles else { return }
-        let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.path)
+        let paths = visibleFiles.filter { ids.contains($0.id) && (action != .revert || $0.action != "?") }.map(\.path)
         let request = generation, selection = selected
         busy = true
         Task {
@@ -1343,7 +1384,7 @@ struct LogDialog: View {
                         }
                     }.width(min: 260, ideal: 460)
                     TableColumn("Extension") { row in Text(row.file?.fileExtension ?? "") }.width(80)
-                    TableColumn("Status") { row in Text(row.file?.status ?? "") }.width(95)
+                    TableColumn("Status") { row in Text(row.file.map(model.fileStatus) ?? "") }.width(95)
                     TableColumn("Lines added") { row in Text(row.file?.addedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(90)
                     TableColumn("Lines removed") { row in Text(row.file?.removedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(105)
                 }.frame(minHeight: 130, idealHeight: 180)
@@ -1398,6 +1439,12 @@ struct LogDialog: View {
                 Button { model.requestWorkingFiles(.add, ids: ids) } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canWorkingFiles(.add, ids: ids))
             }
             Button { model.requestWorkingFiles(.commit, ids: ids) } label: { CommandLabel(title: "Commit…", icon: .commit) }.disabled(!model.canWorkingFiles(.commit, ids: ids))
+            if model.visibleFiles.contains(where: { ids.contains($0.id) && $0.action != "?" }) {
+                Button { model.requestWorkingFiles(.revert, ids: ids) } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canWorkingFiles(.revert, ids: ids))
+            }
+            if let mark = model.workingFlagMark(ids) {
+                IndexFlagsMenu(files: model.workingIndexFiles.filter { ids.contains($0.id) }, selectionMark: mark) { model.setWorkingFlag($0, ids: ids) }.disabled(model.busy || model.isInvalidated || model.bare)
+            }
             Divider()
         }
         let conflicts = model.workingConflictPaths(ids)

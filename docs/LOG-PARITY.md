@@ -1004,3 +1004,23 @@ reuses the native Add progress route; Commit reuses the existing scoped Commit
 dialog and now refreshes repository Logs on completion. These commands pass paths,
 not the whole repository. Shift Add as executable/symlink, the remaining file
 commands and displayed menu/dialog acceptance are still pending.
+
+## Working-file Revert and index flags
+
+Log now offers scoped Revert through the existing Revert chooser/progress route.
+Mixed selections pass only versioned files. The working-tree row also reads index
+flag metadata without refreshing/writing the index. Locally ignored rows remain
+visible, including typed gitlinks, so users can clear assume-unchanged and
+skip-worktree flags. Status shows the current flag and Commit is disabled for the
+marked locally ignored file. Flag menus use the existing marked-row policy and
+confirmation; the Core engine revalidates current flags under its private index
+lock. Confirmation cancellation, changed revision selection and invalidation
+prevent dispatch. Successful or partially successful changes request Log refresh.
+
+The hidden native check executes real assume/skip/clear and Revert progress in a
+disposable repository, checks restored bytes and unrelated file/HEAD preservation,
+and removes owned Trash results. Confirmations and root callbacks are injected.
+Revert currently opens the existing chooser instead of upstream’s direct status-list
+confirmation/progress sequence. Displayed dialogs, partial flag failures through
+this new route, locally ignored Revert semantics and signed sandbox access need
+further acceptance work.

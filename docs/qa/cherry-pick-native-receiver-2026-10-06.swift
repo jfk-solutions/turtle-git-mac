@@ -710,6 +710,75 @@ import TurtleGitCore
     precondition(!window.isVisible)
     print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy/Preserve guards passed. Events injected; no displayed keyboard acceptance.")
 }
+@MainActor func verifyNativeLogRevertFlags(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-flags-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable), path = "tracked 雪\n.txt"
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgSign", "false"])
+    try Data("base\n".utf8).write(to: root.appendingPathComponent(path))
+    try Data("other\n".utf8).write(to: root.appendingPathComponent("other"))
+    try await repo.stage([path, "other"]); _ = try await repo.commit(message: "base")
+    let initial = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + initial + ",module"])
+    _ = try await repo.commit(message: "gitlink")
+    let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    try Data("working\n".utf8).write(to: root.appendingPathComponent(path))
+    try Data("untracked\n".utf8).write(to: root.appendingPathComponent("untracked"))
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    func until(_ condition: () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition())
+    }
+    func refresh() async throws { log.reload(); try await until { !log.busy }; log.select([""]) }
+    log.showUnversionedFiles = true; try await refresh()
+    let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    var revertPaths: [String] = []; log.onWorkingFiles = { action, paths in precondition(action == .revert); revertPaths = paths }
+    var changes = 0; log.onRevisionChanged = { _ in changes += 1 }
+    precondition(log.canWorkingFlag(.skipWorktree, ids: [path]) && log.canWorkingFlag(.assumeUnchanged, ids: [path]) && !log.canWorkingFlag(.clear, ids: [path]))
+    precondition(!log.canWorkingFlag(.skipWorktree, ids: ["untracked"]))
+    log.confirmWorkingFlags = { _ in false }; log.setWorkingFlag(.assumeUnchanged, ids: [path]); try await until { !log.busy }
+    let declinedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(declinedIndex == index && changes == 0)
+    log.confirmWorkingFlags = { _ in true }
+    log.setWorkingFlag(.assumeUnchanged, ids: [path]); try await until { !log.busy && log.workingIndexFiles.contains { $0.id == path && $0.assumeUnchanged } }
+    precondition(log.files.contains { $0.path == path && log.fileStatus($0) == "Assume unchanged" } && !log.canWorkingFiles(.commit, ids: [path]) && log.canWorkingFlag(.clear, ids: [path]))
+    log.setWorkingFlag(.skipWorktree, ids: [path]); try await until { !log.busy && log.workingIndexFiles.contains { $0.id == path && $0.assumeUnchanged && $0.skipWorktree } }
+    log.setWorkingFlag(.clear, ids: [path]); try await until { !log.busy && log.workingIndexFiles.contains { $0.id == path && !$0.assumeUnchanged && !$0.skipWorktree } }
+    precondition(changes == 3 && log.canWorkingFiles(.commit, ids: [path]))
+    let staged = try await repo.run(["show", ":" + path]).stdout
+    let working = try Data(contentsOf: root.appendingPathComponent(path))
+    precondition(staged == Data("base\n".utf8) && working == Data("working\n".utf8))
+    // An independently flagged path invalidates the cached Skip menu.
+    try await repo.setIndexFlags(.skipWorktree, paths: [path])
+    log.setWorkingFlag(.skipWorktree, ids: [path]); try await until { !log.busy }; precondition(log.error != nil && changes == 3)
+    log.error = nil; try await repo.setIndexFlags(.clear, paths: [path]); try await refresh()
+    var gate: CheckedContinuation<Bool, Never>?
+    log.confirmWorkingFlags = { _ in await withCheckedContinuation { gate = $0 } }
+    log.setWorkingFlag(.assumeUnchanged, ids: [path]); try await until { gate != nil }
+    log.select([String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)])
+    gate?.resume(returning: true); gate = nil; try await until { !log.busy }; precondition(changes == 3)
+    try await refresh(); log.setWorkingFlag(.assumeUnchanged, ids: [path]); try await until { gate != nil }
+    log.invalidate(); gate?.resume(returning: true); gate = nil; try await until { !log.busy }; precondition(changes == 3 && log.isInvalidated)
+    try await repo.setIndexFlags(.skipWorktree, paths: ["module"]); try await refresh()
+    precondition(log.files.contains { $0.path == "module" && $0.isSubmodule && log.fileStatus($0) == "Skip-worktree" })
+    log.confirmWorkingFlags = { _ in true }; log.setWorkingFlag(.clear, ids: ["module"])
+    try await until { !log.busy && log.workingIndexFiles.contains { $0.id == "module" && !$0.skipWorktree } }
+    log.requestWorkingFiles(.revert, ids: [path, "untracked"]); try await until { !log.busy }; precondition(revertPaths == [path])
+    let chooser = RevertWindowModel(repository: repo, access: nil); chooser.setScope(revertPaths)
+    try await until { !chooser.busy }; precondition(chooser.checked == [path])
+    let progress = RevertProgressWindowModel(repository: repo, access: nil, entries: chooser.entries.filter { chooser.checked.contains($0.path) }, amend: false, againstHead: false, autoCloseSuccess: false)
+    defer { for file in progress.trashedFiles { try? FileManager.default.removeItem(at: file) } }
+    var completed = false; progress.onFinished = { _, ok in precondition(ok); completed = true; log.requestRepositoryRefresh() }
+    progress.start(); try await until { completed && !log.busy && !log.files.contains { $0.path == path } }
+    let restored = try Data(contentsOf: root.appendingPathComponent(path)), finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let unrelated = try Data(contentsOf: root.appendingPathComponent("untracked")), other = try Data(contentsOf: root.appendingPathComponent("other"))
+    precondition(restored == Data("base\n".utf8) && finalHead == head && unrelated == Data("untracked\n".utf8) && other == Data("other\n".utf8))
+    print("Native Log Revert/index flags: decline preserves index; actual assume/skip/clear cycles retain rows/status and Commit guard, unchanged blobs/work, fresh stale-menu refusal, confirmation selection/invalidation guards, flagged gitlink type, scoped Revert chooser and actual Revert progress restore only selected path, refresh Log and preserve HEAD/untracked/other files passed. Confirmations/root callbacks injected; owned Trash files removed; no windows shown.")
+}
+
 @MainActor func verifyNativeLogWorkingAddCommit(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-add-commit-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1572,6 +1641,7 @@ import TurtleGitCore
     try await verifyNativeLogUnifiedViewerRouting(executable: repo.executable)
     try await verifyNativeLogParentWorkingComparison(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
+    try await verifyNativeLogRevertFlags(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
