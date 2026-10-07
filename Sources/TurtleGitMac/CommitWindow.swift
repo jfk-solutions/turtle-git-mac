@@ -339,6 +339,7 @@ import UniformTypeIdentifiers
     @Published var setAuthor = false
     @Published var author = ""
     @Published var showUnversioned = true
+    private let unversionedDefaults: UserDefaults
     @Published var showWholeProject = true
     @Published var scopePaths: [String] = []
     @Published var busy = false
@@ -354,7 +355,15 @@ import UniformTypeIdentifiers
     var onCommitted: (String) -> Void = { _ in }
     var onPush: () -> Void = {}
     enum CompletionAction: String, CaseIterable { case commit = "Commit", recommit = "ReCommit", push = "Commit & Push" }
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
+        showUnversioned = unversionedDefaults.object(forKey: "AddBeforeCommit") == nil || unversionedDefaults.bool(forKey: "AddBeforeCommit")
+    }
+    func setShowUnversioned(_ enabled: Bool) {
+        guard !busy, !confirmingQuit else { return }
+        showUnversioned = enabled
+        unversionedDefaults.set(enabled, forKey: "AddBeforeCommit")
+    }
     var visibleEntries: [StatusEntry] {
         entries.filter { entry in
             entry.state != .ignored && (showUnversioned || entry.state != .untracked) &&
@@ -1006,7 +1015,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                         HStack {
                             VStack(alignment: .leading, spacing: 6) {
                                 Toggle("Staging support (EXPERIMENTAL)", isOn: $model.stagingEnabled)
-                                Toggle("Show Unversioned Files", isOn: $model.showUnversioned)
+                                Toggle("Show Unversioned Files", isOn: Binding(get: { model.showUnversioned }, set: { model.setShowUnversioned($0) }))
                                 Toggle("Do not autoselect submodules", isOn: $model.doNotAutoselectSubmodules).disabled(model.stagingEnabled)
                             }.toggleStyle(.checkbox)
                             Spacer()

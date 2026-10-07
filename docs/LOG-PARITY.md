@@ -1300,6 +1300,16 @@ controls, hidden hosted menu construction and repository bytes. See
 appearance acceptance, richer path-filter expressions and multi-revision file
 aggregation remain pending.
 
+Show Unversioned Files now defaults to enabled in both Commit and Log, matching
+upstream `AddBeforeCommit`. Both dialogs read and save the same application-wide
+preference, so reopening either dialog uses the last choice made in the other.
+Existing open dialogs retain their own current switch state. Log updates loaded
+working rows without a history reload; Commit filters its loaded status list.
+Busy/closing guards refuse preference changes. The native receiver uses a private
+preference domain and real tracked/untracked files to check default visibility,
+hide/show, reopen in both directions and exact repository preservation. See
+[the shared unversioned QA record](qa/shared-unversioned-2026-10-07.json).
+
 ## View Patch
 
 View → View Patch now opens a separate native read-only patch viewer that follows

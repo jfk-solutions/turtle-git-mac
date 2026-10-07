@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "103128bf90f3ce82b1e7e72d9645926a9913c584",
+  "previous_goal_turn": "progress: committed verified merge/byte preview reader coverage",
+  "scope": "Commit and Log share enabled-by-default AddBeforeCommit unversioned visibility preference",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "45aa1ad0f708f890cf648ee7cea81d6b38c7949eb8782816e6131f801a440bd6",
+    "Sources/TurtleGitMac/LogWindow.swift": "df6c885c26d43062bfc916e9b28f3caa19642f9f5c2894130d4f21183e40b147",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "fa956982b4e7f06fc95c1fc1165c2a685019cd63d8d126dbc71c1a0a15dc2f9c",
+    "docs/COMMIT-PARITY.md": "86735d04fd971f32a743bcd04d0e86f7d95a78192f3746373a48973b029d8627",
+    "docs/LOG-PARITY.md": "568a5c9ccec2681f70837fcc7e9f3ea6f6aca9658dc6c1d2ee120070e6a45f74",
+    "docs/upstream-files.csv": "9654acb4084865a171af18bfcb4b00780fbe05fab6ca184b3237273d204b8d70"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/CommitDlg.cpp": "455cfa3b883565ab7d37c4636156a47b73ad7856afcf80dbbd51039943b41578",
+    "src/TortoiseProc/LogDlg.cpp": "f7f61c888ae379112be47151d62d01255230cdbad2df852dbf26f6928a4e730c"
+  },
+  "all_sources_manifest_sha256": "94d367dc3ed6a9616db0674db667549b9e20a42e5818def2732c393423e91ed0",
+  "verification": {
+    "native": "All four final sequential native --menus-only runs passed on Apple Git 2.50.1, Git 2.37.1, 2.39.5 and bundled 2.55.0, including shared unversioned preference fixture and existing native common/replay fixtures.",
+    "coverage": "Private preference domain, real tracked/untracked working files, absent preference defaults true in both models without initial writes; Commit hide persists false and new Log reads false; Log show persists true and new Commit reads true; actual loaded rows visibility; busy/quit/invalidated guards; exact HEAD/index/config/working bytes; private domain removed. Existing open dialogs retain own state. Old scoped-path fixture injects private false baseline to keep its visibility-toggle coverage.",
+    "builds": [
+      "SwiftPM",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "audits": "Both bundle validators passed with all 90 upstream icons, Finder extension and licenses; Store require-git audit passed for universal bundled Git. Both exact NOTICE comparisons passed. Unsigned builds do not establish signed Store acceptance.",
+    "core": "No Core source change; Core tests not repeated.",
+    "repairs": "Initial native run stopped before new fixture at older Bisect good-ref/HEAD assertion: busy-only wait could precede queued observed-Log refresh. Picker now accepts expected-state wait; good/skip/bad post-operation waits inspect expected refs/HEAD. Original assertions retained. Failed log retained. Production and receiver frozen during final native compile/runtime.",
+    "site": "Local site generation passed; unpublished.",
+    "limitations": "No displayed checkbox/menu gestures, screenshots, accessibility, signed sandbox or physical Finder acceptance. Persistence occurs on toggle instead of Windows Log destruction. Full dialog/menu parity, full port, signed distribution and hosted CI/site remain incomplete.",
+    "process_audit": "No main app or native/menu/provider receiver remained after final matrix."
+  },
+  "logs": {
+    "build/qa/shared-unversioned/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/shared-unversioned/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/shared-unversioned/native-final.log": "112cd495c80c221106b2495f702e3339be0fb7f5ce24ba05f195d3d789d93f08",
+    "build/qa/shared-unversioned/native.log": "11dc07621c46080c2348ee530a7eec7c4fa8e2d1257907511460b173a39da802",
+    "build/qa/shared-unversioned/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/shared-unversioned/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/shared-unversioned/store.log": "c3317a93e73643be09045c50c69229cd4545aac229542d1968ba51680e6abb72",
+    "build/qa/shared-unversioned/swift.log": "c5f2115341480fb1d62fbba3c5ea59748a64e4cb7e82534b20f890ba7936df61"
+  }
+}

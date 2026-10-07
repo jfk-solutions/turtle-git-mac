@@ -1284,7 +1284,10 @@ import TurtleGitCore
     precondition(afterHead == head && historicalIndex == index)
     try Data("work inside\n".utf8).write(to: root.appendingPathComponent("folder/file")); try Data("work outside\n".utf8).write(to: root.appendingPathComponent("unrelated"))
     try Data("unversioned\n".utf8).write(to: root.appendingPathComponent("unversioned-outside"))
-    let working = LogWindowModel(repository: repo, access: nil); defer { working.invalidate() }
+    let suite = "TurtleGit.LogPathView.QA." + UUID().uuidString
+    let defaults = UserDefaults(suiteName: suite)!; defaults.set(false, forKey: "AddBeforeCommit")
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let working = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults); defer { working.invalidate() }
     working.setPathScope(["folder"]); try await until { !working.busy && working.selectedWorkingTree && working.files.count == 2 }
     precondition(working.visibleFiles.count == 2 && working.grayFile(working.files.first { $0.path == "unrelated" }!))
     working.toggleUnrelatedPaths(.hide); precondition(working.visibleFiles.map(\.path) == ["folder/file"])
@@ -1294,6 +1297,58 @@ import TurtleGitCore
     let workingIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), insideBytes = try Data(contentsOf: root.appendingPathComponent("folder/file")), outsideBytes = try Data(contentsOf: root.appendingPathComponent("unrelated"))
     precondition(workingIndex == index && insideBytes == Data("work inside\n".utf8) && outsideBytes == Data("work outside\n".utf8))
     print("Native Log View paths: default Gray, exclusive Hide/Gray/All toggles without history reload, real directory boundary and literal rename-origin match, source action colors/gray precedence and selected text, hidden selection/clipboard refusal, Whole Project bypass, busy/closed guards, hidden hosted menu, working tracked paths retained and grayed, unversioned switch/exemption and exact HEAD/index/work preservation passed. Displayed colors/gestures remain pending.")
+}
+
+@MainActor func verifyNativeSharedUnversionedPreference(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-unversioned-preference-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let suite = "TurtleGit.Unversioned.QA." + UUID().uuidString
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"])
+    _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgsign", "false"])
+    try Data("base\n".utf8).write(to: root.appendingPathComponent("tracked"))
+    try await repo.stage(["tracked"]); _ = try await repo.commit(message: "unversioned preference base")
+    try Data("working\n".utf8).write(to: root.appendingPathComponent("tracked"))
+    try Data("unknown\n".utf8).write(to: root.appendingPathComponent("unknown"))
+    let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+    let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults)
+    commit.entries = try await repo.status(refreshIndex: false)
+    let log = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults); defer { log.invalidate() }
+    precondition(commit.showUnversioned && log.showUnversionedFiles && defaults.object(forKey: "AddBeforeCommit") == nil)
+    log.reload()
+    let deadline = Date().addingTimeInterval(30)
+    while (log.busy || !log.selectedWorkingTree) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!log.busy && log.selectedWorkingTree && log.visibleFiles.contains { $0.path == "unknown" })
+    precondition(commit.visibleEntries.contains { $0.path == "unknown" })
+    commit.setShowUnversioned(false)
+    precondition(!commit.showUnversioned && !commit.visibleEntries.contains { $0.path == "unknown" } && !defaults.bool(forKey: "AddBeforeCommit"))
+    let reopenedLog = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults); defer { reopenedLog.invalidate() }
+    precondition(!reopenedLog.showUnversionedFiles)
+    log.toggleUnversionedFiles(); precondition(!log.showUnversionedFiles && !log.visibleFiles.contains { $0.path == "unknown" })
+    log.toggleUnversionedFiles(); precondition(log.showUnversionedFiles && log.visibleFiles.contains { $0.path == "unknown" } && defaults.bool(forKey: "AddBeforeCommit"))
+    let reopenedCommit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults)
+    precondition(reopenedCommit.showUnversioned)
+    commit.busy = true; commit.setShowUnversioned(false)
+    log.busy = true; log.toggleUnversionedFiles()
+    precondition(defaults.bool(forKey: "AddBeforeCommit") && log.showUnversionedFiles)
+    commit.busy = false; commit.confirmingQuit = true; commit.setShowUnversioned(false)
+    precondition(defaults.bool(forKey: "AddBeforeCommit"))
+    log.busy = false; log.invalidate(); log.toggleUnversionedFiles(); precondition(log.showUnversionedFiles && defaults.bool(forKey: "AddBeforeCommit"))
+    let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    let afterConfig = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+    let trackedBytes = try Data(contentsOf: root.appendingPathComponent("tracked"))
+    let unknownBytes = try Data(contentsOf: root.appendingPathComponent("unknown"))
+    precondition(afterHead == head && afterIndex == index && afterConfig == config)
+    precondition(trackedBytes == Data("working\n".utf8) && unknownBytes == Data("unknown\n".utf8))
+    print("Native shared unversioned preference: true default, Commit/Log reopen both directions, real working rows show/hide, busy/quit/closed guards, private preference domain and exact repository preservation passed.")
 }
 
 @MainActor func verifyNativeLogLabelVisibility(executable: URL) async throws {
@@ -2022,10 +2077,10 @@ import TurtleGitCore
     let bisectPicker = LogWindowController(repository: repo, access: nil, onChoose: { _ in })
     defer { bisectPicker.close() }
     bisectPicker.model.endRevision = "main"; bisectPicker.model.reload()
-    func waitPicker() async throws {
+    func waitPicker(_ expected: () -> Bool = { true }) async throws {
         let deadline = Date().addingTimeInterval(30)
-        while bisectPicker.model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(!bisectPicker.model.busy)
+        while (bisectPicker.model.busy || !expected()) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!bisectPicker.model.busy && expected())
     }
     try await waitPicker(); reopened.model.observeLog(bisectPicker.model)
     var transient: LogWindowModel? = LogWindowModel(repository: repo, access: nil, selecting: true)
@@ -2035,7 +2090,10 @@ import TurtleGitCore
     precondition(requests.count == 3 && requests.last?.operation == .good && requests.last?.revisions == [hashes[1]])
     reopened.model.load(operation: requests.last!.operation, revisions: requests.last!.revisions); try await wait(reopened.model)
     precondition(reopened.model.error == nil && reopened.model.state?.log.contains("git bisect good " + hashes[1]) == true)
-    try await waitLog(); try await waitPicker()
+    func hasGoodAndHead(_ model: LogWindowModel) -> Bool {
+        model.entries.first { $0.hash == hashes[1] }?.references.contains { $0.name.hasPrefix("refs/bisect/good-") } == true && model.entries.first { $0.isHead }?.hash == reopened.model.state?.head
+    }
+    try await waitLog { hasGoodAndHead(log) }; try await waitPicker { hasGoodAndHead(bisectPicker.model) }
     for refreshed in [log, bisectPicker.model] {
         precondition(refreshed.entries.first { $0.hash == hashes[1] }?.references.contains { $0.name.hasPrefix("refs/bisect/good-") } == true)
         precondition(refreshed.entries.first { $0.isHead }?.hash == reopened.model.state?.head)
@@ -2047,7 +2105,8 @@ import TurtleGitCore
     reopened.model.load(operation: requests.last!.operation, revisions: requests.last!.revisions); try await wait(reopened.model)
     precondition(reopened.model.error == nil)
     for hash in [hashes[2], hashes[5]] { precondition(reopened.model.state?.log.contains("git bisect skip " + hash) == true) }
-    try await waitLog(); try await waitPicker()
+    try await waitLog { log.entries.first { $0.isHead }?.hash == reopened.model.state?.head }
+    try await waitPicker { [hashes[2], hashes[5]].allSatisfy { hash in bisectPicker.model.entries.first { $0.hash == hash }?.references.contains { $0.name.hasPrefix("refs/bisect/skip-") } == true } }
     for hash in [hashes[2], hashes[5]] {
         precondition(bisectPicker.model.entries.first { $0.hash == hash }?.references.contains { $0.name.hasPrefix("refs/bisect/skip-") } == true)
     }
@@ -2056,7 +2115,8 @@ import TurtleGitCore
     reopened.model.load(operation: requests.last!.operation, revisions: requests.last!.revisions); try await wait(reopened.model)
     precondition(reopened.model.error == nil && reopened.model.state?.log.contains("git bisect bad " + hashes[6]) == true)
     // A menu built before another caller marks the selected commit must refuse it.
-    try await waitLog(); try await waitPicker()
+    try await waitLog { log.entries.first { $0.isHead }?.hash == reopened.model.state?.head }
+    try await waitPicker { bisectPicker.model.entries.first { $0.hash == hashes[6] }?.references.contains { $0.name == "refs/bisect/bad" } == true }
     precondition(bisectPicker.model.entries.first { $0.hash == hashes[6] }?.references.contains { $0.name == "refs/bisect/bad" } == true)
     bisectPicker.close(); precondition(bisectPicker.model.isInvalidated)
     log.selected = [hashes[4]]
@@ -2346,6 +2406,7 @@ import TurtleGitCore
     try await verifyNativeLogIgnore(executable: repo.executable)
     try await verifyNativeLogAddModes(executable: repo.executable)
     try await verifyNativeLogHistoryWalk(executable: repo.executable)
+    try await verifyNativeSharedUnversionedPreference(executable: repo.executable)
     try await verifyNativeLogLabelVisibility(executable: repo.executable)
     try await verifyNativeLogUnrelatedPaths(executable: repo.executable)
     try await verifyNativeLogPatchPreview(executable: repo.executable)

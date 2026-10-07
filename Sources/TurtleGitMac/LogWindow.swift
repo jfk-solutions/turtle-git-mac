@@ -445,7 +445,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     @Published var showWorkingTree = true
-    @Published var showUnversionedFiles = false
+    @Published var showUnversionedFiles = true
     @Published private(set) var workingTreeSnapshot: WorkingTreeHistory?
     @Published private(set) var workingIndexFiles: [WorkingTreeFile] = []
     private var workingSubmodules = Set<String>()
@@ -577,7 +577,7 @@ struct LogCommandRequest: Identifiable {
     }
     func toggleUnversionedFiles() {
         guard !busy, !isInvalidated else { return }
-        showUnversionedFiles.toggle(); updateWorkingFiles()
+        showUnversionedFiles.toggle(); labelDefaults.set(showUnversionedFiles, forKey: "AddBeforeCommit"); updateWorkingFiles()
         selectedFiles.formIntersection(Set(visibleFiles.map(\.id)))
     }
     func fileForeground(_ file: CommitFile, selected: Bool) -> Color {
@@ -905,6 +905,7 @@ struct LogCommandRequest: Identifiable {
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; self.labelDefaults = labelDefaults; showWorkingTree = !selecting
+        showUnversionedFiles = labelDefaults.object(forKey: "AddBeforeCommit") == nil || labelDefaults.bool(forKey: "AddBeforeCommit")
         if let stored = labelDefaults.object(forKey: labelDefaultsKey) as? NSNumber, stored.intValue >= 0 {
             referenceVisibility = HistoryReferenceVisibility(rawValue: stored.intValue).intersection(.all).union([.stash, .bisect])
         }

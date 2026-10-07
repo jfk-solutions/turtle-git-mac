@@ -1272,3 +1272,15 @@ open. The previous intermittent close/inspection timeout did not reproduce; no
 root cause or speculative code fix is claimed. See
 [acceptance record](qa/commit-close-log-unified-2026-10-05.json) for exact scope
 and remaining changed-message, restore-copy, suppression and signed cases.
+
+## Shared unversioned-file preference
+
+Show Unversioned Files now defaults to enabled in both Commit and Log, matching
+upstream `AddBeforeCommit`. Both dialogs read and save the same application-wide
+preference, so reopening either dialog uses the last choice made in the other.
+Existing open dialogs retain their own current switch state. Log updates loaded
+working rows without a history reload; Commit filters its loaded status list.
+Busy/closing guards refuse preference changes. The native receiver uses a private
+preference domain and real tracked/untracked files to check default visibility,
+hide/show, reopen in both directions and exact repository preservation. See
+[the shared unversioned QA record](qa/shared-unversioned-2026-10-07.json).
