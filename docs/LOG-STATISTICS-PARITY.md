@@ -3,8 +3,10 @@
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
 The calculation layer and a partial native Statistics window are implemented,
 including the Log button, graph choices/styles, original chart button icons,
-checkboxes, author slider, lazy Calculate and remembered options. Graph export
-and displayed/signed acceptance remain pending.
+checkboxes, author slider, lazy Calculate, remembered options and graph export.
+Displayed/signed acceptance remains pending.
+
+User instructions: [Statistics](STATISTICS.md).
 
 ## Source behavior
 
@@ -90,9 +92,42 @@ repository preservation. It requests layout across all five chart styles; these
 checks do not prove pixel appearance, displayed clicks or accessibility. See
 [the native Statistics QA record](qa/statistics-native-2026-10-07.json).
 
+## Save Graph As
+
+The File menu enables **Save Graph As…** only for a ready graph in the key
+Statistics window, not the text summary or a busy calculation. The native save
+sheet offers PDF, PNG, JPEG, BMP and GIF with explicit type/extension selection.
+The original Save As artwork is reused. The selected graph, author limit/style,
+viewport dimensions and native appearance drive the export. Rendering does not
+read history again or change Git state; saving writes the chosen destination file.
+
+Upstream `OnFileSavestatgraphas` defaults the picture filter to `.wmf` and
+`SaveGraph` writes enhanced Windows metafiles or PNG/JPEG/BMP/GIF. TurtleGit uses
+PDF as the macOS vector equivalent, defaulting to `.pdf`, and retains the four
+raster encodings. Its save sheet requires a supported format rather than silently
+appending `.jpg` to an unknown filename. JPEG uses quality 0.9. These are explicit
+platform adaptations, not Windows metafile compatibility.
+
+The shared SwiftUI graph is rendered with Apple's
+[ImageRenderer](https://developer.apple.com/documentation/swiftui/imagerenderer)
+and encoded by Core Graphics/ImageIO. PDF retains searchable labels. Pie export
+measures its complete content without the on-screen scroll container, extending
+the canvas to include every interval group and wrapped legend. Other styles use
+the graph viewport size at one pixel per point. Canvases over 16,384 points on an
+axis or 32 million pixels are rejected with an error before bitmap allocation.
+Writes are atomic, hold the save-panel URL's available security scope and report
+encoding/write failures to the window. A cancelled sheet does not write.
+
+The hidden receiver decodes each format across all five styles and both
+appearances, checks searchable PDF labels and colored raster content, complete
+multi-author/date-group PDFs, summary/busy refusal, accessory format/extension
+selection and failed writes. This does not prove displayed save-sheet interactions,
+overwrite confirmation, focus routing or signed sandbox acceptance. See
+[the export QA record](qa/statistics-export-2026-10-07.json).
+
 ## Remaining work
 
-- File/Save Graph As export and macOS equivalents for supported formats.
+- Displayed File-menu/save-sheet/overwrite/cancel and signed export acceptance.
 - Full axis/title labels, tooltips/selection, high-density legends/graphs and exact
   original color/geometry comparison, plus sparse-date/year-wrap acceptance.
 - Displayed layout, regional/DST/case acceptance, keyboard/VoiceOver and signed

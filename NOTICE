@@ -335,3 +335,14 @@ TortoiseGit source paths and SHA-256 values are recorded in Icons/provenance.jso
 The upstream resource license and GPL alternative apply as above.
 The native workflow adapts BisectStartDlg.cpp and AppUtils.cpp BisectStart and
 BisectOperation (Copyright 2014-2026 TortoiseGit; see upstream file notices).
+
+Native Log Statistics calculations, options, graph projection and Save Graph As
+adapt StatGraphDlg.cpp (Copyright (C) 2008-2021, 2023-2025 TortoiseGit;
+Copyright (C) 2003-2011, 2014-2016, 2018 TortoiseSVN) and StatGraphDlg.h
+(Copyright (C) 2008, 2011-2013, 2015-2018, 2021-2023, 2025 TortoiseGit;
+Copyright (C) 2003-2011, 2015 TortoiseSVN), under GPL version 2 or later.
+Swift Charts/Canvas replace MyGraph/GDI drawing and PDF replaces Windows
+metafile export. Original graph-bar, graph-bar-stacked, graph-line,
+graph-line-stacked and graph-pie artwork is retained unchanged with pinned
+provenance; the upstream resource license and GPL alternative apply as above.
+Exact displayed graph and signed export acceptance remain pending.

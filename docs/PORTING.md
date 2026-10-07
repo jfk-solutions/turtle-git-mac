@@ -155,11 +155,17 @@ material. See `DISTRIBUTION.md` for runtime acceptance, signing,
 worktree permissions and license gates. These changes do not narrow the full-port
 objective or establish App Store readiness.
 
-The current Swift package builds and 78 tests pass, including topological graph
+The following paragraph records early bring-up at `1b66080`; its test/icon counts
+and local toolchain problem are historical, not current release evidence. Current
+feature-specific QA records live under `docs/qa`, and signed/hosted acceptance
+remains separate from local unsigned builds.
+
+The early Swift package built and 78 tests passed, including topological graph
 continuity, root/merge/rename file statistics, annotated tag resolution, commit
 search, and decoding all 37 original upstream icons. Finder source type-checks
-with application-extension restrictions. The local Xcode bundle build is currently blocked
-by a missing CoreSimulator.framework in the Xcode installation. GitHub's macOS CI
+with application-extension restrictions. The early local Xcode bundle build was blocked
+by a missing CoreSimulator.framework in the Xcode installation. Subsequent local
+Debug and AppStore bundle builds pass; that toolchain block is resolved. GitHub's macOS CI
 successfully compiled the app and embedded Finder extension in both Debug and
 sandboxed AppStore configurations at `1b66080`. Bundle validation confirmed all
 32 original icons, their hashes and license, the shared framework, and the embedded

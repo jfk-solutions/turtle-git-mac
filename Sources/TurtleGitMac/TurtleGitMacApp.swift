@@ -7,6 +7,7 @@ import TurtleGitCore
     @StateObject private var model = RepositoryModel()
     @StateObject private var appearance = AppAppearance()
     @StateObject private var patchMenuContext = PatchMenuContext()
+    @StateObject private var statisticsMenuContext = StatisticsMenuContext()
     init() {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
     }
@@ -32,6 +33,7 @@ import TurtleGitCore
         }
         .commands {
             PatchFileCommands(context: patchMenuContext)
+            StatisticsFileCommands(context: statisticsMenuContext)
             CommandGroup(after: .newItem) {
                 Button("Open Repository…") { model.chooseRepository() }.keyboardShortcut("o")
                 Menu("Open Recent") {

@@ -20,6 +20,8 @@ import TurtleGitCore
     @Published var completed = 0
     @Published var error: String?
     var close: () -> Void = {}
+    var graphSize = CGSize(width: 860, height: 400)
+    var canExportGraph: Bool { !busy && metric != .statistics && graph != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.entries = entries; self.defaults = defaults
         options.caseSensitive = defaults.object(forKey: "StatAuthorsCaseSensitive") == nil || defaults.bool(forKey: "StatAuthorsCaseSensitive")
@@ -88,6 +90,7 @@ private final class StatisticsNativeWindow: NSWindow {
 @MainActor final class StatisticsWindowController: NSWindowController, NSWindowDelegate {
     let model: StatisticsWindowModel
     var onClosed: () -> Void = {}
+    private var savePanel: StatisticsGraphSavePanel?
     init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
         model = StatisticsWindowModel(repository: repository, access: access, entries: entries, defaults: defaults)
         let window = StatisticsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
@@ -98,6 +101,23 @@ private final class StatisticsNativeWindow: NSWindow {
         window.escape = { [weak model] in model?.close() }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func saveGraphAs() {
+        guard model.canExportGraph, savePanel == nil, let window, window.attachedSheet == nil else { return }
+        let choice = StatisticsGraphSavePanel(); savePanel = choice
+        choice.panel.beginSheetModal(for: window) { [weak self, choice] response in
+            defer { self?.savePanel = nil }
+            guard response == .OK, let url = choice.panel.url, let self else { return }
+            do { try self.exportGraph(to: url, format: choice.format) }
+            catch { NSAlert(error: error).beginSheetModal(for: window) }
+        }
+    }
+    func exportGraph(to url: URL, format: StatisticsGraphFormat) throws {
+        guard model.canExportGraph, let graph = model.graph else { throw StatisticsGraphExportFailure.unavailable }
+        let dark = window?.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        let data = try StatisticsGraphExport.data(graph: graph, metric: model.metric, style: model.style, size: model.graphSize, dark: dark, format: format)
+        let scoped = url.startAccessingSecurityScopedResource(); defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        try data.write(to: url, options: .atomic)
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return true }
     func windowWillClose(_ notification: Notification) { model.savePreferences(); onClosed() }
 }
@@ -109,7 +129,8 @@ private struct StatisticsDialog: View {
             HStack { Text("Graph type:"); Spacer(); Picker("Graph type", selection: Binding(get: { model.metric }, set: { model.selectMetric($0) })) { ForEach(LogStatisticsMetric.allCases, id: \.rawValue) { Text($0.title).tag($0) } }.labelsHidden().frame(width: 360).disabled(model.busy) }
             GroupBox {
                 if model.metric == .statistics, let summary = model.summary { StatisticsSummary(summary: summary, calculate: model.calculate).disabled(model.busy).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) }
-                else if let graph = model.graph { StatisticsChart(graph: graph, style: model.style, byAuthor: model.metric.byAuthor).frame(maxWidth: .infinity, maxHeight: .infinity) }
+                else if let graph = model.graph { StatisticsChart(graph: graph, style: model.style, byAuthor: model.metric.byAuthor).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(GeometryReader { proxy in Color.clear.onAppear { model.graphSize = proxy.size }.onChange(of: proxy.size) { model.graphSize = $0 } }) }
                 else { Text(model.busy ? "Gathering statistics…" : "No graph data available.").frame(maxWidth: .infinity, maxHeight: .infinity) }
             }
             HStack(alignment: .top) {
@@ -167,13 +188,14 @@ private struct StatisticsSummary: View {
     private func activity(_ label: String, _ author: String) -> some View { let values = summary.activity(for: author); return GridRow { Text(label); Text(author); Text("\(values.average)"); Text("\(values.minimum)"); Text("\(values.maximum)") } }
 }
 
-private struct StatisticsChart: View {
+struct StatisticsChart: View {
     let graph: LogStatisticsGraph
     let style: LogStatisticsStyle
     let byAuthor: Bool
+    var exporting = false
     var body: some View {
         if graph.points.isEmpty { Text("No graph data available.") }
-        else if style == .pie { StatisticsPies(graph: graph, byAuthor: byAuthor) }
+        else if style == .pie { StatisticsPies(graph: graph, byAuthor: byAuthor, exporting: exporting) }
         else {
             Chart(Array(graph.points.enumerated()), id: \.offset) { _, point in
                 if style == .line { LineMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", graph.seriesLabels[point.series])).symbol(by: .value("Author", graph.seriesLabels[point.series])) }
@@ -188,9 +210,12 @@ private struct StatisticsChart: View {
 private struct StatisticsPies: View {
     let graph: LogStatisticsGraph
     let byAuthor: Bool
+    var exporting = false
     private let colors: [Color] = [.blue, .orange, .green, .purple, .red, .cyan, .pink, .yellow]
     var body: some View {
-        ScrollView {
+        if exporting { content } else { ScrollView { content } }
+    }
+    private var content: some View {
             VStack {
                 ForEach(0..<(byAuthor ? 1 : graph.categoryLabels.count), id: \.self) { category in
                     let points = byAuthor ? graph.points : graph.points.filter { $0.category == category }
@@ -207,6 +232,5 @@ private struct StatisticsPies: View {
                     ForEach(Array(points.enumerated()), id: \.offset) { index, point in HStack { Circle().fill(colors[index % colors.count]).frame(width: 10, height: 10); Text(byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series]); Text("\(point.value)") } }
                 }
             }
-        }
     }
 }
