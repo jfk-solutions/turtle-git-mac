@@ -394,3 +394,8 @@ Commit's conflict-hint preflight adapts CommitDlg::OnOK and the shared
 AppUtils::MessageContainsConflictHints gate under the upstream source license.
 The native Ignore/Abort sheet retains comment-stripping/cleanup exemptions and
 remembers only the affirmative Ignore choice.
+
+Pull/Fetch URL and branch history adapt PullFetchDlg and MiscUI/HistoryCombo
+under the upstream source license, retaining shared storage, source ordering,
+case-sensitive URL/case-insensitive branch deduplication and the 25-load/26-save
+limit. Native AppKit editable combos replace the Windows controls.

@@ -21,6 +21,9 @@ import TurtleGitCore
     let isPull: Bool
     let remoteSettings: PushWindowModel
     private let access: RepositoryAccessLease?
+    private let preferences: UserDefaults
+    @Published var urls: [String] = []
+    @Published var branchHistory: [String] = []
     @Published var options = FetchOptions()
     @Published var squash = false
     @Published var noCommit = false
@@ -50,8 +53,8 @@ import TurtleGitCore
     private var key: String { (isPull ? "Pull." : "Fetch.") + repository.root.path }
     var configuredRebase: Bool { isPull && rebaseRequired && !options.arbitraryURL }
     var canChooseBranch: Bool { launchRebase || isPull || options.arbitraryURL || (!options.namedRemoteFetchAll && !options.allRemotes) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool) {
-        self.isPull = isPull; self.repository = repository; self.access = access; remoteSettings = PushWindowModel(repository: repository, access: access)
+    init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool, preferences: UserDefaults = .standard) {
+        self.isPull = isPull; self.repository = repository; self.access = access; self.preferences = preferences; remoteSettings = PushWindowModel(repository: repository, access: access)
     }
     func load() {
         guard !busy else { return }; busy = true
@@ -59,22 +62,36 @@ import TurtleGitCore
             defer { busy = false }
             do {
                 remotes = try await repository.remoteNames(); let defaults = try await repository.fetchDefaults()
-                options = FetchOptions(); options.remote = defaults.remote; options.branch = defaults.branch
+                urls = FetchDialogHistory.load(preferences, key: "History.PullURLS", caseSensitive: true)
+                branchHistory = FetchDialogHistory.load(preferences, key: "History.PullRemoteBranch", caseSensitive: false)
+                options = FetchOptions(); options.remote = defaults.remote
+                options.branch = branchHistory.first ?? ""
+                selectBranch(defaults.branch, atFront: false)
                 options.allRemotes = !isPull && defaults.remote.isEmpty && remotes.count > 1
                 if isPull && options.remote.isEmpty { options.remote = remotes.first ?? "" }
-                options.namedRemoteFetchAll = UserDefaults.standard.object(forKey: "NamedRemoteFetchAll") as? Bool ?? true
-                if let saved = UserDefaults.standard.string(forKey: key + ".remote"), remotes.contains(saved), defaults.remote.isEmpty { options.remote = saved; options.allRemotes = false }
+                options.namedRemoteFetchAll = preferences.object(forKey: "NamedRemoteFetchAll") as? Bool ?? true
+                if let saved = preferences.string(forKey: key + ".remote"), remotes.contains(saved), defaults.remote.isEmpty { options.remote = saved; options.allRemotes = false }
                 shallow = defaults.shallow; bare = defaults.bare; depthEnabled = shallow
                 tagsDefault = defaults.tags; pruneDefault = defaults.prune
                 let pullDefaults = try await repository.pullDefaults()
                 rebaseRequired = isPull && pullDefaults.rebase
                 preserveMerges = isPull && pullDefaults.preserveMerges
-                launchRebase = !bare && !options.allRemotes && (rebaseRequired || UserDefaults.standard.bool(forKey: key + ".rebase"))
-                fastForwardOnly = isPull && UserDefaults.standard.bool(forKey: key + ".ffonly")
+                launchRebase = !bare && !options.allRemotes && (rebaseRequired || preferences.bool(forKey: key + ".rebase"))
+                fastForwardOnly = isPull && preferences.bool(forKey: key + ".ffonly")
                 squash = false; noCommit = false; noFastForward = false
                 remoteSettings.remotes = remotes
             } catch { self.error = error.localizedDescription }
         }
+    }
+    func selectBranch(_ branch: String, atFront: Bool = true) {
+        let branch = FetchDialogHistory.trim(branch)
+        guard !branch.isEmpty else { return }
+        branchHistory = FetchDialogHistory.inserting(branch, into: branchHistory, atFront: atFront, caseSensitive: false)
+        options.branch = branchHistory.first { $0.compare(branch, options: .caseInsensitive) == .orderedSame } ?? branch
+    }
+    func selectArbitraryURL() {
+        options.arbitraryURL = true; options.allRemotes = false; launchRebase = false
+        url = urls.first ?? ""
     }
     func remoteChanged() {
         generation += 1; let request = generation, remote = options.remote
@@ -99,20 +116,25 @@ import TurtleGitCore
     }
     func fetch() {
         guard !busy else { return }
-        let wantsRebase = launchRebase && !bare
+        if options.arbitraryURL {
+            urls = FetchDialogHistory.save(url, entries: urls, preferences: preferences, key: "History.PullURLS", caseSensitive: true)
+        }
+        let wantsRebase = launchRebase && !bare && !options.arbitraryURL
         let autoStart = configuredRebase
         let keepMerges = preserveMerges
         if wantsRebase && (options.allRemotes || options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) { error = FetchRebaseFailure.destination.localizedDescription; return }
         var snapshot = options
-        if options.arbitraryURL { snapshot.remote = url; snapshot.allRemotes = false }
+        snapshot.branch = FetchDialogHistory.trim(snapshot.branch)
+        if options.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url); snapshot.allRemotes = false }
         if shallow && depthEnabled {
             guard let parsed = Int(depth), parsed > 0 else { error = FetchFailure.depth.localizedDescription; return }; snapshot.depth = parsed
         }
         var pullOptions = PullOptions(); pullOptions.fetch = snapshot; pullOptions.squash = squash; pullOptions.noCommit = noCommit; pullOptions.noFastForward = noFastForward; pullOptions.fastForwardOnly = fastForwardOnly
+        branchHistory = FetchDialogHistory.save(options.branch, entries: branchHistory, preferences: preferences, key: "History.PullRemoteBranch", caseSensitive: false)
         busy = true
-        UserDefaults.standard.set(wantsRebase, forKey: key + ".rebase")
-        if isPull { UserDefaults.standard.set(fastForwardOnly, forKey: key + ".ffonly") }
-        if !options.arbitraryURL && !options.allRemotes { UserDefaults.standard.set(options.remote, forKey: key + ".remote") }
+        preferences.set(wantsRebase, forKey: key + ".rebase")
+        if isPull { preferences.set(fastForwardOnly, forKey: key + ".ffonly") }
+        if !options.arbitraryURL && !options.allRemotes { preferences.set(options.remote, forKey: key + ".remote") }
         Task {
             defer { busy = false }
             do {
@@ -135,10 +157,10 @@ private struct FetchDialog: View {
                 HStack { PushDestinationRadio(title: "Remote:", selected: !model.options.arbitraryURL) { model.options.arbitraryURL = false; model.launchRebase = model.rebaseRequired }.frame(width: 140)
                     PushRemotePopup(values: (!model.isPull && model.remotes.count > 1 ? ["*"] : []) + (model.remotes.isEmpty ? [""] : model.remotes), selection: Binding(get: { model.options.allRemotes ? "*" : model.options.remote }, set: { model.options.allRemotes = $0 == "*"; if model.options.allRemotes { model.launchRebase = false }; if $0 != "*" { model.options.remote = $0 }; model.remoteChanged() })).disabled(model.options.arbitraryURL)
                 }
-                HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.options.arbitraryURL = true; model.options.allRemotes = false; model.launchRebase = false }.frame(width: 140)
-                    TextField("Remote URL or path", text: $model.url).disabled(!model.options.arbitraryURL)
+                HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.selectArbitraryURL() }.frame(width: 140)
+                    FetchHistoryCombo(value: $model.url, choices: model.urls, label: "Remote URL or path").disabled(!model.options.arbitraryURL)
                 }
-                HStack { Text("Remote Branch:").frame(width: 140, alignment: .leading); PushRefCombo(value: $model.options.branch, choices: model.branches, local: false)
+                HStack { Text("Remote Branch:").frame(width: 140, alignment: .leading); FetchHistoryCombo(value: $model.options.branch, choices: model.branchHistory, label: "Remote branch")
                     Button("…") { model.browse() }.accessibilityLabel("Browse remote branches")
                 }.disabled(!model.canChooseBranch)
             }.padding(8) }
@@ -151,7 +173,7 @@ private struct FetchDialog: View {
                 HStack { FetchOverrideCheckbox(title: "Prune", value: $model.options.prune).frame(width: 140, alignment: .leading); Text(model.options.allRemotes || model.options.arbitraryURL ? "Use each destination's configured default" : model.pruneDefault.isEmpty ? "" : "Default: " + model.pruneDefault).foregroundStyle(.secondary) }
             }.padding(8) }
             HStack { Text("SSH uses configured Git credential helpers and SSH agent.").font(.caption).foregroundStyle(.secondary); Spacer(); Button("Manage Remotes") { model.managing = true } }
-            Toggle("Launch Rebase After Fetch", isOn: $model.launchRebase).disabled(model.bare || model.options.allRemotes || model.configuredRebase).help("Fetch the selected branch and open its native Rebase plan.")
+            Toggle("Launch Rebase After Fetch", isOn: $model.launchRebase).disabled(model.bare || model.options.allRemotes || model.options.arbitraryURL || model.configuredRebase).help("Fetch the selected branch and open its native Rebase plan.")
             if model.rebaseRequired && !model.options.arbitraryURL { Text("Git configuration requires Rebase. Fetch will open and start its native Rebase plan.").font(.caption).foregroundStyle(.secondary) }
             Spacer(minLength: 0)
             HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-pull.html")!) } }
@@ -169,7 +191,7 @@ private struct FetchBranchChooser: View {
     var body: some View { VStack(spacing: 12) {
         Text("Select remote branch").font(.headline); TextField("Filter", text: $filter)
         List(model.branches.filter { filter.isEmpty || $0.localizedCaseInsensitiveContains(filter) }, id: \.self, selection: $selection) { Text($0) }
-        HStack { Spacer(); Button("Cancel") { model.browsing = false }.keyboardShortcut(.cancelAction); Button("OK") { if let selection { model.options.branch = selection; model.browsing = false } }.keyboardShortcut(.defaultAction).disabled(selection == nil) }
+        HStack { Spacer(); Button("Cancel") { model.browsing = false }.keyboardShortcut(.cancelAction); Button("OK") { if let selection { model.selectBranch(selection); model.browsing = false } }.keyboardShortcut(.defaultAction).disabled(selection == nil) }
     }.padding(16).frame(width: 600, height: 400) }
 }
 private struct FetchOverrideCheckbox: NSViewRepresentable {
@@ -180,4 +202,61 @@ private struct FetchOverrideCheckbox: NSViewRepresentable {
     func makeNSView(context: Context) -> NSButton { let button = NSButton(checkboxWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:))); button.allowsMixedState = true; return button }
     func updateNSView(_ button: NSButton, context: Context) { button.state = value == .configured ? .mixed : value == .enabled ? .on : .off; button.isEnabled = enabled; button.toolTip = "Mixed: use Git configuration; checked: enable; unchecked: disable"; context.coordinator.change = { value = $0 } }
     final class Coordinator: NSObject { var change: (FetchOverride) -> Void = { _ in }; @objc func clicked(_ sender: NSButton) { change(sender.state == .mixed ? .configured : sender.state == .on ? .enabled : .disabled) } }
+}
+
+struct FetchHistoryCombo: NSViewRepresentable {
+    @Binding var value: String
+    let choices: [String]
+    let label: String
+    @Environment(\.isEnabled) private var enabled
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSComboBox {
+        let combo = NSComboBox(); combo.delegate = context.coordinator; combo.completes = true
+        combo.setContentHuggingPriority(.defaultLow, for: .horizontal); return combo
+    }
+    func updateNSView(_ combo: NSComboBox, context: Context) {
+        let coordinator = context.coordinator; coordinator.updating = true; defer { coordinator.updating = false }
+        coordinator.change = { value = $0 }
+        if !coordinator.choices.elementsEqual(choices, by: { $0.utf16.elementsEqual($1.utf16) }) { combo.removeAllItems(); combo.addItems(withObjectValues: choices); coordinator.choices = choices }
+        if !combo.stringValue.utf16.elementsEqual(value.utf16) { combo.stringValue = value }
+        combo.isEnabled = enabled; combo.setAccessibilityLabel(label)
+    }
+    final class Coordinator: NSObject, NSComboBoxDelegate {
+        var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }
+        func controlTextDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox else { return }; change(combo.stringValue) }
+        func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox, choices.indices.contains(combo.indexOfSelectedItem) else { return }; change(choices[combo.indexOfSelectedItem]) }
+    }
+}
+
+/// PullFetchDlg shares these histories between Pull, Fetch and repositories.
+/// HistoryCombo loads 25 but can save 26: truncation occurs before insertion.
+enum FetchDialogHistory {
+    static func trim(_ value: String) -> String {
+        value.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\u{0B}\u{0C}"))
+    }
+    static func inserting(_ value: String, into entries: [String], atFront: Bool, caseSensitive: Bool) -> [String] {
+        let value = trim(value.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " "))
+        guard !value.isEmpty else { return entries }
+        var result = entries
+        if let index = result.firstIndex(where: { caseSensitive ? $0.utf16.elementsEqual(value.utf16) : $0.compare(value, options: .caseInsensitive) == .orderedSame }) {
+            if !atFront || index == 0 { return result }
+            result.remove(at: index)
+        }
+        result = Array(result.prefix(25))
+        result.insert(value, at: atFront ? 0 : result.count)
+        return result
+    }
+    static func load(_ preferences: UserDefaults, key: String, caseSensitive: Bool) -> [String] {
+        var result: [String] = []
+        for value in (preferences.stringArray(forKey: key) ?? []).prefix(25) {
+            if value.isEmpty { break }
+            result = inserting(value, into: result, atFront: false, caseSensitive: caseSensitive)
+        }
+        return result
+    }
+    static func save(_ value: String, entries: [String], preferences: UserDefaults, key: String, caseSensitive: Bool) -> [String] {
+        let result = inserting(value, into: entries, atFront: true, caseSensitive: caseSensitive)
+        preferences.set(Array(result.prefix(26)), forKey: key)
+        return result
+    }
 }

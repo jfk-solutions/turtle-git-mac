@@ -22,27 +22,28 @@ can leave a merge ready for completion. Git errors preserve controls and offer
 Open Working Tree to inspect the captured repository. Merge conflicts retain Git's
 normal unmerged index and MERGE_HEAD; resolution/abort parity remains incomplete.
 
-Configured `branch.<name>.rebase` takes precedence over `pull.rebase`. Upstream
-routes this to Fetch + its interactive Rebase workflow. That workflow is pending:
-the native checkbox is checked/disabled for configured rebase, an explanation is
-shown and OK is disabled. Named-remote backend calls also reject before fetching or merging. Explicit URL
-mode clears rebase and performs merge Pull, matching the upstream radio behavior.
-This remains an explicit missing workflow, not a replacement with automatic rebase.
+Configured `branch.<name>.rebase` takes precedence over `pull.rebase`. Named-remote
+Pull routes configured rebase through an explicit selected-branch Fetch and the
+native Rebase plan, with auto-start and a locked checkbox. `merges`/`preserve`
+configuration enables Preserve Merges. Explicit URL mode clears rebase and
+performs merge Pull, matching upstream's radio behavior. See REBASE-PARITY.md for
+handoff evidence and remaining differences.
 
 ## Evidence
 
 Five real Git integration tests cover fast-forward pulls preserving unrelated mixed
 staged/unstaged changes, forced merge commits, No Commit and subsequent completion,
 squash staging without a merge parent, diverged ff-only rejection, a true merge
-conflict and Git abort, URL branch selection, configuration precedence, configured
-rebase rejection without mutation and invalid flags/refspec input. The full suite
-has 80 passing tests.
+conflict and Git abort, URL branch selection, configuration precedence, backend rejection of unsupported automatic rebase
+without mutation and invalid flags/refspec input. Native configured Pull uses the
+separate Fetch/Rebase route. The current focused Pull/Fetch run passed all 11
+tests.
 
 Native QA pulled a real new commit from the disposable documentation remote with
 Fast Forward Only selected. HEAD advanced, the remote file appeared, and original
 index/worktree patches matched byte-for-byte. Mutual fast-forward enablement and
-preference restoration were checked. A temporary configured rebase showed its
-checked unavailable control and disabled OK; the fixture configuration was restored.
+preference restoration were checked. The early temporary configured-rebase check predates the implemented
+Fetch/Rebase handoff described above.
 A missing URL produced an error; Open Working Tree opened the correct status window.
 `site/assets/pull.png` captures the actual native window before its successful pull.
 
@@ -55,8 +56,9 @@ A missing URL produced an error; Open Working Tree opened the correct status win
   filtered Log, Push, submodule update, stash, reset and unrelated-history retry.
 - Native squash/No Commit/divergence/conflict completion and abort QA; the tests
   prove Git effects but not those full native workflows.
-- Full remote reference chooser and settings, histories, submodule defaults,
+- Full remote reference chooser and settings, submodule defaults,
   additional preference/size persistence, light/resize/keyboard/accessibility QA.
+  Shared URL/branch history is now implemented; clipboard/deletion acceptance remains pending.
 - Interactive Git hooks, authentication/signing and signed sandbox runtime checks.
 
 The shared resource and command sources remain partial. This is not full Pull
@@ -69,3 +71,7 @@ repository reached Rebase finished; Git verified the local commit's parent was
 the selected fetched commit, branch identity was unchanged and the worktree clean.
 The prior disabled-OK check above and screenshot describe the earlier build.
 See REBASE-PARITY.md for the exact handoff and remaining workflow differences.
+
+Shared native URL/branch history now follows the PullFetchDlg controls and persists
+across Pull/Fetch and repositories, including failed transport. See the history
+section in FETCH-PARITY.md for exact source rules and remaining acceptance.

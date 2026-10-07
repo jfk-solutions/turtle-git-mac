@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "975eca7d844b3a187c39abeacfa62bb51b093f4a",
+  "scope": "Shared native Pull/Fetch editable URL and branch histories, source insertion/load/save rules, failure persistence and URL-mode Rebase gate. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/PullFetchDlg.cpp": "261e75446acd8f6c3a14ed29dd57dd56d92a449a",
+    "src/Utils/MiscUI/HistoryCombo.cpp": "f52dcb94e8403eb3bcb0a6b0d80db47e92d61657",
+    "src/Utils/MiscUI/HistoryCombo.h": "bf4a584d39c698ca13afa236b2ea3d0e6fe128ba",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "e580ec55cb55b03e1c27a0028ec8d04cad315d1bdffaff2a14594e61ea4dcfc5",
+    "NOTICE": "f65f776cc519c4d173357842202de209120bd419844c0fc0a94dd9a8dab314b6",
+    "Sources/TurtleGitMac/FetchWindow.swift": "6828d3b01d00ff0fcac8767ab3a1de0be31edca8d6bdfde22bbfd4c61a6c1f66",
+    "docs/FETCH-PARITY.md": "9abe6c472dbd0f8e1b1e1dbeff91aaae82757c6154762e5b5fc2ee983308af03",
+    "docs/PULL-PARITY.md": "cafc53441021ecd9078ef350485d6ca6b0229fbca92e9655be4ab3019db9326c",
+    "docs/qa/fetch-history-native-2026-10-07.swift": "6bf967692c9203f6b2a1652935f4c924da41da1f1650d8374342e8d4b266c4e6",
+    "docs/upstream-files.csv": "06552c6be0c31d588e88f26a31e62af3a332a5d9a972d05ab5fef4651c88d4b5",
+    "scripts/test-fetch-history.py": "1084097604bc034425551814522216eb794f656da82c225db320d9abe8fca0ac"
+  },
+  "all_sources_manifest_sha256": "c2e218e9694a0540fd58d2457befe1ee8b045cc9ff82e54d1c62b0bdaa030bfb",
+  "verification": {
+    "core": "All 11 selected Fetch/Pull tests passed (6 Fetch, 5 Pull), including tracking/refspec/tag/prune/depth/all-remotes defaults, fetched Rebase snapshots and dirty-state preservation, replay ancestry, active-session rejection, merge/no-commit/squash/conflict/ff-only and URL/configuration behavior. Core implementation unchanged in this checkpoint.",
+    "native": "Final headless receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Failed URL Fetch saves trimmed shared URL/branch history before transport while HEAD/index stay byte-identical. A reopened native Pull restores that URL, then actually pulls a newly pushed commit from another literal URL with ff-only; forced programmatic launchRebase=true still cannot launch Rebase in URL mode. New Fetch in a different repository restores both histories. Branch browse selection updates in-memory history without saving; named Fetch does not persist unused URL text. Direct source-rule assertions cover ordering/case-sensitive URL and case-insensitive branch deduplication, first-entry spelling, exact UTF-16 URL identity, CR/LF folding, and 26-save/25-load. A real hidden NSComboBox has ordered items, retained typed text and working native selection callback; owned window closed. These are model/Git/hidden-control checks, not physical popup/text-input/completion or screenshots.",
+    "iterations": "Initial four-Git history matrix passed. Subsequent upstream radio review identified the existing enabled Rebase control in URL mode; disabled it and enforced the model execution gate. Expanded receiver and final four-Git matrix passed. No runtime test failure.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed, including all 96 original icons. Store --require-git verified 11 universal Git Mach-O files and fixture operations; EditorConfig and IssueRegex audits passed.",
+    "documentation": "Pull/Fetch parity, source-file inventory and history attribution updated. Removed stale configured-Pull-rebase unavailable description and updated focused test counts. Inventory pin regression and CSV column validation passed. Local site generated, unpublished.",
+    "ci": "Added native history receiver to macOS workflow. Hosted CI/push/site publication unverified; authentication unavailable, no retry.",
+    "processes": "All compilers/core/native receivers/audits terminal; no main GUI launch or displayed windows. Final app/receiver audit empty. Eight empty owned FetchHistory QA preference UUID files removed across initial/final matrices; unrelated preferences retained.",
+    "limitations": "Clipboard command extraction, Shift-Delete persisted history removal, complete shell URL/path completion and icons, Windows locale/whitespace equivalence, physical keyboard/popup/VoiceOver/light-dark UI, remaining settings, progress/cancellation, all Rebase/post-operation/recovery and signed sandbox workflows remain pending. Full application/dialog parity, Finder activation, genuine screenshots/full manual, signed distribution/App Store/license clearance and hosted publication remain incomplete."
+  },
+  "logs": {
+    "build/qa/fetch-history/core.log": "2740a8243e810b44fc34d05135bcacc07a792d0323bfa4663793f75d340196ec",
+    "build/qa/fetch-history/debug-accepted.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-history/debug-audit-final.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/fetch-history/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/fetch-history/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-history/debug-verified.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-history/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-history/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/fetch-history/native-final.log": "7a7c1e3e8cee33ab753f46bb1fdc3e0bdbcab172a73d18e922ed75820c52540d",
+    "build/qa/fetch-history/native.log": "7a7c1e3e8cee33ab753f46bb1fdc3e0bdbcab172a73d18e922ed75820c52540d",
+    "build/qa/fetch-history/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-history/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/fetch-history/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/fetch-history/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
