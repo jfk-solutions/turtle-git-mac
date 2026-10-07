@@ -310,6 +310,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   supports working/historical files in either direction and retained Finder marks.
   Working-row Blame annotates a freshly pinned HEAD, matching upstream;
   new/unversioned files are excluded.
+  Conflicted working files offer Edit Conflict and Resolved/Mine/Theirs through
+  existing native editors and Resolve; single-file primary action opens the editor.
   Advanced working-file actions and displayed/signed
   acceptance remain pending.
   [Bisect parity](docs/BISECT-PARITY.md).

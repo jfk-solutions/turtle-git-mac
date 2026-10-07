@@ -709,6 +709,106 @@ import TurtleGitCore
     precondition(!window.isVisible)
     print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy/Preserve guards passed. Events injected; no displayed keyboard acceptance.")
 }
+@MainActor func verifyNativeLogWorkingConflicts(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-conflict-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgSign", "false"])
+    let first = "-conflict 雪\n[*].txt", second = "second.txt", normal = "normal.txt"
+    for path in [first, second, normal] { try Data("base\n".utf8).write(to: root.appendingPathComponent(path)) }
+    try await repo.stage([first, second, normal]); _ = try await repo.commit(message: "base")
+    _ = try await repo.run(["checkout", "-b", "side"])
+    for path in [first, second] { try Data("theirs\n".utf8).write(to: root.appendingPathComponent(path)) }
+    try await repo.stage([first, second]); _ = try await repo.commit(message: "theirs")
+    _ = try await repo.run(["checkout", "main"])
+    for path in [first, second] { try Data("mine\n".utf8).write(to: root.appendingPathComponent(path)) }
+    try await repo.stage([first, second]); _ = try await repo.commit(message: "mine")
+    let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    var requests: [(RepositoryAction, [String])] = [], comparisons: [[String]] = []
+    log.onConflictAction = { requests.append(($0, $1)) }; log.onFileCompare = { _, _, paths in comparisons.append(paths) }
+    func waitLog() async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while log.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!log.busy)
+    }
+    func refreshLog() async throws { log.reload(); try await waitLog(); precondition(log.error == nil); log.select([""]) }
+    for action in [RepositoryAction.editConflict, .resolveCurrent, .resolveMine, .resolveTheirs] { precondition(action.icon.contextImage() != nil) }
+    for choice in [ResolveChoice.current, .mine, .theirs] {
+        _ = try await repo.run(["reset", "--hard", "main"])
+        let merge = try await repo.run(["merge", "--no-edit", "side"], successfulExitCodes: 0...1); precondition(merge.exitCode == 1)
+        try Data("unrelated index\n".utf8).write(to: root.appendingPathComponent(normal)); try await repo.stage([normal])
+        try Data("unrelated working\n".utf8).write(to: root.appendingPathComponent(normal))
+        try await refreshLog(); precondition(log.workingConflictPaths([first, second, normal]).count == 2 && !log.conflictRebase)
+        let initialFiles = log.files, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let otherIndex = try await repo.run(["ls-files", "--stage", "-z", "--", normal]).stdout
+        precondition(log.canWorkingConflict(.editConflict, ids: [first]) && !log.canWorkingConflict(.editConflict, ids: [first, second]))
+        log.primaryFileAction([first]); try await waitLog(); precondition(requests.last?.0 == .editConflict && requests.last?.1 == [first])
+        if choice == .current {
+            let editor = TextConflictWindowController(repository: repo, access: nil, path: first)
+            var editorClosed = false; editor.onClosed = { editorClosed = true }; defer { if !editorClosed { editor.close() } }
+            editor.model.load()
+            let deadline = Date().addingTimeInterval(30)
+            while editor.model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(!editor.model.busy && editor.model.error == nil && editor.model.document?.entry.path == first && editor.window?.isVisible == false)
+            editor.close(); precondition(editorClosed)
+        }
+        log.primaryFileAction([normal]); precondition(comparisons.last == [normal])
+        for action in [RepositoryAction.resolveCurrent, .resolveMine, .resolveTheirs] {
+            log.requestWorkingConflict(action, ids: [first, normal]); try await waitLog(); precondition(requests.last?.0 == action && requests.last?.1 == [first])
+        }
+        log.requestWorkingConflict(.resolveCurrent, ids: [first, second]); try await waitLog(); precondition(Set(requests.last!.1) == Set([first, second]))
+        let requestCount = requests.count
+        log.busy = true; log.requestWorkingConflict(.editConflict, ids: [first]); precondition(requests.count == requestCount); log.busy = false
+        log.requestWorkingConflict(.editConflict, ids: [first]); log.selected = [String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)]; try await waitLog(); precondition(requests.count == requestCount)
+        log.select([""]); log.invalidate(); log.requestWorkingConflict(.resolveCurrent, ids: [first]); precondition(requests.count == requestCount)
+        try await refreshLog()
+        log.bare = true; log.requestWorkingConflict(.resolveMine, ids: [first]); precondition(requests.count == requestCount); log.bare = false
+        let marker = root.appendingPathComponent(".git/rebase-merge")
+        try FileManager.default.createDirectory(at: marker, withIntermediateDirectories: true)
+        log.requestWorkingConflict(.resolveMine, ids: [first]); try await waitLog(); precondition(log.error != nil && requests.count == requestCount)
+        try FileManager.default.removeItem(at: marker); log.error = nil
+        let guardedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(guardedIndex == index)
+        if choice == .current { try Data("selected current\n".utf8).write(to: root.appendingPathComponent(first)) }
+        let action: RepositoryAction = choice == .current ? .resolveCurrent : choice == .mine ? .resolveMine : .resolveTheirs
+        log.requestWorkingConflict(action, ids: [first, normal]); try await waitLog(); precondition(requests.last?.0 == action && requests.last?.1 == [first])
+        let resolver = ResolveWindowModel(repository: repo, access: nil, paths: requests.last!.1, quick: action.resolveChoice)
+        var confirmation: (ResolveChoice, [ConflictEntry])?
+        resolver.confirm = { confirmation = ($0, $1) }; resolver.onChanged = { _ in log.reload() }
+        resolver.load(); let deadline = Date().addingTimeInterval(30)
+        while resolver.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(resolver.error == nil && confirmation?.0 == choice && confirmation?.1.map(\.path) == [first])
+        resolver.apply(confirmation!.1, using: confirmation!.0)
+        let applyDeadline = Date().addingTimeInterval(30)
+        while resolver.busy && Date() < applyDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try await waitLog(); precondition(!resolver.busy && resolver.error == nil && log.files.first { $0.path == first }?.action != "U")
+        let expected = choice == .current ? "selected current\n" : choice == .mine ? "mine\n" : "theirs\n"
+        let saved = try Data(contentsOf: root.appendingPathComponent(first)); precondition(saved == Data(expected.utf8))
+        let otherAfter = try await repo.run(["ls-files", "--stage", "-z", "--", normal]).stdout, headAfter = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let normalAfter = try Data(contentsOf: root.appendingPathComponent(normal)), remaining = try await repo.conflicts()
+        precondition(otherAfter == otherIndex && headAfter == head && normalAfter == Data("unrelated working\n".utf8) && remaining.map(\.path) == [second])
+        log.files = initialFiles; let staleCount = requests.count
+        log.requestWorkingConflict(.resolveCurrent, ids: [first]); try await waitLog(); precondition(log.error != nil && requests.count == staleCount); log.error = nil
+    }
+    _ = try await repo.run(["reset", "--hard", "main"])
+    let rebase = try await repo.run(["rebase", "side"], successfulExitCodes: 0...1); precondition(rebase.exitCode == 1)
+    try await refreshLog(); precondition(log.conflictRebase && log.canWorkingConflict(.resolveTheirs, ids: [first]))
+    log.requestWorkingConflict(.resolveMine, ids: [first]); try await waitLog(); precondition(requests.last?.0 == .resolveMine)
+    let resolver = ResolveWindowModel(repository: repo, access: nil, paths: [first], quick: .mine)
+    var rebaseEntries: [ConflictEntry] = []; resolver.confirm = { choice, entries in precondition(choice == .mine); rebaseEntries = entries }
+    resolver.load(); let deadline = Date().addingTimeInterval(30)
+    while resolver.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(resolver.rebase && !rebaseEntries.isEmpty)
+    resolver.apply(rebaseEntries, using: .mine); let applyDeadline = Date().addingTimeInterval(30)
+    while resolver.busy && Date() < applyDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    let rebasedBytes = try Data(contentsOf: root.appendingPathComponent(first)); precondition(resolver.error == nil && rebasedBytes == Data("theirs\n".utf8))
+    _ = try await repo.run(["rebase", "--abort"])
+    print("Native Log working conflicts: single primary Edit and hidden text editor, mixed/multi Resolve callbacks with original icons, fresh-stage and rebase-caption checks, busy/bare/selection/invalidation refusal, real Current/Mine/Theirs resolutions preserving unrelated index/work bytes and HEAD, injected completion Log refresh, stale resolved refusal and real rebase stage-2 mapping passed. Root dispatch/confirmations injected; owned editor closed.")
+}
+
 @MainActor func verifyNativeBisect(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitBisectNative-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
@@ -1183,6 +1283,7 @@ import TurtleGitCore
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); try await verifyNativeRepeatedAndOmittedReferences(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
     try await verifyNativeBisect(executable: repo.executable)
+    try await verifyNativeLogWorkingConflicts(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])

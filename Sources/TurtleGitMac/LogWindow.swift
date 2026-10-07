@@ -295,6 +295,7 @@ struct LogCommandRequest: Identifiable {
     var loadingActions: Bool { actionCancellation != nil }
     @Published var parentMetadata: [String: [LogParentChoice]] = [:]
     @Published var mergeActive = false
+    @Published var conflictRebase = false
     @Published var bisectActive = false
     @Published var hasStash = false
     @Published var hasSubmodules = false
@@ -623,6 +624,7 @@ struct LogCommandRequest: Identifiable {
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
     var onBlame: ((String, String) -> Void)?
+    var onConflictAction: ((RepositoryAction, [String]) -> Void)?
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     var onFilePairCompare: ((String, [CommitFile]) -> Void)?
     var onWorkingFilePairCompare: (([String]) -> Void)?
@@ -733,6 +735,8 @@ struct LogCommandRequest: Identifiable {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let mergeActive = try await repository.logMergeActive(cancellation: cancellation)
                 let metadata = try await repository.finderMetadata(), bisectActive = metadata.bisectActive
+                let conflictRebase: Bool
+                if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase() }
                 let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
@@ -740,6 +744,7 @@ struct LogCommandRequest: Identifiable {
                 if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
                 self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
+                self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
                 entries = result; graph = CommitGraph.layout(result)
                 workingTreeSnapshot = working
@@ -920,6 +925,36 @@ struct LogCommandRequest: Identifiable {
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return false }
         if selectedWorkingTree { return !bare && workingTreeSnapshot?.entry.parents.first != nil && file.action != "?" && !file.action.hasPrefix("A") }
         return revision != nil
+    }
+    func workingConflictPaths(_ ids: Set<String>) -> [String] {
+        guard selectedWorkingTree, !bare else { return [] }
+        return visibleFiles.filter { ids.contains($0.id) && $0.action.hasPrefix("U") }.map(\.path)
+    }
+    func canWorkingConflict(_ action: RepositoryAction, ids: Set<String>) -> Bool {
+        guard !busy, !isInvalidated, onConflictAction != nil, !workingConflictPaths(ids).isEmpty else { return false }
+        return action == .editConflict ? ids.count == 1 : action.resolveChoice != nil
+    }
+    func requestWorkingConflict(_ action: RepositoryAction, ids: Set<String>) {
+        guard canWorkingConflict(action, ids: ids), let onConflictAction else { return }
+        let paths = workingConflictPaths(ids), selection = selected, request = generation, rebase = conflictRebase
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
+                let fresh = try await repository.conflicts(paths: paths)
+                guard Set(fresh.map(\.path)) == Set(paths) else { throw ResolveFailure.stale }
+                if action == .resolveMine || action == .resolveTheirs {
+                    guard try await repository.conflictIsRebase() == rebase else { throw ResolveFailure.stale }
+                }
+                guard !isInvalidated, request == generation, selected == selection else { return }
+                busy = false; onConflictAction(action, paths)
+            } catch { if !isInvalidated, request == generation, selected == selection { self.error = error.localizedDescription } }
+        }
+    }
+    func primaryFileAction(_ ids: Set<String>) {
+        if canWorkingConflict(.editConflict, ids: ids) { requestWorkingConflict(.editConflict, ids: ids) }
+        else { compareFiles(ids) }
     }
     func blameFile(_ ids: Set<String>) {
         guard canBlameFile(ids), let onBlame, let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return }
@@ -1202,7 +1237,7 @@ struct LogDialog: View {
                         fileContextActions(ids)
                     }
                 } primaryAction: { ids in
-                    model.selectedFiles = ids; model.compareFiles(ids)
+                    model.selectedFiles = ids; model.primaryFileAction(ids)
                 }
             }
             Text("Showing \(model.entries.filter { !$0.hash.isEmpty }.count) revision(s) • \(model.selectedWorkingTree ? "Working tree selected" : "\(model.revisions.count) revision(s) selected") • \(model.files.count) changed file(s)")
@@ -1243,6 +1278,12 @@ struct LogDialog: View {
 
     }
     @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
+        let conflicts = model.workingConflictPaths(ids)
+        if !conflicts.isEmpty {
+            ResolveSelectionMenu(paths: conflicts, rebase: model.conflictRebase, canEdit: ids.count == 1) { action, _ in model.requestWorkingConflict(action, ids: ids) }
+                .disabled(model.busy || model.isInvalidated || model.onConflictAction == nil)
+            Divider()
+        }
         Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
         Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
         Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)

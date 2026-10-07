@@ -232,8 +232,7 @@ details, whole/mixed/file comparison callbacks, actual Git unified patch bytes,
 Commit dispatch, empty-hash exclusion, current-commit Skip/Good/Bad and Reset,
 busy refusal and row show/hide. Handoffs are injected. Displayed graph/layout,
 keyboard/accessibility, activated menus and signed sandbox remain unverified.
-Working-file conflict actions
-still require their upstream-specific implementation and acceptance.
+The wider working-file menu audit and displayed/signed acceptance remain pending.
 
 Selected-file patch checks preserve raw non-UTF-8 bytes, literal Unicode/newline
 paths, rename pairs and selection order; they validate the patch against a
@@ -281,6 +280,28 @@ that its snapshot contains HEAD bytes while the file has different disk bytes.
 It also checks moved HEAD, stale missing files, historical dispatch and the
 selection/class guards. Root handoffs are injected; displayed appearance,
 keyboard/accessibility and signed sandbox remain unverified.
+
+Working-row conflict menus now offer single-file Edit Conflict and selected
+Resolved/Mine/Theirs with original icons. Primary action on one conflicted file
+routes to Edit Conflict; ordinary or multiple-file primary actions retain base
+comparison. Mixed selections pass only conflicted paths to resolution, matching
+upstream's skip behavior. Fresh index checks reject conflicts that disappeared;
+Mine/Theirs also reject changed rebase semantics since the menu was populated.
+Busy, bare, changed-selection and invalidated models refuse dispatch.
+
+Root routes reuse the existing text/delete/submodule editors and the quick Resolve
+dialog with confirmation. Their completion callbacks now refresh live normal
+Logs for the same repository. As with other completion refreshes, an already
+busy Log can refuse reload; deferred refresh is not implemented.
+
+The hidden native fixture opens/closes a text editor, executes actual
+Current/Mine/Theirs through ResolveWindowModel, and preserves unrelated staged
+and working bytes and HEAD. Injected completion refresh removes the resolved
+status. A real rebase verifies stage-2 mapping; a fabricated rebase marker checks
+stale menu semantics. Root editor subtype dispatch and repository-wide refresh
+are compiled/source-inspected, not activated. Text editor inspection is hidden;
+delete/submodule routes, confirmation sheets, input events and signed access
+still require native acceptance.
 
 ## Working-tree repository commands
 

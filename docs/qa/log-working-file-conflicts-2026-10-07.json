@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "838ea2d",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log working conflict Edit/Resolved/Mine/Theirs routes, single primary Edit, fresh stage/rebase-semantic guards, repository-scoped completion Log refresh",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:1690-1720 and 2448-2485",
+    "src/TortoiseProc/ProgressCommands/ResolveProgressCommand.cpp:51-82 (Current skips ordinary selected paths)"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "5060c4de9bbc223d84764ef11b500e1f1eb216375d4c7bbbe6134771fbb9b54a",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "e8bcf12f67dc16a65e335185cf219cd703d9485b133ade8f815d793fb97014fc",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "4e4039ffde07db88710cd70dec9765d719d672d983d7c296d43b9164e3dbf294",
+    "docs/BISECT-PARITY.md": "ecc718da939a6b1ba5b77c7a0b466faef5961872883d1a8ff07e83ffbac044c2",
+    "README.md": "d131943087ab61f7b7d61d8733de7674e4cd5e3fe2684c8205184ea5d0620b29"
+  },
+  "all_sources_manifest_sha256": "1f8f5ff1009b0017935fe9f8caf3d47e58d9894cb8e72076bd19568235e10259",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Real two-file merge conflicts with literal Unicode/newline path. Single primary Edit callback and actual hidden text editor loads/closes. Original icons, mixed/multi selections, ordinary primary comparison, busy/bare/selection/invalidation refusal, changed rebase-marker refusal without index mutation. Real Current/Mine/Theirs resolution through ResolveWindowModel with injected confirmations/completion refresh removes resolved status and preserves unrelated staged/working bytes and HEAD. Stale resolved target refuses dispatch. Real rebase verifies stage-2 means branch being rebased onto. Existing focused native Log/Bisect/Export/Rebase fixtures pass."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed. Store --require-git, 90 upstream icons and universal helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Hidden owned editor; root dispatch and Resolve confirmations injected. Repository-wide refresh and editor subtype routing compiled/source-inspected, not activated. New Log delete/submodule routes, displayed menus/dialogs, input events, signed sandbox and deferred busy-Log refresh remain unverified or incomplete. Existing conflict engines reused; no new core unit tests. Full port incomplete."
+  },
+  "logs": {
+    "/tmp/turtlegit-log-working-conflicts-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-log-working-conflicts-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-log-working-conflicts-native.log": "8052a3bbbcd124a54363333e2cd70a161a93e2d1e734e2a271caa86a1918ed69",
+    "/tmp/turtlegit-log-working-conflicts-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-log-working-conflicts-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-log-working-conflicts-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-log-working-conflicts-swift.log": "b083cfdc06320b2c29a6f8b4df7488de52cdd86b6a742a4d47e1fdb1acdd33fa"
+  },
+  "remaining": "Broader working-file menu audit, alternate diff-tool selection, Cleanup, preference persistence/navigation and full dialog/Finder/signed acceptance."
+}
