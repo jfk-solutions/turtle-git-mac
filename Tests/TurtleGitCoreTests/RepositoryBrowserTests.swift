@@ -78,8 +78,30 @@ final class RepositoryBrowserTests: XCTestCase {
             do { _ = try await repo.browseRepository(revision: invalid); XCTFail("Non-tree revision accepted") } catch {}
         }
     }
+    func testRevertSupportsSHA256PinnedCommit() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitBrowserSHA256-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let executable = ProcessInfo.processInfo.environment["TURTLEGIT_BROWSER_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? URL(fileURLWithPath: "/usr/bin/git")
+        let repo = GitRepository(root: root, executable: executable)
+        _ = try await repo.run(["init", "--object-format=sha256", "--initial-branch=main"])
+        _ = try await repo.run(["config", "user.name", "Browser QA"]); _ = try await repo.run(["config", "user.email", "browser@example.invalid"])
+        _ = try await repo.run(["config", "commit.gpgSign", "false"])
+        let path = ":(glob)* 雪.bin", bytes = Data([0, 255, 10])
+        try bytes.write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "first")
+        let snapshot = try await repo.browseRepository(), entry = try XCTUnwrap(snapshot.entries.first)
+        XCTAssertEqual(snapshot.objectID?.count, 64); XCTAssertEqual(entry.objectID.count, 64)
+        try Data("second".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "second")
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        try Data("local edits".utf8).write(to: root.appendingPathComponent(path))
+        try await repo.revertRepositoryBrowserFile(snapshot, entry: entry)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), bytes)
+        let indexed = try await repo.run(["show", ":" + path]).stdout, finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(indexed, bytes); XCTAssertEqual(finalHead, head)
+    }
     func testRevertRestoresPinnedBytesModesAndIndexWithoutMovingHead() async throws {
-        let (root, repo, _) = try await GitPatchTests().fixture()
+        let (root, fixtureRepo, _) = try await GitPatchTests().fixture()
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_BROWSER_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
         defer { try? FileManager.default.removeItem(at: root) }
         let name = ":(glob)*.bin", binary = Data([0, 255, 10, 13])
         try binary.write(to: root.appendingPathComponent(name))
@@ -118,7 +140,8 @@ final class RepositoryBrowserTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("unrelated.txt")), Data("unrelated staged".utf8))
     }
     func testRevertRejectsForeignFoldersSubmodulesBareAndEscapedAncestors() async throws {
-        let (root, repo, _) = try await GitPatchTests().fixture()
+        let (root, fixtureRepo, _) = try await GitPatchTests().fixture()
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_BROWSER_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
         defer { try? FileManager.default.removeItem(at: root) }
         try FileManager.default.createDirectory(at: root.appendingPathComponent("nested"), withIntermediateDirectories: false)
         try Data("historical".utf8).write(to: root.appendingPathComponent("nested/file.txt"))
@@ -130,13 +153,18 @@ final class RepositoryBrowserTests: XCTestCase {
         let nested = try await repo.browseRepositoryDirectory(snapshot, directory: "nested")
         let file = try XCTUnwrap(nested.entries.first)
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let ordinary = try XCTUnwrap(snapshot.entries.first { $0.kind == .file })
+        for invalid in ["--force", "HEAD", "", "1234"] {
+            let forged = RepositoryBrowserSnapshot(root: snapshot.root, revision: snapshot.revision, objectID: invalid, treeID: snapshot.treeID, directory: snapshot.directory, bare: false, entries: snapshot.entries)
+            do { try await repo.revertRepositoryBrowserFile(forged, entry: ordinary); XCTFail("Unpinned object accepted") } catch RepositoryBrowserFailure.selection {}
+        }
         for entry in snapshot.entries.filter({ [.directory, .submodule].contains($0.kind) }) {
             do { try await repo.revertRepositoryBrowserFile(snapshot, entry: entry); XCTFail("Unsupported kind restored") } catch is RepositoryBrowserFailure {}
         }
         do { try await repo.revertRepositoryBrowserFile(snapshot, entry: file); XCTFail("Foreign entry restored") } catch is RepositoryBrowserFailure {}
         let bareRoot = root.appendingPathComponent("bare.git")
         _ = try await repo.run(["clone", "--bare", "--", root.path, bareRoot.path])
-        let bareRepo = GitRepository(root: bareRoot), bare = try await bareRepo.browseRepository(directory: "nested")
+        let bareRepo = GitRepository(root: bareRoot, executable: repo.executable), bare = try await bareRepo.browseRepository(directory: "nested")
         do { try await bareRepo.revertRepositoryBrowserFile(bare, entry: XCTUnwrap(bare.entries.first)); XCTFail("Bare restored") } catch is RepositoryBrowserFailure {}
         let outside = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitBrowserOutside-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: false)
@@ -149,7 +177,8 @@ final class RepositoryBrowserTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
     func testRevertLockFailureLeavesFileAndIndexUnchangedThenCanResume() async throws {
-        let (root, repo, _) = try await GitPatchTests().fixture()
+        let (root, fixtureRepo, _) = try await GitPatchTests().fixture()
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_BROWSER_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
         defer { try? FileManager.default.removeItem(at: root) }
         let snapshot = try await repo.browseRepository()
         let entry = try XCTUnwrap(snapshot.entries.first { $0.kind == .file })

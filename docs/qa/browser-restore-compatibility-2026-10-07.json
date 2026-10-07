@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "36b7c9f",
+  "scope": "Repository Browser pinned file restore older-Git compatibility and macOS CI native item-provider script repair",
+  "sha256": {
+    "Sources/TurtleGitCore/RepositoryBrowser.swift": "0560916c60a03cb5296f618f82ca0c9653e6c275187c78e599fbcddee13b0a2d",
+    "Tests/TurtleGitCoreTests/RepositoryBrowserTests.swift": "e5fcb366e6c2bdff5929bd1d8d4469e1d442abb6de1005c2cef30c5890eeeec8",
+    "scripts/verify-browser-item-provider.sh": "d051624baab8d641d0659383d8992db8f6cef334dd56c835a25982b79b62d8d7",
+    "docs/REPOSITORY-BROWSER-PARITY.md": "b06f2390a2d7617286601874f54fb19de3e6e39b77c9a3739e77ebb843d01f20"
+  },
+  "all_sources_manifest_sha256": "b7eb625e4e112d42832eb6334d5e427a7324ce7669b661ccdbc99b5ef77e6d34",
+  "verification": {
+    "before_fix": "Focused actual Browser restore on Git 2.37.1 reproduced code 128: only one reference expected, 2 given, from checkout --end-of-options.",
+    "core": {
+      "system": "All 10 RepositoryBrowserTests passed on Apple Git 2.50.1.",
+      "matrix": [
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "matrix_scope": "Four testRevert cases per version: moved-tag pinned binary/symlink/executable restore and unrelated index/HEAD preservation; foreign/kind/bare/symlink-ancestor and unpinned option/ref/short object refusal; index lock recovery; real SHA-256 64-character commit/blob restore and unchanged HEAD."
+    },
+    "native_provider": "The exact script invoked by .github/workflows/macos.yml now compiles its receiver to the owned temporary output path and runs it once with a 60-second timeout. Local execution passed: actual NSItemProvider file/folder receivers read pinned binary contents, HEAD/index/working bytes unchanged, owned export cleanup checked. No GUI app or Finder launched.",
+    "builds": [
+      "SwiftPM test/build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed, including Store --require-git and 90 original icon resources.",
+    "site": "Local generation passed; not published",
+    "shell": "bash -n repaired provider script passed",
+    "process_audit": "No main app or native/menu/provider receiver remained.",
+    "limitations": "Browser displayed Revert menu/dialog interaction, multi-file/partial failures through controller, signed sandbox and activated Finder transport remain unverified. Hosted GitHub Actions status not inspected or confirmed; repair was reproduced/verified locally. This focused native provider check does not establish all UI parity. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/browser-restore-compatibility/2.37.1-restore.log": "d9f957149381642166d18e084beffe021e555487e63b9ba39e79f853d4b3773c",
+    "build/qa/browser-restore-compatibility/2.39.5-restore.log": "a4fe1e5c1d19aab31c2eb351c75d8926c555c6079103ef10ac17105ce38fd18f",
+    "build/qa/browser-restore-compatibility/2.55.0-restore.log": "4bb81b6defed105b76a68a2d53002bcb06485374fb677373534ddd04aac68db6",
+    "build/qa/browser-restore-compatibility/before-fix.log": "5faf0bd422e84369c6f23370a28e8a6a2f408637237407a640fdc50f8c043d7c",
+    "build/qa/browser-restore-compatibility/core.log": "d6069fba5b89f0708f002f0ef17eda477fac6de4d2f545d84eb547606f9da387",
+    "build/qa/browser-restore-compatibility/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/browser-restore-compatibility/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/browser-restore-compatibility/provider.log": "33aaa6d2a59aabf84f4157804df992f58e4bd882a39c89d2270f9e5f2d91fe32",
+    "build/qa/browser-restore-compatibility/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/browser-restore-compatibility/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/browser-restore-compatibility/store.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf"
+  },
+  "remaining": "Remaining file commands/Shift Add, selection-mark input fidelity, full dialog/layout parity, Finder activation, screenshots/publication and signed App Store acceptance."
+}

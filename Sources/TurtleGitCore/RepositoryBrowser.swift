@@ -174,9 +174,11 @@ extension GitRepository {
         guard snapshot.root == root, !snapshot.bare, try !isBare(),
               snapshot.entries.contains(entry), ![.directory, .submodule].contains(entry.kind),
               RepositoryBrowserListing.validPath(entry.path, allowRoot: false),
-              let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }
+              let object = snapshot.objectID, [40, 64].contains(object.count), object.allSatisfy(\.isHexDigit) else { throw RepositoryBrowserFailure.selection }
         _ = try restoreLocation(entry.path)
-        _ = try run(["checkout", "--end-of-options", object, "--", entry.path])
+        // This is a pinned hexadecimal object ID, never a command-line option.
+        // Older supported Git versions do not accept checkout --end-of-options.
+        _ = try run(["checkout", object, "--", entry.path])
     }
     public func repositoryBrowserFile(_ snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry) throws -> ComparisonFileContent {
         guard snapshot.root == root, snapshot.entries.contains(entry), entry.kind != .directory, let object = snapshot.objectID else { throw RepositoryBrowserFailure.selection }

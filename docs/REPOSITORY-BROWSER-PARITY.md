@@ -236,3 +236,21 @@ See [structured evidence](qa/repository-browser-2026-10-05.json).
 
 The source inventory keeps this dialog and command files partial. The complete
 application, all source commands and App Store distribution remain unfinished.
+
+## Pinned restore compatibility and CI receiver check
+
+Browser file Revert now passes the pinned hexadecimal object directly to Git
+checkout, followed by -- and the literal path. Git 2.37 rejects checkout's newer
+--end-of-options syntax; the restore regression reproduced that failure before
+the change. Object validation rejects option-like strings, symbolic revisions and
+short hashes before mutation. Both 40-character SHA-1 and 64-character SHA-256
+object IDs remain supported. The restore fixture covers moved-tag pinning, binary
+bytes, symlink/executable modes, unrelated staged content, unchanged HEAD, index
+locks and unsafe/foreign selections, plus a real SHA-256 repository.
+
+The item-provider verification script also had a malformed compiler output
+argument joined to a duplicated Python receiver command. It now builds the
+receiver inside its owned temporary directory and runs it once with a bounded
+60-second timeout. This is the script invoked by the macOS GitHub Actions workflow;
+local execution does not establish hosted CI success. No GUI app/Finder instance
+is launched by this receiver.
