@@ -2,6 +2,26 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingFileExportTests: XCTestCase {
+    func testWorkingOpenReturnsActualLiteralPathAndRefusesMissingDirectoriesMetadataAndBare() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let path = "open :(glob)* 雪\n.bin", url = root.appendingPathComponent(path), bytes = Data([0xff, 0, 13, 10])
+        try bytes.write(to: url)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let location = try await repo.workingFileOpenLocation(path: path); XCTAssertEqual(location, url)
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("link").path, withDestinationPath: path)
+        let linked = try await repo.workingFileOpenLocation(path: "link"); XCTAssertEqual(linked, root.appendingPathComponent("link"))
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("directory"), withIntermediateDirectories: true)
+        for invalid in ["missing", "directory", "../outside", ".git/index", "/absolute"] {
+            do { _ = try await repo.workingFileOpenLocation(path: invalid); XCTFail("Invalid working open accepted: " + invalid) } catch {}
+        }
+        let bare = root.appendingPathComponent("bare.git"); _ = try await repo.run(["init", "--bare", bare.path])
+        do { _ = try await GitRepository(root: bare).workingFileOpenLocation(path: "config"); XCTFail("Bare working open accepted") } catch RevisionComparisonFailure.selection {}
+        XCTAssertEqual(try Data(contentsOf: url), bytes)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, head)
+    }
     func testWorkingSaveAsPreservesBinaryBytesPermissionsAndIndexAndRejectsAliases() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
         let destination = root.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)

@@ -986,6 +986,56 @@ import TurtleGitCore
     log.selectedFileDiff(["untracked"]); precondition(!log.busy && workingPatch.isEmpty)
     log.showUnversionedFiles = false; log.updateWorkingFiles()
     print("Native selected working-file unified diff: tracked selection produces actual patch bytes, alternate handoff retained, unversioned selection refused without opening viewer passed. Handoff injected.")
+    log.window = window
+    let workingCopyPath = "copy :(glob)* 雪\n.bin", workingCopyURL = root.appendingPathComponent(workingCopyPath)
+    let workingCopyBytes = Data([0xff, 0, 13, 10])
+    try workingCopyBytes.write(to: workingCopyURL)
+    let workingCopyFolder = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-copy-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: workingCopyFolder, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: workingCopyFolder) }
+    let workingSaveURL = workingCopyFolder.appendingPathComponent("saved.bin")
+    log.showUnversionedFiles = true; log.reload(); try await waitLog(); log.select([""])
+    var workingOpened: [(URL, HistoricalOpenAction)] = [], workingSavePath: String?, workingExportPaths: [String] = []
+    log.presentWorkingOpen = { workingOpened.append(($0, $1)) }
+    log.presentWorkingSave = { workingSavePath = $0 }; log.presentWorkingExport = { workingExportPaths = $0 }
+    let copyIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), copyHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    for action in [HistoricalOpenAction.open, .openWith, .alternativeEditor] {
+        log.openHistoricalFile([workingCopyPath], action: action); try await waitLog()
+        precondition(log.error == nil && workingOpened.last?.0 == workingCopyURL && workingOpened.last?.1 == action)
+    }
+    log.saveHistoricalFile([workingCopyPath]); precondition(workingSavePath == workingCopyPath)
+    log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true); try await waitLog()
+    let savedWorkingCopy = try Data(contentsOf: workingSaveURL); precondition(savedWorkingCopy == workingCopyBytes)
+    log.chooseHistoricalExport([workingCopyPath, "change", "untracked"])
+    precondition(Set(workingExportPaths) == Set([workingCopyPath, "change", "untracked"]))
+    log.copyWorkingFiles(workingExportPaths, to: workingCopyFolder, save: false); try await waitLog()
+    let exportedWorkingCopy = try Data(contentsOf: workingCopyFolder.appendingPathComponent(workingCopyPath))
+    let exportedUntracked = try Data(contentsOf: workingCopyFolder.appendingPathComponent("untracked"))
+    let exportedTracked = try Data(contentsOf: workingCopyFolder.appendingPathComponent("change"))
+    precondition(log.error == nil && exportedWorkingCopy == workingCopyBytes && exportedUntracked == untracked && exportedTracked == Data("native working-row diff\n".utf8))
+    let openedCount = workingOpened.count
+    workingSavePath = nil; workingExportPaths = []; log.busy = true
+    log.openHistoricalFile([workingCopyPath], action: .open); log.saveHistoricalFile([workingCopyPath]); log.chooseHistoricalExport([workingCopyPath])
+    log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true)
+    precondition(workingOpened.count == openedCount && workingSavePath == nil && workingExportPaths.isEmpty); log.busy = false
+    log.openHistoricalFile([workingCopyPath], action: .open); log.selected = [hashes[7]]; try await waitLog()
+    precondition(workingOpened.count == openedCount); log.select([""])
+    let deleted = CommitFile.parse(names: Data("D\0deleted-copy\0".utf8), statistics: Data())[0]
+    let module = CommitFile.parse(names: Data("M\0module-copy\0".utf8), statistics: Data(), raw: Data(":160000 160000 old new M\0module-copy\0".utf8))[0]
+    log.files += [deleted, module]
+    log.saveHistoricalFile([deleted.path]); log.openHistoricalFile([module.path], action: .open)
+    log.chooseHistoricalExport([workingCopyPath, deleted.path, module.path])
+    precondition(workingSavePath == nil && workingOpened.count == openedCount && workingExportPaths == [workingCopyPath])
+    try FileManager.default.removeItem(at: workingCopyURL)
+    log.openHistoricalFile([workingCopyPath], action: .open); try await waitLog(); precondition(log.error != nil && workingOpened.count == openedCount)
+    log.error = nil
+    let copyAfterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), copyAfterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    precondition(copyAfterIndex == copyIndex && copyAfterHead == copyHead)
+    log.invalidate(); workingSavePath = nil; workingExportPaths = []
+    log.saveHistoricalFile([workingCopyPath]); log.chooseHistoricalExport([workingCopyPath]); log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true)
+    precondition(!log.busy && workingSavePath == nil && workingExportPaths.isEmpty)
+    log.showUnversionedFiles = false; log.reload(); try await waitLog(); log.select([""])
+    print("Native working-file Open/Open With/editor handoffs use actual disk URL; Save As/export preserve raw working bytes and unversioned selection, tracked bytes, HEAD/index, busy/selection/invalidation guards, deleted/submodule exclusions and stale missing-file refusal passed. Panels and application launches injected.")
     try savedWorking.write(to: root.appendingPathComponent("change"))
     reopened.model.load(good: hashes[0], bad: hashes[7], requireStart: true); try await wait(reopened.model)
     reopened.model.start(); try await wait(reopened.model); try await waitLog()

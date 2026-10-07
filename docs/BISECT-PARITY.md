@@ -232,7 +232,7 @@ details, whole/mixed/file comparison callbacks, actual Git unified patch bytes,
 Commit dispatch, empty-hash exclusion, current-commit Skip/Good/Bad and Reset,
 busy refusal and row show/hide. Handoffs are injected. Displayed graph/layout,
 keyboard/accessibility, activated menus and signed sandbox remain unverified.
-Working-file Blame, export/open/save, prepared comparison and conflict actions
+Working-file Blame, prepared comparison and conflict actions
 still require their upstream-specific implementation and acceptance.
 
 Selected-file patch checks preserve raw non-UTF-8 bytes, literal Unicode/newline
@@ -241,6 +241,16 @@ separate index and leave the real index, HEAD and working bytes unchanged.
 External diff/textconv filters are suppressed. The hidden native receiver checks
 actual selected-file patch bytes, alternate handoff and unversioned refusal;
 it does not establish displayed viewer or keyboard acceptance.
+
+Working-file Open, Open With and alternative editor now hand off the actual disk
+URL rather than a historical temporary copy. Save As and Export copy current disk
+bytes, including unversioned files, through the shared working-file copy engine.
+Export preserves relative paths and excludes deleted entries and submodules.
+Open validates current file existence/type before dispatch; the new routes refuse
+busy or invalidated models. Store builds validate repository and file access,
+and copies retain the chosen destination's security scope for the operation.
+Displayed panels, external application launches and exact-file sandbox grants
+for atomic Save As remain unverified.
 
 ## Working-tree repository commands
 

@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "65d5182",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log working-file Open, Open With, alternative editor, Save As and Export. Actual working URL and current disk bytes, including unversioned files; historical routes retained.",
+  "upstream_source": "src/Git/GitStatusListCtrl.cpp:1872-1889 menus, 4504-4590 FilesExport/FileSaveAs and 4673-4706 OpenFile",
+  "sha256": {
+    "Sources/TurtleGitCore/WorkingFileExport.swift": "75f0eac4252c01d30a5b82f76d5e7884e893ed764aa12d4d7822ff38e688d1d4",
+    "Sources/TurtleGitMac/LogWindow.swift": "d750302292bb01400fabe080d6a72f2c9cd903880036f0c329b8337085d76180",
+    "Tests/TurtleGitCoreTests/WorkingFileExportTests.swift": "d1024f5ad943d1fcd83c4ce7e3164d94b636d286835ce33825780c106babea2d",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "1892205ffcfe2c41191c4b0a17d2bef3cfdca1c54c029950a7bc7093facd8dc4",
+    "docs/BISECT-PARITY.md": "81ef8b91ebd72249ce7cdf78a1b86d36725e0a96e05468a9d4006d232b05403d",
+    "README.md": "8aa064c15f1627028e1f21812a3f880f840bd3b0cfcc54ecfcba03629dd6e4b1"
+  },
+  "all_sources_manifest_sha256": "deb0e73fb6af22319066d3c045c279e771d8a3edc0ab095648d54cdbd3be8d2f",
+  "verification": {
+    "core": "WorkingFileExportTests: 8 tests, zero failures on system Git. Actual literal working URL and file symlink path, missing/directory/metadata/outside/bare refusal, raw binary copy/permissions, source and index preservation, historical pinned export, destination alias guards and cancellation.",
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Open/Open With/editor callbacks receive actual disk URL. Save As/Export execute shared core copies and preserve raw working/unversioned and tracked bytes, HEAD/index. Busy/selection/invalidation and stale missing-file guards. Deleted/submodule exclusions use fabricated public-parser records. Existing focused native Log/Bisect/Export/Rebase fixtures pass."
+    },
+    "builds": [
+      "SwiftPM filtered tests compile app and tests",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed. Store --require-git, 90 upstream icons and universal helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Hidden owned windows; save/export panels and external application/editor launches injected, not activated. Displayed panels, keyboard/accessibility, activated Finder and signed sandbox remain unverified, including exact-file destination scope for atomic Save As. Full port incomplete."
+  },
+  "logs": {
+    "/tmp/turtlegit-log-working-copy-core.log": "70ce05ddadb0d42d8b7c616f0acf52c5920dca5d05dd5f1a2168fc17bd9a29ef",
+    "/tmp/turtlegit-log-working-copy-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-log-working-copy-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-log-working-copy-native.log": "0b9d4f2e24c394bea3930ca8810d54233453b37da14ad8b16d9ce56e31b7cdab",
+    "/tmp/turtlegit-log-working-copy-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-log-working-copy-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-log-working-copy-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  },
+  "remaining": "Working-file Blame, prepared/two-file comparison and conflict routes, Cleanup, preference persistence/navigation and broad dialog/Finder/signed parity acceptance."
+}

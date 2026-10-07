@@ -85,6 +85,15 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
         model.presentHistoricalExport = { [weak self] revision, files in
             DispatchQueue.main.async { [weak self] in self?.chooseHistoricalExport(revision: revision, files: files) }
         }
+        model.presentWorkingSave = { [weak self] path in
+            DispatchQueue.main.async { [weak self] in self?.chooseWorkingCopy(paths: [path], save: true) }
+        }
+        model.presentWorkingExport = { [weak self] paths in
+            DispatchQueue.main.async { [weak self] in self?.chooseWorkingCopy(paths: paths, save: false) }
+        }
+        model.presentWorkingOpen = { [weak self] file, action in
+            DispatchQueue.main.async { [weak self] in self?.openWorkingFile(file, action: action) }
+        }
         model.confirmExportFailure = { [weak self] message in
             guard let window = self?.window else { return false }
             return await withCheckedContinuation { continuation in
@@ -105,6 +114,51 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
             guard response == .OK, let folder = panel.url else { return }
             model?.exportHistoricalFiles(revision: revision, files: files, to: folder)
         }
+    }
+    private func chooseWorkingCopy(paths: [String], save: Bool) {
+        guard let window, window.attachedSheet == nil, !model.busy, !model.isInvalidated else { return }
+        let panel: NSSavePanel
+        if save {
+            let savePanel = NSSavePanel(); savePanel.title = "Save As"
+            let source = model.repository.root.appendingPathComponent(paths[0])
+            savePanel.nameFieldStringValue = source.lastPathComponent
+            savePanel.directoryURL = source.deletingLastPathComponent()
+            savePanel.allowsOtherFileTypes = true; panel = savePanel
+        } else {
+            let openPanel = NSOpenPanel(); openPanel.title = "Export selected files"; openPanel.prompt = "Export"
+            openPanel.canChooseFiles = false; openPanel.canChooseDirectories = true
+            openPanel.allowsMultipleSelection = false; panel = openPanel
+        }
+        panel.canCreateDirectories = true
+        panel.beginSheetModal(for: window) { [weak model] response in
+            guard response == .OK, let target = panel.url else { return }
+            model?.copyWorkingFiles(paths, to: target, save: save)
+        }
+    }
+    private func openWorkingFile(_ file: URL, action: HistoricalOpenAction) {
+        guard let window, window.attachedSheet == nil, !model.busy, !model.isInvalidated else { return }
+        if action == .openWith {
+            let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
+            panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
+            panel.beginSheetModal(for: window) { [weak self] response in
+                guard response == .OK, let app = panel.url else { return }
+                self?.launchWorkingFile(file, action: action, application: app)
+            }
+        } else { launchWorkingFile(file, action: action) }
+    }
+    private func launchWorkingFile(_ file: URL, action: HistoricalOpenAction, application: URL? = nil) {
+        guard !model.busy, !model.isInvalidated else { return }
+        do { try model.validateWorkingFileAccess(file) } catch { model.error = error.localizedDescription; return }
+        let failed: @MainActor @Sendable (String?) -> Void = { [weak model] error in if let error { model?.error = error } }
+        if action == .alternativeEditor { AlternativeEditor.open(file, completion: failed) }
+        else if let application {
+            let scoped = application.startAccessingSecurityScopedResource()
+            NSWorkspace.shared.open([file], withApplicationAt: application, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                if scoped { application.stopAccessingSecurityScopedResource() }
+                DispatchQueue.main.async { failed(error?.localizedDescription) }
+            }
+        } else if !NSWorkspace.shared.open(file) { failed("Could not open the working file. Choose an application using Open With.") }
     }
     private func openHistoricalFile(_ content: ComparisonFileContent, action: HistoricalOpenAction) {
         guard let window, window.attachedSheet == nil else { return }
@@ -561,6 +615,9 @@ struct LogCommandRequest: Identifiable {
     var presentHistoricalSave: (ComparisonFileContent, String) -> Void = { _, _ in }
     var presentHistoricalOpen: (ComparisonFileContent, HistoricalOpenAction) -> Void = { _, _ in }
     var presentHistoricalExport: (String, [CommitFile]) -> Void = { _, _ in }
+    var presentWorkingSave: (String) -> Void = { _ in }
+    var presentWorkingExport: ([String]) -> Void = { _ in }
+    var presentWorkingOpen: (URL, HistoricalOpenAction) -> Void = { _, _ in }
     var confirmExportFailure: (String) async -> Bool = { _ in false }
     weak var window: NSWindow?
     var onFileLog: ((String, String?) -> Void)?
@@ -857,10 +914,11 @@ struct LogCommandRequest: Identifiable {
         } else { onFileLog(file.path, revision.hash) }
     }
     func chooseHistoricalExport(_ ids: Set<String>) {
-        guard !busy, let revision, window?.attachedSheet == nil else { return }
+        guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, window?.attachedSheet == nil else { return }
         let chosen = visibleFiles.filter { ids.contains($0.id) }
         guard chosen.contains(where: { !$0.isSubmodule && !$0.action.hasPrefix("D") }) else { return }
-        presentHistoricalExport(revision.hash, chosen)
+        if selectedWorkingTree { presentWorkingExport(chosen.filter { !$0.isSubmodule && !$0.action.hasPrefix("D") }.map(\.path)) }
+        else if let revision { presentHistoricalExport(revision.hash, chosen) }
     }
     func exportHistoricalFiles(revision: String, files: [CommitFile], to folder: URL) {
         guard !busy else { return }; busy = true
@@ -885,6 +943,11 @@ struct LogCommandRequest: Identifiable {
         } catch { self.error = error.localizedDescription }
     }
     func saveHistoricalFile(_ ids: Set<String>) {
+        if selectedWorkingTree {
+            guard !busy, !isInvalidated, !bare, ids.count == 1, window?.attachedSheet == nil,
+                  let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+            presentWorkingSave(file.path); return
+        }
         guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         busy = true
@@ -899,6 +962,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func openHistoricalFile(_ ids: Set<String>, action: HistoricalOpenAction) {
+        if selectedWorkingTree { openWorkingFile(ids, action: action); return }
         guard !busy, let revision, ids.count == 1, let window, window.attachedSheet == nil,
               let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
         busy = true
@@ -908,6 +972,39 @@ struct LogCommandRequest: Identifiable {
                 let content = try await repository.historicalFile(revision: revision.hash, path: file.path)
                 busy = false; presentHistoricalOpen(content, action)
             } catch { self.error = error.localizedDescription; busy = false }
+        }
+    }
+    func validateWorkingFileAccess(_ file: URL) throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true || access?.contains(file) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    private func openWorkingFile(_ ids: Set<String>, action: HistoricalOpenAction) {
+        guard !busy, !isInvalidated, !bare, ids.count == 1, window?.attachedSheet == nil,
+              let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        let request = generation, selection = selected
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
+                let location = try await repository.workingFileOpenLocation(path: file.path)
+                guard !isInvalidated, request == generation, selection == selected else { return }
+                try validateWorkingFileAccess(location)
+                busy = false; presentWorkingOpen(location, action)
+            } catch { if !isInvalidated, request == generation { self.error = error.localizedDescription } }
+        }
+    }
+    func copyWorkingFiles(_ paths: [String], to target: URL, save: Bool) {
+        guard !busy, !isInvalidated, !bare, !paths.isEmpty, !save || paths.count == 1 else { return }
+        busy = true
+        Task {
+            let scoped = target.startAccessingSecurityScopedResource()
+            defer { if scoped { target.stopAccessingSecurityScopedResource() }; busy = false }
+            do {
+                for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
+                if GitRuntime.isAppStoreBuild && !scoped { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if save { try await repository.saveWorkingFile(path: paths[0], to: target) }
+                else { _ = try await repository.exportWorkingFiles(paths: paths, to: target) }
+            } catch { self.error = error.localizedDescription }
         }
     }
     func importWorkingComparisonMark(_ access: WorkingComparisonAccess?) {
@@ -1135,7 +1232,7 @@ struct LogDialog: View {
             Divider()
         }
         Button { model.chooseHistoricalExport(ids) } label: { CommandLabel(title: "Export…", icon: .export) }
-            .disabled(model.busy || model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
+            .disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule && !file.action.hasPrefix("D") {
             historicalFileActions(ids)
         }
@@ -1159,10 +1256,11 @@ struct LogDialog: View {
         }
     }
     @ViewBuilder private func historicalFileActions(_ ids: Set<String>) -> some View {
-        Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy || model.revision == nil)
-        Button { model.openHistoricalFile(ids, action: .alternativeEditor) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy || model.revision == nil)
-        Button { model.openHistoricalFile(ids, action: .open) } label: { CommandLabel(title: "Open", icon: .open) }.disabled(model.busy || model.revision == nil)
-        Button { model.openHistoricalFile(ids, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(model.busy || model.revision == nil)
+        let unavailable = model.busy || !model.selectedWorkingTree && model.revision == nil
+        Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: model.selectedWorkingTree ? "Save As…" : "Save revision to…", icon: .saveAs) }.disabled(unavailable)
+        Button { model.openHistoricalFile(ids, action: .alternativeEditor) } label: { CommandLabel(title: model.selectedWorkingTree ? "View in alternative editor" : "View revision in alternative editor", icon: .editor) }.disabled(unavailable)
+        Button { model.openHistoricalFile(ids, action: .open) } label: { CommandLabel(title: "Open", icon: .open) }.disabled(unavailable)
+        Button { model.openHistoricalFile(ids, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(unavailable)
     }
 
 }
