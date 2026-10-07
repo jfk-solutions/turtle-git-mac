@@ -173,6 +173,10 @@ private final class MessageTextView: NSTextView {
 }
 
 struct CommitEditorSettings: View {
+    @AppStorage("SelectFilesForCommit") private var selectFiles = true
+    @AppStorage("AutoselectMissingFiles") private var noMissing = false
+    @AppStorage("Commit.MaxHistoryItems") private var historyLimit = 25
+    @AppStorage("AutocompleteParseTimeout") private var parseTimeout = 5
     @AppStorage("StyleCommitMessages") private var styleMessages = true
     @AppStorage("AutoCompleteMinChars") private var completionMinimum = 3
     @AppStorage("Autocompletion") private var autocompletion = true
@@ -182,7 +186,11 @@ struct CommitEditorSettings: View {
             Toggle("Style commit messages", isOn: $styleMessages)
             Text(verbatim: "Use *bold*, ^italic^ and _underlined_ text. Markers remain in the commit message. Issue and URL links stay enabled.")
                 .font(.caption).foregroundStyle(.secondary)
-            Toggle("Enable auto-completion", isOn: $autocompletion)
+            Toggle("Use auto-completion of file paths and keywords", isOn: $autocompletion)
+            Stepper("Timeout in seconds to stop the auto-completion parsing: \(parseTimeout)", value: $parseTimeout, in: 1...100).disabled(!autocompletion)
+            Stepper("Max. items to keep in the log message history: \(historyLimit)", value: $historyLimit, in: 1...100)
+            Toggle("Select items automatically", isOn: $selectFiles)
+            Toggle("Do not auto-select \"missing\" files (deleted, but unstaged)", isOn: $noMissing)
             Stepper("Complete after \(completionMinimum) characters", value: $completionMinimum, in: 1...100).disabled(!autocompletion)
             Toggle("Include file names without extensions", isOn: $removeExtensions).disabled(!autocompletion)
             Text("File and code completions come from the displayed changes. Press Ctrl-Space or Option-Escape to request them after one character.").font(.caption).foregroundStyle(.secondary)

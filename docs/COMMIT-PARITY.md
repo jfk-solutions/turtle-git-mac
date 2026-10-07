@@ -306,7 +306,7 @@ Paste last message always inserts at the selection.
 
 History lives in user defaults, keyed by the canonical Git common administrative
 directory; linked worktrees share it. The default limit is 25, with an internal
-`Commit.MaxHistoryItems` preference (settings UI still pending). Empty entries are
+`Commit.MaxHistoryItems` preference (settings UI now available in Settings → Commit). Empty entries are
 ignored and exact duplicates move to the front. Each mutation reloads the current
 store so other open dialogs' newer entries are retained. Successful commits save
 the submitted message, and amendments also retain the pre-amend draft. Failed
@@ -1331,3 +1331,34 @@ programmatic model decisions and actual Git effects. Displayed sheet buttons,
 actual child-window focus and parent refresh after a child commit, multiple
 prompt sequencing, scoped staging combinations and signed sandbox handoff still
 need acceptance. Full Commit and application parity remain incomplete.
+
+## Automatic-selection and history settings
+
+Settings → Commit now exposes the source **Select items automatically** (on),
+**Do not auto-select "missing" files (deleted, but unstaged)** (off),
+**Max. items to keep in the log message history** (25) and
+**Timeout in seconds to stop the auto-completion parsing** (5). Native steppers
+use the same Settings Dialogs 2 validation range, 1–100. The completion timeout
+uses the existing code scanner preference. macOS settings save immediately;
+there is no Windows Apply step.
+
+New Commit dialogs capture the automatic-selection and missing-file preferences.
+Automatic selection excludes unversioned descendants, ignores the
+ignore-on-commit changelist, respects the submodule switch and skips conflicted
+rows. A missing row is a deletion in the worktree; an already staged deletion
+remains eligible. Explicit file paths from the entry point override automatic
+selection and missing exclusion. Selecting a folder does not make every child a
+direct selection. Refresh preserves existing manual checks. ReCommit enables
+automatic selection for the next attempt, as `CAppUtils::Commit` does, without
+changing the saved preference. Replay split selection retains its forced-on rule.
+
+The history limit is read when message history is initialized; changing it affects
+newly opened dialogs. The existing persisted `Commit.MaxHistoryItems` key is
+retained. [Native QA](qa/commit-selection-settings-2026-10-07.json) records actual
+status rows, direct-file/folder distinctions, manual Refresh, saved preference
+snapshots, two-entry history and a real ReCommit. Hidden settings layout is not
+physical control acceptance. Displayed checkbox/stepper input, keyboard and
+VoiceOver, scope/missing combinations involving renames, full replay selection,
+completion timeout UI changes and signed sandbox acceptance remain pending.
+The source Strip commented lines setting and the remaining Dialogs 2 controls
+are still outstanding; this does not establish full Commit parity.

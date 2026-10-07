@@ -371,3 +371,8 @@ the Windows registry and no-previous-version message box.
 The checked dirty-submodule Commit preflight and Commit/Ignore/Cancel prompt adapt
 CommitDlg.cpp and its resource text under the upstream source license. Native
 child Commit windows replace launching TortoiseGitProc for the submodule.
+
+Commit selection defaults and the Commit settings controls adapt CommitCommand,
+CommitDlg, GitStatusListCtrl and Settings/SetDialogs2 under the upstream source
+license. macOS preferences replace the source registry; explicit file selections
+retain the source exception to automatic selection and missing-file exclusion.

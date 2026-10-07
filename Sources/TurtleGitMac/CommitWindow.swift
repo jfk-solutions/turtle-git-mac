@@ -351,6 +351,9 @@ import UniformTypeIdentifiers
     @Published var author = ""
     @Published var showUnversioned = true
     private let unversionedDefaults: UserDefaults
+    private let dialogDefaults: UserDefaults
+    private var selectFilesAutomatically: Bool
+    private let doNotAutoselectMissing: Bool
     @Published var showWholeProject = true
     @Published var scopePaths: [String] = []
     @Published var busy = false
@@ -366,8 +369,11 @@ import UniformTypeIdentifiers
     var onCommitted: (String) -> Void = { _ in }
     var onPush: () -> Void = {}
     enum CompletionAction: String, CaseIterable { case commit = "Commit", recommit = "ReCommit", push = "Commit & Push" }
-    init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard, dialogDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
+        self.dialogDefaults = dialogDefaults
+        selectFilesAutomatically = dialogDefaults.object(forKey: "SelectFilesForCommit") as? Bool ?? true
+        doNotAutoselectMissing = dialogDefaults.bool(forKey: "AutoselectMissingFiles")
         showUnversioned = unversionedDefaults.object(forKey: "AddBeforeCommit") == nil || unversionedDefaults.bool(forKey: "AddBeforeCommit")
     }
     func setShowUnversioned(_ enabled: Bool) {
@@ -626,7 +632,10 @@ import UniformTypeIdentifiers
                 if resetChecks {
                     checked = Set(visibleEntries.filter { entry in
                         let inScope = scopePaths.isEmpty || scopePaths.contains { $0 == entry.path || entry.path.hasPrefix($0 + "/") }
-                        return inScope && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted && (entry.state != .untracked || !scopePaths.isEmpty)
+                        let directFile = scopePaths.contains(entry.path)
+                        let missing = entry.worktree == "D"
+                        let automatic = (selectFilesAutomatically || replaySplit != nil) && entry.state != .untracked && (!doNotAutoselectMissing || !missing)
+                        return inScope && (directFile || automatic) && !changelists.ignores(entry.path) && (!doNotAutoselectSubmodules || !submodules.contains(entry.path)) && entry.state != .conflicted
                     }.map(\.id))
                 } else { checked.formIntersection(Set(entries.map(\.id))) }
                 selection.formIntersection(Set(entries.map(\.id)))
@@ -639,8 +648,8 @@ import UniformTypeIdentifiers
                 if !loadedMessage {
                     issueProperties = try await repository.issueTrackerProperties()
                     let identity = try await repository.commitMessageHistoryIdentity()
-                    let storedLimit = UserDefaults.standard.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
-                    messageHistory = CommitMessageHistory(repositoryIdentity: identity, limit: storedLimit)
+                    let storedLimit = dialogDefaults.object(forKey: "Commit.MaxHistoryItems") as? Int ?? 25
+                    messageHistory = CommitMessageHistory(repositoryIdentity: identity, defaults: dialogDefaults, limit: storedLimit)
                     let seed = try await repository.commitMessageSeed()
                     messageTemplate = seed.template
                     if message.isEmpty && !amend {
@@ -847,6 +856,7 @@ import UniformTypeIdentifiers
                         if !seed.warnings.isEmpty { self.error = seed.warnings.joined(separator: "\n\n") }
                     } catch { messageTemplate = ""; message = ""; self.error = error.localizedDescription }
                     createBranch = false; newBranch = ""; amend = false; amendDiffToLastCommit = false; amendMessage = ""; nonAmendMessage = ""; setAuthorDate = false; resetAuthorDate = false; setAuthor = false; messageOnly = false
+                    selectFilesAutomatically = true
                     checked = []; selection = []; hasLoaded = false
                     busy = false
                     reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
