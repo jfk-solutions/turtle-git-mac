@@ -362,3 +362,8 @@ preferences, CryptoKit, URLSession and AppKit/SwiftUI.
 Log graph rollup adapts GitLogListBase.cpp and GitLogListAction.cpp's inherited
 expansion/collapse, forced-state toggling and hollow-node drawing under the same
 upstream source license. Native graph projection retains actual action parents.
+
+The Log revision double-click preference and parent-comparison handoff adapt
+GitLogListBase.cpp, GitLogListAction.cpp and Settings/SetDialogs.cpp under the
+upstream source license. UserDefaults and a native informational sheet replace
+the Windows registry and no-previous-version message box.

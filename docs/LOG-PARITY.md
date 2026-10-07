@@ -1455,3 +1455,30 @@ Projection still operates on the loaded revision batch. Cross-page rollup behavi
 compressed/search combinations, malformed/out-of-order topology, physical menu and
 light/dark graph appearance, keyboard/VoiceOver and signed sandbox acceptance
 remain pending. The full Log and application ports remain incomplete.
+
+## Revision double-click preference
+
+Settings → Dialogs now includes the source checkbox **Can double-click in log list
+to compare with previous revision** (`DiffByDoubleClickInLog`), off by default.
+The revision table's native double-action selector reads it for each activation,
+so changing the setting affects already open Logs. The earlier unconditional
+unified-diff double-click action is replaced by the source parent-comparison
+handoff. Explicit context-menu unified diff remains available independently.
+
+The first selected row in visible order supplies the comparison origin, including
+multiple selection, as `DiffSelectedRevWithPrevious` does. A commit compares with
+its first actual parent, including when compressed graph rows hide that parent;
+a working-tree row uses its captured HEAD. Roots and unborn working trees offer
+**No previous version.** rather than inventing an empty-tree comparison. A native
+informational sheet is used when the Log owns a window; headless/no-sheet cases
+use the existing navigation notice. Busy/closed and an occupied unified viewer
+refuse the handoff. Native settings save immediately through UserDefaults rather
+than the Windows Apply button.
+
+Programmatic double-action routing and actual revision pairs, defaults/live
+changes, merge/root/working/multiple selection, guards and repository preservation
+are recorded in [double-click QA](qa/log-double-click-2026-10-07.json). Physical
+pointer timing, clicked/selected ordering under modifier gestures, Shift alternate
+tool selection, follow-rename/path-specific comparison factories and displayed
+settings/sheet/keyboard/VoiceOver/signed acceptance remain pending. This is partial
+Log parity; the full application port remains incomplete.

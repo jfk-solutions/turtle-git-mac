@@ -21,3 +21,12 @@ working files. Rollup choices belong to the current Log window. Closing it reset
 those choices. Compression currently applies to the loaded history batch;
 cross-page behavior and physical UI acceptance are still being compared with
 TortoiseGit. See [Log parity](LOG-PARITY.md#compressed-graph-expandcollapse).
+
+## Double-click comparison
+
+Double-click comparison starts disabled, as in TortoiseGit. Enable **Settings →
+Dialogs → Can double-click in log list to compare with previous revision** to use
+it. It compares the first selected revision with its first parent. If several rows
+are selected, their first visible row supplies the comparison. A root commit
+reports **No previous version.** The context-menu comparison and unified-diff
+commands remain available without this setting.

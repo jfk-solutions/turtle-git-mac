@@ -1742,6 +1742,20 @@ struct LogCommandRequest: Identifiable {
         if let onFileComparisons { onFileComparisons(requests) }
         else { for (from, to, paths) in requests { onFileCompare?(from, to, paths) } }
     }
+    func doubleClickRevision() {
+        guard labelDefaults.bool(forKey: "DiffByDoubleClickInLog"), !busy, !isInvalidated, !unifiedViewerBusy,
+              let chosen = entries.first(where: { selected.contains($0.hash) }) else { return }
+        guard let parent = chosen.parents.first else {
+            let message = "No previous version."
+            if let window, window.attachedSheet == nil {
+                let alert = NSAlert(); alert.messageText = message; alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK"); alert.beginSheetModal(for: window)
+            } else { navigationNotice = message }
+            return
+        }
+        guard !chosen.hash.isEmpty || !bare else { return }
+        onCompare?(.revision(parent), chosen.hash.isEmpty ? .workingTree : .revision(chosen.hash))
+    }
     func compare(workingTree: Bool = false) {
         guard !busy, let onCompare, !workingTree || !bare else { return }
         if includesWorkingTree, !workingTree, selected.count <= 2 {
@@ -2047,6 +2061,7 @@ struct LogDialog: View {
 }
 
 struct LogDialogSettings: View {
+    @AppStorage("DiffByDoubleClickInLog") private var diffByDoubleClick = false
     @AppStorage("EnableGravatar") private var enableGravatar = false
     @AppStorage("GravatarUrl") private var gravatarURL = LogGravatarRequest.defaultTemplate
     @AppStorage("GravatarUseMD5") private var gravatarMD5 = false
@@ -2057,6 +2072,8 @@ struct LogDialogSettings: View {
         Form {
             GroupBox("Log messages") {
                 VStack(alignment: .leading, spacing: 10) {
+                    Toggle("Can double-click in log list to compare with previous revision", isOn: $diffByDoubleClick)
+                        .help("If checked, double-clicking on a revision in the log list compares it with the previous revision")
                     Toggle("Short date/time format in log messages", isOn: $shortDate).disabled(!useSystemLocale)
                     Toggle("Relative Times in log", isOn: $relative)
                     Toggle("Use system locale for date/time", isOn: $useSystemLocale)
@@ -2108,7 +2125,7 @@ struct RevisionTable: NSViewRepresentable {
         let headerMenu = NSMenu(); headerMenu.delegate = context.coordinator
         table.headerView?.menu = headerMenu; context.coordinator.headerMenu = headerMenu
         table.delegate = context.coordinator; table.dataSource = context.coordinator
-        table.doubleAction = #selector(Coordinator.showDiff); table.target = context.coordinator
+        table.doubleAction = #selector(Coordinator.doubleClickRevision); table.target = context.coordinator
         table.menu = NSMenu(); table.menu?.delegate = context.coordinator
         context.coordinator.table = table
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
@@ -2373,6 +2390,7 @@ struct RevisionTable: NSViewRepresentable {
         @objc func revert() { model.request(.revert) }
         @objc func revertParent(_ sender: NSMenuItem) { model.request(.revert, mainline: sender.tag) }
         @objc func cherryPick() { model.request(.cherryPick) }
+        @objc func doubleClickRevision() { model.doubleClickRevision() }
         @objc func showDiff() { model.diff(alternate: NSEvent.modifierFlags.contains(.shift)) }
         @objc func compare() { model.compare() }
         @objc func workingDiff() { model.compare(workingTree: true) }

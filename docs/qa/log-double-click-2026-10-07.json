@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "602a7364b93f4ffa52a69991e41480a10bcfc216",
+  "scope": "Log revision double-click preference, native table double-action routing and parent-comparison handoff. Full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/TortoiseProc/Settings/SetDialogs.cpp": "14912ad2447b6a5e2828d0f0f1bfa035fcaf0298",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "df920c81344592479619bbe22ea02f910c4b581d19d7728ec7b6619d45035565",
+    "NOTICE": "322ea9440f14d72143335ea101d1b9b30e7fb24c5b7742f1b5876e6499af77fc",
+    "Sources/TurtleGitMac/LogWindow.swift": "347e3eb8134128016d5ed6a530036080a83967cf75b633add2f1a26787ad028c",
+    "docs/LOG-GRAPH.md": "92efa2b04c9073e44aa55419be77d7911cadcc0c99472b71d053967c693bbf0d",
+    "docs/LOG-PARITY.md": "c97359cf030fad3100de9aaf5f36fdf4020a4f9f669a519992b99c772809ca76",
+    "docs/qa/log-double-click-native-2026-10-07.swift": "d87ab73b402b7171f773807e99ebe809ae2aebae7db85b6ebac4fda6649b7a8f",
+    "docs/upstream-controls.csv": "6695c3313f368c5fa5f4b5ad02a9a3a266ce544f478fea6a2bb1ec0b96cb9378",
+    "scripts/test-log-double-click.py": "8eaed8beef78cfb87fe644660878f55391af338a5e82845e2cd5269e446ba700"
+  },
+  "all_sources_manifest_sha256": "60e52474cdb0c782329a36106d4785f65096e8f6d86d212262f410738562c311",
+  "verification": {
+    "core": "All 49 selected CommitHistory/AdvancedSettings/MenuIcon tests passed.",
+    "native": "Final hidden native receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Loaded actual merge history and working-tree snapshot; discovered the real NSTableView and exercised its registered doubleAction/target through NSApp.sendAction. Verified default off, immediate preference changes, real merge first parent, first visible selected row under multiple selection, root notice, actual captured HEAD and actual unborn-repository notice, busy and invalidated guards. Hosted native Log and settings layouts without displaying windows. Exact original index/config/HEAD and tracked file bytes preserved. This is programmatic selector/model evidence, not physical pointer or displayed sheet evidence.",
+    "initial_failure": "Initial receiver supplied a working row without loading repository metadata, leaving the model bare=true; its working-tree comparison assertion failed. Corrected the fixture to perform real repository reload, and strengthened it to inspect the actual table action and load an actual unborn repository. No production-source change was needed for the fixture correction.",
+    "builds": "Unsigned Debug and AppStore builds passed, both bundle validators and exact bundled NOTICE comparisons passed; all 96 original icon resources audited. Store --require-git verified 11 universal Git Mach-O files and fixture operations. EditorConfig and IssueRegex audits passed.",
+    "documentation": "Updated Log guide/parity and source control inventory, generated local site; unpublished.",
+    "ci": "Added headless native double-click receiver to macOS workflow. Hosted CI and publication unverified; no authentication or push retry.",
+    "processes": "All builds/receivers terminal; owned hidden windows closed, no main application launched. Final app/receiver process audit empty. Removed five owned UUID-named DoubleClick QA preferences (empty or containing only the test double-click preference), including the failed receiver domain.",
+    "limitations": "Physical double-click timing and clicked/selected modifier ordering, Shift alternate comparison tools, follow-rename/path-specific comparison factories, displayed settings and informational sheets, keyboard/VoiceOver and signed sandbox acceptance remain pending. Full application/dialog parity, activated Finder, genuine screenshots/full manual, signed release/App Store/license clearance and hosted site remain incomplete."
+  },
+  "logs": {
+    "build/qa/log-double-click/core.log": "6d4da3c96c833311652cb8c90539a458fc204592bf62e5887f7ea6781737b503",
+    "build/qa/log-double-click/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/log-double-click/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-double-click/native-final.log": "362439b9958a4391145925283b17cb97dffc5f86a02df96cb6613868d0d6b0a3",
+    "build/qa/log-double-click/native.log": "2398af1dcb8ab328d2ca84eef280d9d7bf55b4d93ad2daa6f07c1a0e23c8979f",
+    "build/qa/log-double-click/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-double-click/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/log-double-click/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
