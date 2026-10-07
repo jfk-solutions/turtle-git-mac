@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "c199464",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Working-row Log Blame uses fresh pinned HEAD, preserving upstream committed-content behavior and class gates; unversioned Show Log excluded",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:1860-1870 and 2403-2406",
+    "src/TortoiseProc/AppUtils.cpp:712-721 (omits /rev for working copy)",
+    "src/TortoiseGitBlame/TortoiseGitBlameDoc.cpp:83-102 and 216 (empty revision defaults to HEAD, Git blame uses explicit revision)"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "587a6257e0e7804850d29049b3326dca562cc79352678795a55ef9bee8fd7fd7",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "e73203b26f4beaa369d4e1dfff4911cd4d57ad628963a0a507732e521cad44b6",
+    "docs/BISECT-PARITY.md": "79570080c6ee10507d3becfa426b2f4ad6c3128976a92e2ffa1cf00a99213294",
+    "docs/BLAME-PARITY.md": "1b67391e7a87b79ff3b25f714af9fd6b7b5396424c9c2ea2725b294467bb7c4e",
+    "README.md": "34d6d3f02db98f7e0b4c5478ad29ca7b5051e5cee7afe32f5911c3e4ecfe17c3"
+  },
+  "all_sources_manifest_sha256": "fb88b56f6975f868a96fc2086052ec6faa1e57c410742bd5ecd95e8c4a91b324",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Fresh pinned HEAD callback; actual hidden Blame controller loads committed bytes while work bytes differ and closes its owned window. Moved actual HEAD resolves fresh; historical callback remains. Missing working-file refusal, added/unversioned/deleted/submodule/unborn/busy/selection/invalidation guards. Unversioned File Log exclusion. Existing index/HEAD preservation and focused Log/Bisect/Export/Rebase fixtures pass. Added/deleted/submodule classifier entries fabricated; unborn repository and HEAD moves are real disposable Git states."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed. Store --require-git, 90 upstream icons and universal helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Hidden owned controller snapshot checks; Root handoff injected. No displayed context menu, screenshot, keyboard/accessibility or signed sandbox acceptance. Historical engine unchanged; no new core unit tests added. Full port incomplete."
+  },
+  "logs": {
+    "/tmp/turtlegit-log-working-blame-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-log-working-blame-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-log-working-blame-native.log": "8982308d24fc7abefe76e87fc501656c8d25c04b7fb1d6c22997b9224d6acc9a",
+    "/tmp/turtlegit-log-working-blame-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-log-working-blame-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-log-working-blame-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-log-working-blame-swift.log": "74af2d6130fb340963839360b6103782b89bd8079c740535991f5dc4f0229def"
+  },
+  "remaining": "Working-file conflict actions, alternate diff-tool selection, Cleanup, preference persistence/navigation and broader dialog/Finder/signed parity acceptance."
+}

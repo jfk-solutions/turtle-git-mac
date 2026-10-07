@@ -1013,6 +1013,30 @@ import TurtleGitCore
     let exportedUntracked = try Data(contentsOf: workingCopyFolder.appendingPathComponent("untracked"))
     let exportedTracked = try Data(contentsOf: workingCopyFolder.appendingPathComponent("change"))
     precondition(log.error == nil && exportedWorkingCopy == workingCopyBytes && exportedUntracked == untracked && exportedTracked == Data("native working-row diff\n".utf8))
+    let headFile = try await repo.historicalFile(revision: "HEAD", path: "change")
+    var blameRequests: [(String, String)] = [], workingFileLogRequests = 0
+    log.onBlame = { blameRequests.append(($0, $1)) }; log.onFileLog = { _, _ in workingFileLogRequests += 1 }
+    precondition(log.canBlameFile(["change"]) && !log.canBlameFile([workingCopyPath]) && !log.canBlameFile(["change", workingCopyPath]))
+    log.fileLog([workingCopyPath]); precondition(workingFileLogRequests == 0)
+    log.fileLog(["change"]); precondition(workingFileLogRequests == 1)
+    log.blameFile(["change"]); try await waitLog()
+    precondition(log.error == nil && blameRequests.last?.0 == "change" && blameRequests.last?.1 == hashes[7])
+    let blameController = BlameWindowController(repository: repo, access: nil, path: "change", revision: blameRequests.last!.1, options: GitBlameOptions())
+    var blameClosed = false; blameController.onClosed = { blameClosed = true }
+    defer { if !blameClosed { blameController.close() } }
+    let blameDeadline = Date().addingTimeInterval(30)
+    while blameController.model.busy && Date() < blameDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    precondition(!blameController.model.busy && blameController.model.error == nil && blameController.model.snapshot?.contents == headFile.bytes)
+    precondition(blameController.model.snapshot?.contents != Data("native working-row diff\n".utf8) && blameController.window?.isVisible == false)
+    blameController.close(); precondition(blameClosed)
+    _ = try await repo.run(["update-ref", "HEAD", hashes[6]])
+    log.blameFile(["change"]); try await waitLog(); precondition(blameRequests.last?.1 == hashes[6])
+    _ = try await repo.run(["update-ref", "HEAD", hashes[7]])
+    let blameCount = blameRequests.count
+    log.blameFile(["change"]); log.selected = [hashes[7]]; try await waitLog(); precondition(blameRequests.count == blameCount)
+    log.blameFile(["change"]); precondition(blameRequests.last?.1 == hashes[7] && blameRequests.count == blameCount + 1)
+    log.select([""])
+    let guardedBlameCount = blameRequests.count
     var workingPairPaths: [String] = [], preparedPairs: [(PreparedFileComparisonMark, PreparedFileComparisonMark)] = []
     log.onWorkingFilePairCompare = { workingPairPaths = $0 }
     log.onPreparedFileCompare = { preparedPairs.append(($0, $1)) }
@@ -1022,8 +1046,8 @@ import TurtleGitCore
     let pairDocument = try await repo.comparisonFile(actualPair, path: workingPairPaths[1])
     let pairBytes = ["change": Data("native working-row diff\n".utf8), workingCopyPath: workingCopyBytes]
     precondition(pairDocument.base.bytes == pairBytes[workingPairPaths[0]] && pairDocument.destination.bytes == pairBytes[workingPairPaths[1]])
-    let headFile = try await repo.historicalFile(revision: "HEAD", path: "change")
     try FileManager.default.removeItem(at: root.appendingPathComponent("change"))
+    log.blameFile(["change"]); try await waitLog(); precondition(log.error != nil && blameRequests.count == guardedBlameCount); log.error = nil
     log.compareFilePair(pairIDs); let deletedPair = try await repo.workingFilePairComparison(paths: workingPairPaths)
     let deletedDocument = try await repo.comparisonFile(deletedPair, path: workingPairPaths[1])
     let deletedBytes = ["change": headFile.bytes, workingCopyPath: workingCopyBytes]
@@ -1053,13 +1077,17 @@ import TurtleGitCore
     log.openHistoricalFile([workingCopyPath], action: .open); log.saveHistoricalFile([workingCopyPath]); log.chooseHistoricalExport([workingCopyPath])
     log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true)
     log.compareFilePair(pairIDs); log.markForComparison(["change"]); log.compareWithMarkedFile(["change"])
+    log.blameFile(["change"]); precondition(!log.canBlameFile(["change"]) && blameRequests.count == guardedBlameCount)
     precondition(workingPairPaths.isEmpty && preparedPairs.count == preparedCount && log.comparisonMark?.path == retainedMark)
     precondition(workingOpened.count == openedCount && workingSavePath == nil && workingExportPaths.isEmpty); log.busy = false
     log.openHistoricalFile([workingCopyPath], action: .open); log.selected = [hashes[7]]; try await waitLog()
     precondition(workingOpened.count == openedCount); log.select([""])
     let deleted = CommitFile.parse(names: Data("D\0deleted-copy\0".utf8), statistics: Data())[0]
     let module = CommitFile.parse(names: Data("M\0module-copy\0".utf8), statistics: Data(), raw: Data(":160000 160000 old new M\0module-copy\0".utf8))[0]
-    log.files += [deleted, module]
+    let added = CommitFile.parse(names: Data("A\0added-copy\0".utf8), statistics: Data())[0]
+    log.files += [deleted, module, added]
+    for path in [deleted.path, module.path, added.path, workingCopyPath] { precondition(!log.canBlameFile([path])); log.blameFile([path]) }
+    precondition(blameRequests.count == guardedBlameCount)
     log.markForComparison([deleted.path]); log.compareWithMarkedFile([module.path]); log.compareFilePair([module.path, workingCopyPath])
     precondition(log.comparisonMark?.path == retainedMark && preparedPairs.count == preparedCount && workingPairPaths.isEmpty)
     log.saveHistoricalFile([deleted.path]); log.openHistoricalFile([module.path], action: .open)
@@ -1073,11 +1101,24 @@ import TurtleGitCore
     log.invalidate(); workingSavePath = nil; workingExportPaths = []
     log.saveHistoricalFile([workingCopyPath]); log.chooseHistoricalExport([workingCopyPath]); log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true)
     log.compareFilePair(pairIDs); log.markForComparison(["change"]); log.compareWithMarkedFile(["change"])
+    log.blameFile(["change"]); precondition(!log.canBlameFile(["change"]) && blameRequests.count == guardedBlameCount)
     precondition(workingPairPaths.isEmpty && preparedPairs.count == preparedCount && log.comparisonMark?.path == retainedMark)
     precondition(!log.busy && workingSavePath == nil && workingExportPaths.isEmpty)
     log.showUnversionedFiles = false; log.reload(); try await waitLog(); log.select([""])
     print("Native working-file Open/Open With/editor handoffs use actual disk URL; Save As/export preserve raw working bytes and unversioned selection, tracked bytes, HEAD/index, busy/selection/invalidation guards, deleted/submodule exclusions and stale missing-file refusal passed. Panels and application launches injected.")
     print("Native working-file pair/prepared comparison: list-order routing, real raw-byte working/working and historical/working comparisons in both directions, missing working side uses pinned HEAD, working mark label, busy/invalidation and deleted/submodule guards passed. Root viewer handoffs injected.")
+    do {
+        let unbornRoot = root.appendingPathComponent("blame-unborn")
+        _ = try await repo.run(["init", "--initial-branch=main", unbornRoot.path])
+        let unbornRepository = GitRepository(root: unbornRoot, executable: repo.executable)
+        try Data("new\n".utf8).write(to: unbornRoot.appendingPathComponent("new")); _ = try await unbornRepository.run(["add", "--", "new"])
+        let unbornLog = LogWindowModel(repository: unbornRepository, access: nil); unbornLog.onBlame = { _, _ in fatalError("Unborn Blame handoff") }
+        unbornLog.reload(); let unbornDeadline = Date().addingTimeInterval(30)
+        while unbornLog.busy && Date() < unbornDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        unbornLog.select([""]); precondition(!unbornLog.busy && unbornLog.error == nil && unbornLog.selectedWorkingTree && unbornLog.workingTreeSnapshot?.entry.parents.isEmpty == true && !unbornLog.canBlameFile(["new"]))
+        unbornLog.blameFile(["new"]); unbornLog.invalidate(); try FileManager.default.removeItem(at: unbornRoot)
+    }
+    print("Native working-row Blame: fresh pinned HEAD handoff, hidden actual viewer displays committed bytes rather than edits, moved HEAD and historical selection, missing working-file refusal, added/unversioned/deleted/submodule/unborn/busy/selection/invalidation guards and unversioned Show Log exclusion passed. Root handoff injected; owned viewer closed.")
     try savedWorking.write(to: root.appendingPathComponent("change"))
     reopened.model.load(good: hashes[0], bad: hashes[7], requireStart: true); try await wait(reopened.model)
     reopened.model.start(); try await wait(reopened.model); try await waitLog()

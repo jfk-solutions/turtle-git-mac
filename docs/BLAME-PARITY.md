@@ -890,8 +890,24 @@ This is partial functionality and native dialog fidelity.
 - Persistent/system encoding defaults, chooser/accessibility parity, unsupported
   codecs and byte-LF within other UTF-16 code units; binary, malformed text and
   symlinks remain unsupported.
-- Working/uncommitted content, Finder routing, cancellation/progress and signed
+- Finder routing, cancellation/progress and signed
   sandbox acceptance, including security-scoped access retained by the window.
 - Full light/dark visual comparison and keyboard/VoiceOver acceptance.
 
 The native viewer is partial; populated controls do not establish full source-file parity.
+
+## Working-tree Log entrypoint
+
+The pinned upstream status-list Blame command passes an empty revision for a
+working selection. `LaunchTortoiseBlame` omits `/rev`, and
+`TortoiseGitBlameDoc::OnOpenDocument` defaults to HEAD and runs Git blame against
+that revision. TurtleGit's working-row route now follows this committed-content
+behavior. It validates the disk file and resolves actual HEAD before handing a
+pinned commit to the existing native viewer. Added/unversioned/deleted files,
+submodules and repositories without HEAD are excluded; stale missing files and
+changed/invalidated selections refuse dispatch.
+
+The hidden native receiver checks actual HEAD snapshot bytes in a real Blame
+controller while the working file differs, moved HEAD, historical dispatch and
+the class/busy/selection guards. It closes the owned controller. Root dispatch is
+injected; displayed menus, appearance, keyboard and signed access remain pending.

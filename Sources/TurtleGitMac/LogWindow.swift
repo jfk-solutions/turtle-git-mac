@@ -906,7 +906,7 @@ struct LogCommandRequest: Identifiable {
         copy(text)
     }
     func fileLog(_ ids: Set<String>, oldName: Bool = false) {
-        if selectedWorkingTree, !busy, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), let onFileLog {
+        if selectedWorkingTree, !busy, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), file.action != "?", let onFileLog {
             onFileLog(oldName ? file.oldPath ?? file.path : file.path, nil); return
         }
         guard !busy, let onFileLog, let revision, ids.count == 1,
@@ -914,6 +914,29 @@ struct LogCommandRequest: Identifiable {
         if oldName {
             guard let path = file.oldPath else { return }; onFileLog(path, nil)
         } else { onFileLog(file.path, revision.hash) }
+    }
+    func canBlameFile(_ ids: Set<String>) -> Bool {
+        guard !busy, !isInvalidated, onBlame != nil, ids.count == 1,
+              let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return false }
+        if selectedWorkingTree { return !bare && workingTreeSnapshot?.entry.parents.first != nil && file.action != "?" && !file.action.hasPrefix("A") }
+        return revision != nil
+    }
+    func blameFile(_ ids: Set<String>) {
+        guard canBlameFile(ids), let onBlame, let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return }
+        if !selectedWorkingTree { if let revision { onBlame(file.path, revision.hash) }; return }
+        let request = generation, selection = selected
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
+                _ = try await repository.workingFileOpenLocation(path: file.path)
+                let content = try await repository.historicalFile(revision: "HEAD", path: file.path)
+                guard ["100644", "100755"].contains(content.mode ?? ""), case .revision(let hash) = content.revision else { throw GitBlameFailure.unsupported }
+                guard !isInvalidated, request == generation, selected == selection else { return }
+                busy = false; onBlame(file.path, hash)
+            } catch { if !isInvalidated, request == generation, selected == selection { self.error = error.localizedDescription } }
+        }
     }
     func chooseHistoricalExport(_ ids: Set<String>) {
         guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, window?.attachedSheet == nil else { return }
@@ -1228,12 +1251,12 @@ struct LogDialog: View {
         }
         Divider()
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
-            Button { model.fileLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
+            Button { model.fileLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil || model.selectedWorkingTree && file.action == "?")
             if file.oldPath != nil {
                 Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
             }
             if !file.isSubmodule && !file.action.hasPrefix("D") {
-                Button { if let revision = model.revision { model.onBlame?(file.path, revision.hash) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(model.busy || model.revision == nil || model.onBlame == nil)
+                Button { model.blameFile(ids) } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(!model.canBlameFile(ids))
             }
             Divider()
         }

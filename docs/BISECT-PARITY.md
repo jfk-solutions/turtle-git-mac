@@ -232,7 +232,7 @@ details, whole/mixed/file comparison callbacks, actual Git unified patch bytes,
 Commit dispatch, empty-hash exclusion, current-commit Skip/Good/Bad and Reset,
 busy refusal and row show/hide. Handoffs are injected. Displayed graph/layout,
 keyboard/accessibility, activated menus and signed sandbox remain unverified.
-Working-file Blame and conflict actions
+Working-file conflict actions
 still require their upstream-specific implementation and acceptance.
 
 Selected-file patch checks preserve raw non-UTF-8 bytes, literal Unicode/newline
@@ -267,6 +267,20 @@ fallback, mixed directions and busy/invalidation/deleted/submodule guards throug
 injected callbacks. Root viewer dispatch and Finder mark consumption are compiled
 and source-inspected; displayed/signed handoffs remain unverified. Shift alternate
 diff-tool selection still requires implementation.
+
+Working-row Blame now follows upstream's HEAD behavior: GitStatusListCtrl launches
+the viewer without a revision and TortoiseGitBlameDoc defaults that request to
+HEAD. It annotates committed bytes rather than the current edits. Log checks
+current file existence/type and resolves actual HEAD before dispatching a pinned
+revision. Added, unversioned, deleted, submodule and unborn selections are
+excluded. Busy, selection-change and invalidation guards prevent stale handoffs.
+Unversioned working files also exclude Show Log, matching the source menu gate.
+
+The hidden native fixture opens and closes an actual Blame controller and checks
+that its snapshot contains HEAD bytes while the file has different disk bytes.
+It also checks moved HEAD, stale missing files, historical dispatch and the
+selection/class guards. Root handoffs are injected; displayed appearance,
+keyboard/accessibility and signed sandbox remain unverified.
 
 ## Working-tree repository commands
 
