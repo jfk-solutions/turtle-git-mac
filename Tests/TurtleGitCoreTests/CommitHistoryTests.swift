@@ -38,6 +38,14 @@ final class CommitHistoryTests: XCTestCase {
         let groups = try await repo.logFileGroups(in: merge)
         XCTAssertEqual(groups.map(\.id), [0, 1]); XCTAssertEqual(groups.map(\.parent), [main, side])
         XCTAssertEqual(groups.map { $0.entry.parents }, [[main], [side]])
+        let annotated = groups.flatMap { group in group.files.filter { $0.path == "shared" }.map { $0.inParentGroup(group.id) } }
+        var actualMerge = merge; actualMerge.parents = [main, side]
+        let combinedOccurrences = try await repo.revisionFileDiffData(actualMerge, files: annotated + annotated)
+        let occurrenceText = String(decoding: combinedOccurrences, as: UTF8.self)
+        XCTAssertEqual(Set(annotated.map(\.id)).count, 2)
+        XCTAssertTrue(occurrenceText.contains("-main") && occurrenceText.contains("-side"))
+        XCTAssertEqual(occurrenceText.components(separatedBy: "+resolved").count, 3)
+
         XCTAssertEqual(groups.filter { $0.files.contains { $0.path == "shared" } }.count, 2)
         XCTAssertEqual(groups[0].files.first { $0.path == renamed }?.oldPath, old)
         XCTAssertFalse(groups[1].files.contains { $0.path == renamed })

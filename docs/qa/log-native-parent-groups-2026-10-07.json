@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "19774fa",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Log all-parent merge rows, per-occurrence identity, parent headers, group-aware comparison batches/unified patches and deleted historical pair sides",
+  "upstream_source": [
+    "src/Git/GitRevLoglist.cpp per-parent file read",
+    "src/Git/GitStatusListCtrl.cpp:3976-4031 grouped headers",
+    "src/Git/GitStatusListCtrl.cpp StartDiffWC/StartDiff and CompareTwoFiles"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "472c02cbc7f0d2f6743ce722e8ef1da98a85ec99c90589ff11810c9bc7bb8bf6",
+    "Sources/TurtleGitCore/FileComparison.swift": "3c8b311d629e6270190eeb5d599258ac3d37fca576fc6d0de52d08613d9f706e",
+    "Sources/TurtleGitMac/LogWindow.swift": "4a7993297dcde021d9cf41324ebc8096f7f6f485b7d808638622b39ce5f145e5",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "f195c815e2123eddef6574a3c7819c37373325c4cad807902b3cbfdd9c3c8ce2",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "c7e136459fa8b573963e1f31353bd9420f4870f008560a8c7d95d2ebfe292e63",
+    "docs/LOG-PARITY.md": "438a4a1e72f2aeb2d1d8013b50cad91509e96810c210c7c606c59f2366452000",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "634992786345b73b448fcda1a5ef2eaeb88f0460e7e380c164610d64753db8d1"
+  },
+  "all_sources_manifest_sha256": "02f2d50c7238c8b84773c7e1aa56bfca8bbe25044ba4624d0c9cadd94955226d",
+  "verification": {
+    "core_tests": "43 CommitHistoryTests/FileComparisonTests passed. Added annotated duplicate path patch regression: both parent sections retained, repeated same occurrence deduplicated. Existing all-parent, root, empty, bare and octopus fixtures remain passing.",
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Actual merge with parent-2 deleted file uses correct blob in historical pair. Actual conflicting merge resolved to same shared path loads two distinct occurrences/two headers; header IDs excluded from selection binding, path filtering hides groups, parent-2 menu label includes correct hash. Both base and parent-working requests in one batch; actual Core viewer documents have left/right parent contents and merged destination. Selected unified diff emits both sections. Isolated private clipboard gets actual paths without occurrence markers. Invalidated refusal. Existing focused Log/Bisect/Rebase native fixtures pass."
+    },
+    "builds": [
+      "SwiftPM swift build and test build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; all 90 original icons, universal Git/EditorConfig/IssueRegex helpers verified; Store --require-git passed.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Model rows/binding and injected batch handoff asserted; actual Core comparison bytes read. Root viewer batch and SwiftUI table compiled/source-inspected, not activated. Headers use Path-column rows, not full-width/collapsible native group rows. MERGE_MASK combined group and alternate two-pane tools remain pending. Displayed light/dark, keyboard, VoiceOver, signed sandbox and successful multi-viewer root handoff unverified. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-native-parent-groups/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-native-parent-groups/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-native-parent-groups/native.log": "4a8bd0b40f1c729755905bc0eae862e80e9a3ada5762f270ffa8c7183dc22add",
+    "build/qa/log-native-parent-groups/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-native-parent-groups/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-native-parent-groups/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-native-parent-groups/swift.log": "0e5c823c249642f444a6af41348df740826238dea9fc72113d6dc1932eabdcea",
+    "build/qa/log-native-parent-groups/tests.log": "9270cfa8f588cb31d7805a6c954f89500c45e0507c238314cd66cb3513d58a80"
+  },
+  "remaining": "Full-width/collapsible group styling, combined-merge group, alternate two-pane tools, all file/menu/dialog/Finder parity, screenshot/publication and signed App Store acceptance."
+}

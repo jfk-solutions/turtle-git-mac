@@ -255,7 +255,9 @@ public struct HistoryOptions: Sendable {
 }
 
 public struct CommitFile: Identifiable, Hashable, Sendable {
-    public var id: String { path }
+    public var id: String { parentIndex.map { "\0parent\($0)\0" + path } ?? path }
+    /// Present only for separate occurrences in a merge Log's parent groups.
+    public let parentIndex: Int?
     public let path: String
     public let oldPath: String?
     public let action: String
@@ -263,6 +265,14 @@ public struct CommitFile: Identifiable, Hashable, Sendable {
     public let removed: Int?
     public let hasStatistics: Bool
     public let isSubmodule: Bool
+    public init(path: String, oldPath: String?, action: String, added: Int?, removed: Int?, hasStatistics: Bool, isSubmodule: Bool, parentIndex: Int? = nil) {
+        self.path = path; self.oldPath = oldPath; self.action = action
+        self.added = added; self.removed = removed; self.hasStatistics = hasStatistics
+        self.isSubmodule = isSubmodule; self.parentIndex = parentIndex
+    }
+    public func inParentGroup(_ index: Int) -> Self {
+        Self(path: path, oldPath: oldPath, action: action, added: added, removed: removed, hasStatistics: hasStatistics, isSubmodule: isSubmodule, parentIndex: index)
+    }
     public var status: String {
         switch action.first {
         case "A": return "Added"
@@ -774,16 +784,21 @@ extension GitRepository {
     public func revisionFileDiffData(_ entry: LogEntry, files: [CommitFile], workingTree: Bool = false) throws -> Data {
         guard !files.isEmpty else { throw RevisionComparisonFailure.selection }
         var seen = Set<String>(), patch = Data()
-        for file in files where seen.insert(file.path).inserted {
+        for file in files where seen.insert(file.id).inserted {
             guard !file.path.isEmpty, !file.path.contains("\0") else { throw RevisionComparisonFailure.selection }
+            var scoped = entry
+            if let index = file.parentIndex {
+                guard entry.parents.indices.contains(index) else { throw RevisionComparisonFailure.selection }
+                scoped.parents = [entry.parents[index]]
+            }
             if let oldPath = file.oldPath {
                 var args: [String]
                 if workingTree { args = ["diff", "--no-ext-diff", "--no-color", entry.hash] }
-                else if let parent = entry.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
+                else if let parent = scoped.parents.first { args = ["diff", "--no-ext-diff", "--no-color", parent, entry.hash] }
                 else { args = ["show", "--format=", "--no-ext-diff", "--no-color", entry.hash] }
                 args += ["--", oldPath, file.path]
                 patch.append(try run(args).stdout)
-            } else { patch.append(try revisionDiffData(entry, path: file.path, workingTree: workingTree)) }
+            } else { patch.append(try revisionDiffData(scoped, path: file.path, workingTree: workingTree)) }
         }
         return patch
     }

@@ -732,6 +732,8 @@ import TurtleGitCore
     let changed = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
     let workingBytes = Data([0xff, 13, 10]); try workingBytes.write(to: root.appendingPathComponent("keep"))
     let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    log.clipboard = NSPasteboard(name: NSPasteboard.Name("TurtleGit-parent-groups-" + UUID().uuidString))
+    defer { log.clipboard.releaseGlobally() }
     func until(_ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -739,7 +741,7 @@ import TurtleGitCore
     }
     log.reload(); try await until { !log.busy }; log.select([changed])
     try await until { log.files.count == 3 && log.parentMetadata[changed] != nil }
-    precondition(log.fileParentComparisonTitle?.contains("A parent subject lon...") == true && log.fileParentComparisonTitle?.contains(String(base.prefix(8))) == true)
+    precondition(log.fileParentComparisonTitle(Set(log.files.map(\.id)))?.contains("A parent subject lon...") == true && log.fileParentComparisonTitle(Set(log.files.map(\.id)))?.contains(String(base.prefix(8))) == true)
     var requests: [(ComparisonRevision, ComparisonRevision, [String])] = []
     log.onFileCompare = { requests.append(($0, $1, $2)) }
     let ids = Set([new, "keep", "deleted"])
@@ -760,8 +762,8 @@ import TurtleGitCore
     log.busy = true; log.compareFiles(ids, parentWorkingTree: true); log.busy = false
     log.bare = true; log.compareFiles(ids, parentWorkingTree: true); log.bare = false
     log.compareFiles(["absent"], parentWorkingTree: true)
-    log.select([base]); precondition(log.fileParentComparisonTitle == nil); log.compareFiles(ids, parentWorkingTree: true)
-    log.select([""]); precondition(log.fileParentComparisonTitle == nil); log.compareFiles(ids, parentWorkingTree: true)
+    log.select([base]); precondition(log.fileParentComparisonTitle(Set(log.files.map(\.id))) == nil); log.compareFiles(ids, parentWorkingTree: true)
+    log.select([""]); precondition(log.fileParentComparisonTitle(Set(log.files.map(\.id))) == nil); log.compareFiles(ids, parentWorkingTree: true)
     log.selected = [base, changed]; log.compareFiles(ids, parentWorkingTree: true)
     precondition(requests.count == count)
     // A real merge retains the parent corresponding to the currently listed first-parent files.
@@ -772,9 +774,50 @@ import TurtleGitCore
     let merge = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
     log.reload(); try await until { !log.busy }; log.select([merge])
     try await until { log.files.contains { $0.path == "side-file" } && log.parentMetadata[merge]?.count == 2 }
-    log.compareFiles(["side-file"], parentWorkingTree: true); precondition(requests.last?.0 == .revision(changed))
-    let mergeCount = requests.count; log.invalidate(); log.compareFiles(["side-file"], parentWorkingTree: true)
-    precondition(!log.canCompareFilesWithParent(["side-file"]) && requests.count == mergeCount)
+    let sideIDs = Set(log.files.filter { $0.path == "side-file" }.map(\.id))
+    log.compareFiles(sideIDs, parentWorkingTree: true); precondition(requests.last?.0 == .revision(changed))
+    precondition(log.fileTableRows.filter { $0.header != nil }.count == 2)
+    let secondParentDeleted = log.files.first { $0.path == "deleted" && $0.parentIndex == 1 }!
+    let secondParentKept = log.files.first { $0.path == "keep" && $0.parentIndex == 1 }!
+    let pair = try await repo.historicalFilePairComparison(revision: merge, files: [secondParentDeleted, secondParentKept])
+    let pairDocument = try await repo.comparisonFile(pair, path: "keep")
+    precondition(pair.from == .revision(log.revision!.parents[1]) && pairDocument.base.bytes == Data("removed\n".utf8))
+    // Build a second real merge with the same modified path in both parent groups.
+    _ = try await repo.run(["branch", "duplicate-side"])
+    try Data("left\n".utf8).write(to: root.appendingPathComponent("keep")); try await repo.stage(["keep"]); _ = try await repo.commit(message: "left")
+    let left = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    _ = try await repo.run(["switch", "duplicate-side"])
+    try Data("right\n".utf8).write(to: root.appendingPathComponent("keep")); try await repo.stage(["keep"]); _ = try await repo.commit(message: "right")
+    let right = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    _ = try await repo.run(["switch", "main"]); _ = try await repo.run(["merge", "--no-ff", "duplicate-side", "-m", "duplicates"], successfulExitCodes: 0...1)
+    try Data("merged\n".utf8).write(to: root.appendingPathComponent("keep")); try await repo.stage(["keep"]); _ = try await repo.commit(message: "resolved duplicates")
+    let duplicateMerge = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    log.reload(); try await until { !log.busy }; log.select([duplicateMerge])
+    try await until { log.files.count == 2 && log.parentMetadata[duplicateMerge]?.count == 2 }
+    let duplicates = Set(log.files.map(\.id)); precondition(duplicates.count == 2 && log.files.allSatisfy { $0.path == "keep" })
+    precondition(log.fileTableRows.count == 4 && log.fileTableRows.filter { $0.header != nil }.count == 2)
+    log.fileTableSelection.wrappedValue = Set(log.fileTableRows.map(\.id)); precondition(log.selectedFiles == duplicates)
+    log.filterPaths = "missing"; precondition(log.fileTableRows.isEmpty); log.filterPaths = ""
+    let rightID = log.files.first { $0.parentIndex == 1 }!.id
+    precondition(log.fileParentComparisonTitle([rightID])?.contains(String(right.prefix(8))) == true)
+    var batches: [[(ComparisonRevision, ComparisonRevision, [String])]] = []
+    log.onFileComparisons = { batches.append($0) }
+    log.compareFiles(duplicates); precondition(batches.last!.map { $0.0 } == [.revision(left), .revision(right)] && batches.last!.allSatisfy { $0.1 == .revision(duplicateMerge) && $0.2 == ["keep"] })
+    log.compareFiles(duplicates, parentWorkingTree: true); precondition(batches.last!.allSatisfy { $0.1 == .workingTree })
+    for request in batches.first! {
+        let snapshot = try await repo.revisionFileComparison(from: request.0, to: request.1, paths: request.2)
+        let document = try await repo.comparisonFile(snapshot, path: "keep")
+        precondition(document.base.bytes == Data((request.0 == .revision(left) ? "left\n" : "right\n").utf8) && document.destination.bytes == Data("merged\n".utf8))
+    }
+    precondition(!log.canCompareFilePair(duplicates))
+    var patch = Data(); log.onUnifiedDiff = { patch = $0; _ = $1 }
+    log.selectedFileDiff(duplicates); try await until { !log.busy }
+    let text = String(decoding: patch, as: UTF8.self)
+    precondition(text.contains("-left") && text.contains("-right") && text.components(separatedBy: "+merged").count == 3)
+    log.copyFiles(duplicates, information: .relativePaths); precondition(log.clipboard.string(forType: .string) == "keep\nkeep")
+    let mergeCount = batches.count; log.invalidate(); log.compareFiles(duplicates, parentWorkingTree: true)
+    precondition(!log.canCompareFilesWithParent(duplicates) && batches.count == mergeCount)
+    print("Native grouped merge file list: duplicate occurrence identities, two headers, nonselectable headers/filtering, parent-specific menu title, batch base/working comparison bytes, duplicate unified patches, raw clipboard paths and parent-2 deleted pair passed. Root viewer callback injected; no windows shown.")
     print("Native Log parent-working comparison: parent subject/hash title, pinned first-parent routing, real renamed/deleted/raw working bytes via root comparison engine, unchanged HEAD/index, root/working/multi/empty/busy/bare/invalidated refusal and real merge first-parent mapping passed. Root viewer handoff injected; no windows shown.")
 }
 

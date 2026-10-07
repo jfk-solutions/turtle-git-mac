@@ -413,6 +413,7 @@ struct LogCommandRequest: Identifiable {
     @Published var graph: [CommitGraphRow] = []
     @Published var selected = Set<String>()
     @Published var files: [CommitFile] = []
+    @Published var fileGroups: [LogFileGroup] = []
     @Published var selectedFiles = Set<String>()
     private var lastImportedWorkingMark: UUID?
     @Published var comparisonMark: PreparedFileComparisonMark?
@@ -654,6 +655,7 @@ struct LogCommandRequest: Identifiable {
     var onFilePairCompare: ((String, [CommitFile]) -> Void)?
     var onWorkingFilePairCompare: (([String]) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
+    var onFileComparisons: (([(ComparisonRevision, ComparisonRevision, [String])]) -> Void)?
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
     var finishMultipleSelection: ([LogEntry]?) -> Void = { _ in }
@@ -790,16 +792,23 @@ struct LogCommandRequest: Identifiable {
         for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
-        selected = hashes; selectedFiles = []; files = []
+        selected = hashes; selectedFiles = []; files = []; fileGroups = []
         detailGeneration += 1; let request = detailGeneration
         if selectedWorkingTree { updateWorkingFiles(); return }
         guard let revision else { return }
         let cancellation = OperationCancellation(); detailCancellation = cancellation
         Task {
             do {
-                let result = try await repository.files(in: revision, cancellation: cancellation)
-                guard request == detailGeneration else { return }
-                files = result
+                if revision.parents.count > 1 {
+                    let groups = try await repository.logFileGroups(in: revision, cancellation: cancellation)
+                    guard request == detailGeneration else { return }
+                    fileGroups = groups
+                    files = groups.flatMap { group in group.files.map { $0.inParentGroup(group.id) } }
+                } else {
+                    let result = try await repository.files(in: revision, cancellation: cancellation)
+                    guard request == detailGeneration else { return }
+                    files = result
+                }
                 if !revision.parents.isEmpty {
                     let choices = try? await repository.logParentChoices(revision, cancellation: cancellation)
                     guard request == detailGeneration else { return }
@@ -1153,7 +1162,7 @@ struct LogCommandRequest: Identifiable {
     }
     func canCompareFilePair(_ ids: Set<String>) -> Bool {
         let chosen = visibleFiles.filter { ids.contains($0.id) }
-        return chosen.count == 2 && chosen.allSatisfy { !$0.isSubmodule }
+        return chosen.count == 2 && chosen[0].path != chosen[1].path && chosen.allSatisfy { !$0.isSubmodule }
     }
     func compareFilePair(_ ids: Set<String>) {
         if selectedWorkingTree {
@@ -1165,30 +1174,32 @@ struct LogCommandRequest: Identifiable {
         guard chosen.count == 2, chosen.allSatisfy({ !$0.isSubmodule }) else { return }
         onFilePairCompare(revision.hash, chosen)
     }
-    var fileParentComparisonTitle: String? {
-        guard !selectedWorkingTree, let revision, let parent = parentChoices(for: revision).first else { return nil }
+    func fileParentComparisonTitle(_ ids: Set<String>) -> String? {
+        guard !selectedWorkingTree, let revision else { return nil }
+        let index = visibleFiles.first { ids.contains($0.id) }?.parentIndex ?? 0
+        guard let parent = parentChoices(for: revision).first(where: { $0.number == index + 1 }) else { return nil }
         return "Compare parent with working tree: " + parent.title
     }
     func canCompareFilesWithParent(_ ids: Set<String>) -> Bool {
-        !busy && !isInvalidated && !bare && !selectedWorkingTree && revision?.parents.first != nil && onFileCompare != nil && visibleFiles.contains { ids.contains($0.id) }
+        !busy && !isInvalidated && !bare && !selectedWorkingTree && revision?.parents.first != nil && (onFileCompare != nil || onFileComparisons != nil) && visibleFiles.contains { ids.contains($0.id) }
     }
     func compareFiles(_ ids: Set<String>, workingTree: Bool = false, parentWorkingTree: Bool = false) {
-        guard !isInvalidated else { return }
-        if parentWorkingTree {
-            guard canCompareFilesWithParent(ids), let parent = revision?.parents.first else { return }
-            onFileCompare?(.revision(parent), .workingTree, visibleFiles.filter { ids.contains($0.id) }.map(\.path))
-            return
+        guard !busy, !isInvalidated, onFileCompare != nil || onFileComparisons != nil else { return }
+        let chosen = visibleFiles.filter { ids.contains($0.id) }; guard !chosen.isEmpty else { return }
+        var requests: [(ComparisonRevision, ComparisonRevision, [String])] = []
+        if selectedWorkingTree {
+            guard !workingTree, !parentWorkingTree, let snapshot = workingTreeSnapshot else { return }
+            requests = [(snapshot.entry.parents.first.map { .revision($0) } ?? .emptyTree, .workingTree, chosen.map(\.path))]
+        } else {
+            guard let revision, !(workingTree || parentWorkingTree) || !bare else { return }
+            if parentWorkingTree { guard canCompareFilesWithParent(ids) else { return } }
+            for index in Set(chosen.map { $0.parentIndex ?? 0 }).sorted() {
+                let parent = revision.parents.indices.contains(index) ? ComparisonRevision.revision(revision.parents[index]) : .emptyTree
+                requests.append((workingTree ? .revision(revision.hash) : parent, workingTree || parentWorkingTree ? .workingTree : .revision(revision.hash), chosen.filter { ($0.parentIndex ?? 0) == index }.map(\.path)))
+            }
         }
-        if selectedWorkingTree, !workingTree, !busy, let onFileCompare, let snapshot = workingTreeSnapshot {
-            let paths = files.filter { ids.contains($0.id) }.map(\.path)
-            if !paths.isEmpty { onFileCompare(snapshot.entry.parents.first.map { .revision($0) } ?? .emptyTree, .workingTree, paths) }; return
-        }
-        guard !busy, let onFileCompare, let revision, !workingTree || !bare else { return }
-        let paths = files.filter { ids.contains($0.id) }.map(\.path)
-        guard !paths.isEmpty else { return }
-        let from: ComparisonRevision = workingTree ? .revision(revision.hash) : revision.parents.first.map { .revision($0) } ?? .emptyTree
-        let to: ComparisonRevision = workingTree ? .workingTree : .revision(revision.hash)
-        onFileCompare(from, to, paths)
+        if let onFileComparisons { onFileComparisons(requests) }
+        else { for (from, to, paths) in requests { onFileCompare?(from, to, paths) } }
     }
     func compare(workingTree: Bool = false) {
         guard !busy, let onCompare, !workingTree || !bare else { return }
@@ -1221,6 +1232,29 @@ struct LogCommandRequest: Identifiable {
                 }
             } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
         }
+    }
+}
+
+struct LogFileTableRow: Identifiable {
+    let id: String
+    let file: CommitFile?
+    let header: String?
+}
+
+extension LogWindowModel {
+    var fileTableRows: [LogFileTableRow] {
+        guard !selectedWorkingTree, !fileGroups.isEmpty else {
+            return visibleFiles.map { LogFileTableRow(id: $0.id, file: $0, header: nil) }
+        }
+        return fileGroups.flatMap { group -> [LogFileTableRow] in
+            let visible = visibleFiles.filter { $0.parentIndex == group.id }
+            if !filterPaths.isEmpty && visible.isEmpty { return [] }
+            let title = "Diff with parent \(group.id + 1): " + (group.parent.map { String($0.prefix(8)) } ?? "Empty tree")
+            return [LogFileTableRow(id: "\0header\(group.id)", file: nil, header: title)] + visible.map { LogFileTableRow(id: $0.id, file: $0, header: nil) }
+        }
+    }
+    var fileTableSelection: Binding<Set<String>> {
+        Binding(get: { self.selectedFiles }, set: { ids in self.selectedFiles = ids.intersection(Set(self.visibleFiles.map(\.id))) })
     }
 }
 
@@ -1275,14 +1309,18 @@ struct LogDialog: View {
                     .onChange(of: shortDate) { _ in model.objectWillChange.send() }
                     .onChange(of: relativeTimes) { _ in model.objectWillChange.send() }
                     .onChange(of: useSystemLocale) { _ in model.objectWillChange.send() }
-                Table(model.visibleFiles, selection: $model.selectedFiles) {
-                    TableColumn("Path") { file in
-                        Text(file.path).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
+                Table(model.fileTableRows, selection: model.fileTableSelection) {
+                    TableColumn("Path") { row in
+                        if let header = row.header {
+                            Text(header).fontWeight(.semibold).foregroundStyle(Color.accentColor).accessibilityAddTraits(.isHeader)
+                        } else if let file = row.file {
+                            Text(file.path).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
+                        }
                     }.width(min: 260, ideal: 460)
-                    TableColumn("Extension") { file in Text(file.fileExtension) }.width(80)
-                    TableColumn("Status", value: \.status).width(95)
-                    TableColumn("Lines added") { file in Text(file.addedText).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue) }.width(90)
-                    TableColumn("Lines removed") { file in Text(file.removedText).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue) }.width(105)
+                    TableColumn("Extension") { row in Text(row.file?.fileExtension ?? "") }.width(80)
+                    TableColumn("Status") { row in Text(row.file?.status ?? "") }.width(95)
+                    TableColumn("Lines added") { row in Text(row.file?.addedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(90)
+                    TableColumn("Lines removed") { row in Text(row.file?.removedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(105)
                 }.frame(minHeight: 130, idealHeight: 180)
                 .contextMenu(forSelectionType: String.self) { ids in
                     TurtleGitContextMenu {
@@ -1339,7 +1377,7 @@ struct LogDialog: View {
         Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
         Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
         Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)
-        if !model.bare, let title = model.fileParentComparisonTitle {
+        if !model.bare, let title = model.fileParentComparisonTitle(ids) {
             Button { model.compareFiles(ids, parentWorkingTree: true) } label: { CommandLabel(title: title, icon: .compare) }.disabled(!model.canCompareFilesWithParent(ids))
         }
         if model.canCompareFilePair(ids) {

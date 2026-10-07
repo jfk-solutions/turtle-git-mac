@@ -955,13 +955,13 @@ displayed, signed sandbox and entry-point checks.
 The historical file menu now offers Compare parent with working tree, using the
 original comparison icon and a parent subject/hash label. Parent subjects are
 loaded for ordinary commits as well as merges. The command uses the first parent
-because the current changed-file reader lists first-parent changes; it reuses the
+for ordinary rows and each selected occurrence’s own parent for merge groups; it reuses the
 root revision-file comparison viewer, including rename mapping and missing sides.
 Root commits and the synthetic working-tree row have no command. Busy, bare,
 invalidated, multi-revision and empty file selections refuse the handoff.
 
 This follows GitStatusListCtrl.cpp's GetParentCommitInfo and StartDiffWC(parent),
-but the broader upstream per-parent grouped merge-file list remains unported.
+with per-parent groups now loaded into the native file list.
 Shift selection of an external two-pane diff tool is also pending. The native
 receiver checks model dispatch and actual comparison bytes with an injected root
 viewer callback; displayed menu/window and signed sandbox acceptance are separate.
@@ -975,7 +975,20 @@ groups), and one empty-tree group for a root commit. Each group retains its
 parent hash and a scoped Log entry for the existing patch readers. Paths,
 renames, statistics and submodule modes remain separate across parents.
 
-This is the data foundation for the grouped native file list. The current Log UI
-still uses its first-parent reader; it does not yet display these groups or route
-selected rows from other parents. Group headers, occurrence IDs and all affected
-file commands must be wired together before enabling the grouped reader in UI.
+Native Log now loads all merge parent groups and displays Diff with parent
+headers in the same file table. Empty groups remain visible unless a path filter
+excludes them. Headers are removed from selectable file IDs; duplicate paths have
+separate occurrence IDs that never replace their actual filesystem path.
+Comparison and parent-to-working requests batch by parent, so a busy root model
+cannot discard a later group. Selected unified diff retains one patch for each
+parent occurrence, while deduplicating repeated selections of that occurrence.
+Deleted-file pairs resolve each side’s own parent. File log/open/export/clipboard
+continue to use actual paths and the selected commit, not the occurrence ID.
+
+Headers currently occupy the Path column as native table rows; full-width group
+styling, collapse controls and displayed light/dark/keyboard/VoiceOver acceptance
+remain pending. The source’s MERGE_MASK combined-merge group and external
+two-pane tool selection also remain separate parity work. Root viewer batch
+wiring is compiled and inspected; the native fixture injects its callback and
+reads actual Core comparisons. Successful displayed viewer dispatch and signed
+sandbox access remain unverified.

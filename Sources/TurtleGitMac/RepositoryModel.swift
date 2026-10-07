@@ -725,6 +725,20 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription }
         }
     }
+    private func showGroupedHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, requests: [(ComparisonRevision, ComparisonRevision, [String])]) {
+        guard !busy, !confirmingQuit, !requests.isEmpty else { return }; busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                var snapshots: [RevisionComparisonSnapshot] = []
+                for (from, to, paths) in requests {
+                    snapshots.append(try await repository.revisionFileComparison(from: from, to: to, paths: paths))
+                }
+                for snapshot in snapshots { showFileComparisons(repository: repository, access: access, snapshot: snapshot) }
+            } catch { self.error = error.localizedDescription }
+        }
+    }
     private func showHistoricalFiles(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision, paths: [String]) {
         guard !busy, !confirmingQuit else { return }; busy = true
         Task {
@@ -966,6 +980,7 @@ import TurtleGitCore
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
         }
         controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
+        controller.model.onFileComparisons = { [weak self] requests in self?.showGroupedHistoricalFiles(repository: repository, access: access, requests: requests) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
         controller.model.onCommit = { [weak self] in
