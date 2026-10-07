@@ -965,3 +965,17 @@ but the broader upstream per-parent grouped merge-file list remains unported.
 Shift selection of an external two-pane diff tool is also pending. The native
 receiver checks model dispatch and actual comparison bytes with an injected root
 viewer callback; displayed menu/window and signed sandbox acceptance are separate.
+
+## Per-parent file data
+
+GitRevLoglist.cpp reads each actual parent in commit order and retains separate
+file occurrences. The Core `logFileGroups` reader now follows that contract:
+actual metadata from the pinned commit, one group per parent (including empty
+groups), and one empty-tree group for a root commit. Each group retains its
+parent hash and a scoped Log entry for the existing patch readers. Paths,
+renames, statistics and submodule modes remain separate across parents.
+
+This is the data foundation for the grouped native file list. The current Log UI
+still uses its first-parent reader; it does not yet display these groups or route
+selected rows from other parents. Group headers, occurrence IDs and all affected
+file commands must be wired together before enabling the grouped reader in UI.

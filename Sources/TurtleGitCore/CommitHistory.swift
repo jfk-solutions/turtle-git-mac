@@ -389,6 +389,16 @@ public struct LogParentChoice: Sendable, Equatable {
         return prefix + ": \"" + short + "\" (" + hash.prefix(8) + ")"
     }
 }
+/// A Log merge may list the same path once for each parent. Keep those
+/// occurrences separate instead of unioning their actions/statistics by path.
+public struct LogFileGroup: Identifiable, Sendable {
+    /// Zero-based parent order, or zero for a root commit's empty-tree comparison.
+    public let id: Int
+    public let parent: String?
+    /// This entry scopes existing file patch readers to this group's parent.
+    public let entry: LogEntry
+    public let files: [CommitFile]
+}
 public enum LogRevertFailure: LocalizedError {
     case parent, root, bare, mergeActive
     public var errorDescription: String? {
@@ -734,6 +744,26 @@ extension GitRepository {
         let files = CommitFile.parse(names: nameData, statistics: numberData, raw: rawData)
         try cancellation?.check()
         return files
+    }
+    /// GitRevLoglist::GetFiles reads every actual parent in commit order.
+    /// Resolve metadata from the pinned commit rather than a caller's cached
+    /// parent list; preserve empty groups and duplicate paths across groups.
+    public func logFileGroups(in entry: LogEntry, cancellation: OperationCancellation? = nil) throws -> [LogFileGroup] {
+        try cancellation?.check()
+        guard (entry.hash.count == 40 || entry.hash.count == 64), entry.hash.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw RevisionComparisonFailure.range }
+        let metadata = try run(["show", "-s", "--no-notes", "--format=%H%x00%P", entry.hash, "--"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+        let fields = metadata.split(separator: 0, omittingEmptySubsequences: false)
+        guard fields.count == 2, String(decoding: fields[0], as: UTF8.self) == entry.hash else { throw RevisionComparisonFailure.range }
+        let parents = String(decoding: fields[1], as: UTF8.self).split(whereSeparator: \.isWhitespace).map(String.init)
+        var groups: [LogFileGroup] = []
+        for (index, parent) in (parents.isEmpty ? [nil] : parents.map(Optional.some)).enumerated() {
+            try cancellation?.check()
+            var scoped = entry; scoped.parents = parent.map { [$0] } ?? []
+            let changed = try files(in: scoped, cancellation: cancellation)
+            try cancellation?.check()
+            groups.append(LogFileGroup(id: index, parent: parent, entry: scoped, files: changed))
+        }
+        return groups
     }
     /// Upstream status-list unified diff concatenates each selected file's
     /// patch in visible list order, without including unselected changes.

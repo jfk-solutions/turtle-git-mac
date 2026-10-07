@@ -2,6 +2,92 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testLogFileGroupsRetainEveryParentOccurrenceAndScopedPatch() async throws {
+        let (root, fixtureRepo, old) = try await GitPatchTests().fixture()
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var history = try await repo.history(); let initial = try XCTUnwrap(history.first)
+        let roots = try await repo.logFileGroups(in: initial)
+        XCTAssertEqual(roots.count, 1); XCTAssertNil(roots[0].parent)
+        XCTAssertEqual(roots[0].files.map(\.path), [old]); XCTAssertEqual(roots[0].files[0].action, "A")
+        try Data("base\n".utf8).write(to: root.appendingPathComponent("shared"))
+        try await repo.stage(["shared"]); _ = try await repo.commit(message: "shared base")
+        _ = try await repo.run(["branch", "side"])
+        try Data("main\n".utf8).write(to: root.appendingPathComponent("shared"))
+        try Data("main only\n".utf8).write(to: root.appendingPathComponent("main-only"))
+        try await repo.stage(["shared", "main-only"]); _ = try await repo.commit(message: "main")
+        let main = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["switch", "side"])
+        let renamed = "renamed :(glob)* 雪\n.txt"
+        _ = try await repo.run(["mv", "--", old, renamed])
+        try Data("side\n".utf8).write(to: root.appendingPathComponent("shared"))
+        try await repo.stage(["shared"]); _ = try await repo.commit(message: "side")
+        let side = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["switch", "main"])
+        _ = try await repo.run(["merge", "--no-ff", "side", "-m", "merge"], successfulExitCodes: 0...1)
+        try Data("resolved\n".utf8).write(to: root.appendingPathComponent("shared"))
+        try await repo.stage(["shared"]); _ = try await repo.commit(message: "resolved merge")
+        history = try await repo.history(); var merge = try XCTUnwrap(history.first)
+        XCTAssertEqual(merge.parents, [main, side])
+        // Cached row metadata is not authoritative for which parents belong to the commit.
+        merge.parents = [side, main, initial.hash]
+        try Data("staged\n".utf8).write(to: root.appendingPathComponent("shared")); try await repo.stage(["shared"])
+        try Data("working\n".utf8).write(to: root.appendingPathComponent("shared"))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let groups = try await repo.logFileGroups(in: merge)
+        XCTAssertEqual(groups.map(\.id), [0, 1]); XCTAssertEqual(groups.map(\.parent), [main, side])
+        XCTAssertEqual(groups.map { $0.entry.parents }, [[main], [side]])
+        XCTAssertEqual(groups.filter { $0.files.contains { $0.path == "shared" } }.count, 2)
+        XCTAssertEqual(groups[0].files.first { $0.path == renamed }?.oldPath, old)
+        XCTAssertFalse(groups[1].files.contains { $0.path == renamed })
+        XCTAssertFalse(groups[0].files.contains { $0.path == "main-only" })
+        XCTAssertEqual(groups[1].files.first { $0.path == "main-only" }?.action, "A")
+        for (index, group) in groups.enumerated() {
+            let file = try XCTUnwrap(group.files.first { $0.path == "shared" })
+            let bytes = try await repo.revisionFileDiffData(group.entry, files: [file])
+            let patch = String(decoding: bytes, as: UTF8.self)
+            XCTAssertTrue(patch.contains(index == 0 ? "-main" : "-side")); XCTAssertTrue(patch.contains("+resolved"))
+            XCTAssertFalse(patch.contains("staged")); XCTAssertFalse(patch.contains("working"))
+            let snapshot = try await repo.revisionFileComparison(from: .revision(try XCTUnwrap(group.parent)), to: .revision(group.entry.hash), paths: [file.path])
+            let document = try await repo.comparisonFile(snapshot, path: file.path)
+            XCTAssertEqual(document.base.bytes, Data((index == 0 ? "main\n" : "side\n").utf8))
+            XCTAssertEqual(document.destination.bytes, Data("resolved\n".utf8))
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(finalHead, head)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("shared")), Data("working\n".utf8))
+        let stopped = OperationCancellation(); stopped.cancel()
+        do { _ = try await repo.logFileGroups(in: merge, cancellation: stopped); XCTFail("Cancelled groups succeeded") } catch is OperationCancellationFailure {}
+        let invalid = LogEntry(hash: "HEAD", author: "", date: "", subject: "")
+        do { _ = try await repo.logFileGroups(in: invalid); XCTFail("Unpinned groups succeeded") } catch RevisionComparisonFailure.range {}
+        _ = try await repo.run(["restore", "--source=HEAD", "--staged", "--worktree", "--", "shared"])
+        _ = try await repo.run(["switch", "-c", "empty-side"]); _ = try await repo.run(["commit", "--allow-empty", "-m", "empty side"])
+        _ = try await repo.run(["switch", "main"]); _ = try await repo.run(["merge", "--no-ff", "empty-side", "-m", "empty merge"])
+        let emptyHistory = try await repo.history(), emptyMerge = try XCTUnwrap(emptyHistory.first)
+        let emptyGroups = try await repo.logFileGroups(in: emptyMerge)
+        XCTAssertEqual(emptyGroups.count, 2); XCTAssertTrue(emptyGroups.allSatisfy { $0.files.isEmpty })
+        let bareRoot = FileManager.default.temporaryDirectory.appendingPathComponent("groups-bare-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: bareRoot) }
+        _ = try await repo.run(["clone", "--bare", "--local", root.path, bareRoot.path])
+        let bare = GitRepository(root: bareRoot, executable: repo.executable)
+        let bareGroups = try await bare.logFileGroups(in: merge)
+        XCTAssertEqual(bareGroups.map(\.parent), groups.map(\.parent))
+        XCTAssertEqual(bareGroups.map(\.files), groups.map(\.files))
+        _ = try await repo.run(["branch", "octopus-a"]); _ = try await repo.run(["branch", "octopus-b"])
+        for branch in ["main", "octopus-a", "octopus-b"] {
+            _ = try await repo.run(["switch", branch])
+            try Data((branch + "\n").utf8).write(to: root.appendingPathComponent(branch))
+            try await repo.stage([branch]); _ = try await repo.commit(message: branch)
+        }
+        _ = try await repo.run(["switch", "main"])
+        _ = try await repo.run(["merge", "--no-ff", "octopus-a", "octopus-b", "-m", "three parents"])
+        let octopusHistory = try await repo.history(), octopus = try XCTUnwrap(octopusHistory.first)
+        let octopusGroups = try await repo.logFileGroups(in: octopus)
+        XCTAssertEqual(octopusGroups.map(\.parent), octopus.parents); XCTAssertEqual(octopusGroups.count, 3)
+        XCTAssertEqual(octopusGroups.map(\.id), [0, 1, 2])
+        XCTAssertEqual(octopusGroups.map { Set($0.files.map(\.path)) }, [Set(["octopus-a", "octopus-b"]), Set(["main", "octopus-b"]), Set(["main", "octopus-a"])])
+    }
     func testUnifiedDiffBytesRemainApplicableForNonUTF8Text() async throws {
         let (root, repo, _) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

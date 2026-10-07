@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "2e6c9f9",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Core per-parent Log file groups, pinned actual commit metadata, duplicate/empty groups and parent-scoped patch entry",
+  "upstream_source": [
+    "src/Git/GitRevLoglist.cpp:197-304 (libgit2 parent loop and per-parent files/statistics)",
+    "src/Git/GitRevLoglist.cpp:340-408 (gitdll parent loop)",
+    "src/Git/GitStatusListCtrl.cpp:3976-4031 (group headers)"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "c27727b96d4c988f380a8ae07d73c43fcc1911cfb00d694642510ac7242e746a",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "880a9352a907dee30b5cba4b00482e89d3de72c8842e5d84edd1316cf00252ff",
+    "docs/LOG-PARITY.md": "3e48537b80c2a6a708e4e3f60d52410e94dfc9eabbfeb1e9367922c89ad61ae7"
+  },
+  "all_sources_manifest_sha256": "e081914be05d003774b7e02ac143249daae9fedf81e148977d5dc950d057d249",
+  "verification": {
+    "core_tests": {
+      "system": "33 CommitHistoryTests passed; expanded group test subsequently passed",
+      "versions": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "matrix_command": "swift test --skip-build --filter CommitHistoryTests.testLogFileGroupsRetainEveryParentOccurrenceAndScopedPatch with TURTLEGIT_GROUP_TEST_GIT set to each isolated/bundled executable",
+      "coverage": "Root group, actual conflicting merge with separately resolved shared path, duplicate occurrences, rename on one parent, path present only in other parent, different parent-scoped patch/blob content, intentionally wrong cached parent list overridden by actual pinned metadata, unchanged HEAD/index/working bytes, pre-cancel and unpinned refusal, empty groups retained, actual bare clone matching groups, actual three-parent octopus merge in parent order."
+    },
+    "builds": [
+      "SwiftPM test build includes app",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed. Store --require-git and all 90 upstream icons/universal helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained",
+    "limitations": "Data foundation only. Native Log still reads first-parent files. Group headers, stable occurrence identity, group-aware menus/viewer dispatch and UI acceptance remain unwired. No native receiver needed for unused new Core API. Signed sandbox, GitHub CI and publication unverified. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-file-groups/2.37.1-groups.log": "9038a6a176fe78365ab49a390b01459b056c594027f06c851ffdf0f024627d9c",
+    "build/qa/log-file-groups/2.39.5-groups.log": "e8e0f43e0df01eb8fca4adcb895e22a2f6d8b5960233d845315ec3beb9b433e7",
+    "build/qa/log-file-groups/2.55.0-groups.log": "92bbeeed216b78aaf5728c5e41d03aa9503f2fd72ab642ede75290c613daaf24",
+    "build/qa/log-file-groups/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-file-groups/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/log-file-groups/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-file-groups/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-file-groups/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-file-groups/system-groups.log": "856f618c39a43cc048d37d62623211926b521b112a6f77ad1ad2b998b6d368ad",
+    "build/qa/log-file-groups/tests.log": "ee07dea7afb52b3fbaec1b11fc6926ce7cb054024aaea796d574cf2428419761"
+  },
+  "remaining": "Wire all-parent groups into native Log with occurrence IDs and group-aware file actions, then displayed/native acceptance. Full dialogs/Finder parity, screenshots/publication and signed App Store acceptance."
+}
