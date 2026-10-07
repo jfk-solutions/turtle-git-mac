@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "21b6ef865ad5a875fc03d08d1735ed4843b60d52",
+  "scope": "Commit conflict-hint warning, Ignore/Abort and affirmative suppression; retain sign-off editor mutation before later Abort. Partial dialog parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "0159008c776f418461367e7b10337654985bdec668c6c679ac28e12af9dc260e",
+    "NOTICE": "ae2f064a0c7779f9de2131381b14dc5ae656785aa4a4e42a17a371675f795a22",
+    "Sources/TurtleGitMac/CommitWindow.swift": "acb0c0b268c65998a46c96d5bddce5e323572de4d7169a88d3425f3f05d5e4e7",
+    "docs/COMMIT-PARITY.md": "ffc85baf83eb2161e7ca94090485ef46dd0604b75ffae2e029b1eb41e9f99061",
+    "docs/qa/commit-conflict-hints-native-2026-10-07.swift": "fc10def9d19218b6369a7d48b1b3597f63e14c68349960fd12e143cfdd582a8d",
+    "docs/upstream-files.csv": "f7b163f49ef9a4647e9dfc4fb3220da15924a26eada699315105233215a0b427",
+    "scripts/test-commit-conflict-hints.py": "21b3acde4913a0f4b2f23f29252823fad9247aec0ab315b742170fb456037dca"
+  },
+  "all_sources_manifest_sha256": "29d04f5dc8e4b948d479c8c0728c9c8dd7476d12e954a5c4414714062a107d1f",
+  "verification": {
+    "core": "Nine selected CommitMessage and upstream conflict-hint detector tests passed: default/custom prefix, required tab/position, source core.cleanup exemptions and stripping exemption, plus existing message formatting/encoding/file checks. Core implementation unchanged in this checkpoint.",
+    "native": "Final headless receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Checked-file Abort preserves HEAD/index/draft/history and creates no requested branch. Missing-sign-off precedes hint warning; Add Signed-off-by remains in draft after later Abort with unchanged repository/history. Ignore retains literal hints under verbatim Git cleanup; affirmative suppression bypasses next warning, canceled suppression is not saved. Staged Abort retains index, staged Ignore commits, and message-only amendment still warns. Custom semicolon prefix, live StripCommentedLines output and all three source core.cleanup exemptions verified with actual commit bodies. Eight native-model commits plus the baseline commit per receiver; seven warning callbacks. These are programmatic native-model/Git checks, not displayed-sheet/keyboard/VoiceOver proof.",
+    "iterations": "Initial native matrix passed. Source-order review then identified deferred sign-off draft update; moved the editor update to the affirmative Add choice and expanded receiver. Final four-Git matrix passed. No initial runtime failure.",
+    "builds": "Final unsigned Debug and AppStore builds passed; bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons present. Store --require-git audited 11 universal Git Mach-O files and fixture operations; EditorConfig/IssueRegex audits passed.",
+    "documentation": "Commit parity and pinned upstream file inventory updated. Inventory pin regression and CSV column validation passed. Local site generated, unpublished.",
+    "ci": "Added native conflict-hint receiver to macOS workflow. Hosted CI/push/publication unverified; authentication unavailable, no retry.",
+    "processes": "All compiler/test/receiver/audit sessions terminal; no main GUI launch or displayed windows. Final main-app/receiver audit empty. Eight empty owned ConflictHints QA preference UUID files removed across initial/final matrices; other preferences retained.",
+    "limitations": "Displayed native warning, keyboard/VoiceOver/default-button/suppression acceptance, every preflight/hook/replay combination and signed sandbox execution remain pending. Full application/dialog parity, Finder activation, genuine screenshots/full manual, signed distribution/App Store/license clearance and hosted site remain incomplete."
+  },
+  "logs": {
+    "build/qa/commit-conflict-hints/core.log": "72bd869a75bf5bfad42b7123803bd72f606a40f76162228aa2930b7fc1f5fcda",
+    "build/qa/commit-conflict-hints/debug-audit-final.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/commit-conflict-hints/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/commit-conflict-hints/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-conflict-hints/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-conflict-hints/native-final.log": "f94b64291969ee184c74ea2ddb9f69593f5f19df3f75979b88b1dec033ea4d00",
+    "build/qa/commit-conflict-hints/native.log": "882d84835b34cba7d242bf7d0d14a0fff0684212a2ae8ae786f7a55e130cb4aa",
+    "build/qa/commit-conflict-hints/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-conflict-hints/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/commit-conflict-hints/store-final.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/commit-conflict-hints/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/commit-conflict-hints/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

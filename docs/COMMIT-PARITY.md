@@ -1437,3 +1437,30 @@ encoding-changed Rebase sessions, mixed-encoding author headers and RefLog
 subjects, non-UTF-8 templates and other message-file callers still need audit.
 Physical dialogs, signed sandbox execution and the full application port remain
 incomplete.
+
+## Conflict-hint warning before Commit
+
+Commit now calls the same `AppUtils::MessageContainsConflictHints` detector as
+Rebase, after missing-sign-off handling and before issue-message insertion,
+submodule preflight, message-file preparation, branch creation or staging.
+The source pattern is a newline followed by the configured comment prefix,
+` Conflicts:`, another newline, and the prefix plus a tab. The match must occur
+after the beginning of the message. Missing `core.commentchar` uses `#`.
+
+The native sheet provides **Ignore**, **Abort** (the default button), and
+**Do not show again**. Only Ignore remembers suppression, under the same
+`CommitMessageContainsConflictHint` preference used by Rebase. Abort retains the
+draft and stops the attempt before Git/index/branch mutation or history updates.
+A sign-off added at the preceding prompt remains in the draft if the user then
+aborts at this warning, matching the upstream editor update.
+`StripCommentedLines` and source `core.cleanup` values `verbatim`, `whitespace`
+and `scissors` bypass the warning. This intentionally follows upstream's
+`core.cleanup` lookup rather than inferring behavior from `commit.cleanup`.
+
+[Conflict-hint QA](qa/commit-conflict-hints-2026-10-07.json) records native model
+callbacks with actual checked-file/staged commits, canceled message-only
+amendment, remembered Ignore, custom prefix, comment stripping, cleanup
+exemptions and unchanged repository/draft/history on Abort across four Git
+versions. These are programmatic native-model/Git checks. Displayed sheet,
+keyboard/VoiceOver, all preflight combinations and signed sandbox acceptance
+remain pending; the full Commit and application port remain incomplete.

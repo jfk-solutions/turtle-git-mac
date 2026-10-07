@@ -119,6 +119,16 @@ import UniformTypeIdentifiers
             alert.addButton(withTitle: "Add Signed-off-by"); alert.addButton(withTitle: "Commit without Signed-off-by"); alert.addButton(withTitle: "Abort")
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn ? .add : $0 == .alertSecondButtonReturn ? .proceed : .abort) }
         }
+        model.confirmConflictHints = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false, false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational
+            alert.messageText = "Conflict hints remain in the commit message"
+            alert.informativeText = "Git's commented conflict list remains in the message. Ignore this warning to keep those lines, or abort to edit the message. You can remove them automatically by enabling comment stripping in Commit message settings."
+            alert.addButton(withTitle: "Ignore"); let abort = alert.addButton(withTitle: "Abort")
+            alert.buttons.first?.keyEquivalent = ""; abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
+            alert.showsSuppressionButton = true
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn, alert.suppressionButton?.state == .on) }
+        }
         model.confirmDirtySubmodule = { [weak window] path, choose in
             guard let window, window.attachedSheet == nil else { choose(.cancel); return }
             let alert = NSAlert(); alert.alertStyle = .informational
@@ -327,6 +337,7 @@ import UniformTypeIdentifiers
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     var confirmMissingIssue: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
+    var confirmConflictHints: (@escaping (Bool, Bool) -> Void) -> Void = { choose in choose(false, false) }
     enum DirtySubmoduleChoice { case commit, ignore, cancel }
     var confirmDirtySubmodule: (String, @escaping (DirtySubmoduleChoice) -> Void) -> Void = { _, choose in choose(.cancel) }
     var onCommitSubmodule: (URL) -> Void = { _ in }
@@ -810,8 +821,15 @@ import UniformTypeIdentifiers
                     if !text.contains(line) {
                         let choice = await withCheckedContinuation { continuation in confirmMissingSignOff { continuation.resume(returning: $0) } }
                         if choice == .abort { busy = false; return }
-                        if choice == .add { text = IssueTrackerProperties.addingSignOff(line, to: text) }
+                        if choice == .add { text = IssueTrackerProperties.addingSignOff(line, to: text); message = text }
                     }
+                }
+                // AppUtils' detector is shared by Commit and Rebase. Test the
+                // draft after sign-off handling, before issue insertion or staging.
+                if !dialogDefaults.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines")) {
+                    let choice = await withCheckedContinuation { continuation in confirmConflictHints { continuation.resume(returning: ($0, $1)) } }
+                    guard choice.0 else { busy = false; return }
+                    if choice.1 { dialogDefaults.set(true, forKey: "CommitMessageContainsConflictHint") }
                 }
                 let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID: rawIssueID)
                 text = prepared.message; message = text
