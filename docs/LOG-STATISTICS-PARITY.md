@@ -1,8 +1,10 @@
 # Log statistics port
 
 Baseline: TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
-The statistics calculation layer is implemented. The native Statistics window,
-Log button, charts, graph export and option persistence remain unported.
+The calculation layer and a partial native Statistics window are implemented,
+including the Log button, graph choices/styles, original chart button icons,
+checkboxes, author slider, lazy Calculate and remembered options. Graph export
+and displayed/signed acceptance remain pending.
 
 ## Source behavior
 
@@ -57,14 +59,41 @@ cancellation and exact tracked/index/config/HEAD preservation. No native app or
 Statistics window is launched by these tests. See
 [the calculation QA record](qa/log-statistics-2026-10-07.json).
 
+## Native window and graphs
+
+The Log button owns a separate Statistics window over the current shown-revision
+snapshot. Refreshing Log does not change an already open snapshot; closing Log
+cancels its calculation and closes the owned window. The selector, central
+summary/graph region and lower checkbox/slider/style controls follow `IDD_STATGRAPH`.
+Graph styles use native Swift Charts for bar, stacked bar, line and stacked area
+(the upstream stacked-line style is filled), plus Canvas pies. Date pies retain
+separate interval groups. Colors adapt with the native appearance; exact upstream
+palette and displayed layout remain unverified.
+
+The graph projection selects authors by activity before alphabetical presentation,
+names the last lone omitted author and sums larger omissions as `Others (n)`.
+Authorship ranks by contribution, omits percentages rounded to zero and rounds
+each author before summing Others. Date series run oldest first with explicit zero
+values. Slider count is bounded at 250 with the source lone-author exception.
+Native date labels use regional day formats and week/month/quarter/year units.
+
+Authorship and line metrics calculate diffs automatically; the summary also has
+Calculate. The owned event stream updates progress and drains before ending busy
+state. Failed/cancelled reads retain no partial cache. Root access is retained and
+checked for Store builds. The four preferences and encoded last graph page use the
+upstream names, including `StatCommiterNames`. They save on window close. Original
+five graph-button icons are bundled with pinned provenance.
+
+The hidden native receiver checks defaults, actual lazy Git totals, automatic
+selection calculation, private preference restoration, cancellation and exact
+repository preservation. It requests layout across all five chart styles; these
+checks do not prove pixel appearance, displayed clicks or accessibility. See
+[the native Statistics QA record](qa/statistics-native-2026-10-07.json).
+
 ## Remaining work
 
-- Native `IDD_STATGRAPH` layout, all summary fields and Calculate/progress flow.
-- Graph type selector: statistics, authorship, commits by author/date and line
-  changes including/excluding new/deleted files.
-- Bar, stacked bar, line, stacked line and pie controls; author count slider,
-  Others grouping, labels and colorful light/dark presentation.
-- Remembered checkbox/graph settings, Log snapshot handoff and owned-window close.
-- Original graph button artwork, File/Save Graph As export and supported formats.
+- File/Save Graph As export and macOS equivalents for supported formats.
+- Full axis/title labels, tooltips/selection, high-density legends/graphs and exact
+  original color/geometry comparison, plus sparse-date/year-wrap acceptance.
 - Displayed layout, regional/DST/case acceptance, keyboard/VoiceOver and signed
   sandbox/App Store verification. The full application port remains incomplete.

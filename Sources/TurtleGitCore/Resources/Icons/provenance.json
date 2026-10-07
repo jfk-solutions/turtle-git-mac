@@ -457,6 +457,31 @@
       "asset": "menucleanup.ico",
       "source": "src/Resources/menucleanup.ico",
       "sha256": "a67088c691ac05c348f5c429c2dc0caf34f74d5ac9856a0d38838ccac9b1eb51"
+    },
+    {
+      "asset": "graph-bar.ico",
+      "source": "src/Resources/graph-bar.ico",
+      "sha256": "9dbca9bb5844959a9b358e07913229994ee02b00759b56712ffb7b2ca5866660"
+    },
+    {
+      "asset": "graph-bar-stacked.ico",
+      "source": "src/Resources/graph-bar-stacked.ico",
+      "sha256": "c11526e3f4b8310b7b8a30f297c780937d0789d3579a01e0a92e1589c1d42744"
+    },
+    {
+      "asset": "graph-line.ico",
+      "source": "src/Resources/graph-line.ico",
+      "sha256": "930262b59087cb4bc1c536f2c5a6630f21ab8c40c73313003f315f5f33bc87f5"
+    },
+    {
+      "asset": "graph-line-stacked.ico",
+      "source": "src/Resources/graph-line-stacked.ico",
+      "sha256": "fb175845c5d5122805160dc0f535fe76dc53f80223dec05a0172602c5bb3ef59"
+    },
+    {
+      "asset": "graph-pie.ico",
+      "source": "src/Resources/graph-pie.ico",
+      "sha256": "0bc8a67ecb22e80c46d723e273a081be5ab59be2214eb8c34b8f090b74409602"
     }
   ]
 }

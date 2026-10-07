@@ -1,0 +1,212 @@
+import AppKit
+import SwiftUI
+import Charts
+import TurtleGitCore
+
+@MainActor final class StatisticsWindowModel: ObservableObject {
+    let repository: GitRepository
+    let entries: [LogEntry]
+    private let access: RepositoryAccessLease?
+    private let defaults: UserDefaults
+    private var changes: [String: LogStatisticsChanges]?
+    private var cancellation: OperationCancellation?
+    @Published var options = LogStatisticsOptions()
+    @Published var metric = LogStatisticsMetric.statistics
+    @Published var style = LogStatisticsStyle.line
+    @Published var authorsShown = 1.0
+    @Published var summary: LogStatisticsSummary?
+    @Published var graph: LogStatisticsGraph?
+    @Published var busy = false
+    @Published var completed = 0
+    @Published var error: String?
+    var close: () -> Void = {}
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.entries = entries; self.defaults = defaults
+        options.caseSensitive = defaults.object(forKey: "StatAuthorsCaseSensitive") == nil || defaults.bool(forKey: "StatAuthorsCaseSensitive")
+        options.sortByCommitCount = defaults.object(forKey: "StatSortByCommitCount") == nil || defaults.bool(forKey: "StatSortByCommitCount")
+        options.useCommitterNames = defaults.bool(forKey: "StatCommiterNames")
+        options.useCommitDates = defaults.object(forKey: "StatCommitDates") == nil || defaults.bool(forKey: "StatCommitDates")
+        let page = defaults.integer(forKey: "LastViewedStatsPage")
+        metric = LogStatisticsMetric(rawValue: page / 10) ?? .statistics
+        style = LogStatisticsStyle(rawValue: page % 10) ?? (metric.byAuthor ? .bar : .line)
+        rebuild(resetAuthors: true)
+    }
+    var availableAuthorCount: Int {
+        guard let summary else { return 0 }
+        if metric == .authorship && changes != nil { return summary.authorshipPercent.values.filter { $0.rounded(.toNearestOrAwayFromZero) > 0 }.count }
+        return summary.commitsByAuthor.count
+    }
+    func start() { if metric.needsChanges { calculate() } }
+    func selectMetric(_ metric: LogStatisticsMetric) {
+        guard !busy else { return }; self.metric = metric
+        if metric.byAuthor { style = .bar } else if metric == .statistics || metric == .commitsByDate { style = .line }
+        rebuild(resetAuthors: true); if metric.needsChanges && changes == nil { calculate() }
+    }
+    func rebuild(resetAuthors: Bool = false) {
+        do {
+            summary = try LogStatistics.analyze(entries, options: options, changes: changes)
+            if resetAuthors { authorsShown = Double(min(250, max(1, availableAuthorCount))) }
+            authorsShown = min(authorsShown, Double(min(250, max(1, availableAuthorCount))))
+            if metric == .statistics || metric.needsChanges && changes == nil { graph = nil }
+            else { graph = try LogStatisticsGraph.make(summary!, metric: metric, authorsShown: Int(authorsShown), alphabetical: !options.sortByCommitCount) }
+            error = nil
+        } catch { self.error = error.localizedDescription; graph = nil }
+    }
+    func calculate() {
+        guard !busy, changes == nil else { return }; busy = true; completed = 0
+        let token = OperationCancellation(); cancellation = token
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let (stream, continuation) = AsyncStream<Int>.makeStream()
+                let operation = Task {
+                    defer { continuation.finish() }
+                    return try await repository.logStatisticsChanges(entries, cancellation: token) { done, _ in continuation.yield(done) }
+                }
+                for await done in stream { completed = done }
+                changes = try await operation.value; rebuild(resetAuthors: true)
+            } catch { self.error = error.localizedDescription }
+            busy = false; cancellation = nil
+        }
+    }
+    func cancel() { cancellation?.cancel() }
+    func savePreferences() {
+        defaults.set(options.caseSensitive, forKey: "StatAuthorsCaseSensitive"); defaults.set(options.sortByCommitCount, forKey: "StatSortByCommitCount")
+        defaults.set(options.useCommitterNames, forKey: "StatCommiterNames"); defaults.set(options.useCommitDates, forKey: "StatCommitDates")
+        defaults.set(metric.rawValue * 10 + style.rawValue, forKey: "LastViewedStatsPage")
+    }
+}
+
+private final class StatisticsNativeWindow: NSWindow {
+    var escape: () -> Void = {}
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if event.charactersIgnoringModifiers == "\u{1b}" { escape(); return true }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
+@MainActor final class StatisticsWindowController: NSWindowController, NSWindowDelegate {
+    let model: StatisticsWindowModel
+    var onClosed: () -> Void = {}
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
+        model = StatisticsWindowModel(repository: repository, access: access, entries: entries, defaults: defaults)
+        let window = StatisticsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        window.title = "\(repository.root.lastPathComponent) – Statistics – TurtleGit"; window.contentMinSize = NSSize(width: 720, height: 530); window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: StatisticsDialog(model: model))
+        super.init(window: window); window.delegate = self; window.setFrameAutosaveName("StatisticsDialog"); window.center()
+        model.close = { [weak self, weak window] in if self?.model.busy == true { self?.model.cancel() } else { window?.performClose(nil) } }
+        window.escape = { [weak model] in model?.close() }
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return true }
+    func windowWillClose(_ notification: Notification) { model.savePreferences(); onClosed() }
+}
+
+private struct StatisticsDialog: View {
+    @ObservedObject var model: StatisticsWindowModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack { Text("Graph type:"); Spacer(); Picker("Graph type", selection: Binding(get: { model.metric }, set: { model.selectMetric($0) })) { ForEach(LogStatisticsMetric.allCases, id: \.rawValue) { Text($0.title).tag($0) } }.labelsHidden().frame(width: 360).disabled(model.busy) }
+            GroupBox {
+                if model.metric == .statistics, let summary = model.summary { StatisticsSummary(summary: summary, calculate: model.calculate).disabled(model.busy).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading) }
+                else if let graph = model.graph { StatisticsChart(graph: graph, style: model.style, byAuthor: model.metric.byAuthor).frame(maxWidth: .infinity, maxHeight: .infinity) }
+                else { Text(model.busy ? "Gathering statistics…" : "No graph data available.").frame(maxWidth: .infinity, maxHeight: .infinity) }
+            }
+            HStack(alignment: .top) {
+                VStack(alignment: .leading) {
+                    Toggle("Authors case sensitive", isOn: $model.options.caseSensitive)
+                    Toggle("Use committer names", isOn: $model.options.useCommitterNames)
+                    Toggle("Use commit dates", isOn: $model.options.useCommitDates)
+                    Toggle("Sort by commit count", isOn: $model.options.sortByCommitCount)
+                }.disabled(model.busy).onChange(of: model.options) { _ in model.rebuild(resetAuthors: true) }
+                Spacer()
+                HStack {
+                    ForEach([LogStatisticsStyle.pie, .stackedLine, .line, .stackedBar, .bar], id: \.rawValue) { style in
+                        Button { model.style = style } label: { Image(nsImage: styleIcon(style).image() ?? NSImage()).frame(width: 18, height: 18) }.accessibilityLabel(styleTitle(style)).disabled(model.busy || model.metric.byAuthor && [.line, .stackedLine].contains(style)).help(styleTitle(style))
+                    }
+                }
+            }
+            HStack {
+                Text("# authors shown individually:")
+                Slider(value: $model.authorsShown, in: 1...Double(max(2, min(250, model.availableAuthorCount))), step: 1).frame(maxWidth: 220).disabled(model.busy || model.availableAuthorCount < 2).onChange(of: model.authorsShown) { _ in model.rebuild() }
+                Text("\(Int(model.authorsShown))").monospacedDigit()
+                if model.busy { ProgressView(value: Double(model.completed), total: Double(max(1, model.entries.count))).frame(width: 100); Button("Cancel") { model.cancel() } }
+                Spacer(); Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
+            }
+            if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+        }.padding(12)
+    }
+    private func styleIcon(_ style: LogStatisticsStyle) -> MenuIcon {
+        switch style { case .pie: return .graphPie; case .line: return .graphLine; case .stackedLine: return .graphStackedLine; case .bar: return .graphBar; case .stackedBar: return .graphStackedBar }
+    }
+    private func styleTitle(_ style: LogStatisticsStyle) -> String {
+        switch style { case .pie: return "Pie"; case .line: return "Line"; case .stackedLine: return "Stacked line"; case .bar: return "Bar"; case .stackedBar: return "Stacked bar" }
+    }
+}
+
+private struct StatisticsSummary: View {
+    let summary: LogStatisticsSummary
+    var calculate: () -> Void
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 25, verticalSpacing: 12) {
+            value("Number of \(summary.unit.rawValue)s:", summary.displayedIntervalCount)
+            value("Number of authors:", summary.commitsByAuthor.count)
+            value("Total commits analyzed:", summary.totalCommits)
+            GridRow { Text("Total file changes:"); if summary.changesCalculated { Text("\(summary.totalChanges.files)") } else { Button("Calculate", action: calculate) } }
+            if summary.changesCalculated {
+                value("Total changed lines not including added/deleted files:", summary.totalChanges.linesWithoutNewDeletedFiles)
+                value("Total changed lines including added/deleted files:", summary.totalChanges.linesIncludingNewDeletedFiles)
+            }
+            GridRow { Text(""); Text(""); Text("Average"); Text("Min"); Text("Max") }
+            GridRow { Text("Commits each \(summary.unit.rawValue):"); Text(""); Text("\(summary.averageCommits)"); Text("\(summary.minimumCommits)"); Text("\(summary.maximumCommits)") }
+            if let first = summary.authorsByActivity.first { activity("Most active author:", first) }
+            if let last = summary.authorsByActivity.last { activity("Least active author:", last) }
+        }.padding(10)
+    }
+    private func value(_ label: String, _ count: Int) -> some View { GridRow { Text(label); Text("\(count)") } }
+    private func activity(_ label: String, _ author: String) -> some View { let values = summary.activity(for: author); return GridRow { Text(label); Text(author); Text("\(values.average)"); Text("\(values.minimum)"); Text("\(values.maximum)") } }
+}
+
+private struct StatisticsChart: View {
+    let graph: LogStatisticsGraph
+    let style: LogStatisticsStyle
+    let byAuthor: Bool
+    var body: some View {
+        if graph.points.isEmpty { Text("No graph data available.") }
+        else if style == .pie { StatisticsPies(graph: graph, byAuthor: byAuthor) }
+        else {
+            Chart(Array(graph.points.enumerated()), id: \.offset) { _, point in
+                if style == .line { LineMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", graph.seriesLabels[point.series])).symbol(by: .value("Author", graph.seriesLabels[point.series])) }
+                else if style == .stackedLine { AreaMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", graph.seriesLabels[point.series])) }
+                else if style == .stackedBar { BarMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series])) }
+                else { BarMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value), stacking: .unstacked).foregroundStyle(by: .value("Author", byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series])).position(by: .value("Author", graph.seriesLabels[point.series])) }
+            }.chartXAxis { AxisMarks(values: graph.categoryLabels.indices.map { String($0) }) { value in AxisGridLine(); AxisTick(); AxisValueLabel { if let key = value.as(String.self), let index = Int(key), graph.categoryLabels.indices.contains(index) { Text(graph.categoryLabels[index]).font(.caption2) } } } }.padding(10)
+        }
+    }
+}
+
+private struct StatisticsPies: View {
+    let graph: LogStatisticsGraph
+    let byAuthor: Bool
+    private let colors: [Color] = [.blue, .orange, .green, .purple, .red, .cyan, .pink, .yellow]
+    var body: some View {
+        ScrollView {
+            VStack {
+                ForEach(0..<(byAuthor ? 1 : graph.categoryLabels.count), id: \.self) { category in
+                    let points = byAuthor ? graph.points : graph.points.filter { $0.category == category }
+                    Text(byAuthor ? graph.seriesLabels.first ?? "" : graph.categoryLabels[category])
+                    Canvas { context, size in
+                        let total = Double(points.reduce(0) { $0 + $1.value }); var angle = -Double.pi / 2
+                        let center = CGPoint(x: size.width / 2, y: size.height / 2), radius = min(size.width, size.height) * 0.45
+                        for (index, point) in points.enumerated() where point.value > 0 && total > 0 {
+                            let next = angle + Double(point.value) / total * 2 * .pi
+                            var path = Path(); path.move(to: center); path.addArc(center: center, radius: radius, startAngle: .radians(angle), endAngle: .radians(next), clockwise: false); path.closeSubpath()
+                            context.fill(path, with: .color(colors[index % colors.count])); angle = next
+                        }
+                    }.frame(height: 220)
+                    ForEach(Array(points.enumerated()), id: \.offset) { index, point in HStack { Circle().fill(colors[index % colors.count]).frame(width: 10, height: 10); Text(byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series]); Text("\(point.value)") } }
+                }
+            }
+        }
+    }
+}

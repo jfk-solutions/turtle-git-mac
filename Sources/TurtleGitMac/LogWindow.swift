@@ -397,6 +397,7 @@ struct LogCommandRequest: Identifiable {
     let selectingMultiple: Bool
     // Keep the security-scoped grant alive if the main repository window changes.
     private let access: RepositoryAccessLease?
+    private var statisticsWindow: StatisticsWindowController?
     @Published var entries: [LogEntry] = []
     @Published var revisionActions: [String: LogRevisionActions] = [:]
     @Published var actionFailures = Set<String>()
@@ -973,7 +974,15 @@ struct LogCommandRequest: Identifiable {
             if request == actionGeneration { actionCancellation = nil; activeActionHash = nil }
         }
     }
+    func showStatistics() {
+        guard !busy, !isInvalidated, !entries.isEmpty else { return }
+        if let statisticsWindow { statisticsWindow.showWindow(nil); statisticsWindow.window?.makeKeyAndOrderFront(nil); return }
+        let controller = StatisticsWindowController(repository: repository, access: access, entries: entries)
+        controller.onClosed = { [weak self] in self?.statisticsWindow = nil }
+        statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
+    }
     func invalidate() {
+        statisticsWindow?.model.cancel(); statisticsWindow?.close(); statisticsWindow = nil
         isInvalidated = true
         cancelPatchPreview(); onPatchPreviewVisibility?(false)
         cancelRepositoryRefresh()
@@ -1878,6 +1887,7 @@ struct LogDialog: View {
             }
             HStack {
                 Button("Refresh") { model.reload() }.disabled(model.busy)
+                Button("Statistics") { model.showStatistics() }.disabled(model.busy || model.entries.isEmpty || model.isInvalidated)
                 Button("Show next 200") { model.reload(more: true) }.disabled(model.busy)
                 if model.busy { ProgressView().controlSize(.small) }
                 if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }

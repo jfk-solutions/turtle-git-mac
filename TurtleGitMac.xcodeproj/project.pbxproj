@@ -119,6 +119,7 @@
 		B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83395323FFA0860A52795F9F /* Stash.swift */; };
 		B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */; };
 		B172FF1DD6076D00FCEB58D7 /* CommitAmend.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D91605384F213DBC8C3C9F /* CommitAmend.swift */; };
+		B18ABD76861A1AE220FD07B0 /* LogStatisticsGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B0C481296918B051C77841 /* LogStatisticsGraph.swift */; };
 		B325035DE8116D7F3CCCC3FD /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 11C14DF0DFBA0B8AC513278E /* NOTICE */; };
 		B37762B44078ECEA7539D02D /* ConflictResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */; };
 		B46406E18DBC3B1E7292BD5A /* MessageCodeScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */; };
@@ -126,6 +127,7 @@
 		B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA121F2E317F86B146016B4E /* Rename.swift */; };
 		B96A74776BF83BB313347BBB /* MessageCodeSymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */; };
 		B9AFF3F19CAB2A9F7313754D /* TurtleGitCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		BA385183E9E7CF4B38B22FDD /* StatisticsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */; };
 		BBF557294334CDAEE1937ADD /* NativeWatermarkTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */; };
 		BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */; };
 		BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */; };
@@ -223,6 +225,7 @@
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
 		022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRepositoryWindow.swift; sourceTree = "<group>"; };
 		0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflictWindow.swift; sourceTree = "<group>"; };
+		03B0C481296918B051C77841 /* LogStatisticsGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatisticsGraph.swift; sourceTree = "<group>"; };
 		0492C8BA1A8FA506ECB53A3A /* AddProgressTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProgressTable.swift; sourceTree = "<group>"; };
 		04D3808CD4999B158EA66D0B /* Add.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Add.swift; sourceTree = "<group>"; };
 		0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryBrowserWindow.swift; sourceTree = "<group>"; };
@@ -378,6 +381,7 @@
 		F5B1B4492D159F92D3F03BBA /* Bisect.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Bisect.swift; sourceTree = "<group>"; };
 		F7809458AF943456197C0AC7 /* MergeWhitespace.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWhitespace.swift; sourceTree = "<group>"; };
 		F925723BED85497207863D60 /* SubmoduleConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflict.swift; sourceTree = "<group>"; };
+		FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsWindow.swift; sourceTree = "<group>"; };
 		FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonEditing.swift; sourceTree = "<group>"; };
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -460,6 +464,7 @@
 				DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
 				CC73279697B4174BE7ED4D66 /* StashWindow.swift */,
+				FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */,
 				70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */,
 				0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */,
 				85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */,
@@ -542,6 +547,7 @@
 				5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */,
 				D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */,
 				0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */,
+				03B0C481296918B051C77841 /* LogStatisticsGraph.swift */,
 				3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */,
 				D975B1620A435727724213D1 /* Merge.swift */,
 				35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */,
@@ -833,6 +839,7 @@
 				86578F215A688D810DC90ED6 /* IssueRegex.swift in Sources */,
 				0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */,
 				685C871A83BE7D21AD6E50B0 /* LogStatistics.swift in Sources */,
+				B18ABD76861A1AE220FD07B0 /* LogStatisticsGraph.swift in Sources */,
 				00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */,
 				90A423E07A63281C4163EAD0 /* Merge.swift in Sources */,
 				3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */,
@@ -942,6 +949,7 @@
 				62913FA0A0A8052D1CF513A4 /* SelectionAllCheckbox.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,
 				7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */,
+				BA385183E9E7CF4B38B22FDD /* StatisticsWindow.swift in Sources */,
 				2F880914CC17252579DC49AD /* StatusWindow.swift in Sources */,
 				E3EE5EB389BF0E9FD8DDD26A /* SubmoduleConflictWindow.swift in Sources */,
 				A6773359488D79CCCCE0C7DE /* SubmoduleDiffWindow.swift in Sources */,
