@@ -94,7 +94,7 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   submodule toggle and broader Commit action combinations remain.
 - Message-history native workflow QA, template native workflow QA and other text encodings,
   completion, spelling, issue IDs and tracker plugins.
-- Broader grouped-list selection and conditional workflows, dirty-submodule commit prompts, broader binary/ignored preview acceptance,
+- Broader grouped-list selection and conditional workflows, displayed dirty-submodule prompt acceptance, broader binary/ignored preview acceptance,
   file counts for untracked paths, staged/unstaged rename interactions.
 - Remaining file context command audit, including broader grouped-list and clipboard verification, plus broader Delete selection verification. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
@@ -1306,3 +1306,28 @@ included in the normal native checks as well. See
 [the visible-selection QA record](qa/commit-visible-selection-2026-10-07.json).
 These model/real-Git checks do not prove displayed gestures or signed sandbox
 execution. Full Commit acceptance remains incomplete.
+
+## Checked dirty-submodule preflight
+
+Before preparing the parent index, Commit now checks selected visible directory
+rows for dirty child repositories, matching `CCommitDlg::OnOK`. The native sheet
+uses the source warning and **Commit**, **Ignore**, **Cancel** choices. Commit
+hands the validated child checkout to a separate native Commit window and stops
+the parent attempt; Ignore continues to the next warning, then the parent commit;
+Cancel retains the parent draft. It never commits child files automatically.
+
+Existing gitlinks use the source working/index diff's `-dirty` suffix, including
+staged child edits and honoring Git's diff ignore configuration. Untracked-only
+child changes and new child commits alone do not produce that marker. An
+unversioned nested repository uses its own status, including untracked files.
+Missing/uninitialized child checkouts are not initialized. Paths are literal,
+deduplicated in display order and validated before handoff. Staging mode checks
+visible staged rows; Message only skips these warnings, as upstream does.
+
+[Native workflow evidence](qa/commit-dirty-submodule-2026-10-07.json) records
+Cancel, child handoff, Ignore, staging and Message only across four Git versions,
+with original parent/child bytes preserved for refused attempts. This proves
+programmatic model decisions and actual Git effects. Displayed sheet buttons,
+actual child-window focus and parent refresh after a child commit, multiple
+prompt sequencing, scoped staging combinations and signed sandbox handoff still
+need acceptance. Full Commit and application parity remain incomplete.

@@ -19,6 +19,38 @@ final class SubmoduleComparisonTests: XCTestCase {
         return (root, parent, child, path, hash)
     }
 
+    func testCommitDirtySubmoduleWarningsFollowSourceAndPreserveRepositories() async throws {
+        let (root, parent, child, path, _) = try await fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        var warnings = try await parent.commitDirtySubmodules(paths: [path])
+        XCTAssertTrue(warnings.isEmpty)
+        // Untracked-only changes are ignored for an existing gitlink, like diff.
+        try Data("untracked".utf8).write(to: child.root.appendingPathComponent("untracked"))
+        warnings = try await parent.commitDirtySubmodules(paths: [path]); XCTAssertTrue(warnings.isEmpty)
+        try Data("dirty".utf8).write(to: child.root.appendingPathComponent("file.txt"))
+        let parentIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let childIndex = try Data(contentsOf: child.root.appendingPathComponent(".git/index"))
+        warnings = try await parent.commitDirtySubmodules(paths: [path, path, "file.txt"])
+        XCTAssertEqual(warnings.map(\.path), [path]); XCTAssertEqual(warnings.first?.checkout, child.root)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), parentIndex)
+        XCTAssertEqual(try Data(contentsOf: child.root.appendingPathComponent(".git/index")), childIndex)
+        try await child.stage(["file.txt"])
+        warnings = try await parent.commitDirtySubmodules(paths: [path]); XCTAssertEqual(warnings.count, 1)
+        _ = try await child.commit(message: "new child commit")
+        warnings = try await parent.commitDirtySubmodules(paths: [path]); XCTAssertTrue(warnings.isEmpty, "New child commits are not dirty files")
+        try FileManager.default.removeItem(at: child.root.appendingPathComponent("untracked"))
+        // An unversioned nested repository does include untracked children.
+        _ = try await parent.run(["update-index", "--force-remove", "--", path])
+        try Data("untracked".utf8).write(to: child.root.appendingPathComponent("untracked"))
+        warnings = try await parent.commitDirtySubmodules(paths: [path]); XCTAssertEqual(warnings.count, 1)
+        _ = try await parent.run(["config", "diff.ignoreSubmodules", "all"])
+        let hash = try await child.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await parent.run(["update-index", "--add", "--cacheinfo", "160000," + hash + "," + path])
+        try Data("dirty again".utf8).write(to: child.root.appendingPathComponent("file.txt"))
+        warnings = try await parent.commitDirtySubmodules(paths: [path]); XCTAssertTrue(warnings.isEmpty, "Respect source diff configuration")
+        do { _ = try await parent.commitDirtySubmodules(paths: ["../escape"]); XCTFail("Unsafe path accepted") } catch is WorkingFileRestoreFailure {}
+    }
+
     func testBrowserSubmoduleResolutionPinsChildHistoryWithoutWrites() async throws {
         let (root, parent, child, path, base) = try await fixture()
         defer { try? FileManager.default.removeItem(at: root) }

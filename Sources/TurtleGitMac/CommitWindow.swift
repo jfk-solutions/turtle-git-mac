@@ -119,6 +119,14 @@ import UniformTypeIdentifiers
             alert.addButton(withTitle: "Add Signed-off-by"); alert.addButton(withTitle: "Commit without Signed-off-by"); alert.addButton(withTitle: "Abort")
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn ? .add : $0 == .alertSecondButtonReturn ? .proceed : .abort) }
         }
+        model.confirmDirtySubmodule = { [weak window] path, choose in
+            guard let window, window.attachedSheet == nil else { choose(.cancel); return }
+            let alert = NSAlert(); alert.alertStyle = .informational
+            alert.messageText = "The submodule \"" + path + "\" is dirty."
+            alert.informativeText = "Merely committing the superproject cannot track or save such changes to the submodule.\nCommit the submodule now or ignore dirty changes?"
+            alert.addButton(withTitle: "Commit"); alert.addButton(withTitle: "Ignore"); alert.addButton(withTitle: "Cancel")
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn ? .commit : $0 == .alertSecondButtonReturn ? .ignore : .cancel) }
+        }
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) { closingCommit = true; logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed() }
@@ -319,6 +327,9 @@ import UniformTypeIdentifiers
     private var originalAmendMessage = ""
     var confirmUneditedTemplate: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     var confirmMissingIssue: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
+    enum DirtySubmoduleChoice { case commit, ignore, cancel }
+    var confirmDirtySubmodule: (String, @escaping (DirtySubmoduleChoice) -> Void) -> Void = { _, choose in choose(.cancel) }
+    var onCommitSubmodule: (URL) -> Void = { _ in }
     enum SignOffChoice { case add, proceed, abort }
     var confirmMissingSignOff: (@escaping (SignOffChoice) -> Void) -> Void = { choose in choose(.abort) }
     @Published var operation: CommitOperation?
@@ -795,6 +806,18 @@ import UniformTypeIdentifiers
                 }
                 let prepared = text == rawMessage ? validation : try await repository.prepareIssueCommit(properties: properties, message: text, issueID: rawIssueID)
                 text = prepared.message; message = text
+                if !options.messageOnly {
+                    let candidates = staging ? visibleEntries.filter(\.staged).map(\.path) : visibleEntries.filter { paths.contains($0.path) }.map(\.path)
+                    let dirty = try await repository.commitDirtySubmodules(paths: candidates)
+                    for child in dirty {
+                        let choice = await withCheckedContinuation { continuation in confirmDirtySubmodule(child.path) { continuation.resume(returning: $0) } }
+                        guard choice == .ignore else {
+                            busy = false
+                            if choice == .commit { onCommitSubmodule(child.checkout) }
+                            return
+                        }
+                    }
+                }
                 let output: String
                 commitAttempted = true
                 if let replaySplit { output = try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit) }

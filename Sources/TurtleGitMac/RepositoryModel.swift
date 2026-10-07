@@ -1128,6 +1128,10 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func configureCommitInteractions(_ model: CommitWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onCommitSubmodule = { [weak self] checkout in
+            guard !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(checkout) == true else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+            self?.showCommitDialog(repository: GitRepository(root: checkout, executable: repository.executable), access: access, paths: [])
+        }
         model.onCompare = { [weak self] paths, amendToParent in
             self?.showWorkingFiles(repository: repository, access: access, paths: paths, amendToParent: amendToParent)
         }

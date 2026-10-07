@@ -367,3 +367,7 @@ The Log revision double-click preference and parent-comparison handoff adapt
 GitLogListBase.cpp, GitLogListAction.cpp and Settings/SetDialogs.cpp under the
 upstream source license. UserDefaults and a native informational sheet replace
 the Windows registry and no-previous-version message box.
+
+The checked dirty-submodule Commit preflight and Commit/Ignore/Cancel prompt adapt
+CommitDlg.cpp and its resource text under the upstream source license. Native
+child Commit windows replace launching TortoiseGitProc for the submodule.

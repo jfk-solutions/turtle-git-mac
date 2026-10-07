@@ -183,3 +183,37 @@ extension GitRepository {
                                 statistics: try run(args + ["--numstat", "-z", "--"]).stdout)
     }
 }
+
+public struct CommitDirtySubmodule: Sendable {
+    public let path: String
+    public let checkout: URL
+}
+
+extension GitRepository {
+    /// CommitDlg warns only for checked directories. Tracked gitlinks use the
+    /// working/index diff's -dirty marker; newly added nested repos use status.
+    /// This read does not stage either repository or initialize missing children.
+    public func commitDirtySubmodules(paths: [String]) throws -> [CommitDirtySubmodule] {
+        var result: [CommitDirtySubmodule] = [], seen = Set<String>()
+        for path in paths where seen.insert(path).inserted {
+            let location = try restoreLocation(path)
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: location.path, isDirectory: &isDirectory), isDirectory.boolValue,
+                  (try FileManager.default.attributesOfItem(atPath: location.path))[.type] as? FileAttributeType == .typeDirectory,
+                  FileManager.default.fileExists(atPath: location.appendingPathComponent(".git").path) else { continue }
+            let discovered = try run(["-C", location.path, "rev-parse", "--show-toplevel"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).stdout
+            var bytes = discovered
+            if bytes.last == 10 { bytes.removeLast() }
+            guard URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().standardizedFileURL == location.resolvingSymlinksInPath().standardizedFileURL else { throw SubmoduleComparisonFailure.unsafeCheckout }
+            let tracked = try !run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).stdout.isEmpty
+            let dirty: Bool
+            if tracked {
+                dirty = try run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", "--", path], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).text.hasSuffix("-dirty\n")
+            } else {
+                dirty = try !run(["-C", location.path, "status", "--porcelain=v1", "-z"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"]).stdout.isEmpty
+            }
+            if dirty { result.append(CommitDirtySubmodule(path: path, checkout: location)) }
+        }
+        return result
+    }
+}

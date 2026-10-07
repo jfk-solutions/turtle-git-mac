@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "a5fd375d529128aaa0018746d8becfc196e27b42",
+  "previous_goal_turn": "Progress: Log double-click preference checkpoint a5fd375 committed.",
+  "scope": "Checked dirty-submodule Commit preflight, Commit/Ignore/Cancel native sheet and child Commit window handoff. Full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "5db9cd2ca8a559769dbf9f8896bb4b689df93b3040710f07a0ec7346fb58c5cf",
+    "NOTICE": "c5c111fa2db768e263c92c0310d41f9b4a8bfa13a0e4a8788d34b27722ca8c84",
+    "Sources/TurtleGitCore/CommitSelection.swift": "de56e04f5cd11c0e94ff66191872a05b908d95e6a031a09f518bc5e0832378f1",
+    "Sources/TurtleGitMac/CommitWindow.swift": "1464d6cbe897148a6044a5ff986876e077deb462a78dd561a51136101a976902",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "94e097c3cda18a3ac39030a52e81c1d60f2d8a36948e482665b1496df2e89700",
+    "Tests/TurtleGitCoreTests/SubmoduleComparisonTests.swift": "8a1ef2bb60577d134c3f64b7944b4cd038139b3658c5cd61a5d1f5099e83018e",
+    "docs/COMMIT-PARITY.md": "b787a81acae0c42da3bba9397db85bfb18f3f36c67c5847b82fe7512f33c55a5",
+    "docs/qa/commit-dirty-submodule-native-2026-10-07.swift": "408ce79e547104f73592a60fafd073b742ef5138eff476be710abef7773b764e",
+    "docs/upstream-files.csv": "7a19c2114ccbc459d2e1e2a16a97d5dc1d8628456e3171b1be7b6a0d257c7e9c",
+    "scripts/test-commit-dirty-submodule.py": "0dc909a5d546dc849634b95b6b498e79fad38611884b8ece08c6de2870b2af07"
+  },
+  "all_sources_manifest_sha256": "5fa50056b911655d6f21ab57645bffd55d2ccacaa5eb210d6a74a635c97037eb",
+  "verification": {
+    "core": "28 selected SubmoduleComparison/CommitSelection/CommitAmend tests passed. New source preflight regression verifies clean child, untracked-only existing gitlink (no warning), unstaged and staged child dirty contents, deduplication/literal Unicode and pathspec-looking paths, new child commits alone (no dirty warning), untracked nested repository, diff ignore configuration, unsafe paths and exact parent/child index preservation.",
+    "native": "Final receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Programmatic native Commit model confirmation callbacks tested Cancel, Commit child handoff, Ignore, staging and Message only. Cancel/handoff preserve original parent/child index, HEAD/ref and tracked file bytes. Ignore commits child gitlink at current child HEAD while retaining dirty contents; staging Cancel leaves index unchanged; Message only bypasses warning and retains child files. Native controller sheet wiring and RepositoryModel separate child-window/access-lease wiring are compiled, but their displayed operation/focus was not tested. No main app or visible window launched.",
+    "initial_failure": "Initial receiver compared URL values for the child callback and failed despite matching checkout locations; switched assertion to path equality. Final matrix passed without production changes for this test correction.",
+    "builds": "Unsigned Debug and AppStore builds passed, both bundle validators and exact bundled NOTICE comparisons passed; all 96 original icons audited. Store --require-git verified 11 universal Git Mach-O files and fixture operations; EditorConfig and IssueRegex audits passed.",
+    "ci": "Added native dirty-submodule receiver to macOS workflow. Hosted CI and publication unverified; no authentication/push retry.",
+    "documentation": "Updated Commit parity and upstream file inventory; local site generated, unpublished.",
+    "processes": "All compilers/receivers terminal. No main app or visible windows launched; final app/receiver process audit empty. Successful receiver removes only its repository-specific message-history preference; initial failure occurred before history writes.",
+    "limitations": "Displayed sheet/buttons, real child-window focus and parent refresh after child Commit, multiple sequential prompts, broad scoped/staged/amend/replay/dirty-child combinations and signed sandbox handoff remain pending. Full application/dialog parity, activated Finder, genuine screenshots/full manual, signed release/App Store/license clearance and hosted site remain incomplete."
+  },
+  "logs": {
+    "build/qa/commit-dirty-submodule/core.log": "c7e55b8389463143122ec05c61e4815b94f54d3a6e227425a500f43a3c37388b",
+    "build/qa/commit-dirty-submodule/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/commit-dirty-submodule/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/commit-dirty-submodule/native-final.log": "086021e379f607af6aab059f3e13c57808517f5e468b42e00faebacfea5c0862",
+    "build/qa/commit-dirty-submodule/native.log": "d7bf2e12591f301e05d322e88f6c8c8e2e18dcd8315102ddde389b435b1e839e",
+    "build/qa/commit-dirty-submodule/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-dirty-submodule/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/commit-dirty-submodule/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/commit-dirty-submodule/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
