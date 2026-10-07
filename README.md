@@ -218,6 +218,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   message length; [parity details](docs/EDIT-NOTES-PARITY.md) record remaining checks.
   [Revert from Log](docs/REVERT-COMMIT.md) offers merge-parent choices and the
   upstream confirmation/result prompts, with a Commit handoff.
+- [Log statistics](docs/LOG-STATISTICS-PARITY.md) has a calculation layer for the
+  shown revision snapshot, author/date grouping and lazy file/line measurements.
+  The native statistics dialog, charts and graph export remain pending.
 - [Clean](docs/CLEAN-PARITY.md) has native cleanup type/directory/Trash/dry-run/
   Submodules options, remembered repository preferences and a separate progress
   window with live item progress, Retry and dry-run actions. App commands and Finder's “Clean up…”

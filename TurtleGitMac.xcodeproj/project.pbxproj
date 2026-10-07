@@ -69,6 +69,7 @@
 		61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */; };
 		62913FA0A0A8052D1CF513A4 /* SelectionAllCheckbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */; };
 		68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */; };
+		685C871A83BE7D21AD6E50B0 /* LogStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */; };
 		697C21F466069759F260EF25 /* WorkingFileDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */; };
 		6AEF7E4CDFDA1B02489A78EE /* RenameWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1F6087799A5783306A27CEE /* RenameWindow.swift */; };
 		6B9238091F271707632595BC /* SubmoduleUpdateWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */; };
@@ -219,6 +220,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
 		022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRepositoryWindow.swift; sourceTree = "<group>"; };
 		0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflictWindow.swift; sourceTree = "<group>"; };
 		0492C8BA1A8FA506ECB53A3A /* AddProgressTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProgressTable.swift; sourceTree = "<group>"; };
@@ -539,6 +541,7 @@
 				9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */,
 				5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */,
 				D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */,
+				0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */,
 				3FC03184E38E2D4ACB2908F5 /* MenuIcons.swift */,
 				D975B1620A435727724213D1 /* Merge.swift */,
 				35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */,
@@ -829,6 +832,7 @@
 				36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */,
 				86578F215A688D810DC90ED6 /* IssueRegex.swift in Sources */,
 				0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */,
+				685C871A83BE7D21AD6E50B0 /* LogStatistics.swift in Sources */,
 				00EAAAB986D762F4A6B93DBE /* MenuIcons.swift in Sources */,
 				90A423E07A63281C4163EAD0 /* Merge.swift in Sources */,
 				3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */,

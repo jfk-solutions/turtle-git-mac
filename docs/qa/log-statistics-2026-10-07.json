@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "a0859405d8cb72399439482f15c57bcf4d96ee9b",
+  "previous_goal_turn": "Progress: live Clean accepted-item counters/native event flow locally committed.",
+  "scope": "Pinned Log statistics calculation data and lazy full-commit file/line measurement cache; no native Statistics UI yet.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/StatGraphDlg.cpp": "99eaf454cddff437ac9622f79abd446c69f9ca21",
+    "src/TortoiseProc/StatGraphDlg.h": "e26379e23a1d3c00460b877f6ad98d2475e79321",
+    "src/TortoiseProc/LogDlg.cpp": "d456ae8d668767195f464ad8d850a15c034127f5",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    "README.md": "9f443c5ddacc25b51593608dd09eb0875f60d61dc8e86286dea0d579e2cc4667",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "34502515125a01f7eb3023f287e87a3215cdeb5d78bbf3b2cdc96846720925c7",
+    "docs/UI-PARITY.md": "082424d1525c8d9b031847c151cd75cff4be977e36218beee0854d6e0b564c94",
+    "docs/upstream-files.csv": "22a12e26a12442505b531bbb771d78c653fcfb0784ecfa3383cfc8e5b377abc2",
+    "Sources/TurtleGitCore/LogStatistics.swift": "3f1766becaabfb301a339d55e668275a65c8096660c7d03ee2a8cf87bd8b9cb5",
+    "Tests/TurtleGitCoreTests/LogStatisticsTests.swift": "71ae8db38a7e984ee563de3ce130628f8468aee590ccda5abe6670adf4522710",
+    "docs/LOG-STATISTICS-PARITY.md": "c6115189081f72a5ea539c5581b5cfe6f674615eda66e9702046d28766fffcfc"
+  },
+  "all_sources_manifest_sha256": "58cb02c44b716c92adff2a94101e912b370fc431282bb67a091d860e61fbc51b",
+  "verification": {
+    "core": "Five statistics tests passed on system Git. Default author/commit-date, committer names, author dates, case fold/unknown name/ranking and alphabetical toggle, source weighting, sparse occupied-interval denominator/min/max/averages, all five unit thresholds, empty/malformed/pre-cancelled input and incomplete-cache rejection. Actual Git root/modification/rename/deleted/new/binary/merge measurements; merge contributes no diff. Cancellation returns no partial cache and working-copy pseudo rows are rejected. Exact tracked/index/config/HEAD bytes unchanged after calculation/cancellation.",
+    "compatibility": "All five tests passed on explicitly injected Git 2.37.1, 2.39.5 and bundled 2.55.0. Fixture initial base created with system Git; subsequent work/measurement reads use selected engine.",
+    "builds": "Final SwiftPM test build, unsigned Debug and AppStore builds passed. Initial oversized tuple map/sort expression exceeded Swift type-check time; split into typed accumulation and sort before final successful builds.",
+    "audits": "Both bundle validators and exact NOTICE comparisons passed, including 91 upstream icons and Store --require-git universal runtime audit.",
+    "native": "No native Statistics window or main app launched; no app/menu/cleanup receiver left running.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "Calculation foundation only. Native IDD_STATGRAPH, Log handoff/button, Calculate/progress flow, charts/styles/slider/Others/export/graph artwork/preferences unported. Foundation calendar week/DST and Unicode case behavior plus stable equal-date order require regional/native acceptance; original occupied-unit keys and denominator retained. Full port, activated Finder, genuine screenshots/full manual, signed sandbox/Store acceptance and hosted CI/site publication remain incomplete. No push or GitHub auth retry attempted."
+  },
+  "logs": {
+    "build/qa/log-statistics/core-final.log": "0717f24742f071a9249cf9b99f615d2441323e4ee60a7616a5b50b3e0de8ac21",
+    "build/qa/log-statistics/core-2.37.1.log": "7b17c10d11e7caaae0ca6c1ca428ad265800327880330363c1e49161ef1f84cd",
+    "build/qa/log-statistics/core-2.39.5.log": "9b5b524d678b53eed1a9cc68e2f054873f827ba19f2446f7adb0ee91374dd743",
+    "build/qa/log-statistics/core-2.55.0.log": "281f498f29f5f7b249b951556b5315a8d0c4ece4ef7804802d7345e6f2f615af",
+    "build/qa/log-statistics/debug.log": "eafcea01a13158ba7c42d627f6127260a620d945a52d6aaabc8b2ab927a1cad6",
+    "build/qa/log-statistics/debug-audit.log": "9e2c757a2c34a49b6423dfbda33b82a47eac4eae4b752f0a3137e91a875a3e3c",
+    "build/qa/log-statistics/store.log": "c6b15ded77af7ec7402dc88d58d90ea2c6f5d12d00f06b8ebc9ee7ec80f316ea",
+    "build/qa/log-statistics/store-audit.log": "c530e4979d3d277cc095a0241f655c589a54fa42c26a4bd453f1c1c4e9b0f078",
+    "build/qa/log-statistics/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
