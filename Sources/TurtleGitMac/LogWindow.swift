@@ -454,6 +454,17 @@ struct LogCommandRequest: Identifiable {
     private var lastImportedWorkingMark: UUID?
     @Published var comparisonMark: PreparedFileComparisonMark?
     @Published var allBranches = false
+    @Published private(set) var historyWalk = HistoryWalkOptions()
+    @Published private(set) var canFollowRenames = false
+    func canToggleHistoryWalk(_ command: HistoryWalkCommand) -> Bool {
+        !busy && !isInvalidated && (command != .followRenames || canFollowRenames)
+    }
+    func toggleHistoryWalk(_ command: HistoryWalkCommand) {
+        guard canToggleHistoryWalk(command) else { return }
+        historyWalk.toggle(command)
+        if historyWalk.followRenames { allBranches = false; showWholeProject = false }
+        reload()
+    }
     @Published var endRevision: String?
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
@@ -738,6 +749,7 @@ struct LogCommandRequest: Identifiable {
     func setPathScope(_ paths: [String]) {
         let scope = paths.contains(".") ? [] : paths
         guard historyPaths != scope || showWholeProject != scope.isEmpty else { return }
+        historyWalk.followRenames = false; canFollowRenames = false
         historyPaths = scope; showWholeProject = scope.isEmpty; reload()
     }
     private func cancelActionReads() {
@@ -793,6 +805,8 @@ struct LogCommandRequest: Identifiable {
         cancelClipboardRead()
         generation += 1; let request = generation
         var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
+        options.walk = historyWalk
+        let scope = historyPaths
         if !showWholeProject { options.paths = historyPaths }
         if useDates { options.since = Calendar.current.startOfDay(for: from); options.until = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) }
         busy = true
@@ -805,6 +819,7 @@ struct LogCommandRequest: Identifiable {
                 if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase() }
                 let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
+                let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.endRevision, cancellation: cancellation)
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 let working = showWorkingTree && !selecting && !bare ? try await repository.workingTreeHistory(cancellation: cancellation) : nil
                 let indexFiles = working == nil ? [] : try await repository.workingTreeStatus(refreshIndex: false)
@@ -814,7 +829,10 @@ struct LogCommandRequest: Identifiable {
                 self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
                 self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
-                entries = result; graph = CommitGraph.layout(result)
+                canFollowRenames = followAllowed
+                let projection = CommitGraph.project(result, walk: options.walk)
+                entries = projection.entries; graph = projection.graph
+                result = projection.entries
                 workingTreeSnapshot = working; workingIndexFiles = indexFiles; workingSubmodules = submodules
                 if let working { revisionActions[""] = .classify(working.files) } else { revisionActions.removeValue(forKey: "") }
                 let hashes = Set(result.map(\.hash)); revisionActions = revisionActions.filter { hashes.contains($0.key) }
@@ -1621,13 +1639,22 @@ struct LogDialog: View {
             Text("Showing \(model.entries.filter { !$0.hash.isEmpty }.count) revision(s) • \(model.selectedWorkingTree ? "Working tree selected" : "\(model.revisions.count) revision(s) selected") • \(model.files.count) changed file(s)")
                 .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             HStack {
-                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil).onChange(of: model.allBranches) { _ in model.reload() }
+                Menu {
+                    ForEach([HistoryWalkCommand.firstParent, .noMerges, .followRenames, .fullHistory], id: \.self) { command in
+                        Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))
+                    }
+                    Divider()
+                    ForEach([HistoryWalkCommand.compressed, .labeled], id: \.self) { command in
+                        Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))
+                    }
+                } label: { Text(model.historyWalk.isActive ? "✓ Walk Behavior" : "Walk Behavior") }.disabled(model.busy || model.isInvalidated)
+                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil || model.historyWalk.followRenames).onChange(of: model.allBranches) { _ in model.reload() }
                 if !model.selecting && !model.bare {
                     Toggle("Show Working Tree Changes", isOn: $model.showWorkingTree).toggleStyle(.checkbox).onChange(of: model.showWorkingTree) { _ in model.reload() }
                     Toggle("Show Unversioned Files", isOn: $model.showUnversionedFiles).toggleStyle(.checkbox).onChange(of: model.showUnversionedFiles) { _ in model.updateWorkingFiles() }
                 }
                 if !model.historyPaths.isEmpty {
-                    Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).onChange(of: model.showWholeProject) { _ in model.reload() }
+                    Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).disabled(model.historyWalk.followRenames).onChange(of: model.showWholeProject) { _ in model.reload() }
                         .help(model.historyPaths.joined(separator: "\n"))
                 }
                 Spacer()

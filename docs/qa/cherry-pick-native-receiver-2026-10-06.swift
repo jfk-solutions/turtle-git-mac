@@ -1112,6 +1112,67 @@ import TurtleGitCore
     print("Native Log Add modes: last-added selection mark, literal mixed executable and symlink direct progress use real 100755/120000 index modes and raw blobs without chmod/disk links, normal folder progress stages gitlink, lock/cancel exact-index preservation, unrelated staged/HEAD preservation, busy/bare/stale-stage/file-selection/closed guards passed. Root callbacks injected; Shift events/post-action menus not activated; no windows shown.")
 }
 
+@MainActor func verifyNativeLogHistoryWalk(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-walk-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgsign", "false"])
+    let old = "old 雪\n.txt", new = "new :(glob)* 雪\n.txt", bytes = Data((0..<30).map { "line \($0)\n" }.joined().utf8)
+    try bytes.write(to: root.appendingPathComponent(old)); try await repo.stage([old]); _ = try await repo.commit(message: "walk base")
+    let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    _ = try await repo.run(["branch", "walk-side"])
+    _ = try await repo.run(["mv", "--", old, new]); _ = try await repo.commit(message: "walk rename")
+    _ = try await repo.run(["switch", "walk-side"])
+    try Data("side\n".utf8).write(to: root.appendingPathComponent("side-file")); try await repo.stage(["side-file"]); _ = try await repo.commit(message: "walk side")
+    _ = try await repo.run(["switch", "main"]); _ = try await repo.run(["merge", "--no-ff", "walk-side", "-m", "walk merge"])
+    let model = LogWindowModel(repository: repo, access: nil); defer { model.invalidate() }
+    func until(_ condition: () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition(), model.error ?? "Walk fixture timed out")
+    }
+    model.reload(); try await until { !model.busy }
+    precondition(model.error == nil && !model.historyWalk.isActive && !model.canToggleHistoryWalk(.followRenames))
+    let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    model.toggleHistoryWalk(.firstParent); try await until { !model.busy }
+    precondition(model.entries.filter { !$0.hash.isEmpty }.map(\.subject) == ["walk merge", "walk rename", "walk base"])
+    precondition(model.entries.first { $0.subject == "walk merge" }?.parents.count == 2)
+    model.toggleHistoryWalk(.noMerges); try await until { !model.busy }
+    precondition(model.entries.filter { !$0.hash.isEmpty }.map(\.subject) == ["walk rename", "walk base"])
+    model.toggleHistoryWalk(.firstParent); try await until { !model.busy }
+    precondition(model.entries.filter { !$0.hash.isEmpty }.count == 3)
+    model.toggleHistoryWalk(.noMerges); try await until { !model.busy }
+    model.toggleHistoryWalk(.fullHistory); try await until { !model.busy }; precondition(model.historyWalk.fullHistory)
+    model.toggleHistoryWalk(.fullHistory); try await until { !model.busy }
+    model.toggleHistoryWalk(.compressed); try await until { !model.busy }
+    precondition(model.historyWalk.graphMode == .compressed && model.entries.contains { $0.hash == base } && !model.entries.contains { $0.subject == "walk rename" })
+    precondition(model.entries.first?.hash == "" && model.graph.count == model.entries.count)
+    model.toggleHistoryWalk(.labeled); try await until { !model.busy }
+    precondition(!model.historyWalk.contains(.compressed) && model.historyWalk.contains(.labeled))
+    precondition(model.entries.filter { !$0.hash.isEmpty }.map(\.subject) == ["walk merge", "walk side"])
+    model.toggleHistoryWalk(.labeled); try await until { !model.busy }; precondition(!model.historyWalk.isActive)
+    model.setPathScope([new]); try await until { !model.busy }
+    precondition(model.canFollowRenames)
+    model.allBranches = true; model.reload(); try await until { !model.busy }
+    model.toggleHistoryWalk(.followRenames); try await until { !model.busy }
+    precondition(model.historyWalk.followRenames && !model.allBranches && !model.showWholeProject)
+    precondition(model.entries.filter { !$0.hash.isEmpty }.map(\.subject) == ["walk rename", "walk base"])
+    let host = NSHostingView(rootView: LogDialog(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1100, height: 760); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
+    model.setPathScope([new, "side-file"]); try await until { !model.busy }
+    precondition(!model.historyWalk.followRenames && !model.canFollowRenames)
+    try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
+    model.setPathScope(["folder"]); try await until { !model.busy }; precondition(!model.canFollowRenames)
+    model.busy = true; model.toggleHistoryWalk(.firstParent); precondition(!model.historyWalk.firstParent); model.busy = false
+    model.invalidate(); model.toggleHistoryWalk(.firstParent); precondition(model.isInvalidated && !model.historyWalk.firstParent)
+    let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let afterBytes = try Data(contentsOf: root.appendingPathComponent(new))
+    precondition(afterIndex == index && afterHead == head && afterBytes == bytes)
+    print("Native Log Walk Behavior: all six model controls, actual first-parent/no-merge rows and retained merge parents, full-history toggle, compressed fork/merge and labeled-only views with working row, mutual mode toggles, literal rename history, all-branch/whole-project exclusion, single-file eligibility, multi/folder reset, busy/closed guards, hidden hosted menu and exact index/HEAD/file preservation passed. Displayed gestures and per-node rollup remain pending.")
+}
+
 @MainActor func verifyNativeLogWorkingAddCommit(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-add-commit-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -2021,6 +2082,7 @@ import TurtleGitCore
     try await verifyNativeLogDelete(executable: repo.executable)
     try await verifyNativeLogIgnore(executable: repo.executable)
     try await verifyNativeLogAddModes(executable: repo.executable)
+    try await verifyNativeLogHistoryWalk(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
     try await verifyNativeLogRevertFlags(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))

@@ -2,6 +2,86 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testHistoryWalkFirstParentNoMergesAndFullHistoryPreserveRepository() async throws {
+        let (root, baseRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? baseRepo.executable)
+        let initial = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["branch", "walk-side"])
+        try Data("main changed\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "walk main")
+        let main = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["switch", "walk-side"])
+        try Data("side\n".utf8).write(to: root.appendingPathComponent("walk-side-file")); try await repo.stage(["walk-side-file"]); _ = try await repo.commit(message: "walk side")
+        let side = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["switch", "main"]); _ = try await repo.run(["merge", "--no-ff", "--no-commit", "walk-side"])
+        _ = try await repo.run(["checkout", initial, "--", path]); _ = try await repo.commit(message: "walk merge keeps side path")
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index")), bytes = try Data(contentsOf: root.appendingPathComponent(path))
+        var options = HistoryOptions(); options.walk.firstParent = true
+        let first = try await repo.history(options: options)
+        XCTAssertEqual(first.map(\.subject), ["walk merge keeps side path", "walk main", "base"])
+        XCTAssertEqual(first[0].parents, [main, side], "Walk filtering must retain actual action parents")
+        options.walk.noMerges = true
+        let linear = try await repo.history(options: options); XCTAssertEqual(linear.map(\.hash), [main, initial])
+        options.walk.firstParent = false
+        let ordinary = try await repo.history(options: options); XCTAssertEqual(Set(ordinary.map(\.hash)), [main, side, initial])
+        options.walk.noMerges = false; options.paths = [path]
+        let simplified = try await repo.history(options: options); XCTAssertFalse(simplified.contains { $0.hash == main })
+        options.walk.fullHistory = true
+        let full = try await repo.history(options: options); XCTAssertTrue(full.contains { $0.hash == main })
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(after, head); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), bytes)
+    }
+    func testHistoryWalkFollowsLiteralRenameAndRejectsFolderOrMultiplePaths() async throws {
+        let (root, baseRepo, old) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? baseRepo.executable)
+        let renamed = "new :(glob)* 雪\n.txt"
+        _ = try await repo.run(["mv", "--", old, renamed]); _ = try await repo.commit(message: "walk rename")
+        try Data("literal objects file\n".utf8).write(to: root.appendingPathComponent("objects")); try await repo.stage(["objects"]); _ = try await repo.commit(message: "unrelated")
+        let moduleHash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + moduleHash + ",uninitialized-module"])
+        _ = try await repo.commit(message: "gitlink fixture")
+        var options = HistoryOptions(); options.paths = [renamed]
+        let simple = try await repo.history(options: options); XCTAssertEqual(simple.map(\.subject), ["walk rename"])
+        options.walk.followRenames = true
+        let followed = try await repo.history(options: options); XCTAssertEqual(followed.map(\.subject), ["walk rename", "base"])
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        for paths in [[], [renamed, "objects"], ["."]] {
+            options.paths = paths
+            do { _ = try await repo.history(options: options); XCTFail("Invalid follow scope accepted") } catch is HistoryWalkFailure {}
+        }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
+        options.paths = ["folder"]
+        do { _ = try await repo.history(options: options); XCTFail("Directory follow accepted") } catch is HistoryWalkFailure {}
+        options.paths = [renamed]; options.allBranches = true
+        do { _ = try await repo.history(options: options); XCTFail("All branches follow accepted") } catch is HistoryWalkFailure {}
+        let bare = root.appendingPathComponent("bare.git")
+        _ = try await repo.run(["clone", "--bare", "--", root.path, bare.path])
+        let bareRepo = GitRepository(root: bare, executable: repo.executable)
+        let allowed = try await bareRepo.canFollowHistory(paths: ["objects"]); XCTAssertTrue(allowed, "Bare administration directories must not hide committed file history")
+        let directorySyntax = try await bareRepo.canFollowHistory(paths: ["folder/"]); XCTAssertFalse(directorySyntax)
+        let moduleAllowed = try await bareRepo.canFollowHistory(paths: ["uninitialized-module"]); XCTAssertFalse(moduleAllowed)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+    func testHistoryWalkCompressionKeepsHeadLabelsMergesForksAndActualParents() {
+        func entry(_ hash: String, _ parents: [String]) -> LogEntry { LogEntry(hash: hash, author: "", date: "", subject: hash, parents: parents) }
+        var head = entry("head", ["hidden"]); head.isHead = true
+        var root = entry("root", []); root.references = [RevisionReference(name: "refs/tags/root")]
+        let entries = [head, entry("hidden", ["merge"]), entry("merge", ["left", "right"]), entry("left", ["root"]), entry("right", ["root"]), root]
+        var walk = HistoryWalkOptions(); walk.toggle(.compressed)
+        let compact = CommitGraph.project(entries, walk: walk)
+        XCTAssertEqual(compact.entries.map(\.hash), ["head", "merge", "root"])
+        XCTAssertEqual(compact.entries[0].parents, ["hidden"]); XCTAssertEqual(compact.entries[1].parents, ["left", "right"])
+        XCTAssertTrue(compact.graph[1].junction && compact.graph[2].junction)
+        XCTAssertTrue(compact.graph[1].edges.contains { $0.endsAtNode }, "Hidden linear ancestors must connect retained nodes")
+        walk.toggle(.labeled); XCTAssertFalse(walk.contains(.compressed)); XCTAssertTrue(walk.contains(.labeled))
+        let labeled = CommitGraph.project(entries, walk: walk)
+        XCTAssertEqual(labeled.entries.map(\.hash), ["head", "root"]); XCTAssertTrue(labeled.graph[1].edges.contains { $0.endsAtNode })
+        walk.toggle(.labeled); XCTAssertFalse(walk.isActive)
+        XCTAssertEqual(CommitGraph.project(entries, walk: walk).entries.map(\.hash), entries.map(\.hash))
+        walk.firstParent = true
+        XCTAssertEqual(CommitGraph.project(entries, walk: walk).entries[2].parents, ["left", "right"])
+    }
     func testHistoricalLogFileRevertPinsTargetsPreservesAddedWorkAndUnrelatedIndex() async throws {
         let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

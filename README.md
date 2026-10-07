@@ -544,4 +544,9 @@ Compare two files uses the selected commit's first parent independently for
 deleted sides. Multi-file unified diff appends patches in displayed order and
 includes both names of a rename. Core regressions pass; native pair and multi-file
 patch acceptance, merge-parent variants and signed sandbox checks remain pending.
+Log’s Walk Behavior menu now provides First Parent, No merges, Follow renames,
+Full history, Compressed Graph and labeled-only choices. Display filtering retains
+actual parents for revision actions; per-node rollup and displayed acceptance
+remain in progress.
+
 See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.

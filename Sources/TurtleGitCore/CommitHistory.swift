@@ -238,7 +238,43 @@ struct HistoryTextQuery {
     }
 }
 
+public enum HistoryGraphMode: Equatable, Sendable { case all, compressed, labeled }
+public enum HistoryWalkCommand: String, CaseIterable, Sendable {
+    case firstParent = "First Parent", noMerges = "No merges", followRenames = "Follow renames", fullHistory = "Full history"
+    case compressed = "Compressed Graph", labeled = "Show labeled commits only"
+}
+public struct HistoryWalkOptions: Sendable {
+    public var firstParent = false, noMerges = false, followRenames = false, fullHistory = false
+    public var graphMode: HistoryGraphMode = .all
+    public init() {}
+    public var isActive: Bool { firstParent || noMerges || followRenames || fullHistory || graphMode != .all }
+    public func contains(_ command: HistoryWalkCommand) -> Bool {
+        switch command {
+        case .firstParent: return firstParent
+        case .noMerges: return noMerges
+        case .followRenames: return followRenames
+        case .fullHistory: return fullHistory
+        case .compressed: return graphMode == .compressed
+        case .labeled: return graphMode == .labeled
+        }
+    }
+    public mutating func toggle(_ command: HistoryWalkCommand) {
+        switch command {
+        case .firstParent: firstParent.toggle()
+        case .noMerges: noMerges.toggle()
+        case .followRenames: followRenames.toggle()
+        case .fullHistory: fullHistory.toggle()
+        case .compressed: graphMode = graphMode == .compressed ? .all : .compressed
+        case .labeled: graphMode = graphMode == .labeled ? .all : .labeled
+        }
+    }
+}
+public enum HistoryWalkFailure: LocalizedError {
+    case singleFile
+    public var errorDescription: String? { "Follow renames requires one file path. Select a file's history instead of a folder or multiple paths." }
+}
 public struct HistoryOptions: Sendable {
+    public var walk = HistoryWalkOptions()
     public var allBranches = false
     public var endRevision: String?
     public var limit = 200
@@ -347,6 +383,41 @@ public struct CommitGraphRow: Sendable {
 
 public enum CommitGraph {
     private struct Lane { var hash: String; var color: Int }
+    /// Compression changes only graph copies, never action/detail parent metadata.
+    public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions) -> (entries: [LogEntry], graph: [CommitGraphRow]) {
+        var children: [String: Set<String>] = [:]
+        for entry in entries { for parent in entry.parents { children[parent, default: []].insert(entry.hash) } }
+        let visible = entries.filter { entry in
+            if entry.hash.isEmpty || walk.graphMode == .all { return true }
+            let labeled = entry.isHead || entry.references.contains { ref in
+                ["refs/heads/", "refs/remotes/", "refs/tags/", "refs/stash", "refs/bisect/"].contains { ref.name.hasPrefix($0) }
+            }
+            return labeled || walk.graphMode == .compressed && (entry.parents.count > 1 || children[entry.hash, default: []].count > 1)
+        }
+        let visibleHashes = Set(visible.map(\.hash))
+        let records = Dictionary(uniqueKeysWithValues: entries.map { ($0.hash, $0) })
+        func graphParents(_ entry: LogEntry) -> [String] { walk.firstParent ? Array(entry.parents.prefix(1)) : entry.parents }
+        func nearestVisible(_ origin: String) -> [String] {
+            var pending = [origin], seen = Set<String>(), result: [String] = []
+            while let hash = pending.popLast() {
+                guard seen.insert(hash).inserted else { continue }
+                if visibleHashes.contains(hash) || records[hash] == nil { result.append(hash) }
+                else if let entry = records[hash] { pending += graphParents(entry).reversed() }
+            }
+            return result
+        }
+        let graphEntries = visible.map { entry -> LogEntry in
+            var copy = entry, seen = Set<String>()
+            copy.parents = graphParents(entry).flatMap(nearestVisible).filter { seen.insert($0).inserted }
+            return copy
+        }
+        let graph = zip(visible, layout(graphEntries)).map { entry, row in
+            CommitGraphRow(column: row.column, color: row.color,
+                junction: entry.parents.count > 1 || children[entry.hash, default: []].count > 1,
+                edges: row.edges, width: row.width)
+        }
+        return (visible, graph)
+    }
     public static func layout(_ entries: [LogEntry]) -> [CommitGraphRow] {
         var lanes: [Lane] = []
         var nextColor = 0
@@ -547,6 +618,10 @@ extension GitRepository {
             do { _ = try historyRun(["rev-parse", "--verify", "--quiet", "HEAD"]) }
             catch let failure as GitFailure where failure.code == 1 { return [] }
         }
+        if options.walk.followRenames {
+            let paths = (options.path.map { $0.isEmpty ? [] : [$0] } ?? []) + options.paths
+            guard !options.allBranches, try canFollowHistory(paths: paths, revision: options.endRevision, cancellation: cancellation) else { throw HistoryWalkFailure.singleFile }
+        }
         let issueProperties = try issueProperties ?? issueTrackerProperties(cancellation: cancellation)
         var issueCache: [String: String] = [:]
         func issueIDs(_ hash: String, message: String) throws -> String {
@@ -559,6 +634,10 @@ extension GitRepository {
         // Git fixed-string grep is equivalent only for one positive message term.
         let filterInMemory = filtering && (options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
         var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]
+        if options.walk.firstParent { args.append("--first-parent") }
+        if options.walk.noMerges { args.append("--no-merges") }
+        if options.walk.followRenames { args.append("--follow") }
+        if options.walk.fullHistory { args.append("--full-history") }
         if !filterInMemory { args.append("-\(options.limit)") }
         if let revision = options.endRevision {
             let hash = try historyRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
@@ -684,6 +763,18 @@ extension GitRepository {
         }
         try cancellation?.check()
         return entries
+    }
+    public func canFollowHistory(paths: [String], revision: String? = nil, cancellation: OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
+        guard paths.count == 1, let path = paths.first, !path.isEmpty, path != ".", !path.hasSuffix("/") else { return false }
+        let bare = try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
+        if !bare, (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[.type] as? FileAttributeType) == .typeDirectory { return false }
+        let pinned = try run(["rev-parse", "--verify", "--quiet", "--end-of-options", (revision ?? "HEAD") + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+        if pinned.exitCode == 1 { return true }
+        let hash = pinned.text.trimmingCharacters(in: .newlines)
+        let tree = try run(["ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout
+        let record = String(decoding: tree, as: UTF8.self)
+        return !record.hasPrefix("040000 ") && !record.hasPrefix("160000 ")
     }
     /// Full log clipboard details for a pinned commit, including every parent's
     /// changed paths, Git notes and annotated tags. Use native LF line endings.

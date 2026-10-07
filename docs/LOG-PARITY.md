@@ -1183,3 +1183,45 @@ Log's current-column context command, native column visibility/order persistence
 AbbreviateRenamings setting consumer, composed light/dark appearance, physical
 menu/keyboard gestures and signed sandbox acceptance remain pending. The default
 five-column clipboard change does not establish complete menu or Log parity.
+
+
+## Walk Behavior
+
+The native Log now exposes the six pinned Walk Behavior menu choices, in source
+order: First Parent, No merges, Follow renames, Full history, then Compressed
+Graph and Show labeled commits only. Each choice has a checked state; the button
+shows when any choice is active. The two graph modes replace one another and
+turn off when selected again. Busy and invalidated models refuse changes.
+
+The first four options use Git's `--first-parent`, `--no-merges`, `--follow` and
+`--full-history`. Follow renames requires a single file scope, turns off All
+Branches, restores the original file scope instead of Whole Project, and disables
+both controls while active. Changing scopes clears Follow. Eligibility checks
+working directories and committed tree modes, including bare repositories where
+Git's own administration directories must not be mistaken for committed folders.
+Typed gitlinks are also excluded even without a checkout. Literal Unicode,
+newline and wildcard-like filenames retain their meaning.
+
+Compressed Graph keeps HEAD and supported reference labels, merge commits and
+fork points. Labeled-only keeps HEAD/reference rows. The synthetic working-tree
+row remains visible. Graph copies bridge hidden **loaded** linear ancestors;
+actions, parent comparisons and file groups continue to use actual commit parent
+hashes. Merge/fork node shapes retain actual topology even when graph edges
+collapse. The normal history reader returns raw walked entries; the native Log
+applies this display projection separately.
+
+Three Core tests exercise real merge and rename histories, combined First Parent
+and No merges, a merge that hides mainline path changes unless Full history is
+used, scope restrictions, a bare administration-directory name collision, readonly
+repository preservation and graph projection invariants. The existing 34 Commit
+History tests also pass. The native receiver exercises all six model handlers,
+working-row/graph alignment, literal rename following, mutually exclusive modes,
+All Branches/Whole Project transitions, scope reset and busy/closed guards, with
+an actual hidden hosted Log view. See [the walk QA record](qa/log-history-walk-2026-10-07.json).
+
+Per-node Expand/Collapse rollup commands, reference visibility masks, compressed
+search combinations, graph parent rewriting across commits omitted by path or
+No-merges walks, displayed light/dark/keyboard/VoiceOver acceptance and signed
+sandbox behavior remain pending. Compression currently applies to the loaded
+revision batch, so Show next 200 can reveal more retained nodes. This is progress
+toward the complete upstream walk/graph behavior, not full Log acceptance.

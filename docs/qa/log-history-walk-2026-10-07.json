@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "fe7821c",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log Walk Behavior six choices, Git walk flags, single-file Follow eligibility and separate compressed/labeled graph projection",
+  "sha256": {
+    "README.md": "c686ddb5e8445156e275e704b11eabc2aab2b9e7fee268763634f296b08d97ae",
+    "Sources/TurtleGitCore/CommitHistory.swift": "8372afe8cf1d0ede32c7393dd6ff976cf1d90692ddac320a957a3d2bd881a705",
+    "Sources/TurtleGitMac/LogWindow.swift": "e6e9ac4151d0ee3e4d3c51ed99d14938adae81dad61fe2f1126c33da1f12af0f",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "1d1e537f1f6deaa6c7db148bf644ae4b0b2459db2e518b3fb5c3d241058a3221",
+    "docs/LOG-PARITY.md": "0e40ebd1a7e32d012272bc53b6c804da7a61c0986861519beb1964c5df6e4999",
+    "docs/upstream-files.csv": "30218991521267b51d3b5d65c958a7b2326cab056020fe4ea33f626b93a84f73",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "5f4be876969768c76aec1965b7be87ac3fb6915185f10c69d85660dc7821b9ca"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/LogDlg.cpp": "f7f61c888ae379112be47151d62d01255230cdbad2df852dbf26f6928a4e730c",
+    "src/TortoiseProc/LogDlg.h": "fd7861f2f4741c24e8def08b0b5dd5358d38a656b63910592c3d77efe18793cd",
+    "src/TortoiseProc/GitLogListBase.cpp": "024c118c31678bfe86b3f9494c900be5242d9db1955eaf251f67ec6baa7d92a2",
+    "src/Git/Git.cpp": "4b0d0830cb066480d6ed76395654dd41ba4673e16124930c5efa342c2b0b7247",
+    "src/Resources/TortoiseProcENG.rc": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6"
+  },
+  "verification": {
+    "core": "All 37 CommitHistoryTests passed on system Git. Three new testHistoryWalk cases passed on Git 2.37.1, 2.39.5 and bundled 2.55.0. Actual merge and literal rename histories verify first-parent/no-merges combinations, full-history recovery of hidden mainline path changes, actual parent retention, directory/multi/all-branch Follow refusal, bare administration-name collision and uninitialized gitlink exclusion, exact HEAD/index/working preservation and graph filtering/edge/shape invariants. Full package suite not repeated.",
+    "native": {
+      "command": "scripts/check-cherry-pick-native.py --menus-only, four sequential --git paths",
+      "versions": {
+        "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+        "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+        "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+        "build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git": "git version 2.55.0"
+      },
+      "result": "All four runs passed. All six native model handlers and checked states exercised; actual first-parent/no-merge row sets, actual merge parents retained, Full history toggled, compressed merge/fork and labeled-only views with working row and graph alignment, mode exclusivity, real literal rename following, All Branches/Whole Project transitions, file/multi/folder eligibility/reset, busy/closed guards and exact HEAD/index/file bytes checked. Actual hidden NSHostingView built LogDialog. Existing focused menu/common fixtures passed. Physical menu gestures, displayed dialogs and screenshots not exercised."
+    },
+    "builds": [
+      "SwiftPM test/application build",
+      "Unsigned final Xcode Debug",
+      "Unsigned final Xcode AppStore"
+    ],
+    "audits": "Both bundle validators passed, Store --require-git, all 90 original icon resources, and both exact NOTICE comparisons.",
+    "limitations": "Per-node rollup/Expand/Collapse, reference visibility masks, compressed search combinations, graph rewriting through commits absent from path/No-merges walks, exact footer placement and displayed light/dark/keyboard/VoiceOver acceptance remain pending. Graph projection bridges hidden loaded entries only; loaded batch limits remain. Signed Finder/sandbox, App Store acceptance and hosted CI not established. Full port incomplete.",
+    "site": "Local site generation passed; not published.",
+    "process_audit": "No main app or native/menu/provider receiver remained."
+  },
+  "remaining": "Complete upstream behaviors, all native dialogs/menu/layout/gesture parity, Finder activation, signed App Store distribution, full user manual, screenshots and site publication.",
+  "all_sources_manifest_sha256": "c6af8887cbe272b5d5aec11ba174be1aac826c99038605c110116970dfdcaf35",
+  "logs": {
+    "build/qa/log-history-walk/2.37.1-core.log": "fee41322e125b68bb8e34602cf45b18f43d6b2aa1d9aaa5b5deef82a2e50acab",
+    "build/qa/log-history-walk/2.39.5-core.log": "d7409275db5627dce0a22d3b8036243a538cb41c1e75650c03a6501c50e23d47",
+    "build/qa/log-history-walk/2.55.0-core.log": "fdbc5e352cf397ccd5c4e9866192b526fb3cc7cd6a8af359f41d54623c84f5eb",
+    "build/qa/log-history-walk/core-all-history.log": "badbf1d4b6e9ef9bd2ccc03a273ae95090e45ff5a600dade32f851d5fba55250",
+    "build/qa/log-history-walk/core-final.log": "6afa6266f3d67dd785dec8e70289150fd528538c08916f2322df9c7191c5bbe9",
+    "build/qa/log-history-walk/core.log": "1eea8208fbd87bd730d2adf37c7f0202742c7d462dfeb620e311f3f29f50df5d",
+    "build/qa/log-history-walk/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-history-walk/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-history-walk/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/log-history-walk/native.log": "46522f9158e67572711ba300700e13a87a8f3110c7925261952ea3b50128d3b1",
+    "build/qa/log-history-walk/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-history-walk/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-history-walk/store-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-history-walk/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
