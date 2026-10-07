@@ -358,3 +358,7 @@ GravatarPictureBox.cpp/.h's visibility, normalized email hashing, request delay
 and temporary-image caching from TortoiseGit under the source license above.
 Windows registry, WinCrypt, WinINet and picture controls are replaced by native
 preferences, CryptoKit, URLSession and AppKit/SwiftUI.
+
+Log graph rollup adapts GitLogListBase.cpp and GitLogListAction.cpp's inherited
+expansion/collapse, forced-state toggling and hollow-node drawing under the same
+upstream source license. Native graph projection retains actual action parents.

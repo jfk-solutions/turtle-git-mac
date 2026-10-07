@@ -194,6 +194,7 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   F5 refresh and light/dark appearance; Finder and app-menu routing.
   [Revert parity details](docs/REVERT-PARITY.md) record the remaining workflows.
 - Optional [Gravatar author pictures](docs/GRAVATAR.md) in Log, with repository-specific visibility, custom provider URL, SHA-256/MD5 and cancellable cached loading.
+- [Compressed graph expansion](docs/LOG-GRAPH.md) with per-commit Expand/Collapse and hollow collapsed nodes.
 - Separate three-pane Log Messages window: compact branch/merge graph, refs, full
   commit message, lazy colored Actions icons, changed paths and added/removed line
   counts; search/date filters,

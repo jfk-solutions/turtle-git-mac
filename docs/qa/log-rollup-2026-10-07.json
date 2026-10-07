@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "9c98fc66c4be730cbaec5a115cd75d092ed5f468",
+  "previous_goal_turn": "Progress: native Gravatar checkpoint 9c98fc6 committed.",
+  "scope": "Compressed Log per-node Expand/Collapse propagation, forced-state toggling, hollow graph nodes and native menu routing. Full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/TortoiseProc/FilterHelper.h": "9e1483e256598565dcdc38052f8c8e2e29248528"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "5a3c06ec4bd1f77df3b798e7362658156e916fd70fd1bc434b664b1eb911f2be",
+    "NOTICE": "cff90b7584fb53cc8533a2b9967073165e10cb7c0ff59b80c111cfcc9570b5ea",
+    "README.md": "97c453665612cf3240a81270a78cf6a9b32fbc857c50330a586016024b2bbfb3",
+    "Sources/TurtleGitCore/CommitHistory.swift": "e6cd5b51c97b35d87a0bb60421e0b208c59356fd501cfafe2008ca89c3427744",
+    "Sources/TurtleGitMac/LogWindow.swift": "81ac108bcb77b21675da9f645f213c3644e50cebf8a71a1ec8c1f6e939098241",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "0bf43387399af5e6718244872f670be815b04884747bc9da57be7692fe37c868",
+    "docs/LOG-GRAPH.md": "e957852dfd2d61757d667d4f6862eca204d95ab183bbc4ac015932a86f6ef95c",
+    "docs/LOG-PARITY.md": "f78fe377deae7e5ea31ded5235645498b8bcc97211d50076dba0e8bf9ad2643c",
+    "docs/qa/log-rollup-native-2026-10-07.swift": "c803f19d801f934420d1c6e950aa38a061322227e301db0cbf66ddd56aa7a787",
+    "docs/site/index.html": "367b2ba6e3bb61299578708ee59cb6d0da5f09758f82fca4a4e1443f45bc27c4",
+    "docs/upstream-files.csv": "0f568b8bc8a19482b38a71c25faa366832c496193be2a95fd1b5b549aec30221",
+    "scripts/test-log-rollup.py": "5a9aefdd38ebd93b7123611e3363c21a78b76ec41e7ba4af4f854fa7323fa976"
+  },
+  "all_sources_manifest_sha256": "2073cc047d9521b33ff32c2e48060d85521d77ba9668278c1171ef8e70863185",
+  "verification": {
+    "core": "All 45 selected CommitHistory/MenuIcon tests passed. Rollup fixtures cover stopping at reference/merge/fork boundaries, expansion of both merge arms, forced mid-segment collapse, reversal/removal of forced overrides, normal-mode ignored overrides and actual action-parent preservation. C++ search activity covers empty/inversion-only, ordinary, inverted regex and invalid regex. Initial new helper test lacked the explicit matcher path; wired the existing injectable matcher into the public activity/options API and native model, then fixed its visibility before final passing builds. Final strengthened two rollup regressions were rebuilt and passed, proving a forced collapse removes a remaining ordinary ancestor, not just changing its state flag. The intermediate skip-build log is not acceptance evidence for the changed fixture.",
+    "native": "Final receiver passed system Git, Git 2.37.1, 2.39.5 and bundled 2.55.0. Actual hidden Log revision NSMenu Expand and Collapse selectors refresh real six-commit/tag history. Row hashes, stopped segments, selected title, hollow graph state, mid-segment override, parent metadata, active/invalid search and multi/busy/closed refusal verified. Exact tracked/index/config/HEAD bytes preserved. Programmatic hidden menu routing is not physical pointer/keyboard evidence. Final strengthened matrix also verifies an ordinary parent disappears after forced mid-segment collapse and reappears after reversing the override.",
+    "builds": "Final SwiftPM/tests and unsigned Debug/AppStore builds passed; both bundle validators and exact NOTICE comparisons passed with all 96 original icons. Store --require-git audited 11 universal Git Mach-O files and fixture operations; EditorConfig and IssueRegex audits passed.",
+    "ci": "Added native rollup receiver to macOS workflow. Hosted CI and GitHub publication unverified; no authentication/push retry.",
+    "limitations": "Projection remains bounded by loaded rows; full cross-page rollup, compressed/search combinations, out-of-order/malformed topology, exact GDI/native hollow-node geometry/colors, physical menu/window/keyboard/VoiceOver and signed sandbox acceptance remain incomplete. Full application/dialog parity, activated Finder, genuine screenshots/full manual, signed release/App Store/license clearance and hosted site remain incomplete.",
+    "documentation": "Added user guide with README/site links, updated source parity/inventory notes and generated the local site; unpublished.",
+    "processes": "All receivers terminal, owned hidden windows closed and no main app launched. Final app/receiver process audit empty. Private preference domains cleared and eight empty UUID-named Rollup QA plist files removed; nonempty preferences preserved."
+  },
+  "logs": {
+    "build/qa/log-rollup/core-accepted.log": "886fcd0b9f9baa45a5dbaea68f98b77bb8fdd1c4ffd361048e532b8676a2c606",
+    "build/qa/log-rollup/core-final.log": "4c07bff641ee40040b59e5e31f96332d9968eb86d66a77d04cd90448b222331e",
+    "build/qa/log-rollup/core.log": "a6b15ab810924a692cc17c6fd89599b807ae932ed982273b9bbf4932af2b1a70",
+    "build/qa/log-rollup/debug-accepted.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-rollup/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/log-rollup/debug-final.log": "6e26899de13d5a8004b8e17acb6307a45cd65faa2fc5c37ba7b36fb198d664f3",
+    "build/qa/log-rollup/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/log-rollup/native-final.log": "9056239a5b4292957be5967e292e4216e60379f22b7032ef44a4c517cb5d470b",
+    "build/qa/log-rollup/native.log": "9056239a5b4292957be5967e292e4216e60379f22b7032ef44a4c517cb5d470b",
+    "build/qa/log-rollup/rollup-focused-stale.log": "8a27651dcb9737ca0d74b85d099f475fcd3d3591d63217e3e8dd66e2cb30cdd6",
+    "build/qa/log-rollup/rollup-focused.log": "4f67cd014318f691ab8bb0175e9c84c4602844c9cfa785a5f642c6889a71dd6f",
+    "build/qa/log-rollup/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-rollup/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-rollup/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/log-rollup/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

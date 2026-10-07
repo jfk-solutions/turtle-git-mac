@@ -267,6 +267,39 @@ final class CommitHistoryTests: XCTestCase {
         walk.firstParent = true
         XCTAssertEqual(CommitGraph.project(entries, walk: walk).entries[2].parents, ["left", "right"])
     }
+    func testRollupExpansionStopsAtLabelsMergesAndForksAndKeepsActualParents() {
+        func entry(_ hash: String, _ parents: [String]) -> LogEntry { LogEntry(hash: hash, author: "", date: "", subject: hash, parents: parents) }
+        var head = entry("head", ["a"]); head.isHead = true
+        var tag = entry("tag", ["b"]); tag.references = [RevisionReference(name: "refs/tags/stop")]
+        let entries = [head, entry("a", ["gap"]), entry("gap", ["tag"]), tag, entry("b", ["merge"]), entry("merge", ["left", "right"]), entry("left", ["root"]), entry("right", ["root"]), entry("root", [])]
+        var walk = HistoryWalkOptions(); walk.graphMode = .compressed
+        var states: [String: HistoryRollupChoice] = [:]
+        let initial = CommitGraph.project(entries, walk: walk)
+        XCTAssertEqual(initial.entries.map(\.hash), ["head", "tag", "merge", "root"])
+        initial.rollups["head"]!.toggled(in: &states, hash: "head")
+        let expanded = CommitGraph.project(entries, walk: walk, rollupStates: states)
+        XCTAssertEqual(expanded.entries.map(\.hash), ["head", "a", "gap", "tag", "merge", "root"])
+        XCTAssertFalse(expanded.graph[0].collapsed); XCTAssertTrue(expanded.rollups["head"]!.forced)
+        XCTAssertEqual(expanded.entries[0].parents, ["a"])
+        expanded.rollups["head"]!.toggled(in: &states, hash: "head"); XCTAssertTrue(states.isEmpty)
+        states = ["merge": .expand]
+        let branches = CommitGraph.project(entries, walk: walk, rollupStates: states)
+        XCTAssertEqual(branches.entries.map(\.hash), ["head", "tag", "merge", "left", "right", "root"])
+        XCTAssertTrue(branches.rollups["root"]!.collapsed, "Fork terminates inherited expansion")
+        states = ["head": .expand, "a": .collapse]
+        let mid = CommitGraph.project(entries, walk: walk, rollupStates: states)
+        XCTAssertEqual(mid.entries.map(\.hash), ["head", "a", "tag", "merge", "root"], "Mid-segment collapse must hide its remaining linear ancestry"); XCTAssertTrue(mid.rollups["a"]!.forced); XCTAssertTrue(mid.rollups["a"]!.collapsed)
+        walk.graphMode = .all; XCTAssertEqual(CommitGraph.project(entries, walk: walk, rollupStates: states).entries.map(\.hash), entries.map(\.hash))
+    }
+    func testRollupSearchActivityUsesSourceInactiveEmptyAndInvalidPatterns() throws {
+        let helper = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        XCTAssertFalse(try HistorySearchActivity.isActive("", regex: false, caseSensitive: false))
+        XCTAssertFalse(try HistorySearchActivity.isActive("!", regex: false, caseSensitive: false))
+        XCTAssertTrue(try HistorySearchActivity.isActive("needle", regex: false, caseSensitive: false))
+        XCTAssertFalse(try HistorySearchActivity.isActive("[", regex: true, caseSensitive: false, executable: helper))
+        XCTAssertFalse(try HistorySearchActivity.isActive("!", regex: true, caseSensitive: false, executable: helper))
+        XCTAssertTrue(try HistorySearchActivity.isActive("!needle", regex: true, caseSensitive: false, executable: helper))
+    }
     func testHistoricalLogFileRevertPinsTargetsPreservesAddedWorkAndUnrelatedIndex() async throws {
         let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

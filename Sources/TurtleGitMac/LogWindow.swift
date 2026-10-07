@@ -540,6 +540,17 @@ struct LogCommandRequest: Identifiable {
     @Published var comparisonMark: PreparedFileComparisonMark?
     @Published var allBranches = false
     @Published private(set) var historyWalk = HistoryWalkOptions()
+    @Published private(set) var rollupInfo: [String: HistoryRollupInfo] = [:]
+    private var rollupStates: [String: HistoryRollupChoice] = [:]
+    private var historyFilterActive = false
+    private let historyRegexExecutable: URL?
+    var canToggleRollup: Bool { !busy && !isInvalidated && !historyFilterActive && historyWalk.graphMode == .compressed && revision != nil && rollupInfo[revision!.hash] != nil }
+    var rollupTitle: String { revision.flatMap { rollupInfo[$0.hash] }?.collapsed == true ? "Expand" : "Collapse" }
+    func toggleRollup() {
+        guard canToggleRollup, let revision, let info = rollupInfo[revision.hash] else { return }
+        info.toggled(in: &rollupStates, hash: revision.hash); reload()
+    }
+
     @Published private(set) var referenceVisibility = HistoryReferenceVisibility.all
     @Published private(set) var showGravatar = false
     let gravatar: LogGravatar
@@ -917,7 +928,8 @@ struct LogCommandRequest: Identifiable {
         return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
+        self.historyRegexExecutable = historyRegexExecutable
         self.gravatar = gravatar ?? LogGravatar(defaults: labelDefaults)
         self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; self.labelDefaults = labelDefaults; showWorkingTree = !selecting
         showGravatar = labelDefaults.object(forKey: gravatarDefaultsKey) == nil ? labelDefaults.bool(forKey: "EnableGravatar") : labelDefaults.bool(forKey: gravatarDefaultsKey)
@@ -1024,8 +1036,8 @@ struct LogCommandRequest: Identifiable {
         cancelClipboardRead()
         generation += 1; let request = generation
         var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
-        options.walk = historyWalk
-        let referenceVisibility = referenceVisibility
+        options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
+        let referenceVisibility = referenceVisibility, rollupStates = rollupStates
         let scope = historyPaths
         if !showWholeProject { options.paths = historyPaths }
         if useDates { options.since = Calendar.current.startOfDay(for: from); options.until = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) }
@@ -1057,7 +1069,10 @@ struct LogCommandRequest: Identifiable {
                     patchPreviewPreferenceLoaded = true
                     if patchPreviewVisible != showPatch { patchPreviewVisible = showPatch; onPatchPreviewVisibility?(showPatch) }
                 }
-                let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility)
+                let filterActive = try await Task.detached { try HistorySearchActivity.isActive(options.search, regex: options.searchRegex, caseSensitive: options.searchCaseSensitive, executable: options.regexExecutable, cancellation: cancellation) }.value
+                guard request == generation else { return }
+                let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility, rollupStates: rollupStates)
+                historyFilterActive = filterActive; rollupInfo = projection.rollups
                 entries = projection.entries; graph = projection.graph
                 result = projection.entries
                 workingTreeSnapshot = working; workingIndexFiles = indexFiles; workingSubmodules = submodules
@@ -2107,7 +2122,7 @@ struct RevisionTable: NSViewRepresentable {
         let dateSettings = HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale)
         let datesChanged = coordinator.dateSettings != dateSettings; coordinator.dateSettings = dateSettings
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
-        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) }
+        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility
         coordinator.referenceVisibility = model.referenceVisibility
         let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
@@ -2300,6 +2315,9 @@ struct RevisionTable: NSViewRepresentable {
             item("Format Patch…", #selector(formatPatch), icon: .patch, enabled: model.formatPatchPreset != nil && !model.busy && model.onFormatPatch != nil)
             if model.bisectAvailable(.start) { menu.addItem(.separator()); item(LogBisectCommand.start.title, #selector(bisectStart), icon: .bisect, enabled: model.canBisect(.start)) }
             menu.addItem(.separator())
+            if model.canToggleRollup {
+                let rollup = NSMenuItem(title: model.rollupTitle, action: #selector(toggleRollup), keyEquivalent: ""); rollup.target = self; menu.addItem(rollup); menu.addItem(.separator())
+            }
             let clipboard = NSMenu(title: "Copy to clipboard")
             clipboard.autoenablesItems = false
             for (title, selector) in [("Full log details", #selector(copyDetails)), ("Full log details without changed paths", #selector(copyDetailsWithoutPaths)), ("Hashes", #selector(copyHashes)),
@@ -2312,6 +2330,7 @@ struct RevisionTable: NSViewRepresentable {
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
             parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
         }
+        @objc func toggleRollup() { model.toggleRollup() }
         @objc func toggleColumn(_ sender: NSMenuItem) {
             guard let id = sender.representedObject as? String,
                 let column = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(id)) else { return }
@@ -2402,8 +2421,8 @@ final class GraphCell: NSView {
         let mid = bounds.height / 2
         for edge in graph.edges {
             let path = NSBezierPath(); path.lineWidth = 1.5
-            let start = point(edge.from, edge.startsAtNode ? mid : 0)
-            let end = point(edge.to, edge.endsAtNode ? mid : bounds.height)
+            let start = point(edge.from, edge.startsAtNode ? mid + (graph.collapsed ? 3.5 : 0) : 0)
+            let end = point(edge.to, edge.endsAtNode ? mid - (graph.collapsed ? 3.5 : 0) : bounds.height)
             path.move(to: start)
             if edge.from == edge.to { path.line(to: end) }
             else { path.curve(to: end, controlPoint1: NSPoint(x: start.x, y: (start.y + end.y) / 2), controlPoint2: NSPoint(x: end.x, y: (start.y + end.y) / 2)) }
@@ -2412,7 +2431,9 @@ final class GraphCell: NSView {
         let position = point(graph.column, mid)
         let rect = NSRect(x: position.x - 3.5, y: position.y - 3.5, width: 7, height: 7)
         colors[graph.color % colors.count].setFill()
-        (graph.junction ? NSBezierPath(rect: rect) : NSBezierPath(ovalIn: rect)).fill()
+        let node = graph.junction ? NSBezierPath(rect: rect) : NSBezierPath(ovalIn: rect)
+        if graph.collapsed { colors[graph.color % colors.count].setStroke(); node.lineWidth = 1; node.stroke() }
+        else { node.fill() }
     }
 }
 

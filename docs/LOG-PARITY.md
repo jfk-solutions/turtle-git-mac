@@ -1224,7 +1224,7 @@ working-row/graph alignment, literal rename following, mutually exclusive modes,
 All Branches/Whole Project transitions, scope reset and busy/closed guards, with
 an actual hidden hosted Log view. See [the walk QA record](qa/log-history-walk-2026-10-07.json).
 
-Per-node Expand/Collapse rollup commands and compressed search combinations, graph gaps not rewritten by Git (including Follow renames
+Compressed search combinations, graph gaps not rewritten by Git (including Follow renames
 and the synthetic working row above a hidden HEAD), displayed
 light/dark/keyboard/VoiceOver acceptance and signed
 sandbox behavior remain pending. Compression currently applies to the loaded
@@ -1419,3 +1419,39 @@ history, full source temporary-file cleanup controls, real provider/redirect/TLS
 behavior and signed sandbox/network acceptance remain pending. No screenshot or
 App Store acceptance is claimed; the complete Log and application ports remain
 incomplete.
+
+## Compressed graph Expand/Collapse
+
+A single ordinary revision in Compressed Graph now offers Expand or Collapse
+before Copy to clipboard. Active text searches suppress the command, following
+`IsFilterActive`; empty/inversion-only and invalid ECMAScript expressions remain
+inactive. The existing C++ matcher determines regular-expression activity rather
+than substituting Foundation's different regular-expression syntax. Date/path
+walk bounds still restrict the loaded history. Busy, multiple/working selection,
+normal/labeled graph mode and closed Log models refuse rollup changes.
+
+Expanded state propagates down a linear segment until a label, merge or fork.
+Those boundary nodes retain their own state. Expanding a merge reveals each
+linear parent arm; a fork stops inherited expansion. Per-hash overrides follow
+the source toggle rule: reversing a forced state removes that override, while an
+explicit choice matching its current default can be retained for later topology
+changes. Choices last for the Log session. Refresh applies a snapshot of the map,
+so a superseded read cannot overwrite the current projection.
+
+Graph copies bridge omitted ancestors, while action/detail entries retain their
+real parent hashes. Collapsed nodes draw a hollow circle or junction square;
+node-connected edges stop at its border. Expanded nodes retain the filled shape.
+This is a native adaptation of `paintGraphLane`, not a claim of exact GDI rendering.
+The menu command has no invented replacement artwork: the pinned command supplies
+no dedicated icon. Graph accessibility state and exact geometry still need review.
+
+Core fixtures cover label/merge/fork boundaries, merge-arm expansion, forced
+mid-segment collapse, reverting overrides, actual parent preservation and ignored
+overrides in normal mode. Search tests use the pinned C++ helper for empty,
+inverted, valid and invalid patterns. Native receiver verification and remaining
+acceptance are recorded in [rollup QA](qa/log-rollup-2026-10-07.json).
+
+Projection still operates on the loaded revision batch. Cross-page rollup behavior,
+compressed/search combinations, malformed/out-of-order topology, physical menu and
+light/dark graph appearance, keyboard/VoiceOver and signed sandbox acceptance
+remain pending. The full Log and application ports remain incomplete.

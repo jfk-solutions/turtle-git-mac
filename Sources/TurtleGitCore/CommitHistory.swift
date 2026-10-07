@@ -342,7 +342,7 @@ public struct HistoryOptions: Sendable {
     public var searchFields: HistorySearchFields = .messages
     public var searchCaseSensitive = false
     public var searchRegex = false
-    var regexExecutable: URL?
+    public var regexExecutable: URL?
     public var path: String?
     public var paths: [String] = []
     public var since: Date?
@@ -426,6 +426,30 @@ public struct CommitFile: Identifiable, Hashable, Sendable {
 }
 
 /// A lane is a pending ancestor, not a branch name. Edges remain continuous across rows.
+public enum HistoryRollupChoice: Sendable { case expand, collapse }
+public struct HistoryRollupInfo: Sendable {
+    public let collapsed: Bool
+    public let forced: Bool
+    public func toggled(in states: inout [String: HistoryRollupChoice], hash: String) {
+        if states[hash] != nil && forced { states.removeValue(forKey: hash) }
+        else { states[hash] = collapsed ? .expand : .collapse }
+    }
+}
+
+public enum HistorySearchActivity {
+    public static func isActive(_ query: String, regex: Bool, caseSensitive: Bool, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> Bool {
+        try cancellation?.check()
+        if !regex { return HistoryTextQuery(query, caseSensitive: caseSensitive).isActive }
+        let expression = query.hasPrefix("!") ? String(query.dropFirst()) : query
+        if expression.isEmpty { return false }
+        let bytes = try IssueRegexRuntime.capture(message: "", check: expression, extract: "", executable: executable,
+            mode: [caseSensitive ? "--log-case" : "--log-insensitive"], messageUnits: [], cancellation: cancellation)
+        let header = String(decoding: bytes, as: UTF8.self).trimmingCharacters(in: .newlines)
+        guard header == "log\tactive" || header == "log\tinactive" else { throw HistoryRegexFailure.failed("Invalid log filter activity output.") }
+        return header == "log\tactive"
+    }
+}
+
 public struct CommitGraphRow: Sendable {
     public struct Edge: Sendable {
         public let from: Int
@@ -437,6 +461,7 @@ public struct CommitGraphRow: Sendable {
     public let column: Int
     public let color: Int
     public let junction: Bool
+    public let collapsed: Bool
     public let edges: [Edge]
     public let width: Int
 }
@@ -444,13 +469,31 @@ public struct CommitGraphRow: Sendable {
 public enum CommitGraph {
     private struct Lane { var hash: String; var color: Int }
     /// Compression changes only graph copies, never action/detail parent metadata.
-    public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions, references: HistoryReferenceVisibility = .all) -> (entries: [LogEntry], graph: [CommitGraphRow]) {
+    public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions, references: HistoryReferenceVisibility = .all, rollupStates: [String: HistoryRollupChoice] = [:]) -> (entries: [LogEntry], graph: [CommitGraphRow], rollups: [String: HistoryRollupInfo]) {
         var children: [String: Set<String>] = [:]
         for entry in entries { for parent in entry.graphParents ?? entry.parents { children[parent, default: []].insert(entry.hash) } }
+        var rollups: [String: HistoryRollupInfo] = [:]
+        var expanded = Set<String>(), collapsed = Set<String>()
         let visible = entries.filter { entry in
-            if entry.hash.isEmpty || walk.graphMode == .all { return true }
+            if entry.hash.isEmpty { return true }
             let labeled = entry.isHead || entry.references.contains { references.keepsCommit($0) }
-            return labeled || walk.graphMode == .compressed && (entry.parents.count > 1 || children[entry.hash, default: []].count > 1)
+            let descendants = children[entry.hash, default: []]
+            let fork = descendants.count > 1
+            let special = labeled || entry.parents.count > 1 || fork
+            var show = walk.graphMode == .all || labeled || walk.graphMode == .compressed && special
+            var defaultCollapse = walk.graphMode != .all
+            var rolled = defaultCollapse
+            if walk.graphMode == .compressed && !rollupStates.isEmpty {
+                let child = descendants.count == 1 ? descendants.first : nil
+                let childExpanded = child.map { expanded.contains($0) } ?? false
+                let childCollapsed = !childExpanded && (child.map { collapsed.contains($0) } ?? false)
+                show = special || childExpanded
+                defaultCollapse = special || childCollapsed
+                rolled = show ? rollupStates[entry.hash].map { $0 == .collapse } ?? defaultCollapse : defaultCollapse
+                if rolled { collapsed.insert(entry.hash) } else { expanded.insert(entry.hash) }
+            }
+            rollups[entry.hash] = HistoryRollupInfo(collapsed: rolled, forced: rolled != defaultCollapse)
+            return show
         }
         let visibleHashes = Set(visible.map(\.hash))
         let records = Dictionary(uniqueKeysWithValues: entries.map { ($0.hash, $0) })
@@ -476,9 +519,9 @@ public enum CommitGraph {
         let graph = zip(visible, layout(graphEntries)).map { entry, row in
             CommitGraphRow(column: row.column, color: row.color,
                 junction: entry.parents.count > 1 || children[entry.hash, default: []].count > 1,
-                edges: row.edges, width: row.width)
+                collapsed: rollups[entry.hash]?.collapsed ?? false, edges: row.edges, width: row.width)
         }
-        return (visible, graph)
+        return (visible, graph, rollups)
     }
     public static func layout(_ entries: [LogEntry]) -> [CommitGraphRow] {
         var lanes: [Lane] = []
@@ -515,7 +558,7 @@ public enum CommitGraph {
             }
             return CommitGraphRow(column: column, color: color,
                 junction: entry.parents.count > 1 || childCounts[entry.hash, default: 0] > 1,
-                edges: edges, width: max(before.count, lanes.count))
+                collapsed: false, edges: edges, width: max(before.count, lanes.count))
         }
     }
 }
