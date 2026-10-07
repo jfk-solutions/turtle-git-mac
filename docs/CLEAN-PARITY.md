@@ -2,7 +2,8 @@
 
 The Clean workflow is incomplete. Native options and progress windows now connect
 to Core preview and accepted-plan execution from the main app menu and file context
-menu. Finder routing, displayed acceptance and external sandbox grants remain pending.
+menu. Finder command construction and the app URL route now include Clean; activated
+Finder handoff, displayed acceptance and external sandbox grants remain pending.
 
 ## Pinned behavior
 
@@ -127,9 +128,29 @@ then closes them. It checks actual dry-run, permanent deletion, recoverable Tras
 lock/Retry and cancellation behavior, together with unchanged tracked/index/config
 bytes. It does not establish displayed light/dark, keyboard or VoiceOver acceptance.
 
+## Finder routing
+
+Clean uses the shared `RepositoryAction.clean` command, original cleanup icon and
+pinned shell condition requiring both a folder and a folder inside a working tree.
+Its “Clean up…” label follows `resourceshell.rc`, and it follows Revert in the
+same source menu group. File-only selections, outside
+folders, bare roots and administrative `.git` paths do not expose it. Existing icon
+preferences apply. The menu captures the selected folders in a `turtlegit` URL;
+the app retains its existing permission gate, discovers the nearest checkout and
+passes literal root-relative paths into the native options model. Clean on an
+initialized nested checkout stays in that checkout, rather than changing to its
+parent as parent-index operations do. Mixed-repository selections retain the
+existing rejection. Direct app/file requests still use containing-folder adaptation.
+
+Core tests verify Unicode/newline/punctuation request round-trips and nearest
+checkout discovery, and the hidden native receiver passes a decoded Finder request
+into the real options model. The actual Finder menu builder is checked against the
+independent pinned source order. These checks do not activate Finder or verify a
+signed app handoff. See [the Finder routing QA record](qa/clean-finder-2026-10-07.json).
+
 ## Remaining work
 
-- Finder command routing and nearest-repository selection adaptation.
+- Activated Finder URL handoff and signed nearest-repository permission acceptance.
 - Native access-grant integration for recursive checkouts and external Git/common
   directories, plus signed traversal acceptance.
 - Detailed per-file live progress events and signed Trash acceptance.

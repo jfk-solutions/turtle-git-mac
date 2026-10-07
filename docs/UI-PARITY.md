@@ -29,7 +29,7 @@ Unchanged controls retain their decisions. The isolated regression
 repinning, review invalidation and repeated generation. This protects inventory
 integrity; it does not establish UI or implementation parity.
 
-Clean has partial native options/progress and main-app routing, backed by Core
+Clean has partial native options/progress and app/Finder command routing, backed by Core
 preview, accepted-plan execution and recursive submodule batches. Remaining work is in
 [Clean parity](CLEAN-PARITY.md).
 

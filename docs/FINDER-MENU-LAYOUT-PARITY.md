@@ -8,10 +8,11 @@ This is not complete shell command coverage, eligibility or activated appearance
 and separator rows. The [independent pinned fixture](upstream-shell-menu-order.json)
 retains every command group through Settings/Help/About, omitting commented-out
 entries and the resource-only submenu definitions. The native layout projects
-that table onto the 31 implemented root entries, including the two Ignore parents.
+that table onto the 39 implemented root entries, including the two Ignore parents.
 
 Visible order follows Clone/Pull/Fetch/Push, Commit, Diff/comparison mark,
-history/Repository Browser/Working Tree/Rebase/stash, Resolve/Rename/Delete/Revert,
+history/Repository Browser/Working Tree/Rebase/stash, Bisect,
+Resolve/Rename/Delete/Revert/Clean up,
 Switch/Merge/Branch/Tag, Create repository/Ignore, Worktrees/Submodule Update, then
 Format Patch. Omitted command groups remain in the fixture for subsequent ports.
 The current layout does not add missing commands or change eligibility of the

@@ -2,6 +2,31 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FinderRequestTests: XCTestCase {
+    func testCleanRequestUsesNearestCheckoutAndLiteralSelections() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let child = root.appendingPathComponent("nested 雪\n&?", isDirectory: true)
+        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let executable = ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? URL(fileURLWithPath: "/usr/bin/git")
+        let parent = GitRepository(root: root, executable: executable), nested = GitRepository(root: child, executable: executable)
+        _ = try await parent.run(["init", "-b", "main"])
+        _ = try await nested.run(["init", "-b", "main"])
+        let file = child.appendingPathComponent("literal 雪\n&?.txt")
+        try Data("untracked\n".utf8).write(to: file)
+        for selected in [child, file] {
+            let request = FinderRequest(action: .clean, paths: [selected, selected])
+            let decoded = try XCTUnwrap(FinderRequest(url: XCTUnwrap(request.url)))
+            XCTAssertEqual(decoded.action, .clean); XCTAssertEqual(decoded.paths.map(\.path), [selected.path])
+            let resolved = try await nested.discoverSelectionRoot(for: decoded.action, selected: selected)
+            XCTAssertEqual(resolved, child.standardizedFileURL)
+            XCTAssertEqual(decoded.relativePaths(root: resolved), selected == child ? ["."] : [file.lastPathComponent])
+        }
+        XCTAssertEqual(RepositoryAction.clean.title, "Clean up…")
+        XCTAssertTrue(RepositoryAction.clean.requiresWorkingTree)
+        XCTAssertNil(RepositoryAction.clean.arguments(value: ""))
+        XCTAssertEqual(RepositoryAction.clean.icon, .clean)
+        XCTAssertFalse(FinderRepositoryMetadata(bare: true).allows(.clean))
+    }
     func testBisectRequestsUseNativeWorkflowAndRequireWorktree() throws {
         let folder = URL(fileURLWithPath: "/repo 雪/subdir", isDirectory: true)
         for action in [RepositoryAction.bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset] {

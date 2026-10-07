@@ -218,6 +218,12 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   message length; [parity details](docs/EDIT-NOTES-PARITY.md) record remaining checks.
   [Revert from Log](docs/REVERT-COMMIT.md) offers merge-parent choices and the
   upstream confirmation/result prompts, with a Commit handoff.
+- [Clean](docs/CLEAN-PARITY.md) has native cleanup type/directory/Trash/dry-run/
+  Submodules options, remembered repository preferences and a separate progress
+  window with Retry and dry-run actions. App commands and Finder's “Clean up…”
+  entry retain selected folder scopes and use the original cleanup icon. Real
+  Trash/permanent cleanup and cancellation are tested; activated Finder handoff,
+  external sandbox grants and displayed/signed acceptance remain pending.
 - Original TortoiseGit command icons in app context menus and the Finder submenu;
   original XPStyle status artwork for Finder badges and app file status.
   Advanced Settings → ShowAppContextMenuIcons controls app menu artwork while

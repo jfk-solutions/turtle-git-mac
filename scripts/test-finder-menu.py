@@ -26,7 +26,7 @@ import TurtleGitCore
             .bisectStart: "BisectStart", .bisectGood: "BisectGood", .bisectBad: "BisectBad", .bisectSkip: "BisectSkip", .bisectReset: "BisectReset",
             .status: "ShowChanged", .rebase: "Rebase", .stash: "StashSave", .stashApply: "StashApply",
             .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .rename: "Rename",
-            .remove: "Remove", .removeKeep: "RemoveKeep", .revert: "Revert", .switchBranch: "Switch",
+            .remove: "Remove", .removeKeep: "RemoveKeep", .revert: "Revert", .clean: "Cleanup", .switchBranch: "Switch",
             .merge: "Merge", .branch: "Branch", .tag: "Tag", .export: "Export", .initialize: "CreateRepo",
             .ignore: "IgnoreSub", .ignoreDelete: "DeleteIgnoreSub", .worktreeList: "Worktree",
             .submoduleUpdate: "SubmoduleUpdate", .formatPatch: "FormatPatch"
@@ -141,6 +141,12 @@ import TurtleGitCore
         precondition(decoded.paths.first?.lastPathComponent == "literal 雪\n&?.txt")
         precondition(decoded.paths.map(\.path) == literal.request.paths.map(\.path))
         print("Actual command receiver: ordinary/multi-file/container/nested-ignore/comparison requests retain menu-time selection; Control only clears the comparison mark. No activation/handoff performed.")
+        let cleanMenu = make([folder], settings: FinderMenuSettings())
+        let cleanItem = items(cleanMenu).first { ($0.representedObject as? FinderMenuCommand)?.request.action == .clean }!
+        precondition(cleanItem.isEnabled && cleanItem.image != nil && cleanItem.title == "Clean up…")
+        let cleanRequest = FinderRequest(url: (cleanItem.representedObject as! FinderMenuCommand).url()!)!
+        precondition(cleanRequest.action == .clean && cleanRequest.paths == [folder])
+        precondition(items(make([tracked], settings: FinderMenuSettings())).allSatisfy { ($0.representedObject as? FinderMenuCommand)?.request.action != .clean })
         let toolbarMenu = FinderMenuBuilder.make(paths: [], snapshot: snapshot, settings: FinderMenuSettings(),
             comparisonMark: nil, target: target, actionSelector: selector, toolbar: true)
         precondition(toolbarMenu.items.filter { !$0.isSeparatorItem }.map(\.title) == [RepositoryAction.clone.title, RepositoryAction.initialize.title], "Toolbar commands should appear directly")

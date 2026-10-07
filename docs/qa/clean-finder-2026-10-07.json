@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "aa6596ebb68412c12be1f250bdbd35e110ce431a",
+  "previous_goal_turn": "Progress: native Clean controls and progress implemented and locally committed.",
+  "scope": "Clean shared action, pinned Finder menu condition/order/label/icon, URL selection routing and nearest-checkout adapter",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_MenuInfo_blob": "aee7f91ad1111fe03ab85b390855885ca940a27f",
+  "upstream_label": "src/TortoiseShell/resourceshell.rc IDS_MENUCLEANUP: &Clean up...",
+  "sha256": {
+    "FinderSync/FinderSync.swift": "03f49e52000d220a980f99badbcec7ff17bcb6924f26702484c0120d9ed91cc7",
+    "README.md": "5deba202afb92b5daba2a0d523a897415373fa4804653fa22ace497b70e158d8",
+    "Sources/TurtleGitCore/FinderCache.swift": "08864dd2cb9a424220e6cafbd26674a3f71b54e759360bac18d9af5b9d0bbb34",
+    "Sources/TurtleGitCore/MenuIcons.swift": "90a9343df416538fd8c2504a43276dd7905bd6e744baf18352dc2d2b67f5c436",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "1c23ea4bad531697961d8985d383f6efe0a9c86be29473bb7c788e9884c16a28",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "033cb17e4f3b9c261c41b78f1395483bd04d5788a2dd894d33ae4b268e6ba901",
+    "Tests/TurtleGitCoreTests/FinderRequestTests.swift": "1fa7650905aa40128893c2b1bb0fe61f8c992da4a9cad69784c80a3f3fa45807",
+    "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift": "d3a1499adbcf2a04ccbc489586c81f87baf5196620f838ae4a6699ed833228bd",
+    "docs/CLEAN-PARITY.md": "58fcae746a6c2b927c71038b50d027f7a4cd643fa748d4bc98799d71b5206b91",
+    "docs/FINDER-MENU-LAYOUT-PARITY.md": "64f50e0b8ff591f358adf61873cf286e9ecd6b220cbaedf9969e1110ca8f0c8e",
+    "docs/FINDER-PATH-CONDITIONS-PARITY.md": "9518f44c4965a195511a5720b3f33d2428d16804f146cd925a60b06a5d3544c6",
+    "docs/UI-PARITY.md": "4d807124f245c2c2ad0b9f86f7ee9386d587086ef2598fe10e2b633e0d3ba37e",
+    "docs/qa/clean-native-receiver-2026-10-07.swift": "797de00af0590f59ee00a81927d51a94f6e08654370f9d568a6d3fa773559ade",
+    "docs/upstream-files.csv": "c299ec88f6ab5a0454bb74181cf9faad49d25dc58568ed10ed1bf6e92b7f7e83",
+    "docs/upstream-shell-menu-conditions.json": "122e84a414395b0a170ce0a731b7040501f6d1d016c063e0ba6f72f0c08dd2e5",
+    "scripts/test-finder-menu.py": "925be97415117170c2486787459f3f4d01dcbb740a95eb18261ab59885125314"
+  },
+  "all_sources_manifest_sha256": "30bf1ba8f1411f02a11f7c3c6e964f24b6199e68114b950fa812502330076e18",
+  "verification": {
+    "core": "Final 18 FinderShellRules/FinderRequest/MenuIcon/FinderRepositoryMetadata tests passed on system Git. Pinned Cleanup required folder/folder-in-Git condition and final Clean up label; actual nested checkout plus Unicode/newline/URL punctuation selection, duplicate normalization, literal relative paths, worktree/no CLI bypass, icon and bare rejection.",
+    "compatibility": "Nearest-checkout/request fixture passed with explicitly injected Git 2.37.1, 2.39.5 and bundled 2.55.0. Earlier core-compat log used an unconsumed environment name and is excluded from evidence.",
+    "finder_menu": "Actual hidden menu builder passed final title/icon/enabled/decoded folder capture, absence for files, pinned 39-command order/group projection, icon toggles, metadata/bare exclusions, cache-tree cases. No extension controller activated.",
+    "native": "Decoded Finder request fed real Clean options model; all existing actual dry-run/permanent/Trash/Retry/cancel/state checks passed sequentially on all four Git versions. Hidden owned controllers, private preferences and prohibited activation; owned fixtures/windows/Trash copies removed. Native run preceded final presentation-only shared title correction; final title tested separately in Core and actual Finder menu builder.",
+    "builds": "Final unsigned Debug and AppStore builds passed. Both bundle validators, exact NOTICE comparisons and Store --require-git universal runtime audit passed; 91 original icons.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "App URL dispatch is implemented/compiled, but activated Finder-to-app handoff is not tested by hidden menu/decoded-model checks. Existing permission/mixed-repository gate retained. External Git/common-dir grants, initial signed discovery/traversal, signed Trash, physical light/dark/input/VoiceOver/screenshots and per-file live progress remain pending. Full port, signed Store acceptance, complete manual/genuine screenshots, hosted CI and site publication remain incomplete. No GitHub authentication retry/push attempted."
+  },
+  "logs": {
+    "build/qa/clean-finder/debug-verified.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/clean-finder/debug-audit-final.log": "9e2c757a2c34a49b6423dfbda33b82a47eac4eae4b752f0a3137e91a875a3e3c",
+    "build/qa/clean-finder/core-verified.log": "e36dd447cf3a97e64979b130acc335cbe7299304e9c4a1e8d78b9bff0b9ffa60",
+    "build/qa/clean-finder/core-2.37.1.log": "68a974e463a47eacfced15654cffbfd3b084e8c23985573a4d0364cfa8d2ab60",
+    "build/qa/clean-finder/core-2.39.5.log": "c42a716fd256abd7225042df9d6bdea4074cc42a7b5a566df7b40f1b1d842714",
+    "build/qa/clean-finder/core-2.55.0.log": "727b40af7776c96db2c198df214a5b8403e5832d6c9951ab73e1903f9e566b47",
+    "build/qa/clean-finder/menu-final.log": "2e533c0430425cf6f7e0badbe32e0b787cbb5f616f3f53447cb8f7d42a1db939",
+    "build/qa/clean-finder/native.log": "f514eae0887df45bcd4e81ff2140d254714b725de222b9e8e3b7814826d82cc9",
+    "build/qa/clean-finder/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/clean-finder/store-audit.log": "c530e4979d3d277cc095a0241f655c589a54fa42c26a4bd453f1c1c4e9b0f078",
+    "build/qa/clean-finder/site-complete.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

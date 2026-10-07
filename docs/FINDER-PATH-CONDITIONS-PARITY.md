@@ -5,7 +5,7 @@ This extends the repository metadata audit with path/status/selection clauses.
 Full Explorer-to-Finder parity remains incomplete.
 
 `FinderShellRules` retains the four alternative required/excluded flag pairs for
-31 implemented root entries from `MenuInfo.cpp` (blob
+39 implemented root entries from `MenuInfo.cpp` (blob
 `aee7f91ad1111fe03ab85b390855885ca940a27f`). An empty pair does not match;
 otherwise all required bits must be present and all excluded bits absent,
 following `ContextMenu.cpp`'s `ShouldEnableMenu`. The independent source fixture is
@@ -59,3 +59,8 @@ remain unverified.
 
 Build and regression evidence is recorded in
 [the verification record](qa/finder-path-conditions-2026-10-06.json).
+
+Clean up requires a folder inside a working tree, matching the pinned Cleanup
+clause. It is absent for file-only selections and bare roots. Its captured request
+passes through the app permission gate to the nearest checkout and native Clean
+options; [Clean parity](CLEAN-PARITY.md) records activation and sandbox gaps.

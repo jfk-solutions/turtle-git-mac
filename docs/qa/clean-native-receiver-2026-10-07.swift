@@ -45,7 +45,9 @@ import TurtleGitCore
         model.setScope(["folder/new", "folder/"])
         let scopes = try model.directoryScopes(); precondition(scopes == ["folder"])
         model.setScope(["tracked"]); let whole = try model.directoryScopes(); precondition(whole.isEmpty)
-        model.setScope(["folder"]); model.accept()
+        let finder = FinderRequest(action: .clean, paths: [folder])
+        let decoded = FinderRequest(url: finder.url!)!
+        model.setScope(decoded.relativePaths(root: repo.root)); model.accept()
         precondition(request?.paths == ["folder"] && request?.dryRun == true && request?.submodules == true)
         let reopened = CleanWindowModel(repository: repo, defaults: defaults)
         precondition(reopened.options.type == .ignored && !reopened.options.directories && !reopened.dryRun && !reopened.submodules && !reopened.permanently)

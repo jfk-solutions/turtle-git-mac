@@ -96,6 +96,7 @@ extension RepositoryAction {
         case .commit: return .commit
         case .add: return .add
         case .revert: return .revert
+        case .clean: return .clean
         case .log, .stashList, .reflog: return .log
         case .repositoryBrowser: return .repositoryBrowser
         case .bisect, .bisectStart, .bisectSkip: return .bisect

@@ -18,7 +18,7 @@ final class FinderShellRulesTests: XCTestCase {
             "ITEMIS_INVERSIONEDFOLDER": .inVersionedFolder, "ITEMIS_SUBMODULE": .submodule,
             "ITEMIS_DELETED": .deleted, "ITEMIS_STASH": .stash, "ITEMIS_SUBMODULECONTAINER": .submoduleContainer
         ]
-        XCTAssertEqual(fixture.rules.count, 38)
+        XCTAssertEqual(fixture.rules.count, 39)
         XCTAssertEqual(Set(fixture.rules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))
         func mask(_ names: [String]) throws -> FinderShellFlags {
             try names.reduce(into: FinderShellFlags()) { $0.formUnion(try XCTUnwrap(tokens[$1], $1)) }
@@ -44,6 +44,10 @@ final class FinderShellRulesTests: XCTestCase {
         for action in [RepositoryAction.pull, .fetch, .reflog, .repositoryBrowser, .branch, .tag, .switchBranch, .formatPatch] {
             XCTAssertFalse(FinderShellRules.allows(action, flags: file), action.rawValue)
         }
+        XCTAssertFalse(FinderShellRules.allows(.clean, flags: file))
+        XCTAssertTrue(FinderShellRules.allows(.clean, flags: [.folderInGit, .folder]))
+        XCTAssertFalse(FinderShellRules.allows(.clean, flags: [.folderInGit]))
+        XCTAssertFalse(FinderShellRules.allows(.clean, flags: [.bare, .folder]))
         XCTAssertFalse(FinderShellRules.allows(.revert, flags: file))
         XCTAssertTrue(FinderShellRules.allows(.revert, flags: file.subtracting(.normal)))
         XCTAssertTrue(FinderShellRules.allows(.rename, flags: file))
