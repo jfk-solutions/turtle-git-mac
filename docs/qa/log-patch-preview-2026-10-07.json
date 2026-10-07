@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "f21e60e",
+  "previous_goal_turn": "progress: committed unrelated-path View modes and status colors",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Live Log View Patch child, repo-local preference, whole/stat and versioned selected-file readers, cancellation and stale/closed guards",
+  "sha256": {
+    "README.md": "82af0a961fa91619a7fc1aef565a84f10a51927e9a1032913f361f41542f627f",
+    "Sources/TurtleGitCore/CommitHistory.swift": "7311cc60b16e1783f485ced00105164007fca10eb546fc4d36a4fdc7f038c67c",
+    "Sources/TurtleGitMac/LogWindow.swift": "53906239c11f3c9c9f8fe25f46334ec1e22fee6c68569dd0a23a869a908d6c7d",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "c8101b76cf06d302bf0b7c2a5a55cf66a669a8fb28627ad4e899eb2f77c8b9ed",
+    "docs/LOG-PARITY.md": "ab9e36d5a88f1c55aa76ff0365c952e0a3fc7b3d0dadc1950a49857e4f3c6e13",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "ed488c9c043616495e7f6bdfd60bce174f14acb8baf3f237b50cf34409a5d948"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/LogDlg.cpp": "f7f61c888ae379112be47151d62d01255230cdbad2df852dbf26f6928a4e730c",
+    "src/Git/Git.cpp": "4b0d0830cb066480d6ed76395654dd41ba4673e16124930c5efa342c2b0b7247"
+  },
+  "verification": {
+    "core": "All 41 CommitHistoryTests passed on system Git. New preview test passed on Git 2.37.1, 2.39.5 and bundled 2.55.0. Whole stats, exact literal selected-file bytes, working rows, unversioned omission, root empty behavior, cancellation and exact HEAD/index/work preservation checked. Full package suite not repeated.",
+    "native": "All four sequential scripts/check-cherry-pick-native.py --menus-only runs passed on Apple Git 2.50.1, Git 2.37.1, 2.39.5 and bundled 2.55.0. Whole/stat and exact selected literal file bytes, multi/root clearing, held selection-stale/closed completion refusal, repo setting/reopening, actual hidden read-only child and raw data with applying disabled, child close while parent busy and owned window cleanup, exact HEAD/index/work preservation verified. Viewer-width preference restored. Existing common native regressions passed. Physical gestures/alignment not exercised.",
+    "builds": [
+      "SwiftPM",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "audits": "Both bundle validators passed, Store --require-git, 90 original icons and both exact NOTICE comparisons.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "Merge-parent preview variants, root/unborn/native-working variants, invalid UTF8/binary export variants, exact displayed alignment/move/resize and physical keyboard/menu/light-dark/VoiceOver/signed sandbox acceptance remain pending. Gravatar and broader Log/dialog behavior, Finder activation, App Store distribution and screenshots/manual/site/hosted CI remain unfinished. Full port incomplete. Preference-write failure/readonly-config behavior and signed-commit/configured diff-context metadata variants also require acceptance.",
+    "initial_repairs": "Initial compile caught two unqualified error property assignments in catch blocks; fixed to self.error and retained failed logs. Production and receiver sources frozen during native compile/runtime.",
+    "process_audit": "No app or native/menu/provider receiver remained."
+  },
+  "all_sources_manifest_sha256": "af8294d7fc81170099b779338a12adfcf877a63df45f0d405457cc97ae3cf113",
+  "logs": {
+    "build/qa/log-patch-preview/2.37.1-core.log": "dae2345e2fbf43d48fe4cbe8eec4deb2713d1cfb67ee2f478c2a9986e1f9738f",
+    "build/qa/log-patch-preview/2.39.5-core.log": "2c1868a6bceaebb0fc7176540e51b4c7878e594c92ffbe81caadc8f35293aa91",
+    "build/qa/log-patch-preview/2.55.0-core.log": "567a8bdc364174cdd26db4ccfc81a8f02bf63c6d71926a277edb542955e0b8ef",
+    "build/qa/log-patch-preview/core-final.log": "70de5d5ba67dabe09292ebde91ccb025751c11c17d1a9d31accccce1637920ba",
+    "build/qa/log-patch-preview/core.log": "6db70b8c43a97d0e466eb78e9699664cbebf99da11f7c4bf608431e2c34e769a",
+    "build/qa/log-patch-preview/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-patch-preview/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-patch-preview/debug.log": "608fd5200c496868bbd87c4f03c3618f2bb0c2ad31da5bfa1db68389969aaed7",
+    "build/qa/log-patch-preview/native.log": "d0aa520b85bbeabab9bae0f7400b46469fa93642d8e334239cbfa2a062d3001c",
+    "build/qa/log-patch-preview/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-patch-preview/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-patch-preview/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

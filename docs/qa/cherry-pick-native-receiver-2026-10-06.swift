@@ -1112,6 +1112,70 @@ import TurtleGitCore
     print("Native Log Add modes: last-added selection mark, literal mixed executable and symlink direct progress use real 100755/120000 index modes and raw blobs without chmod/disk links, normal folder progress stages gitlink, lock/cancel exact-index preservation, unrelated staged/HEAD preservation, busy/bare/stale-stage/file-selection/closed guards passed. Root callbacks injected; Shift events/post-action menus not activated; no windows shown.")
 }
 
+@MainActor func verifyNativeLogPatchPreview(executable: URL) async throws {
+    let savedWidth = UserDefaults.standard.object(forKey: "PartialPatchWindowWidth")
+    defer {
+        if let savedWidth { UserDefaults.standard.set(savedWidth, forKey: "PartialPatchWindowWidth") }
+        else { UserDefaults.standard.removeObject(forKey: "PartialPatchWindowWidth") }
+    }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-preview-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"]); _ = try await repo.run(["config", "commit.gpgsign", "false"])
+    let path = "preview :(glob)* 雪\n.txt"
+    for file in [path, "other"] { try Data("base\n".utf8).write(to: root.appendingPathComponent(file)) }
+    try await repo.stage([path, "other"]); _ = try await repo.commit(message: "preview base")
+    let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    for file in [path, "other"] { try Data("changed\n".utf8).write(to: root.appendingPathComponent(file)) }
+    try await repo.stage([path, "other"]); _ = try await repo.commit(message: "preview changed")
+    let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    let model = LogWindowModel(repository: repo, access: nil, selecting: true); defer { model.invalidate() }
+    func until(_ condition: () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition(), model.error ?? model.patchPreviewError ?? "Preview timeout")
+    }
+    var displayed: [Data] = []; model.onPatchPreviewContent = { displayed.append($0) }
+    model.reload(); try await until { !model.busy && model.files.count == 2 }
+    precondition(!model.patchPreviewVisible)
+    model.setPatchPreview(true); try await until { !model.busy && !model.patchPreviewLoading && model.patchPreviewVisible }
+    precondition(model.patchPreviewError == nil && String(decoding: model.patchPreviewData, as: UTF8.self).contains("files changed"))
+    let revision = model.revision!, selected = model.files.first { $0.path == path }!
+    model.fileTableSelection.wrappedValue = [selected.id]; try await until { !model.patchPreviewLoading }
+    let expected = try await repo.logPatchPreviewData(revision, files: [selected]); precondition(model.patchPreviewData == expected)
+    model.select([revision.hash, base]); precondition(model.patchPreviewData.isEmpty && !model.patchPreviewLoading)
+    model.select([base]); try await until { !model.patchPreviewLoading }; precondition(model.patchPreviewData.isEmpty)
+    model.select([revision.hash]); try await until { model.files.count == 2 && !model.patchPreviewLoading }
+    var held: CheckedContinuation<Data, Error>?
+    model.readPatchPreview = { _, _, _ in try await withCheckedThrowingContinuation { held = $0 } }
+    model.refreshPatchPreview(); try await until { held != nil }
+    model.readPatchPreview = nil; model.fileTableSelection.wrappedValue = [selected.id]
+    held!.resume(returning: Data("stale preview".utf8)); held = nil
+    try await until { !model.patchPreviewLoading && model.patchPreviewData == expected }
+    precondition(!displayed.contains(Data("stale preview".utf8)))
+    model.setPatchPreview(false); try await until { !model.busy && !model.patchPreviewVisible }
+    model.setPatchPreview(true); try await until { !model.busy && !model.patchPreviewLoading }
+    let reopened = LogWindowController(repository: repo, access: nil)
+    defer { reopened.window?.performClose(nil) }
+    try await until { !reopened.model.busy && reopened.patchPreviewWindow != nil && !reopened.model.patchPreviewLoading }
+    let child = reopened.patchPreviewWindow!
+    precondition(reopened.window?.isVisible == false && child.window?.isVisible == false && child.model.readOnly && !child.model.refreshAvailable)
+    precondition(child.model.exportDocument.bytes == reopened.model.patchPreviewData && !child.model.canApplyLines && !child.model.canApplyHunks)
+    reopened.model.busy = true; child.window?.performClose(nil); reopened.model.busy = false
+    precondition(reopened.patchPreviewWindow == nil && !reopened.model.patchPreviewVisible)
+    model.readPatchPreview = { _, _, _ in try await withCheckedThrowingContinuation { held = $0 } }
+    model.refreshPatchPreview(); try await until { held != nil }
+    model.invalidate(); held!.resume(returning: Data("closed preview".utf8)); held = nil
+    try await Task.sleep(nanoseconds: 100_000_000)
+    precondition(!model.patchPreviewLoading && !displayed.contains(Data("closed preview".utf8)))
+    let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    let setting = try await repo.run(["config", "--bool", "--get", "tgit.logshowpatch"]).text.trimmingCharacters(in: .newlines)
+    precondition(afterHead == head && afterIndex == index && setting == "false")
+    let workBytes = try Data(contentsOf: root.appendingPathComponent(path)); precondition(workBytes == Data("changed\n".utf8))
+    print("Native Log Patch: whole/stat and selected literal file bytes, multi/root clearing, selection-stale and closed read refusal, repo setting and reopening, actual hidden read-only child window/content with applying disabled, child close during busy Log and owned cleanup, exact HEAD/index/work preservation passed. Displayed alignment/gestures pending.")
+}
+
 @MainActor func verifyNativeLogUnrelatedPaths(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-path-view-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
@@ -2224,6 +2288,7 @@ import TurtleGitCore
     try await verifyNativeLogHistoryWalk(executable: repo.executable)
     try await verifyNativeLogLabelVisibility(executable: repo.executable)
     try await verifyNativeLogUnrelatedPaths(executable: repo.executable)
+    try await verifyNativeLogPatchPreview(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
     try await verifyNativeLogRevertFlags(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))

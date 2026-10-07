@@ -559,4 +559,8 @@ Log’s View menu also offers Hide/Gray Unrelated Changed Paths, with Gray enabl
 by default, and Show Unversioned Files. Historical and working tracked rows
 retain unrelated paths for these controls; status colors now distinguish changes.
 
+View Patch now opens a read-only native panel that follows revision/file selection,
+clears on multi-selection, preserves raw patch bytes, and reopens from the
+repository setting. Stale reads are canceled when selection changes or Log closes.
+
 See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.

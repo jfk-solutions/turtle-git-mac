@@ -1070,4 +1070,47 @@ extension GitRepository {
         args.append("--"); if let path { args.append(path) }
         return try run(args).stdout
     }
+    /// FillPatchView: whole changes with stats, or selected versioned rows in list order.
+    public func logPatchPreviewData(_ entry: LogEntry, files: [CommitFile]? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
+        func read(_ args: [String], codes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: codes, cancellation: cancellation)
+        }
+        func validHash(_ value: String) -> Bool { (value.count == 40 || value.count == 64) && value.allSatisfy { $0.isASCII && $0.isHexDigit } }
+        let working = entry.hash.isEmpty
+        let hash: String
+        let parents: [String]
+        if working {
+            guard try read(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true" else { throw RevisionComparisonFailure.range }
+            let head = try read(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], codes: 0...1)
+            if head.exitCode == 1 { return Data() }
+            hash = head.text.trimmingCharacters(in: .newlines); parents = []
+        } else {
+            hash = entry.hash
+            guard validHash(hash) else { throw RevisionComparisonFailure.range }
+            parents = try read(["show", "--no-patch", "--format=%P", hash, "--"]).text.split(whereSeparator: \.isWhitespace).map(String.init)
+            // Upstream's root~1 comparison produces no preview for a root commit.
+            if parents.isEmpty { return Data() }
+        }
+        guard validHash(hash), parents.allSatisfy(validHash) else { throw RevisionComparisonFailure.range }
+        let flags = ["--no-ext-diff", "--no-textconv", "--no-color"]
+        if let files {
+            var output = Data()
+            func validPath(_ path: String) -> Bool { !path.isEmpty && !path.hasPrefix("/") && !path.contains("\0") && !path.split(separator: "/").contains("..") }
+            for file in files where file.action != "?" {
+                try cancellation?.check()
+                guard validPath(file.path), file.oldPath.map(validPath) != false else { throw RevisionComparisonFailure.selection }
+                let args: [String]
+                if working { args = ["diff"] + flags + [hash, "--"] }
+                else {
+                    let parent = file.parentIndex ?? 0
+                    guard parents.indices.contains(parent) else { throw RevisionComparisonFailure.selection }
+                    args = ["diff"] + flags + [parents[parent], hash, "--"]
+                }
+                output.append(try read(args + (file.oldPath.map { [$0, file.path] } ?? [file.path])).stdout)
+            }
+            return output
+        }
+        if working { return try read(["diff", "--stat", "-p"] + flags + [hash, "--"]).stdout }
+        return try read(["diff-tree", "-r", "-p", "--stat"] + flags + [parents[0], hash, "--"]).stdout
+    }
 }

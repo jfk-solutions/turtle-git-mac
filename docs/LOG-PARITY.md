@@ -1262,7 +1262,7 @@ isolation, actual labeled/compressed rows and edges, closed/busy refusal and exa
 HEAD/index/working-file preservation. Its preference domain is private and removed.
 See [the label QA record](qa/log-label-visibility-2026-10-07.json).
 
-The View menu's Gravatar and View Patch commands remain pending. Footer ordering now places All Branches before Walk Behavior and View;
+The View menu's Gravatar command remains pending. Footer ordering now places All Branches before Walk Behavior and View;
 exact displayed spacing, physical menu interaction, color/layout and accessibility
 acceptance remain pending.
 
@@ -1299,3 +1299,34 @@ controls, hidden hosted menu construction and repository bytes. See
 [the path View QA record](qa/log-path-view-2026-10-07.json). Physical menu and color
 appearance acceptance, richer path-filter expressions and multi-revision file
 aggregation remain pending.
+
+## View Patch
+
+View → View Patch now opens a separate native read-only patch viewer that follows
+the Log selection. The existing unified viewer supplies syntax coloring, search,
+Save As and printing, with staging/applying disabled. The child belongs to the Log
+and closes with it. The repository-local `tgit.logshowpatch` setting stores the
+choice and reopens the panel for a new Log. Closing the patch window also disables
+the setting, including while the parent Log is busy.
+
+`FillPatchView` semantics are separate from the manual unified-diff command: one
+revision with no selected file rows shows first-parent changes with statistics;
+selected versioned files concatenate individual patches in list order using each
+row's merge-parent index and both rename paths. Unversioned rows produce no patch.
+Multiple/no revisions clear the view. Root commits and unborn working trees give
+an empty preview, matching the upstream comparison behavior. Working previews pin
+fresh HEAD and preserve the index. External diff/text conversion tools are disabled.
+
+Selection and file/filter changes cancel prior work and coalesce through a 100 ms
+delay. Reload and close cancel owned reads; generation and selection checks keep
+late completions from updating the viewer. Busy/error indicators appear in the Log.
+The native receiver holds real model reads across selection changes and close to
+verify stale output is discarded, and creates/owns an actual hidden read-only
+patch child to check data, disabled applying, reopening and close behavior.
+
+Core checks cover whole statistics, literal selected-file bytes, working changes,
+unversioned omission, roots, cancellation and exact HEAD/index preservation. See
+[the patch preview QA record](qa/log-patch-preview-2026-10-07.json). Merge-parent
+preview variants, binary/invalid-UTF-8 export variants, displayed alignment and
+moving/resizing, keyboard/physical menu/light-dark/VoiceOver and signed sandbox
+acceptance remain pending. Full Log acceptance remains incomplete.

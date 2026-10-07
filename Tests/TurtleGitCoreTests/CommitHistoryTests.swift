@@ -102,6 +102,33 @@ final class CommitHistoryTests: XCTestCase {
         let moduleAllowed = try await bareRepo.canFollowHistory(paths: ["uninitialized-module"]); XCTAssertFalse(moduleAllowed)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
+    func testLogPatchPreviewWholeSelectedWorkingAndRootPreserveIndex() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        let rootEntries = try await repo.history(); let rootPreview = try await repo.logPatchPreviewData(rootEntries[0]); XCTAssertTrue(rootPreview.isEmpty)
+        try Data("changed\n".utf8).write(to: root.appendingPathComponent(path))
+        let special = "selected :(glob)* 雪\n.txt"; try Data("selected\n".utf8).write(to: root.appendingPathComponent(special))
+        try await repo.stage([path, special]); _ = try await repo.commit(message: "preview fixture")
+        let entries = try await repo.history(), entry = entries[0], files = try await repo.files(in: entry)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let whole = try await repo.logPatchPreviewData(entry)
+        XCTAssertTrue(String(decoding: whole, as: UTF8.self).contains("files changed"))
+        let chosen = try XCTUnwrap(files.first { $0.path == special })
+        let selected = try await repo.logPatchPreviewData(entry, files: [chosen])
+        let expected = try await repo.run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", entry.parents[0], entry.hash, "--", special]).stdout
+        XCTAssertEqual(selected, expected)
+        try Data("working\n".utf8).write(to: root.appendingPathComponent(path))
+        let snapshot = try await repo.workingTreeHistory(), working = try XCTUnwrap(snapshot)
+        let workingPatch = try await repo.logPatchPreviewData(working.entry)
+        XCTAssertTrue(String(decoding: workingPatch, as: UTF8.self).contains("+working"))
+        let unknown = CommitFile(path: "unversioned", oldPath: nil, action: "?", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        let omitted = try await repo.logPatchPreviewData(working.entry, files: [unknown]); XCTAssertTrue(omitted.isEmpty)
+        let cancellation = OperationCancellation(); cancellation.cancel()
+        do { _ = try await repo.logPatchPreviewData(entry, cancellation: cancellation); XCTFail("Canceled preview accepted") } catch {}
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(after, head); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("working\n".utf8))
+    }
     func testHistoryPathScopesMatchLiteralPrefixesDirectoriesAndRenameOrigins() async throws {
         func file(_ path: String, _ action: String = "M", old: String? = nil, module: Bool = false) -> CommitFile {
             CommitFile(path: path, oldPath: old, action: action, added: nil, removed: nil, hasStatistics: false, isSubmodule: module)

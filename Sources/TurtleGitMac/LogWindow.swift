@@ -43,6 +43,7 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
 
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
     let model: LogWindowModel
+    private(set) var patchPreviewWindow: PatchWindowController?
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
@@ -57,6 +58,8 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
         window.contentViewController = NSHostingController(rootView: LogDialog(model: model))
         super.init(window: window)
         model.window = window
+        model.onPatchPreviewVisibility = { [weak self] visible in self?.setPatchPreviewVisible(visible) }
+        model.onPatchPreviewContent = { [weak self] bytes in self?.patchPreviewWindow?.model.setReadOnlyDiff(bytes) }
         model.confirmWorkingFlags = { action in confirmIndexFlags(action) }
         model.confirmWorkingDelete = { count, permanently in
             let alert = NSAlert(); alert.alertStyle = .warning
@@ -252,6 +255,24 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
         let multiple = multipleSelectionCompletion; multipleSelectionCompletion = nil
         model.unifiedWindow?.close(); model.invalidate(); completion?(nil); multiple?(nil); onClosed()
     }
+    private func setPatchPreviewVisible(_ visible: Bool) {
+        if !visible {
+            let owned = patchPreviewWindow; patchPreviewWindow = nil
+            owned?.onClosed = {}; owned?.close(); return
+        }
+        guard patchPreviewWindow == nil, let window else { return }
+        let child = PatchWindowController(repository: model.repository, access: nil)
+        child.model.readOnly = true; child.model.refreshAvailable = false
+        child.model.comparisonTitle = "Log Patch"; child.model.readOnlyInformation = "Patch follows the selected revision and changed files."
+        child.model.setReadOnlyDiff(model.patchPreviewData)
+        child.window?.title = "Log Patch – TurtleGit"
+        child.onClosed = { [weak self] in self?.patchPreviewWindow = nil; self?.model.patchPreviewClosed() }
+        if let preview = child.window {
+            preview.setFrameOrigin(NSPoint(x: window.frame.maxX + 8, y: window.frame.minY))
+            if window.isVisible { window.addChildWindow(preview, ordered: .above) }
+        }
+        patchPreviewWindow = child
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -443,7 +464,7 @@ struct LogCommandRequest: Identifiable {
     @Published var selected = Set<String>()
     @Published var files: [CommitFile] = []
     @Published var fileGroups: [LogFileGroup] = []
-    @Published var selectedFiles = Set<String>()
+    @Published var selectedFiles = Set<String>() { didSet { refreshPatchPreview() } }
     private(set) var fileSelectionMark: String?
     func markedFile(_ ids: Set<String>) -> CommitFile? {
         if let fileSelectionMark, ids.contains(fileSelectionMark), let file = visibleFiles.first(where: { $0.id == fileSelectionMark }) { return file }
@@ -666,7 +687,7 @@ struct LogCommandRequest: Identifiable {
             if alert.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: "NoJumpNotFoundWarning") }
         }
     }
-    @Published var filterPaths = ""
+    @Published var filterPaths = "" { didSet { refreshPatchPreview() } }
     @Published var from = Date(timeIntervalSince1970: 0)
     @Published var to = Date()
     @Published var useDates = false
@@ -699,6 +720,62 @@ struct LogCommandRequest: Identifiable {
     @Published var bare = true
     @Published var error: String?
     var unifiedWindow: PatchWindowController?
+    @Published private(set) var patchPreviewVisible = false
+    @Published private(set) var patchPreviewData = Data()
+    @Published private(set) var patchPreviewLoading = false
+    @Published private(set) var patchPreviewError: String?
+    var onPatchPreviewVisibility: ((Bool) -> Void)?
+    var onPatchPreviewContent: ((Data) -> Void)?
+    var readPatchPreview: ((LogEntry, [CommitFile]?, OperationCancellation) async throws -> Data)?
+    private var patchPreviewCancellation: OperationCancellation?
+    private var patchPreviewTask: Task<Void, Never>?
+    private var patchPreviewGeneration = 0
+    private var patchPreviewPreferenceLoaded = false
+    func setPatchPreview(_ visible: Bool) {
+        guard !busy, !isInvalidated, visible != patchPreviewVisible else { return }
+        busy = true
+        Task {
+            do {
+                _ = try await repository.run(["config", "--local", "tgit.logshowpatch", visible ? "true" : "false"])
+                busy = false
+                guard !isInvalidated else { return }
+                patchPreviewPreferenceLoaded = true; patchPreviewVisible = visible
+                onPatchPreviewVisibility?(visible); refreshPatchPreview()
+            } catch { busy = false; if !isInvalidated { self.error = error.localizedDescription } }
+        }
+    }
+    func patchPreviewClosed() {
+        guard !isInvalidated, patchPreviewVisible else { return }
+        patchPreviewPreferenceLoaded = true; patchPreviewVisible = false; cancelPatchPreview(); onPatchPreviewVisibility?(false)
+        Task {
+            do { _ = try await repository.run(["config", "--local", "tgit.logshowpatch", "false"]) }
+            catch { if !isInvalidated { self.error = error.localizedDescription } }
+        }
+    }
+    private func cancelPatchPreview() {
+        patchPreviewGeneration += 1; patchPreviewCancellation?.cancel(); patchPreviewCancellation = nil
+        patchPreviewTask?.cancel(); patchPreviewTask = nil; patchPreviewLoading = false
+    }
+    func refreshPatchPreview() {
+        cancelPatchPreview()
+        guard patchPreviewVisible, !isInvalidated else { return }
+        patchPreviewData = Data(); patchPreviewError = nil; onPatchPreviewContent?(Data())
+        guard selected.count == 1, let entry = selectedWorkingTree ? workingTreeSnapshot?.entry : revision else { return }
+        let selection = selected, fileSelection = selectedFiles, request = patchPreviewGeneration
+        let chosen = selectedFiles.isEmpty ? nil : visibleFiles.filter { selectedFiles.contains($0.id) }
+        let cancellation = OperationCancellation(); patchPreviewCancellation = cancellation; patchPreviewLoading = true
+        patchPreviewTask = Task {
+            do {
+                try await Task.sleep(nanoseconds: 100_000_000)
+                let bytes: Data
+                if let readPatchPreview { bytes = try await readPatchPreview(entry, chosen, cancellation) }
+                else { bytes = try await repository.logPatchPreviewData(entry, files: chosen, cancellation: cancellation) }
+                guard !Task.isCancelled, request == patchPreviewGeneration, selection == selected, fileSelection == selectedFiles, patchPreviewVisible, !isInvalidated else { return }
+                patchPreviewData = bytes; onPatchPreviewContent?(bytes)
+            } catch { if request == patchPreviewGeneration, !isInvalidated, !cancellation.isCancelled { patchPreviewError = error.localizedDescription } }
+            if request == patchPreviewGeneration { patchPreviewLoading = false; patchPreviewCancellation = nil; patchPreviewTask = nil }
+        }
+    }
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
     @Published var commandRequest: LogCommandRequest?
     private var generation = 0
@@ -824,6 +901,7 @@ struct LogCommandRequest: Identifiable {
     }
     func invalidate() {
         isInvalidated = true
+        cancelPatchPreview(); onPatchPreviewVisibility?(false)
         cancelRepositoryRefresh()
         cancelNoteRead()
         cancelJump()
@@ -835,6 +913,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload(more: Bool = false) {
         guard !busy || loadingHistory else { return }
+        cancelPatchPreview()
         cancelRepositoryRefresh()
         isInvalidated = false
         cancelNoteRead()
@@ -864,6 +943,7 @@ struct LogCommandRequest: Identifiable {
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.endRevision, cancellation: cancellation)
                 let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.endRevision, cancellation: cancellation)
+                let showPatch = patchPreviewPreferenceLoaded ? patchPreviewVisible : try await repository.run(["config", "--bool", "--get", "tgit.logshowpatch"], successfulExitCodes: 0...1, cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 let working = showWorkingTree && !selecting && !bare ? try await repository.workingTreeHistory(cancellation: cancellation) : nil
                 let indexFiles = working == nil ? [] : try await repository.workingTreeStatus(refreshIndex: false)
@@ -875,6 +955,10 @@ struct LogCommandRequest: Identifiable {
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
                 canFollowRenames = followAllowed
                 self.pathScopes = pathScopes
+                if !patchPreviewPreferenceLoaded {
+                    patchPreviewPreferenceLoaded = true
+                    if patchPreviewVisible != showPatch { patchPreviewVisible = showPatch; onPatchPreviewVisibility?(showPatch) }
+                }
                 let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility)
                 entries = projection.entries; graph = projection.graph
                 result = projection.entries
@@ -916,7 +1000,7 @@ struct LogCommandRequest: Identifiable {
                     guard request == detailGeneration else { return }
                     if let choices { parentMetadata[revision.hash] = choices }
                 }
-                detailCancellation = nil
+                detailCancellation = nil; refreshPatchPreview()
             } catch { if request == detailGeneration { detailCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription } } }
         }
     }
@@ -1705,6 +1789,8 @@ struct LogDialog: View {
                             Toggle(command.rawValue, isOn: Binding(get: { model.referenceVisibility.contains(command.flag) }, set: { _ in model.toggleHistoryLabel(command) }))
                         }
                     }
+                    Divider()
+                    Toggle("View Patch", isOn: Binding(get: { model.patchPreviewVisible }, set: { model.setPatchPreview($0) }))
                 }.disabled(model.busy || model.isInvalidated)
                 if !model.selecting && !model.bare {
                     Toggle("Show Working Tree Changes", isOn: $model.showWorkingTree).toggleStyle(.checkbox).onChange(of: model.showWorkingTree) { _ in model.reload() }
@@ -1720,6 +1806,8 @@ struct LogDialog: View {
                 Button("Refresh") { model.reload() }.disabled(model.busy)
                 Button("Show next 200") { model.reload(more: true) }.disabled(model.busy)
                 if model.busy { ProgressView().controlSize(.small) }
+                if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
+                if let error = model.patchPreviewError { Text(error).foregroundStyle(.red).font(.caption) }
                 if model.loadingNote { ProgressView("Reading notes…").controlSize(.small) }
                 if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
                 Spacer()
