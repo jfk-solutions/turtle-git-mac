@@ -72,7 +72,8 @@ extension GitRepository {
                             setUpstream: branch != nil && merge.isEmpty, localBranch: branch)
     }
     public func pushSubmoduleDefault() -> PushSubmodules { PushSubmodules(rawValue: pushConfig("push.recurseSubmodules")) ?? .none }
-    public func push(_ options: PushOptions) throws -> String {
+    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         let names = try remoteNames(), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
         let destination = options.destination.trimmingCharacters(in: .whitespacesAndNewlines)
         let remotes = options.allRemotes ? names : [options.remote]
@@ -90,6 +91,7 @@ extension GitRepository {
         let defaults = try pushDefaults(source: source)
         let symbolic = ((try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", source]).text) ?? "").trimmingCharacters(in: .newlines)
         let destinationRef = destination.isEmpty || destination.hasPrefix("refs/") ? destination : (symbolic.hasPrefix("refs/tags/") ? "refs/tags/" : "refs/heads/") + destination
+        try cancellation?.check()
         if options.savePushRemote || options.savePushBranch {
             guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, let branch = defaults.localBranch else { throw PushValidationFailure.combination }
             if options.savePushRemote { _ = try run(["config", "--local", "branch." + branch + ".pushRemote", options.remote]) }
@@ -107,16 +109,17 @@ extension GitRepository {
         var output = "", completed: [String] = []
         for remote in remotes {
             do {
+                try cancellation?.check()
                 if options.allBranches {
-                    output += try run(["push", "--all"] + flags + ["--", remote]).text
+                    output += try run(["push", "--all"] + flags + ["--", remote], cancellation: cancellation).text
                     completed.append(remote + " (branches)")
-                    if options.includeTags { output += try run(["push", "--tags"] + flags + ["--", remote]).text; completed.append(remote + " (tags)") }
+                    if options.includeTags { output += try run(["push", "--tags"] + flags + ["--", remote], cancellation: cancellation).text; completed.append(remote + " (tags)") }
                 } else {
                     var args = ["push"] + flags
                     if options.includeTags { args.append("--tags") }
                     args += ["--", remote]
                     if !source.isEmpty || !destination.isEmpty { args.append(source + (destinationRef.isEmpty ? "" : ":" + destinationRef)) }
-                    output += try run(args).text; completed.append(remote)
+                    output += try run(args, cancellation: cancellation).text; completed.append(remote)
                 }
             } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription) }
         }

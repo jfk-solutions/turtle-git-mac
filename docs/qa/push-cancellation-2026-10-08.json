@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "56bdb060d7d0933446933ff266d751247e839084",
+  "scope": "Push transport cancellation with shared optional ConfirmKillProcess, completed remote/branch-phase reporting and same-model retry. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/Settings/SetDialogs2.cpp": "67abf27cae395ac4a013856199960db6aac3aee6",
+    "src/TortoiseProc/PushDlg.cpp": "9fc65e54a987e17aece767b750732f723d97becc",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "a6d39e5b7d87525bcec90381ad8dcc65b120b89b40ae0790d9214b731a369b09",
+    "NOTICE": "8d89af7741203a7832723603c3a2ae921ed8c89e70a7aba23bddaa5654bcf93c",
+    "Sources/TurtleGitCore/Push.swift": "49e405219ee30db4e9eb355dfc2c05eddd82357ce7c2727a4ccc7672069f98b4",
+    "Sources/TurtleGitMac/PushWindow.swift": "3b5050677b24757f7fb436a875a15b277e77de788a767c16755bb7b99806962c",
+    "Tests/TurtleGitCoreTests/PushTests.swift": "d058d41fba23f9c472d3ab2ae6fd7ae9adb44b2b599ab72e22ef8168f719516d",
+    "docs/FETCH-PARITY.md": "0fc7d9405672ea1b32a2830860c649028e807bfb5ba39cac1a9128b4f6069058",
+    "docs/PUSH-PARITY.md": "c5025e4d6b0d964068348114bdb422326749bbf7f72d530901aba3720bb0d3e4",
+    "docs/qa/push-cancellation-native-2026-10-08.swift": "5541720db2763a3485fc45488c4795ee8f293f90c9c1b273375908f096f8255a",
+    "docs/upstream-files.csv": "5f305b1ea2a7ea919dbb3fd6aef0ef5715cdc440a8292fb6fa5b0fd8d000102d",
+    "scripts/test-push-cancellation.py": "01688bd422b7bd7c3512ee5109a22f318d7b4a80db7c3cc91cad586eaf78bea2"
+  },
+  "all_sources_manifest_sha256": "1cdd8a99d4a2a12042b41a562a23f5ce694f92e68924fa65073eabc5304ea609",
+  "verification": {
+    "core": "Seven selected Push tests passed. Existing named/tag/hash/all-branch/divergence/lease/partial-remotes/URL/config/deletion/options checks retained. New pre-cancelled request leaves bare-remote refs absent and local config byte-identical before saving defaults.",
+    "native": "Headless native Push model receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Real wrapper/helper process groups stop; unrelated process survives. Optional confirmation No leaves transport running, Yes stops. Single-remote cancellation, first of two remotes already completed, and branches completed before delayed tags all retain inputs/HEAD/index, omit success callback, report completed work and preserve completed refs. Same-model retry on all three fixtures publishes expected refs using fresh tokens; idle Cancel closes. Private preferences injected; no user preferences written. These are model/Git checks, not physical sheets/window-close/Escape/default-button/layout/theme or screenshots.",
+    "iterations": "Focused core, native matrix and builds passed without runtime failure. Receiver throwing file read was placed outside precondition autoclosure before compilation.",
+    "builds": "Unsigned Debug and AppStore builds passed. Both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git checked 11 universal Git Mach-O files and fixture operations. EditorConfig and IssueRegex audits passed.",
+    "documentation": "Push/Fetch parity notes, Push/Progress/Settings source inventory and NOTICE updated. Inventory source-pin regression and seven-column CSV validation passed. Local site generated, unpublished.",
+    "ci": "Added native Push cancellation receiver to macOS workflow. Hosted CI/push unavailable/unverified; no authentication retry.",
+    "processes": "All core/compiler/native/audit sessions terminal. No main app or displayed window launched. Owned unrelated-process fixtures terminated and reaped on receiver exit. Final app/receiver process audit empty. Four empty owned PushCancellation QA UUID preference files removed; unrelated preferences retained.",
+    "limitations": "Cancellation cannot undo server refs or configuration already changed. Physical prompt/default/Cancel/Escape/window-close/light-dark/accessibility, cancellation during actual server mutation, network credentials/signing/hooks and signed sandbox runtime remain pending. Streaming output, full progress/post-operation UI, chooser/settings/history parity and full application port incomplete. Finder activation, genuine screenshots/full manual, hosted publication and signed App Store distribution/license clearance remain incomplete."
+  },
+  "logs": {
+    "build/qa/push-cancellation/core.log": "9673b6a551742738bbf661618cb6e057ed3f900688d5ed606018098a5b3e2c20",
+    "build/qa/push-cancellation/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/push-cancellation/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-cancellation/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/push-cancellation/native.log": "eec35e4bbb79ac7d443a2c5cdefd5d8ca2846169a5c67f360570f6978c9714c8",
+    "build/qa/push-cancellation/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/push-cancellation/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-cancellation/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/push-cancellation/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/push-cancellation/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

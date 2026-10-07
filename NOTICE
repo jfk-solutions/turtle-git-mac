@@ -414,3 +414,8 @@ Pull/Fetch transport cancellation and its optional ConfirmKillProcess setting
 adapt CProgressDlg::OnCancel and SetDialogs2 under the upstream source license.
 Native owned-process-group cancellation replaces Windows console/process-tree
 APIs, retaining the shared dialog inputs and avoiding unrelated Git processes.
+
+Push transport cancellation also adapts CAppUtils::DoPush's CProgressDlg command
+queue and OnCancel under the upstream source license. Native process groups stop
+the current push; completed destinations/phases remain reported and are not
+rolled back. ConfirmKillProcess is shared with Pull/Fetch.

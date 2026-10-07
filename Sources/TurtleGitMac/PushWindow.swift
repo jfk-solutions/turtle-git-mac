@@ -12,19 +12,39 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: PushDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
         model.close = { [weak window] in window?.close() }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational
+            alert.messageText = "The process is still running."
+            alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
     }
     func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard model.transportRunning else { return true }
+        model.cancel(); return false
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class PushWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    private let preferences: UserDefaults
     @Published var options = PushOptions()
     @Published var remotes: [String] = []
     @Published var references: [CheckoutReference] = []
     @Published var localBranch: String?
     @Published var busy = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    private var cancellation: OperationCancellation?
+    var transportRunning: Bool { cancellation != nil }
+    var canCancel: Bool { !busy || transportRunning && !cancelling && !confirmingCancellation }
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var url = ""
     @Published var managingRemotes = false
     @Published var error: String?
@@ -36,7 +56,7 @@ import TurtleGitCore
     private var key: String { "Push." + repository.root.path }
     var canSave: Bool { !options.arbitraryURL && !options.allRemotes && !options.allBranches && localBranch != nil && !options.setUpstream }
     var canTrack: Bool { !options.arbitraryURL && (options.allBranches || localBranch != nil) }
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
     func load(source: String? = nil) {
         guard !busy else { return }; busy = true
         Task {
@@ -46,11 +66,11 @@ import TurtleGitCore
                 options = PushOptions()
                 let current = try await repository.branch()
                 options.source = source ?? (current.isEmpty ? "HEAD" : "refs/heads/" + current)
-                options.allBranches = source == nil && UserDefaults.standard.bool(forKey: key + ".allBranches")
+                options.allBranches = source == nil && preferences.bool(forKey: key + ".allBranches")
                 options.submodules = await repository.pushSubmoduleDefault()
                 let defaults = try await repository.pushDefaults(source: options.source)
                 options.remote = defaults.remote; options.destination = defaults.destination; options.setUpstream = defaults.setUpstream; localBranch = defaults.localBranch
-                if options.remote.isEmpty, let saved = UserDefaults.standard.string(forKey: key + ".remote"), remotes.contains(saved) { options.remote = saved }
+                if options.remote.isEmpty, let saved = preferences.string(forKey: key + ".remote"), remotes.contains(saved) { options.remote = saved }
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -70,6 +90,19 @@ import TurtleGitCore
         if !canTrack { options.setUpstream = false }
         if !canSave { options.savePushRemote = false; options.savePushBranch = false }
     }
+    func cancel() {
+        guard busy else { close(); return }
+        guard let token = cancellation, !cancelling, !confirmingCancellation else { return }
+        func stop() { cancelling = true; token.cancel() }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true
+            confirmCancellation { [weak self] proceed in
+                guard let self, self.cancellation === token else { return }
+                self.confirmingCancellation = false
+                if proceed { self.cancelling = true; token.cancel() }
+            }
+        } else { stop() }
+    }
     func push(confirmed: Bool = false) {
         guard !busy else { return }
         if !confirmed {
@@ -80,12 +113,17 @@ import TurtleGitCore
         }
         var snapshot = options
         if snapshot.arbitraryURL { snapshot.remote = url }
+        let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
         busy = true
-        UserDefaults.standard.set(snapshot.allBranches, forKey: key + ".allBranches")
-        if !snapshot.arbitraryURL && !snapshot.allRemotes { UserDefaults.standard.set(snapshot.remote, forKey: key + ".remote") }
+        preferences.set(snapshot.allBranches, forKey: key + ".allBranches")
+        if !snapshot.arbitraryURL && !snapshot.allRemotes { preferences.set(snapshot.remote, forKey: key + ".remote") }
         Task {
-            defer { busy = false }
-            do { let output = try await repository.push(snapshot); onPushed(output); close() }
+            defer { cancellation = nil; cancelling = false; confirmingCancellation = false; busy = false }
+            do {
+                let output = try await repository.push(snapshot, cancellation: token)
+                guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+                onPushed(output); close()
+            }
             catch { self.error = error.localizedDescription }
         }
     }
@@ -105,6 +143,7 @@ private struct PushDialog: View {
     @ObservedObject var model: PushWindowModel
     var body: some View {
         VStack(spacing: 14) {
+            Group {
             GroupBox("Ref") { VStack(alignment: .leading, spacing: 8) {
                 Toggle("Push all branches", isOn: $model.options.allBranches)
                 HStack { Text("Local:").frame(width: 115, alignment: .leading); PushRefCombo(value: $model.options.source, choices: ["HEAD"] + model.references.map(\.name), local: true)
@@ -135,13 +174,14 @@ private struct PushDialog: View {
                 HStack { Text("Recurse submodule").frame(width: 155, alignment: .leading); Picker("Recurse submodule", selection: $model.options.submodules) { Text("None").tag(PushSubmodules.none); Text("Check").tag(PushSubmodules.check); Text("On-demand").tag(PushSubmodules.onDemand) }.labelsHidden(); Spacer() }
                 HStack { Text("Push option:").frame(width: 155, alignment: .leading); TextField("Option sent to server", text: $model.options.pushOption) }
             }.padding(8) }
+            }.disabled(model.busy)
             Spacer(minLength: 0)
             HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer()
-                Button("OK") { model.push() }.keyboardShortcut(.defaultAction)
-                Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
+                Button("OK") { model.push() }.keyboardShortcut(.defaultAction).disabled(model.busy)
+                Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-push.html")!) }
             }
-        }.padding(16).disabled(model.busy)
+        }.padding(16)
         .onChange(of: model.options.source) { _ in model.sourceChanged() }
         .onChange(of: model.options.arbitraryURL) { _ in model.adjustSettings() }
         .onChange(of: model.options.allRemotes) { _ in model.adjustSettings() }

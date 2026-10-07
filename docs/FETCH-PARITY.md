@@ -177,7 +177,7 @@ asks **The process is still running. / Are you sure to abort?**, with Yes as the
 default, matching the source MB_YESNO prompt. No leaves the transport running; Yes stops it. This adapts
 `CProgressDlg::OnCancel` and `SetDialogs2`; owned POSIX process-group signals
 replace the Windows console/process-tree APIs. The setting is currently consumed
-by Pull/Fetch, rather than every operation in the application.
+by Pull/Fetch and Push, rather than every operation in the application.
 
 [Cancellation QA](qa/fetch-cancellation-2026-10-07.json) records pre-cancelled core
 requests and headless native Fetch, Pull and Fetch-before-Rebase models. A real

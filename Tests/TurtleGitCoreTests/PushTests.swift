@@ -86,4 +86,17 @@ final class PushTests: XCTestCase {
         _ = try await repo.push(options)
         XCTAssertEqual(try String(contentsOf: remote.root.appendingPathComponent("push-option.txt"), encoding: .utf8), options.pushOption)
     }
+    func testPreCancelledPushPreservesRemoteAndSavedDefaults() async throws {
+        let (root, repo, remote, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var options = PushOptions(); options.remote = "origin"; options.source = "refs/heads/main"; options.destination = "cancelled"
+        options.savePushRemote = true; options.savePushBranch = true
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.push(options, cancellation: token); XCTFail("Pre-cancelled push must not execute") }
+        catch OperationCancellationFailure.cancelled {}
+        let refs = try await remote.checkoutReferences()
+        XCTAssertTrue(refs.isEmpty)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), before)
+    }
+
 }
