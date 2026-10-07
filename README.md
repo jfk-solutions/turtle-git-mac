@@ -302,6 +302,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Participating modal Log pickers refresh after Bisect results and detach on close.
   The Log working-tree row now supports comparisons, Commit and current-commit
   Bisect Good/Bad/Skip/Reset, plus Stash/Pull/Fetch/Submodule Update handoffs.
+  Selected versioned files support unified diff against HEAD with rename paths,
+  raw patch bytes and alternate viewer handoff.
   Advanced working-file actions and displayed/signed
   acceptance remain pending.
   [Bisect parity](docs/BISECT-PARITY.md).

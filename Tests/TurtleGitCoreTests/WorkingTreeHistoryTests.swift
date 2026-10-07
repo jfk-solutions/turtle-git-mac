@@ -57,6 +57,7 @@ final class WorkingTreeHistoryTests: XCTestCase {
         let unbornValue = try await repo.workingTreeHistory()
         let unborn = try XCTUnwrap(unbornValue); XCTAssertTrue(unborn.entry.parents.isEmpty)
         XCTAssertEqual(unborn.files.map(\.action), ["A"]); XCTAssertFalse(unborn.files[0].hasStatistics)
+        do { _ = try await repo.workingTreeFileDiffData(files: unborn.files); XCTFail("Unborn unified diff accepted") } catch RevisionComparisonFailure.range {}
         _ = try await repo.commit(message: "First")
         _ = try await repo.run(["rm", "--cached", "--", "new"])
         let removedValue = try await repo.workingTreeHistory()
@@ -67,6 +68,7 @@ final class WorkingTreeHistoryTests: XCTestCase {
         let bareRoot = root.appendingPathComponent("bare.git")
         _ = try await repo.run(["init", "--bare", bareRoot.path])
         let bare = try await GitRepository(root: bareRoot, executable: testGit).workingTreeHistory(); XCTAssertNil(bare)
+        do { _ = try await GitRepository(root: bareRoot, executable: testGit).workingTreeFileDiffData(files: removed.files); XCTFail("Bare working diff accepted") } catch RevisionComparisonFailure.range {}
     }
     func testConflictedRowPreservesUnmergedIndexAndActualHead() async throws {
         let (root, _, path) = try await GitPatchTests().fixture()
@@ -116,6 +118,51 @@ final class WorkingTreeHistoryTests: XCTestCase {
         XCTAssertFalse(file.hasStatistics)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
         let pointer = try await module.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(pointer, first)
+    }
+
+    func testSelectedWorkingPatchesPreserveRawBytesOrderRenamesAndIndex() async throws {
+        let (root, _, path) = try await GitPatchTests().fixture()
+        let repo = GitRepository(root: root, executable: testGit)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let literal = ":(glob)* 雪\n.txt", other = "other.txt", renamed = "renamed 雪\n.txt"
+        try Data([0xff, 10]).write(to: root.appendingPathComponent(literal))
+        try Data("other base\n".utf8).write(to: root.appendingPathComponent(other))
+        try await repo.stage([literal, other]); _ = try await repo.commit(message: "Patch bases")
+        _ = try await repo.run(["mv", "--", path, renamed])
+        try Data([0xfe, 10]).write(to: root.appendingPathComponent(literal)); try await repo.stage([literal])
+        try Data([0xfd, 10]).write(to: root.appendingPathComponent(literal))
+        try Data("UNSELECTED CONTENT\n".utf8).write(to: root.appendingPathComponent(other))
+        _ = try await repo.run(["config", "diff.external", "/usr/bin/false"])
+        _ = try await repo.run(["config", "diff.blocked.textconv", "/usr/bin/false"])
+        try Data("*.txt diff=blocked\n".utf8).write(to: root.appendingPathComponent(".gitattributes"))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let value = try await repo.workingTreeHistory(), snapshot = try XCTUnwrap(value)
+        let text = try XCTUnwrap(snapshot.files.first { $0.path == literal })
+        let rename = try XCTUnwrap(snapshot.files.first { $0.path == renamed })
+        let patch = try await repo.workingTreeFileDiffData(files: [text, rename, text])
+        let added = try XCTUnwrap(patch.range(of: Data([43, 0xfd, 10])))
+        let moved = try XCTUnwrap(patch.range(of: Data("rename from ".utf8)))
+        XCTAssertLessThan(added.lowerBound, moved.lowerBound)
+        XCTAssertNil(patch.range(of: Data("UNSELECTED CONTENT".utf8)))
+        XCTAssertNotNil(patch.range(of: Data([45, 0xff, 10])))
+        XCTAssertNil(patch.range(of: Data([43, 0xfe, 10])))
+        XCTAssertNil(patch.range(of: Data([43, 0xfd, 10]), in: added.upperBound..<patch.endIndex))
+        let patchURL = root.appendingPathComponent(".git/selected-working.patch")
+        try patch.write(to: patchURL)
+        let alternativeIndex = root.appendingPathComponent(".git/working-qa.index").path
+        _ = try await repo.run(["read-tree", "HEAD"], environmentOverrides: ["GIT_INDEX_FILE": alternativeIndex])
+        _ = try await repo.run(["apply", "--cached", "--check", patchURL.path], environmentOverrides: ["GIT_INDEX_FILE": alternativeIndex])
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(literal)), Data([0xfd, 10]))
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, head)
+        let untracked = try XCTUnwrap(snapshot.unversioned.first)
+        do { _ = try await repo.workingTreeFileDiffData(files: [untracked]); XCTFail("Unversioned patch accepted") } catch RevisionComparisonFailure.selection {}
+        do { _ = try await repo.workingTreeFileDiffData(files: []); XCTFail("Empty selection accepted") } catch RevisionComparisonFailure.selection {}
+        let invalid = CommitFile(path: "../outside", oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        do { _ = try await repo.workingTreeFileDiffData(files: [invalid]); XCTFail("Outside path accepted") } catch RevisionComparisonFailure.selection {}
+        let cancellation = OperationCancellation(); cancellation.cancel()
+        do { _ = try await repo.workingTreeFileDiffData(files: [text], cancellation: cancellation); XCTFail("Cancelled patch accepted") } catch { XCTAssertTrue(cancellation.isCancelled) }
     }
 
 }

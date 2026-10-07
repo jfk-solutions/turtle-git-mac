@@ -10,6 +10,26 @@ public struct WorkingTreeHistory: Sendable {
 }
 
 extension GitRepository {
+    /// Upstream concatenates the selected versioned files' patches in list order.
+    /// The working-tree row compares current HEAD with both index/worktree changes.
+    public func workingTreeFileDiffData(files: [CommitFile], cancellation: OperationCancellation? = nil) throws -> Data {
+        guard !files.isEmpty, files.allSatisfy({ $0.action != "?" }) else { throw RevisionComparisonFailure.selection }
+        func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {
+            try run(args, environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], successfulExitCodes: successfulExitCodes, cancellation: cancellation)
+        }
+        guard try read(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true" else { throw RevisionComparisonFailure.range }
+        let head = try read(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1)
+        guard head.exitCode == 0 else { throw RevisionComparisonFailure.range }
+        let base = head.text.trimmingCharacters(in: .newlines)
+        func valid(_ path: String) -> Bool { !path.isEmpty && !path.contains("\0") && !path.hasPrefix("/") && !path.split(separator: "/").contains("..") }
+        var seen = Set<String>(), patch = Data()
+        for file in files where seen.insert(file.path).inserted {
+            guard valid(file.path), file.oldPath.map(valid) != false else { throw RevisionComparisonFailure.selection }
+            let paths = file.oldPath.map { [$0, file.path] } ?? [file.path]
+            patch.append(try read(["diff", "--no-ext-diff", "--no-textconv", "--no-color", "-M", base, "--"] + paths).stdout)
+        }
+        return patch
+    }
     public func workingTreeHistory(cancellation: OperationCancellation? = nil) throws -> WorkingTreeHistory? {
         try cancellation?.check()
         func read(_ args: [String], successfulExitCodes: ClosedRange<Int32> = 0...0) throws -> GitResult {

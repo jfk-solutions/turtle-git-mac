@@ -215,8 +215,11 @@ removal copies share a path identity with the deletion row and are currently
 shown once; separate upstream-style list grouping still requires implementation.
 The row has its own message, Commit callback and whole/file comparison with HEAD.
 Selecting it together with one commit compares that commit with the working tree.
-Unified whole-tree diff is available when a HEAD/base exists; unborn whole-tree
-unified diff and selected working-file unified diff remain pending. File Log
+Unified whole-tree diff is available when a HEAD/base exists. Selected versioned
+working files also support unified diff against current HEAD, in list order,
+including rename paths and the alternate viewer handoff. Unversioned selections
+and repositories without HEAD are excluded; unborn whole-tree unified diff
+remains pending. File Log
 uses the current repository; historical-only file actions stay unavailable.
 
 An active session offers Good/Bad/Skip/Reset with original icons. Pure-row
@@ -231,6 +234,13 @@ busy refusal and row show/hide. Handoffs are injected. Displayed graph/layout,
 keyboard/accessibility, activated menus and signed sandbox remain unverified.
 Working-file Blame, export/open/save, prepared comparison and conflict actions
 still require their upstream-specific implementation and acceptance.
+
+Selected-file patch checks preserve raw non-UTF-8 bytes, literal Unicode/newline
+paths, rename pairs and selection order; they validate the patch against a
+separate index and leave the real index, HEAD and working bytes unchanged.
+External diff/textconv filters are suppressed. The hidden native receiver checks
+actual selected-file patch bytes, alternate handoff and unversioned refusal;
+it does not establish displayed viewer or keyboard acceptance.
 
 ## Working-tree repository commands
 

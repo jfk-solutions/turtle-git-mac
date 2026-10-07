@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "dc738f1",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log selected versioned working-file unified diff against actual HEAD; raw patch bytes, rename paths, list order, alternate viewer handoff and unversioned/unborn/bare guards",
+  "upstream_source": "src/Git/GitStatusListCtrl.cpp:1740-1758 and 2285-2355; selected versioned GNU diff, no init repository, HEAD-to-working comparison and Shift alternate viewer",
+  "sha256": {
+    "Sources/TurtleGitCore/WorkingTreeHistory.swift": "7685b9d3d43494a08de535d4ef2e8e312ebb544761db19f0ac208c94372d842e",
+    "Sources/TurtleGitMac/LogWindow.swift": "bb63fdefce943cb3258be16cbf91a75f6bd5cf75508195037ce7f80ffc7d62a7",
+    "Tests/TurtleGitCoreTests/WorkingTreeHistoryTests.swift": "2e091c6fe0994b638392556c229cd9bedcffe4415552030679b024616ff72133",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "3cbc3d8e864fa765736f997ba8435e983d56997a74e13505d2cf7f645e0af85f",
+    "docs/BISECT-PARITY.md": "c94c3fe6f7e1b0a9c6712ca9863d4fa80782f5b31cbcf0fd0050cd2e9859ee83",
+    "README.md": "6370d5254bcbf6ec5eeb482d19189281ff6ae2f44f481936ca4cae0a2deeb627"
+  },
+  "all_sources_manifest_sha256": "3ee7f0b7a923364a77e22e8186a640301a4ed49ef85e5c4e36cc8f2f7c151e21",
+  "verification": {
+    "core": "WorkingTreeHistoryTests: 5 tests, zero failures per Git on system 2.50.1 Apple Git-155, 2.37.1, 2.39.5 and bundled 2.55.0. Exact non-UTF-8 patch bytes, literal Unicode/newline pathspec, rename pairs, ordered/deduplicated selection, suppression of external diff/textconv, alternate index patch check, real index/HEAD/work bytes preservation, cancellation and invalid/unversioned/empty/unborn/bare refusal.",
+    "native": "scripts/check-cherry-pick-native.py --menus-only with all four Git executables passed. Actual working-file patch bytes and alternate callback; unversioned refusal without viewer. Existing focused Log/Bisect/Export/Rebase fixtures passed. Hidden owned windows and injected handoffs.",
+    "builds": [
+      "SwiftPM filtered tests (app and tests compile)",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; Store --require-git; 90 upstream icons and universal helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "No displayed viewer/layout, keyboard/accessibility, activated Finder or signed sandbox acceptance. Full port remains incomplete."
+  },
+  "logs": {
+    "/tmp/turtlegit-working-file-diff-core.log": "329a344fa93fbc1e193e80ef45d81fd371e681aba6bee98d780ba1e8cbc57880",
+    "/tmp/turtlegit-working-file-diff-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-working-file-diff-matrix.log": "366412b20611c12466088f4bb7fc985ac076750847d09c53a3c6179797c14726",
+    "/tmp/turtlegit-working-file-diff-native.log": "587d14ef398f047179e267c5d5922c07be16d702124d93a9749a2409de30ad02",
+    "/tmp/turtlegit-working-file-diff-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-working-file-diff-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-working-file-diff-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  },
+  "remaining": "Unborn whole-tree unified diff, advanced working-file actions, Cleanup, preference persistence/navigation and broad displayed/Finder/signed parity acceptance."
+}

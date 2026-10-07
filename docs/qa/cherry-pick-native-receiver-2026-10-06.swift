@@ -978,8 +978,14 @@ import TurtleGitCore
     log.reload(); try await waitLog(); log.select([""])
     precondition(log.files.contains { $0.path == "change" && $0.status == "Modified" })
     log.compareFiles(["change"]); precondition(comparedPaths == ["change"])
-    var workingPatch = Data(); log.onUnifiedDiff = { bytes, _ in workingPatch = bytes }
+    var workingPatch = Data(), selectedWorkingAlternate = false; log.onUnifiedDiff = { bytes, alternate in workingPatch = bytes; selectedWorkingAlternate = alternate }
     coordinator.showDiff(); try await waitLog(); precondition(String(decoding: workingPatch, as: UTF8.self).contains("+native working-row diff"))
+    workingPatch = Data(); log.selectedFileDiff(["change"], alternate: true); try await waitLog()
+    precondition(selectedWorkingAlternate && String(decoding: workingPatch, as: UTF8.self).contains("+native working-row diff"))
+    log.showUnversionedFiles = true; log.updateWorkingFiles(); workingPatch = Data()
+    log.selectedFileDiff(["untracked"]); precondition(!log.busy && workingPatch.isEmpty)
+    log.showUnversionedFiles = false; log.updateWorkingFiles()
+    print("Native selected working-file unified diff: tracked selection produces actual patch bytes, alternate handoff retained, unversioned selection refused without opening viewer passed. Handoff injected.")
     try savedWorking.write(to: root.appendingPathComponent("change"))
     reopened.model.load(good: hashes[0], bad: hashes[7], requireStart: true); try await wait(reopened.model)
     reopened.model.start(); try await wait(reopened.model); try await waitLog()

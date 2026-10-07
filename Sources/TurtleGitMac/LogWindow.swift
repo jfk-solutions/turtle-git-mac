@@ -941,16 +941,21 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func selectedFileDiff(_ ids: Set<String>, alternate: Bool = false) {
-        guard !busy, !unifiedViewerBusy, let revision else { return }
+        guard !busy, !unifiedViewerBusy, selectedWorkingTree || revision != nil else { return }
+        let working = selectedWorkingTree, revision = self.revision
         let chosen = visibleFiles.filter { ids.contains($0.id) }
-        guard !chosen.isEmpty else { return }; busy = true
+        guard !chosen.isEmpty, !working || workingTreeSnapshot?.entry.parents.first != nil && chosen.allSatisfy({ $0.action != "?" }) else { return }; busy = true
         Task {
             defer { busy = false }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let bytes = try await repository.revisionFileDiffData(revision, files: chosen)
-                if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                let bytes: Data
+                if working { bytes = try await repository.workingTreeFileDiffData(files: chosen) }
+                else if let revision { bytes = try await repository.revisionFileDiffData(revision, files: chosen) }
+                else { return }
+                if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
             } catch { self.error = error.localizedDescription }
         }
@@ -1113,7 +1118,7 @@ struct LogDialog: View {
     }
     @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
         Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
-        Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.revision == nil || model.busy)
+        Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
         Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)
         if model.canCompareFilePair(ids) {
             Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || model.revision == nil || model.onFilePairCompare == nil)
