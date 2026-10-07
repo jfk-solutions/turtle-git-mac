@@ -49,6 +49,13 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
         super.init(window: window)
         model.window = window
         model.confirmWorkingFlags = { action in confirmIndexFlags(action) }
+        model.confirmWorkingDelete = { count, permanently in
+            let alert = NSAlert(); alert.alertStyle = .warning
+            alert.messageText = permanently ? "Permanently delete the selected paths?" : "Move the selected paths to Trash?"
+            alert.informativeText = "\(count) selected item(s). Their exact index entries will also be removed." + (permanently ? " This cannot be undone." : " Files moved to Trash can be recovered in Finder.")
+            alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+            return alert.runModal() == .alertSecondButtonReturn
+        }
         model.handleHistoricalRevertFailure = { message in
             let alert = NSAlert(); alert.messageText = "Could not revert file"; alert.informativeText = message
             alert.addButton(withTitle: "Ignore"); alert.addButton(withTitle: "Abort")
@@ -430,6 +437,11 @@ struct LogCommandRequest: Identifiable {
     @Published var files: [CommitFile] = []
     @Published var fileGroups: [LogFileGroup] = []
     @Published var selectedFiles = Set<String>()
+    private(set) var fileSelectionMark: String?
+    func markedFile(_ ids: Set<String>) -> CommitFile? {
+        if let fileSelectionMark, ids.contains(fileSelectionMark), let file = visibleFiles.first(where: { $0.id == fileSelectionMark }) { return file }
+        return visibleFiles.first { ids.contains($0.id) }
+    }
     private var lastImportedWorkingMark: UUID?
     @Published var comparisonMark: PreparedFileComparisonMark?
     @Published var allBranches = false
@@ -810,7 +822,7 @@ struct LogCommandRequest: Identifiable {
         for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
-        selected = hashes; selectedFiles = []; files = []; fileGroups = []
+        selected = hashes; selectedFiles = []; fileSelectionMark = nil; files = []; fileGroups = []
         detailGeneration += 1; let request = detailGeneration
         if selectedWorkingTree { updateWorkingFiles(); return }
         guard let revision else { return }
@@ -1155,10 +1167,45 @@ struct LogCommandRequest: Identifiable {
         }
     }
     @Published private(set) var historicalRevertTrash: [URL] = []
+    @Published private(set) var workingDeleteTrash: [URL] = []
+    @Published private(set) var workingDeleteResult: WorkingFileDeleteResult?
+    var confirmWorkingDelete: (Int, Bool) async -> Bool = { _, _ in false }
+    func canDeleteWorkingFiles(_ ids: Set<String>, keyboard: Bool = false) -> Bool {
+        guard !busy, !isInvalidated, !bare, selectedWorkingTree,
+              let file = markedFile(ids),
+              let mark = workingIndexFiles.first(where: { $0.id == file.path }) else { return false }
+        return keyboard ? mark.entry.canDeleteWithKeyboard : mark.entry.canDeleteFromStatusList
+    }
+    func deleteWorkingFiles(_ ids: Set<String>, permanently: Bool = false, keyboard: Bool = false) {
+        guard canDeleteWorkingFiles(ids, keyboard: keyboard) else { return }
+        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        let rows = chosen.compactMap { file in workingIndexFiles.first { $0.id == file.path }?.entry }
+        guard rows.count == chosen.count, let marked = markedFile(ids), let mark = rows.first(where: { $0.path == marked.path }) else { return }
+        let request = generation, selection = selected, fileSelection = selectedFiles
+        workingDeleteTrash = []; workingDeleteResult = nil; busy = true
+        Task {
+            defer { busy = false }
+            guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated,
+                  await confirmWorkingDelete(rows.count, permanently),
+                  request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+            do {
+                for row in rows { try validateWorkingFileAccess(repository.root.appendingPathComponent(row.path)) }
+                let result = try await repository.deleteWorkingFiles(rows, selectionMark: mark, permanently: permanently)
+                workingDeleteResult = result; workingDeleteTrash = result.trashedFiles
+                onRevisionChanged("\(rows.count) item(s) deleted."); requestRepositoryRefresh()
+            } catch {
+                if let failure = error as? WorkingFileDeleteFailure {
+                    workingDeleteTrash = failure.trashedFiles
+                    if !failure.removedPaths.isEmpty { onRevisionChanged(failure.localizedDescription); requestRepositoryRefresh() }
+                }
+                if request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription }
+            }
+        }
+    }
     var onIgnoreFiles: ((RepositoryAction, [String]) -> Void)?
     func canIgnoreFiles(_ ids: Set<String>) -> Bool {
         guard !busy, !isInvalidated, !bare, onIgnoreFiles != nil,
-              let mark = visibleFiles.first(where: { ids.contains($0.id) }) else { return false }
+              let mark = markedFile(ids) else { return false }
         return mark.action == "?" || mark.action.hasPrefix("D")
     }
     func requestIgnoreFiles(_ ids: Set<String>, mask: Bool = false, folder: Bool = false) {
@@ -1199,7 +1246,7 @@ struct LogCommandRequest: Identifiable {
     var showHistoricalRevertResult: (String) -> Void = { _ in }
     func canRevertHistoricalFiles(_ ids: Set<String>, parent: Bool) -> Bool {
         guard !busy, !isInvalidated, !bare, !selectedWorkingTree, let revision,
-              let marked = visibleFiles.first(where: { ids.contains($0.id) }) else { return false }
+              let marked = markedFile(ids) else { return false }
         return parent ? revision.parents.indices.contains(marked.parentIndex ?? 0) : !marked.action.hasPrefix("D")
     }
     func revertHistoricalFiles(_ ids: Set<String>, parent: Bool) {
@@ -1238,7 +1285,7 @@ struct LogCommandRequest: Identifiable {
     }
     var confirmWorkingFlags: (IndexFlagAction) async -> Bool = { _ in false }
     func workingFlagMark(_ ids: Set<String>) -> WorkingTreeFile? {
-        guard selectedWorkingTree, let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return nil }
+        guard selectedWorkingTree, let file = markedFile(ids) else { return nil }
         return workingIndexFiles.first { $0.id == file.path }
     }
     func canWorkingFlag(_ action: IndexFlagAction, ids: Set<String>) -> Bool {
@@ -1273,7 +1320,7 @@ struct LogCommandRequest: Identifiable {
         guard !chosen.isEmpty else { return false }
         if action == .add { return chosen.contains { $0.action == "?" } }
         if action == .revert { return chosen.contains { $0.action != "?" } }
-        if action == .commit, let mark = workingIndexFiles.first(where: { $0.id == chosen[0].path }), mark.assumeUnchanged || mark.skipWorktree { return false }
+        if action == .commit, let mark = workingFlagMark(ids), mark.assumeUnchanged || mark.skipWorktree { return false }
         return action == .commit
     }
     func requestWorkingFiles(_ action: RepositoryAction, ids: Set<String>) {
@@ -1333,7 +1380,7 @@ struct LogCommandRequest: Identifiable {
     }
     func fileParentComparisonTitle(_ ids: Set<String>) -> String? {
         guard !selectedWorkingTree, let revision else { return nil }
-        let index = visibleFiles.first { ids.contains($0.id) }?.parentIndex ?? 0
+        let index = markedFile(ids)?.parentIndex ?? 0
         guard let parent = parentChoices(for: revision).first(where: { $0.number == index + 1 }) else { return nil }
         return "Compare parent with working tree: " + parent.title
     }
@@ -1411,7 +1458,13 @@ extension LogWindowModel {
         }
     }
     var fileTableSelection: Binding<Set<String>> {
-        Binding(get: { self.selectedFiles }, set: { ids in self.selectedFiles = ids.intersection(Set(self.visibleFiles.map(\.id))) })
+        Binding(get: { self.selectedFiles }, set: { ids in
+            let valid = ids.intersection(Set(self.visibleFiles.map(\.id)))
+            let added = valid.subtracting(self.selectedFiles)
+            if added.count == 1 { self.fileSelectionMark = added.first }
+            else if self.fileSelectionMark.map({ !valid.contains($0) }) ?? true { self.fileSelectionMark = self.visibleFiles.first { valid.contains($0.id) }?.id }
+            self.selectedFiles = valid
+        })
     }
 }
 
@@ -1479,6 +1532,7 @@ struct LogDialog: View {
                     TableColumn("Lines added") { row in Text(row.file?.addedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(90)
                     TableColumn("Lines removed") { row in Text(row.file?.removedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(105)
                 }.frame(minHeight: 130, idealHeight: 180)
+                .onDeleteCommand { model.deleteWorkingFiles(model.selectedFiles, permanently: NSEvent.modifierFlags.contains(.shift), keyboard: true) }
                 .contextMenu(forSelectionType: String.self) { ids in
                     TurtleGitContextMenu {
                         fileContextActions(ids)
@@ -1582,6 +1636,9 @@ struct LogDialog: View {
         }
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") {
             preparedComparisonActions(ids, file: file)
+        }
+        if model.canDeleteWorkingFiles(ids) {
+            Button { model.deleteWorkingFiles(ids, permanently: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Delete", icon: .remove) }
         }
         if model.canIgnoreFiles(ids) {
             let paths = model.visibleFiles.filter { ids.contains($0.id) }.map(\.path)

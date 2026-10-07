@@ -779,6 +779,82 @@ import TurtleGitCore
     print("Native Log Revert/index flags: decline preserves index; actual assume/skip/clear cycles retain rows/status and Commit guard, unchanged blobs/work, fresh stale-menu refusal, confirmation selection/invalidation guards, flagged gitlink type, scoped Revert chooser and actual Revert progress restore only selected path, refresh Log and preserve HEAD/untracked/other files passed. Confirmations/root callbacks injected; owned Trash files removed; no windows shown.")
 }
 
+@MainActor func verifyNativeLogDelete(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-delete-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgSign", "false"])
+    for path in ["tracked", "missing", "untouched"] { try Data((path + " base\n").utf8).write(to: root.appendingPathComponent(path)) }
+    try await repo.stage(["tracked", "missing", "untouched"]); _ = try await repo.commit(message: "base")
+    let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    try Data("unrelated staged\n".utf8).write(to: root.appendingPathComponent("untouched")); try await repo.stage(["untouched"])
+    try Data("modified tracked\n".utf8).write(to: root.appendingPathComponent("tracked"))
+    try FileManager.default.removeItem(at: root.appendingPathComponent("missing"))
+    let trashPath = "0-new [雪]*.txt", bytes = Data([0xff, 10])
+    try bytes.write(to: root.appendingPathComponent(trashPath))
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    func until(_ condition: () -> Bool, line: UInt = #line) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition(), "Delete fixture timeout at \(line): error=\(log.error ?? "none"), files=\(log.files.map(\.path)), removedIndex=\(log.workingDeleteResult?.removedIndexPaths ?? [])")
+    }
+    var ownedTrash: [URL] = []; defer { for url in ownedTrash { try? FileManager.default.removeItem(at: url) } }
+    var confirmations: [(Int, Bool)] = [], changes = 0
+    log.onRevisionChanged = { _ in changes += 1 }
+    log.confirmWorkingDelete = { count, permanent in confirmations.append((count, permanent)); return false }
+    log.showUnversionedFiles = true; log.reload(); try await until { !log.busy }; log.select([""])
+    precondition(log.canDeleteWorkingFiles([trashPath], keyboard: true) && log.canDeleteWorkingFiles(["missing"]) && !log.canDeleteWorkingFiles(["missing"], keyboard: true) && !log.canDeleteWorkingFiles(["tracked"]))
+    let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    log.deleteWorkingFiles([trashPath]); try await until { !log.busy }
+    let declinedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    precondition(confirmations.count == 1 && declinedIndex == index && FileManager.default.fileExists(atPath: root.appendingPathComponent(trashPath).path) && changes == 0)
+    log.confirmWorkingDelete = { count, permanent in confirmations.append((count, permanent)); return true }
+    log.deleteWorkingFiles([trashPath], keyboard: true); try await until { !log.busy && !log.files.contains { $0.path == trashPath } }
+    ownedTrash += log.workingDeleteTrash
+    let trash = try Data(contentsOf: log.workingDeleteTrash[0]); precondition(trash == bytes && log.workingDeleteResult?.removedIndexPaths.isEmpty == true && changes == 1)
+    log.deleteWorkingFiles(["missing"]); try await until { !log.busy && log.workingDeleteResult?.removedIndexPaths == ["missing"] }
+    precondition(log.workingDeleteTrash.isEmpty && changes == 2)
+    // Shift deletes the full selection, including tracked index entries, like upstream.
+    let permanentPath = "0-permanent.txt"
+    try Data("permanent\n".utf8).write(to: root.appendingPathComponent(permanentPath))
+    log.reload(); try await until { !log.busy }; log.select([""])
+    log.fileTableSelection.wrappedValue = ["tracked"]
+    log.fileTableSelection.wrappedValue = ["tracked", permanentPath]
+    precondition(log.fileSelectionMark == permanentPath && log.canDeleteWorkingFiles([permanentPath, "tracked"]))
+    log.deleteWorkingFiles([permanentPath, "tracked"], permanently: true)
+    try await until { !log.busy && log.workingDeleteResult?.removedIndexPaths == ["tracked"] }
+    precondition(confirmations.last?.0 == 2 && confirmations.last?.1 == true && log.workingDeleteTrash.isEmpty && changes == 3)
+    precondition(!FileManager.default.fileExists(atPath: root.appendingPathComponent(permanentPath).path) && !FileManager.default.fileExists(atPath: root.appendingPathComponent("tracked").path))
+    let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let unrelatedIndex = try await repo.run(["show", ":untouched"]).stdout
+    let unrelatedWork = try Data(contentsOf: root.appendingPathComponent("untouched"))
+    precondition(finalHead == head && unrelatedIndex == Data("unrelated staged\n".utf8) && unrelatedWork == unrelatedIndex)
+    // Fresh Core status rejects an untracked row staged while its confirmation is held.
+    let stale = "0-stale.txt"; try Data("stale\n".utf8).write(to: root.appendingPathComponent(stale))
+    log.reload(); try await until { !log.busy }; log.select([""])
+    var gate: CheckedContinuation<Bool, Never>?
+    log.confirmWorkingDelete = { _, _ in await withCheckedContinuation { gate = $0 } }
+    log.deleteWorkingFiles([stale]); try await until { gate != nil }
+    try await repo.stage([stale]); let stagedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    gate?.resume(returning: true); gate = nil; try await until { !log.busy }
+    let refusedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    precondition(log.error != nil && refusedIndex == stagedIndex && FileManager.default.fileExists(atPath: root.appendingPathComponent(stale).path) && changes == 3)
+    _ = try await repo.run(["reset", "--", stale]); log.reload(); try await until { !log.busy }; log.select([""])
+    log.error = nil; log.deleteWorkingFiles([stale]); try await until { gate != nil }
+    log.select([String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)]); gate?.resume(returning: true); gate = nil
+    try await until { !log.busy }; precondition(changes == 3 && log.error == nil)
+    log.select([""]); log.deleteWorkingFiles([stale]); try await until { gate != nil }
+    log.selectedFiles = [stale]; gate?.resume(returning: true); gate = nil
+    try await until { !log.busy }; precondition(changes == 3)
+    log.select([""]); log.bare = true; precondition(!log.canDeleteWorkingFiles([stale])); log.bare = false
+    log.deleteWorkingFiles([stale]); try await until { gate != nil }; log.invalidate(); gate?.resume(returning: true); gate = nil
+    try await until { !log.busy }; precondition(changes == 3 && FileManager.default.fileExists(atPath: root.appendingPathComponent(stale).path))
+    print("Native Log Delete: declined confirmation preserves exact index/work, real keyboard Trash preserves raw bytes, missing-file exact index removal, Shift mixed tracked/untracked deletion, unchanged HEAD/unrelated index/work, held stale-stage/selection/close and bare guards passed. Confirmations and completion callback injected; owned Trash cleanup deferred; no windows shown.")
+}
+
 @MainActor func verifyNativeLogIgnore(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-ignore-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
@@ -1001,6 +1077,10 @@ import TurtleGitCore
     log.fileTableSelection.wrappedValue = Set(log.fileTableRows.map(\.id)); precondition(log.selectedFiles == duplicates)
     log.filterPaths = "missing"; precondition(log.fileTableRows.isEmpty); log.filterPaths = ""
     let rightID = log.files.first { $0.parentIndex == 1 }!.id
+    let leftID = log.files.first { $0.parentIndex == 0 }!.id
+    log.fileTableSelection.wrappedValue = [leftID]
+    log.fileTableSelection.wrappedValue = duplicates
+    precondition(log.fileSelectionMark == rightID && log.fileParentComparisonTitle(duplicates)?.contains(String(right.prefix(8))) == true)
     precondition(log.fileParentComparisonTitle([rightID])?.contains(String(right.prefix(8))) == true)
     var batches: [[(ComparisonRevision, ComparisonRevision, [String])]] = []
     log.onFileComparisons = { batches.append($0) }
@@ -1736,6 +1816,7 @@ import TurtleGitCore
     try await verifyNativeLogDeferredRefresh(executable: repo.executable)
     try await verifyNativeLogUnifiedViewerRouting(executable: repo.executable)
     try await verifyNativeLogParentWorkingComparison(executable: repo.executable)
+    try await verifyNativeLogDelete(executable: repo.executable)
     try await verifyNativeLogIgnore(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
     try await verifyNativeLogRevertFlags(executable: repo.executable)

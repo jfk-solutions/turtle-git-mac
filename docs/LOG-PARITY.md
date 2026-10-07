@@ -1055,7 +1055,7 @@ still incomplete.
 
 ## File Ignore menu
 
-Log now offers Add to ignore list when the first selected visible file is unversioned or deleted,
+Log now offers Add to ignore list when the marked file is unversioned or deleted,
 including historical deletions. Name, extension and single-file containing-folder
 choices reuse the native Ignore dialog. Mixed extensions use separate name/mask
 commands as in GitStatusListCtrl.cpp; matching extensions retain the submenu.
@@ -1070,5 +1070,36 @@ paths, then execute the native Ignore model to write a literal unusual filename
 rule and refresh unversioned visibility. Dialog and root/completion callbacks are
 injected. Menu layout and displayed Ignore interaction, signed sandbox access,
 working-file Delete and other outstanding file commands still need acceptance.
-SwiftUI file selection currently uses the first selected visible row for menu
-eligibility; matching Windows selection-mark behavior remains pending.
+SwiftUI file selection now retains the last singly added selection as its mark.
+Ambiguous range selection retains the existing mark or falls back to the first
+selected visible row; physical mouse/keyboard acceptance remains pending.
+
+## Working-file Delete
+
+The working-tree file menu now offers Delete for an unversioned, ignored-copy or
+missing marked file, using the original Delete icon. The table's
+native Delete command uses the narrower unversioned/ignored-copy keyboard policy.
+Shift requests permanent deletion; otherwise selected existing files go to Trash.
+A native Yes/No confirmation precedes mutation. Like upstream DeleteSelectedFiles,
+the operation processes all selected paths and removes their exact index entries,
+including tracked paths in a mixed selection, without moving HEAD.
+
+The existing Core delete engine locks the index and revalidates selected status;
+it never falls back from failed Trash to permanent removal. Log retains resulting
+Trash URLs, refreshes repository Logs on success/partial file mutation, and refuses
+changed revision/file selection or invalidation while confirmation is held. Native
+fixtures inject confirmations and completion callbacks while executing real Trash,
+permanent deletion and index changes in disposable repositories. Displayed menus,
+keyboard events, confirmation interaction, partial errors through this new route,
+selection-mark fidelity and signed sandbox acceptance remain pending. Historical
+file rows do not offer Delete.
+
+The file-selection binding now remembers the last singly added row, clears the
+mark when its selection disappears or the revision changes, and excludes group
+headers. Delete, Ignore, working index flags/Commit eligibility and historical
+Revert/parent menu titles share that mark. File execution order remains visible
+list order. Hidden fixtures use the real binding to select a tracked row then add
+an unversioned row, and parent 1 then parent 2 duplicate-path occurrences.
+Ambiguous multi-row additions retain an existing selected mark or use a first-row
+fallback. Right-clicking an already selected row, range endpoints, keyboard
+anchors and displayed selection behavior still require runtime acceptance.

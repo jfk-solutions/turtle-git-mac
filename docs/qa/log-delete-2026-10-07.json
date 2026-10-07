@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "b339107",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log working-file Delete/Shift/keyboard route and shared file selection mark",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:1922-1934 Delete menu marked status policy",
+    "src/Git/GitStatusListCtrl.cpp:3863-3875 Delete-key marked unversioned/ignored policy",
+    "src/Git/GitStatusListCtrl.cpp:4702-4764 DeleteSelectedFiles all selected filesystem and exact index entries"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "823c90b1f38ce86a4aa2cf12385cbf3c5e7327e172a759e7ffd5bad6b30229e9",
+    "docs/LOG-PARITY.md": "a160379a97ffde1fa691ae54a9ad8356ac0c6fb6babceaa53427a6d07938748b",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "5cce443b3e8bf203a392aa8dc0eb6e7b80b99a0408775d7579432290790c600b"
+  },
+  "all_sources_manifest_sha256": "a8121195dcc5dbe5cca3bef58d55c107a8e26495032c3b812cbafa2e7fec3ba2",
+  "verification": {
+    "native": {
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Declined confirmation preserves exact index/work. Real keyboard route moves raw invalid-UTF8 file to Trash; native receiver reads recoverable Trash bytes. Missing working path removes exact index entry. Real selection binding marks last added unversioned row in mixed tracked/untracked Shift deletion and removes tracked entry. HEAD and unrelated staged/working bytes preserved. Held confirmation rejects external staging (exact index preserved), revision selection change, file selection change and invalidation; bare guard. Existing focused fixtures pass, including real binding parent-1/parent-2 duplicate occurrence mark/title check. Confirmations and completion callbacks injected. Owned Trash cleanup deferred with try?; cleanup failure not asserted."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed, including all 90 upstream icons and Store --require-git.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after matrix.",
+    "failure_resolution": "Initial mixed-delete fixture timed out. Diagnostic rerun proved first visible selected tracked row disabled dispatch with no error/mutation. Added binding selection-mark retention and routed Delete/Ignore/flags/Commit guard/Revert/parent titles through it. Final fixture exercises actual binding with tracked then added unversioned selection; all four versions passed. Initial logs retained.",
+    "limitations": "SwiftUI Delete menu, native onDeleteCommand events and controller confirmation compiled/source-inspected, not activated. Physical mouse/keyboard/range anchors/right-clicking an already selected row still unverified; ambiguous multiple additions retain existing selected mark or use first selected visible fallback. Partial deletion failures through new Log route and signed sandbox behavior unverified. Existing Core delete engine unchanged; no new Core unit tests. GitHub CI/publication unverified. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-delete/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-delete/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-delete/native-before-selection-mark.log": "cf2ffb30a8577b6043cccb9274ed55f4b64935becebcf61366fbdb831039a474",
+    "build/qa/log-delete/native-before-timeout-diagnostic.log": "2e7496af57fdce3228d0c8fc20f8b49964c2b48d05eed6ffed2bc1896cacc413",
+    "build/qa/log-delete/native.log": "e0919aa76b16006ef4cb7b07ef1079d7cb09ef85ded8e27fa7a1da4bcc4f5069",
+    "build/qa/log-delete/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-delete/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-delete/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-delete/swift.log": "45228f5ea9007949bff91b23149abaf3fcfc8ca5a8562e53cb1681f10540a3bf"
+  },
+  "remaining": "Selection-mark event fidelity, remaining file commands including Shift Add and submodule Log, exact dialogs/layout/input parity, Finder activation, screenshots/publication and signed App Store acceptance."
+}
