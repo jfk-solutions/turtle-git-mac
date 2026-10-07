@@ -11,6 +11,44 @@ public struct RevisionReference: Hashable, Sendable {
     }
 }
 
+public enum HistoryLabelCommand: String, CaseIterable, Sendable {
+    case tags = "Tags", localBranches = "Local branches", remoteBranches = "Remote branches", otherRefs = "Other refs"
+    public var flag: HistoryReferenceVisibility {
+        switch self {
+        case .tags: return .tags
+        case .localBranches: return .localBranches
+        case .remoteBranches: return .remoteBranches
+        case .otherRefs: return .otherRefs
+        }
+    }
+}
+
+/// The six LOGLIST_SHOW flags. Stash and Bisect have no View menu switch upstream.
+public struct HistoryReferenceVisibility: OptionSet, Sendable {
+    public let rawValue: Int
+    public init(rawValue: Int) { self.rawValue = rawValue }
+    public static let localBranches = Self(rawValue: 0x01)
+    public static let remoteBranches = Self(rawValue: 0x02)
+    public static let tags = Self(rawValue: 0x04)
+    public static let stash = Self(rawValue: 0x08)
+    public static let bisect = Self(rawValue: 0x10)
+    public static let otherRefs = Self(rawValue: 0x20)
+    public static let all: Self = [.localBranches, .remoteBranches, .tags, .stash, .bisect, .otherRefs]
+    private func category(_ reference: RevisionReference) -> Self {
+        if reference.name.hasPrefix("refs/heads/") { return .localBranches }
+        if reference.name.hasPrefix("refs/remotes/") { return .remoteBranches }
+        if reference.name.hasPrefix("refs/tags/") { return .tags }
+        if reference.name.hasPrefix("refs/stash") { return .stash }
+        if reference.name.hasPrefix("refs/bisect/") { return .bisect }
+        return .otherRefs
+    }
+    public func shows(_ reference: RevisionReference) -> Bool { contains(category(reference)) }
+    /// ShouldShowRefsFilter retains only these five kinds; Other refs paints labels only.
+    public func keepsCommit(_ reference: RevisionReference) -> Bool {
+        category(reference) != .otherRefs && shows(reference)
+    }
+}
+
 public struct HistorySearchFields: OptionSet, Sendable {
     public let rawValue: Int
     public init(rawValue: Int) { self.rawValue = rawValue }
@@ -384,14 +422,12 @@ public struct CommitGraphRow: Sendable {
 public enum CommitGraph {
     private struct Lane { var hash: String; var color: Int }
     /// Compression changes only graph copies, never action/detail parent metadata.
-    public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions) -> (entries: [LogEntry], graph: [CommitGraphRow]) {
+    public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions, references: HistoryReferenceVisibility = .all) -> (entries: [LogEntry], graph: [CommitGraphRow]) {
         var children: [String: Set<String>] = [:]
         for entry in entries { for parent in entry.graphParents ?? entry.parents { children[parent, default: []].insert(entry.hash) } }
         let visible = entries.filter { entry in
             if entry.hash.isEmpty || walk.graphMode == .all { return true }
-            let labeled = entry.isHead || entry.references.contains { ref in
-                ["refs/heads/", "refs/remotes/", "refs/tags/", "refs/stash", "refs/bisect/"].contains { ref.name.hasPrefix($0) }
-            }
+            let labeled = entry.isHead || entry.references.contains { references.keepsCommit($0) }
             return labeled || walk.graphMode == .compressed && (entry.parents.count > 1 || children[entry.hash, default: []].count > 1)
         }
         let visibleHashes = Set(visible.map(\.hash))

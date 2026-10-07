@@ -1224,8 +1224,7 @@ working-row/graph alignment, literal rename following, mutually exclusive modes,
 All Branches/Whole Project transitions, scope reset and busy/closed guards, with
 an actual hidden hosted Log view. See [the walk QA record](qa/log-history-walk-2026-10-07.json).
 
-Per-node Expand/Collapse rollup commands, reference visibility masks, compressed
-search combinations, graph gaps not rewritten by Git (including Follow renames
+Per-node Expand/Collapse rollup commands and compressed search combinations, graph gaps not rewritten by Git (including Follow renames
 and the synthetic working row above a hidden HEAD), displayed
 light/dark/keyboard/VoiceOver acceptance and signed
 sandbox behavior remain pending. Compression currently applies to the loaded
@@ -1237,3 +1236,33 @@ connected normal/labeled graph rows, actual file lists and parent-revert targets
 Full history raw-parent behavior and exact repository preservation. The native
 receiver checks the same path graph through `LogWindowModel`. See
 [the graph-parent QA record](qa/log-graph-parents-2026-10-07.json).
+
+## View → Labels
+
+The four upstream label switches now appear under View → Labels in source order:
+Tags, Local branches, Remote branches and Other refs. All start enabled, with
+settings saved separately for each repository. Normal history redraws its label
+cells without reloading or changing selection. Compressed/labeled-only history
+refreshes the projection when a switch changes. Busy and invalidated models
+refuse changes.
+
+The visibility mask follows `LOGLIST_SHOW*` and `ShouldShowRefsFilter`: hidden tag,
+local and remote labels stop retaining their commits in graph modes. HEAD remains
+visible even with its local branch label hidden. Stash and Bisect labels keep their
+independent always-enabled flags. Other refs (including Notes) can be hidden from
+painted labels, but do not retain commits in labeled-only history even when shown.
+Full reference metadata stays attached to entries for revision actions and search.
+
+The Core regression covers all six mask categories, retained HEAD, unknown/Notes
+refs, graph bridging and unchanged parent/reference metadata. A native receiver
+uses actual annotated tags, local and remote branch refs and another ref on
+separate commits. It inspects the attributed label cell before/after hiding,
+checks normal-row/selection preservation, reopening preferences and repository
+isolation, actual labeled/compressed rows and edges, closed/busy refusal and exact
+HEAD/index/working-file preservation. Its preference domain is private and removed.
+See [the label QA record](qa/log-label-visibility-2026-10-07.json).
+
+The View menu's Hide/Gray unrelated paths, Gravatar and View Patch commands remain
+pending. Footer ordering now places All Branches before Walk Behavior and View;
+exact displayed spacing, physical menu interaction, color/layout and accessibility
+acceptance remain pending.

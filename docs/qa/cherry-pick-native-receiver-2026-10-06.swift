@@ -1112,6 +1112,66 @@ import TurtleGitCore
     print("Native Log Add modes: last-added selection mark, literal mixed executable and symlink direct progress use real 100755/120000 index modes and raw blobs without chmod/disk links, normal folder progress stages gitlink, lock/cancel exact-index preservation, unrelated staged/HEAD preservation, busy/bare/stale-stage/file-selection/closed guards passed. Root callbacks injected; Shift events/post-action menus not activated; no windows shown.")
 }
 
+@MainActor func verifyNativeLogLabelVisibility(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-labels-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let suite = "TurtleGit.LogLabels.QA." + UUID().uuidString
+    let defaults = UserDefaults(suiteName: suite)!
+    // Use a private preference domain; no user preferences are changed.
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgsign", "false"]); _ = try await repo.run(["config", "tag.gpgsign", "false"])
+    var hashes: [String] = []
+    for index in 0..<5 {
+        try Data("version \(index)\n".utf8).write(to: root.appendingPathComponent("file"))
+        try await repo.stage(["file"]); _ = try await repo.commit(message: "label row \(index)")
+        hashes.append(try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines))
+    }
+    _ = try await repo.run(["tag", "-a", "qa-label-tag", hashes[0], "-m", "annotated label"])
+    _ = try await repo.run(["branch", "qa-label-local", hashes[1]])
+    _ = try await repo.run(["update-ref", "refs/remotes/qa-label/remote", hashes[2]])
+    _ = try await repo.run(["update-ref", "refs/custom/qa-label-other", hashes[3]])
+    let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout, bytes = try Data(contentsOf: root.appendingPathComponent("file"))
+    let model = LogWindowModel(repository: repo, access: nil, selecting: true, labelDefaults: defaults); defer { model.invalidate() }
+    func wait() async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!model.busy && model.error == nil, model.error ?? "Labels timeout")
+    }
+    model.reload(); try await wait(); precondition(model.referenceVisibility == .all && model.entries.count == 5)
+    let selection = model.selected, original = model.entries.map(\.hash)
+    let tagRow = model.entries.firstIndex { $0.hash == hashes[0] }!
+    let coordinator = RevisionTable.Coordinator(model: model), table = NSTableView(), column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("subject"))
+    func paintedTag() -> String { (coordinator.tableView(table, viewFor: column, row: tagRow) as! NSTableCellView).textField!.stringValue }
+    precondition(paintedTag().contains("qa-label-tag"))
+    model.toggleHistoryLabel(.tags)
+    precondition(!model.busy && model.entries.map(\.hash) == original && model.selected == selection)
+    precondition(!paintedTag().contains("qa-label-tag") && model.entries[tagRow].references.contains { $0.name == "refs/tags/qa-label-tag" })
+    let reopened = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults); defer { reopened.invalidate() }
+    precondition(!reopened.referenceVisibility.contains(.tags) && reopened.referenceVisibility.contains(.localBranches))
+    let other = LogWindowModel(repository: GitRepository(root: root.appendingPathComponent("other-repo"), executable: executable), access: nil, labelDefaults: defaults); defer { other.invalidate() }
+    precondition(other.referenceVisibility == .all)
+    model.toggleHistoryWalk(.labeled); try await wait()
+    precondition(model.entries.map(\.hash) == [hashes[4], hashes[2], hashes[1]])
+    model.toggleHistoryLabel(.remoteBranches); try await wait(); precondition(model.entries.map(\.hash) == [hashes[4], hashes[1]])
+    model.toggleHistoryLabel(.localBranches); try await wait(); precondition(model.entries.map(\.hash) == [hashes[4]])
+    model.toggleHistoryLabel(.otherRefs); try await wait(); precondition(model.entries.map(\.hash) == [hashes[4]])
+    model.toggleHistoryLabel(.tags); try await wait(); precondition(model.entries.map(\.hash) == [hashes[4], hashes[0]])
+    precondition(model.graph[1].edges.contains { $0.endsAtNode })
+    model.toggleHistoryWalk(.compressed); try await wait(); precondition(model.entries.map(\.hash) == [hashes[4], hashes[0]])
+    let host = NSHostingView(rootView: LogDialog(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1100, height: 760); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
+    let mask = model.referenceVisibility
+    model.busy = true; model.toggleHistoryLabel(.tags); precondition(model.referenceVisibility == mask); model.busy = false
+    model.invalidate(); model.toggleHistoryLabel(.tags); precondition(model.referenceVisibility == mask)
+    let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterBytes = try Data(contentsOf: root.appendingPathComponent("file"))
+    precondition(afterHead == head && afterIndex == index && afterBytes == bytes)
+    print("Native Log labels: four checked model toggles, actual annotated/local/remote/other refs, native attributed tag label hide/show without normal history reload or metadata loss, isolated per-repository persistence, labeled/compressed rows and bridged graph, HEAD retained with hidden local label, busy/closed guards, hidden hosted View/Labels menu and exact HEAD/index/work preservation passed. Displayed menu gestures remain pending.")
+}
+
 @MainActor func verifyNativeLogHistoryWalk(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-walk-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -2102,6 +2162,7 @@ import TurtleGitCore
     try await verifyNativeLogIgnore(executable: repo.executable)
     try await verifyNativeLogAddModes(executable: repo.executable)
     try await verifyNativeLogHistoryWalk(executable: repo.executable)
+    try await verifyNativeLogLabelVisibility(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
     try await verifyNativeLogRevertFlags(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))

@@ -102,6 +102,31 @@ final class CommitHistoryTests: XCTestCase {
         let moduleAllowed = try await bareRepo.canFollowHistory(paths: ["uninitialized-module"]); XCTAssertFalse(moduleAllowed)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
+    func testHistoryLabelMasksPreserveMetadataAndFilterGraphNodesByUpstreamKinds() {
+        func entry(_ hash: String, _ parent: String?, _ ref: String? = nil) -> LogEntry {
+            var result = LogEntry(hash: hash, author: "", date: "", subject: hash, parents: parent.map { [$0] } ?? [])
+            result.references = ref.map { [RevisionReference(name: $0)] } ?? []; return result
+        }
+        var head = entry("head", "other", "refs/heads/main"); head.isHead = true
+        let entries = [head, entry("other", "remote", "refs/custom/other"), entry("remote", "local", "refs/remotes/origin/main"), entry("local", "tag", "refs/heads/topic"), entry("tag", "stash", "refs/tags/v1"), entry("stash", "bisect", "refs/stash"), entry("bisect", nil, "refs/bisect/good-root")]
+        var walk = HistoryWalkOptions(); walk.graphMode = .labeled
+        var mask = HistoryReferenceVisibility.all
+        XCTAssertEqual(CommitGraph.project(entries, walk: walk, references: mask).entries.map(\.hash), ["head", "remote", "local", "tag", "stash", "bisect"])
+        for command in [HistoryLabelCommand.tags, .localBranches, .remoteBranches, .otherRefs] { mask.remove(command.flag) }
+        let projected = CommitGraph.project(entries, walk: walk, references: mask)
+        XCTAssertEqual(projected.entries.map(\.hash), ["head", "stash", "bisect"])
+        XCTAssertTrue(projected.graph[1].edges.contains { $0.endsAtNode })
+        XCTAssertEqual(projected.entries[0].parents, ["other"])
+        XCTAssertEqual(projected.entries[0].references, entries[0].references)
+        XCTAssertFalse(mask.shows(entries[0].references[0]), "HEAD remains even when its local label is hidden")
+        XCTAssertTrue(mask.shows(entries[5].references[0])); XCTAssertTrue(mask.shows(entries[6].references[0]))
+        XCTAssertFalse(mask.shows(RevisionReference(name: "refs/notes/commits")))
+        mask.insert(.otherRefs)
+        XCTAssertTrue(mask.shows(entries[1].references[0])); XCTAssertFalse(mask.keepsCommit(entries[1].references[0]))
+        XCTAssertEqual(CommitGraph.project(entries, walk: walk, references: mask).entries.map(\.hash), projected.entries.map(\.hash))
+        walk.graphMode = .all
+        XCTAssertEqual(CommitGraph.project(entries, walk: walk, references: []).entries.map(\.hash), entries.map(\.hash))
+    }
     func testHistoryWalkCompressionKeepsHeadLabelsMergesForksAndActualParents() {
         func entry(_ hash: String, _ parents: [String]) -> LogEntry { LogEntry(hash: hash, author: "", date: "", subject: hash, parents: parents) }
         var head = entry("head", ["hidden"]); head.isHead = true

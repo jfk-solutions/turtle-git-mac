@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "433899d",
+  "previous_goal_turn": "progress: committed path-graph parent separation and verification",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "View Labels four controls, per-repository persistence, native label redraw and graph reference masks; All Branches before Walk/View",
+  "sha256": {
+    "README.md": "f45c0af7a6b43c375efb73b903875f7664448ba0937a33059a6746fff13e46b8",
+    "Sources/TurtleGitCore/CommitHistory.swift": "165e50a536bccfcd726097d82c94c256d91adcb2e812d8bb3e67d9a12b1d4a4b",
+    "Sources/TurtleGitMac/LogWindow.swift": "622ca3a15a1277ddab5ff60df361a97269ac31fb89780ff2725c7d1ac79a88f7",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "ca62a5b18841fbef2bece5616af27292574061c226125ab604f7de23f478cb92",
+    "docs/LOG-PARITY.md": "68fe0aaabf16e663fd9983ea17b703cce466230463f00795d19c9fc4514540a4",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "3b9fc7b9c4b7505a03f74ec6ae48b8a4741ccdd181a49e4d788524eb882c6ce0"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/LogDlg.cpp": "f7f61c888ae379112be47151d62d01255230cdbad2df852dbf26f6928a4e730c",
+    "src/TortoiseProc/GitLogListBase.cpp": "024c118c31678bfe86b3f9494c900be5242d9db1955eaf251f67ec6baa7d92a2",
+    "src/TortoiseProc/GitLogListBase.h": "5b259b84b6f67b803b0c21a5208fce414325cfff5eaca119bccc2fedfa6fd232",
+    "src/Resources/TortoiseProcENG.rc": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6"
+  },
+  "verification": {
+    "core": "All 39 CommitHistoryTests passed on system Git. New mask test covers all six reference families, hidden-local HEAD retention, other/Notes label-only semantics, stash/bisect independence, graph bridging and original parent/reference retention. Full package suite not repeated.",
+    "native": "All four sequential scripts/check-cherry-pick-native.py --menus-only runs passed on Apple Git 2.50.1, Git 2.37.1, 2.39.5 and bundled 2.55.0. New real annotated/local/remote/custom-ref fixture checks actual attributed tag label hide/show, no normal-row/selection changes or reload, full ref retention, isolated per-repository preference reopening, labeled/compressed row sets and bridged edges, HEAD kept despite hidden branch label, busy/closed guards and exact HEAD/index/work bytes. Hidden NSHostingView built actual View/Labels menu. Physical menu gestures not exercised. Existing common native fixtures passed.",
+    "builds": [
+      "SwiftPM",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "audits": "Both bundle validators passed, Store --require-git, 90 original icon resources and exact NOTICE comparisons.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "Other View commands (Hide/Gray unrelated paths, Gravatar, View Patch), per-node rollup, loaded-batch/compressed-search gaps, exact special-ref label decoration/color/terms and displayed light/dark/keyboard/VoiceOver/physical menus remain pending. Signed Finder/sandbox, Store distribution, screenshots and hosted CI not verified. Full port incomplete.",
+    "process_audit": "No app or native/menu/provider receiver remained."
+  },
+  "all_sources_manifest_sha256": "edd6e4ffb0ea1b9c5efbc7350f804a818f581ab7ff86008a8844c5b81b3899f4",
+  "logs": {
+    "build/qa/log-label-visibility/core.log": "57f5680a4dcd67212cf96404dc184f06a3e9d5c8b20d62b95ae4a0e3f809580e",
+    "build/qa/log-label-visibility/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-label-visibility/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/log-label-visibility/native.log": "eb3706a2a53bcd8817bd61afe383aa95948428601068e9cc235c072b6dfa2d81",
+    "build/qa/log-label-visibility/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-label-visibility/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-label-visibility/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

@@ -455,6 +455,17 @@ struct LogCommandRequest: Identifiable {
     @Published var comparisonMark: PreparedFileComparisonMark?
     @Published var allBranches = false
     @Published private(set) var historyWalk = HistoryWalkOptions()
+    @Published private(set) var referenceVisibility = HistoryReferenceVisibility.all
+    private let labelDefaults: UserDefaults
+    private var labelDefaultsKey: String { "LogDialog.ReferenceVisibility." + repository.root.standardizedFileURL.path }
+    func visibleReferences(for entry: LogEntry) -> [RevisionReference] { entry.references.filter { referenceVisibility.shows($0) } }
+    func toggleHistoryLabel(_ command: HistoryLabelCommand) {
+        guard !busy, !isInvalidated else { return }
+        if referenceVisibility.contains(command.flag) { referenceVisibility.remove(command.flag) }
+        else { referenceVisibility.insert(command.flag) }
+        labelDefaults.set(referenceVisibility.rawValue, forKey: labelDefaultsKey)
+        if historyWalk.graphMode != .all { reload() }
+    }
     @Published private(set) var canFollowRenames = false
     func canToggleHistoryWalk(_ command: HistoryWalkCommand) -> Bool {
         !busy && !isInvalidated && (command != .followRenames || canFollowRenames)
@@ -716,7 +727,12 @@ struct LogCommandRequest: Identifiable {
         return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false) { self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; showWorkingTree = !selecting }
+    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; self.labelDefaults = labelDefaults; showWorkingTree = !selecting
+        if let stored = labelDefaults.object(forKey: labelDefaultsKey) as? NSNumber, stored.intValue >= 0 {
+            referenceVisibility = HistoryReferenceVisibility(rawValue: stored.intValue).intersection(.all).union([.stash, .bisect])
+        }
+    }
     func selectSearchFields(_ fields: HistorySearchFields) {
         guard !busy else { return }
         searchFields = fields.intersection(LogSearchSelection.all)
@@ -806,6 +822,7 @@ struct LogCommandRequest: Identifiable {
         generation += 1; let request = generation
         var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
         options.walk = historyWalk
+        let referenceVisibility = referenceVisibility
         let scope = historyPaths
         if !showWholeProject { options.paths = historyPaths }
         if useDates { options.since = Calendar.current.startOfDay(for: from); options.until = Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: to)) }
@@ -830,7 +847,7 @@ struct LogCommandRequest: Identifiable {
                 self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
                 canFollowRenames = followAllowed
-                let projection = CommitGraph.project(result, walk: options.walk)
+                let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility)
                 entries = projection.entries; graph = projection.graph
                 result = projection.entries
                 workingTreeSnapshot = working; workingIndexFiles = indexFiles; workingSubmodules = submodules
@@ -1639,6 +1656,7 @@ struct LogDialog: View {
             Text("Showing \(model.entries.filter { !$0.hash.isEmpty }.count) revision(s) • \(model.selectedWorkingTree ? "Working tree selected" : "\(model.revisions.count) revision(s) selected") • \(model.files.count) changed file(s)")
                 .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             HStack {
+                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil || model.historyWalk.followRenames).onChange(of: model.allBranches) { _ in model.reload() }
                 Menu {
                     ForEach([HistoryWalkCommand.firstParent, .noMerges, .followRenames, .fullHistory], id: \.self) { command in
                         Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))
@@ -1648,7 +1666,13 @@ struct LogDialog: View {
                         Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))
                     }
                 } label: { Text(model.historyWalk.isActive ? "✓ Walk Behavior" : "Walk Behavior") }.disabled(model.busy || model.isInvalidated)
-                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil || model.historyWalk.followRenames).onChange(of: model.allBranches) { _ in model.reload() }
+                Menu("View") {
+                    Menu("Labels") {
+                        ForEach(HistoryLabelCommand.allCases, id: \.self) { command in
+                            Toggle(command.rawValue, isOn: Binding(get: { model.referenceVisibility.contains(command.flag) }, set: { _ in model.toggleHistoryLabel(command) }))
+                        }
+                    }
+                }.disabled(model.busy || model.isInvalidated)
                 if !model.selecting && !model.bare {
                     Toggle("Show Working Tree Changes", isOn: $model.showWorkingTree).toggleStyle(.checkbox).onChange(of: model.showWorkingTree) { _ in model.reload() }
                     Toggle("Show Unversioned Files", isOn: $model.showUnversionedFiles).toggleStyle(.checkbox).onChange(of: model.showUnversionedFiles) { _ in model.updateWorkingFiles() }
@@ -1854,9 +1878,11 @@ struct RevisionTable: NSViewRepresentable {
         let datesChanged = coordinator.dateSettings != dateSettings; coordinator.dateSettings = dateSettings
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
         let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) }
+        let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility
+        coordinator.referenceVisibility = model.referenceVisibility
         let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
         coordinator.highlightedRevision = model.highlightedRevision
-        if signature != coordinator.signature || datesChanged || highlightChanged {
+        if signature != coordinator.signature || datesChanged || highlightChanged || labelsChanged {
             coordinator.signature = signature
             table.reloadData()
             if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
@@ -1887,6 +1913,7 @@ struct RevisionTable: NSViewRepresentable {
         var signature: [String] = []
         var dateSettings = HistoryDateSettings.load()
         var highlightedRevision: String?
+        var referenceVisibility = HistoryReferenceVisibility.all
         var scrollRequest = 0
         init(model: LogWindowModel) { self.model = model }
         func numberOfRows(in tableView: NSTableView) -> Int { model.entries.count }
@@ -1934,7 +1961,7 @@ struct RevisionTable: NSViewRepresentable {
             case "date": text.stringValue = dateSettings.format(entry.date)
             default:
                 let label = NSMutableAttributedString()
-                for reference in entry.references {
+                for reference in model.visibleReferences(for: entry) {
                     let color: NSColor = reference.isCurrent ? .systemRed : reference.name.hasPrefix("refs/tags/") ? .systemYellow : reference.name.hasPrefix("refs/remotes/") ? .systemOrange : .systemGreen
                     label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color.withAlphaComponent(0.3), .font: NSFont.systemFont(ofSize: 11, weight: .medium)]))
                     label.append(NSAttributedString(string: " "))

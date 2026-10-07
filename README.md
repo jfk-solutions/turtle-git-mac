@@ -551,4 +551,8 @@ graph links to connect omitted ancestors, with real parents retained for file
 details and revert targets; per-node rollup and displayed acceptance remain in
 progress.
 
+Log’s View → Labels menu provides per-repository Tags, Local branches, Remote
+branches and Other refs switches. They update label rendering and the
+compressed/labeled graph while preserving reference metadata for actions.
+
 See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.
