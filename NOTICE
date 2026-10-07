@@ -352,3 +352,9 @@ stacked-bar arrangement, populated-series bar geometry, value-tooltip formatting
 left-start pie progression, horizontal populated pies and shared legend elision from
 src/Utils/MiscUI, retained under the upstream source/license attribution above.
 Their pinned source blob IDs are recorded in the Statistics graph QA record.
+
+The native Log author-picture feature adapts LogDlg.cpp and
+GravatarPictureBox.cpp/.h's visibility, normalized email hashing, request delay
+and temporary-image caching from TortoiseGit under the source license above.
+Windows registry, WinCrypt, WinINet and picture controls are replaced by native
+preferences, CryptoKit, URLSession and AppKit/SwiftUI.

@@ -541,6 +541,19 @@ struct LogCommandRequest: Identifiable {
     @Published var allBranches = false
     @Published private(set) var historyWalk = HistoryWalkOptions()
     @Published private(set) var referenceVisibility = HistoryReferenceVisibility.all
+    @Published private(set) var showGravatar = false
+    let gravatar: LogGravatar
+    private var gravatarDefaultsKey: String { "LogDialog.ShowGravatar." + repository.root.standardizedFileURL.path }
+    func toggleGravatar() {
+        guard !busy, !isInvalidated else { return }
+        showGravatar.toggle(); labelDefaults.set(showGravatar, forKey: gravatarDefaultsKey)
+        refreshGravatar()
+    }
+    private func refreshGravatar() {
+        if showGravatar, !isInvalidated, let revision { gravatar.load(email: revision.email) }
+        else { gravatar.clear() }
+    }
+
     private let labelDefaults: UserDefaults
     private var labelDefaultsKey: String { "LogDialog.ReferenceVisibility." + repository.root.standardizedFileURL.path }
     func visibleReferences(for entry: LogEntry) -> [RevisionReference] { entry.references.filter { referenceVisibility.shows($0) } }
@@ -904,8 +917,10 @@ struct LogCommandRequest: Identifiable {
         return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil) {
+        self.gravatar = gravatar ?? LogGravatar(defaults: labelDefaults)
         self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; self.labelDefaults = labelDefaults; showWorkingTree = !selecting
+        showGravatar = labelDefaults.object(forKey: gravatarDefaultsKey) == nil ? labelDefaults.bool(forKey: "EnableGravatar") : labelDefaults.bool(forKey: gravatarDefaultsKey)
         showUnversionedFiles = labelDefaults.object(forKey: "AddBeforeCommit") == nil || labelDefaults.bool(forKey: "AddBeforeCommit")
         if let stored = labelDefaults.object(forKey: labelDefaultsKey) as? NSNumber, stored.intValue >= 0 {
             referenceVisibility = HistoryReferenceVisibility(rawValue: stored.intValue).intersection(.all).union([.stash, .bisect])
@@ -983,7 +998,7 @@ struct LogCommandRequest: Identifiable {
     }
     func invalidate() {
         statisticsWindow?.model.cancel(); statisticsWindow?.close(); statisticsWindow = nil
-        isInvalidated = true
+        isInvalidated = true; gravatar.clear()
         cancelPatchPreview(); onPatchPreviewVisibility?(false)
         cancelRepositoryRefresh()
         cancelNoteRead()
@@ -1061,7 +1076,7 @@ struct LogCommandRequest: Identifiable {
         for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
-        selected = hashes; selectedFiles = []; fileSelectionMark = nil; files = []; fileGroups = []
+        selected = hashes; refreshGravatar(); selectedFiles = []; fileSelectionMark = nil; files = []; fileGroups = []
         detailGeneration += 1; let request = detailGeneration
         if selectedWorkingTree { updateWorkingFiles(); return }
         guard let revision else { return }
@@ -1822,7 +1837,10 @@ struct LogDialog: View {
             }.font(.system(size: 12))
             VSplitView {
                 RevisionTable(model: model).frame(minHeight: 200, idealHeight: 350)
-                OutputView(text: model.message).frame(minHeight: 110, idealHeight: 150)
+                HStack(alignment: .top, spacing: 0) {
+                    OutputView(text: model.message).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    if model.showGravatar { LogGravatarView(loader: model.gravatar) }
+                }.frame(minHeight: 110, idealHeight: 150)
                     .onChange(of: shortDate) { _ in model.objectWillChange.send() }
                     .onChange(of: relativeTimes) { _ in model.objectWillChange.send() }
                     .onChange(of: useSystemLocale) { _ in model.objectWillChange.send() }
@@ -1873,6 +1891,7 @@ struct LogDialog: View {
                         }
                     }
                     Divider()
+                    Toggle("Gravatar", isOn: Binding(get: { model.showGravatar }, set: { _ in model.toggleGravatar() }))
                     Toggle("View Patch", isOn: Binding(get: { model.patchPreviewVisible }, set: { model.setPatchPreview($0) }))
                 }.disabled(model.busy || model.isInvalidated)
                 if !model.selecting && !model.bare {
@@ -2013,6 +2032,9 @@ struct LogDialog: View {
 }
 
 struct LogDialogSettings: View {
+    @AppStorage("EnableGravatar") private var enableGravatar = false
+    @AppStorage("GravatarUrl") private var gravatarURL = LogGravatarRequest.defaultTemplate
+    @AppStorage("GravatarUseMD5") private var gravatarMD5 = false
     @AppStorage("LogDateFormat") private var shortDate = true
     @AppStorage("RelativeTimes") private var relative = false
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
@@ -2023,6 +2045,9 @@ struct LogDialogSettings: View {
                     Toggle("Short date/time format in log messages", isOn: $shortDate).disabled(!useSystemLocale)
                     Toggle("Relative Times in log", isOn: $relative)
                     Toggle("Use system locale for date/time", isOn: $useSystemLocale)
+                    Toggle("Enable Gravatar", isOn: $enableGravatar).help("Enable showing Gravatar image in Log Dialog")
+                    TextField("Gravatar URL", text: $gravatarURL).disabled(!enableGravatar).help("Allow to use custom Gravatar URL; %HASH% is replaced by the author email hash")
+                    Toggle("Use MD5 for Gravatar", isOn: $gravatarMD5).disabled(!enableGravatar)
                 }.padding(8)
             }
         }.padding(20)

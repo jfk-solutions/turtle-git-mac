@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "e2e9e3fbc3ddbfa83f980f7fc13ed1e50eedf20d",
+  "previous_goal_turn": "Progress: Statistics horizontal pie/shared legend checkpoint e2e9e3f committed.",
+  "scope": "Partial native Log Gravatar picture and View/Settings controls, normalized hashing, delayed cancellable transport and cache. Full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GravatarPictureBox.cpp": "4acc5f38f369b00290f5745451a7b8404dc00e8c",
+    "src/TortoiseProc/GravatarPictureBox.h": "9bb94a6c016063e710f65f17f108c3bec3e6f0e8",
+    "src/TortoiseProc/LogDlg.cpp": "d456ae8d668767195f464ad8d850a15c034127f5",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "5a9e853a6b82ff2de4c2640eee73a95845f6b7113b43eff798b2d257520b6627",
+    "NOTICE": "ea395b601139f46518d992195c054589af95e7c4e0da86827bc606e7ae9a14ec",
+    "README.md": "6a173a89219a20167709bc47979504d3490cc8447e219c9922caa62920609c5c",
+    "Sources/TurtleGitMac/LogGravatar.swift": "dc6cb0f984b24ea088920f00210944e16d5d004edfb6920bcca3f728eb908d34",
+    "Sources/TurtleGitMac/LogWindow.swift": "ed2691207da100ab52cd3dec505a43ea0b73ff9ea66fbe90f9f88bfebcf182f7",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "9ee3fefcb128dfe1b40283f387fd3f72448c98cd57d7f0a1f1344d9310291b53",
+    "docs/GRAVATAR.md": "2a1fd6c46584a1ecf6e4a4fa1575608da2eb78e0ea0fbe600fd11740ca7db3f5",
+    "docs/LOG-PARITY.md": "aeb506cdf2878e6da3288e6cd6cf4a397c2e3aa329b0cc445f682d6e9dbbb557",
+    "docs/PRIVACY.md": "59c5ea414f62e314b0cb72e0d4df97d7ca1dd2339a357af156eee296a1ddefac",
+    "docs/qa/log-gravatar-native-2026-10-07.swift": "c07b2ffa3d23a099f8315d6e751a14aaee18c5714150f277f4ce7f7da179989f",
+    "docs/site/index.html": "e2d29da010733d1d94491658d076943023a8b094aed5bb07ace0b403ff0d2d29",
+    "docs/upstream-files.csv": "57923aaa7b0c5cef6b7ebdaf828eb06fb342ad74ae5a77f1dde05dee64f18556",
+    "scripts/test-log-gravatar.py": "e7d0158de46266e4721fbafdbfa6f7923f29c951a1902a2a9941b64eff06902b"
+  },
+  "all_sources_manifest_sha256": "3cb8c927ccb5383009fdc30dd834f1c91ff80665325095cbafded0f1248d1e0c",
+  "verification": {
+    "core": "57 selected CommitHistory/Statistics/Graph/MenuIcon tests passed. SwiftPM compiled the native avatar additions.",
+    "native": "Final receiver passed with system Git, Git 2.37.1, 2.39.5 and bundled 2.55.0. Mock transport verifies SHA-256/MD5 known vectors, repeated placeholders, normalized/empty addresses, URL scheme refusal, default-off/no request, actual PNG decode, cache hit and eight-day expiry, canceled delay/no request, HTTP failure, malformed image refusal and cache-write failure retaining a usable picture. Multiple selection clears the image; closing during a delayed request cannot repopulate it. Saved repository visibility overrides the global default; new repositories inherit it. Hidden Log layout and exact tracked/index/config/HEAD preservation passed. No external provider contacted. Initial script receiver-path and receiver throwing-autoclosure mistakes fixed before the passing runs; explicit RGB fixture removed its color-space warnings.",
+    "builds": "SwiftPM/57 focused tests and unsigned Debug/AppStore builds passed. Both bundle validators and exact NOTICE comparisons passed with all 96 original icons. Store --require-git audited 11 universal Git Mach-O files and fixture operations; EditorConfig and IssueRegex audits passed. Source existing sandbox network-client entitlement retained; signed acceptance unverified.",
+    "ci": "Added the mock receiver to macOS CI; hosted execution and GitHub publication unverified. No authentication or push retry.",
+    "limitations": "Headless model/transport/hidden layout checks do not prove displayed image geometry, physical menu/settings gestures, accessibility or signed network sandbox behavior. Custom URL history, full source temporary-file cleanup controls and real provider/redirect/TLS behavior remain incomplete/unverified. No external avatar service is contacted by the mock tests. Full dialog/application parity, activated Finder, genuine screenshots, signed release/App Store/license clearance and full manual remain pending.",
+    "processes": "All native receivers terminal, owned hidden window closed, no main app launched and final app/receiver audit empty. Private QA domains cleared and eight empty UUID-named test plist files removed; nonempty preferences preserved.",
+    "documentation": "User guide and README link added; site documentation links to the guide. Privacy describes opt-in email hashing/provider network information and local caching. Local site generation passed; unpublished."
+  },
+  "logs": {
+    "build/qa/log-gravatar/core.log": "9ad7cda24625e75e7ee89aa4bac2dde5ee953a746e6071e3a8e50f59dea5b1e5",
+    "build/qa/log-gravatar/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/log-gravatar/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-gravatar/native-accepted.log": "66f70f60f6fc23178dfe9103b0ce1993786b2b1ccab8f025f6203e4daabc5f71",
+    "build/qa/log-gravatar/native-corrected.log": "38288e9d9d88429cee74f74bb17dfa0b7cac76460aa3ad00dd72443a45c0543c",
+    "build/qa/log-gravatar/native-final.log": "28f276d41840c990b572679dad8e1d489f5d765111732349cbe60daa0d8ca72c",
+    "build/qa/log-gravatar/native.log": "2b9ee0bfad307b2d3a8078c039fb0e99d3b1a6b691d2429ff3138e8940aacb50",
+    "build/qa/log-gravatar/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-gravatar/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-gravatar/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/log-gravatar/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

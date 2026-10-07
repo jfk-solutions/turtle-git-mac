@@ -1262,7 +1262,7 @@ isolation, actual labeled/compressed rows and edges, closed/busy refusal and exa
 HEAD/index/working-file preservation. Its preference domain is private and removed.
 See [the label QA record](qa/log-label-visibility-2026-10-07.json).
 
-The View menu's Gravatar command remains pending. Footer ordering now places All Branches before Walk Behavior and View;
+The View menu's Gravatar command now has a partial native implementation; see the Gravatar section below. Footer ordering now places All Branches before Walk Behavior and View;
 exact displayed spacing, physical menu interaction, color/layout and accessibility
 acceptance remain pending.
 
@@ -1381,3 +1381,41 @@ limits and keeps the explicit resizable window minimum, so the patch text scroll
 rather than forcing a taller window. This uses the macOS 13+
 [NSHostingController sizingOptions API](https://developer.apple.com/documentation/swiftui/nshostingcontroller/sizingoptions).
 The original failed frame check and diagnostic frames are retained in QA logs.
+
+## Gravatar
+
+View → Gravatar reserves a native author-picture area on the right of the message
+pane. Only a single ordinary commit supplies its author email; empty, working-tree
+and multiple selection clear the picture. The visibility choice saves separately
+for each repository. An unset choice inherits Settings → Dialogs → Enable Gravatar,
+which starts off. Existing saved choices keep precedence over that global default.
+The URL field uses the source default `https://gravatar.com/avatar/%HASH%?d=identicon`;
+all `%HASH%` occurrences are replaced. Email whitespace is trimmed, text lowercased
+and UTF-8 bytes hashed with SHA-256 by default. The source MD5 compatibility option
+is also available. URLs must have an HTTP(S) scheme and a host; macOS transport
+security still applies to custom endpoints.
+
+CryptoKit replaces WinCrypt, URLSession replaces WinINet and SwiftUI/AppKit replaces
+the picture box. Each selection owns a delayed 500 ms request; another selection,
+disabling the feature or closing the Log cancels it and rejects stale completions.
+As upstream does, a previous picture remains until a new request succeeds or fails,
+while an empty selection clears immediately. Failed/non-200/empty/invalid image
+responses clear the picture without interrupting Git work. Decoded downloads are
+limited to 8 MiB. Successful images cache for seven days in an app temporary
+subdirectory. Native cache keys include the full request URL so switching custom
+providers or hash modes cannot reuse the previous provider's image. Cache-write
+failure keeps a usable downloaded picture. These are explicit macOS adaptations.
+
+A headless receiver uses a mock URLProtocol transport, including delayed completion,
+to check SHA-256/MD5 vectors, repeated placeholders, normalized and empty addresses,
+URL scheme refusal, default-off/no-request behavior, actual image decoding, cache
+hit/expiry, HTTP failure, multiple-selection clearing, cancellation/stale completion,
+repository/global preference precedence and hidden native Log layout. Its Git
+fixtures preserve exact tracked/index/config/HEAD bytes. No repository email hash
+is sent externally by these tests. See [Gravatar QA](qa/log-gravatar-2026-10-07.json).
+
+Displayed image scaling/placement, physical View/Settings interaction, custom URL
+history, full source temporary-file cleanup controls, real provider/redirect/TLS
+behavior and signed sandbox/network acceptance remain pending. No screenshot or
+App Store acceptance is claimed; the complete Log and application ports remain
+incomplete.

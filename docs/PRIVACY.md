@@ -10,6 +10,18 @@ hooks and filters can have their own network behavior, controlled by repository
 and user configuration. The current app does not collect or upload these files to
 a TurtleGit service.
 
+Gravatar author pictures are optional and disabled by default. Enabling them in
+Log sends a SHA-256 digest (or optional MD5 digest) of a selected commit author's
+trimmed, lowercased email to the configured avatar provider. The default provider
+is Gravatar; a custom URL can use another provider. The generated request does not
+include the plain email address, but its hash can still identify an author. The
+provider receives the normal network request information, including the source
+IP address. Hiding the feature or closing Log cancels its current request.
+Downloaded pictures in a local temporary subdirectory are reused for up to seven
+days. Expired files can remain until replaced or removed by temporary-file cleanup;
+URLSession can also use its normal HTTP cache. No avatar data is sent to a
+TurtleGit service. See [the author-picture guide](GRAVATAR.md).
+
 Saved repository bookmarks, display names and last-known paths live in the app's
 private Application Support directory. The bookmark file uses owner-only file
 permissions. Sandboxed builds place that directory inside their application
