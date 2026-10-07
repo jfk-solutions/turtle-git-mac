@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "34682642887662443097e9d37277a083afc99741",
+  "scope": "Read-only Pull/Fetch default from a registered submodule parent .gitmodules when the child has no tracking branch. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/PullFetchDlg.cpp": "261e75446acd8f6c3a14ed29dd57dd56d92a449a",
+    "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2"
+  },
+  "libgit2_source": {
+    "commit": "f7164261c9bc0a7e0ebf767c584e5192810a8b24",
+    "url": "https://raw.githubusercontent.com/libgit2/libgit2/f7164261c9bc0a7e0ebf767c584e5192810a8b24/src/libgit2/submodule.c",
+    "sha256": "43a892abfa19637e5d15f48f8afb09005967f03c8e6158bb7aa63ed827830aba",
+    "evidence": "Pinned gitlink from TortoiseGit ls-tree; downloaded exact source inspected git_submodule_branch, submodule_read_config and gitmodules_snapshot. Display value comes from .gitmodules, not parent local override or dot expansion."
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "2926e398a8ce430ce4ee48901e086203831385fc3fb97d230b126f4cde7be263",
+    "NOTICE": "38178fed7dcd03c0c7d181239883aae97cf3acfd9620b900ab3f7832a52dbf6a",
+    "Sources/TurtleGitCore/Fetch.swift": "991e81205d3de46ee3c497dd2d3f6a228075b334a0a9436a5c1a16c413d2a04f",
+    "Tests/TurtleGitCoreTests/FetchTests.swift": "5a442c1a8529000e14d7e84f75e4cc4fc48b9cfe5caada198001f9e6c8590109",
+    "docs/FETCH-PARITY.md": "4093258481ffbd1b30a08d1fc77bafd2d093ae0eae1799abc2d144dc7ba53737",
+    "docs/PULL-PARITY.md": "c0ddc99fcde38401521ee56bd4a247a70d2f32b74019399faf412349973d14c7",
+    "docs/qa/fetch-submodule-defaults-native-2026-10-07.swift": "497a9cacbda01261cc678d9a1223685abe17f450b75949a29825fa78fe77bfee",
+    "docs/upstream-files.csv": "bebfa230d7a80dd9babdadb8109ec7b7fba5eb9577d531fd9ee3e947f1454383",
+    "scripts/test-fetch-submodule-defaults.py": "cbfaae143d9f5498bed17a55d4a367d28efd792341d03cb445cf0147b6aebcce"
+  },
+  "all_sources_manifest_sha256": "f7dd3f677ec273c904791b1a8683a31e2074c104d024008a5b1991bea627115c",
+  "verification": {
+    "core": "All 17 selected tests passed: 9 Fetch (three newly added), 5 Pull and 3 FinderSubmoduleMetadata. New actual Git fixtures prove named module at Unicode/newline path, parent .gitmodules value rather than local branch override, child tracking precedence, detached HEAD default, literal dot, missing/attached fallback, byte-identical parent and child index/config on default read, unrelated registration and symlinked metadata fallback. Existing Fetch/Pull/Finder coverage also passed.",
+    "native": "Final headless receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Native Fetch and Pull models load the .gitmodules branch into selection/history. Explicit named-branch Fetch pins FETCH_HEAD without changing child HEAD/index. Pull with default NamedRemoteFetchAll=true uses the explicit submodule branch and ff-only advances to its commit while child branch main and unrelated dirty file remain. Parent .gitmodules/index/config/HEAD/branch ref bytes stay identical through load/Fetch/Pull. A child tracking override then wins on reload. Module name differs from path; path includes Unicode and LF. These are native-model/Git checks, not displayed control/screenshot acceptance.",
+    "iterations": "Initial four-Git native matrix passed. Expanded final receiver enables the default named-remote preference specifically for Pull, while the explicit-branch Fetch uses false; final matrix passed with unchanged production code. No runtime test failure.",
+    "builds": "Unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed, with all 96 original icon resources. Store --require-git verified 11 universal Git Mach-O files and fixture operations; EditorConfig/IssueRegex audits passed.",
+    "documentation": "Pull/Fetch parity, upstream source inventory and NOTICE updated. Primary pinned libgit2 source and official Git branch-property documentation linked to distinguish display behavior from update --remote. Inventory regression and CSV column validation passed. Local site generated, unpublished.",
+    "ci": "Added native submodule-default receiver to macOS workflow. Hosted CI/push/site publication unverified; authentication unavailable, no retry.",
+    "processes": "All compiler/core/native/audit sessions terminal. No main GUI launch or displayed windows. Final app/receiver audit empty. Eight empty owned SubmoduleDefaults QA preference UUID files removed across initial/final matrices; other preferences retained.",
+    "limitations": "Duplicate path/name collisions, include semantics/full libgit2 cache lookup, renamed/worktree variants, parent access under signed sandbox, displayed native controls/keyboard/VoiceOver and other acceptance remain pending. Full dialog/application parity, Finder activation, genuine screenshots/full manual, signed distribution/App Store/license clearance and hosted publication remain incomplete."
+  },
+  "logs": {
+    "build/qa/fetch-submodule-defaults/core.log": "8d7db8a8fd2e4574c05c8c9c1a6a354a195a41079efc6a0ba070d50dc6f189b6",
+    "build/qa/fetch-submodule-defaults/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/fetch-submodule-defaults/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-submodule-defaults/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/fetch-submodule-defaults/native-final.log": "60816ca1c9bfc1868b51b73c29328a962b5dc1ae9e3c1bd3a81723c854036578",
+    "build/qa/fetch-submodule-defaults/native.log": "60816ca1c9bfc1868b51b73c29328a962b5dc1ae9e3c1bd3a81723c854036578",
+    "build/qa/fetch-submodule-defaults/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-submodule-defaults/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/fetch-submodule-defaults/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/fetch-submodule-defaults/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

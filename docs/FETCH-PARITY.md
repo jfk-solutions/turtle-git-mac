@@ -26,13 +26,15 @@ Successful fetch closes and refreshes views; failures retain inputs.
 
 ## Evidence
 
-Six real Git integration tests cover configured tracking-ref updates without
+Nine real Git integration tests cover configured tracking-ref updates without
 changing HEAD/index/worktree, three-state tags/prune overrides versus Git defaults,
 remote branch browsing with Unicode names, URL fetch to FETCH_HEAD, shallow depth
 1 then 2, all-remotes updates and invalid destination/depth/refspec requests.
 Two additional Fetch/Rebase tests verify a pinned fetched branch, dirty-worktree
 preservation, replay ancestry and active-session rejection. The current focused
-Pull/Fetch run passed all 11 tests.
+Pull/Fetch tests passed all 14 checks within the 17-test run that also covers
+registered-parent metadata. Three added tests exercise submodule branch defaults,
+read-only lookup and fallback, as detailed below.
 
 Native QA on the disposable documentation repository browsed preview-main from
 its local bare remote and fetched it via URL. Tags cycled mixed → checked → unchecked.
@@ -48,7 +50,7 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
   fast-forward choices, post-operation actions and full conflict recovery remain.
 - Full remote reference chooser hierarchy, tag selection and histories; the current
   chooser lists heads only. Full remote settings and their mutation/recovery QA.
-- Submodule-specific default branch lookup, clipboard/history deletion, complete settings
+- Clipboard/history deletion, complete settings
   and window-size persistence.
 - Streaming progress/cancellation, interactive credentials, network/SSH and signed
   sandbox runtime checks. Cancel is disabled while Git runs.
@@ -93,3 +95,35 @@ items and selection callback. These are model/Git/hidden-control checks; physica
 popup, text editing/completion, Shift-Delete deletion, clipboard extraction,
 Windows locale/trim equivalence, light/dark and signed sandbox acceptance remain
 pending. Full Pull/Fetch and application parity remain incomplete.
+
+
+## Registered submodule branch default
+
+When the child has no configured tracking branch, Pull/Fetch now read the branch
+of its registered entry in the nearest parent worktree's `.gitmodules`. A child
+tracking branch still wins; an absent/empty parent branch falls back to the child's
+current branch. Detached HEAD can still use a configured parent branch. This is
+read-only and does not initialize a submodule, rewrite config, or change either
+repository's index/HEAD. Missing/inaccessible parent metadata leaves the optional
+default unavailable. Symlinked `.gitmodules` is skipped by the existing native
+registration guard.
+
+The source calls `git_submodule_branch`, whose pinned implementation reads the
+`.gitmodules` snapshot. This display default intentionally does not use the
+parent's `submodule.<name>.branch` local override or expand the literal `.` value
+as `git submodule update --remote` would (see the
+[Git branch-property documentation](https://git-scm.com/docs/gitmodules)). See
+[the pinned libgit2 implementation](https://github.com/libgit2/libgit2/blob/f7164261c9bc0a7e0ebf767c584e5192810a8b24/src/libgit2/submodule.c)
+and `PullFetchDlg::Refresh` in the pinned upstream checkout. These distinctions
+avoid silently replacing the requested upstream dialog behavior with a different
+Git workflow.
+
+[Submodule-default QA](qa/fetch-submodule-defaults-2026-10-07.json) records tracking
+priority, detached/attached fallback, literal-dot behavior, unrelated/unsafe
+metadata and byte-identical read-only lookup. Native model checks load the default
+into both dialogs/history, Fetch the selected branch and perform a real ff-only
+Pull while retaining the child branch and unrelated dirty file and preserving
+parent metadata. Module names differ from paths; paths include Unicode and a
+newline. Duplicate path/name collisions, includes and full libgit2 cache lookup,
+renamed/worktree variants, displayed dropdowns, parent access under the signed
+sandbox and other native acceptance remain pending. The full port is incomplete.

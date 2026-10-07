@@ -399,3 +399,8 @@ Pull/Fetch URL and branch history adapt PullFetchDlg and MiscUI/HistoryCombo
 under the upstream source license, retaining shared storage, source ordering,
 case-sensitive URL/case-insensitive branch deduplication and the 25-load/26-save
 limit. Native AppKit editable combos replace the Windows controls.
+
+Pull/Fetch submodule branch defaults adapt PullFetchDlg::Refresh and its
+registered-parent metadata lookup under the upstream source license. Native
+read-only Git config queries replace the libgit2 .gitmodules branch lookup;
+child tracking takes priority and the source literal dot value is retained.

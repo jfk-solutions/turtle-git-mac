@@ -36,8 +36,8 @@ staged/unstaged changes, forced merge commits, No Commit and subsequent completi
 squash staging without a merge parent, diverged ff-only rejection, a true merge
 conflict and Git abort, URL branch selection, configuration precedence, backend rejection of unsupported automatic rebase
 without mutation and invalid flags/refspec input. Native configured Pull uses the
-separate Fetch/Rebase route. The current focused Pull/Fetch run passed all 11
-tests.
+separate Fetch/Rebase route. The current focused Pull/Fetch tests passed all 14 checks within the 17-test
+run that also covers registered-parent metadata.
 
 Native QA pulled a real new commit from the disposable documentation remote with
 Fast Forward Only selected. HEAD advanced, the remote file appeared, and original
@@ -56,7 +56,7 @@ A missing URL produced an error; Open Working Tree opened the correct status win
   filtered Log, Push, submodule update, stash, reset and unrelated-history retry.
 - Native squash/No Commit/divergence/conflict completion and abort QA; the tests
   prove Git effects but not those full native workflows.
-- Full remote reference chooser and settings, submodule defaults,
+- Full remote reference chooser and settings,
   additional preference/size persistence, light/resize/keyboard/accessibility QA.
   Shared URL/branch history is now implemented; clipboard/deletion acceptance remains pending.
 - Interactive Git hooks, authentication/signing and signed sandbox runtime checks.
@@ -75,3 +75,7 @@ See REBASE-PARITY.md for the exact handoff and remaining workflow differences.
 Shared native URL/branch history now follows the PullFetchDlg controls and persists
 across Pull/Fetch and repositories, including failed transport. See the history
 section in FETCH-PARITY.md for exact source rules and remaining acceptance.
+
+Registered submodule branch defaults now follow the parent `.gitmodules` value
+when the child has no tracking branch. See FETCH-PARITY.md for exact source
+precedence, literal-dot behavior and remaining acceptance.

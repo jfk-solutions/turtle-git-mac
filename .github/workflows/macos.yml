@@ -32,6 +32,8 @@ jobs:
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Native worktree dialog models and Git integration
         run: python3 scripts/test-worktree-dialog.py
+      - name: Native Pull and Fetch submodule defaults
+        run: python3 scripts/test-fetch-submodule-defaults.py
       - name: Native Pull and Fetch history
         run: python3 scripts/test-fetch-history.py
       - name: Native Commit conflict-hint preflight

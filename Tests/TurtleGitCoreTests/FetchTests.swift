@@ -2,6 +2,55 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FetchTests: XCTestCase {
+    func submoduleFixture() async throws -> (URL, URL, GitRepository, GitRepository, String) {
+        let (root, parent, _) = try await GitPatchTests().fixture()
+        let (source, _, _) = try await GitPatchTests().fixture()
+        let path = "group/module 雪\nname", name = "named.module 雪"
+        _ = try await parent.run(["-c", "protocol.file.allow=always", "submodule", "add", "--name", name, "--", source.path, path])
+        try await parent.stage([".gitmodules", path]); _ = try await parent.commit(message: "module")
+        let child = GitRepository(root: root.appendingPathComponent(path))
+        _ = try await child.run(["config", "--unset-all", "branch.main.merge"], successfulExitCodes: 0...5)
+        return (root, source, parent, child, "submodule." + name)
+    }
+    func testSubmoduleBranchDefaultUsesModulesWithChildTrackingPriorityAndLiteralDot() async throws {
+        let (root, source, parent, child, key) = try await submoduleFixture()
+        defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: source) }
+        _ = try await parent.run(["config", "--file", ".gitmodules", key + ".branch", "stable/雪"])
+        _ = try await parent.run(["config", key + ".branch", "local-override"])
+        let defaults = try await child.fetchDefaults(); XCTAssertEqual(defaults.branch, "stable/雪")
+        _ = try await child.run(["config", "branch.main.merge", "refs/heads/tracked"])
+        let tracked = try await child.fetchDefaults(); XCTAssertEqual(tracked.branch, "tracked")
+        _ = try await child.run(["config", "--unset", "branch.main.merge"])
+        _ = try await child.run(["checkout", "--detach"])
+        let detached = try await child.fetchDefaults(); XCTAssertEqual(detached.branch, "stable/雪")
+        _ = try await parent.run(["config", "--file", ".gitmodules", key + ".branch", "."])
+        let dot = try await child.fetchDefaults(); XCTAssertEqual(dot.branch, ".")
+        _ = try await parent.run(["config", "--file", ".gitmodules", "--unset", key + ".branch"])
+        let absent = try await child.fetchDefaults(); XCTAssertEqual(absent.branch, "")
+        _ = try await child.run(["checkout", "main"])
+        let attached = try await child.fetchDefaults(); XCTAssertEqual(attached.branch, "main")
+    }
+    func testSubmoduleBranchDefaultsReadOnlyAndUnrelatedRegistrationDoesNotLeak() async throws {
+        let (root, source, parent, child, key) = try await submoduleFixture()
+        defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: source) }
+        _ = try await parent.run(["config", "--file", ".gitmodules", key + ".branch", "stable"])
+        let childIndex = try await child.run(["rev-parse", "--path-format=absolute", "--git-path", "index"]).text.trimmingCharacters(in: .newlines)
+        let childConfig = try await child.run(["rev-parse", "--path-format=absolute", "--git-path", "config"]).text.trimmingCharacters(in: .newlines)
+        let files = [root.appendingPathComponent(".gitmodules"), root.appendingPathComponent(".git/config"), root.appendingPathComponent(".git/index"), URL(fileURLWithPath: childIndex), URL(fileURLWithPath: childConfig)]
+        let before = try files.map { try Data(contentsOf: $0) }
+        let defaults = try await child.fetchDefaults(); XCTAssertEqual(defaults.branch, "stable")
+        XCTAssertEqual(try files.map { try Data(contentsOf: $0) }, before)
+        _ = try await parent.run(["config", "--file", ".gitmodules", key + ".path", "unrelated"])
+        let unrelated = try await child.fetchDefaults(); XCTAssertEqual(unrelated.branch, "main")
+    }
+    func testUnsafeParentModuleMetadataFallsBackToChildBranch() async throws {
+        let (root, source, _, child, _) = try await submoduleFixture()
+        defer { try? FileManager.default.removeItem(at: root); try? FileManager.default.removeItem(at: source) }
+        let modules = root.appendingPathComponent(".gitmodules")
+        try FileManager.default.removeItem(at: modules)
+        try FileManager.default.createSymbolicLink(at: modules, withDestinationURL: source.appendingPathComponent(".git/config"))
+        let defaults = try await child.fetchDefaults(); XCTAssertEqual(defaults.branch, "main")
+    }
     func fixture() async throws -> (URL, GitRepository, GitRepository, GitRepository, String) {
         let (root, publisher, remote, path) = try await PushTests().fixture()
         var push = PushOptions(); push.remote = "origin"; push.source = "refs/heads/main"; _ = try await publisher.push(push)

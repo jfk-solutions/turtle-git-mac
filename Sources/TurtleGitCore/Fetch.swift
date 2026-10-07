@@ -62,13 +62,33 @@ extension GitRepository {
         let tracked = current.isEmpty ? "" : fetchConfig("branch." + current + ".remote")
         let remote = selected ?? (names.contains(tracked) ? tracked : (names.count == 1 ? names[0] : ""))
         let merge = current.isEmpty ? "" : fetchConfig("branch." + current + ".merge")
-        let branchName = merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : (merge.isEmpty ? current : merge)
+        let submoduleBranch = merge.isEmpty ? ((try? fetchSubmoduleBranch()) ?? "") : ""
+        let branchName = merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : (merge.isEmpty ? (submoduleBranch.isEmpty ? current : submoduleBranch) : merge)
         let tagopt = fetchConfig("remote." + remote + ".tagopt")
         let remotePrune = fetchConfig("remote." + remote + ".prune")
         return FetchDefaults(remote: remote, branch: branchName, tags: tagopt == "--no-tags" ? "None" : tagopt == "--tags" ? "All" : "Reachable",
                              prune: remotePrune.isEmpty ? fetchConfig("fetch.prune") : remotePrune,
                              shallow: try run(["rev-parse", "--is-shallow-repository"]).text.trimmingCharacters(in: .newlines) == "true",
                              bare: try run(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) == "true")
+    }
+    /// PullFetchDlg asks libgit2 for the registered parent's .gitmodules branch.
+    /// This display default does not use Git's submodule-update config override
+    /// or expand the special dot value to the parent's current branch.
+    private func fetchSubmoduleBranch() throws -> String {
+        guard let parent = try registeredSubmoduleParent() else { return "" }
+        let modules = parent.appendingPathComponent(".gitmodules")
+        let relative = String(root.path.dropFirst(parent.path.count + 1))
+        let names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1).stdout.split(separator: 0)
+        for rawName in names {
+            let name = String(decoding: rawName, as: UTF8.self)
+            let paths = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", name], successfulExitCodes: 0...1).stdout.split(separator: 0)
+            guard paths.contains(where: { $0.elementsEqual(relative.utf8) }) else { continue }
+            let key = String(name.dropLast(4)) + "branch"
+            var bytes = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get", key], successfulExitCodes: 0...1).stdout
+            if bytes.last == 0 { bytes.removeLast() }
+            return String(decoding: bytes, as: UTF8.self)
+        }
+        return ""
     }
     public func remoteBranches(remote: String) throws -> [String] {
         guard !remote.isEmpty, !remote.contains("\0") else { throw FetchFailure.remote }
