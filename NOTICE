@@ -461,3 +461,9 @@ clipboard submenu and output order, are adapted from refloglist.cpp and
 GitLogListBase.cpp at the pinned TortoiseGit commit. Native scoped Log windows
 retain immutable revisions and existing repository access; RefLog display and
 clipboard dates reuse TurtleGit's shared native Log date preferences.
+
+General RefLog Delete, its singular/multiple confirmation text and oldest-first
+Git reflog deletion are adapted from GitLogListAction.cpp at the recorded pin.
+Native deletion validates the entire displayed snapshot after confirmation; stash
+entries continue through stash drop and Clear through stash clear. Delete and
+Clear preserve the source's distinct default confirmation buttons.

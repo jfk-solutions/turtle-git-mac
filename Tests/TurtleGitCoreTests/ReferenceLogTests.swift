@@ -48,4 +48,32 @@ final class ReferenceLogTests: XCTestCase {
         }
         do { _ = try await repo.deleteStashEntries(["refs/stash@{0}"], expected: []); XCTFail("Empty selection accepted") } catch ReferenceLogFailure.selection {}
     }
+    func testGeneralReflogDeletionPreservesRefsAndDeletesOriginalPositions() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        for n in 0..<3 { try Data("commit \(n)".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "commit \(n)") }
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let branches = try await repo.referenceLog("refs/heads/main"), rows = try await repo.referenceLog("HEAD")
+        _ = try await repo.deleteReferenceLogEntries([rows[0].id, rows[2].id], reference: "HEAD", expected: rows)
+        let remaining = try await repo.referenceLog("HEAD"), unchangedBranch = try await repo.referenceLog("refs/heads/main")
+        XCTAssertEqual(remaining.map(\.subject), [rows[1].subject, rows[3].subject]); XCTAssertEqual(unchangedBranch, branches)
+        _ = try await repo.deleteReferenceLogEntries(Set(branches.map(\.id)), reference: "refs/heads/main", expected: branches)
+        let empty = try await repo.referenceLog("refs/heads/main"), after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertTrue(empty.isEmpty); XCTAssertEqual(head, after); XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index")))
+    }
+    func testGeneralReflogRejectsStaleCrossReferenceAndMalformedSelection() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let old = try await repo.referenceLog("HEAD")
+        _ = try await repo.run(["reset", "--soft", "HEAD"])
+        let current = try await repo.referenceLog("HEAD")
+        do { _ = try await repo.deleteReferenceLogEntries([old[0].id], reference: "HEAD", expected: old); XCTFail("Stale log accepted") } catch ReferenceLogFailure.stale {}
+        for ids: Set<String> in [[], ["refs/heads/main@{0}"], ["HEAD@{99}"]] {
+            do { _ = try await repo.deleteReferenceLogEntries(ids, reference: "HEAD", expected: current); XCTFail("Invalid selection accepted") } catch ReferenceLogFailure.selection {}
+        }
+        for ref in ["--all", "refs/heads/main@{0}", "refs/heads/main\nHEAD", "refs/heads/main\0"] {
+            do { _ = try await repo.deleteReferenceLogEntries([current[0].id], reference: ref, expected: current); XCTFail("Invalid ref accepted") } catch ReferenceLogFailure.reference {}
+        }
+        let after = try await repo.referenceLog("HEAD"); XCTAssertEqual(current, after)
+    }
+
 }

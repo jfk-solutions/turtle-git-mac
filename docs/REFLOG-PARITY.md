@@ -21,17 +21,20 @@ the stash list is empty. The window and controls disable while repository work
 runs, retaining the repository access lease.
 
 Stash context menus provide Show log, selected Apply, Delete, unified-diff
-inspection and Copy to clipboard using the original icons. Selected Apply passes the displayed commit
+inspection and Copy to clipboard using the original icons. Delete also applies
+to HEAD and ordinary full-reference logs. Selected Apply passes the displayed commit
 hash to the native restore controller, preventing a later stash-index change from
 redirecting that selection. Inspection uses the first-parent diff and full commit
 metadata. General reflog entries currently offer Log navigation, inspection and
 the three clipboard formats; other revision actions remain pending.
 
-Deletion and Clear prompt with Abort/Delete. Before executing either, the core
-reloads the complete stash reflog and compares it with the displayed snapshot.
+Deletion and Clear prompt with Delete/Abort. Selected Delete defaults to Delete;
+Clear stash defaults to Abort, matching their distinct source calls. Before executing either, the core
+reloads the complete relevant reflog and compares it with the displayed snapshot.
 An out-of-date view is rejected and reloaded. Multiple deletions run from oldest
 to newest to preserve the selected positional indices, matching upstream's
-safety check and reverse deletion order. This check is not a cross-process lock
+safety check and reverse deletion order. Ordinary entries use `git reflog delete`
+without moving their reference; stash entries use `git stash drop`. This check is not a cross-process lock
 against further changes between Git subprocesses.
 
 ## Evidence
@@ -62,7 +65,8 @@ Apply, inspection and Delete Abort checks above were completed.
 
 ## Remaining
 
-- Complete revision/ref context menus and deletion for non-stash reflogs.
+- Complete revision/ref context menus and physical non-stash deletion acceptance;
+  the new general deletion path is recorded below.
 - Physical row activation/chooser double-click and normal stash-mode regression QA;
   headless selection-mode rejection is checked in the actions receiver below.
 - Physical modeless Find focus, F3/F5 routing, scroll-to-match and broader
@@ -151,3 +155,37 @@ receiver never displays windows or modifies the general clipboard. Actual
 menu/icon rendering, physical row activation and window handoff/reuse, locale/
 relative-time date rendering, chooser Log handoff, full revision actions and
 signed sandbox execution remain pending. This is partial RefLog parity.
+
+## General reflog deletion
+
+Delete now appears for HEAD and other reference logs as well as stash. Singular
+confirmation names the selected positional selector and uses the source's permanent
+deletion warning; multiple selection names the count. Delete/Abort buttons retain
+the source defaults: Delete for selected entries, Abort for Clear stash. Clear is
+still only available for the stash log. Revision choosers suppress deletion.
+
+Acceptance captures the reference, selectors and full displayed snapshot. A
+changed reference/view while confirmation is pending is rejected. Core reloads
+and compares every entry immediately before transport, rejecting shifted, altered
+or stale logs; canonical HEAD/full-ref validation and membership checks prevent
+cross-log or malformed selectors. This full comparison is stronger than upstream's
+count/endpoint check. Entries delete from oldest to newest so original indices
+remain valid. Ordinary logs use `git reflog delete -- <full selector>` without
+`--updateref`; deleting their final entry leaves the ref/HEAD intact. The stash
+path retains `stash drop` and Clear retains `stash clear`, with their stack/ref
+semantics. Errors retain the dialog and reload; successful deletion refreshes
+repository views. The preflight comparison is not a cross-process lock, and
+partial command failure is not rolled back. The native batch currently stops on
+the first command failure; upstream presents each failure and continues. That
+recovery difference remains pending.
+
+[Deletion receiver](qa/reflog-deletion-native-2026-10-08.swift) and
+[QA record](qa/reflog-deletion-2026-10-08.json) cover source confirmation text,
+Abort retention, actual HEAD/branch-log deletion, stale-after-prompt and changed-ref
+rejection, whole-log removal without moving the ref, stash Drop/Clear regression,
+chooser guards, hidden native default-button alerts and HEAD/index/config/worktree
+preservation for general deletion. Six Core reflog tests also cover invalid refs,
+cross-log selection and stale snapshots. These checks do not exercise displayed
+prompt clicks or menu routing. Physical deletion/recovery, command failure/partial
+results, concurrent external writers, signed sandbox execution and full RefLog
+revision-menu parity remain pending.

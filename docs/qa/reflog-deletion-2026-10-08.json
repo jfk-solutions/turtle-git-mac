@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "788c5435f77118b0fbf5ae9f1831dbd298028fef",
+  "scope": "General HEAD/full-reference reflog deletion, snapshot/ref/selection guards, source confirmation text/default buttons and retained stash Drop/Clear semantics. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/RefLogDlg.cpp": "e65a202ed236c50d0f9a5174ac34fd29df9e034b",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "be67dae100f1f357300795cab26ca384ebdf7ec9700990b903584a621756147c",
+    "NOTICE": "1ab0a7ffc874755f9efd2ef4b074ea33ec562d6863b67182685402dccd519bb7",
+    "Sources/TurtleGitCore/ReferenceLog.swift": "02cad8be8f3dd0da4514e8c1eaa7c576f56dd2320b4623ee39cad59e504f8fe3",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "f38af6bb9f3bf0cdc420e134656d281c3f9e911a79b4687967fb6d72ffb271ef",
+    "Tests/TurtleGitCoreTests/ReferenceLogTests.swift": "e50c2a981b6b0908bfd460c8768a92ae1d6bd59a572ae8331f5a2eb2c550909f",
+    "docs/REFLOG-PARITY.md": "269ce2850ac19e4478f2b61fb9a4763fd30c3804d68119f14b8d3b517880a693",
+    "docs/upstream-files.csv": "b5f2839553d7abc0adf25c91ed55ff4dc3484d1c9a955cb8b85751835aba3dbb",
+    "scripts/test-reflog-deletion.py": "9f08f5250b021cda004f93417a614ce9fae8efe3a0c49e07335c51cb8a34be81",
+    "docs/qa/reflog-deletion-native-2026-10-08.swift": "4275738718bd809ce49c354fbdd445a7be068f4ff862d2a0830f2b4734b0c2eb"
+  },
+  "all_sources_manifest_sha256": "fa6d9b9064d751c910bbc3b6ef9948241f647136d1e78abeba011e0d6afb439d",
+  "verification": {
+    "core": "Six ReferenceLogTests passed. New real-Git HEAD reverse-index deletion and whole branch-log deletion leave references/index intact and the other log unchanged; stale snapshots, cross-reference/empty/invalid selectors and malformed refs reject before deletion. Existing distinct selectors/Unicode, stash multi-Drop, stale Drop/Clear and empty-reference tests passed.",
+    "native": "System Git and Git 2.37.1, 2.39.5 and bundled 2.55.0 passed. Source singular/multiple confirmation text, Abort retention, empty/invalid/busy and non-stash Clear guards; actual HEAD reverse-index deletion; stale-after-prompt and changed-reference rejection; whole branch-log removal without moving HEAD/index/config/worktree; stash multi-Drop/Clear and chooser mutation guard. Actual hidden NSAlerts verify Delete/Abort button order and Delete-vs-Clear default buttons. No displayed prompts or physical clicks.",
+    "iterations": "Initial six Core tests and Debug passed. Shared selection error text was made general rather than stash-only; Core and Debug repeated against final sources. Native four-Git matrix and Store/audits passed first run. Earlier passing logs retained; no failed iteration.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified; Store --require-git audited 11 universal Git Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "documentation": "RefLog parity and pinned source inventory updated. NOTICE attribution added. Inventory pin and seven-column CSV validation passed; local documentation site generated, unpublished.",
+    "ci": "Native deletion receiver added to macOS workflow. Hosted CI and push remain unverified; authentication unavailable, no retry.",
+    "processes": "All Core/compiler/native/audit sessions terminal. No main app launch; hidden alert windows explicitly closed. Final app/native receiver process audit empty. Receiver creates no private preference domains and modifies no general clipboard.",
+    "limitations": "Physical menu/confirmation/default-button interaction and signed sandbox execution remain unverified. Snapshot comparison is stronger than source endpoint checks and occurs after confirmation; it is not a cross-process lock. Native batches stop on the first command failure, while upstream reports failures and continues; partial-result reporting/recovery remains pending. Deletion does not roll back completed commands. General menu ordering/action coverage, concurrency, full RefLog revision menus/columns/geometry, Finder activation, complete dialog parity, updated genuine screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-deletion/core-before-error-text.log": "4c90e42ac49ce67ac87518f97187a327766be6d6d9fdc16fc154e77047a2624f",
+    "build/qa/reflog-deletion/core.log": "3e5b2c5bcca2c1d4b5bc987c8e8d169e435463656c05c0c3618391332bf4fba5",
+    "build/qa/reflog-deletion/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-deletion/debug-before-error-text.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-deletion/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-deletion/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-deletion/native.log": "09f1fb04ce697e10439e0b121aa43a997d1e0e54abea25e14d9a4cfec435fe89",
+    "build/qa/reflog-deletion/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-deletion/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-deletion/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-deletion/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-deletion/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

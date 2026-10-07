@@ -16,7 +16,7 @@ public enum ReferenceLogFailure: LocalizedError {
         switch self {
         case .reference: return "Choose HEAD or a full reference name."
         case .stale: return "The current view is out of date. Refresh and recheck the selection."
-        case .selection: return "Select stash entries from the current view."
+        case .selection: return "Select entries from the current reference log."
         }
     }
 }
@@ -40,6 +40,20 @@ extension GitRepository {
             offset += 3
         }
         return entries
+    }
+    /// Delete positional reflog entries without moving the ref. Stash deletion
+    /// uses stash drop so its stack ref is updated by Git, matching upstream.
+    public func deleteReferenceLogEntries(_ selected: Set<String>, reference: String, expected: [ReferenceLogEntry]) throws -> String {
+        guard reference == "HEAD" || (reference.hasPrefix("refs/") && !reference.contains("\0") && !reference.contains("\n") && (try? run(["check-ref-format", reference])) != nil) else { throw ReferenceLogFailure.reference }
+        if reference == "refs/stash" { return try deleteStashEntries(selected, expected: expected) }
+        let current = try referenceLog(reference)
+        guard current == expected else { throw ReferenceLogFailure.stale }
+        guard !expected.isEmpty, !selected.isEmpty, selected.isSubset(of: Set(expected.map(\.selector))) else { throw ReferenceLogFailure.selection }
+        var output = ""
+        for entry in expected.reversed() where selected.contains(entry.selector) {
+            output += try run(["reflog", "delete", "--", entry.selector]).text
+        }
+        return output
     }
     /// Verify every row before positional deletion, then delete from oldest to newest
     /// so removing a row does not shift a subsequent selection's stash index.

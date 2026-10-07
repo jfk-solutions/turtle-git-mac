@@ -21,13 +21,10 @@ import TurtleGitCore
             if self.model.selecting { self.finishSelection(nil) } else { self.window?.close() }
         }
         model.onChoose = { [weak self] entry in self?.finishSelection(entry) }
-        model.confirmDelete = { [weak window] count, clear, proceed in
-            guard let window else { return }
-            let alert = NSAlert(); alert.alertStyle = .warning
-            alert.messageText = clear ? "Delete all \(count) stashes?" : "Delete \(count) selected stash \(count == 1 ? "entry" : "entries")?"
-            alert.informativeText = "The selected stash entries will be removed from the stash list."
-            alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Delete")
-            alert.beginSheetModal(for: window) { response in if response == .alertSecondButtonReturn { proceed() } }
+        model.confirmDelete = { [weak window] message, clear, proceed in
+            guard let window, window.attachedSheet == nil else { return }
+            let alert = Self.deletionAlert(message: message, clear: clear)
+            alert.beginSheetModal(for: window) { response in if response == .alertFirstButtonReturn { proceed() } }
         }
         model.openFind = { [weak self] in self?.openFind() }
         window.functionKey = { [weak self] code in
@@ -37,6 +34,13 @@ import TurtleGitCore
             return false
         }
         model.reload()
+    }
+    static func deletionAlert(message: String, clear: Bool) -> NSAlert {
+        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = message
+        let delete = alert.addButton(withTitle: "Delete"), abort = alert.addButton(withTitle: "Abort")
+        delete.keyEquivalent = clear ? "" : "\r"; abort.keyEquivalent = clear ? "\r" : ""
+        alert.window.defaultButtonCell = (clear ? abort : delete).cell as? NSButtonCell
+        return alert
     }
     func openFind(visible: Bool = true) {
         guard !model.busy else { return }
@@ -90,7 +94,7 @@ import TurtleGitCore
     var onApply: (String) -> Void = { _ in }
     var onLog: ((String) -> Void)?
     var onChanged: (String) -> Void = { _ in }
-    var confirmDelete: (Int, Bool, @escaping () -> Void) -> Void = { _, _, _ in }
+    var confirmDelete: (String, Bool, @escaping () -> Void) -> Void = { _, _, _ in }
     var close: () -> Void = {}
     var selectedEntry: ReferenceLogEntry? { let chosen = entries.filter { selection.contains($0.id) }; return chosen.count == 1 ? chosen.first : nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, selecting: Bool = false) {
@@ -114,12 +118,23 @@ import TurtleGitCore
         onApply(entry.hash)
     }
     func delete(_ ids: Set<String>, clear: Bool = false) {
-        guard !selecting, !busy, reference == "refs/stash", !entries.isEmpty, clear || !ids.isEmpty else { return }
-        let expected = entries
-        confirmDelete(clear ? entries.count : ids.count, clear) { [weak self] in
-            guard let self, !self.busy else { return }; self.busy = true
+        guard !selecting, !busy, !entries.isEmpty,
+              clear ? reference == "refs/stash" : (!ids.isEmpty && ids.isSubset(of: Set(entries.map(\.id)))) else { return }
+        let expected = entries, reference = reference
+        let message: String
+        if clear { message = "Do you really want to delete ALL \(entries.count) stash?" }
+        else if ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) {
+            message = "\"\(entry.selector)\" will be permanently deleted. It can NOT be recovered!\n\nDo you really want to continue?"
+        } else { message = "Do you really want to permanently delete the \(ids.count) selected refs? It can NOT be recovered!" }
+        confirmDelete(message, clear) { [weak self] in
+            guard let self, !self.busy else { return }
+            guard self.reference == reference, self.entries == expected else { self.error = ReferenceLogFailure.stale.localizedDescription; return }
+            self.busy = true
             Task {
-                do { let output = try await self.repository.deleteStashEntries(ids, expected: expected, clear: clear); self.onChanged(output) }
+                do {
+                    let output = clear ? try await self.repository.deleteStashEntries([], expected: expected, clear: true) : try await self.repository.deleteReferenceLogEntries(ids, reference: reference, expected: expected)
+                    self.onChanged(output)
+                }
                 catch { self.error = error.localizedDescription }
                 self.reload()
             }
@@ -208,8 +223,8 @@ private struct ReferenceLogDialog: View {
                     Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1)
                     if !model.selecting && model.reference == "refs/stash" {
                         Button { model.apply(ids) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }.disabled(ids.count != 1)
-                        Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty)
                     }
+                    if !model.selecting { Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty) }
                     Divider()
                     Menu {
                         Button { model.copy(ids, format: .full) } label: { CommandLabel(title: "Full data", icon: .copy) }
