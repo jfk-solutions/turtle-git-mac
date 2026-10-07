@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "036570c",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log working-row two-file and prepared comparison; list order and missing-side HEAD fallback; mixed historical/working marks; imported Finder mark route retains both grants",
+  "upstream_source": "src/Git/GitStatusListCtrl.cpp:1795-1818, 1894-1920, 2154-2167 and 2260-2281",
+  "sha256": {
+    "Sources/TurtleGitCore/FileComparison.swift": "19c9e311faf7d9278316ccd64b797ed93941f2a0f58a1122b1b01ff2a476e203",
+    "Sources/TurtleGitMac/LogWindow.swift": "a128a5d29d8444f47f2d9c69621c657c9a85b29a22de90504598141dbd792839",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "e682c0db6dd1ac262edc6a40ce66c9401d2d7c1e14eced1a9d19412c5e1d9a0a",
+    "Tests/TurtleGitCoreTests/FileComparisonTests.swift": "058834e33de00c1c94b77fed42e04f2f8135a91f32f553e9fbd624575e03bcb5",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "5387ec04ae1c4c16373f9faca61207ab41442d32506e05190dc8061699d3462a",
+    "docs/BISECT-PARITY.md": "03c8e1d374eadb25e3c1f3ba19d2ef88a7ba27be53e6dbff642bda0b5b7c7d2b",
+    "README.md": "bd1efd16ef1959a28fea836415c11343367a8f116929a1103cac98c529637a83"
+  },
+  "all_sources_manifest_sha256": "82cc9739cb657a6553289091dbbf1da4eefccf2603649eb5de81f25a94d8c003",
+  "verification": {
+    "core": "FileComparisonTests: 10 tests, zero failures on system Git. New mixed working/historical prepared snapshots retain raw bytes, literal Unicode/newline pathspecs and historical hashes after a ref moves; both-working sides use disk rather than index bytes, reads preserve HEAD/index/work bytes, invalid paths/empty-tree/missing sides refuse. Existing pair/historical/preview fixtures pass.",
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Injected two-file/prepared Log callbacks verify displayed-list order, raw working bytes, deleted disk side read from pinned HEAD, working/working and mixed historical/working in both directions, working mark label, busy/invalidation and deleted/submodule exclusions. Actual core snapshots read for all new cases. Existing focused native Log/Bisect/Export/Rebase fixtures pass."
+    },
+    "builds": [
+      "SwiftPM filtered tests compile app and tests",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; Store --require-git, 90 upstream icons and universal helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Hidden owned windows and injected root viewer callbacks. Root dispatch/lease retention/Finder mark consumption compiled and source-inspected, not activated. Displayed layout, keyboard/accessibility, signed access and activated Finder unverified. Shift alternate diff-tool selection remains unimplemented for pair/prepared commands. Full port incomplete."
+  },
+  "logs": {
+    "/tmp/turtlegit-log-working-prepared-core.log": "5a45ec660155655bdaef5683acd0dfda2f83e0bfbf1f327a15cd0e8c8892a827",
+    "/tmp/turtlegit-log-working-prepared-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-log-working-prepared-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-log-working-prepared-native.log": "857be481282bba802259791393767db77d847bbb73f6ed5e09f4d343a3552e16",
+    "/tmp/turtlegit-log-working-prepared-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-log-working-prepared-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-log-working-prepared-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  },
+  "remaining": "Working-file Blame and conflict routes, alternate diff-tool selection, Cleanup, preference persistence/navigation and broad dialog/Finder/signed parity acceptance."
+}

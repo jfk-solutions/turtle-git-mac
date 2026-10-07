@@ -232,7 +232,7 @@ details, whole/mixed/file comparison callbacks, actual Git unified patch bytes,
 Commit dispatch, empty-hash exclusion, current-commit Skip/Good/Bad and Reset,
 busy refusal and row show/hide. Handoffs are injected. Displayed graph/layout,
 keyboard/accessibility, activated menus and signed sandbox remain unverified.
-Working-file Blame, prepared comparison and conflict actions
+Working-file Blame and conflict actions
 still require their upstream-specific implementation and acceptance.
 
 Selected-file patch checks preserve raw non-UTF-8 bytes, literal Unicode/newline
@@ -251,6 +251,22 @@ busy or invalidated models. Store builds validate repository and file access,
 and copies retain the chosen destination's security scope for the operation.
 Displayed panels, external application launches and exact-file sandbox grants
 for atomic Save As remain unverified.
+
+Compare Two Files now routes working-row selections through the existing pair
+engine in displayed order. A missing disk side reads its pinned HEAD blob;
+unversioned files use disk bytes. Submodules are excluded. Mark for Comparison
+and Compare with the mark accept working and historical selections in either
+direction. Historical sides are pinned before reading; working sides stay live.
+Working marks have an explicit Working tree label. Imported Finder marks retain
+their file grant when comparing with a working selection, and the root consumes
+that stored mark after handing off the viewer.
+
+Core checks cover mixed-side bytes, moving refs, unchanged HEAD/index/working
+bytes and invalid paths. Hidden native checks cover list order, missing-side HEAD
+fallback, mixed directions and busy/invalidation/deleted/submodule guards through
+injected callbacks. Root viewer dispatch and Finder mark consumption are compiled
+and source-inspected; displayed/signed handoffs remain unverified. Shift alternate
+diff-tool selection still requires implementation.
 
 ## Working-tree repository commands
 

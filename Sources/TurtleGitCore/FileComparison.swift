@@ -131,11 +131,21 @@ extension GitRepository {
     /// Compare arbitrary historical paths, including the same path at different
     /// revisions. Both ends are pinned before any file content is read.
     public func historicalPathComparison(fromRevision: String, fromPath: String, toRevision: String, toPath: String) throws -> RevisionComparisonSnapshot {
-        guard !fromPath.isEmpty, !toPath.isEmpty, !fromPath.contains("\0"), !toPath.contains("\0") else { throw RevisionComparisonFailure.selection }
-        let fromHash = try run(["rev-parse", "--verify", "--end-of-options", fromRevision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
-        let toHash = try run(["rev-parse", "--verify", "--end-of-options", toRevision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+        try preparedPathComparison(from: .revision(fromRevision), fromPath: fromPath, to: .revision(toRevision), toPath: toPath)
+    }
+    /// Prepared comparisons may mix current disk files and historical blobs.
+    /// Pin each historical side; working sides remain live and editable.
+    public func preparedPathComparison(from: ComparisonRevision, fromPath: String, to: ComparisonRevision, toPath: String) throws -> RevisionComparisonSnapshot {
+        _ = try restoreLocation(fromPath); _ = try restoreLocation(toPath)
+        if from == .workingTree || to == .workingTree { guard try !isBare() else { throw RevisionComparisonFailure.selection } }
+        func pin(_ revision: ComparisonRevision) throws -> ComparisonRevision {
+            if revision == .workingTree { return revision }
+            guard case .revision(let name) = revision else { throw RevisionComparisonFailure.selection }
+            return .revision(try run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"]).text.trimmingCharacters(in: .newlines))
+        }
+        let from = try pin(from), to = try pin(to)
         let file = CommitFile(path: toPath, oldPath: fromPath, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
-        let snapshot = RevisionComparisonSnapshot(root: root, from: .revision(fromHash), to: .revision(toHash), fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+        let snapshot = RevisionComparisonSnapshot(root: root, from: from, to: to, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
         _ = try comparisonFile(snapshot, path: toPath)
         return snapshot
     }

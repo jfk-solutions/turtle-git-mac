@@ -18,6 +18,7 @@ struct PreparedFileComparisonMark {
     var workingAccess: WorkingComparisonAccess? = nil
     func label(for path: String) -> String {
         if let workingAccess { return workingAccess.file.path }
+        if revision.isEmpty { return self.path == path ? "Working tree" : self.path + ":Working tree" }
         return self.path == path ? revision : self.path + ":" + String(revision.prefix(8))
     }
 }
@@ -624,6 +625,7 @@ struct LogCommandRequest: Identifiable {
     var onBlame: ((String, String) -> Void)?
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     var onFilePairCompare: ((String, [CommitFile]) -> Void)?
+    var onWorkingFilePairCompare: (([String]) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
@@ -1013,13 +1015,13 @@ struct LogCommandRequest: Identifiable {
         comparisonMark = PreparedFileComparisonMark(path: access.file.path, revision: "", workingAccess: access)
     }
     func markForComparison(_ ids: Set<String>) {
-        guard !busy, let revision, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
-        comparisonMark = PreparedFileComparisonMark(path: file.path, revision: revision.hash)
+        guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, ids.count == 1, let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        comparisonMark = PreparedFileComparisonMark(path: file.path, revision: selectedWorkingTree ? "" : revision!.hash)
     }
     func compareWithMarkedFile(_ ids: Set<String>) {
-        guard !busy, let revision, let comparisonMark, let onPreparedFileCompare, ids.count == 1,
-              let file = files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
-        let current = PreparedFileComparisonMark(path: file.path, revision: revision.hash)
+        guard !busy, !isInvalidated, selectedWorkingTree || revision != nil, let comparisonMark, let onPreparedFileCompare, ids.count == 1,
+              let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return }
+        let current = PreparedFileComparisonMark(path: file.path, revision: selectedWorkingTree ? "" : revision!.hash)
         onPreparedFileCompare(comparisonMark, current)
     }
     func revealFile(_ ids: Set<String>) {
@@ -1062,6 +1064,10 @@ struct LogCommandRequest: Identifiable {
         return chosen.count == 2 && chosen.allSatisfy { !$0.isSubmodule }
     }
     func compareFilePair(_ ids: Set<String>) {
+        if selectedWorkingTree {
+            guard !busy, !isInvalidated, !bare, canCompareFilePair(ids), let onWorkingFilePairCompare else { return }
+            onWorkingFilePairCompare(visibleFiles.filter { ids.contains($0.id) }.map(\.path)); return
+        }
         guard !busy, let revision, let onFilePairCompare else { return }
         let chosen = visibleFiles.filter { ids.contains($0.id) }
         guard chosen.count == 2, chosen.allSatisfy({ !$0.isSubmodule }) else { return }
@@ -1218,7 +1224,7 @@ struct LogDialog: View {
         Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
         Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)
         if model.canCompareFilePair(ids) {
-            Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || model.revision == nil || model.onFilePairCompare == nil)
+            Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
         }
         Divider()
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
@@ -1250,9 +1256,9 @@ struct LogDialog: View {
     }
     @ViewBuilder private func preparedComparisonActions(_ ids: Set<String>, file: CommitFile) -> some View {
         Divider()
-        Button { model.markForComparison(ids) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(model.busy || model.revision == nil)
+        Button { model.markForComparison(ids) } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil)
         if let mark = model.comparisonMark {
-            Button { model.compareWithMarkedFile(ids) } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare) }.disabled(model.busy || model.revision == nil || model.onPreparedFileCompare == nil)
+            Button { model.compareWithMarkedFile(ids) } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare) }.disabled(model.busy || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil)
         }
     }
     @ViewBuilder private func historicalFileActions(_ ids: Set<String>) -> some View {

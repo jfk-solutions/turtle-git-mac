@@ -1013,16 +1013,55 @@ import TurtleGitCore
     let exportedUntracked = try Data(contentsOf: workingCopyFolder.appendingPathComponent("untracked"))
     let exportedTracked = try Data(contentsOf: workingCopyFolder.appendingPathComponent("change"))
     precondition(log.error == nil && exportedWorkingCopy == workingCopyBytes && exportedUntracked == untracked && exportedTracked == Data("native working-row diff\n".utf8))
+    var workingPairPaths: [String] = [], preparedPairs: [(PreparedFileComparisonMark, PreparedFileComparisonMark)] = []
+    log.onWorkingFilePairCompare = { workingPairPaths = $0 }
+    log.onPreparedFileCompare = { preparedPairs.append(($0, $1)) }
+    let pairIDs = Set(["change", workingCopyPath]), pairOrder = log.visibleFiles.filter { pairIDs.contains($0.id) }.map(\.path)
+    precondition(log.canCompareFilePair(pairIDs)); log.compareFilePair(pairIDs); precondition(workingPairPaths == pairOrder)
+    let actualPair = try await repo.workingFilePairComparison(paths: workingPairPaths)
+    let pairDocument = try await repo.comparisonFile(actualPair, path: workingPairPaths[1])
+    let pairBytes = ["change": Data("native working-row diff\n".utf8), workingCopyPath: workingCopyBytes]
+    precondition(pairDocument.base.bytes == pairBytes[workingPairPaths[0]] && pairDocument.destination.bytes == pairBytes[workingPairPaths[1]])
+    let headFile = try await repo.historicalFile(revision: "HEAD", path: "change")
+    try FileManager.default.removeItem(at: root.appendingPathComponent("change"))
+    log.compareFilePair(pairIDs); let deletedPair = try await repo.workingFilePairComparison(paths: workingPairPaths)
+    let deletedDocument = try await repo.comparisonFile(deletedPair, path: workingPairPaths[1])
+    let deletedBytes = ["change": headFile.bytes, workingCopyPath: workingCopyBytes]
+    precondition(deletedDocument.base.bytes == deletedBytes[workingPairPaths[0]] && deletedDocument.destination.bytes == deletedBytes[workingPairPaths[1]])
+    precondition(deletedPair.from == .revision(hashes[7]) || deletedPair.to == .revision(hashes[7]))
+    try Data("native working-row diff\n".utf8).write(to: root.appendingPathComponent("change"))
+    log.markForComparison([workingCopyPath]); precondition(log.comparisonMark?.revision == "" && log.comparisonMark?.label(for: workingCopyPath) == "Working tree")
+    log.compareWithMarkedFile(["change"]); precondition(preparedPairs.last?.0.path == workingCopyPath && preparedPairs.last?.1.revision == "")
+    let preparedWorking = try await repo.preparedPathComparison(from: .workingTree, fromPath: workingCopyPath, to: .workingTree, toPath: "change")
+    let preparedWorkingDocument = try await repo.comparisonFile(preparedWorking, path: "change")
+    precondition(preparedWorkingDocument.base.bytes == workingCopyBytes && preparedWorkingDocument.destination.bytes == Data("native working-row diff\n".utf8))
+    log.selected = [hashes[7]]; log.markForComparison(["change"]); log.select([""]); log.compareWithMarkedFile([workingCopyPath])
+    precondition(preparedPairs.last?.0.revision == hashes[7] && preparedPairs.last?.1.revision == "")
+    let mixed = try await repo.preparedPathComparison(from: .revision(hashes[7]), fromPath: "change", to: .workingTree, toPath: workingCopyPath)
+    let mixedDocument = try await repo.comparisonFile(mixed, path: workingCopyPath)
+    precondition(mixedDocument.base.bytes == headFile.bytes && mixedDocument.destination.bytes == workingCopyBytes)
+    log.markForComparison([workingCopyPath]); log.selected = [hashes[7]]; log.compareWithMarkedFile(["change"])
+    precondition(preparedPairs.last?.0.revision == "" && preparedPairs.last?.1.revision == hashes[7])
+    let reverseMixed = try await repo.preparedPathComparison(from: .workingTree, fromPath: workingCopyPath, to: .revision(hashes[7]), toPath: "change")
+    let reverseMixedDocument = try await repo.comparisonFile(reverseMixed, path: "change")
+    precondition(reverseMixedDocument.base.bytes == workingCopyBytes && reverseMixedDocument.destination.bytes == headFile.bytes)
+    log.select([""])
+    let preparedCount = preparedPairs.count, retainedMark = log.comparisonMark?.path
+    workingPairPaths = []
     let openedCount = workingOpened.count
     workingSavePath = nil; workingExportPaths = []; log.busy = true
     log.openHistoricalFile([workingCopyPath], action: .open); log.saveHistoricalFile([workingCopyPath]); log.chooseHistoricalExport([workingCopyPath])
     log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true)
+    log.compareFilePair(pairIDs); log.markForComparison(["change"]); log.compareWithMarkedFile(["change"])
+    precondition(workingPairPaths.isEmpty && preparedPairs.count == preparedCount && log.comparisonMark?.path == retainedMark)
     precondition(workingOpened.count == openedCount && workingSavePath == nil && workingExportPaths.isEmpty); log.busy = false
     log.openHistoricalFile([workingCopyPath], action: .open); log.selected = [hashes[7]]; try await waitLog()
     precondition(workingOpened.count == openedCount); log.select([""])
     let deleted = CommitFile.parse(names: Data("D\0deleted-copy\0".utf8), statistics: Data())[0]
     let module = CommitFile.parse(names: Data("M\0module-copy\0".utf8), statistics: Data(), raw: Data(":160000 160000 old new M\0module-copy\0".utf8))[0]
     log.files += [deleted, module]
+    log.markForComparison([deleted.path]); log.compareWithMarkedFile([module.path]); log.compareFilePair([module.path, workingCopyPath])
+    precondition(log.comparisonMark?.path == retainedMark && preparedPairs.count == preparedCount && workingPairPaths.isEmpty)
     log.saveHistoricalFile([deleted.path]); log.openHistoricalFile([module.path], action: .open)
     log.chooseHistoricalExport([workingCopyPath, deleted.path, module.path])
     precondition(workingSavePath == nil && workingOpened.count == openedCount && workingExportPaths == [workingCopyPath])
@@ -1033,9 +1072,12 @@ import TurtleGitCore
     precondition(copyAfterIndex == copyIndex && copyAfterHead == copyHead)
     log.invalidate(); workingSavePath = nil; workingExportPaths = []
     log.saveHistoricalFile([workingCopyPath]); log.chooseHistoricalExport([workingCopyPath]); log.copyWorkingFiles([workingCopyPath], to: workingSaveURL, save: true)
+    log.compareFilePair(pairIDs); log.markForComparison(["change"]); log.compareWithMarkedFile(["change"])
+    precondition(workingPairPaths.isEmpty && preparedPairs.count == preparedCount && log.comparisonMark?.path == retainedMark)
     precondition(!log.busy && workingSavePath == nil && workingExportPaths.isEmpty)
     log.showUnversionedFiles = false; log.reload(); try await waitLog(); log.select([""])
     print("Native working-file Open/Open With/editor handoffs use actual disk URL; Save As/export preserve raw working bytes and unversioned selection, tracked bytes, HEAD/index, busy/selection/invalidation guards, deleted/submodule exclusions and stale missing-file refusal passed. Panels and application launches injected.")
+    print("Native working-file pair/prepared comparison: list-order routing, real raw-byte working/working and historical/working comparisons in both directions, missing working side uses pinned HEAD, working mark label, busy/invalidation and deleted/submodule guards passed. Root viewer handoffs injected.")
     try savedWorking.write(to: root.appendingPathComponent("change"))
     reopened.model.load(good: hashes[0], bad: hashes[7], requireStart: true); try await wait(reopened.model)
     reopened.model.start(); try await wait(reopened.model); try await waitLog()

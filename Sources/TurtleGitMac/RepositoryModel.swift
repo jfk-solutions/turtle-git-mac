@@ -690,16 +690,25 @@ import TurtleGitCore
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 if let workingAccess = marked.workingAccess {
                     if GitRuntime.isAppStoreBuild && (!workingAccess.permission.hasSecurityScope || !workingAccess.permission.contains(workingAccess.file)) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                    let comparison = try await repository.historicalWorkingFileComparison(revision: current.revision, path: current.path, workingFile: workingAccess.file)
                     let key = "historical-working:" + UUID().uuidString
-                    let controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission)
+                    let controller: FileComparisonWindowController
+                    if current.revision.isEmpty {
+                        let file = repository.root.appendingPathComponent(current.path)
+                        if GitRuntime.isAppStoreBuild && access?.contains(file) != true { throw RepositoryAccessFailure.securityScopeUnavailable }
+                        let comparison = try WorkingFileComparison(base: workingAccess.file, destination: file)
+                        _ = try comparison.read()
+                        controller = FileComparisonWindowController(comparison: comparison, permissions: [workingAccess.permission] + [access].compactMap { $0 })
+                    } else {
+                        let comparison = try await repository.historicalWorkingFileComparison(revision: current.revision, path: current.path, workingFile: workingAccess.file)
+                        controller = FileComparisonWindowController(repository: repository, access: access, comparison: comparison, permission: workingAccess.permission)
+                    }
                     controller.onClosed = { [weak self] in self?.fileComparisonWindows.removeValue(forKey: key) }
                     fileComparisonWindows[key] = controller
                     controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
                     _ = try comparisonMarkStore.consume(workingAccess.mark.id)
                     try publishComparisonMark()
                 } else {
-                    let snapshot = try await repository.historicalPathComparison(fromRevision: marked.revision, fromPath: marked.path, toRevision: current.revision, toPath: current.path)
+                    let snapshot = try await repository.preparedPathComparison(from: marked.revision.isEmpty ? .workingTree : .revision(marked.revision), fromPath: marked.path, to: current.revision.isEmpty ? .workingTree : .revision(current.revision), toPath: current.path)
                     showFileComparisons(repository: repository, access: access, snapshot: snapshot)
                 }
             } catch { self.error = error.localizedDescription }
@@ -951,6 +960,7 @@ import TurtleGitCore
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
         controller.model.onPreparedFileCompare = { [weak self] marked, current in self?.showPreparedFileComparison(repository: repository, access: access, marked: marked, current: current) }
         controller.model.onFilePairCompare = { [weak self] revision, files in self?.showHistoricalFilePair(repository: repository, access: access, revision: revision, files: files) }
+        controller.model.onWorkingFilePairCompare = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
         controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }

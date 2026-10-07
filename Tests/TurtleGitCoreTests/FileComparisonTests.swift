@@ -2,6 +2,35 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonTests: XCTestCase {
+    func testPreparedWorkingAndHistoricalSidesPreserveRawBytesPinRefsAndDoNotChangeIndex() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let original = try Data(contentsOf: root.appendingPathComponent(path)), literal = ":(glob)* prepared 雪\n.bin"
+        let bytes = Data([0, 255, 13, 10]), working = Data([0xfd, 10])
+        try bytes.write(to: root.appendingPathComponent(literal))
+        try Data([0xfe, 10]).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+        try working.write(to: root.appendingPathComponent(path))
+        let tree = try await repo.run(["write-tree"]).text.trimmingCharacters(in: .newlines)
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let moved = try await repo.run(["commit-tree", tree, "-p", head, "-m", "Moved mark ref"]).text.trimmingCharacters(in: .newlines)
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        _ = try await repo.run(["branch", "prepared-base", head])
+        let forward = try await repo.preparedPathComparison(from: .revision("prepared-base"), fromPath: path, to: .workingTree, toPath: literal)
+        let reverse = try await repo.preparedPathComparison(from: .workingTree, fromPath: literal, to: .revision("prepared-base"), toPath: path)
+        let pair = try await repo.preparedPathComparison(from: .workingTree, fromPath: literal, to: .workingTree, toPath: path)
+        XCTAssertEqual(forward.from, .revision(head)); XCTAssertEqual(reverse.to, .revision(head))
+        _ = try await repo.run(["update-ref", "refs/heads/prepared-base", moved])
+        let first = try await repo.comparisonFile(forward, path: literal), second = try await repo.comparisonFile(reverse, path: path), both = try await repo.comparisonFile(pair, path: path)
+        XCTAssertEqual(first.base.bytes, original); XCTAssertEqual(first.destination.bytes, bytes)
+        XCTAssertEqual(second.base.bytes, bytes); XCTAssertEqual(second.destination.bytes, original)
+        XCTAssertEqual(both.base.bytes, bytes); XCTAssertEqual(both.destination.bytes, working)
+        for (from, invalid) in [(ComparisonRevision.emptyTree, path), (.workingTree, "../outside"), (.workingTree, ".git/index"), (.workingTree, "missing")] {
+            do { _ = try await repo.preparedPathComparison(from: from, fromPath: invalid, to: .workingTree, toPath: literal); XCTFail("Invalid prepared comparison") } catch {}
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), working)
+        let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(after, head)
+    }
     func testHistoricalPreviewCopiesArePrivateReadOnlyAndKeepExactBlobBytes() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
