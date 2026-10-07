@@ -51,7 +51,12 @@ repository are unaffected.
 
 Log revision and selected-file context actions also sample Shift before their
 asynchronous diff request, and share the external launch/preview lifetime. A
-single revision retains first-parent/root behavior; two revisions retain the
+whole working-tree row now uses that same external/built-in selection instead
+of always opening the built-in viewer. Revision, working-tree and selected-file
+reads discard their viewer handoff when selection changes or Log is invalidated;
+late errors from those stale requests are discarded too.
+An external launch already handed to macOS is not recalled by changing selection.
+A single revision retains first-parent/root behavior; two revisions retain the
 older-to-newer comparison. Selected files retain visible order, duplicate
 suppression and both paths for renames. Core now exposes Data-returning diff
 APIs; existing String callers keep their prior UTF-8 presentation. Native Log
@@ -59,6 +64,16 @@ now uses the shared colored read-only patch window for its built-in choice. Clos
 diff request/open callback is busy, and all external viewer callbacks have a
 shared pending-request Quit guard. Merge-parent/combined variants and other
 callers remain pending.
+
+The October 7 hidden native check exercises whole working-tree external selection
+with an invalid configured application, including a disabled viewer requested
+with Shift. Those requests report the configuration error without launching an
+app or opening the built-in viewer. It checks enabled-plus-Shift built-in choice
+through the shared selector, exact literal-path patch bytes through an injected
+viewer, and stale working/revision/selected-file reads after selection changes or
+invalidation. HEAD, index and working bytes remain unchanged across all four Git
+versions. This does not establish successful external application launch or
+displayed viewer acceptance.
 
 Commit's explicit unified-diff menu now shares this dispatch, including its
 staged/unstaged and amend-to-parent comparisons. Working Tree adds the explicit

@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "1e4255a",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Whole working-tree Log unified diff uses shared external/built-in viewer selection and Shift; revision/working/selected-file reads drop stale handoffs and errors",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:2285-2353 (working-copy unified diff invokes StartUnifiedDiffViewer with bShift)",
+    "src/TortoiseProc/AppUtils.cpp StartUnifiedDiffViewer (external viewer inversion)"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "4a788f46c659dc0da7ca028531121fbbefaddf405a07fdc083a0be4b4f9a0f55",
+    "docs/UNIFIED-DIFF-VIEWER-PARITY.md": "05c124d9791b5c7a80948ae7fa8b3c790c6758f677770bd3cb120fbf7028c129",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "94ae8b55f4451cf0b21c462016cbea6130fe01d3be5ad11abade6c2c74872d22"
+  },
+  "all_sources_manifest_sha256": "35247efbc3e66b67443ec26e977634231c9b96509191fb2d424b0435b3b8ff58",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Real whole working-tree diff with enabled external invalid path and disabled+Shift invalid path reports configuration error, no built-in window and no active app launch. Shared selector enabled+Shift returns built-in without opening a window. Actual literal Unicode/newline-path patch equals Git stdout via injected alternate handoff. Selection changes before async working/revision/selected-file reads complete drop callbacks. Invalidation prevents pending and new callbacks. HEAD/index/working bytes preserved. Existing focused native fixtures pass."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; all 90 upstream icons, universal Git/EditorConfig/IssueRegex helpers verified. Store --require-git passed.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Successful viewer handoff injected; external validation uses invalid application path and does not launch an application. Built-in choice tested via shared selector without displayed window. Stale-error suppression compiled/source-inspected. Successful external receiver, displayed viewer/input events and signed sandbox acceptance unverified. GitHub CI and site publication unverified. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-unified-routing/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-unified-routing/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-unified-routing/native.log": "b0ab5705465706c266a34e46390c1ba2f3ecad69e9c418a14cb139b27716c2c8",
+    "build/qa/log-unified-routing/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-unified-routing/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-unified-routing/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-unified-routing/swift.log": "f9b3aacc5572d44c959c5fdcccc0dc59930fd809a6673ad5a4560167d7d558ec"
+  },
+  "remaining": "Log Compare parent with working tree, whole unborn unified diff, alternate pair/prepared diff-tool selection, full dialogs/menu/Finder parity and signed App Store acceptance."
+}

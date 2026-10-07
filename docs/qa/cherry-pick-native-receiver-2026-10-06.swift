@@ -710,6 +710,59 @@ import TurtleGitCore
     precondition(!window.isVisible)
     print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy/Preserve guards passed. Events injected; no displayed keyboard acceptance.")
 }
+@MainActor func verifyNativeLogUnifiedViewerRouting(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-viewer-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgSign", "false"])
+    let path = "viewer 雪\n.txt"
+    try Data("committed\n".utf8).write(to: root.appendingPathComponent(path))
+    try await repo.stage([path]); _ = try await repo.commit(message: "initial")
+    let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    try Data("changed\n".utf8).write(to: root.appendingPathComponent(path))
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    func wait() async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while log.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!log.busy)
+    }
+    log.reload(); try await wait(); log.select([""])
+    let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    let saved = UnifiedDiffViewerPreferences.load(); defer { saved.save() }
+    // Invalid configuration exercises the real selection path without opening an application.
+    let invalid = UnifiedDiffViewerPreferences(enabled: true, applicationPath: "invalid viewer")
+    invalid.save(); log.diff(); try await wait()
+    precondition(log.error == UnifiedDiffViewerFailure.application.localizedDescription && log.unifiedWindow == nil && UnifiedDiffApplication.activeRequests == 0)
+    log.error = nil
+    UnifiedDiffViewerPreferences(enabled: false, applicationPath: "invalid viewer").save()
+    log.diff(alternate: true); try await wait()
+    precondition(log.error == UnifiedDiffViewerFailure.application.localizedDescription && log.unifiedWindow == nil)
+    log.error = nil; invalid.save()
+    let useExternal = try await UnifiedDiffApplication.openExternal(Data(), alternate: true)
+    precondition(!useExternal) // Shift inverts enabled external selection to built-in.
+    var handoffs = 0, patch = Data(), alternate = false
+    log.onUnifiedDiff = { patch = $0; alternate = $1; handoffs += 1 }
+    log.diff(path: path, alternate: true); try await wait()
+    let expected = try await repo.run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", head, "--", path]).stdout
+    precondition(handoffs == 1 && alternate && patch == expected)
+    // Change selection before the asynchronous Git read resumes: all routes drop stale handoffs.
+    let before = handoffs
+    log.diff(); log.selected = [head]; try await wait(); precondition(handoffs == before)
+    log.diff(); log.selected = [""]; try await wait(); precondition(handoffs == before)
+    log.selectedFileDiff([path]); log.selected = [head]; try await wait(); precondition(handoffs == before)
+    log.select([""]); log.diff(); log.invalidate(); try await wait()
+    precondition(log.isInvalidated && handoffs == before && log.error == nil && log.unifiedWindow == nil)
+    log.diff(); log.selectedFileDiff([path]); precondition(!log.busy && handoffs == before)
+    let finalIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    let finalHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    let finalBytes = try Data(contentsOf: root.appendingPathComponent(path))
+    precondition(finalIndex == index && finalHead == head && finalBytes == Data("changed\n".utf8))
+    print("Native Log unified viewer routing: whole working-tree external selection and disabled+Shift validation, enabled+Shift built-in choice, exact literal-path patch and alternate handoff, stale working/revision/selected-file reads and invalidated-model refusal passed. Invalid viewer path prevents application launch; successful viewer handoff injected; HEAD/index/working bytes preserved.")
+}
+
 @MainActor func verifyNativeLogDeferredRefresh(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-refresh-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1343,6 +1396,7 @@ import TurtleGitCore
     try await verifyNativeBisect(executable: repo.executable)
     try await verifyNativeLogWorkingConflicts(executable: repo.executable)
     try await verifyNativeLogDeferredRefresh(executable: repo.executable)
+    try await verifyNativeLogUnifiedViewerRouting(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])

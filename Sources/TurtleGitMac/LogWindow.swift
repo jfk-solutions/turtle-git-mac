@@ -874,10 +874,11 @@ struct LogCommandRequest: Identifiable {
         clipboard.clearContents(); clipboard.setString(text, forType: .string)
     }
     func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false) {
-        guard !busy, !unifiedViewerBusy, !workingTree || !bare else { return }
+        guard !busy, !isInvalidated, !unifiedViewerBusy, !workingTree || !bare else { return }
         if includesWorkingTree { workingTreeDiff(path: path, alternate: alternate); return }
         let revisions = self.revisions
         guard (1...2).contains(revisions.count) else { return }
+        let request = generation, selection = selected
         busy = true
         Task {
             defer { busy = false }
@@ -889,11 +890,13 @@ struct LogCommandRequest: Identifiable {
                     if let path { args.append(path) }
                     bytes = try await repository.run(args).stdout
                 } else { bytes = try await repository.revisionDiffData(revisions[0], path: path, workingTree: workingTree) }
+                guard request == generation, selection == selected, !isInvalidated else { return }
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                 else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    guard request == generation, selection == selected, !isInvalidated else { return }
                     unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
-            } catch { self.error = error.localizedDescription }
+            } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
         }
     }
     func copyDetails(includePaths: Bool = true) {
@@ -1125,10 +1128,12 @@ struct LogCommandRequest: Identifiable {
         }
     }
     func selectedFileDiff(_ ids: Set<String>, alternate: Bool = false) {
-        guard !busy, !unifiedViewerBusy, selectedWorkingTree || revision != nil else { return }
+        guard !busy, !isInvalidated, !unifiedViewerBusy, selectedWorkingTree || revision != nil else { return }
         let working = selectedWorkingTree, revision = self.revision
         let chosen = visibleFiles.filter { ids.contains($0.id) }
-        guard !chosen.isEmpty, !working || workingTreeSnapshot?.entry.parents.first != nil && chosen.allSatisfy({ $0.action != "?" }) else { return }; busy = true
+        guard !chosen.isEmpty, !working || workingTreeSnapshot?.entry.parents.first != nil && chosen.allSatisfy({ $0.action != "?" }) else { return }
+        let request = generation, selection = selected
+        busy = true
         Task {
             defer { busy = false }
             do {
@@ -1137,11 +1142,13 @@ struct LogCommandRequest: Identifiable {
                 if working { bytes = try await repository.workingTreeFileDiffData(files: chosen) }
                 else if let revision { bytes = try await repository.revisionFileDiffData(revision, files: chosen) }
                 else { return }
+                guard request == generation, selection == selected, !isInvalidated else { return }
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                 else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    guard request == generation, selection == selected, !isInvalidated else { return }
                     unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
-            } catch { self.error = error.localizedDescription }
+            } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
         }
     }
     func canCompareFilePair(_ ids: Set<String>) -> Bool {
@@ -1184,6 +1191,7 @@ struct LogCommandRequest: Identifiable {
     }
     private func workingTreeDiff(path: String?, alternate: Bool) {
         guard selected.count <= 2, let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first else { return }
+        let request = generation, selection = selected
         busy = true
         Task {
             defer { busy = false }
@@ -1192,9 +1200,13 @@ struct LogCommandRequest: Identifiable {
                 var args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", base, "--"]
                 if let path { args.append(path) }
                 let bytes = try await repository.run(args).stdout
+                guard request == generation, selection == selected, !isInvalidated else { return }
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                else { unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", onClosed: { [weak self] in self?.unifiedWindow = nil }) }
-            } catch { self.error = error.localizedDescription }
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate) {
+                    guard request == generation, selection == selected, !isInvalidated else { return }
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                }
+            } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
         }
     }
 }
