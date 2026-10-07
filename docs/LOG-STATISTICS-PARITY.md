@@ -108,6 +108,37 @@ repository preservation. It requests layout across all five chart styles; these
 checks do not prove pixel appearance, displayed clicks or accessibility. See
 [the native Statistics QA record](qa/statistics-native-2026-10-07.json).
 
+## Bar geometry and hover text
+
+Bar graphs now build source-style populated series. Completely zero-valued
+intervals and individual zero bars are omitted. Each populated interval gets one
+slot; ordinary bars share the width based on the largest nonzero group count.
+Multiple slots use 85% for bars, with the source gap before each slot and the same
+right alignment. A single ordinary series fills its slot; stacked bars always use
+85% and accumulate each group's value. Author graphs use one original series,
+with an empty series tick caption and authors in the legend. Native rectangles and
+hover regions share this normalized geometry. Exact one-pixel GDI border overlap,
+rounding, outlines and full legend placement remain pending.
+
+Cartesian native hover uses the plot proxy to find bars or line-point regions;
+line points use the source six-point bounding box and its below-40-series cutoff.
+Line marks use a thin stroke and circle symbols. Tooltip text preserves the author,
+value, y-axis unit and truncated percentage within that original interval (or all
+displayed authors for author graphs). Average text uses the source maximum as its
+percentage denominator. Source-style Cartesian average hit priority is retained,
+including its virtual average region in stacked graphs that draw no guide.
+Stacked-area polygons have no data hover regions, as in the source.
+
+Pie wedges now progress counterclockwise from the left, following
+`WedgeEndFromDegrees`, and use the same progression to map the native mouse position
+to a data tooltip. Pie value rows also offer that text as a native convenience.
+Each pie stores hover text separately so moving between groups does not clear the
+new group's value. Empty/outside regions clear the hover text. Exports omit mouse
+tracking overlays. The source's pie virtual-average hit region, generic legend
+hover, tiny-wedge pixel skipping, centre/shared-border region overlap and physical
+hover timing/VoiceOver remain pending. Logical helper tests and compilation do not
+prove actual pointer interaction; see [interaction QA](qa/statistics-interaction-2026-10-07.json).
+
 ## Graph palette
 
 MyGraph distributes group hue with integer `240 / groupCount`, alternates

@@ -193,36 +193,91 @@ private extension LogStatisticsColor {
 }
 struct StatisticsChart: View {
     @Environment(\.colorScheme) private var colorScheme
+    @State private var hoverTip = ""
     let graph: LogStatisticsGraph
     let style: LogStatisticsStyle
     let byAuthor: Bool
     var exporting = false
     static func backgroundColor(dark: Bool) -> Color { dark ? Color(.sRGB, red: 32.0 / 255, green: 32.0 / 255, blue: 32.0 / 255, opacity: 1) : .white }
+    private var bars: Bool { style == .bar || style == .stackedBar }
+    private var labels: [String] { bars ? graph.barLabels : (byAuthor ? [""] : graph.categoryLabels) }
+    private func name(_ point: LogStatisticsGraph.Point) -> String { byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series] }
+    private func center(_ point: LogStatisticsGraph.Point) -> Double { byAuthor ? 0.5 : Double(point.category) + 0.5 }
     var body: some View {
         VStack(spacing: 8) {
-            Text(graph.metric.title).font(.headline).multilineTextAlignment(.center)
+            Text(graph.metric.title).font(.headline).multilineTextAlignment(.center).help("Title")
             plot
         }.background(Self.backgroundColor(dark: colorScheme == .dark))
     }
     @ViewBuilder private var plot: some View {
+        let xLabels = labels
+        let rectangles = bars ? graph.barLayout(stacked: style == .stackedBar) : []
         if graph.points.isEmpty { Text("No graph data available.") }
         else if style == .pie { StatisticsPies(graph: graph, byAuthor: byAuthor, exporting: exporting) }
         else {
-            Chart(Array(graph.points.enumerated()), id: \.offset) { _, point in
-                if style == .line { LineMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", graph.seriesLabels[point.series])).symbol(by: .value("Author", graph.seriesLabels[point.series])) }
-                else if style == .stackedLine { AreaMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", graph.seriesLabels[point.series])) }
-                else if style == .stackedBar { BarMark(x: .value("Interval", byAuthor ? "" : String(point.category)), y: .value("Value", point.value)).foregroundStyle(by: .value("Author", byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series])) }
-                else { BarMark(x: .value("Interval", String(point.category)), y: .value("Value", point.value), stacking: .unstacked).foregroundStyle(by: .value("Author", byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series])).position(by: .value("Author", graph.seriesLabels[point.series])) }
+            Chart {
+                if bars {
+                    ForEach(Array(rectangles.enumerated()), id: \.offset) { _, bar in
+                        RectangleMark(xStart: .value("Start", bar.left), xEnd: .value("End", bar.right), yStart: .value("Base", bar.bottom), yEnd: .value("Value", bar.top))
+                            .foregroundStyle(by: .value("Author", name(bar.point)))
+                    }
+                } else {
+                    ForEach(Array(graph.points.enumerated()), id: \.offset) { _, point in
+                        if style == .line {
+                            LineMark(x: .value("Interval", center(point)), y: .value("Value", Double(point.value)))
+                                .foregroundStyle(by: .value("Author", name(point))).symbol(.circle).symbolSize(36).lineStyle(StrokeStyle(lineWidth: 1))
+                        } else {
+                            AreaMark(x: .value("Interval", center(point)), y: .value("Value", Double(point.value)))
+                                .foregroundStyle(by: .value("Author", name(point)))
+                        }
+                    }
+                }
                 if [.bar, .line].contains(style) {
-                    RuleMark(y: .value("Average", graph.averageGuide)).foregroundStyle(Color.primary).lineStyle(StrokeStyle(lineWidth: 1))
-                        .accessibilityLabel("Average: \(graph.averageGuide) \(graph.yAxisLabel)")
+                    RuleMark(y: .value("Average", Double(graph.averageGuide))).foregroundStyle(Color.primary).lineStyle(StrokeStyle(lineWidth: 1))
+                        .accessibilityLabel(Text(graph.averageTooltip(style: style)))
                 }
             }.chartForegroundStyleScale(domain: byAuthor ? graph.categoryLabels : graph.seriesLabels, range: graph.colors.map(\.chartColor))
             .chartXAxisLabel(graph.xAxisLabel, position: .bottom, alignment: .center).chartYAxisLabel(graph.yAxisLabel, position: .leading)
-            .chartYScale(domain: 0...graph.yAxisMaximum(style: style))
-            .chartYAxis { AxisMarks(position: .leading, values: graph.yAxisTicks(style: style)) { AxisTick(); AxisValueLabel() } }
-            .chartXAxis { AxisMarks(values: byAuthor && style == .stackedBar ? [""] : graph.categoryLabels.indices.map { String($0) }) { value in AxisTick(); AxisValueLabel { if let key = value.as(String.self), let index = Int(key), graph.categoryLabels.indices.contains(index) { Text(graph.categoryLabels[index]).font(.caption2) } } } }.padding(10)
+            .chartXScale(domain: 0.0...Double(max(1, xLabels.count))).chartYScale(domain: 0.0...Double(graph.yAxisMaximum(style: style)))
+            .chartYAxis { AxisMarks(position: .leading, values: graph.yAxisTicks(style: style).map(Double.init)) { value in
+                AxisTick(); AxisValueLabel { if let number = value.as(Double.self) { Text("\(Int(number))") } }
+            } }
+            .chartXAxis { AxisMarks(values: xLabels.indices.map { Double($0) + 0.5 }) { value in
+                AxisTick(); AxisValueLabel { if let number = value.as(Double.self), xLabels.indices.contains(Int(number)) { Text(xLabels[Int(number)]).font(.caption2) } }
+            } }
+            .chartOverlay { proxy in
+                if !exporting {
+                    GeometryReader { geometry in
+                        Color.clear.contentShape(Rectangle()).onContinuousHover { phase in
+                            let tip: String
+                            switch phase {
+                            case .ended: tip = ""
+                            case .active(let location): tip = tooltip(location: location, bounds: geometry[proxy.plotAreaFrame], proxy: proxy, rectangles: rectangles)
+                            }
+                            if hoverTip != tip { hoverTip = tip }
+                        }.help(hoverTip)
+                    }
+                }
+            }.padding(10)
         }
+    }
+    private func tooltip(location: CGPoint, bounds: CGRect, proxy: ChartProxy, rectangles: [LogStatisticsGraph.Bar]) -> String {
+        guard bounds.contains(location) else { return "" }
+        let x = location.x - bounds.minX, y = location.y - bounds.minY
+        if let averageY = proxy.position(forY: Double(graph.averageGuide)), abs(y - averageY) <= 2 {
+            return graph.averageTooltip(style: style)
+        }
+        if bars, let valueX = proxy.value(atX: x, as: Double.self), let valueY = proxy.value(atY: y, as: Double.self) {
+            return rectangles.first { $0.contains(x: valueX, y: valueY) }.map { graph.tooltip(for: $0.point) } ?? ""
+        }
+        if style == .line && labels.count < 40 {
+            let hits = graph.points.filter { point in
+                guard let px = proxy.position(forX: center(point)), let py = proxy.position(forY: Double(point.value)) else { return false }
+                return abs(x - px) <= 3 && abs(y - py) <= 3
+            }
+            return hits.map { graph.tooltip(for: $0) }.joined(separator: ", ")
+        }
+        return ""
     }
 }
 
@@ -230,6 +285,7 @@ private struct StatisticsPies: View {
     let graph: LogStatisticsGraph
     let byAuthor: Bool
     var exporting = false
+    @State private var hoverTips: [Int: String] = [:]
     var body: some View {
         if exporting { content } else { ScrollView { content } }
     }
@@ -240,15 +296,28 @@ private struct StatisticsPies: View {
                     let points = byAuthor ? graph.points : graph.points.filter { $0.category == category }
                     Text(byAuthor ? graph.seriesLabels.first ?? "" : graph.categoryLabels[category])
                     Canvas { context, size in
-                        let total = Double(points.reduce(0) { $0 + $1.value }); var angle = -Double.pi / 2
+                        let total = Double(points.reduce(0) { $0 + $1.value }); var angle = Double.pi
                         let center = CGPoint(x: size.width / 2, y: size.height / 2), radius = min(size.width, size.height) * 0.45
                         for point in points where point.value > 0 && total > 0 {
-                            let next = angle + Double(point.value) / total * 2 * .pi
-                            var path = Path(); path.move(to: center); path.addArc(center: center, radius: radius, startAngle: .radians(angle), endAngle: .radians(next), clockwise: false); path.closeSubpath()
+                            let next = angle - Double(point.value) / total * 2 * .pi
+                            var path = Path(); path.move(to: center); path.addArc(center: center, radius: radius, startAngle: .radians(angle), endAngle: .radians(next), clockwise: true); path.closeSubpath()
                             context.fill(path, with: .color(colors[byAuthor ? point.category : point.series])); angle = next
                         }
-                    }.frame(height: 220)
-                    ForEach(Array(points.enumerated()), id: \.offset) { _, point in HStack { Circle().fill(colors[byAuthor ? point.category : point.series]).frame(width: 10, height: 10); Text(byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series]); Text("\(point.value)") } }
+                    }.frame(height: 220).overlay {
+                        if !exporting {
+                            GeometryReader { geometry in
+                                Color.clear.contentShape(Rectangle()).onContinuousHover { phase in
+                                    var tip = ""
+                                    if case .active(let location) = phase {
+                                        let radius = min(geometry.size.width, geometry.size.height) * 0.45
+                                        if radius > 0, let point = graph.piePoint(category: category, x: Double((location.x - geometry.size.width / 2) / radius), y: Double((location.y - geometry.size.height / 2) / radius)) { tip = graph.tooltip(for: point) }
+                                    }
+                                    if hoverTips[category] != tip { hoverTips[category] = tip }
+                                }.help(hoverTips[category] ?? "")
+                            }
+                        }
+                    }
+                    ForEach(Array(points.enumerated()), id: \.offset) { _, point in HStack { Circle().fill(colors[byAuthor ? point.category : point.series]).frame(width: 10, height: 10); Text(byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series]); Text("\(point.value)") }.help(graph.tooltip(for: point)) }
                 }
                 Text(graph.xAxisLabel).font(.caption)
             }

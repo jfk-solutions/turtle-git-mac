@@ -29,6 +29,10 @@ are grouped as **Others**. If only one author would remain, that author keeps th
 name. These settings and the last graph page are remembered when the window closes.
 
 The five original graph icons select pie, stacked line, line, stacked bar and bar.
+Hover bars, pie wedges or line points in smaller graphs for the author, value,
+unit and percentage. Hovering the average region shows its value. Stacked-area
+polygons do not provide individual value tooltips. Zero-value intervals are omitted
+from bar graphs; ordinary bars share widths across the populated intervals.
 Line styles are unavailable for the author comparison graphs. Stacked bar for
 author comparisons shows one colored stack of authors. Ordinary bar and line
 graphs include the source average guide. Integer tick labels reflect commit/line

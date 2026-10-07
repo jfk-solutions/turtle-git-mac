@@ -42,6 +42,14 @@ public struct LogStatisticsGraph: Sendable {
         public let series: Int
         public let value: Int
     }
+    public struct Bar: Sendable {
+        public let point: Point
+        public let left: Double
+        public let right: Double
+        public let bottom: Double
+        public let top: Double
+        public func contains(x: Double, y: Double) -> Bool { x >= left && x < right && y >= bottom && y <= top }
+    }
     public let metric: LogStatisticsMetric
     public let unit: LogStatisticsUnit
     public var xAxisLabel: String { metric.xAxisLabel(unit: unit) }
@@ -104,6 +112,56 @@ public struct LogStatisticsGraph: Sendable {
         if step <= maximum / 25 { step *= 5 }
         if step <= maximum / 10 { step *= 2 }
         return (1...(maximum / step)).map { $0 * step }
+    }
+    private var originalSeries: [[Point]] {
+        if metric.byAuthor { return [points.sorted { $0.category < $1.category }] }
+        let groups = Dictionary(grouping: points, by: \.category)
+        return categoryLabels.indices.map { (groups[$0] ?? []).sorted { $0.series < $1.series } }
+    }
+    public var populatedBarSeries: [[Point]] { originalSeries.map { $0.filter { $0.value > 0 } }.filter { !$0.isEmpty } }
+    public func barLayout(stacked: Bool) -> [Bar] {
+        let rows = populatedBarSeries
+        guard let maximumGroups = rows.map(\.count).max(), maximumGroups > 0 else { return [] }
+        let plotSize = stacked || rows.count > 1 ? 0.85 : 1.0
+        let width = stacked ? plotSize : plotSize / Double(maximumGroups)
+        var bars: [Bar] = []
+        for (slot, row) in rows.enumerated() {
+            var left = Double(slot + 1) - plotSize
+            var base = 0.0
+            for point in row {
+                let top = base + Double(point.value)
+                bars.append(Bar(point: point, left: left, right: left + width, bottom: base, top: top))
+                if stacked { base = top } else { left += width }
+            }
+        }
+        return bars
+    }
+    public var barLabels: [String] {
+        populatedBarSeries.map { row in metric.byAuthor ? "" : categoryLabels[row[0].category] }
+    }
+    public func tooltip(for point: Point) -> String {
+        let name = metric.byAuthor ? categoryLabels[point.category] : seriesLabels[point.series]
+        let total = points.filter { metric.byAuthor || $0.category == point.category }.reduce(0) { $0 + $1.value }
+        let percent = total == 0 ? 0 : Int(100.0 * Double(point.value) / Double(total))
+        return "\(name): \(point.value) \(yAxisLabel) (\(percent)%)"
+    }
+    public func averageTooltip(style: LogStatisticsStyle) -> String {
+        let percent = Int(100.0 * Double(averageGuide) / Double(yAxisMaximum(style: style)))
+        return "Average: \(averageGuide) \(yAxisLabel) (\(percent)%)"
+    }
+    /// The native Canvas uses the same left-start, counterclockwise progression
+    /// as WedgeEndFromDegrees. Coordinates are normalized to the pie radius.
+    public func piePoint(category: Int, x: Double, y: Double) -> Point? {
+        guard x.isFinite, y.isFinite, x*x + y*y <= 1 else { return nil }
+        let wedges = points.filter { (metric.byAuthor || $0.category == category) && $0.value > 0 }
+        let total = wedges.reduce(0) { $0 + $1.value }
+        guard total > 0 else { return nil }
+        var angle = Double.pi - atan2(y, x)
+        if angle >= 2 * .pi { angle -= 2 * .pi }
+        let target = angle / (2 * .pi) * Double(total)
+        var running = 0.0
+        for point in wedges { running += Double(point.value); if target < running { return point } }
+        return wedges.last
     }
     public static func make(_ summary: LogStatisticsSummary, metric: LogStatisticsMetric, authorsShown: Int, alphabetical: Bool = false, calendar: Calendar = .current) throws -> Self {
         if metric == .statistics { return Self(metric: metric, unit: summary.unit, categoryLabels: [], seriesLabels: [], points: [], includedAuthors: [], skippedAuthors: []) }
