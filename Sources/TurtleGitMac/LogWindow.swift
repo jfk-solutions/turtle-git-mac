@@ -49,6 +49,15 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
         super.init(window: window)
         model.window = window
         model.confirmWorkingFlags = { action in confirmIndexFlags(action) }
+        model.handleHistoricalRevertFailure = { message in
+            let alert = NSAlert(); alert.messageText = "Could not revert file"; alert.informativeText = message
+            alert.addButton(withTitle: "Ignore"); alert.addButton(withTitle: "Abort")
+            return alert.runModal() == .alertFirstButtonReturn
+        }
+        model.showHistoricalRevertResult = { message in
+            let alert = NSAlert(); alert.messageText = "Revert files"; alert.informativeText = message
+            alert.addButton(withTitle: "OK"); alert.runModal()
+        }
         window.delegate = self
         window.setContentSize(NSSize(width: 1120, height: 780))
         window.center()
@@ -1145,6 +1154,48 @@ struct LogCommandRequest: Identifiable {
             } catch { self.error = error.localizedDescription }
         }
     }
+    @Published private(set) var historicalRevertTrash: [URL] = []
+    var handleHistoricalRevertFailure: (String) async -> Bool = { _ in false }
+    var showHistoricalRevertResult: (String) -> Void = { _ in }
+    func canRevertHistoricalFiles(_ ids: Set<String>, parent: Bool) -> Bool {
+        guard !busy, !isInvalidated, !bare, !selectedWorkingTree, let revision,
+              let marked = visibleFiles.first(where: { ids.contains($0.id) }) else { return false }
+        return parent ? revision.parents.indices.contains(marked.parentIndex ?? 0) : !marked.action.hasPrefix("D")
+    }
+    func revertHistoricalFiles(_ ids: Set<String>, parent: Bool) {
+        guard canRevertHistoricalFiles(ids, parent: parent), let revision else { return }
+        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        let request = generation, selection = selected, fileSelection = selectedFiles
+        historicalRevertTrash = []; busy = true
+        Task {
+            var restored: [String: Int] = [:], failures = 0
+            let recycle = UserDefaults.standard.object(forKey: "RevertWithRecycleBin") == nil || UserDefaults.standard.bool(forKey: "RevertWithRecycleBin")
+            for file in chosen {
+                guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { break }
+                do {
+                    try validateWorkingFileAccess(repository.root.appendingPathComponent(file.oldPath ?? file.path))
+                    let targets = try await repository.prepareLogFileRevert(revision, files: [file], parent: parent)
+                    guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { break }
+                    for target in targets {
+                        historicalRevertTrash += try await repository.revertLogFile(target, recycle: recycle)
+                        restored[target.revision, default: 0] += 1
+                    }
+                } catch {
+                    if let failure = error as? WorkingFileRevertFailure { historicalRevertTrash += failure.trashedFiles }
+                    failures += 1
+                    guard request == generation, selection == selected, !isInvalidated else { break }
+                    if !(await handleHistoricalRevertFailure(file.path + "\n\n" + error.localizedDescription)) { break }
+                }
+            }
+            if !restored.isEmpty || !historicalRevertTrash.isEmpty {
+                onRevisionChanged("Historical files reverted"); requestRepositoryRefresh()
+            }
+            busy = false
+            guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+            let message = restored.keys.sorted().map { "\(restored[$0]!) file(s) reverted to \($0)." }.joined(separator: "\n")
+            showHistoricalRevertResult(message + (failures == 0 ? "" : "\n\(failures) file(s) failed."))
+        }
+    }
     var confirmWorkingFlags: (IndexFlagAction) async -> Bool = { _ in false }
     func workingFlagMark(_ ids: Set<String>) -> WorkingTreeFile? {
         guard selectedWorkingTree, let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return nil }
@@ -1461,6 +1512,14 @@ struct LogDialog: View {
         }
         if model.canCompareFilePair(ids) {
             Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
+        }
+        if !model.selectedWorkingTree && !model.bare {
+            if model.canRevertHistoricalFiles(ids, parent: false) || model.busy {
+                Button { model.revertHistoricalFiles(ids, parent: false) } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: false))
+            }
+            if let parentTitle = model.fileParentComparisonTitle(ids) {
+                Button { model.revertHistoricalFiles(ids, parent: true) } label: { CommandLabel(title: parentTitle.replacingOccurrences(of: "Compare parent with working tree", with: "Revert to parent revision"), icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: true))
+            }
         }
         Divider()
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {

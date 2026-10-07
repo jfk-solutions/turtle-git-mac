@@ -2,6 +2,52 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testHistoricalLogFileRevertPinsTargetsPreservesAddedWorkAndUnrelatedIndex() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        let before = try Data(contentsOf: root.appendingPathComponent(path))
+        try Data([0xff, 10]).write(to: root.appendingPathComponent(path))
+        let added = "added :(glob)* 雪\n.txt", addedBytes = Data([0xfe, 10])
+        try addedBytes.write(to: root.appendingPathComponent(added))
+        try await repo.stage([path, added]); _ = try await repo.commit(message: "changed and added")
+        let history = try await repo.history(), changed = try XCTUnwrap(history.first)
+        let files = try await repo.files(in: changed)
+        try Data("unrelated index\n".utf8).write(to: root.appendingPathComponent("unrelated")); try await repo.stage(["unrelated"])
+        try Data("new local work\n".utf8).write(to: root.appendingPathComponent(path))
+        let target = try await repo.prepareLogFileRevert(changed, files: [try XCTUnwrap(files.first { $0.path == path })], parent: true)
+        XCTAssertEqual(target[0].revision, changed.parents[0]); XCTAssertEqual(target[0].path, path)
+        _ = try await repo.revertLogFile(target[0], recycle: false)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), before)
+        let staged = try await repo.run(["show", ":" + path]).stdout; XCTAssertEqual(staged, before)
+        let addedTarget = try await repo.prepareLogFileRevert(changed, files: [try XCTUnwrap(files.first { $0.path == added })], parent: true)
+        XCTAssertTrue(addedTarget[0].unstageOnly)
+        _ = try await repo.revertLogFile(addedTarget[0], recycle: false)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(added)), addedBytes)
+        let unstaged = try await repo.run(["ls-files", "--error-unmatch", "--", added], successfulExitCodes: 0...1); XCTAssertEqual(unstaged.exitCode, 1)
+        let untouched = try await repo.run(["show", ":unrelated"]).stdout; XCTAssertEqual(untouched, Data("unrelated index\n".utf8))
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(head, changed.hash)
+        // Current-revision restore puts the selected raw bytes back in worktree and index.
+        let currentTarget = try await repo.prepareLogFileRevert(changed, files: [try XCTUnwrap(files.first { $0.path == path })], parent: false)
+        _ = try await repo.revertLogFile(currentTarget[0], recycle: false)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data([0xff, 10]))
+        try await repo.stage([added]); _ = try await repo.commit(message: "prepare rename")
+        let new = "renamed.txt"; _ = try await repo.run(["mv", "--", path, new]); _ = try await repo.commit(message: "rename")
+        let renamedHistory = try await repo.history(), renamed = try XCTUnwrap(renamedHistory.first)
+        let renamedFiles = try await repo.files(in: renamed), file = try XCTUnwrap(renamedFiles.first { $0.path == new })
+        XCTAssertEqual(file.oldPath, path)
+        try Data("old name local data\n".utf8).write(to: root.appendingPathComponent(path))
+        let renameIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        do { _ = try await repo.prepareLogFileRevert(renamed, files: [file], parent: false); XCTFail("Missing old path accepted") } catch RevisionComparisonFailure.selection {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("old name local data\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), renameIndex)
+        let oldTarget = try await repo.prepareLogFileRevert(renamed, files: [file], parent: true)
+        _ = try await repo.revertLogFile(oldTarget[0], recycle: false)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data([0xff, 10]))
+        let renamedData = try Data(contentsOf: root.appendingPathComponent(new)); XCTAssertEqual(renamedData, Data([0xff, 10]))
+        let forged = CommitFile(path: "../escape", oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        do { _ = try await repo.prepareLogFileRevert(renamed, files: [forged], parent: true); XCTFail("Forged target accepted") } catch RevisionComparisonFailure.selection {}
+    }
     func testLogFileGroupsRetainEveryParentOccurrenceAndScopedPatch() async throws {
         let (root, fixtureRepo, old) = try await GitPatchTests().fixture()
         let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)

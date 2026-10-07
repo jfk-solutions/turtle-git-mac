@@ -1024,3 +1024,31 @@ Revert currently opens the existing chooser instead of upstream’s direct statu
 confirmation/progress sequence. Displayed dialogs, partial flag failures through
 this new route, locally ignored Revert semantics and signed sandbox access need
 further acceptance work.
+
+## Historical file Revert
+
+Historical file menus now offer Revert to this revision and Revert to parent
+revision with the original Revert icon. Parent groups retain their actual parent
+hash, including parent 2 and duplicate-path occurrences. Like upstream's
+GitStatusListCtrl.cpp RevertSelectedItemToVersion, restoration uses the old path
+for renames, checks out into both index and worktree without moving HEAD, and
+parent-added paths use rm --cached --ignore-unmatch while retaining working data.
+Existing regular files and symlinks go to Trash by default; gitlink directories
+are not recycled. Per-file failures offer Ignore/Abort and completion reports
+counts by revision. Changes refresh repository Logs.
+
+Targets are pinned and checked against actual commit/parent files, with literal
+pathspecs and confined destination paths. A missing historical old-name target is
+rejected before recycling local data. This deliberately avoids upstream's possible
+checkout failure after recycling a rename's old path. Checkout failures after a
+successful recycle retain the resulting Trash URL. The supported older Git versions
+receive the validated hexadecimal hash directly, without checkout's newer
+--end-of-options option.
+
+Core fixtures cover raw bytes, literal unusual paths, parent-added preservation,
+current/parent restore, renames, invalid selections, unchanged HEAD and unrelated
+staged content. Hidden native fixtures execute current and parent-2 restoration,
+duplicate-parent occurrences, summaries and stale/bare/invalidation guards with
+injected dialog callbacks. Displayed menus/dialogs, the Ignore/Abort failure
+interaction and signed sandbox acceptance remain unverified. Full port parity is
+still incomplete.

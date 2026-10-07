@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "f9e89c4",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Historical Log file Revert to current/actual parent revision, original icons, per-file Ignore/Abort and completion counts",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:1840-1867 menu availability",
+    "src/Git/GitStatusListCtrl.cpp:2689-2693 direct handlers",
+    "src/Git/GitStatusListCtrl.cpp:4600-4664 RevertSelectedItemToVersion"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "83fba70e81336c2951a016cb4761ffd8fa94f68bd95cd4040b5dfde74c39df4e",
+    "Sources/TurtleGitMac/LogWindow.swift": "be8877d0233fc01c3ddf41f892bb29b96c88792bac5be35e78127a0bf65e3677",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "8236058369133bc7878299b8f5bcedb22f9c9688c1cce5f1703644b9847a4019",
+    "docs/LOG-PARITY.md": "71e00f2c2fd025792a6aba523769e65a7b5ff047ef01a9aaa7506f671b9f625f",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "cd810080aeadedfd9080cb51854c9eeb1e16951cd98e1bfaf41fcc97050827f3"
+  },
+  "all_sources_manifest_sha256": "391fd3ed54016ef904bfc0695eda8a42e0450b3fedbe36e15799013b3fd945f3",
+  "verification": {
+    "core": "All 34 CommitHistoryTests passed; focused historical restore regression also passed on Git 2.37.1, 2.39.5 and bundled 2.55.0. Covers parent/current raw-byte restores, literal unusual path, parent-added unstage retaining work, renames/missing old-name refusal before recycle, forged path rejection, unchanged HEAD and unrelated staged blob.",
+    "native": {
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Actual parent-2 and current checkout, duplicate-parent row count, revision summaries, unchanged HEAD/unrelated staged blob, stale selection/bare/invalidation refusal. Existing focused fixtures passed. Failure/result dialogs and root refresh callback injected. Owned Trash cleanup deferred with try?; failure not asserted."
+    },
+    "builds": [
+      "SwiftPM test build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed, including Store --require-git and 90 upstream icons.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix.",
+    "compatibility_fix": "Initial Git 2.37 checkout --end-of-options failure reproduced in Core and native fixtures. Removed option for factory-pinned hexadecimal hash; final suites all passed. Initial failure logs retained separately.",
+    "limitations": "SwiftUI menu/controller dialog wiring compiled and source-inspected, not activated. Ignore/Abort failure interaction not executed. Missing historical old-name target rejected before recycle, deliberately safer than upstream. Checkout failure after recycle retains Trash URL. Displayed layout/input/VoiceOver, signed sandbox acceptance, GitHub CI and publication unverified; full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-historical-file-revert/2.37.1-before-compatibility-fix.log": "c8eedb7c7c7413365107020667306b71ad0a04e31032644c173b26969eef4c6c",
+    "build/qa/log-historical-file-revert/2.37.1-restore.log": "80c32f9398a2cc5504475528e9ae45bdd2f84ad524581e610429fd23550e737c",
+    "build/qa/log-historical-file-revert/2.39.5-restore.log": "fbb54998b575e58f0372fd40885d64cb9d25d179428bce235f485fee4b13b991",
+    "build/qa/log-historical-file-revert/2.55.0-restore.log": "6add4692bb499598db9af1b79111507a86d2321148db47b377dd248f91f643c7",
+    "build/qa/log-historical-file-revert/core.log": "dc1a2caf5b5d980967fae96a2aba4b49d660a189ccb94936d34fa4c943868b6f",
+    "build/qa/log-historical-file-revert/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-historical-file-revert/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-historical-file-revert/native-before-compatibility-fix.log": "838485cb29f359b75ee88131ddeadeeceb10e67bf8145cf3acf8b9e711552ff1",
+    "build/qa/log-historical-file-revert/native.log": "e1f86f25262051cc159b1b74972f690dd965fe10258ebf588aff9e6a6c71b517",
+    "build/qa/log-historical-file-revert/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-historical-file-revert/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-historical-file-revert/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-historical-file-revert/swift.log": "257327fd99f3b8691a8a28a522ebedf6756656a849a36e05a70fabb2a4cf049c",
+    "build/qa/log-historical-file-revert/tests.log": "40c93b4643bb8eb8c33b01d465137b7e3cb707a67d9145d0085763a5620b66af"
+  },
+  "remaining": "Other file commands, exact dialog/menu/interaction parity, merge group styling and alternate tools, Finder activation, screenshots, publication and signed App Store acceptance."
+}

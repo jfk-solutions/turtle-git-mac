@@ -946,6 +946,31 @@ import TurtleGitCore
     let text = String(decoding: patch, as: UTF8.self)
     precondition(text.contains("-left") && text.contains("-right") && text.components(separatedBy: "+merged").count == 3)
     log.copyFiles(duplicates, information: .relativePaths); precondition(log.clipboard.string(forType: .string) == "keep\nkeep")
+    var ownedTrash: [URL] = []; defer { for file in ownedTrash { try? FileManager.default.removeItem(at: file) } }
+    var restoreResults: [String] = [], restoreFailures: [String] = [], restoreChanges = 0
+    log.showHistoricalRevertResult = { restoreResults.append($0) }
+    log.handleHistoricalRevertFailure = { restoreFailures.append($0); return true }
+    log.onRevisionChanged = { _ in restoreChanges += 1 }
+    try Data("untouched stage\n".utf8).write(to: root.appendingPathComponent("untouched-stage")); try await repo.stage(["untouched-stage"])
+    log.revertHistoricalFiles([rightID], parent: true)
+    try await until { !log.busy && restoreResults.count == 1 && log.files.count == 2 }
+    ownedTrash += log.historicalRevertTrash
+    let rightWork = try Data(contentsOf: root.appendingPathComponent("keep")), rightIndex = try await repo.run(["show", ":keep"]).stdout
+    precondition(rightWork == Data("right\n".utf8) && rightIndex == rightWork && restoreResults[0].contains(right) && restoreFailures.isEmpty)
+    try await until { !log.busy && log.files.count == 2 }
+    log.revertHistoricalFiles(duplicates, parent: false)
+    try await until { !log.busy && restoreResults.count == 2 && log.files.count == 2 }
+    ownedTrash += log.historicalRevertTrash
+    let mergeWork = try Data(contentsOf: root.appendingPathComponent("keep")), mergeIndex = try await repo.run(["show", ":keep"]).stdout
+    let untouchedStage = try await repo.run(["show", ":untouched-stage"]).stdout, restoreHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    precondition(mergeWork == Data("merged\n".utf8) && mergeIndex == mergeWork && untouchedStage == Data("untouched stage\n".utf8) && restoreHead == duplicateMerge && restoreChanges == 2)
+    let restoredCount = restoreResults.count
+    log.revertHistoricalFiles(duplicates, parent: true); log.selected = [left]; try await until { !log.busy }
+    precondition(restoreResults.count == restoredCount && restoreChanges == 2)
+    log.selected = [duplicateMerge]; log.bare = true; precondition(!log.canRevertHistoricalFiles(duplicates, parent: true)); log.bare = false
+    log.revertHistoricalFiles(duplicates, parent: true); log.invalidate(); try await until { !log.busy }
+    precondition(restoreResults.count == restoredCount && restoreChanges == 2)
+    print("Native historical Log file Revert: actual parent-2 and current-revision checkout changes selected work/index, duplicate-parent rows counted, per-revision summaries, unchanged HEAD/unrelated staged blob, stale selection/bare/invalidation refusal passed. Failure/result dialogs injected; owned Trash cleanup deferred; no windows shown.")
     let mergeCount = batches.count; log.invalidate(); log.compareFiles(duplicates, parentWorkingTree: true)
     precondition(!log.canCompareFilesWithParent(duplicates) && batches.count == mergeCount)
     print("Native grouped merge file list: duplicate occurrence identities, two headers, nonselectable headers/filtering, parent-specific menu title, batch base/working comparison bytes, duplicate unified patches, raw clipboard paths and parent-2 deleted pair passed. Root viewer callback injected; no windows shown.")

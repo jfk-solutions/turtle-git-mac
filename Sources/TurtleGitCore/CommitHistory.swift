@@ -409,6 +409,14 @@ public struct LogFileGroup: Identifiable, Sendable {
     public let entry: LogEntry
     public let files: [CommitFile]
 }
+public struct LogFileRevertTarget: Sendable {
+    public let path: String
+    public let revision: String
+    public let unstageOnly: Bool
+    fileprivate let root: URL
+    fileprivate let mode: String?
+}
+
 public enum LogRevertFailure: LocalizedError {
     case parent, root, bare, mergeActive
     public var errorDescription: String? {
@@ -774,6 +782,60 @@ extension GitRepository {
             groups.append(LogFileGroup(id: index, parent: parent, entry: scoped, files: changed))
         }
         return groups
+    }
+    /// Pin each selected occurrence's actual revision/parent and validate its
+    /// old-name target before any working file is recycled.
+    public func prepareLogFileRevert(_ entry: LogEntry, files: [CommitFile], parent: Bool) throws -> [LogFileRevertTarget] {
+        guard !files.isEmpty, try !isBare() else { throw RevisionComparisonFailure.selection }
+        let groups = try logFileGroups(in: entry)
+        var targets: [LogFileRevertTarget] = []
+        for file in files {
+            let index = file.parentIndex ?? 0
+            guard let group = groups.first(where: { $0.id == index }),
+                  group.files.contains(where: { $0.path == file.path && $0.oldPath == file.oldPath && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
+            let path = file.oldPath ?? file.path
+            _ = try restoreLocation(path)
+            let revision: String
+            if parent { guard let hash = group.parent else { throw RevisionComparisonFailure.range }; revision = hash }
+            else { revision = entry.hash }
+            let unstage = parent && file.action.hasPrefix("A")
+            var mode: String?
+            if !unstage {
+                for record in try run(["ls-tree", "-z", revision, "--", path]).stdout.split(separator: 0) {
+                    guard let tab = record.firstIndex(of: 9), Data(record[record.index(after: tab)...]) == Data(path.utf8) else { continue }
+                    mode = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ").first.map(String.init)
+                }
+                guard let mode, ["100644", "100755", "120000", "160000"].contains(mode) else { throw RevisionComparisonFailure.selection }
+            }
+            targets.append(LogFileRevertTarget(path: path, revision: revision, unstageOnly: unstage, root: root, mode: mode))
+        }
+        return targets
+    }
+    /// Checkout changes index/worktree but never moves HEAD. Parent-added paths
+    /// use upstream's rm --cached workaround and retain their working contents.
+    public func revertLogFile(_ target: LogFileRevertTarget, recycle: Bool = true) throws -> [URL] {
+        guard target.root == root, try !isBare() else { throw RevisionComparisonFailure.selection }
+        let location = try restoreLocation(target.path)
+        if target.unstageOnly {
+            _ = try run(["rm", "--cached", "--ignore-unmatch", "--", target.path])
+            return []
+        }
+        let manager = FileManager.default
+        let attributes = try? manager.attributesOfItem(atPath: location.path)
+        let type = attributes?[.type] as? FileAttributeType
+        guard type == nil || [.typeRegular, .typeSymbolicLink].contains(type!) || target.mode == "160000" && type == .typeDirectory else { throw WorkingFileRestoreFailure.unsupported }
+        var trash: [URL] = []
+        do {
+            if recycle, let type, type != .typeDirectory {
+                var moved: NSURL?
+                try manager.trashItem(at: location, resultingItemURL: &moved)
+                if let moved { trash.append(moved as URL) }
+            }
+            // The factory pins a hexadecimal commit ID, so it cannot be an
+            // option. Older supported Git versions lack checkout's delimiter.
+            _ = try run(["checkout", target.revision, "--", target.path])
+            return trash
+        } catch { throw WorkingFileRevertFailure(gitError: error.localizedDescription, wasCancelled: false, trashedFiles: trash) }
     }
     /// Upstream status-list unified diff concatenates each selected file's
     /// patch in visible list order, without including unselected changes.
