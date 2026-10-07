@@ -29,6 +29,9 @@ activate the Finder extension or embed the EditorConfig and issue-matching helpe
 build for those features. The unsigned Xcode build verifies compilation and
 bundle structure; it is not a signed distribution.
 
+See [testing](docs/TESTING.md) for the CI receiver sequence, Git compatibility
+checks, process cleanup and verification limits.
+
 ## Implemented first pass
 
 Native Add now uses the upstream file-only progress route and folder checked-list
@@ -398,8 +401,9 @@ controls and context commands still missing. Checkbox mode commits the current
 whole-file contents of checked paths; staging mode commits **all** staged changes,
 including files outside the current view. Highlighted rows do not select commit
 contents. [Commit parity details](docs/COMMIT-PARITY.md) track remaining options. Authentication uses existing credential helpers / SSH configuration; there is
-no native credential prompt yet. Interactive hooks, Git editors, signing prompts,
-cancellation and live streaming progress are not implemented. Conflicts remain
+no native credential prompt yet. Commit's cancellable progress window and
+interactive hook/editor/signing prompts remain incomplete; cancellation in other
+operations is tracked in their individual parity documents. Conflicts remain
 visible in the status list. Regular Unicode text conflicts can be resolved in the
 native three-pane editor; unsupported formats still require another tool. The
 merged result offers the upstream nine-style line-ending conversion submenu

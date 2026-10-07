@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "b30dd4a",
+  "scope": "Local macOS CI receiver audit, upstream Bisect icon regression, isolated Worktree signing fixture, and testing/port-tracking documentation",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "README.md": "d3ef0bd8d646333e741b578776c3b1d6ecf615e3c9bd12e057e9a19a1151a3dd",
+    "docs/TESTING.md": "ce1cb143483ddd022679d729eef5fd0e979fdd5e8b39f1267bcf0d88da0f9f4b",
+    "docs/PORTING.md": "78b4b6ceb5cf9df28d241992ca25599555d9ea7a8ffe6171ac1e22abcf12be74",
+    "docs/UI-PARITY.md": "572b273afc50eb0afd7e121a7d449a0abc54eac55be0a9fca44146687219daba",
+    "scripts/test-worktree-dialog.py": "aed2f406de8aa5b7c95c967edd817d5bbe828bb65413896d401a1ced6b4a64c3",
+    "Tests/TurtleGitCoreTests/MenuIconTests.swift": "545f7518b48880ee7fb2ec9db8863dc77cd3823e3f67c3e5e4ea6264a8da31c1"
+  },
+  "upstream_evidence": {
+    "path": "src/TortoiseShell/MenuInfo.cpp",
+    "lines": [
+      116,
+      125
+    ],
+    "sha256": "ccf7b606c32dceef416a1a75347ff8ee0b8721436fd0891baa441d55f1256f20",
+    "finding": "Both BisectStart and BisectSkip use IDI_BISECT. Keep the shared app mappings; assert them explicitly and exclude those aliases from unrelated icon uniqueness."
+  },
+  "verification": {
+    "native_scripts": "All four workflow receivers passed locally: Worktree dialog, Advanced Settings, Add dialog, Finder menu. No windows displayed or Finder extension activated.",
+    "worktree_signing": "Before fix: isolated GIT_CONFIG_GLOBAL with commit.gpgsign=true and a deliberately nonexistent signing executable caused fixture commit code 128. After fix: the exact receiver passed with the same inherited settings; fixture-local commit.gpgsign=false. Global user settings untouched.",
+    "core_before": "swift test --skip-build: 587 tests, one failure in MenuIconTests (31 distinct icons versus 33 actions).",
+    "core_after": "Fresh swift test rebuilt production and test targets: all 587 tests passed with zero failures. Includes actual AppKit artwork decoding and explicit upstream Bisect Start/Skip shared-icon assertions.",
+    "provider": "Exact workflow script passed after the full suite released its SwiftPM lock. Actual NSItemProvider historical file/folder receivers verified pinned bytes, unchanged HEAD/index/working files and owned export cleanup; no app/Finder launched.",
+    "bundles": "Existing unsigned Debug and AppStore bundles passed both validators, Store --require-git, and exact NOTICE comparisons. No production Sources changed in this checkpoint; no new Xcode build required.",
+    "site": "Local site generation passed; not published.",
+    "limits": "Hosted GitHub Actions results were not inspected or confirmed. No new displayed light/dark/keyboard/VoiceOver, activated Finder, signed sandbox, App Store distribution or screenshot acceptance. Full TortoiseGit port remains incomplete.",
+    "environment": "swift --version\nswift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0\nxcodebuild -version\nXcode 26.6\nBuild version 17F113\nsw_vers -productVersion\n26.5.1\n/usr/bin/git --version\ngit version 2.50.1 (Apple Git-155)\ngit -C .upstream/TortoiseGit rev-parse HEAD\n7338078f8ddd924b8cddee35f512f2286072136d\n",
+    "process_audit": "No main app or owned Worktree/Advanced/Add/Finder/provider receiver remained after the checks."
+  },
+  "remaining": "Complete all upstream behaviors/dialogs and shared menu consumers; displayed UI/gesture parity; Finder activation; signed App Store runtime/distribution acceptance; documentation completion and site publication.",
+  "all_sources_manifest_sha256": "ac1eff37158dc2f59e717fb3def53dde1979c04eade3d9fee0150670eeaef617",
+  "logs": {
+    "build/qa/ci-native-dialogs/core-tests-before.log": "461c39acfebeb81c73b09d85e51b25c1f518855142cea4ecd3bab918ae7103ec",
+    "build/qa/ci-native-dialogs/core-tests.log": "a85dd416d31622f2d9c81d062610aff8e35271345acd78646a01f86497c60e79",
+    "build/qa/ci-native-dialogs/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/ci-native-dialogs/environment.log": "3e3785274d293d38c56253efb8769247b75fca44aef38d51e1fa491c04372e7f",
+    "build/qa/ci-native-dialogs/provider-lock-wait.log": "1776366c0e70a5dafcabd841b6a44ecedceda3193c9bf6e897c8cd00a4875d2c",
+    "build/qa/ci-native-dialogs/provider.log": "b4e19b5ec45fb8e4a2f82b19346aabf0e0165d31d88ab9e44681140e959efb5e",
+    "build/qa/ci-native-dialogs/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/ci-native-dialogs/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/ci-native-dialogs/test-add-dialog.py.log": "1ae6a22cd66bf9c21cf29284668d27c6969966c91396d6940e176e7a0e406e35",
+    "build/qa/ci-native-dialogs/test-advanced-settings.py.log": "7f2945ee8f7c359afe185b1c97a02238866c0fcd222c3ddf318dd7d16b8909fe",
+    "build/qa/ci-native-dialogs/test-finder-menu.py.log": "8e186ff4278273487e597b34f9f2a7e45844e90496123f13eae216c4b26f5467",
+    "build/qa/ci-native-dialogs/test-worktree-dialog.py.log": "60a542b456cb851538d33502ecf08cd63c1a2d410f8b8215a23877316434fcb0",
+    "build/qa/ci-native-dialogs/worktree-signing-after.log": "60a542b456cb851538d33502ecf08cd63c1a2d410f8b8215a23877316434fcb0",
+    "build/qa/ci-native-dialogs/worktree-signing-before.log": "4baecd273ee38dad4a3028a471a65cb8ae4f1ee6f345b8deaad2240540d0ad86",
+    "build/qa/ci-native-dialogs/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

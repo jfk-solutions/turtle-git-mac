@@ -41,7 +41,10 @@ final class MenuIconTests: XCTestCase {
         XCTAssertEqual(RepositoryAction.clearComparisonMark.icon, RepositoryAction.diff.icon)
         XCTAssertEqual(RepositoryAction.worktreeCreate.icon, RepositoryAction.branch.icon)
         XCTAssertEqual(RepositoryAction.worktreeList.icon, RepositoryAction.branch.icon)
-        let distinctActions = RepositoryAction.allCases.filter { ![.worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
+        // The pinned shell MenuInfo.cpp assigns IDI_BISECT to both Start and Skip.
+        XCTAssertEqual(RepositoryAction.bisectStart.icon, RepositoryAction.bisect.icon)
+        XCTAssertEqual(RepositoryAction.bisectSkip.icon, RepositoryAction.bisect.icon)
+        let distinctActions = RepositoryAction.allCases.filter { ![.bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

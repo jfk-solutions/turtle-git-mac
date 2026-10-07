@@ -25,6 +25,7 @@ struct TestScopes: RepositoryBookmarkProvider {
 
 @main struct WorktreeDialogVerification {
     @MainActor static func main() async throws {
+        NSApplication.shared.setActivationPolicy(.prohibited)
         let folder = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
         let root = folder.appendingPathComponent("main")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -32,6 +33,8 @@ struct TestScopes: RepositoryBookmarkProvider {
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Dialog QA"])
         _ = try await repo.run(["config", "user.email", "qa@example.invalid"])
+        // Fixture commits must not launch or depend on a user's signing agent.
+        _ = try await repo.run(["config", "commit.gpgsign", "false"])
         _ = try await repo.run(["commit", "--allow-empty", "-m", "Initial"])
         _ = try await repo.run(["tag", "v1"])
         _ = try await repo.run(["branch", "available"])
@@ -234,7 +237,6 @@ struct TestScopes: RepositoryBookmarkProvider {
         print("Actual native model: defaults, local/remote/tag/commit suggestions, forced detach, mutual exclusion and creation callback passed.")
     }
     @MainActor static func verifyColumns(_ model: WorktreeListWindowModel) async throws {
-        NSApplication.shared.setActivationPolicy(.prohibited)
         let suite = "TurtleGit.WorktreeColumns.Test." + UUID().uuidString
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
