@@ -12,6 +12,11 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: PushDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
         model.close = { [weak window] in window?.close() }
+        model.confirmPush = { [weak window] message, allBranches, deletion, choose in
+            guard let window, window.attachedSheet == nil else { choose(false, false); return }
+            let alert = Self.submissionAlert(message: message, allBranches: allBranches, deletion: deletion)
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn, alert.suppressionButton?.state == .on) }
+        }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational
@@ -21,6 +26,16 @@ import TurtleGitCore
             yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
+    }
+    static func submissionAlert(message: String, allBranches: Bool, deletion: Bool) -> NSAlert {
+        let alert = NSAlert(); alert.alertStyle = deletion ? .warning : .informational
+        alert.messageText = message
+        let yes = alert.addButton(withTitle: "Yes"), no = alert.addButton(withTitle: "No")
+        if allBranches {
+            yes.keyEquivalent = ""; no.keyEquivalent = "\r"; alert.window.defaultButtonCell = no.cell as? NSButtonCell
+            alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Don't show this message again"
+        } else { yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell }
+        return alert
     }
     func windowWillClose(_ notification: Notification) { onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -52,6 +67,7 @@ import TurtleGitCore
     @Published var managingRemotes = false
     @Published var error: String?
     @Published var confirmation: String?
+    var confirmPush: (String, Bool, Bool, @escaping (Bool, Bool) -> Void) -> Void = { _, _, _, _ in }
     @Published var browsingDestination: Bool?
     var clipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
     var close: () -> Void = {}
@@ -61,6 +77,7 @@ import TurtleGitCore
     var urlHistoryKey: String { "History.PushURLS." + repository.root.path }
     var destinationHistoryKey: String { "History.RemoteBranch." + repository.root.path }
     var pushOptionHistoryKey: String { "History.PushOption." + repository.root.path }
+    var submodulePreferenceKey: String { "History.PushRecurseSubmodules." + repository.root.path }
     var canSave: Bool { !options.arbitraryURL && !options.allRemotes && !options.allBranches && localBranch != nil && !options.setUpstream }
     var canTrack: Bool { !options.arbitraryURL && (options.allBranches || localBranch != nil) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
@@ -77,7 +94,10 @@ import TurtleGitCore
                 let current = try await repository.branch()
                 options.source = source ?? (current.isEmpty ? "HEAD" : "refs/heads/" + current)
                 options.allBranches = source == nil && preferences.bool(forKey: key + ".allBranches")
+                options.allRemotes = remotes.count > 1 && preferences.bool(forKey: key + ".allRemotes")
                 options.submodules = await repository.pushSubmoduleDefault()
+                if let stored = preferences.object(forKey: submodulePreferenceKey) as? NSNumber,
+                   PushSubmodules.allCases.indices.contains(stored.intValue) { options.submodules = PushSubmodules.allCases[stored.intValue] }
                 let defaults = try await repository.pushDefaults(source: options.source)
                 options.remote = defaults.remote; loadDestination(defaults.destination); options.setUpstream = defaults.setUpstream; localBranch = defaults.localBranch
                 if options.remote.isEmpty, let saved = preferences.string(forKey: key + ".remote"), remotes.contains(saved) { options.remote = saved }
@@ -139,27 +159,43 @@ import TurtleGitCore
             }
         } else { stop() }
     }
+    private func askToPush(_ message: String, allBranches: Bool, deletion: Bool) {
+        confirmation = message
+        confirmPush(message, allBranches, deletion) { [weak self] proceed, remember in
+            guard let self else { return }
+            self.confirmation = nil
+            // PushDlg explicitly remembers Yes even when this invocation chose No.
+            if allBranches && remember { self.preferences.set(true, forKey: "PushAllBranches") }
+            if proceed { self.push(confirmed: true) }
+        }
+    }
     func push(confirmed: Bool = false) {
-        guard !busy else { return }
+        guard !busy, confirmed || confirmation == nil else { return }
         if !confirmed {
-            if options.allBranches { confirmation = "Push all local branches to the selected destination?"; return }
-            if options.source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                confirmation = options.destination.isEmpty ? "Push using this destination's configured refspecs?" : "Delete the remote reference \(options.destination)?"; return
+            let source = FetchDialogHistory.trim(options.source), destination = FetchDialogHistory.trim(options.destination)
+            if options.allBranches && !preferences.bool(forKey: "PushAllBranches") {
+                askToPush("Do you really want to push all local branches?", allBranches: true, deletion: false); return
+            }
+            if !options.allBranches && source.isEmpty {
+                askToPush(destination.isEmpty ? "The local branch name and the remote branch name are empty.\nContinue?" : "The local branch/tag name is empty. This results in a remote removal.\nContinue?", allBranches: false, deletion: !destination.isEmpty); return
             }
         }
+        confirmation = nil
         var snapshot = options
         snapshot.source = FetchDialogHistory.trim(snapshot.source); snapshot.destination = FetchDialogHistory.trim(snapshot.destination)
         if snapshot.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url) }
         let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
         busy = true
-        preferences.set(snapshot.allBranches, forKey: key + ".allBranches")
-        if !snapshot.arbitraryURL && !snapshot.allRemotes { preferences.set(snapshot.remote, forKey: key + ".remote") }
         Task {
             defer { cancellation = nil; cancelling = false; confirmingCancellation = false; busy = false }
             do {
                 try await repository.validatePushOptions(snapshot, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 saveHistories(snapshot)
+                preferences.set(snapshot.allBranches, forKey: key + ".allBranches")
+                preferences.set(!snapshot.arbitraryURL && snapshot.allRemotes, forKey: key + ".allRemotes")
+                preferences.set(PushSubmodules.allCases.firstIndex(of: snapshot.submodules)!, forKey: submodulePreferenceKey)
+                if !snapshot.arbitraryURL && !snapshot.allRemotes { preferences.set(snapshot.remote, forKey: key + ".remote") }
                 let output = try await repository.push(snapshot, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 onPushed(output); close()
@@ -228,7 +264,6 @@ private struct PushDialog: View {
         .onChange(of: model.options.allBranches) { _ in model.adjustSettings() }
         .onChange(of: model.options.setUpstream) { _ in model.adjustSettings() }
         .alert("Push failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
-        .alert("Confirm push", isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.confirmation = nil } })) { Button("Continue") { model.confirmation = nil; model.push(confirmed: true) }; Button("Cancel", role: .cancel) {} } message: { Text(model.confirmation ?? "") }
         .sheet(isPresented: $model.managingRemotes) { PushRemoteSettings(model: model) }
         .sheet(isPresented: Binding(get: { model.browsingDestination != nil }, set: { if !$0 { model.browsingDestination = nil } })) { PushReferenceChooser(model: model, destination: model.browsingDestination == true) }
     }

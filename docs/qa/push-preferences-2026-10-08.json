@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "f83a15f040d0097fbebfb0f9e8d1fc94eb894888",
+  "scope": "Push saved AllRemotes/submodule recursion choices and source Yes/No/default/suppression submission questions. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/PushDlg.cpp": "9fc65e54a987e17aece767b750732f723d97becc",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "d708361359868251b979597197444993f709fb3aa39de0ced188dbffcbbaa85b",
+    "NOTICE": "58240690be3e8fb0571a116df234373503a14487fc4b116c0768902277a3f53a",
+    "Sources/TurtleGitMac/PushWindow.swift": "c9c260ca2d3716c87ec86fe192e5d4e93073e12cfbf6f885b62eb12079a3d9e4",
+    "docs/PUSH-PARITY.md": "3c62ab0d5d62b4f874cb347c9c11abdcd0d9d06b6832f6ba1dfe647d2f2e53d0",
+    "docs/qa/push-preferences-native-2026-10-08.swift": "8630b3089943c06e420dc2a77d01d784af0b18f92a42156b0aa578d7ec7e2b31",
+    "docs/upstream-files.csv": "6d96f1dc428a1b0405e69334f166fa39ce304b84897e9eb5a10ddaf4b852110a",
+    "scripts/test-push-preferences.py": "c71068457ede7cd09c89cbe2023316552ada661adb2e234e4915587168dc5e28"
+  },
+  "all_sources_manifest_sha256": "dd1ffa0d97c5bbeb3d207e5d6ec7f3b3da0ca6e6c35718a2941454ce640aa061",
+  "verification": {
+    "core": "All eight selected existing Push tests passed. Core unchanged; these check transport/validation/partial remotes and related Git behavior, not native preference or alert interaction.",
+    "native": "Preference receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Config/saved recursion precedence, invalid native index fallback, repository isolation, multi-remote restoration, single-remote fallback, explicit-source AllBranches override and invalid-submission non-persistence checked. All-branch No+remember stops current invocation and stores future Yes; a subsequent actual all-branch push sends a newly-created fixture branch without another question. Exact both-empty/removal text and flags delivered to injected No callbacks. Real native NSAlerts built without display verify Yes/No order, return-key defaults, suppression text and deletion warning style, then close. This is model/Git/native-alert construction evidence, not displayed-sheet activation or screenshots.",
+    "history_regression": "Existing four-Git native Push history matrix passed after moving preference saves behind confirmation/validation. Real URL/named pushes and deletion, histories/exclusions/failure persistence/snapshot values and hidden combo checks retained.",
+    "iterations": "Core, Debug, both native matrices and Store passed without a runtime failure. Alert factory extracted for inspection of actual native construction; fixture new branch proves a real subsequent suppressed push rather than relying on equal remote refs.",
+    "builds": "Unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified; Store --require-git checked 11 universal Git Mach-O files and fixture operations; EditorConfig/IssueRegex audits passed.",
+    "documentation": "Push parity, source inventory and NOTICE updated. Inventory pin regression and seven-column CSV validation passed. Local site generated, unpublished.",
+    "ci": "Native preference receiver added to macOS workflow. Hosted CI/push remain unverified; authentication unavailable, no retry.",
+    "processes": "All core/compiler/native/audit sessions terminal. No main app or displayed sheets launched. Owned hidden alert/combo windows closed. Final app/receiver process audit empty. Four empty owned PushPreferences and four empty owned PushHistory QA UUID preference files removed; unrelated preferences retained.",
+    "limitations": "Physical Yes/No/default/Escape/suppression and sheet/window-close interaction, real submodule recursion/network hooks/authentication, complete remote/default selection, source corrupt-registry equivalence, accessibility/theme and signed sandbox execution remain pending. Invalid native preference values deliberately fall back to Git config; exact Windows out-of-range registry behavior not claimed. Full application/dialog parity, Finder activation, genuine updated screenshots/full manual, hosted publication and signed App Store distribution/license clearance remain incomplete."
+  },
+  "logs": {
+    "build/qa/push-preferences/core.log": "37f67a59685df44c9938393fb487198b2293ecfc1f2e1b40b684050e7476e92f",
+    "build/qa/push-preferences/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/push-preferences/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-preferences/history-native.log": "c51fd1957a6034a1c995bd5d32750ab62307a9702e81874978b472a72d53a018",
+    "build/qa/push-preferences/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/push-preferences/native.log": "bea074d5e1f948210e608f38b1e0c0e1705e6a4333fe6b353a60b73b986bc709",
+    "build/qa/push-preferences/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/push-preferences/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-preferences/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/push-preferences/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/push-preferences/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

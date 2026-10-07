@@ -52,7 +52,7 @@ Force-with-lease enablement was checked in the running window. Actual captures a
   partial configuration failures need recovery. Native Fetch QA opened the shared Manage sheet, read a selected remote
   and closed it; mutation/recovery interaction checks remain pending.
 - History deletion/completion acceptance, local-reference history/chooser parity,
-  complete preference and size persistence.
+  remaining preference controls and size persistence.
 - Native all-remotes/all-branches/deletion, submodule and server-option QA,
   keyboard, resize, light appearance and accessibility checks.
 - Signed sandbox/App Store runtime and network credential access verification.
@@ -132,3 +132,39 @@ are headless model/Git/hidden-control checks; physical dropdown editing/completi
 Shift-Delete history removal, source locale trim/case equivalence, user pasteboard,
 keyboard/theme/VoiceOver and signed sandbox acceptance remain pending. Full Push
 and application parity remain incomplete.
+
+
+## Remembered options and source submission questions
+
+Push now remembers All Remotes per repository and restores it only while more
+than one remote is available. An explicitly supplied source still overrides saved
+All Branches; it does not clear All Remotes. The submodule-recursion dropdown
+starts with `push.recurseSubmodules` unless a saved repository choice overrides it.
+The source stores indices 0/1/2 for None/Check/On-demand; native preferences use
+the same order. Absent or invalid native values fall back to Git config. Accepted
+submissions save these choices before transport, including failed transport;
+validation failure and an unanswered/No confirmation do not save them. URL mode
+saves All Remotes false. Full source remote-selection/config-default behavior
+and out-of-range registry equivalence are not established by this mapping.
+
+Submission questions now use native Yes/No sheets and exact source text. All
+Branches asks **Do you really want to push all local branches?**, defaults to No
+and offers **Don't show this message again**. Empty source/destination asks the
+source both-empty question with Yes as default. Empty source with a destination
+asks the source remote-removal question, also defaulting to Yes, with warning
+style. The all-branches suppression choice is app-wide (`PushAllBranches`),
+matching the source remembered-answer scope. Source PushDlg explicitly remembers
+Yes when No plus suppression is selected: that invocation stops, while later
+all-branch submissions proceed without repeating the question. No suppression is
+offered for deletion/both-empty.
+
+[Preferences QA](qa/push-preferences-2026-10-08.json) records configured/saved
+recursion precedence, repository isolation, multiple/single remote restoration,
+explicit-source override, invalid-submission non-persistence, exact question
+callbacks and No-with-suppression followed by a real successful all-branch push.
+Real native NSAlerts are constructed without display to inspect Yes/No ordering,
+return-key defaults, suppression text and deletion style, then closed. The four-Git
+history matrix also runs against the new preference-save gate. Physical modal
+interaction, Escape/default-button activation, sheet/window close, real submodule
+recursion, accessibility/theme and signed sandbox acceptance remain pending.
+Full Push and application parity remain incomplete.

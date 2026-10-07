@@ -425,3 +425,8 @@ adapt PushDlg::OnInitDialog/GetRemoteBranch/OnBnClickedRd/OnBnClickedOk and
 HistoryCombo under the upstream source license. Repository-scoped macOS
 preferences replace registry histories; existing native editable combos and
 Unicode clipboard parsing retain source ordering and submission exclusions.
+
+Push saved AllRemotes/RecurseSubmodules choices and native Yes/No submission
+questions adapt PushDlg::OnInitDialog/Refresh/OnBnClickedOk and source resources.
+The all-branches suppression choice retains the upstream remembered-Yes behavior
+even when No cancels the current submission; native alerts replace MessageBox.
