@@ -853,6 +853,7 @@ import TurtleGitCore
         let root = repository.root
         let controller = referenceLogWindows[root.path] ?? ReferenceLogWindowController(repository: repository, access: access, reference: reference)
         controller.onClosed = { [weak self] in self?.referenceLogWindows.removeValue(forKey: root.path) }
+        controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -982,7 +983,7 @@ import TurtleGitCore
     private func refreshRepositoryLogs(_ root: URL) {
         for log in logWindows.values where log.model.repository.root == root && !log.model.isInvalidated { log.model.requestRepositoryRefresh() }
     }
-    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil) {
+    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil) {
         let root = repository.root
         let key = root.path + (endRevision.map { "\0" + $0 } ?? "") + (paths.isEmpty ? "" : "\0paths\0" + paths.sorted().joined(separator: "\0"))
         let controller = logWindows[key] ?? LogWindowController(repository: repository, access: access)
@@ -1051,6 +1052,7 @@ import TurtleGitCore
         let location = paths.count == 1 ? root.lastPathComponent + "/" + paths[0] : root.lastPathComponent
         controller.window?.title = location + " – Log Messages" + (endRevision.map { " at " + $0.prefix(7) } ?? "") + " – TurtleGit"
         controller.model.setPathScope(paths)
+        if let selectedRevision { ReferenceLogWindowModel.configureRevisionLog(controller.model, revision: selectedRevision) }
         controller.model.reload()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

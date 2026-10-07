@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "e565a7d1ed53651d70388007f80acdfdcf6a8adc",
+  "scope": "RefLog ordinary activation and Show log immutable-revision handoff, Full data/SHA-1/Messages clipboard submenu and shared Log date presentation. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/refloglist.cpp": "c1fb07f5fa8bf318d436fbb877656944b8d2f008",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/Git/GitRevLoglist.cpp": "252a5b591b9d5ee7c46539b9f6bfb74235d6845c",
+    "src/Resources/TortoiseLoglistCommon.rc2": "a174ae27ca959c289076127e729f58ba37bd2fd6"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "3bb3a0b72b1821f6d2666d1a950c6793f0307fd7962a8f3a812fd32f6abe6aee",
+    "NOTICE": "cfd072dbe3e8ba1590e032df5016f4005d2870672e4ccdce524afb6ac02cfba2",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "a9dc205f6ae3d4c3fdb5e1cf51ea61faa1f1329f878b64792eaeef0729a43db3",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "2b2c6ca946721c890159e9765c26c61a0ba81f5d9b0123980fe0877f9143afff",
+    "docs/REFLOG-PARITY.md": "69e21cc10205817cf94610f1404970f3620d0e263cd8a978a46c913ee7d89efd",
+    "docs/upstream-files.csv": "4db116635a40335fa71d3231bd1195bd2d52ede54dee116460acded24fe8cdbd",
+    "scripts/test-reflog-actions.py": "4e7c12f49d79e51bd3eaa9e785ecbc2a747e03c59d0684adeee76b94f8524bb2",
+    "docs/qa/reflog-actions-native-2026-10-08.swift": "a06ef95375b724536c4f68bb9b1a0154c6fd34c45cc14868e5081ac4e31453a6"
+  },
+  "all_sources_manifest_sha256": "638c14d87c611d8003085d6dcdc03512afbdaa02fe6ffc5772207dda25ec4727",
+  "verification": {
+    "native": "System Git and Git 2.37.1, 2.39.5 and bundled 2.55.0 passed. Real RefLog first-selected ordinary activation and exact-one Show log callbacks/busy/empty/invalid gates. Production scoped-Log configuration helper loads the older immutable revision, retains selected hash, clears text/date filters, excludes working tree/newer commits and removes file scope. Chooser activation still accepts exactly one and does not navigate Log. Clipboard text preserves displayed order, repeated hashes, CRLF and Unicode in Full data/SHA-1/Messages; fixed shared date format checked. Actual private NSPasteboard write/read and empty/busy preservation passed. HEAD/index/config/worktree are byte-exact unchanged. No visible UI and no general pasteboard write.",
+    "regression": "Existing RefLog modeless Find receiver passed all four Git versions against final sources, including actual hidden Find ownership, direct constructed F3/F5 handler inputs, cursor/wrap/case searches and parent cleanup. No events sent to an app.",
+    "iterations": "Initial Debug passed. Review added text/date-filter reset for scoped Log and rebuilt Debug before native runs. Both final native matrices passed first run. No failed iteration.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "core": "No Core source change; native receiver uses existing Core history/date/RefLog methods with real Git. No new Core suite run in this checkpoint.",
+    "documentation": "RefLog parity and source inventory updated with precise callback/model/pasteboard evidence and remaining physical acceptance. NOTICE attribution added. Inventory pin and seven-column CSV validation passed; local documentation site generated, unpublished.",
+    "ci": "Native RefLog actions receiver added to macOS workflow. Hosted CI and push remain unverified; authentication unavailable, no retry.",
+    "processes": "All build/compiler/native/audit sessions terminal. No main GUI launch. Find regression windows remain hidden and owned windows close. Final app/native receiver process audit empty. No owned RefLogActions preference files found after private-domain cleanup; unrelated preferences retained. Private pasteboards released globally, general clipboard untouched.",
+    "limitations": "Repository-window Log handoff/reuse/independent close, physical row activation and context icon/submenu rendering remain unverified. Choosers without an onLog callback disable Show log; full chooser Log handoff remains pending. Shared date formatting is fixed-format tested; physical locale/relative/short-long rendering and broader existing-filter combinations remain pending. Complete revision menus/general reflog deletion, sorting/columns/geometry, signed sandbox access, Finder activation, full dialog parity, updated genuine screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-actions/cleanup.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "build/qa/reflog-actions/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-actions/debug-before-filter-reset.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-actions/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-actions/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-actions/native.log": "97428e5411499329dd8ee55d1d21ade9272199e419a77a292ad3c11c7fc616ae",
+    "build/qa/reflog-actions/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-actions/search-regression.log": "bb43be836614074d56fd52a9bd466622b61a7327764bbee4c716a37067461ad1",
+    "build/qa/reflog-actions/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-actions/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-actions/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-actions/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

@@ -20,12 +20,12 @@ the underlying snapshot. Clear stash is hidden for other refs and disabled when
 the stash list is empty. The window and controls disable while repository work
 runs, retaining the repository access lease.
 
-Stash context menus provide selected Apply, Delete, unified-diff inspection and
-Copy hash using the original icons. Selected Apply passes the displayed commit
+Stash context menus provide Show log, selected Apply, Delete, unified-diff
+inspection and Copy to clipboard using the original icons. Selected Apply passes the displayed commit
 hash to the native restore controller, preventing a later stash-index change from
 redirecting that selection. Inspection uses the first-parent diff and full commit
-metadata. General reflog entries currently offer inspection and hash copying;
-the rest of upstream's revision actions remain pending.
+metadata. General reflog entries currently offer Log navigation, inspection and
+the three clipboard formats; other revision actions remain pending.
 
 Deletion and Clear prompt with Abort/Delete. Before executing either, the core
 reloads the complete stash reflog and compares it with the displayed snapshot.
@@ -63,7 +63,8 @@ Apply, inspection and Delete Abort checks above were completed.
 ## Remaining
 
 - Complete revision/ref context menus and deletion for non-stash reflogs.
-- Chooser double-click, multi-selection rejection and normal stash-mode regression QA.
+- Physical row activation/chooser double-click and normal stash-mode regression QA;
+  headless selection-mode rejection is checked in the actions receiver below.
 - Physical modeless Find focus, F3/F5 routing, scroll-to-match and broader
   Unicode search acceptance; the native receiver checks are recorded below.
 - Native multi-selection Delete execution, Clear execution, clipboard verification
@@ -77,8 +78,8 @@ Apply, inspection and Delete Abort checks above were completed.
 RefLog now supports an optional selection callback. In this mode OK accepts exactly
 one entry's immutable hash; Cancel returns no entry, and primary row activation
 accepts the selection. Stash mutation controls and model methods are disabled while
-choosing a revision. The normal window continues to use OK/Cancel to close and row
-activation for inspection. Its repository access lease remains retained, and reads
+choosing a revision. The normal window continues to use OK/Cancel to close; its row
+activation now opens scoped Log, as recorded below. Its repository access lease remains retained, and reads
 require the repository's security scope in App Store builds.
 
 Dark native QA opened the chooser from Changed Files, selected the earlier HEAD
@@ -118,3 +119,35 @@ mode search; and byte-exact HEAD/index/config/worktree preservation. No events
 are sent to an application and these checks do not establish physical key routing,
 Find focus, scroll-to-match, rendered light/dark layout or signed sandbox execution.
 The full RefLog/dialog/application port remains incomplete.
+
+## Log navigation and clipboard submenu
+
+Ordinary RefLog row activation now follows `CRefLogList::OnNMDblclkLoglist`: it
+opens Log at the first selected row's immutable hash instead of opening a patch.
+The Show log context action accepts exactly one current row. The repository
+window owner retains/reuses the scoped Log independently of RefLog, so closing
+RefLog leaves that explicitly opened Log available. The handoff retains the
+repository access lease, sets the end revision and selected revision to that hash,
+hides the working-tree row, clears text/date filters and removes file scope.
+Selection-mode activation continues to accept exactly one revision; chooser
+windows without a Log handoff disable that separate context command.
+
+Copy to clipboard now contains **Full data**, **SHA-1**, **Messages**, in source
+order, all using the original Copy icon. Full data exports Revision/Date/Message
+for each selected row. Messages uses `* action: message` followed by a blank line;
+SHA-1 exports one hash per row, retaining repeated hashes for distinct reflog
+selectors. Selection follows the displayed row order. The source CRLF separators
+are retained; empty/stale selection and loading leave the clipboard unchanged.
+The native Unicode pasteboard preserves non-ASCII messages. The Date column and
+Full data share the existing short/long, relative and system-locale Log date
+preferences instead of an independent RefLog date style.
+
+[Actions receiver](qa/reflog-actions-native-2026-10-08.swift) and
+[QA record](qa/reflog-actions-2026-10-08.json) cover real older-revision Log loading,
+selected hash and newer/working-tree exclusion, text/date-filter reset, dispatch
+and chooser guards, ordered Unicode/duplicate-hash clipboard formats, a private
+pasteboard, fixed date formatting and unchanged HEAD/index/config/worktree. The
+receiver never displays windows or modifies the general clipboard. Actual
+menu/icon rendering, physical row activation and window handoff/reuse, locale/
+relative-time date rendering, chooser Log handoff, full revision actions and
+signed sandbox execution remain pending. This is partial RefLog parity.

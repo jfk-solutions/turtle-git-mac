@@ -88,6 +88,7 @@ import TurtleGitCore
     var onChoose: (ReferenceLogEntry) -> Void = { _ in }
     func accept() { if selecting { if !busy, let entry = selectedEntry { onChoose(entry) } } else { close() } }
     var onApply: (String) -> Void = { _ in }
+    var onLog: ((String) -> Void)?
     var onChanged: (String) -> Void = { _ in }
     var confirmDelete: (Int, Bool, @escaping () -> Void) -> Void = { _, _, _ in }
     var close: () -> Void = {}
@@ -140,9 +141,42 @@ import TurtleGitCore
         }
         error = "\"\(find)\" was not found."
     }
-    func copy(_ ids: Set<String>) {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(entries.filter { ids.contains($0.id) }.map(\.hash).joined(separator: "\n"), forType: .string)
+    func activateRows(_ ids: Set<String>) {
+        guard !busy else { return }
+        if selecting { selection = ids; accept() }
+        else if let entry = entries.first(where: { ids.contains($0.id) }) { onLog?(entry.hash) }
+    }
+    func showLog(_ ids: Set<String>) {
+        guard !busy, ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+        onLog?(entry.hash)
+    }
+    static func configureRevisionLog(_ log: LogWindowModel, revision: String) {
+        log.endRevision = revision; log.selected = [revision]
+        log.search = ""; log.useDates = false
+        log.allBranches = false; log.showWorkingTree = false
+        log.historyPaths = []; log.showWholeProject = true
+    }
+    func clipboardText(_ ids: Set<String>, format: ReferenceLogCopyFormat, dates: HistoryDateSettings = .load()) -> String? {
+        let chosen = entries.filter { ids.contains($0.id) }
+        guard !busy, !chosen.isEmpty else { return nil }
+        switch format {
+        case .hashes: return chosen.map(\.hash).joined(separator: "\r\n")
+        case .messages: return chosen.map { "* " + Self.message($0) + "\r\n\r\n" }.joined()
+        case .full: return chosen.map {
+            "Revision: " + $0.hash + "\r\nDate: " + Self.dateText($0, dates: dates) + "\r\nMessage: " + Self.message($0) + "\r\n"
+        }.joined()
+        }
+    }
+    private static func message(_ entry: ReferenceLogEntry) -> String {
+        (entry.action.isEmpty ? "" : entry.action + ": ") + entry.message
+    }
+    static func dateText(_ entry: ReferenceLogEntry, dates: HistoryDateSettings = .load()) -> String {
+        guard let date = entry.date else { return entry.timestamp }
+        return dates.format(ISO8601DateFormatter().string(from: date))
+    }
+    func copy(_ ids: Set<String>, format: ReferenceLogCopyFormat = .hashes, pasteboard: NSPasteboard = .general) {
+        guard let text = clipboardText(ids, format: format) else { return }
+        pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
     }
     func inspect(_ ids: Set<String>) {
         guard ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
@@ -152,8 +186,13 @@ import TurtleGitCore
         }
     }
 }
+enum ReferenceLogCopyFormat { case full, hashes, messages }
+
 private struct ReferenceLogDialog: View {
     @ObservedObject var model: ReferenceLogWindowModel
+    @AppStorage("LogDateFormat") private var shortDate = true
+    @AppStorage("RelativeTimes") private var relativeTimes = false
+    @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     var body: some View {
         VStack(spacing: 12) {
             HStack { Text("Ref:"); ReferenceLogPicker(names: model.names, selection: $model.reference).frame(maxWidth: .infinity).frame(height: 26) }
@@ -162,18 +201,23 @@ private struct ReferenceLogDialog: View {
                 TableColumn("Ref", value: \.selector).width(min: 100, ideal: 145)
                 TableColumn("Action", value: \.action).width(min: 80, ideal: 100)
                 TableColumn("Message") { entry in Text(entry.message).help(entry.subject) }.width(min: 160, ideal: 360)
-                TableColumn("Date") { entry in if let date = entry.date { Text(date.formatted(date: .numeric, time: .standard)) } }.width(min: 140, ideal: 175)
+                TableColumn("Date") { entry in if entry.date != nil { Text(ReferenceLogWindowModel.dateText(entry, dates: HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale))) } }.width(min: 140, ideal: 175)
             }.contextMenu(forSelectionType: String.self) { ids in
                 TurtleGitContextMenu {
+                    Button { model.showLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.count != 1 || model.onLog == nil)
                     Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1)
                     if !model.selecting && model.reference == "refs/stash" {
                         Button { model.apply(ids) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }.disabled(ids.count != 1)
                         Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty)
                     }
                     Divider()
-                    Button { model.copy(ids) } label: { CommandLabel(title: "Copy hash", icon: .copy) }.disabled(ids.isEmpty)
+                    Menu {
+                        Button { model.copy(ids, format: .full) } label: { CommandLabel(title: "Full data", icon: .copy) }
+                        Button { model.copy(ids, format: .hashes) } label: { CommandLabel(title: "SHA-1", icon: .copy) }
+                        Button { model.copy(ids, format: .messages) } label: { CommandLabel(title: "Messages", icon: .copy) }
+                    } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }.disabled(ids.isEmpty)
                 }
-            } primaryAction: { ids in if model.selecting { model.selection = ids; model.accept() } else { model.inspect(ids) } }
+            } primaryAction: { ids in model.activateRows(ids) }
             HStack {
                 Button("Search…") { model.openFind() }.keyboardShortcut("f")
                 if !model.selecting && model.reference == "refs/stash" { Button("Clear stash") { model.delete([], clear: true) }.disabled(model.entries.isEmpty) }

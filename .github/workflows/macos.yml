@@ -32,6 +32,8 @@ jobs:
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Native worktree dialog models and Git integration
         run: python3 scripts/test-worktree-dialog.py
+      - name: Native RefLog revision navigation and clipboard
+        run: python3 scripts/test-reflog-actions.py
       - name: Native RefLog modeless Find and function keys
         run: python3 scripts/test-reflog-search.py
       - name: Native Push Log and RefLog source selection

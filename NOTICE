@@ -455,3 +455,9 @@ RefLog modeless Find, function-key dispatch and the ref/action/hash/message sear
 cursor behavior are adapted from RefLogDlg.cpp at the recorded TortoiseGit pin.
 Native macOS Find windows retain a single owner and close with the parent. Search
 uses native Unicode case matching and an accessible wrap message.
+
+RefLog row activation and Show log handoff, and the Full data/SHA-1/Messages
+clipboard submenu and output order, are adapted from refloglist.cpp and
+GitLogListBase.cpp at the pinned TortoiseGit commit. Native scoped Log windows
+retain immutable revisions and existing repository access; RefLog display and
+clipboard dates reuse TurtleGit's shared native Log date preferences.
