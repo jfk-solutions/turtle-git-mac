@@ -445,3 +445,8 @@ Pull/Fetch/Push editable-history deletion adapts HistoryCombo::PreTranslateMessa
 and RemoveSelectedItem under the upstream source license. An enabled native
 dropdown owns Shift+Delete/Shift+Forward Delete; immediate preference saving
 retains list order and source next/previous/empty selection behavior.
+
+Push source Browse References/Log/RefLog menu adapts PushDlg's
+OnBnClickedButtonBrowseSourceBranch under the upstream source license. Existing
+native selection-mode Log and RefLog sheets return immutable commit hashes,
+retaining the repository-access lease; menu icons reuse original artwork.

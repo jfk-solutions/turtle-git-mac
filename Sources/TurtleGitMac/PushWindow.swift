@@ -5,6 +5,8 @@ import TurtleGitCore
 @MainActor final class PushWindowController: NSWindowController, NSWindowDelegate {
     let model: PushWindowModel
     var onClosed: () -> Void = {}
+    private var sourceLogPicker: LogWindowController?
+    private var sourceRefLogPicker: ReferenceLogWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = PushWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 750, height: 590), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -12,6 +14,19 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: PushDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
         model.close = { [weak window] in window?.close() }
+        model.pickSourceLog = { [weak self] in
+            guard let self, let window = self.window, window.attachedSheet == nil, self.sourceLogPicker == nil, self.sourceRefLogPicker == nil else { return }
+            let picker = LogWindowController(repository: repository, access: access, onChoose: { [weak self] entry in self?.model.chooseSourceRevision(entry?.hash) })
+            self.sourceLogPicker = picker; picker.onClosed = { [weak self] in self?.sourceLogPicker = nil }
+            self.model.configureSourceLog(picker.model)
+            if let child = picker.window { window.beginSheet(child) } else { self.sourceLogPicker = nil }
+        }
+        model.pickSourceRefLog = { [weak self] in
+            guard let self, let window = self.window, window.attachedSheet == nil, self.sourceLogPicker == nil, self.sourceRefLogPicker == nil else { return }
+            let picker = ReferenceLogWindowController(repository: repository, access: access, reference: "HEAD", onChoose: { [weak self] entry in self?.model.chooseSourceRevision(entry?.hash) })
+            self.sourceRefLogPicker = picker; picker.onClosed = { [weak self] in self?.sourceRefLogPicker = nil }
+            if let child = picker.window { window.beginSheet(child) } else { self.sourceRefLogPicker = nil }
+        }
         model.confirmPush = { [weak window] message, allBranches, deletion, choose in
             guard let window, window.attachedSheet == nil else { choose(false, false); return }
             let alert = Self.submissionAlert(message: message, allBranches: allBranches, deletion: deletion)
@@ -37,7 +52,15 @@ import TurtleGitCore
         } else { yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell }
         return alert
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        let logPicker = sourceLogPicker, refLogPicker = sourceRefLogPicker
+        sourceLogPicker = nil; sourceRefLogPicker = nil
+        for child in [logPicker?.window, refLogPicker?.window].compactMap({ $0 }) {
+            child.sheetParent?.endSheet(child)
+            child.close()
+        }
+        onClosed()
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard model.transportRunning else { return true }
         model.cancel(); return false
@@ -72,6 +95,8 @@ import TurtleGitCore
     var clipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
     var close: () -> Void = {}
     var onPushed: (String) -> Void = { _ in }
+    var pickSourceLog: () -> Void = {}
+    var pickSourceRefLog: () -> Void = {}
     private var generation = 0
     private var key: String { "Push." + repository.root.path }
     var urlHistoryKey: String { "History.PushURLS." + repository.root.path }
@@ -103,6 +128,20 @@ import TurtleGitCore
                 if options.remote.isEmpty, let saved = preferences.string(forKey: key + ".remote"), remotes.contains(saved) { options.remote = saved }
             } catch { self.error = error.localizedDescription }
         }
+    }
+    func browseSourceHistory(referenceLog: Bool) {
+        guard !busy, !options.allBranches, confirmation == nil else { return }
+        if referenceLog { pickSourceRefLog() } else { pickSourceLog() }
+    }
+    func configureSourceLog(_ log: LogWindowModel) {
+        let source = FetchDialogHistory.trim(options.source)
+        log.endRevision = source.isEmpty ? nil : source
+        log.allBranches = false; log.showWorkingTree = false; log.historyPaths = []; log.showWholeProject = true
+        log.reload()
+    }
+    func chooseSourceRevision(_ hash: String?) {
+        guard !busy, let hash, !hash.isEmpty else { return }
+        options.source = hash; sourceChanged()
     }
     func sourceChanged() {
         generation += 1; let request = generation, source = options.source
@@ -235,7 +274,11 @@ private struct PushDialog: View {
             GroupBox("Ref") { VStack(alignment: .leading, spacing: 8) {
                 Toggle("Push all branches", isOn: $model.options.allBranches)
                 HStack { Text("Local:").frame(width: 115, alignment: .leading); PushRefCombo(value: $model.options.source, choices: ["HEAD"] + model.references.filter { $0.name.hasPrefix("refs/heads/") || $0.remote }.map(\.name), local: true, normalizeSource: true)
-                    Button("…") { model.browsingDestination = false }.accessibilityLabel("Browse local references")
+                    Menu {
+                        Button { model.browsingDestination = false } label: { CommandLabel(title: "Browse References", icon: .repositoryBrowser) }
+                        Button { model.browseSourceHistory(referenceLog: false) } label: { CommandLabel(title: "Log", icon: .log) }
+                        Button { model.browseSourceHistory(referenceLog: true) } label: { CommandLabel(title: "RefLog", icon: .log) }
+                    } label: { Text("…") }.menuStyle(.borderlessButton).fixedSize().accessibilityLabel("Choose local source using references, Log or RefLog")
                 }.disabled(model.options.allBranches)
                 HStack { Text("Remote:").frame(width: 115, alignment: .leading); FetchHistoryCombo(value: $model.options.destination, choices: model.destinationHistory, label: "Remote branch or tag", onDelete: model.deleteDestinationHistory)
                     Button("…") { model.browsingDestination = true }.accessibilityLabel("Browse remote references")

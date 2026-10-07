@@ -47,7 +47,8 @@ Force-with-lease enablement was checked in the running window. Actual captures a
 
 - Streaming progress/separate progress-window layout, interactive authentication/signing, project
   hooks, and failure recovery across network transports.
-- Full Browse References tree and selection-mode Log/RefLog source pickers.
+- Full Browse References tree; physical Log/RefLog source-picker interaction and
+  complete chooser parity. Selection-mode native Log/RefLog are now wired below.
 - Full Remote Settings: multiple URLs, refspecs, proxy and advanced settings;
   partial configuration failures need recovery. Native Fetch QA opened the shared Manage sheet, read a selected remote
   and closed it; mutation/recovery interaction checks remain pending.
@@ -226,3 +227,32 @@ Push's URL, remote-destination and server-option dropdowns now offer immediate
 history deletion with the shared native Shift+Delete receiver. See the deletion
 section in FETCH-PARITY.md for source selection/persistence rules and remaining
 physical popup/event-routing acceptance.
+
+
+## Source selection from Log and RefLog
+
+The local-source ellipsis now opens the source's three choices in order: Browse
+References, Log, RefLog. Original repository-browser/Log artwork is reused in
+these menu rows. Browse References keeps the existing head/tag picker and local
+branch normalization. Log opens the existing native selection-mode Log scoped
+to the current source (empty source uses normal HEAD defaults), with working-tree
+rows hidden. RefLog opens the native HEAD reference log in selection mode,
+matching the source default; its reference chooser remains available.
+
+Accepting either picker copies the selected immutable commit hash into the local
+source and reloads its push defaults/conditional controls. Cancel retains the
+source. Selection does not save histories or execute Push; explicit OK still
+validates and performs transport. The parent retains each picker and its existing
+repository-access lease while the sheet is open; closing the child releases it.
+Closing the parent also ends and closes its owned source picker windows.
+Only one source sheet opens at once. Busy/all-branches/pending-confirmation model
+gates prevent history-menu dispatch.
+
+[Source-picker QA](qa/push-source-pickers-2026-10-08.json) records dispatch guards,
+source-scoped actual history loading without working-tree rows, real Log and HEAD
+RefLog selection callbacks, cancellation retention, hash control/default updates,
+unchanged HEAD/index/config and no remote refs before OK. Explicit Push then
+publishes the selected older commit while retaining local HEAD/index. These are
+headless model/Git checks. Physical menu/sheet accept/Cancel/focus/resize/theme,
+child/parent close lifecycle, full browser parity, accessibility and signed
+sandbox lease execution remain pending. Full Push/application parity incomplete.

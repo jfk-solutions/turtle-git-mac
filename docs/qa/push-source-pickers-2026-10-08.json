@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "8abd3f26a2e4b764acd406582de45d9aa0626fe0",
+  "scope": "Push source menu with Browse References, Log and RefLog, using native selection-mode sheets and immutable commit hashes. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/PushDlg.cpp": "9fc65e54a987e17aece767b750732f723d97becc",
+    "src/TortoiseProc/RefLogDlg.cpp": "e65a202ed236c50d0f9a5174ac34fd29df9e034b"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "9cf11fc9a0bb43e1b3b666247ac649646067da54e1959c599c6c8292ae2df9d1",
+    "NOTICE": "79e5480336eb37049b5fb468ae076cda3500d3b3367cca629d0ff969c917f978",
+    "Sources/TurtleGitMac/PushWindow.swift": "246a01fad822498fd9c0b13823e11008b78ff02aa6c83133856b5f9db0f7855c",
+    "docs/PUSH-PARITY.md": "76bab690ff46a52f6ee24bf7740480e4821e4a5e6058769dace0db3950b5b23a",
+    "docs/upstream-files.csv": "3e85117f6dde698ecff25622caa5220468bdee627a2ef34148f24fbe9e93d7e3",
+    "scripts/test-push-source-pickers.py": "1ab2c919cde7c9127dc981f52eb3c4d1d132ede4b1cf687b9611e26185215edf",
+    "docs/qa/push-source-pickers-native-2026-10-08.swift": "2f07e9ce6a2187ad115bf929358d8d82063196156e992620065734c2c7ed611a"
+  },
+  "all_sources_manifest_sha256": "f4820e30d5fdcac4ab85b68d552007b2013b9cc4dafdb4ae51dd32f9909d122d",
+  "verification": {
+    "native": "System Git and Git 2.37.1, 2.39.5 and bundled 2.55.0 passed the native model receiver. Guarded Log/RefLog dispatch, actual source-scoped Log without working-tree rows, real Log and HEAD RefLog acceptance callbacks, nil/empty cancellation retention, hash default/control updates, no saved history or remote refs before OK, byte-exact HEAD/index/config preservation. Explicit Push publishes the selected older commit and preserves local HEAD/index. No GUI or sheet interaction was exercised.",
+    "iterations": "Initial Debug/audit/four-Git native matrix passed. Added owned picker closure when parent closes, then rebuilt Debug and repeated the four-Git matrix and audit against final production source. No failed iteration. Earlier logs retained.",
+    "builds": "Final unsigned Debug and AppStore builds passed. Both bundle audits and exact bundled NOTICE comparisons passed; all 96 icons, EditorConfig and IssueRegex verified. Store --require-git audit passed for 11 universal Git Mach-O files and real Git fixture operations.",
+    "core": "Core source unchanged; targeted native receiver exercises real Git selection and transport. No new Core suite run in this checkpoint.",
+    "documentation": "Push parity, source inventory and NOTICE updated; inventory pin and seven-column CSV checks passed. Local documentation site generated, unpublished.",
+    "ci": "Native source-picker receiver added to macOS workflow. Hosted CI and publication remain unverified; authentication unavailable, no retry.",
+    "processes": "All compiler/native/audit sessions terminal. No main app launch in this checkpoint. Final app/native receiver process audit empty. Four empty owned UUID preference files removed; unrelated or nonempty files retained.",
+    "limitations": "Physical menu icons/ordering, sheet acceptance/cancellation/focus/resize/theme and child/parent close lifecycle remain unverified. Full reference browser parity, accessibility and signed sandbox lease execution remain pending. Full application/dialog parity, Finder activation, genuine updated screenshots/full manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/push-source-pickers/cleanup.log": "5af6593c2ecf2ff5053c00196d9800ee778f623752958c6666c0d744b478172e",
+    "build/qa/push-source-pickers/debug-audit-before-owner-cleanup.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/push-source-pickers/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/push-source-pickers/debug-before-owner-cleanup.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-source-pickers/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-source-pickers/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/push-source-pickers/native-before-owner-cleanup.log": "b1c0d94e4f9e1bfad2c3fa257c7db9fbc6e3403d65a8ee19c0e3c47f47bdbb58",
+    "build/qa/push-source-pickers/native.log": "b1c0d94e4f9e1bfad2c3fa257c7db9fbc6e3403d65a8ee19c0e3c47f47bdbb58",
+    "build/qa/push-source-pickers/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/push-source-pickers/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-source-pickers/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-source-pickers/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/push-source-pickers/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
