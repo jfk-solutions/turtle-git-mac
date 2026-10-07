@@ -134,7 +134,7 @@ extension GitRepository {
     }
     private func comparisonDetails(_ side: ComparisonRevision) throws -> ComparisonRevisionDetails? {
         guard case .revision(let hash) = side else { return nil }
-        let fields = try run(["show", "--no-patch", "--no-notes", "--format=%h%x00%s%x00%aN%x00%at%x00%ct", hash, "--"]).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
+        let fields = try run(["show", "--encoding=UTF-8", "--no-patch", "--no-notes", "--format=%h%x00%s%x00%aN%x00%at%x00%ct", hash, "--"]).text.trimmingCharacters(in: .newlines).components(separatedBy: "\0")
         guard fields.count == 5 else { throw RevisionComparisonFailure.range }
         return ComparisonRevisionDetails(shortHash: fields[0], subject: fields[1], author: fields[2], authorDate: TimeInterval(fields[3]).map(Date.init(timeIntervalSince1970:)), committerDate: TimeInterval(fields[4]).map(Date.init(timeIntervalSince1970:)))
     }

@@ -79,7 +79,7 @@ extension GitRepository {
             guard checkout != nil else { return (SubmoduleComparisonSide(revision: hash, subject: "not initialized", available: false), 0) }
             guard let hash else { return (SubmoduleComparisonSide(revision: nil, subject: "", available: true), 0) }
             do {
-                let bytes = try run(["-C", location.path, "log", "-1", "--format=%ct%x00%s", hash, "--"]).stdout
+                let bytes = try run(["-C", location.path, "log", "--encoding=UTF-8", "-1", "--format=%ct%x00%s", hash, "--"]).stdout
                 let fields = bytes.split(separator: 0, maxSplits: 1, omittingEmptySubsequences: false)
                 guard fields.count == 2, let time = Int64(String(decoding: fields[0], as: UTF8.self)) else { throw SubmoduleComparisonFailure.unsupported }
                 var subject = Data(fields[1]); if subject.last == 10 { subject.removeLast() }

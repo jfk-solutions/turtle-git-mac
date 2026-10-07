@@ -28,6 +28,25 @@ final class RebaseTests: XCTestCase {
         var plan = try await repo.rebasePlan(options()); plan.entries[0].action = .edit
         return (root, repo, plan)
     }
+    func testLegacyEncodedEditAndSquashMessagesDecodeAndContinue() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["config", "i18n.commitencoding", "windows-1252"])
+        _ = try await repo.run(["config", "commit.cleanup", "verbatim"])
+        _ = try await repo.commitIndex(message: "café original", options: { var o = CommitOptions(); o.amend = true; return o }())
+        var edit = options(); edit.force = true
+        var plan = try await repo.rebasePlan(edit); plan.entries[1].action = .edit
+        let stopped = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertTrue(stopped.state.isEditPause); XCTAssertEqual(stopped.state.message, "café original\n")
+        let result = try await repo.continueRebase(editMessage: "café edited\n"); XCTAssertFalse(result.state.active)
+        let object = try await repo.run(["cat-file", "commit", "HEAD"]).stdout
+        XCTAssertTrue(object.suffix(12).elementsEqual(Data([0x63,0x61,0x66,0xe9,0x20,0x65,0x64,0x69,0x74,0x65,0x64,0x0a])))
+        plan = try await repo.rebasePlan(edit); plan.entries[1].action = .squash
+        let squash = try await repo.startRebase(plan, editorExecutable: editor)
+        XCTAssertNotNil(squash.state.squashMessage); XCTAssertTrue(squash.state.squashMessage?.message.contains("café edited") == true)
+        let finished = try await repo.continueRebase(squashMessage: "café combined\n"); XCTAssertFalse(finished.state.active)
+        let history = try await repo.history(); XCTAssertEqual(history.first?.subject, "café combined")
+    }
+
     func testSessionContextRecoversOriginOptionsAndLegacyFallback() async throws {
         let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         var settings = options(); settings.onto = "upstream"; settings.force = true

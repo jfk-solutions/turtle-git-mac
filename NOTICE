@@ -382,3 +382,10 @@ conflict-hint exemption adapt AppUtils::SaveCommitUnicodeFile and
 MessageContainsConflictHints under the upstream source license. The native
 Commit and Rebase models consume the shared formatter; Git retains its own
 configured final cleanup and commit encoding behavior.
+
+Commit-message encoding aliases and ordered UTF-8 fallback adapt
+UnicodeUtils::GetCPCode/GetMulti under the upstream source license. Native
+CoreFoundation codecs replace Windows conversion APIs. Private encoded message
+files replace UTF-8 argv transport in Commit/Rebase; metadata readers request
+UTF-8 from Git for native string transport. Windows best-fit and uncommon codecs
+still require cross-platform acceptance.

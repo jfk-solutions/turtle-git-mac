@@ -88,6 +88,7 @@ public actor GitRepository {
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Enter a commit message.")
         }
-        return try run(["commit", "-m", message]).text
+        let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
+        return try run(["commit", "-F", messageFile.url.path]).text
     }
 }

@@ -84,6 +84,7 @@ extension GitRepository {
         return tree == (try run(["rev-parse", base + "^{tree}"]).text)
     }
     func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil) throws -> String {
+        let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -93,7 +94,7 @@ extension GitRepository {
         try prepareCommitBranch(options.newBranch)
         try stage(realStage)
         try applySelectedFileModes(fileModes)
-        var args = ["commit", "-m", message]
+        var args = ["commit", "-F", messageFile.url.path]
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
         if options.signOff { args.append("--signoff") }

@@ -47,7 +47,7 @@ extension GitRepository {
             guard let hash else { return (initialized ? "" : "no submodule", initialized, 0) }
             guard initialized else { return ("not initialized", false, 0) }
             do {
-                let text = try run(["-C", url.path, "log", "-1", "--format=%ct %s", hash, "--"]).text.trimmingCharacters(in: .newlines)
+                let text = try run(["-C", url.path, "log", "--encoding=UTF-8", "-1", "--format=%ct %s", hash, "--"]).text.trimmingCharacters(in: .newlines)
                 let parts = text.split(separator: " ", maxSplits: 1, omittingEmptySubsequences: false)
                 guard parts.count == 2, let time = Int64(parts[0]) else { return ("Could not read commit", false, 0) }
                 return (String(parts[1]), true, time)

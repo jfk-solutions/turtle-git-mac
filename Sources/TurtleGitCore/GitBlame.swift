@@ -262,14 +262,14 @@ extension GitRepository {
             return result
         }
         if options.usesCompleteLog {
-            let args = ["log", "--topo-order", format] + (options.usesFollowRenames ? ["--follow"] : [])
+            let args = ["log", "--encoding=UTF-8", "--topo-order", format] + (options.usesFollowRenames ? ["--follow"] : [])
             return try records(run(args + [snapshot.revision, "--", snapshot.path]).stdout).map { $0.0 }
         }
         let hashes = Set(snapshot.lines.map(\.hash)).sorted()
         var entries: [(LogEntry, Int64)] = []
         // Bound argv size for large files with many distinct originating commits.
         for start in stride(from: 0, to: hashes.count, by: 128) {
-            entries += try records(run(["log", "--no-walk=unsorted", format] + Array(hashes[start..<min(start + 128, hashes.count)]) + ["--"]).stdout)
+            entries += try records(run(["log", "--encoding=UTF-8", "--no-walk=unsorted", format] + Array(hashes[start..<min(start + 128, hashes.count)]) + ["--"]).stdout)
         }
         guard Set(entries.map { $0.0.hash }) == Set(hashes), entries.count == hashes.count else { throw GitBlameFailure.format }
         return entries.sorted { lhs, rhs in

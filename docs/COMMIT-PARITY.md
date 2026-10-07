@@ -1395,7 +1395,45 @@ preparation. Native actual commits with `commit.cleanup=verbatim` verify default
 comments, enabled/custom stripping, sanitization on/off, retained draft/history
 and stripped-empty refusal. A real Rebase edit pause verifies continued message
 bytes and unchanged file contents. Programmatic model and hidden settings layout
-are not displayed checkbox or physical keyboard evidence. Non-UTF-8 commit
-encoding, full NUL/tab-only validation, other SaveCommitUnicodeFile callers,
+are not displayed checkbox or physical keyboard evidence. Uncommon-codec and Windows best-fit acceptance, full NUL/tab-only validation,
+other SaveCommitUnicodeFile callers,
 complete squash/checked-conflict combinations, displayed controls/VoiceOver and
 signed sandbox execution remain pending. The full port remains incomplete.
+
+## Encoded commit-message files
+
+Commit and Rebase now send messages through private `-F` files rather than UTF-8
+process arguments. The encoder reads `i18n.commitencoding` and preserves all 156
+ordered aliases from `UnicodeUtils::GetCPCode`; the first case-insensitive match
+wins. Missing/empty/unlisted names retain the source UTF-8 fallback. Recognized
+code pages use installed CoreFoundation codecs and per-line conversion, without
+a BOM. Replacement uses `?`; exact Windows best-fit tables remain under audit.
+Recognized codecs unavailable on macOS report an error. UTF-16/32 aliases are
+rejected because these Windows wide-character API code pages are not supported
+by this message-file conversion path.
+
+Each owned temporary directory is mode 0700 and its message file mode 0600;
+success and failure remove it. The same transport is used by checked-file and
+full-index commits, parent/separate-index amendments, rebase edits, squash
+continuation and the shared ordinary commit API. Encoding is prepared before
+mutating a real branch/index. Git still owns its configured final cleanup and
+encoding header; the native draft and message history retain Unicode text.
+Ordinary commit APIs retain their former final-newline behavior. The raw squash
+continuation API retains the exact supplied ending under verbatim cleanup; the
+native formatter already supplies its source-compatible final newline.
+
+Log, Blame history, comparison and submodule metadata readers explicitly request
+UTF-8 from Git so configured legacy output does not become replacement glyphs in
+native strings. Our Rebase commands temporarily request UTF-8 log output for the
+generated todo/editor metadata. The paused message file itself remains in commit
+encoding and is decoded accordingly; the durable squash-editor configuration
+carries that encoding, with backward-compatible UTF-8 for old records.
+
+[Encoding QA](qa/commit-message-encoding-2026-10-07.json) records fixed byte vectors,
+private-file permissions/removal, actual commit paths and legacy Edit/Squash
+continuation. This is partial encoding parity. Full Windows best-fit/default-byte
+behavior, all recognized codecs and stateful encodings, externally started or
+encoding-changed Rebase sessions, mixed-encoding author headers and RefLog
+subjects, non-UTF-8 templates and other message-file callers still need audit.
+Physical dialogs, signed sandbox execution and the full application port remain
+incomplete.

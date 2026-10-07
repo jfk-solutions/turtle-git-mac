@@ -79,9 +79,10 @@ extension GitRepository {
                 if tracked.contains(source) { stagePaths.append(source) }
             }
         }
+        let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
         try prepareCommitBranch(options.newBranch)
         try stage(stagePaths)
-        var args = ["commit", "--only", "-m", message]
+        var args = ["commit", "--only", "-F", messageFile.url.path]
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
         if options.resetAuthorDate { args.append("--date=now") }
@@ -146,8 +147,9 @@ extension GitRepository {
         if try commitOperation() != nil, options.amend || options.newBranch != nil {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Finish the pending operation before amending or creating a new branch.")
         }
+        let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
         try prepareCommitBranch(options.newBranch)
-        var args = ["commit", "-m", message]
+        var args = ["commit", "-F", messageFile.url.path]
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
         if options.resetAuthorDate { args.append("--date=now") }

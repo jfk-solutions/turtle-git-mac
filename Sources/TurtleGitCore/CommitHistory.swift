@@ -638,7 +638,7 @@ extension GitRepository {
             try cancellation?.check()
             guard (parent.count == 40 || parent.count == 64) && parent.allSatisfy({ $0.isASCII && $0.isHexDigit }) else { throw LogRevertFailure.parent }
             do {
-                let result = try run(["show", "-s", "--no-notes", "--format=%s", parent, "--"], cancellation: cancellation)
+                let result = try run(["show", "--encoding=UTF-8", "-s", "--no-notes", "--format=%s", parent, "--"], cancellation: cancellation)
                 var subject = String(decoding: result.stdout, as: UTF8.self)
                 if subject.hasSuffix("\n") { subject.removeLast() }
                 choices.append(LogParentChoice(number: index + 1, hash: parent, subject: subject))
@@ -694,7 +694,7 @@ extension GitRepository {
         let blob = try run(["hash-object", "-w", "--", file.path]).text.trimmingCharacters(in: .newlines)
         _ = try run(["notes", "--ref=" + note.notesRef, "add", "--force", "--allow-empty", "--reuse-message", blob, note.revision])
         // Refresh the display-ref aggregate used by the existing Log message pane.
-        do { return try run(["show", "-s", "--notes", "--format=%N", note.revision, "--"]).text.trimmingCharacters(in: .newlines) }
+        do { return try run(["show", "--encoding=UTF-8", "-s", "--notes", "--format=%N", note.revision, "--"]).text.trimmingCharacters(in: .newlines) }
         catch { throw CommitNoteFailure.savedButRefreshFailed(error.localizedDescription) }
     }
     /// FF jumps inspect the actual graph, including ancestors omitted by filters/limits.
@@ -739,7 +739,7 @@ extension GitRepository {
         let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
         // Git fixed-string grep is equivalent only for one positive message term.
         let filterInMemory = filtering && (options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
-        var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]
+        var args = ["log", "--encoding=UTF-8", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]
         // Match GetLogCmd: parent rewriting for normal walks, raw full history.
         let rewritesParents = !options.walk.fullHistory
         if rewritesParents { args.append("--parents") }
@@ -788,7 +788,7 @@ extension GitRepository {
         func notes(_ hash: String) throws -> String {
             guard hasNotes else { return "" }
             if let cached = notesCache[hash] { return cached }
-            let value = try historyRun(["show", "-s", "--notes", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
+            let value = try historyRun(["show", "--encoding=UTF-8", "-s", "--notes", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
             notesCache[hash] = value; return value
         }
         var tagCache: [String: String] = [:]
@@ -932,11 +932,11 @@ extension GitRepository {
             return try run(arguments, cancellation: cancellation)
         }
         let hash = try clipboardRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
-        let data = try clipboardRun(["show", "-s", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"]).stdout
+        let data = try clipboardRun(["show", "--encoding=UTF-8", "-s", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00", hash, "--"]).stdout
         guard let entry = LogEntry.parseHistory(data).first, entry.hash == hash else { throw RevisionComparisonFailure.range }
         var text = "Revision: \(hash)\nAuthor: \(entry.author) <\(entry.email)>\nDate: \(dateSettings.format(entry.date))\nMessage:\n\(entry.message)"
         if !text.hasSuffix("\n") { text += "\n" }
-        let notes = try clipboardRun(["show", "-s", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
+        let notes = try clipboardRun(["show", "--encoding=UTF-8", "-s", "--format=%N", hash, "--"]).text.trimmingCharacters(in: .newlines)
         if !notes.isEmpty { text += "----\nNotes:\n\(notes)\n" }
         let refs = try clipboardRun(["for-each-ref", "--format=%(objectname)%00%(*objectname)%00%(refname)%00", "refs/tags/"]).text.components(separatedBy: "\0")
         var index = 0

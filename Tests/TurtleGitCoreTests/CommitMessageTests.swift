@@ -2,6 +2,32 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitMessageTests: XCTestCase {
+    func testSourceEncodingAliasesAndNativeBytes() throws {
+        XCTAssertEqual(CommitMessageEncoding.aliases.count, 156)
+        XCTAssertEqual(CommitMessageEncoding.codePage("WINDOWS-1252"), 1252)
+        XCTAssertEqual(CommitMessageEncoding.codePage("EUC-JP"), 20932, "First duplicate wins")
+        XCTAssertEqual(CommitMessageEncoding.codePage("Arabic"), 709)
+        XCTAssertEqual(CommitMessageEncoding.codePage(""), 65001)
+        XCTAssertEqual(CommitMessageEncoding.codePage("cp1252"), 65001, "Unlisted source alias uses UTF-8")
+        XCTAssertEqual(try CommitMessageEncoding.encode("café €\n", name: "windows-1252"), Data([0x63,0x61,0x66,0xe9,0x20,0x80,0x0a]))
+        XCTAssertEqual(try CommitMessageEncoding.encode("café\n", name: "iso-8859-1"), Data([0x63,0x61,0x66,0xe9,0x0a]))
+        XCTAssertEqual(try CommitMessageEncoding.encode("Привет\n", name: "cp1251"), Data([0xcf,0xf0,0xe8,0xe2,0xe5,0xf2,0x0a]))
+        XCTAssertEqual(try CommitMessageEncoding.encode("日本\n", name: "shift_jis"), Data([0x93,0xfa,0x96,0x7b,0x0a]))
+        XCTAssertEqual(try CommitMessageEncoding.encode("雪\n", name: "unrecognized"), Data("雪\n".utf8))
+        XCTAssertEqual(try CommitMessageEncoding.encode("雪\n", name: "windows-1252"), Data([0x3f,0x0a]))
+        XCTAssertThrowsError(try CommitMessageEncoding.encode("title", name: "utf-16"))
+    }
+    func testEncodedMessageFilesProtectPermissionsAndCleanUp() async throws {
+        let (root, repo) = try await CommitSelectionTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["config", "i18n.commitencoding", "windows-1252"])
+        let file = try await repo.makeCommitMessageFile("café\n")
+        XCTAssertEqual(try Data(contentsOf: file.url), Data([0x63,0x61,0x66,0xe9,0x0a]))
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: file.directory.path)[.posixPermissions] as? NSNumber)?.intValue, 0o700)
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: file.url.path)[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+        file.remove(); XCTAssertFalse(FileManager.default.fileExists(atPath: file.directory.path))
+    }
+
     func testMessageFileFormattingMatchesSourceWhitespaceAndDraftMutation() {
         let raw = " \r\nTitle   \r\n\r\n\r\nBody \t \r\n\r\n "
         let result = CommitMessageFile.format(raw)

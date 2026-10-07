@@ -2878,7 +2878,7 @@ src/Utils/TreePropSheet/PropPageFrameDefault.h,Utils,blob,4493e6408195b54a321c1b
 src/Utils/TreePropSheet/TreePropSheet.cpp,Utils,blob,155c92024c42be1d2fa24a0975be5e688ff57cbb,pending-review,,
 src/Utils/TreePropSheet/TreePropSheet.h,Utils,blob,c42116a21da3fc90dea6b3f7b9b40450ed48998a,pending-review,,
 src/Utils/URLFinder.h,Utils,blob,069cadee1eacb70a6d46ebeaf0933e76c8a3430d,partial,Sources/TurtleGitCore/MessageURLFinder.swift,"Verified pinned blob; native scalar scanner, punctuation/bracket handling, prefixes/email gates, upstream range fixtures and native Commit link/Undo acceptance. Exact unusual PathIsURL and non-ASCII CRT classification pending. See docs/ISSUE-TRACKER-PARITY.md."
-src/Utils/UnicodeUtils.cpp,Utils,blob,3b2c5c97935acdcb139f28e9a6c7c1a17e41b41d,pending-review,,
+src/Utils/UnicodeUtils.cpp,Utils,blob,3b2c5c97935acdcb139f28e9a6c7c1a17e41b41d,pending-review,," All 156 ordered GetCPCode aliases/UTF-8 fallback mapped for Commit/Rebase message files using macOS CF codecs, with fixed byte-vector and runtime transport evidence in docs/COMMIT-PARITY.md. Unavailable codecs, exact Windows best-fit and other utility consumers remain pending."
 src/Utils/UnicodeUtils.h,Utils,blob,62073de87b79c1e6d9594453dbf37b4ba84f4f78,pending-review,,
 src/Utils/UniqueQueue.h,Utils,blob,73dba4a4ac7cc5b4aa3abdeea7de308a365656fb,pending-review,,
 src/Utils/Windows10Colors.cpp,Utils,blob,952793190edeeb0c09c8b09789e706d1941ad2c9,pending-review,,
