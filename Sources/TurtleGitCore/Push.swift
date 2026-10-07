@@ -61,13 +61,17 @@ extension GitRepository {
     public func pushDefaults(source: String) throws -> PushDefaults {
         let names = try remoteNames()
         let symbolic = ((try? run(["rev-parse", "--symbolic-full-name", "--verify", "--end-of-options", source]).text) ?? "").trimmingCharacters(in: .newlines)
-        let branch = symbolic.hasPrefix("refs/heads/") ? String(symbolic.dropFirst(11)) : nil
+        let candidate: String? = source.hasPrefix("refs/heads/") ? String(source.dropFirst(11)) : (!source.hasPrefix("refs/") && !source.hasPrefix("remotes/") ? source : nil)
+        let exactBranch = candidate.flatMap { name in (try? run(["show-ref", "--verify", "--quiet", "--", "refs/heads/" + name])) != nil ? name : nil }
+        let branch = exactBranch ?? (symbolic.hasPrefix("refs/heads/") ? String(symbolic.dropFirst(11)) : nil)
         var remote = branch.map { pushConfig("branch." + $0 + ".pushRemote") } ?? ""
         if remote.isEmpty { remote = pushConfig("remote.pushDefault") }
         if remote.isEmpty, let branch { remote = pushConfig("branch." + branch + ".remote") }
         if !names.contains(remote) { remote = names.count == 1 ? names[0] : "" }
         let destination = branch.map { pushConfig("branch." + $0 + ".pushbranch") } ?? ""
-        let merge = branch.map { pushConfig("branch." + $0 + ".merge") } ?? ""
+        var merge = branch.map { pushConfig("branch." + $0 + ".merge") } ?? ""
+        if merge.hasPrefix("refs/heads/") { merge = String(merge.dropFirst(11)) }
+        else if merge.hasPrefix("refs/") { merge = String(merge.dropFirst(5)) }
         return PushDefaults(remote: remote, destination: destination.isEmpty ? merge : destination,
                             setUpstream: branch != nil && merge.isEmpty, localBranch: branch)
     }

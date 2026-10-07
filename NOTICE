@@ -435,3 +435,8 @@ Push short branch/tag collision validation adapts CGit::IsBranchTagNameUnique
 and PushDlg::OnBnClickedOk under the upstream source license. Exact native
 show-ref lookups replace the libgit2 reference lookup before history/config
 saving and transport; fully qualified ref inputs retain their identity.
+
+Push local source presentation adapts PushDlg::Refresh and BrowseRefsDlg's
+PickRefForCombo normalization, while exact local-branch default lookup and
+tracked-ref stripping adapt CGit::GetRemotePushBranch/StripRefName. Tags retain
+qualified identity; shared native Rebase combo behavior is unaffected.

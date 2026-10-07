@@ -92,7 +92,7 @@ import TurtleGitCore
                 pushOptionHistory = FetchDialogHistory.load(preferences, key: pushOptionHistoryKey, caseSensitive: true)
                 url = ""
                 let current = try await repository.branch()
-                options.source = source ?? (current.isEmpty ? "HEAD" : "refs/heads/" + current)
+                options.source = PushSourcePresentation.normalized(source ?? (current.isEmpty ? "HEAD" : current))
                 options.allBranches = source == nil && preferences.bool(forKey: key + ".allBranches")
                 options.allRemotes = remotes.count > 1 && preferences.bool(forKey: key + ".allRemotes")
                 options.submodules = await repository.pushSubmoduleDefault()
@@ -204,7 +204,7 @@ import TurtleGitCore
         }
     }
     func pick(_ reference: CheckoutReference, destination: Bool) {
-        if !destination { options.source = reference.name; sourceChanged() }
+        if !destination { options.source = PushSourcePresentation.normalized(reference.name); sourceChanged() }
         else {
             for remote in remotes.sorted(by: { $0.count > $1.count }) {
                 let prefix = "refs/remotes/" + remote + "/"
@@ -222,7 +222,7 @@ private struct PushDialog: View {
             Group {
             GroupBox("Ref") { VStack(alignment: .leading, spacing: 8) {
                 Toggle("Push all branches", isOn: $model.options.allBranches)
-                HStack { Text("Local:").frame(width: 115, alignment: .leading); PushRefCombo(value: $model.options.source, choices: ["HEAD"] + model.references.map(\.name), local: true)
+                HStack { Text("Local:").frame(width: 115, alignment: .leading); PushRefCombo(value: $model.options.source, choices: ["HEAD"] + model.references.filter { $0.name.hasPrefix("refs/heads/") || $0.remote }.map(\.name), local: true, normalizeSource: true)
                     Button("…") { model.browsingDestination = false }.accessibilityLabel("Browse local references")
                 }.disabled(model.options.allBranches)
                 HStack { Text("Remote:").frame(width: 115, alignment: .leading); FetchHistoryCombo(value: $model.options.destination, choices: model.destinationHistory, label: "Remote branch or tag")
@@ -347,6 +347,7 @@ struct PushRefCombo: NSViewRepresentable {
     @Binding var value: String
     let choices: [String]
     let local: Bool
+    var normalizeSource = false
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
@@ -357,10 +358,10 @@ struct PushRefCombo: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.updating = true
         defer { coordinator.updating = false }
         coordinator.local = local; coordinator.change = { value = $0 }
-        let values = Array(Set(choices)).sorted(); let labels = values.map { local && $0.hasPrefix("refs/heads/") ? String($0.dropFirst(11)) : $0 }
+        let values = Array(Set(choices.map { normalizeSource ? PushSourcePresentation.normalized($0) : $0 })).sorted(); let labels = values.map { local && $0.hasPrefix("refs/heads/") ? String($0.dropFirst(11)) : $0 }
         if coordinator.values != values { combo.removeAllItems(); combo.addItems(withObjectValues: labels) }
         coordinator.values = values; coordinator.labels = labels
-        let display = local && value.hasPrefix("refs/heads/") ? String(value.dropFirst(11)) : value
+        let display = !normalizeSource && local && value.hasPrefix("refs/heads/") ? String(value.dropFirst(11)) : value
         if combo.stringValue != display { combo.stringValue = display }
         combo.isEnabled = enabled; combo.setAccessibilityLabel(local ? "Local ref or revision" : "Remote branch or tag")
     }
@@ -392,5 +393,15 @@ struct PushRemotePopup: NSViewRepresentable {
     }
     final class Coordinator: NSObject { var values: [String] = []; var change: (String) -> Void = { _ in }
         @objc func changed(_ sender: NSPopUpButton) { guard values.indices.contains(sender.indexOfSelectedItem) else { return }; change(values[sender.indexOfSelectedItem]) }
+    }
+}
+
+/// PushDlg normalizes initial/local-browser branches, while retaining tag/hash identity.
+/// Other consumers of PushRefCombo keep their existing qualified-reference behavior.
+enum PushSourcePresentation {
+    static func normalized(_ source: String) -> String {
+        if source.hasPrefix("refs/heads/") { return String(source.dropFirst(11)) }
+        if source.hasPrefix("refs/remotes/") { return String(source.dropFirst(5)) }
+        return source
     }
 }

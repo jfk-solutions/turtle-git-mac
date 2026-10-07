@@ -32,7 +32,7 @@ Six existing real Git integration tests cover named destinations/upstream config
 selected and renamed tags, commit hashes to new branches, all branches plus tags,
 non-fast-forward rejection, stale and valid force-with-lease, partial all-remotes
 failure, arbitrary paths, saved defaults, remote deletion, invalid input and a
-literal server option containing spaces and punctuation. The current focused Push suite has nine passing tests, including read-only
+literal server option containing spaces and punctuation. The current focused Push suite has ten passing tests, including read-only
 submission validation and a pre-cancelled request that preserves remote refs and local config. Mixed staged/unstaged contents are preserved by push.
 
 Native QA used only a disposable documentation repository and local bare remote.
@@ -187,9 +187,36 @@ branch/tag collision, read-only rejection, unchanged config and absent remote re
 then qualified branch and tag pushes to separate expected ref namespaces. Native
 models reject the short collision without saving any history or creating its
 remote destination. The broader four-Git history workflow is also exercised.
-The native local chooser currently supplies qualified branch refs, while the
-upstream dialog normalizes selected local branches to short names; that chooser/
-normalization path still needs parity work. Alternate upstream CLI suffix-pattern
+Native initial/dropdown/browser local-branch selections now normalize to short
+names; the source-presentation section below records their implementation and
+remaining acceptance. Alternate upstream CLI suffix-pattern
 lookup behavior, repository-access failures, physical controls and signed sandbox
 acceptance remain pending. This does not establish complete Push validation or
 application parity.
+
+
+## Push source presentation and branch defaults
+
+Initial/current local branches, supplied `refs/heads/` selections and browser
+choices now use short branch names. Initial remote refs use `remotes/<remote>/…`,
+matching PushDlg's initial stripping of `refs/`. Tags and commit/revision inputs
+retain their supplied identity. The local dropdown lists branch/remote choices
+and returns normalized names; selecting a branch that collides with a tag now
+reaches the short-name validation gate rather than bypassing it with a qualified
+ref. Manually entered qualified refs remain visible and retain their identity.
+
+Normalization is opt-in for Push's use of the shared combo; Rebase continues to
+receive its existing qualified refs. Push branch defaults now prefer an exact
+local-branch lookup before revision resolution, so a same-named tag cannot mask
+that branch's configured push remote/destination. Tracked merge refs use source
+StripRefName behavior (`refs/heads/` removed, other `refs/` shortened), while an
+explicit `pushbranch`, including Gerrit `refs/for/…`, is preserved.
+
+[Presentation QA](qa/push-source-presentation-2026-10-08.json) records configured
+defaults under a same-named tag, tracked-ref stripping/explicit destination
+preservation, initial/browser branch normalization and rejection, retained tag/
+hash identity and actual hidden native combo callbacks with normalization on/off.
+The existing history/cancellation/preference matrices cover surrounding Git and
+model workflows. Physical typing/dropdowns/browser/Log or RefLog selection, full
+source default/remote-selection equivalence, resize/theme/accessibility and signed
+sandbox acceptance remain pending. Full Push and application parity incomplete.

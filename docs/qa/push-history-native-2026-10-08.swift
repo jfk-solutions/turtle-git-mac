@@ -28,6 +28,7 @@ import TurtleGitCore
         let urlKey = model.urlHistoryKey, branchKey = model.destinationHistoryKey, optionKey = model.pushOptionHistoryKey
         preferences.set(["last", "Last"], forKey: urlKey); preferences.set(["older", "TARGET"], forKey: branchKey); preferences.set(["option", "Option"], forKey: optionKey)
         model.clipboardText = { nil }; model.load(); try await wait(model)
+        precondition(model.options.source == "main")
         precondition(model.urls == ["last", "Last"] && model.pushOptionHistory == ["option", "Option"] && model.url.isEmpty && model.options.pushOption.isEmpty)
         precondition(model.destinationHistory == ["older", "TARGET"] && model.options.destination == "TARGET")
         model.selectDestination("browse"); precondition(model.destinationHistory.first == "browse" && preferences.stringArray(forKey: branchKey) == ["older", "TARGET"])
@@ -61,6 +62,22 @@ import TurtleGitCore
         precondition(model.error == "Choose an unambiguous local reference or revision.")
         precondition(preferences.stringArray(forKey: urlKey) == savedURLs && preferences.stringArray(forKey: branchKey) == savedBranches && preferences.stringArray(forKey: optionKey) == savedOptions)
         let unchangedRefs = try await remote.checkoutReferences(); precondition(!unchangedRefs.contains { $0.name == "refs/heads/collision-target" })
+        // Initial selections and browser picks normalize branch identity but retain tag/hash inputs.
+        let sourceSelection = PushWindowModel(repository: repo, access: nil, preferences: preferences)
+        sourceSelection.load(source: "refs/heads/collision"); try await wait(sourceSelection)
+        precondition(sourceSelection.options.source == "collision" && sourceSelection.localBranch == "collision")
+        if let branch = sourceSelection.references.first(where: { $0.name == "refs/heads/collision" }) { sourceSelection.pick(branch, destination: false); precondition(sourceSelection.options.source == "collision") } else { preconditionFailure("Missing local branch") }
+        sourceSelection.options.remote = "origin"; sourceSelection.options.destination = "blocked-sourceSelection"; sourceSelection.push(); try await wait(sourceSelection, allowError: true)
+        precondition(sourceSelection.error == "Choose an unambiguous local reference or revision.")
+        precondition(preferences.stringArray(forKey: branchKey) == savedBranches)
+        sourceSelection.load(source: "refs/tags/collision"); try await wait(sourceSelection, allowError: true)
+        precondition(sourceSelection.options.source == "refs/tags/collision" && sourceSelection.localBranch == nil)
+        sourceSelection.error = nil; sourceSelection.load(source: String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)); try await wait(sourceSelection)
+        precondition(sourceSelection.options.source == String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines))
+        _ = try await repo.run(["tag", "main"])
+        sourceSelection.load(source: "refs/heads/main"); try await wait(sourceSelection)
+        precondition(sourceSelection.options.source == "main" && sourceSelection.localBranch == "main" && sourceSelection.options.remote == "origin")
+        _ = try await repo.run(["tag", "-d", "main"])
         model.options.source = "refs/heads/main"
         // All branches asks before saving and excludes URL/branch entries, but saves server options.
         model.url = bare.path; model.options.allBranches = true; model.options.pushOption = "all-option"; model.push()
@@ -93,6 +110,18 @@ import TurtleGitCore
         combo.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification, object: control)); precondition(selected == "A")
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 80), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentViewController = NSHostingController(rootView: FetchHistoryCombo(value: .constant("A"), choices: ["Z", "a", "A"], label: "Push option")); window.contentView?.layoutSubtreeIfNeeded(); window.close()
+        func findCombo(_ view: NSView) -> NSComboBox? { if let combo = view as? NSComboBox { return combo }; return view.subviews.compactMap { findCombo($0) }.first }
+        for normalize in [false, true] {
+            var chosen = "refs/heads/main"
+            let host = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 80), styleMask: [.titled], backing: .buffered, defer: false); host.isReleasedWhenClosed = false
+            host.contentViewController = NSHostingController(rootView: PushRefCombo(value: Binding(get: { chosen }, set: { chosen = $0 }), choices: ["refs/heads/main", "refs/remotes/origin/main"], local: true, normalizeSource: normalize))
+            host.contentView?.layoutSubtreeIfNeeded()
+            guard let field = host.contentView.flatMap({ findCombo($0) }), let delegate = field.delegate as? PushRefCombo.Coordinator else { preconditionFailure("Native Push source combo missing") }
+            precondition(field.stringValue == (normalize ? "refs/heads/main" : "main"))
+            let index = delegate.values.firstIndex(of: normalize ? "main" : "refs/heads/main")!; field.selectItem(at: index)
+            delegate.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification, object: field))
+            precondition(chosen == (normalize ? "main" : "refs/heads/main")); host.close()
+        }
         print("Push history: repository-scoped URL/branch/option ordering and case rules; source default selection, browse without saving, copied Pull/Fetch prefilling; real URL/named push and deletion; validation/confirmation/exclusion gates, failed transport persistence, unchanged HEAD/index, 26-save/25-load and hidden native combo selection passed")
     }
 }

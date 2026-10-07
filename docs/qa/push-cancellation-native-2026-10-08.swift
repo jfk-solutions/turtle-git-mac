@@ -67,7 +67,7 @@ import TurtleGitCore
             }
             model.cancel(); precondition(model.cancelling && !model.canCancel); try await wait(model, allowError: true)
             precondition(model.error?.contains("Operation cancelled.") == true && callbacks == 0 && closes == 0 && !model.transportRunning && model.canCancel)
-            precondition(model.options.remote == "a-good" && model.options.source == "refs/heads/main" && confirmations == (mode == 1 ? 2 : 0))
+            precondition(model.options.remote == "a-good" && model.options.source == "main" && confirmations == (mode == 1 ? 2 : 0))
             let afterHead = try await direct.run(["rev-parse", "HEAD"]).stdout
             let afterIndex = try Data(contentsOf: client.appendingPathComponent(".git/index"))
             precondition(head == afterHead && index == afterIndex && decoy.isRunning)

@@ -135,4 +135,18 @@ final class PushTests: XCTestCase {
         XCTAssertEqual(Set(refs.map(\.name)), ["refs/heads/published", "refs/tags/published-tag"])
     }
 
+    func testBranchDefaultsSurviveSameNamedTagAndStripOnlyTrackedRefPrefix() async throws {
+        let (root, repo, _, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["tag", "main"])
+        _ = try await repo.run(["config", "branch.main.remote", "origin"])
+        _ = try await repo.run(["config", "branch.main.merge", "refs/heads/tracked"])
+        let defaults = try await repo.pushDefaults(source: "main")
+        XCTAssertEqual(defaults.localBranch, "main"); XCTAssertEqual(defaults.remote, "origin"); XCTAssertEqual(defaults.destination, "tracked")
+        _ = try await repo.run(["config", "branch.main.pushbranch", "refs/for/review"])
+        let explicit = try await repo.pushDefaults(source: "refs/heads/main")
+        XCTAssertEqual(explicit.destination, "refs/for/review")
+        let tag = try await repo.pushDefaults(source: "refs/tags/main")
+        XCTAssertNil(tag.localBranch)
+    }
+
 }
