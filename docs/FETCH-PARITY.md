@@ -50,7 +50,7 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
   fast-forward choices, post-operation actions and full conflict recovery remain.
 - Full remote reference chooser hierarchy, tag selection and histories; the current
   chooser lists heads only. Full remote settings and their mutation/recovery QA.
-- History deletion, complete settings
+- Physical history deletion/completion acceptance, complete settings
   and window-size persistence.
 - Streaming progress output, full progress-window layout, interactive credentials,
   network/SSH and signed sandbox runtime checks. Transport cancellation is now
@@ -158,7 +158,7 @@ Real literal-path/file-URL Fetch, ff-only Pull and failed destination retention
 were checked. The user pasteboard was neither read nor modified by these tests.
 Physical pasteboard/radio/keyboard acceptance, complex shell quoting and paths
 with spaces, platform whitespace equivalence, clipboard support in other dialogs,
-history deletion and signed sandbox checks remain pending. Full port incomplete.
+physical history deletion and signed sandbox checks remain pending. Full port incomplete.
 
 
 ## Transport cancellation
@@ -188,3 +188,32 @@ settings layout is constructed and closed. These checks do not establish
 physical Cancel/Escape/window-close/sheet interaction, light/dark/accessibility,
 retry acceptance, cancellation after Git mutation, separate progress-window
 layout, streaming output or signed sandbox execution. Full parity remains incomplete.
+
+
+## Immediate history deletion
+
+The shared editable histories now map HistoryCombo's open-dropdown Shift+Delete
+behavior. The macOS control accepts Shift+Forward Delete and Shift+Delete
+(backspace key on Mac keyboards). Only an enabled open popup owns this shortcut;
+closed controls keep normal text editing. It removes the highlighted entry,
+selects the next item at that index or the previous item at the end, and clears
+the field when the final entry is removed. Entries save immediately without
+reordering, so cancelling the dialog does not restore a removed history item.
+Invalid selections and busy models do not mutate history.
+
+Pull/Fetch URL and branch histories remain shared. Push URL/destination/server-
+option histories remain repository-scoped; all five fields use the same native
+receiver and source selection/order rules. A window-scoped local key monitor
+handles the shortcut while the delegate reports its popup open; there is no
+global keyboard monitor.
+
+[Deletion QA](qa/history-deletion-2026-10-08.json) records immediate persistence,
+next/previous/empty selection, invalid/busy gates, shared/scoped histories and
+cancel/reopen retention with byte-identical Git HEAD/index/config. Actual hidden
+native controls verify selected indices, popup notifications and direct native
+key-handler calls for open/closed/disabled/permission gates. Events are not sent
+to the app. Existing four-Git Pull/Fetch and Push history matrices also run.
+Physical dropdown event routing and highlight behavior, field-editor focus,
+actual Shift+Delete/Forward Delete/Escape, resize/theme/accessibility and signed
+sandbox acceptance remain pending. Source return-key/wheel handling and complete
+HistoryCombo parity are not established by these checks. Full port incomplete.

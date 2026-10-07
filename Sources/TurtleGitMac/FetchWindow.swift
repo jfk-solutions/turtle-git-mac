@@ -109,6 +109,14 @@ import TurtleGitCore
         branchHistory = FetchDialogHistory.inserting(branch, into: branchHistory, atFront: atFront, caseSensitive: false)
         options.branch = branchHistory.first { $0.compare(branch, options: .caseInsensitive) == .orderedSame } ?? branch
     }
+    func deleteURLHistory(at index: Int) {
+        guard !busy, let result = FetchDialogHistory.removing(index, entries: urls, preferences: preferences, key: "History.PullURLS") else { return }
+        urls = result.entries; url = result.selection
+    }
+    func deleteBranchHistory(at index: Int) {
+        guard !busy, let result = FetchDialogHistory.removing(index, entries: branchHistory, preferences: preferences, key: "History.PullRemoteBranch") else { return }
+        branchHistory = result.entries; options.branch = result.selection
+    }
     func selectArbitraryURL() {
         options.arbitraryURL = true; options.allRemotes = false; launchRebase = false
         let selection = FetchClipboardInput.selection(clipboardText() ?? "", isPull: isPull)
@@ -198,9 +206,9 @@ private struct FetchDialog: View {
                     PushRemotePopup(values: (!model.isPull && model.remotes.count > 1 ? ["*"] : []) + (model.remotes.isEmpty ? [""] : model.remotes), selection: Binding(get: { model.options.allRemotes ? "*" : model.options.remote }, set: { model.options.allRemotes = $0 == "*"; if model.options.allRemotes { model.launchRebase = false }; if $0 != "*" { model.options.remote = $0 }; model.remoteChanged() })).disabled(model.options.arbitraryURL)
                 }
                 HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.selectArbitraryURL() }.frame(width: 140)
-                    FetchHistoryCombo(value: $model.url, choices: model.urls, label: "Remote URL or path").disabled(!model.options.arbitraryURL)
+                    FetchHistoryCombo(value: $model.url, choices: model.urls, label: "Remote URL or path", onDelete: model.deleteURLHistory).disabled(!model.options.arbitraryURL)
                 }
-                HStack { Text("Remote Branch:").frame(width: 140, alignment: .leading); FetchHistoryCombo(value: $model.options.branch, choices: model.branchHistory, label: "Remote branch")
+                HStack { Text("Remote Branch:").frame(width: 140, alignment: .leading); FetchHistoryCombo(value: $model.options.branch, choices: model.branchHistory, label: "Remote branch", onDelete: model.deleteBranchHistory)
                     Button("…") { model.browse() }.accessibilityLabel("Browse remote branches")
                 }.disabled(!model.canChooseBranch)
             }.padding(8) }
@@ -249,21 +257,27 @@ struct FetchHistoryCombo: NSViewRepresentable {
     @Binding var value: String
     let choices: [String]
     let label: String
+    var onDelete: ((Int) -> Void)? = nil
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
-        let combo = NSComboBox(); combo.delegate = context.coordinator; combo.completes = true
+        let combo = EditableHistoryCombo(); combo.delegate = context.coordinator; combo.completes = true
         combo.setContentHuggingPriority(.defaultLow, for: .horizontal); return combo
     }
     func updateNSView(_ combo: NSComboBox, context: Context) {
         let coordinator = context.coordinator; coordinator.updating = true; defer { coordinator.updating = false }
         coordinator.change = { value = $0 }
-        if !coordinator.choices.elementsEqual(choices, by: { $0.utf16.elementsEqual($1.utf16) }) { combo.removeAllItems(); combo.addItems(withObjectValues: choices); coordinator.choices = choices }
+        (combo as? EditableHistoryCombo)?.deleteHistory = onDelete
+        if !coordinator.choices.elementsEqual(choices, by: { $0.utf16.elementsEqual($1.utf16) }) { (combo as? EditableHistoryCombo)?.replaceHistory(choices); coordinator.choices = choices }
+        if let index = choices.firstIndex(where: { $0.utf16.elementsEqual(value.utf16) }) { combo.selectItem(at: index) }
+        else if combo.indexOfSelectedItem >= 0 { combo.deselectItem(at: combo.indexOfSelectedItem) }
         if !combo.stringValue.utf16.elementsEqual(value.utf16) { combo.stringValue = value }
         combo.isEnabled = enabled; combo.setAccessibilityLabel(label)
     }
     final class Coordinator: NSObject, NSComboBoxDelegate {
         var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }
+        func comboBoxWillPopUp(_ notification: Notification) { (notification.object as? EditableHistoryCombo)?.historyPopupOpen = true }
+        func comboBoxWillDismiss(_ notification: Notification) { (notification.object as? EditableHistoryCombo)?.historyPopupOpen = false }
         func controlTextDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox else { return }; change(combo.stringValue) }
         func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox, choices.indices.contains(combo.indexOfSelectedItem) else { return }; change(choices[combo.indexOfSelectedItem]) }
     }
@@ -272,6 +286,14 @@ struct FetchHistoryCombo: NSViewRepresentable {
 /// PullFetchDlg shares these histories between Pull, Fetch and repositories.
 /// HistoryCombo loads 25 but can save 26: truncation occurs before insertion.
 enum FetchDialogHistory {
+    static func removing(_ index: Int, entries: [String], preferences: UserDefaults, key: String) -> (entries: [String], selection: String)? {
+        guard entries.indices.contains(index) else { return nil }
+        var result = entries; result.remove(at: index)
+        let selection = result.isEmpty ? "" : result[min(index, result.count - 1)]
+        // Save without reinserting the selected item, preserving source list order.
+        preferences.set(Array(result.prefix(26)), forKey: key)
+        return (result, selection)
+    }
     static func trim(_ value: String) -> String {
         value.trimmingCharacters(in: CharacterSet(charactersIn: " \t\r\n\u{0B}\u{0C}"))
     }
@@ -299,5 +321,38 @@ enum FetchDialogHistory {
         let result = inserting(value, into: entries, atFront: true, caseSensitive: caseSensitive)
         preferences.set(Array(result.prefix(26)), forKey: key)
         return result
+    }
+}
+
+/// Scoped local event handling; only an open, enabled history popup owns deletion.
+final class EditableHistoryCombo: NSComboBox {
+    var historyPopupOpen = false
+    var deleteHistory: ((Int) -> Void)?
+    private var eventMonitor: Any?
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let eventMonitor { NSEvent.removeMonitor(eventMonitor); self.eventMonitor = nil }
+        historyPopupOpen = false
+        guard window != nil else { return }
+        eventMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
+            guard let self, let window = self.window, event.window === window else { return event }
+            return self.handleHistoryKey(event) ? nil : event
+        }
+    }
+    func replaceHistory(_ entries: [String]) {
+        let previous = (0..<numberOfItems).compactMap { itemObjectValue(at: $0) as? String }
+        if previous.count == entries.count + 1,
+           let removed = previous.indices.first(where: { index in
+               var candidate = previous; candidate.remove(at: index)
+               return candidate.elementsEqual(entries, by: { $0.utf16.elementsEqual($1.utf16) })
+           }) { removeItem(at: removed) }
+        else { removeAllItems(); addItems(withObjectValues: entries) }
+    }
+    deinit { if let eventMonitor { NSEvent.removeMonitor(eventMonitor) } }
+    /// Testable native event receiver; does not send synthetic events to the app.
+    func handleHistoryKey(_ event: NSEvent) -> Bool {
+        guard isEnabled, historyPopupOpen, event.type == .keyDown, event.modifierFlags.contains(.shift), [UInt16(51), 117].contains(event.keyCode) else { return false }
+        if indexOfSelectedItem >= 0 { deleteHistory?(indexOfSelectedItem) }
+        return true
     }
 }

@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "001c8167e41dcd17ce3b03448dff1f7e035289bd",
+  "scope": "Immediate ordered Pull/Fetch/Push editable-history deletion, source next/previous/empty selection and native open-popup Shift+Delete receiver. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Utils/MiscUI/HistoryCombo.cpp": "f52dcb94e8403eb3bcb0a6b0d80db47e92d61657",
+    "src/Utils/MiscUI/HistoryCombo.h": "bf4a584d39c698ca13afa236b2ea3d0e6fe128ba"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "67de047df240db4dbc7f4164000d564679084397ccfdf035c11dc66db7073a66",
+    "NOTICE": "cdd34a7d09e5249a5f144d2e8057d614ec4df43e4cff52af107734f7168f5ee4",
+    "README.md": "a3c91e20040d5f25b3231b28804b95cceedf3b957fe40e57647a1a2c07da0b8c",
+    "Sources/TurtleGitMac/FetchWindow.swift": "f0b43192d0ba2b76d54bb68d15e7c01b5ce31d7dbde2f62df4439a90f2fed73b",
+    "Sources/TurtleGitMac/PushWindow.swift": "6b89f47521ea53715b4e15284de498f3e33b27363f31111a69789d0f2e81e8dc",
+    "docs/FETCH-PARITY.md": "eba3f3af59e33fba6d6fa9bdd5c013fd73a84901ef537d7815fc03e108561c15",
+    "docs/PUSH-PARITY.md": "95497d2d5adfb28c7e99df4941caa148e9be29e0faf043f33ecf645f09ec5647",
+    "docs/qa/history-deletion-native-2026-10-08.swift": "53dc090b25da255c065918d185233761d4eefea0cd6ef45a9e3e67f2217247b0",
+    "docs/upstream-files.csv": "c853294bf6fdfd1126a6f8f4192f073dbca18c1355792129e20e033f0e7dde9a",
+    "scripts/test-history-deletion.py": "4c8779d9efeb7ab0e693c9902105ddb3cef6459bae0a9a6b0b907a50d73cda3a"
+  },
+  "all_sources_manifest_sha256": "16e79d2ae8535843625a92ddc1ed7d0e3a696bb200ce4386eb1e169c56c50553",
+  "verification": {
+    "native": "Deletion receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Real native Fetch/Pull/Push models verify immediate ordered saves, middle/last/only entry next/previous/empty selection, invalid-index/busy refusal, shared Pull/Fetch histories, scoped Push keys, and Cancel/reopen persistence. HEAD/index/config remain byte-identical. Actual hidden editable combo verifies initial selected index/text, delegate popup notifications and direct NSEvent-based key-handler calls for Shift+Forward Delete/Shift+Mac Delete, unshifted/closed/disabled/no-permission gates; no events sent into the app. Incremental native item removal retains list order and popup-state flag. Hidden window closes. This does not prove physical popup event routing or gestures.",
+    "regressions": "Existing Pull/Fetch and Push history native matrices passed all four Git versions after final shared-control changes. Actual URL Pull/named Fetch/URL and named Push/deletion, source gates/history snapshot/clipboard/identity and hidden combo callbacks retained. Both native regression matrices and deletion matrix also passed before incremental list-removal refinement. No core test suite rerun: core unchanged and native fixtures directly verify Git preservation/workflows.",
+    "iterations": "Initial Debug and first native matrices passed. Free-text assignment moved after native selection updates to preserve manually typed values. Single-item deletion then refined to remove that item from the native list rather than rebuild it; final Debug and all three native matrices passed. No runtime failure.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified; Store --require-git audited 11 universal Git Mach-O files and fixture operations; EditorConfig/IssueRegex audits passed.",
+    "documentation": "README feature/link, Pull/Fetch/Push parity, HistoryCombo partial source inventory and NOTICE updated. Inventory pin regression and seven-column CSV validation passed. Local site generated, unpublished.",
+    "ci": "Added headless native history-deletion receiver to macOS workflow. Hosted CI/push remain unverified, authentication unavailable, no retry.",
+    "processes": "All compiler/native/audit sessions terminal. No main app or displayed popup launched. Owned hidden control windows closed. Final app/receiver process audit empty. Eight empty owned UUID preference files each for HistoryDeletion, FetchHistory and PushHistory removed across two matrices; unrelated preferences retained.",
+    "limitations": "Physical popup event routing/window scope/highlight behavior, field-editor focus, actual Shift+Delete/Forward Delete/Escape, source return-key/wheel behavior, full HistoryCombo acceptance, resize/theme/accessibility and signed sandbox execution remain pending. Mac backspace-key Shift+Delete is an explicit native addition to source Windows Shift+VK_DELETE. Full application/dialog parity, Finder activation, genuine updated screenshots/full manual, hosted publication and signed App Store distribution/license clearance remain incomplete."
+  },
+  "logs": {
+    "build/qa/history-deletion/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/history-deletion/debug-before-incremental.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/history-deletion/debug-initial.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/history-deletion/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/history-deletion/fetch-native-before-incremental.log": "7a7c1e3e8cee33ab753f46bb1fdc3e0bdbcab172a73d18e922ed75820c52540d",
+    "build/qa/history-deletion/fetch-native.log": "7a7c1e3e8cee33ab753f46bb1fdc3e0bdbcab172a73d18e922ed75820c52540d",
+    "build/qa/history-deletion/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/history-deletion/native-before-incremental.log": "4eaf0d6861bf2865fd4e47d2b6cf25b0603a8349ea07f183edd749a554a8d2be",
+    "build/qa/history-deletion/native.log": "4eaf0d6861bf2865fd4e47d2b6cf25b0603a8349ea07f183edd749a554a8d2be",
+    "build/qa/history-deletion/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/history-deletion/push-native-before-incremental.log": "c51fd1957a6034a1c995bd5d32750ab62307a9702e81874978b472a72d53a018",
+    "build/qa/history-deletion/push-native.log": "c51fd1957a6034a1c995bd5d32750ab62307a9702e81874978b472a72d53a018",
+    "build/qa/history-deletion/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/history-deletion/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/history-deletion/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/history-deletion/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

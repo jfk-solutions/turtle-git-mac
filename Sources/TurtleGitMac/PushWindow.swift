@@ -131,6 +131,18 @@ import TurtleGitCore
         let normalized = FetchDialogHistory.trim(destination.replacingOccurrences(of: "\r", with: " ").replacingOccurrences(of: "\n", with: " "))
         options.destination = destinationHistory.first { $0.compare(normalized, options: .caseInsensitive) == .orderedSame } ?? destination
     }
+    func deleteURLHistory(at index: Int) {
+        guard !busy, let result = FetchDialogHistory.removing(index, entries: urls, preferences: preferences, key: urlHistoryKey) else { return }
+        urls = result.entries; url = result.selection
+    }
+    func deleteDestinationHistory(at index: Int) {
+        guard !busy, let result = FetchDialogHistory.removing(index, entries: destinationHistory, preferences: preferences, key: destinationHistoryKey) else { return }
+        destinationHistory = result.entries; options.destination = result.selection
+    }
+    func deletePushOptionHistory(at index: Int) {
+        guard !busy, let result = FetchDialogHistory.removing(index, entries: pushOptionHistory, preferences: preferences, key: pushOptionHistoryKey) else { return }
+        pushOptionHistory = result.entries; options.pushOption = result.selection
+    }
     func selectArbitraryURL() {
         options.arbitraryURL = true; options.allRemotes = false
         if let input = clipboardText().flatMap({ FetchClipboardInput.selection($0, isPull: true) }) {
@@ -225,7 +237,7 @@ private struct PushDialog: View {
                 HStack { Text("Local:").frame(width: 115, alignment: .leading); PushRefCombo(value: $model.options.source, choices: ["HEAD"] + model.references.filter { $0.name.hasPrefix("refs/heads/") || $0.remote }.map(\.name), local: true, normalizeSource: true)
                     Button("…") { model.browsingDestination = false }.accessibilityLabel("Browse local references")
                 }.disabled(model.options.allBranches)
-                HStack { Text("Remote:").frame(width: 115, alignment: .leading); FetchHistoryCombo(value: $model.options.destination, choices: model.destinationHistory, label: "Remote branch or tag")
+                HStack { Text("Remote:").frame(width: 115, alignment: .leading); FetchHistoryCombo(value: $model.options.destination, choices: model.destinationHistory, label: "Remote branch or tag", onDelete: model.deleteDestinationHistory)
                     Button("…") { model.browsingDestination = true }.accessibilityLabel("Browse remote references")
                 }.disabled(model.options.allBranches)
             }.padding(8) }
@@ -236,7 +248,7 @@ private struct PushDialog: View {
                     Button("Manage") { model.managingRemotes = true }.disabled(model.options.arbitraryURL)
                 }
                 HStack { PushDestinationRadio(title: "Arbitrary URL:", selected: model.options.arbitraryURL) { model.selectArbitraryURL() }.frame(width: 115)
-                    FetchHistoryCombo(value: $model.url, choices: model.urls, label: "Destination URL or path").disabled(!model.options.arbitraryURL)
+                    FetchHistoryCombo(value: $model.url, choices: model.urls, label: "Destination URL or path", onDelete: model.deleteURLHistory).disabled(!model.options.arbitraryURL)
                 }
             }.padding(8) }
             GroupBox("Options") { VStack(alignment: .leading, spacing: 8) {
@@ -248,7 +260,7 @@ private struct PushDialog: View {
                 Toggle("Always push to the selected remote archive for this local branch", isOn: $model.options.savePushRemote).disabled(!model.canSave)
                 Toggle("Always push to the selected remote branch for this local branch", isOn: $model.options.savePushBranch).disabled(!model.canSave)
                 HStack { Text("Recurse submodule").frame(width: 155, alignment: .leading); Picker("Recurse submodule", selection: $model.options.submodules) { Text("None").tag(PushSubmodules.none); Text("Check").tag(PushSubmodules.check); Text("On-demand").tag(PushSubmodules.onDemand) }.labelsHidden(); Spacer() }
-                HStack { Text("Push option:").frame(width: 155, alignment: .leading); FetchHistoryCombo(value: $model.options.pushOption, choices: model.pushOptionHistory, label: "Push option") }
+                HStack { Text("Push option:").frame(width: 155, alignment: .leading); FetchHistoryCombo(value: $model.options.pushOption, choices: model.pushOptionHistory, label: "Push option", onDelete: model.deletePushOptionHistory) }
             }.padding(8) }
             }.disabled(model.busy)
             Spacer(minLength: 0)

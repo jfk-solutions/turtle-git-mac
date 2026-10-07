@@ -382,6 +382,10 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
 - Separate native Push dialog with reference/destination selectors, force with lease,
   tags, upstream tracking, per-branch defaults, submodule recursion and server option.
   [Push parity](docs/PUSH-PARITY.md) records remaining work.
+- Pull/Fetch/Push transport cancellation and editable histories, including immediate
+  Shift+Delete history removal. Pull/Fetch share saved entries; Push keeps them per
+  repository. [History deletion](docs/FETCH-PARITY.md#immediate-history-deletion)
+  records native/model evidence and pending physical keyboard/popup acceptance.
 - Separate native Switch/Checkout dialog with branch/tag/commit selectors and
   create-branch, force, merge, three-state remote tracking and branch override.
   [Switch parity details](docs/SWITCH-PARITY.md) document pending chooser and UI work.

@@ -32,6 +32,8 @@ jobs:
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Native worktree dialog models and Git integration
         run: python3 scripts/test-worktree-dialog.py
+      - name: Native editable history deletion
+        run: python3 scripts/test-history-deletion.py
       - name: Native Push preferences and confirmations
         run: python3 scripts/test-push-preferences.py
       - name: Native Push history and clipboard

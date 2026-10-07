@@ -220,3 +220,9 @@ The existing history/cancellation/preference matrices cover surrounding Git and
 model workflows. Physical typing/dropdowns/browser/Log or RefLog selection, full
 source default/remote-selection equivalence, resize/theme/accessibility and signed
 sandbox acceptance remain pending. Full Push and application parity incomplete.
+
+
+Push's URL, remote-destination and server-option dropdowns now offer immediate
+history deletion with the shared native Shift+Delete receiver. See the deletion
+section in FETCH-PARITY.md for source selection/persistence rules and remaining
+physical popup/event-routing acceptance.
