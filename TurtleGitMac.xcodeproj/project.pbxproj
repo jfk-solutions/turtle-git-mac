@@ -106,6 +106,7 @@
 		A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FF59B2CF163D9481D39B5 /* CommitSelection.swift */; };
 		A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5AD057FE8CA1C91988DA6E /* Removal.swift */; };
 		A6773359488D79CCCCE0C7DE /* SubmoduleDiffWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */; };
+		A70DDFADDD5CE64F95764E53 /* CleanWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69C742F936FA4A0276A54856 /* CleanWindow.swift */; };
 		A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977DAB97DBBB903654C73A78 /* SwitchWindow.swift */; };
 		A7F9B61AFDD2F69ADE7A35C7 /* AddProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */; };
 		A99C16FB42C7E89CA9B6AEC3 /* MessageCodeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27AB4988402DE898554EF19 /* MessageCodeText.swift */; };
@@ -294,6 +295,7 @@
 		6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleComparison.swift; sourceTree = "<group>"; };
 		63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorSettings.swift; sourceTree = "<group>"; };
 		65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFontSizeChoice.swift; sourceTree = "<group>"; };
+		69C742F936FA4A0276A54856 /* CleanWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CleanWindow.swift; sourceTree = "<group>"; };
 		6A72CBF70DA62980294AB41A /* TurtleGitMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TurtleGitMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6CFEE049A0098A0212AD01DA /* ResetWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResetWindow.swift; sourceTree = "<group>"; };
 		6D854D45255E20E630E8A738 /* Completion */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Completion; path = Sources/TurtleGitCore/Resources/Completion; sourceTree = SOURCE_ROOT; };
@@ -413,6 +415,7 @@
 				9ABE7B92864A28F4229F6063 /* BlameSettings.swift */,
 				147C1880748CAF195D6A19CA /* BlameWindow.swift */,
 				136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */,
+				69C742F936FA4A0276A54856 /* CleanWindow.swift */,
 				7A4B370EB64932B2909A8228 /* CloneWindow.swift */,
 				0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */,
 				F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */,
@@ -892,6 +895,7 @@
 				C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */,
 				04F91334CABB49482A59CAF5 /* BlameWindow.swift in Sources */,
 				7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */,
+				A70DDFADDD5CE64F95764E53 /* CleanWindow.swift in Sources */,
 				5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */,
 				A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */,
 				73F05370C1A0B99B7BF35C5B /* CommitCompletionPopup.swift in Sources */,

@@ -452,6 +452,11 @@
       "asset": "thumb_down.ico",
       "source": "src/Resources/thumb_down.ico",
       "sha256": "1c91526a867705f50415eb7744016e49c35d9428e929e38b9d044f8d1503517f"
+    },
+    {
+      "asset": "menucleanup.ico",
+      "source": "src/Resources/menucleanup.ico",
+      "sha256": "a67088c691ac05c348f5c429c2dc0caf34f74d5ac9856a0d38838ccac9b1eb51"
     }
   ]
 }

@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "a35efa56fa3652bce88d756d7aaaa4eece9e5c0f",
+  "previous_goal_turn": "No progress: acknowledged wrong-chat exclusion. Revalidated a clean worktree and implemented the next available native Clean step.",
+  "scope": "Native Clean options and progress, main-app command/context routing, original icon and CI receiver",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    ".github/workflows/macos.yml": "0956f843b275dd6064b7a85a8a90d51a115ff16e7403067794c27a5c2ffba0e4",
+    "Sources/TurtleGitCore/MenuIcons.swift": "a7f520999435894780d402cfef84677368d5eff93aadea8b23646845bb29a8f8",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "a0e75b6a29bc0113178066a5ad1212379e8b9644b38548597d97aadae764f287",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "caf0c6ce445345046149fe786fe575390a77c271c949314fe53c2e2bf5c768bc",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "c1ad2847cd400be6169a8d7060c27e31cec225afb259958ef843e2d97cd6f335",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "252bbc7fe4fbe482d673c14875d0ba7f71f9053e1857e1a8ad435abce0776588",
+    "docs/CLEAN-PARITY.md": "052c806ed76a198f4a8dde6686e5ed9e45f5d7ce45b4020ba205db703593f1f0",
+    "docs/UI-PARITY.md": "9fb122b6a39583f71ce0bf78679f3ed936ca0edfa1b71d8b21e84556e249d2b4",
+    "docs/upstream-controls.csv": "b44be6660d63006049eceb8f2e435bcbfdc2cac9d0b6024e67838217098c1d5b",
+    "docs/upstream-dialogs.csv": "bf77c0084abe5a53f3297e4dc9e446859949da68be801d911130ab6467bf3aa3",
+    "docs/upstream-files.csv": "5bbb5f16c473063f3ef446cb6f64e70ec3d6d3576ea4fe938983e03219a65cf0",
+    "Sources/TurtleGitCore/Resources/Icons/menucleanup.ico": "a67088c691ac05c348f5c429c2dc0caf34f74d5ac9856a0d38838ccac9b1eb51",
+    "Sources/TurtleGitMac/CleanWindow.swift": "b00c3860939378f13ed5cc87b3c97fced0292e8e5a3f60e84949529e5c9a7ac6",
+    "docs/qa/clean-native-receiver-2026-10-07.swift": "26d31028a0c4efbfb2263580f0f6dcf273a0cfde11e5f1b21f9656bf89ed2aeb",
+    "scripts/test-clean-dialog.py": "fd58e6e7d420800e6cf8e263d2c73803b70818d906074363c825b14f0a30adef"
+  },
+  "all_sources_manifest_sha256": "db4808b2263d79b14fe8094659ad54e38742b58b5c3f80f683713e80dfa4c5c8",
+  "verification": {
+    "native": "Hidden owned options/progress controllers, prohibited activation and private preference suite. Passed on Apple Git 2.50.1, 2.37.1, 2.39.5 and bundled 2.55.0. Defaults, directory/unmanaged dependency, save-on-OK and session reset, invalid paths, deduplicated folder/file-containing/root scopes, actual scoped dry-run, permanent cleanup, actual Trash bytes and owned recovery cleanup, foreign index lock and Retry, owned cancellation, unchanged tracked/index/config/HEAD bytes. All owned windows/fixtures closed/removed.",
+    "fixture_correction": "Initial assertion expected a file path although Git correctly grouped a wholly untracked folder. Added a tracked anchor to the fixture; final four-version checks passed.",
+    "core": "MenuIconTests passed, including decoded original cleanup icon and existing color/template/alpha assertions.",
+    "builds": "Unsigned final Debug and AppStore builds passed.",
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; 91 original icons. Store --require-git passed universal runtime checks.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "Main-app routes only; Finder cleanup URL/menu/nearest-root routing pending. Store requires retained parent grant covering all discovered checkouts/admin locations; acquiring external grants and signed initial discovery/traversal/Trash acceptance unverified. Progress displays Git output and final/partial results; per-file live events pending. Hidden windows do not prove displayed sizing, light/dark, input, VoiceOver or screenshots. Full port, signed Store acceptance, documentation completion, hosted CI/site/screenshots still incomplete. GitHub authentication absent; no push attempted."
+  },
+  "logs": {
+    "build/qa/clean-native/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/clean-native/debug-audit.log": "9e2c757a2c34a49b6423dfbda33b82a47eac4eae4b752f0a3137e91a875a3e3c",
+    "build/qa/clean-native/native-final.log": "f514eae0887df45bcd4e81ff2140d254714b725de222b9e8e3b7814826d82cc9",
+    "build/qa/clean-native/icons.log": "b12c4e9012bdbb6dcecfbd7ce4f370ae3b3fa1d6fa0caea4f0262e4532ae58af",
+    "build/qa/clean-native/store.log": "c6b15ded77af7ec7402dc88d58d90ea2c6f5d12d00f06b8ebc9ee7ec80f316ea",
+    "build/qa/clean-native/store-audit.log": "c530e4979d3d277cc095a0241f655c589a54fa42c26a4bd453f1c1c4e9b0f078",
+    "build/qa/clean-native/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

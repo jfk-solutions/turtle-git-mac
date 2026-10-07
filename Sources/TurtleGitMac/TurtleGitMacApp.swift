@@ -48,6 +48,7 @@ import TurtleGitCore
                     Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection) || (action.isIgnore && !model.canIgnoreSelection(action)) || (action.isResolve && !model.canResolveSelection))
                 }
                 Divider()
+                Button { model.openClean() } label: { CommandLabel(title: "Clean…", icon: .clean) }.disabled(model.root == nil || model.bare || model.busy || model.confirmingQuit)
                 Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
                 Button { model.activate(.clearComparisonMark) } label: { CommandLabel(title: RepositoryAction.clearComparisonMark.title, icon: .compare) }.disabled(model.busy || model.confirmingQuit || model.workingComparisonMark == nil)
             }
@@ -203,6 +204,7 @@ struct RepositoryWindow: View {
                     Button { model.showDiff() } label: { CommandLabel(title: "Diff", icon: .compare) }
                     Button { model.stage() } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(model.selection.isEmpty)
                     Button { model.unstage() } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(model.selection.isEmpty)
+                    Button { model.openClean() } label: { CommandLabel(title: "Clean…", icon: .clean) }.disabled(model.bare || model.busy || model.confirmingQuit)
                     Button { model.activate(.revert) } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canRevertSelection)
                     Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
                     if model.canResolveSelection && !model.selectedPaths.isEmpty {

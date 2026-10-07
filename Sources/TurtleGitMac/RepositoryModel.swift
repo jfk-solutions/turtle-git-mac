@@ -44,6 +44,8 @@ import TurtleGitCore
     private var addWindows: [String: AddWindowController] = [:]
     private var addUnifiedWindows: [String: PatchWindowController] = [:]
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
+    private var cleanWindows: [String: CleanWindowController] = [:]
+    private var cleanProgressWindows: [UUID: CleanProgressWindowController] = [:]
     private var revertWindows: [String: RevertWindowController] = [:]
     private var statusWindows: [String: StatusWindowController] = [:]
     private var bisectWindows: [String: BisectWindowController] = [:]
@@ -625,6 +627,32 @@ import TurtleGitCore
         }
         controller.model.onCommit = { [weak self] in self?.openSession(access ?? RepositoryAccessLease(url: repository.root), selected: FinderRequest(action: .commit, paths: [repository.root]), action: .commit) }
         addProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
+    }
+    func openClean() {
+        guard !busy, !confirmingQuit, !bare, let repository else { return }
+        let root = repository.root, access = activeAccess
+        let controller = cleanWindows[root.path] ?? CleanWindowController(repository: repository)
+        controller.onClosed = { [weak self] in self?.cleanWindows.removeValue(forKey: root.path) }
+        controller.model.setScope(selectedPaths)
+        controller.model.onAccepted = { [weak self] request in
+            guard let self else { return }
+            let id = UUID(), progress = CleanProgressWindowController(repository: repository, access: access, request: request)
+            progress.onClosed = { [weak self] in self?.cleanProgressWindows.removeValue(forKey: id) }
+            progress.model.onFinished = { [weak self] output, changed in
+                guard let self else { return }
+                if changed {
+                    self.statusWindows[root.path]?.model.reload()
+                    self.commitWindows[root.path]?.model.reload()
+                    self.refreshRepositoryLogs(root)
+                    if self.root == root { Task { await self.refresh() } }
+                }
+                if self.root == root { self.output = output }
+            }
+            self.cleanProgressWindows[id] = progress
+            progress.showWindow(nil); progress.window?.makeKeyAndOrderFront(nil); progress.model.start()
+        }
+        cleanWindows[root.path] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showRevert(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let root = repository.root

@@ -1,8 +1,8 @@
 # Clean port
 
-The Clean workflow is incomplete. There is no native Clean dialog or Finder Clean
-route yet. Core preview and accepted-plan execution are implemented; native
-confirmation/progress and sandbox grant integration remain unported.
+The Clean workflow is incomplete. Native options and progress windows now connect
+to Core preview and accepted-plan execution from the main app menu and file context
+menu. Finder routing, displayed acceptance and external sandbox grants remain pending.
 
 ## Pinned behavior
 
@@ -17,8 +17,8 @@ repositories. Dry run and Submodules default off. Trash is the default unless
 `Commands/CleanupCommand.cpp` adds `-n` for dry runs and Trash planning. It cleans
 selected folders (or file selections’ containing folders), optionally traverses
 initialized submodules, and exposes Retry plus Trash/permanent-delete actions after
-a successful dry run. Those execution/progress/confirmation behaviors still need
-native implementations.
+a successful dry run. These behaviors are connected in the native app; displayed
+and signed acceptance still needs verification.
 
 ## Current Core reader
 
@@ -102,13 +102,36 @@ parent removal, symlink refusal, actual parent Trash recovery after a locked chi
 and removal of a former submodule without duplicate execution. See
 [the submodule QA record](qa/clean-submodules-2026-10-07.json).
 
+## Native implementation
+
+`CleanWindow.swift` preserves the radio/checkbox order from `IDD_CLEAN`, with macOS
+Trash wording, native radio controls and OK/Cancel/Help. Only cleanup type and
+directory removal are saved per root on OK. Dry run, Submodules and unmanaged
+repositories reset; Trash reads the shared `RevertWithRecycleBin` preference.
+Disabling directory removal clears and disables the extra force checkbox. Files
+map to their containing directories; root selection dominates, and invalid paths
+are rejected before adaptation.
+
+A separate owned progress window previews or executes cleanup. A successful dry
+run offers Trash and permanent deletion in the selected preference order. Each
+post-action takes a fresh plan. Retry repeats the last attempted action. Cancellation
+belongs to the current attempt; closing a busy window requests cancellation and
+waits for completion. Output retains Git preview text and completed/partial results,
+including recoverable Trash locations. Finished mutations refresh open repository
+views. The parent access lease is retained throughout; Store builds refuse cleanup
+unless it covers every discovered checkout/Git/common directory. This refusal does
+not implement acquiring external grants or prove signed sandbox traversal.
+
+The headless native receiver creates owned hidden windows and private preferences,
+then closes them. It checks actual dry-run, permanent deletion, recoverable Trash,
+lock/Retry and cancellation behavior, together with unchanged tracked/index/config
+bytes. It does not establish displayed light/dark, keyboard or VoiceOver acceptance.
+
 ## Remaining work
 
-- Native resource-matching controls and per-repository option persistence.
-- Finder/main-app command routing and file-to-directory scope adaptation.
+- Finder command routing and nearest-repository selection adaptation.
 - Native access-grant integration for recursive checkouts and external Git/common
   directories, plus signed traversal acceptance.
-- Native confirmation and progress around Core execution, Retry and dry-run
-  post-actions; operation progress/cancellation UI and signed Trash acceptance.
+- Detailed per-file live progress events and signed Trash acceptance.
 - Displayed light/dark layout, original icons, keyboard/VoiceOver and signed sandbox
   acceptance. The Core checks do not establish native dialog parity.
