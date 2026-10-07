@@ -2,6 +2,31 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FetchTests: XCTestCase {
+    func testClipboardSourceCommandPrefixTruncationAndFieldSplit() {
+        let value = FetchClipboardInput.selection("git pull https://example.invalid/repo topic ignored", isPull: true)
+        XCTAssertEqual(value?.url, "https://example.invalid/repo"); XCTAssertEqual(value?.branch, "topic")
+        let alternate = FetchClipboardInput.selection("git fetch 'ssh://example.invalid/repo' 'topic'", isPull: true)
+        XCTAssertEqual(alternate?.url, "ssh://example.invalid/repo"); XCTAssertEqual(alternate?.branch, "topic")
+        XCTAssertEqual(FetchClipboardInput.selection("git fetchx", isPull: false)?.url, "x", "Source has no command-token boundary")
+        XCTAssertEqual(FetchClipboardInput.selection("git pull url x", isPull: true)?.url, "url x", "One-character branch does not satisfy source split condition")
+        XCTAssertEqual(FetchClipboardInput.selection("git pull url  branch", isPull: true)?.url, "url ", "Source uses literal repeated spaces")
+        XCTAssertEqual(FetchClipboardInput.selection("git pull \"https://repo\"", isPull: true)?.url, "\"https://repo\"", "Unsplit command argument keeps quotes")
+        XCTAssertNil(FetchClipboardInput.selection("Git pull https://repo", isPull: true))
+    }
+    func testClipboardSchemesFirstLineAndNativePaths() {
+        XCTAssertEqual(FetchClipboardInput.selection("\"https://repo\"", isPull: false)?.url, "https://repo")
+        XCTAssertEqual(FetchClipboardInput.selection("https://repo\r\nignored", isPull: false)?.url, "https://repo")
+        XCTAssertEqual(FetchClipboardInput.selection("https://repo\0ignored", isPull: false)?.url, "https://repo")
+        XCTAssertEqual(FetchClipboardInput.selection("git@host:repo", isPull: false)?.url, "git@host:repo")
+        XCTAssertEqual(FetchClipboardInput.selection("C:/repo", isPull: false)?.url, "C:/repo")
+        XCTAssertEqual(FetchClipboardInput.selection("/tmp/repo", isPull: false)?.url, "/tmp/repo")
+        XCTAssertEqual(FetchClipboardInput.selection("file:///tmp/repo", isPull: false)?.url, "file:///tmp/repo")
+        for text in ["", "https://", "file://", "HTTPS://repo", "arbitrary text", "\nhttps://repo"] { XCTAssertNil(FetchClipboardInput.selection(text, isPull: false)) }
+    }
+    func testClipboardSourceUsesUTF16Offsets() {
+        let value = FetchClipboardInput.selection("git fetch 😺 main", isPull: false)
+        XCTAssertEqual(value?.url, "😺"); XCTAssertEqual(value?.branch, "main")
+    }
     func submoduleFixture() async throws -> (URL, URL, GitRepository, GitRepository, String) {
         let (root, parent, _) = try await GitPatchTests().fixture()
         let (source, _, _) = try await GitPatchTests().fixture()

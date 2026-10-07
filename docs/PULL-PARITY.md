@@ -36,7 +36,7 @@ staged/unstaged changes, forced merge commits, No Commit and subsequent completi
 squash staging without a merge parent, diverged ff-only rejection, a true merge
 conflict and Git abort, URL branch selection, configuration precedence, backend rejection of unsupported automatic rebase
 without mutation and invalid flags/refspec input. Native configured Pull uses the
-separate Fetch/Rebase route. The current focused Pull/Fetch tests passed all 14 checks within the 17-test
+separate Fetch/Rebase route. The current focused Pull/Fetch tests passed all 17 checks within the 20-test
 run that also covers registered-parent metadata.
 
 Native QA pulled a real new commit from the disposable documentation remote with
@@ -58,7 +58,7 @@ A missing URL produced an error; Open Working Tree opened the correct status win
   prove Git effects but not those full native workflows.
 - Full remote reference chooser and settings,
   additional preference/size persistence, light/resize/keyboard/accessibility QA.
-  Shared URL/branch history is now implemented; clipboard/deletion acceptance remains pending.
+  Shared URL/branch history is now implemented; physical clipboard/deletion acceptance remains pending.
 - Interactive Git hooks, authentication/signing and signed sandbox runtime checks.
 
 The shared resource and command sources remain partial. This is not full Pull
@@ -79,3 +79,7 @@ section in FETCH-PARITY.md for exact source rules and remaining acceptance.
 Registered submodule branch defaults now follow the parent `.gitmodules` value
 when the child has no tracking branch. See FETCH-PARITY.md for exact source
 precedence, literal-dot behavior and remaining acceptance.
+
+Arbitrary URL now prefills from copied Pull/Fetch text with the shared source
+parser and macOS path/file-URL additions. See FETCH-PARITY.md for the exact rules
+and remaining physical pasteboard acceptance.

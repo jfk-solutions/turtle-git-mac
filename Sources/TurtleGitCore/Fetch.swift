@@ -117,3 +117,44 @@ extension GitRepository {
         return try run(args).text
     }
 }
+
+/// AppUtils::GetClipboardLink and PullFetchDlg's literal-space field split.
+/// POSIX absolute paths and file URLs supplement Windows drive paths on macOS.
+public enum FetchClipboardInput {
+    private static let whitespace = CharacterSet(charactersIn: " \t\r\n\u{0B}\u{0C}")
+    static func link(_ raw: String, prefix: String) -> String? {
+        var input = Array(raw.utf16)
+        if let nul = input.firstIndex(of: 0) { input = Array(input[..<nul]) }
+        guard !input.isEmpty else { return nil }
+        if input.first == 34 && input.last == 34 { input = Array(input.dropFirst().dropLast()) }
+        if let newline = input.firstIndex(of: 10) {
+            input = Array(input[..<newline])
+            while let last = input.last, [9, 10, 11, 12, 13, 32].contains(last) { input.removeLast() }
+        }
+        var text = String(decoding: input, as: UTF16.self)
+        guard !text.isEmpty else { return nil }
+        for scheme in ["http://", "https://", "git://", "ssh://", "git@", "file://"] {
+            if text.utf16.starts(with: scheme.utf16), text.utf16.count != scheme.utf16.count { return text }
+        }
+        let units = Array(text.utf16)
+        if units.count >= 2, units[1] == 58, (65...90).contains(units[0]) || (97...122).contains(units[0]) { return text }
+        if units.first == 47 { return text }
+        guard text.utf16.starts(with: prefix.utf16) else { return nil }
+        text = String(decoding: units.dropFirst(prefix.utf16.count), as: UTF16.self).trimmingCharacters(in: whitespace)
+        let remaining = Array(text.utf16), spaces = remaining.indices.filter { remaining[$0] == 32 }
+        if spaces.count >= 2, spaces[1] > 0 { text = String(decoding: remaining[..<spaces[1]], as: UTF16.self) }
+        return text.isEmpty ? nil : text
+    }
+    public static func selection(_ text: String, isPull: Bool) -> (url: String, branch: String?)? {
+        guard let value = link(text, prefix: isPull ? "git pull" : "git fetch") ?? link(text, prefix: isPull ? "git fetch" : "git pull") else { return nil }
+        let units = Array(value.utf16)
+        guard let separator = units.firstIndex(of: 32), separator > 1, units.count > separator + 2 else { return (value, nil) }
+        func unquote(_ units: ArraySlice<UInt16>) -> String {
+            if units.count > 2, let first = units.first, first == units.last, first == 34 || first == 39 {
+                return String(decoding: units.dropFirst().dropLast(), as: UTF16.self)
+            }
+            return String(decoding: units, as: UTF16.self)
+        }
+        return (unquote(units[..<separator]), unquote(units[(separator + 1)...]))
+    }
+}

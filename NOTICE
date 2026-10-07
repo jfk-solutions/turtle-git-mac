@@ -404,3 +404,8 @@ Pull/Fetch submodule branch defaults adapt PullFetchDlg::Refresh and its
 registered-parent metadata lookup under the upstream source license. Native
 read-only Git config queries replace the libgit2 .gitmodules branch lookup;
 child tracking takes priority and the source literal dot value is retained.
+
+Pull/Fetch clipboard prefilling adapts AppUtils::GetClipboardLink and
+PullFetchDlg::OnBnClickedRd under the upstream source license. Native Unicode
+pasteboard input replaces Windows clipboard handles; POSIX absolute paths and
+file URLs supplement source schemes/drive paths without shell execution.

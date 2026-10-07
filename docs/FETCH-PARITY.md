@@ -32,7 +32,7 @@ remote branch browsing with Unicode names, URL fetch to FETCH_HEAD, shallow dept
 1 then 2, all-remotes updates and invalid destination/depth/refspec requests.
 Two additional Fetch/Rebase tests verify a pinned fetched branch, dirty-worktree
 preservation, replay ancestry and active-session rejection. The current focused
-Pull/Fetch tests passed all 14 checks within the 17-test run that also covers
+Pull/Fetch tests passed all 17 checks within the 20-test run that also covers
 registered-parent metadata. Three added tests exercise submodule branch defaults,
 read-only lookup and fallback, as detailed below.
 
@@ -50,7 +50,7 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
   fast-forward choices, post-operation actions and full conflict recovery remain.
 - Full remote reference chooser hierarchy, tag selection and histories; the current
   chooser lists heads only. Full remote settings and their mutation/recovery QA.
-- Clipboard/history deletion, complete settings
+- History deletion, complete settings
   and window-size persistence.
 - Streaming progress/cancellation, interactive credentials, network/SSH and signed
   sandbox runtime checks. Cancel is disabled while Git runs.
@@ -75,8 +75,8 @@ remote branches, backed by shared `History.PullURLS` and
 compares exact UTF-16 units and preserves case; branch duplicate matching is
 case-insensitive like the source control. Histories retain their source order,
 without sorting. Branch defaults are added/selected during load; browsing adds the
-selected branch to the front without saving until OK. Selecting URL mode picks
-the latest saved URL (clipboard command extraction remains pending). URL mode
+selected branch to the front without saving until OK. Selecting URL mode uses a recognized clipboard link/command, otherwise
+picks the latest saved URL. URL mode
 also disables Launch Rebase After Fetch and its execution gate, matching the
 upstream radio transition.
 
@@ -92,7 +92,7 @@ Invocation uses the trimmed URL/branch rather than the history's line-folded tex
 Fetch and repositories, real URL Pull/named Fetch, failed-transport state
 preservation, ordering/case/UTF-16/limit checks and a hidden native combo's ordered
 items and selection callback. These are model/Git/hidden-control checks; physical
-popup, text editing/completion, Shift-Delete deletion, clipboard extraction,
+popup, text editing/completion, Shift-Delete deletion,
 Windows locale/trim equivalence, light/dark and signed sandbox acceptance remain
 pending. Full Pull/Fetch and application parity remain incomplete.
 
@@ -127,3 +127,34 @@ parent metadata. Module names differ from paths; paths include Unicode and a
 newline. Duplicate path/name collisions, includes and full libgit2 cache lookup,
 renamed/worktree variants, displayed dropdowns, parent access under the signed
 sandbox and other native acceptance remain pending. The full port is incomplete.
+
+
+## Clipboard URL and branch prefilling
+
+Selecting **Arbitrary URL** now reads Unicode text from the macOS pasteboard
+(string, then file-URL representation). Pull first recognizes its `git pull`
+prefix and then `git fetch`; Fetch reverses that order. The shared source rules
+recognize nonempty lowercase HTTP/HTTPS/Git/SSH schemes, `git@` and Windows drive
+paths. POSIX absolute paths and `file://` URLs are explicit macOS additions.
+Unrecognized or empty text restores the latest URL history entry and retains the
+current branch. A recognized URL without a parsed branch also retains that branch.
+
+The parser follows the source's UTF-16 offsets, first-line/NUL truncation, outer
+double-quote handling, case-sensitive prefix matching, command trimming and
+literal-space truncation to at most two command fields. The dialog's split keeps
+its source conditions: the first space must be after UTF-16 offset one and leave
+more than one branch unit; surrounding matching quotes are removed only from
+split fields longer than two units. Repeated spaces, one-unit branches, command
+prefixes without a token boundary and quoted unsplit arguments therefore retain
+the upstream behavior. This is field prefilling, with no shell interpretation or
+clipboard-triggered Git operation. Selection does not save history or mutate Git;
+OK still controls saving and transport.
+
+[Clipboard QA](qa/fetch-clipboard-2026-10-07.json) records parser vectors and native
+models using injected text, including preferred/alternate commands, quote/extra
+argument rules, Unicode offsets, history fallback and no mutation until OK.
+Real literal-path/file-URL Fetch, ff-only Pull and failed destination retention
+were checked. The user pasteboard was neither read nor modified by these tests.
+Physical pasteboard/radio/keyboard acceptance, complex shell quoting and paths
+with spaces, platform whitespace equivalence, clipboard support in other dialogs,
+history deletion and signed sandbox checks remain pending. Full port incomplete.

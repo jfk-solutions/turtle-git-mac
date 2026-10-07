@@ -24,6 +24,7 @@ import TurtleGitCore
         _ = try await producer.run(["clone", "--bare", source.path, bare.path]); _ = try await producer.run(["clone", bare.path, client.path])
         let repo = GitRepository(root: client, executable: git)
         let fetch = FetchWindowModel(repository: repo, access: nil, isPull: false, preferences: preferences)
+        fetch.clipboardText = { nil }
         fetch.load(); try await wait(fetch)
         precondition(fetch.urls.isEmpty && fetch.branchHistory == ["main"])
         // Failure persists selected URL/branch before transport while protecting Git state.
@@ -38,6 +39,7 @@ import TurtleGitCore
         try Data("next".utf8).write(to: source.appendingPathComponent("file")); try await producer.stage(["file"]); _ = try await producer.commit(message: "next")
         _ = try await producer.run(["push", bare.path, "main"])
         let pull = FetchWindowModel(repository: repo, access: nil, isPull: true, preferences: preferences)
+        pull.clipboardText = { nil }
         pull.load(); try await wait(pull); precondition(pull.urls == [missing])
         pull.selectArbitraryURL(); precondition(pull.url == missing)
         pull.url = bare.path; pull.options.branch = "main"; pull.fastForwardOnly = true

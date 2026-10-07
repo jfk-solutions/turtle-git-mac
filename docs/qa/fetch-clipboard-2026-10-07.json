@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "f821e7411f4ccbca0d9692e45d43e3ec25ec2709",
+  "scope": "Pull/Fetch clipboard URL/branch prefilling with source parsing and native absolute-path/file-URL additions. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/PullFetchDlg.cpp": "261e75446acd8f6c3a14ed29dd57dd56d92a449a"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "25b147dd4e2113b154237046ba3123e53ef0a8aaa61159be42742c501c6ec1f1",
+    "NOTICE": "497ad153c545a9844eabecff798837f585139081f48689b9cff51b6812945101",
+    "Sources/TurtleGitCore/Fetch.swift": "ce0a610a241bd85acad1afe24e8ba00b05bbb14bcbb1d2f256ec854ab5ca73f3",
+    "Sources/TurtleGitMac/FetchWindow.swift": "a4189a6a409925d4e2396be0535debee245c91181e721143eadded41eabde57d",
+    "Tests/TurtleGitCoreTests/FetchTests.swift": "24d98b03ffc9fc274e5b603693d0a7edb265b9c6eb1714593ef3a6257fc10006",
+    "docs/FETCH-PARITY.md": "203dbe677db470dc019ac67739152c9ba38be6043f275dad44e0cb177c4c4333",
+    "docs/PULL-PARITY.md": "67e3dcc059bcdce57ea1d1a391e726f130ad726ae0a8771e2f4fd4636177c420",
+    "docs/qa/fetch-clipboard-native-2026-10-07.swift": "469c5b1cfe219b0d20ea7e7c40a1a0414e56e45a27691c87dc8ea96cdb4c4e72",
+    "docs/qa/fetch-history-native-2026-10-07.swift": "9c8632306da265a62321c9431ed2effdc43d9fc9eff9f08c0e3492a564922d7e",
+    "docs/upstream-files.csv": "327093a69c890e273d25983a504210ce5c71a5c18f1ffcfccc2d7e774eb5ac75",
+    "scripts/test-fetch-clipboard.py": "88131609e93235fafd2030e63f810a067a611cceacb22f12bfe3d582a9ef9127"
+  },
+  "all_sources_manifest_sha256": "ac396735d6e1022f196ade5fb9c1cc746ebae046480bf16041b3f1cd0627b4d4",
+  "verification": {
+    "core": "All 20 selected Fetch/Pull/FinderSubmoduleMetadata tests passed (12 Fetch, 5 Pull, 3 Finder). Three new parser tests cover source preferred/alternate commands, extra-token truncation, quotes, prefix-without-token-boundary, repeated spaces, one-unit branch split exemption, lowercase schemes/drive paths, first LF/CRLF and NUL handling, unsupported input, native POSIX/file URLs and supplementary-character UTF-16 offsets.",
+    "native": "Clipboard receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Injected reader is called only on URL selection. Unrecognized input selects URL history without changing branch. Alternate quoted command fields prefill URL/branch and clear Rebase; selection retains history and exact HEAD/index before OK. Actual path/file-URL Fetch and ff-only Pull succeed through native models; failed transport retains chosen inputs. User pasteboard never read/written by tests. Existing history receiver also passed all four versions after explicitly injecting nil clipboard text into its Fetch/Pull models, isolating history fallback from the new runtime behavior. Its hidden native combo window closes. These are parser/native-model/Git/hidden-control checks, not physical pasteboard/radio/keyboard or screenshots.",
+    "iterations": "Initial source review used UTF-16 code units for CRLF truncation/offsets rather than grapheme indexing. Focused core and both final native matrices passed; no runtime failure.",
+    "builds": "Unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed, with all 96 original icons. Store --require-git verified 11 universal Git Mach-O files and fixture operations; EditorConfig/IssueRegex audits passed.",
+    "documentation": "Pull/Fetch parity, source inventory and NOTICE updated with source parsing quirks and explicit macOS additions. Inventory pin regression and CSV column validation passed. Local site generated, unpublished.",
+    "ci": "Added native clipboard receiver; existing history fixture made pasteboard-independent. Hosted CI/push/site publication unverified; authentication unavailable, no retry.",
+    "processes": "All compiler/core/native/audit sessions terminal. No main GUI launch or displayed windows; owned hidden history control window closed. Final app/receiver audit empty. Eight empty owned FetchClipboard/FetchHistory QA preference UUID files removed; unrelated preferences retained.",
+    "limitations": "Physical pasteboard/radio/text-input/keyboard/VoiceOver, source complex shell quoting and paths containing spaces, platform trim equivalence, clipboard support in other dialogs, history deletion and signed sandbox execution remain pending. Full application/dialog parity, Finder activation, genuine screenshots/full manual, signed distribution/App Store/license clearance and hosted publication remain incomplete."
+  },
+  "logs": {
+    "build/qa/fetch-clipboard/core.log": "a7383839b78b237e578a255a3d9bb5b1c32123680fdb46be0b48b280aad4e79c",
+    "build/qa/fetch-clipboard/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/fetch-clipboard/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/fetch-clipboard/history-native.log": "7a7c1e3e8cee33ab753f46bb1fdc3e0bdbcab172a73d18e922ed75820c52540d",
+    "build/qa/fetch-clipboard/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/fetch-clipboard/native.log": "6925911b65b2eb41efd21658bfc17f22447dca455cf525339aaa17878e1ff566",
+    "build/qa/fetch-clipboard/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-clipboard/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/fetch-clipboard/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/fetch-clipboard/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

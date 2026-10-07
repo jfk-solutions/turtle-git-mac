@@ -45,6 +45,7 @@ import TurtleGitCore
     @Published var error: String?
     @Published var browsing = false
     @Published var managing = false
+    var clipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
     var close: () -> Void = {}
     var onShowStatus: () -> Void = {}
     var onFetched: (String) -> Void = { _ in }
@@ -91,7 +92,9 @@ import TurtleGitCore
     }
     func selectArbitraryURL() {
         options.arbitraryURL = true; options.allRemotes = false; launchRebase = false
-        url = urls.first ?? ""
+        let selection = FetchClipboardInput.selection(clipboardText() ?? "", isPull: isPull)
+        url = selection?.url ?? urls.first ?? ""
+        if let branch = selection?.branch { options.branch = branch }
     }
     func remoteChanged() {
         generation += 1; let request = generation, remote = options.remote
