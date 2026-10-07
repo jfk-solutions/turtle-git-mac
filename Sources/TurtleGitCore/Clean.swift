@@ -1,4 +1,6 @@
 import Foundation
+import CryptoKit
+import Darwin
 
 public enum CleanType: Int, CaseIterable, Sendable {
     case all = 0, nonIgnored = 1, ignored = 2
@@ -25,15 +27,19 @@ public struct CleanPreview: Sendable {
     public let output: Data
     /// Literal root-relative candidates; trailing slash denotes a directory.
     public let candidates: [String]
+    fileprivate let root: URL
+    fileprivate let fingerprints: [String: Data]
 }
 
 public enum CleanFailure: LocalizedError {
-    case bare, path, output
+    case bare, path, output, changed, locked
     public var errorDescription: String? {
         switch self {
         case .bare: return "Clean requires a working tree."
         case .path: return "Choose paths inside the working tree."
         case .output: return "Git returned an unrecognized cleanup path. No files were removed."
+        case .changed: return "Cleanup candidates changed. Preview again before removing files."
+        case .locked: return "Could not lock the Git index. No files were removed."
         }
     }
 }
@@ -76,10 +82,107 @@ extension GitRepository {
             candidates.append(path)
         }
         try cancellation?.check()
-        return CleanPreview(options: options, paths: paths, output: output, candidates: candidates)
+        var fingerprints: [String: Data] = [:]
+        for path in candidates {
+            guard fingerprints[path] == nil else { throw CleanFailure.output }
+            fingerprints[path] = try cleanFingerprint(restoreLocation(path), cancellation: cancellation)
+        }
+        return CleanPreview(options: options, paths: paths, output: output, candidates: candidates, root: root, fingerprints: fingerprints)
     }
     private static func validCleanPath(_ path: String) -> Bool {
         !path.isEmpty && !path.hasPrefix("/") && !path.contains("\0") &&
             !path.split(separator: "/").contains(where: { $0 == ".." || $0 == ".git" })
+    }
+}
+
+public struct CleanExecutionResult: Sendable {
+    public let removedPaths: [String]
+    public let trashedFiles: [URL]
+}
+public struct CleanExecutionFailure: LocalizedError, Sendable {
+    public let message: String
+    public let failedPath: String?
+    public let cancelled: Bool
+    public let result: CleanExecutionResult
+    public var errorDescription: String? {
+        message + (failedPath.map { "\n\nCleanup stopped at: " + $0 } ?? "") +
+            (result.removedPaths.isEmpty ? "" : "\n\nCompleted removals:\n" + result.removedPaths.joined(separator: "\n")) +
+            (result.trashedFiles.isEmpty ? "" : "\n\nRecoverable Trash items:\n" + result.trashedFiles.map(\.path).joined(separator: "\n"))
+    }
+}
+
+extension GitRepository {
+    /// Execute only an accepted preview. Native callers must confirm the chosen
+    /// Trash/permanent action and hold repository access for this operation.
+    public func executeClean(_ preview: CleanPreview, permanently: Bool = false, cancellation: OperationCancellation? = nil) throws -> CleanExecutionResult {
+        try executeClean(preview, permanently: permanently, cancellation: cancellation) { location, permanent in
+            if permanent { try FileManager.default.removeItem(at: location); return nil }
+            var trashed: NSURL?
+            try FileManager.default.trashItem(at: location, resultingItemURL: &trashed)
+            return trashed.map { $0 as URL }
+        }
+    }
+    func executeClean(_ preview: CleanPreview, permanently: Bool, cancellation: OperationCancellation?, removal: @Sendable (URL, Bool) throws -> URL?) throws -> CleanExecutionResult {
+        try cancellation?.check()
+        guard preview.root == root else { throw CleanFailure.changed }
+        var indexPath = try run(["rev-parse", "--git-path", "index"]).stdout
+        if indexPath.last == 10 { indexPath.removeLast() }
+        let indexName = String(decoding: indexPath, as: UTF8.self)
+        let index = indexName.hasPrefix("/") ? URL(fileURLWithPath: indexName) : root.appendingPathComponent(indexName)
+        let lock = URL(fileURLWithPath: index.path + ".lock")
+        let descriptor = open(lock.path, O_WRONLY | O_CREAT | O_EXCL, 0o600)
+        guard descriptor >= 0 else { throw CleanFailure.locked }
+        defer { Darwin.close(descriptor); try? FileManager.default.removeItem(at: lock) }
+        // Recheck the index-derived candidate set while competing index writers
+        // are excluded. Content fingerprints cover edits within candidate folders.
+        let fresh = try cleanPreview(options: preview.options, paths: preview.paths, cancellation: cancellation)
+        guard fresh.candidates == preview.candidates, fresh.fingerprints == preview.fingerprints else { throw CleanFailure.changed }
+        let locations = try preview.candidates.map { try restoreLocation($0) }
+        var removed: [String] = [], trash: [URL] = [], current: String?
+        do {
+            for (path, location) in zip(preview.candidates, locations) {
+                current = path
+                try cancellation?.check()
+                guard try cleanFingerprint(location, cancellation: cancellation) == preview.fingerprints[path] else { throw CleanFailure.changed }
+                if let recovered = try removal(location, permanently) { trash.append(recovered) }
+                removed.append(path); current = nil
+            }
+            try cancellation?.check()
+        } catch {
+            throw CleanExecutionFailure(message: error.localizedDescription, failedPath: current, cancelled: cancellation?.isCancelled == true,
+                                        result: CleanExecutionResult(removedPaths: removed, trashedFiles: trash))
+        }
+        return CleanExecutionResult(removedPaths: removed, trashedFiles: trash)
+    }
+    private func cleanFingerprint(_ location: URL, cancellation: OperationCancellation?) throws -> Data {
+        var hash = SHA256()
+        func append(_ bytes: Data) { hash.update(data: Data((String(bytes.count) + ":").utf8)); hash.update(data: bytes) }
+        func visit(_ url: URL) throws {
+            try cancellation?.check()
+            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
+            guard let type = attributes[.type] as? FileAttributeType else { throw CleanFailure.output }
+            append(Data(type.rawValue.utf8))
+            for key: FileAttributeKey in [.systemNumber, .systemFileNumber, .posixPermissions, .size, .modificationDate] {
+                append(Data(String(describing: attributes[key]).utf8))
+            }
+            switch type {
+            case .typeSymbolicLink:
+                append(Data(try FileManager.default.destinationOfSymbolicLink(atPath: url.path).utf8))
+            case .typeRegular:
+                let handle = try FileHandle(forReadingFrom: url); defer { try? handle.close() }
+                while true {
+                    try cancellation?.check()
+                    guard let bytes = try handle.read(upToCount: 65536), !bytes.isEmpty else { break }
+                    hash.update(data: bytes)
+                }
+            case .typeDirectory:
+                for name in try FileManager.default.contentsOfDirectory(atPath: url.path).sorted() {
+                    append(Data(name.utf8)); try visit(url.appendingPathComponent(name))
+                }
+            default: throw CleanFailure.output
+            }
+        }
+        try visit(location)
+        return Data(hash.finalize())
     }
 }

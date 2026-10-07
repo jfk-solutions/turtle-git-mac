@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "68d2b9dede6c54fe0ca27c7d4eacb3c129807056",
+  "previous_goal_turn": "progress: literal Clean Core dry-run reader verified",
+  "scope": "Accepted Clean plan execution to actual Trash or explicit permanent deletion, stale candidate/content validation under exclusive index lock and partial/canceled results",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "Sources/TurtleGitCore/Clean.swift": "ca7d525c1d97437276dabd5b536e3b53db00d97b67076ec665dc83bcb1ddc139",
+    "Tests/TurtleGitCoreTests/CleanTests.swift": "a70c52eb3177cda6c9c758afff394548cf0aa62b70698ad82339ac0a6bc82146",
+    "docs/CLEAN-PARITY.md": "bdf54425b09a1279d1e5e4985b4d5480892b3f1ca03941f3b54680024295ede8",
+    "docs/upstream-files.csv": "87c359aac0ce624b3e039d866750f6cbbed9a896ec73d1859bf95b3dee71c1c4"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/Commands/CleanupCommand.cpp": "800b5e42166343e9a86e032ef946ad41a4447c0b19e759f785ea48920397b4ef",
+    "src/TortoiseProc/CleanTypeDlg.cpp": "7edf29911cfbfb092b80525a8e0485c55f05658bf227bb8fedaca26ebcf353a6"
+  },
+  "all_sources_manifest_sha256": "f7702adcee70f46b99d5638a0bf7e2c3c5d8a8baf75e48b0b3cfdc3f12781d4f",
+  "verification": {
+    "core": "Six CleanTests passed sequentially on Apple Git 2.50.1, Git 2.37.1, 2.39.5 and bundled 2.55.0. Existing preview modes/path decoding retained; actual recoverable Trash checks binary file/directory/symlink with outside target retained and unrelated mixed staging preserved. Only returned owned Trash URLs removed after byte checks. Actual ignored-only and explicit unmanaged nested-repository permanent cleanup verified with tracked index unchanged. Changed internal folder bytes, newly tracked candidate, foreign-root plan, preexisting owned lock and pre-canceled operation refuse execution. Injected Trash failure leaves original bytes/no unlink fallback; injected post-first-removal cancellation reports first path and failed next path, preserves remaining file/index and removes owned index lock. Owned repository fixtures removed.",
+    "builds": [
+      "SwiftPM final test build",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "audits": "Both validators and exact NOTICE comparisons passed, including 90 icons, Finder extension/license resources and Store --require-git universal runtime. Unsigned builds do not verify signed sandbox or Store acceptance.",
+    "native": "No native Clean dialog/confirmation/routing implemented. No app or native/menu/provider receiver launched or remaining.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "Native caller confirmation/access lease and progress/Retry/dry-run post-actions not wired. Submodules/file-to-directory scope adaptation and signed sandbox/Trash acceptance pending. Fingerprints require readable regular files/directories or symlinks and UTF-8 names; recursive hashing adds IO. Checks/removal are not an atomic filesystem snapshot; a failed directory removal can be partial, with its path reported. Permanent completed deletion cannot be rolled back. Full port/activated Finder/displayed fidelity/signed Store/manual/screenshots/hosted CI/site incomplete."
+  },
+  "logs": {
+    "build/qa/clean-execution/core-2.37.1.log": "5a2196caaea9f1ecc22103e710d3363b1ca24b9db911e75caa6a4969c5d0f690",
+    "build/qa/clean-execution/core-2.39.5.log": "5a9b0aae03d76fc04434757e4f25602332bd169a34c11ffeb8665958ad7e0c1d",
+    "build/qa/clean-execution/core-2.55.0.log": "81a8fcd208b7472e2602b4db1c3ccafb925c0b5685f6f2da129c4f8040f543c5",
+    "build/qa/clean-execution/core-final.log": "bde16750ee246ac60fa3c9322547df38fbc46fd9624008240bba74c463633b5a",
+    "build/qa/clean-execution/core.log": "c837f36e9e4dda8f7c0935760a079b5dd5e5c9ebbf77ddbe57bddbcc413ac1ef",
+    "build/qa/clean-execution/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/clean-execution/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/clean-execution/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/clean-execution/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/clean-execution/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

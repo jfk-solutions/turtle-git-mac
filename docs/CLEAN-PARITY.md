@@ -1,7 +1,8 @@
 # Clean port
 
 The Clean workflow is incomplete. There is no native Clean dialog or Finder Clean
-route yet, and no cleanup execution API is exposed by this first reader step.
+route yet. Core preview and accepted-plan execution are implemented; native
+confirmation/progress and submodule traversal remain unported.
 
 ## Pinned behavior
 
@@ -41,12 +42,39 @@ pathspec-looking literal names, `core.quotepath=false`, cancellation and rejecte
 scopes/bare repositories. They compare exact HEAD, index, config and working-file
 bytes. See [the preview QA record](qa/clean-preview-2026-10-07.json).
 
+## Accepted-plan execution
+
+`executeClean` defaults to Trash; permanent deletion requires an explicit choice
+from the caller. Native callers must confirm the action and retain repository
+access. The preview captures SHA-256 content fingerprints and filesystem metadata
+for regular files, directory trees and symlink targets without following links.
+Execution refuses a foreign repository plan, takes an exclusive index lock, and
+reruns the preview before removing any candidate. Changes in candidate paths,
+tracking state or directory contents require a new preview. Each candidate is
+rechecked immediately before removal. HEAD and index contents are never written.
+
+Trash failure never falls back to permanent deletion. Cancellation and removal
+errors return completed paths, recovered Trash URLs and the path where cleanup
+stopped. Completed permanent deletions cannot be rolled back. Filesystem checks
+and removal remain separate operations; this is not an atomic filesystem snapshot.
+Recursive fingerprints read candidate contents in cancellable 64 KiB chunks and
+can add substantial work for large cleanup folders. Non-UTF-8 names and special
+file types currently fail instead of being removed.
+
+Six real-Git tests include actual recoverable Trash of binary files, directories
+and an outside-target symlink, selective permanent ignored-file cleanup, explicit
+unmanaged-repository removal, changed folder contents/newly tracked paths, foreign
+plans, owned preexisting lock preservation, pre/mid-operation cancellation and an
+injected Trash failure without deletion fallback. Owned Trash items are removed
+after their recovered contents are checked. See
+[the execution QA record](qa/clean-execution-2026-10-07.json).
+
 ## Remaining work
 
 - Native resource-matching controls and per-repository option persistence.
 - Finder/main-app command routing and file-to-directory scope adaptation.
 - Initialized submodule traversal with access leases and recursive scope rules.
-- Confirmed Trash/permanent execution, stale-plan validation, cancellation and
-  partial-result reporting, Retry and dry-run post-actions.
+- Native confirmation and progress around Core execution, Retry and dry-run
+  post-actions; operation progress/cancellation UI and signed Trash acceptance.
 - Displayed light/dark layout, original icons, keyboard/VoiceOver and signed sandbox
   acceptance. The Core checks do not establish native dialog parity.
