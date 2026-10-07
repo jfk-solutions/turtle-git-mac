@@ -1162,6 +1162,41 @@ import TurtleGitCore
     let child = reopened.patchPreviewWindow!
     precondition(reopened.window?.isVisible == false && child.window?.isVisible == false && child.model.readOnly && !child.model.refreshAvailable)
     precondition(child.model.exportDocument.bytes == reopened.model.patchPreviewData && !child.model.canApplyLines && !child.model.canApplyHunks)
+    let bounds = NSRect(x: 0, y: 0, width: 2400, height: 1400), placementParent = NSRect(x: 500, y: 100, width: 1100, height: 900)
+    let right = LogPatchPlacement.initial(parent: placementParent, width: 600, screens: [bounds])
+    precondition(right.minX == placementParent.maxX + 8 && right.minY == placementParent.minY && right.height == placementParent.height)
+    let edgeParent = NSRect(x: 1300, y: 100, width: 1000, height: 900)
+    let left = LogPatchPlacement.initial(parent: edgeParent, width: 600, screens: [bounds])
+    precondition(left.maxX == edgeParent.minX - 8)
+    let smallScreen = NSRect(x: 0, y: 0, width: 1000, height: 650)
+    precondition(smallScreen.contains(LogPatchPlacement.initial(parent: NSRect(x: 0, y: 0, width: 1000, height: 700), width: 600, screens: [smallScreen])))
+    let negative = NSRect(x: -2400, y: 0, width: 2400, height: 1400)
+    precondition(negative.contains(LogPatchPlacement.initial(parent: NSRect(x: -1600, y: 100, width: 1100, height: 900), width: 600, screens: [negative])))
+    var near = right; near.origin.x += 3
+    precondition(LogPatchPlacement.snap(preview: near, parent: placementParent) == right)
+    near.origin.x += 3; precondition(LogPatchPlacement.snap(preview: near, parent: placementParent) == nil)
+    let parentWindow = reopened.window!, previewWindow = child.window!
+    let oldParent = parentWindow.frame
+    previewWindow.setFrame(NSRect(x: oldParent.maxX + 8, y: oldParent.minY, width: 600, height: oldParent.height), display: false)
+    let seededPreview = previewWindow.frame
+    var movedParent = oldParent; movedParent.origin.x += 40; movedParent.origin.y += 20; movedParent.size.height += 80
+    parentWindow.setFrame(movedParent, display: false)
+    reopened.windowDidMove(Notification(name: NSWindow.didMoveNotification, object: parentWindow))
+    reopened.windowDidResize(Notification(name: NSWindow.didResizeNotification, object: parentWindow))
+    precondition(abs(previewWindow.frame.minX - parentWindow.frame.maxX - 8) < 1 && abs(previewWindow.frame.height - parentWindow.frame.height) < 1, "Dock follow: old parent \(oldParent), seed \(seededPreview), actual parent \(parentWindow.frame), preview \(previewWindow.frame)")
+    let dockedParent = parentWindow.frame
+    var detached = previewWindow.frame; detached.origin.x += 120
+    previewWindow.setFrame(detached, display: false)
+    var nextParent = dockedParent; nextParent.origin.x += 30
+    parentWindow.setFrame(nextParent, display: false); reopened.windowDidMove(Notification(name: NSWindow.didMoveNotification, object: parentWindow))
+    precondition(previewWindow.frame == detached, "Dragged-away preview must not follow parent")
+    var leftDocked = previewWindow.frame; leftDocked.origin.x = parentWindow.frame.minX - leftDocked.width - 8 + 3
+    previewWindow.setFrame(leftDocked, display: false); child.windowDidMove(Notification(name: NSWindow.didMoveNotification, object: previewWindow))
+    precondition(abs(previewWindow.frame.maxX - parentWindow.frame.minX + 8) < 1)
+    var leftMove = parentWindow.frame; leftMove.origin.x += 20
+    parentWindow.setFrame(leftMove, display: false); reopened.windowDidMove(Notification(name: NSWindow.didMoveNotification, object: parentWindow))
+    precondition(abs(previewWindow.frame.maxX - parentWindow.frame.minX + 8) < 1)
+    precondition(!parentWindow.isVisible && !previewWindow.isVisible)
     reopened.model.busy = true; child.window?.performClose(nil); reopened.model.busy = false
     precondition(reopened.patchPreviewWindow == nil && !reopened.model.patchPreviewVisible)
     try await until { !reopened.model.patchPreferenceSaving }
@@ -1198,7 +1233,7 @@ import TurtleGitCore
     let setting = try await repo.run(["config", "--bool", "--get", "tgit.logshowpatch"]).text.trimmingCharacters(in: .newlines)
     precondition(afterHead == head && afterIndex == index && setting == "false")
     let workBytes = try Data(contentsOf: root.appendingPathComponent(path)); precondition(workBytes == Data("changed\n".utf8))
-    print("Native Log Patch: real config-lock failure preserves usable open/close preview and exact config/owned lock, ordered rapid preference writes and recovery, whole/stat and selected literal file bytes, multi/root clearing, selection-stale and closed read refusal, repo setting and reopening, actual hidden read-only child window/content with applying disabled, child close during busy Log and owned cleanup, exact HEAD/index/work preservation passed. Displayed alignment/gestures pending.")
+    print("Native Log Patch: real hidden right/left docking, move/resize, drag-away and sticky snap, screen bounds and negative monitor coordinate placement, real config-lock failure preserves usable open/close preview and exact config/owned lock, ordered rapid preference writes and recovery, whole/stat and selected literal file bytes, multi/root clearing, selection-stale and closed read refusal, repo setting and reopening, actual hidden read-only child window/content with applying disabled, child close during busy Log and owned cleanup, exact HEAD/index/work preservation passed. Displayed alignment/gestures pending.")
 }
 
 @MainActor func verifyNativeLogUnrelatedPaths(executable: URL) async throws {
@@ -1946,10 +1981,10 @@ import TurtleGitCore
     log.endRevision = "main"
     var requests: [LogBisectRequest] = []
     log.onBisect = { requests.append($0) }
-    func waitLog() async throws {
+    func waitLog(_ expected: () -> Bool = { true }) async throws {
         let deadline = Date().addingTimeInterval(30)
-        while log.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(!log.busy)
+        while (log.busy || !expected()) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!log.busy && expected())
     }
     log.reload(); try await waitLog()
     log.selected = [hashes[0], hashes[7]]
@@ -2028,7 +2063,7 @@ import TurtleGitCore
     _ = try await repo.run(["update-ref", "refs/bisect/skip-" + hashes[4], hashes[4]])
     coordinator.bisectGood(); try await waitLog(); precondition(requests.count == 5 && log.error != nil)
     reopened.model.perform(.reset); try await wait(reopened.model)
-    try await waitLog()
+    try await waitLog { !log.bisectActive && log.entries.first { $0.isHead }?.hash == hashes[7] }
     precondition(!log.bisectActive && log.entries.first { $0.isHead }?.hash == hashes[7])
     precondition(log.entries.allSatisfy { !$0.references.contains { $0.name.hasPrefix("refs/bisect/") } })
     precondition(bisectPicker.model.isInvalidated && !bisectPicker.model.busy)

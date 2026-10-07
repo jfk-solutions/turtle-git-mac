@@ -24,6 +24,42 @@ struct PreparedFileComparisonMark {
 }
 
 enum HistoricalOpenAction { case open, openWith, alternativeEditor }
+
+/// Native counterpart of PatchViewDlg's sticky edge and parent frame handling.
+enum LogPatchPlacement {
+    static let gap: CGFloat = 8
+    static func initial(parent: NSRect, width: CGFloat, screens: [NSRect]) -> NSRect {
+        let right = NSRect(x: parent.maxX + gap, y: parent.minY, width: width, height: parent.height)
+        let left = NSRect(x: parent.minX - width - gap, y: parent.minY, width: width, height: parent.height)
+        if screens.contains(where: { $0.contains(right) }) { return right }
+        if screens.contains(where: { $0.contains(left) }) { return left }
+        guard let screen = screens.max(by: { $0.intersection(parent).area < $1.intersection(parent).area }) else { return right }
+        let size = NSSize(width: min(width, screen.width), height: min(parent.height, screen.height))
+        return NSRect(x: min(max(right.minX, screen.minX), screen.maxX - size.width),
+                      y: min(max(parent.minY, screen.minY), screen.maxY - size.height), width: size.width, height: size.height)
+    }
+    static func snap(preview: NSRect, parent: NSRect) -> NSRect? {
+        var result = preview
+        let right = abs(preview.minX - parent.maxX - gap), left = abs(preview.maxX - parent.minX + gap)
+        guard min(right, left) < 5 else { return nil }
+        result.origin.x = right <= left ? parent.maxX + gap : parent.minX - preview.width - gap
+        return result
+    }
+    static func follow(preview: NSRect, oldParent: NSRect, newParent: NSRect, minimumHeight: CGFloat) -> NSRect? {
+        let right = abs(preview.minX - oldParent.maxX - gap) < 1
+        let left = abs(preview.maxX - oldParent.minX + gap) < 1
+        guard right || left else { return nil }
+        let bottomAligned = abs(preview.minY - oldParent.minY) < 1, topAligned = abs(preview.maxY - oldParent.maxY) < 1
+        let deltaY = newParent.minY - oldParent.minY
+        var bottom = bottomAligned ? newParent.minY : preview.minY + deltaY
+        let top = topAligned ? newParent.maxY : preview.maxY + deltaY
+        if top - bottom < minimumHeight { bottom = top - minimumHeight }
+        return NSRect(x: right ? newParent.maxX + gap : newParent.minX - preview.width - gap,
+                      y: bottom, width: preview.width, height: max(minimumHeight, top - bottom))
+    }
+}
+
+private extension NSRect { var area: CGFloat { isNull ? 0 : width * height } }
 private enum LogSubmoduleHistoryFailure: LocalizedError {
     case uninitialized, unavailableRevision
     var errorDescription: String? {
@@ -44,6 +80,8 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
 @MainActor final class LogWindowController: NSWindowController, NSWindowDelegate {
     let model: LogWindowModel
     private(set) var patchPreviewWindow: PatchWindowController?
+    private var previousPatchParentFrame: NSRect?
+    private var positioningPatch = false
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((LogEntry?) -> Void)?
     private var multipleSelectionCompletion: (([LogEntry]?) -> Void)?
@@ -257,6 +295,7 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
         if !visible {
+            previousPatchParentFrame = nil
             let owned = patchPreviewWindow; patchPreviewWindow = nil
             owned?.onClosed = {}; owned?.close(); return
         }
@@ -267,12 +306,38 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
         child.model.setReadOnlyDiff(model.patchPreviewData)
         child.window?.title = "Log Patch – TurtleGit"
         child.onClosed = { [weak self] in self?.patchPreviewWindow = nil; self?.model.patchPreviewClosed() }
+        child.onMoved = { [weak self] in self?.snapPatchPreview() }
         if let preview = child.window {
-            preview.setFrameOrigin(NSPoint(x: window.frame.maxX + 8, y: window.frame.minY))
-            if window.isVisible { window.addChildWindow(preview, ordered: .above) }
+            positioningPatch = true
+            preview.setFrame(LogPatchPlacement.initial(parent: window.frame, width: preview.frame.width, screens: NSScreen.screens.map(\.visibleFrame)), display: false)
+            positioningPatch = false
+            if window.isVisible && !window.isMiniaturized { preview.order(.above, relativeTo: window.windowNumber) }
         }
         patchPreviewWindow = child
+        previousPatchParentFrame = window.frame
     }
+    private func snapPatchPreview() {
+        guard !positioningPatch, let parent = window, let preview = patchPreviewWindow?.window,
+              let frame = LogPatchPlacement.snap(preview: preview.frame, parent: parent.frame), frame != preview.frame else { return }
+        positioningPatch = true; preview.setFrame(frame, display: false); positioningPatch = false
+    }
+    private func followPatchPreview() {
+        guard let parent = window, let preview = patchPreviewWindow?.window, let previous = previousPatchParentFrame else { return }
+        previousPatchParentFrame = parent.frame
+        guard previous != parent.frame,
+              let frame = LogPatchPlacement.follow(preview: preview.frame, oldParent: previous, newParent: parent.frame, minimumHeight: preview.minSize.height) else { return }
+        positioningPatch = true; preview.setFrame(frame, display: false); positioningPatch = false
+    }
+    func windowDidMove(_ notification: Notification) { followPatchPreview() }
+    func windowDidResize(_ notification: Notification) { followPatchPreview() }
+    func windowWillMiniaturize(_ notification: Notification) { patchPreviewWindow?.window?.orderOut(nil) }
+    func windowDidDeminiaturize(_ notification: Notification) { showPatchWithoutActivation() }
+    func windowDidBecomeKey(_ notification: Notification) { showPatchWithoutActivation() }
+    private func showPatchWithoutActivation() {
+        guard let parent = window, parent.isVisible, !parent.isMiniaturized, model.patchPreviewVisible else { return }
+        patchPreviewWindow?.window?.order(.above, relativeTo: parent.windowNumber)
+    }
+    override func showWindow(_ sender: Any?) { super.showWindow(sender); showPatchWithoutActivation() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 

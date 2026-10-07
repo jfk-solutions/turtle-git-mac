@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "96c9e8e",
+  "previous_goal_turn": "progress: committed patch preference-failure behavior and ordered writes",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Conditional right/left Log patch docking, screen-bounded initial placement, parent frame following, sticky snap/detach, explicit patch hosting size limits",
+  "sha256": {
+    "README.md": "f6847ddf80b3dc22a74ab0d2ce8bdaad7a17a511c665def42e24f1d1a5519b00",
+    "Sources/TurtleGitMac/LogWindow.swift": "1923f854602a2a19798edf242c7f52b5849675542651038294e72d80b3a95946",
+    "Sources/TurtleGitMac/PatchWindow.swift": "ce25e1ed7bb86699a0cc42c2660132346f5d0afce8ea38c34211d13a51524cf9",
+    "docs/LOG-PARITY.md": "d1ecb3548618b06ef1af72d159d9baddbbb39cf99a6bf86db023e6b3bdfca4f0",
+    "docs/upstream-files.csv": "da658202c8b7d2791521caa7b825b6dbf56b4712fba03395dd2f24667cf2e7d6",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "b7f89abf244bae20c36c003f5698a8f33c1f0a685506ba53ea252c882c704e1b"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/PatchViewDlg.cpp": "da98b40223a2a97ee9fe72a59662f85fed0a21ce25a3218085f10cd490228db1",
+    "src/TortoiseProc/PatchViewDlg.h": "87f1b4d8d62d6d9a7ec330b9cc4b5428826b2d2dc946799122340708f690d446"
+  },
+  "api_evidence": "https://developer.apple.com/documentation/swiftui/nshostingcontroller/sizingoptions; installed Xcode SwiftUI interface confirms macOS 13 availability",
+  "verification": {
+    "native": "All four sequential scripts/check-cherry-pick-native.py --menus-only final runs passed on Apple Git 2.50.1, Git 2.37.1, 2.39.5 and bundled 2.55.0. Actual hidden NSWindow right/left docking, parent move/resize and equal-height assertion, dragged-away stationary frame and sticky snap verified. Deterministic right/left/bounded fallback/negative monitor frame cases passed. Existing patch bytes, preferences/real lock failure, applying disabled, stale/closed reads, exact repository data and owned cleanup passed. Bisect reset waits for actual expected HEAD/inactive state. Viewer-width preference restored. Physical gestures/displayed placement not checked.",
+    "core": "Core source/readers unchanged; Core suite not repeated. Geometry is native AppKit scope.",
+    "builds": [
+      "SwiftPM final",
+      "Unsigned Debug final",
+      "Unsigned AppStore final"
+    ],
+    "audits": "Final Debug and AppStore validators passed, including all 90 icons and bundled Store Git; both exact NOTICE comparisons passed. Unsigned builds do not verify signed Store acceptance.",
+    "site": "Local generation passed; unpublished.",
+    "repairs": "First actual frame assertion and diagnostic showed horizontal following correct but preview height 1068 versus parent 892, due hosting sizing-driven minimum. Disabled automatic hosting limits, retaining explicit resizable window minimum; original height assertion retained. Separate subsequent run failed an older Bisect reset wait that used busy-only before queued refresh; strengthened test to wait for actual inactive state and expected HEAD. Failed logs retained. Two identified owned failed-preview temporary fixtures removed. Production/receiver sources frozen during native compilation/runtime.",
+    "limitations": "Hidden actual geometry is not displayed visual acceptance. Actual screen transitions, maximize/minimize/restore, Spaces/fullscreen, manual drag/resize, activated menus/keyboard/VoiceOver and signed sandbox remain pending. Commit-dialog patch docking/remaining patch menus/types and broader Log/full port/Finder/App Store/manual/screenshots/hosted site/CI remain incomplete.",
+    "process_audit": "No app or native/menu/provider receiver remained."
+  },
+  "all_sources_manifest_sha256": "4280d5ffe378ca5c6bbeec6efb0db10c1f6d28db9b48bd29e3085d924218fd3a",
+  "logs": {
+    "build/qa/log-patch-placement/debug-audit-final.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-patch-placement/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-patch-placement/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-patch-placement/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-patch-placement/native-diagnostic.log": "7eefc1197a93202bdc4289799517d9e9bc57a150a8f1960fad8ba05d11a228f2",
+    "build/qa/log-patch-placement/native-final.log": "1a943daf1943e310ddc41b53f86cddbe94f2b5ed08c427a1fff96d79fe4946d9",
+    "build/qa/log-patch-placement/native-verified.log": "56496e98d48f9ef9941964b65ba1d5a67b95c8db64227f44b387830bd2385530",
+    "build/qa/log-patch-placement/native.log": "778483eea9143007441a6b78c122227d63e9dcc42002dee8ca9de3c6e7784b84",
+    "build/qa/log-patch-placement/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-patch-placement/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-patch-placement/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-patch-placement/swift-final.log": "886c1ba7f281fdff8f52934d10406ee06ee377f71d352fd1b819ae97d0ce0cfb",
+    "build/qa/log-patch-placement/swift.log": "f207ae7ac30a8fe33839e8bcc06e3ab6d93d589f22a0b4380132e49dce8b421d"
+  }
+}

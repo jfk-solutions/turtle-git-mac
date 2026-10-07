@@ -40,6 +40,8 @@ import UniformTypeIdentifiers
 @MainActor final class PatchWindowController: NSWindowController, NSWindowDelegate {
     let model: PatchWindowModel
     var onClosed: () -> Void = {}
+    var onMoved: () -> Void = {}
+    func windowDidMove(_ notification: Notification) { onMoved() }
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = PatchWindowModel(repository: repository, access: access)
         let savedWidth = UserDefaults.standard.double(forKey: "PartialPatchWindowWidth")
@@ -47,7 +49,10 @@ import UniformTypeIdentifiers
         let window = PatchNSWindow(contentRect: NSRect(x: 0, y: 0, width: width, height: 760),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.minSize = NSSize(width: 460, height: 500); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: PatchDialog(model: model))
+        let host = NSHostingController(rootView: PatchDialog(model: model))
+        // Patch content scrolls; its intrinsic size must not replace window limits.
+        host.sizingOptions = []
+        window.contentViewController = host
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: width, height: 760))
         model.saveAs = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.savePatch(nil) }

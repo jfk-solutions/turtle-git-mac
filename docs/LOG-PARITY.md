@@ -1339,3 +1339,27 @@ show/hide/show sequences finish with the last requested setting. A real config-l
 receiver case checks usable open/close, exact config and owned-lock preservation,
 recovery after removing the lock and ordered rapid toggles. See
 [the preference failure QA record](qa/log-patch-preferences-2026-10-07.json).
+
+The native patch viewer now aligns to the Log frame height when opened. It uses
+available screen space on the right, then the left, and otherwise clamps the
+initial frame to a visible screen. Negative monitor coordinates are supported.
+As in `PatchViewDlg`, a docked viewer follows parent movement and aligned vertical
+edges follow resizing. A dragged-away viewer stays at its independent position;
+within five points of either docking edge it snaps back. The native gap is eight
+points. Log retains ownership without a Cocoa child-window relationship that
+would force detached windows to move. Showing/restoring the parent raises the
+preview without activating it; parent minimization hides it, and closing Log
+still closes its owned preview.
+
+The native receiver exercises deterministic initial-placement/bounds cases and
+actual hidden NSWindow move/resize and snap/detach notifications. See
+[the placement QA record](qa/log-patch-placement-2026-10-07.json). Displayed screen
+transitions, minimization/restoration, Spaces/fullscreen, manual drag/resize and
+VoiceOver acceptance remain pending; geometry checks do not prove visual parity.
+
+The first actual-frame check found SwiftUI changing the patch window's minimum
+height to its content fitting size. Patch hosting now disables automatic sizing
+limits and keeps the explicit resizable window minimum, so the patch text scrolls
+rather than forcing a taller window. This uses the macOS 13+
+[NSHostingController sizingOptions API](https://developer.apple.com/documentation/swiftui/nshostingcontroller/sizingoptions).
+The original failed frame check and diagnostic frames are retained in QA logs.
