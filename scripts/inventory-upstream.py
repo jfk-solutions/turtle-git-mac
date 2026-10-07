@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Pin and inventory every upstream file; preserve review decisions across regeneration."""
+import argparse
 import csv
 import json
 import io
@@ -26,13 +27,19 @@ def write_csv(path, fields, rows):
 def main():
     if not UPSTREAM.exists():
         raise SystemExit('Clone upstream into .upstream/TortoiseGit first; see README.md.')
-    commit = git('rev-parse', 'HEAD').decode().strip()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--ref', help='Explicitly repin the inventory to this upstream commit/ref.')
+    args = parser.parse_args()
+    manifest_path = ROOT / 'docs/upstream.json'
+    previous_manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    revision = args.ref or previous_manifest.get('commit') or 'HEAD'
+    commit = git('rev-parse', '--verify', revision + '^{commit}').decode().strip()
     previous = {}
     if DEST.exists():
         with DEST.open(newline='') as stream:
             previous = {r['path']: r for r in csv.DictReader(stream)}
     rows = []
-    for record in git('ls-tree', '-r', '-z', 'HEAD').split(b'\0'):
+    for record in git('ls-tree', '-r', '-z', commit).split(b'\0'):
         if not record:
             continue
         metadata, path = record.split(b'\t', 1)
@@ -57,15 +64,18 @@ def main():
     for row in rows:
         if not row['path'].endswith('.rc'):
             continue
-        data = (UPSTREAM / row['path']).read_bytes()
+        data = git('show', commit + ':' + row['path'])
         text = data.decode('utf-16' if data[:2] in (b'\xff\xfe', b'\xfe\xff') else 'utf-8', errors='replace')
         for match in re.finditer(r'^\s*(\w+)\s+DIALOG(?:EX)?\b[^\n]*', text, re.M):
             next_start = text.find('\nEND', match.end())
             block = text[match.end():next_start] if next_start >= 0 else ''
             caption = re.search(r'^\s*CAPTION\s+"([^"]*)"', block, re.M)
+            prior = previous_dialogs.get((row['path'], match.group(1)), {})
+            status = prior.get('status', 'pending-review')
+            if previous.get(row['path'], {}).get('blob') not in (None, row['blob']):
+                status = 'upstream-changed-needs-review'
             dialogs.append({'resource': row['path'], 'id': match.group(1),
-                            'caption': caption.group(1) if caption else '',
-                            'status': previous_dialogs.get((row['path'], match.group(1)), {}).get('status', 'pending-review')})
+                            'caption': caption.group(1) if caption else '', 'status': status})
     write_csv(ROOT / 'docs/upstream-dialogs.csv', ['resource', 'id', 'caption', 'status'], dialogs)
     manifest = {'repository': 'https://github.com/TortoiseGit/TortoiseGit', 'commit': commit,
                 'tracked_entries': len(rows), 'dialog_resources': len(dialogs),

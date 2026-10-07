@@ -466,15 +466,22 @@ git -C .upstream/TortoiseGit checkout 7338078f8ddd924b8cddee35f512f2286072136d
 python3 scripts/inventory-upstream.py
 ```
 
-The upstream checkout is ignored, not vendored. Regeneration preserves existing
-file decisions and marks changed blobs for review. External libraries and gitlinks
-are inventoried but their nested repositories are not recursively audited.
+The upstream checkout is ignored, not vendored. Regeneration reads the commit in
+`docs/upstream.json`, including resource contents, independently of checkout HEAD
+or uncommitted edits. To review a new upstream revision, explicitly run
+`python3 scripts/inventory-upstream.py --ref <commit>` and regenerate controls with
+`python3 scripts/inventory-dialog-controls.py`. Changed blobs, dialog resources and
+control declarations require renewed review. External libraries and gitlinks are
+inventoried but their nested repositories are not recursively audited.
 
 ## License
 
-GPL v2, matching upstream TortoiseGit; see `LICENSE` and `NOTICE`. The development application
-currently uses Apple's frameworks and the installed Git executable, with no copied
-upstream binaries or bundled third-party libraries.
+GPL v2, matching upstream TortoiseGit; see `LICENSE` and `NOTICE`. Native builds use
+Apple’s frameworks and embed the pinned EditorConfig and issue-matching helpers.
+Development builds can use installed Git; the Store configuration embeds its
+pinned Git runtime. Bundled dependencies and original artwork are covered by
+`NOTICE` and the bundle’s license resources. Distribution clearance remains
+incomplete; see [distribution requirements](docs/DISTRIBUTION.md).
 
 ## Screenshots and project website
 

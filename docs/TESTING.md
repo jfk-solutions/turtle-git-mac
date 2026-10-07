@@ -92,3 +92,13 @@ Hosted workflow results still require separate inspection.
 Model and transport checks do not replace light/dark screenshots, keyboard and
 mouse acceptance, VoiceOver checks, activated Finder testing, or signed sandbox
 tests. Track those separately in [UI parity](UI-PARITY.md).
+
+## Pinned upstream inventory
+
+Run `python3 scripts/check-inventory-pin.py` for an isolated temporary Git fixture.
+It verifies that dirty resource files and newer HEAD commits cannot silently
+change the recorded inventory, and that explicit repinning invalidates changed
+review decisions while preserving unchanged mappings. This runs in the macOS
+workflow before native builds. No upstream clone, network or app launch is needed.
+Actual inventory regeneration still requires the recorded commit to be present
+in `.upstream/TortoiseGit`; see [the UI audit](UI-PARITY.md).

@@ -16,6 +16,19 @@ replacement remains partial until its controls, enablement, context actions,
 keyboard behavior, resizing and Git effects have been verified. The file audit in
 `upstream-files.csv` records the source implementation separately from artwork.
 
+## Inventory regeneration
+
+Both inventories read resource content from the exact recorded upstream commit.
+Dirty resource files and an advanced checkout HEAD do not change the audit pin.
+An intentional update uses `scripts/inventory-upstream.py --ref <commit>` followed
+by `scripts/inventory-dialog-controls.py`. Changed file blobs and dialog resources
+are marked `upstream-changed-needs-review`; changed control declarations invalidate
+their prior review status while retaining the native mapping for reinspection.
+Unchanged controls retain their decisions. The isolated regression
+`scripts/check-inventory-pin.py` checks dirty/advanced checkout behavior, explicit
+repinning, review invalidation and repeated generation. This protects inventory
+integrity; it does not establish UI or implementation parity.
+
 ## Current comparison
 
 | Native window | Upstream reference | Evidence and remaining differences |

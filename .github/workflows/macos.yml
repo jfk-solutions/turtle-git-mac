@@ -13,6 +13,8 @@ jobs:
           xcodebuild -version
           /usr/bin/git --version
           git --version
+      - name: Pinned inventory regression
+        run: python3 scripts/check-inventory-pin.py
       - name: Build and verify pinned universal EditorConfig parser
         run: python3 scripts/build-editorconfig-runtime.py
       - name: Build and verify universal C++ issue matcher

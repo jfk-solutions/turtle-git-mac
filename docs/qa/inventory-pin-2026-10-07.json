@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "92b4e6f9af18ccc9f9748401adc467b13788b2c7",
+  "previous_goal_turn": "progress: visible checked-path Commit fix verified with real commits on four Git versions",
+  "scope": "Pinned file/dialog/control inventory integrity and accurate bundled dependency README",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "scripts/inventory-upstream.py": "f82b61555b24acd81a008c5ca00f742b6403f59d876ed2acf1d3ae9be3d7e55f",
+    "scripts/inventory-dialog-controls.py": "f61f85be0440250ec10b84daff84c5c50b1ecf7b9488174f5a18b2af9b655450",
+    "scripts/check-inventory-pin.py": "7e443852c0fca3658f50fe46646b5a2161421c46e244a908fa78b1e47426d034",
+    ".github/workflows/macos.yml": "246eac1be4fe56a5424ddaf6376787d23d87b1090f6075f2ce8308a8bb930ffc",
+    "README.md": "23c05136b944722bf4a9aa2e92a07995a87ba98d420c1f3a34d8e72aea67b57a",
+    "docs/UI-PARITY.md": "67e850e55220d8d7f58155704bbe4feb6b370024b81fc5d221ae26a9eee6847e",
+    "docs/TESTING.md": "9eabc2da6fb46ebf291836d6071de3e322df674ce91ee84904e87948994028c5",
+    "docs/upstream.json": "e3953b2b66df962a247d78ebdd4a1613aa032fc16f149cd778b6eb05918c27aa",
+    "docs/upstream-files.csv": "67bfc6df5ab84257c0f00ea4e29ec27abb627e1136091f4e042df1aac6c19837",
+    "docs/upstream-dialogs.csv": "ef6b35d531a962decce91d044a7b8f68e643127cb9f57f865afe4247f662aac1",
+    "docs/upstream-controls.csv": "d24569fa3f68748fd759ac360e86abaf7dbabdce94c49316b6473f6282adefda"
+  },
+  "all_sources_manifest_sha256": "2d501bd93e0ef2024d8beee510eac22a7c2c0d14d5fa4257ecebce563a677b0a",
+  "verification": {
+    "regression": "Isolated temporary Git fixture passed: dirty working resource cannot affect pinned inventory; advanced HEAD does not repin; explicit --ref uses commit contents even with dirty checkout; changed file/dialog/control reviews invalidated; existing native mapping retained as review context; unchanged control review preserved; repeat generation byte-identical; owned fixture removed.",
+    "real_inventory": "Final file/dialog and static control regeneration passed with no diff to existing inventory or upstream.json. Pinned source remains 7338078f8ddd924b8cddee35f512f2286072136d. Inventory listing is not implementation coverage.",
+    "ci": "Regression wired into macOS workflow; hosted run unverified and no push/authentication attempted.",
+    "site": "Local site generation passed; unpublished.",
+    "production": "Production Sources unchanged from 92b4e6f. App builds, bundle audits and native runtime checks not repeated for script/docs/workflow-only scope.",
+    "process_audit": "No main app or native/menu/provider receiver remained; no app launched.",
+    "limitations": "Dynamic menus/plugin controls and state transitions still need source review. Inventory resource invalidation is conservative at resource-file level. Full native port, displayed UI parity, Finder activation, signed App Store distribution, full manual/screenshots and hosted site/CI remain incomplete."
+  },
+  "logs": {
+    "build/qa/inventory-pin/controls-final.log": "44d7f6f59080a08c0ff47e1ae624edc4430eff17b000c99c54017536661cde11",
+    "build/qa/inventory-pin/controls.log": "44d7f6f59080a08c0ff47e1ae624edc4430eff17b000c99c54017536661cde11",
+    "build/qa/inventory-pin/files-final.log": "e3953b2b66df962a247d78ebdd4a1613aa032fc16f149cd778b6eb05918c27aa",
+    "build/qa/inventory-pin/files.log": "e3953b2b66df962a247d78ebdd4a1613aa032fc16f149cd778b6eb05918c27aa",
+    "build/qa/inventory-pin/regression-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/inventory-pin/regression.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/inventory-pin/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

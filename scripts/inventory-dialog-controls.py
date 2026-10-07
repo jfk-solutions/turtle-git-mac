@@ -55,10 +55,15 @@ def main():
                 occurrences[control] = occurrences.get(control, 0) + 1
                 occurrence = str(occurrences[control])
                 prior = previous.get((resource, dialog, control, occurrence), {})
+                changed = prior.get('declaration') not in (None, declaration)
+                status = 'upstream-changed-needs-review' if changed else prior.get('status', 'pending-review')
+                notes = prior.get('notes', '')
+                if changed:
+                    notes = (notes + ' Upstream declaration changed; native mapping requires review.').strip()
                 rows.append(dict(resource=resource, dialog=dialog, control=control,
                                  occurrence=occurrence, kind=kind, label=label,
-                                 declaration=declaration, status=prior.get('status', 'pending-review'),
-                                 native_mapping=prior.get('native_mapping', ''), notes=prior.get('notes', '')))
+                                 declaration=declaration, status=status,
+                                 native_mapping=prior.get('native_mapping', ''), notes=notes))
     expected = {(r['resource'], r['id']) for r in dialogs}
     if found != expected:
         raise ValueError('Dialog coverage mismatch: ' + str(expected - found))
