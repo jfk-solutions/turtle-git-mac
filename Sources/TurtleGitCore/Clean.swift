@@ -186,3 +186,124 @@ extension GitRepository {
         return Data(hash.finalize())
     }
 }
+
+public struct CleanRepositoryPreview: Sendable {
+    public let repository: URL
+    /// Native sandbox callers must retain grants covering all these locations.
+    public let requiredAccess: [URL]
+    public let preview: CleanPreview
+}
+public struct CleanBatchPreview: Sendable {
+    public let repositories: [CleanRepositoryPreview]
+    public let options: CleanOptions
+    public let paths: [String]
+    public let includesSubmodules: Bool
+    fileprivate let root: URL
+}
+public struct CleanRepositoryResult: Sendable {
+    public let repository: URL
+    public let result: CleanExecutionResult
+}
+public struct CleanBatchExecutionFailure: LocalizedError, Sendable {
+    public let message: String
+    public let failedRepository: URL
+    public let cancelled: Bool
+    public let completed: [CleanRepositoryResult]
+    public let partial: CleanExecutionResult?
+    public var errorDescription: String? {
+        message + "\n\nCleanup stopped in: " + failedRepository.path +
+            completed.filter { !$0.result.removedPaths.isEmpty }.map { entry in
+                "\n\nCompleted in " + entry.repository.path + ":\n" + entry.result.removedPaths.joined(separator: "\n") +
+                    (entry.result.trashedFiles.isEmpty ? "" : "\nRecoverable Trash items:\n" + entry.result.trashedFiles.map(\.path).joined(separator: "\n"))
+            }.joined()
+    }
+}
+
+extension GitRepository {
+    /// Preview the parent scope followed by selected initialized submodule trees.
+    /// A selected containing folder includes its child submodules; once selected,
+    /// each initialized child is cleaned as a complete working tree recursively.
+    public func cleanBatchPreview(options: CleanOptions = CleanOptions(), paths: [String] = [], includeSubmodules: Bool = false, cancellation: OperationCancellation? = nil) async throws -> CleanBatchPreview {
+        let parent = try cleanPreview(options: options, paths: paths, cancellation: cancellation)
+        var children: [URL] = [], seen = Set([root.resolvingSymlinksInPath().path])
+        func visit(_ repository: GitRepository, scope: [String]) async throws {
+            let names = try await repository.submoduleUpdatePaths(scope: scope, cancellation: cancellation)
+            for name in names {
+                try cancellation?.check()
+                let location = try await repository.restoreLocation(name)
+                guard let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType else { continue }
+                guard type == .typeDirectory else { throw SubmoduleComparisonFailure.unsafeCheckout }
+                guard FileManager.default.fileExists(atPath: location.appendingPathComponent(".git").path) else { continue }
+                let child = GitRepository(root: location, executable: executable)
+                var top = try await child.run(["rev-parse", "--show-toplevel"], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+                if top.last == 10 { top.removeLast() }
+                let canonical = location.resolvingSymlinksInPath().standardizedFileURL
+                guard let topPath = String(data: top, encoding: .utf8) else { throw CleanFailure.output }
+                guard URL(fileURLWithPath: topPath).resolvingSymlinksInPath().standardizedFileURL.path == canonical.path else { throw SubmoduleComparisonFailure.unsafeCheckout }
+                guard seen.insert(canonical.path).inserted else { continue }
+                children.append(location)
+                try await visit(child, scope: [])
+            }
+        }
+        if includeSubmodules {
+            let normalized = paths.map { $0.split(separator: "/").filter { $0 != "." }.joined(separator: "/") }.filter { !$0.isEmpty }
+            try await visit(self, scope: normalized)
+        }
+        var repositories = [CleanRepositoryPreview(repository: root, requiredAccess: try cleanRequiredAccess(cancellation: cancellation), preview: parent)]
+        for location in children.sorted(by: { $0.path < $1.path }) {
+            let child = GitRepository(root: location, executable: executable)
+            let preview = try await child.cleanPreview(options: options, cancellation: cancellation)
+            repositories.append(CleanRepositoryPreview(repository: location, requiredAccess: try await child.cleanRequiredAccess(cancellation: cancellation), preview: preview))
+        }
+        var separate: [CleanRepositoryPreview] = []
+        for entry in repositories {
+            let checkout = entry.repository.resolvingSymlinksInPath().path
+            let covered = separate.contains { ancestor in
+                ancestor.preview.candidates.contains { path in
+                    guard path.hasSuffix("/") else { return false }
+                    let candidate = ancestor.repository.appendingPathComponent(path).resolvingSymlinksInPath().path
+                    return checkout == candidate || checkout.hasPrefix(candidate + "/")
+                }
+            }
+            if !covered { separate.append(entry) }
+        }
+        return CleanBatchPreview(repositories: separate, options: options, paths: paths, includesSubmodules: includeSubmodules, root: root)
+    }
+    public func executeCleanBatch(_ batch: CleanBatchPreview, permanently: Bool = false, cancellation: OperationCancellation? = nil) async throws -> [CleanRepositoryResult] {
+        try cancellation?.check()
+        guard batch.root == root else { throw CleanFailure.changed }
+        // Check every child before the first removal, including initialization,
+        // registration, Git administrative paths and candidate content changes.
+        let fresh = try await cleanBatchPreview(options: batch.options, paths: batch.paths, includeSubmodules: batch.includesSubmodules, cancellation: cancellation)
+        guard fresh.repositories.count == batch.repositories.count,
+              zip(fresh.repositories, batch.repositories).allSatisfy({ current, accepted in
+                  current.repository == accepted.repository && current.requiredAccess == accepted.requiredAccess &&
+                  current.preview.candidates == accepted.preview.candidates && current.preview.fingerprints == accepted.preview.fingerprints
+              }) else { throw CleanFailure.changed }
+        var completed: [CleanRepositoryResult] = []
+        for accepted in batch.repositories {
+            do {
+                try cancellation?.check()
+                let repository = GitRepository(root: accepted.repository, executable: executable)
+                let result = try await repository.executeClean(accepted.preview, permanently: permanently, cancellation: cancellation)
+                completed.append(CleanRepositoryResult(repository: accepted.repository, result: result))
+            } catch {
+                let partial = error as? CleanExecutionFailure
+                throw CleanBatchExecutionFailure(message: error.localizedDescription, failedRepository: accepted.repository,
+                                                 cancelled: cancellation?.isCancelled == true, completed: completed, partial: partial?.result)
+            }
+        }
+        return completed
+    }
+    private func cleanRequiredAccess(cancellation: OperationCancellation?) throws -> [URL] {
+        var result = [root.resolvingSymlinksInPath().standardizedFileURL]
+        for argument in ["--absolute-git-dir", "--git-common-dir"] {
+            var bytes = try run(["rev-parse", argument], environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout
+            if bytes.last == 10 { bytes.removeLast() }
+            guard let path = String(data: bytes, encoding: .utf8), !path.isEmpty else { throw CleanFailure.path }
+            let location = (path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)).resolvingSymlinksInPath().standardizedFileURL
+            if !result.contains(where: { $0.path == location.path }) { result.append(location) }
+        }
+        return result
+    }
+}

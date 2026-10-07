@@ -29,8 +29,9 @@ Unchanged controls retain their decisions. The isolated regression
 repinning, review invalidation and repeated generation. This protects inventory
 integrity; it does not establish UI or implementation parity.
 
-Clean is still unported at the native dialog level. Its new read-only Core
-preview and remaining controls/execution work are recorded in [Clean parity](CLEAN-PARITY.md).
+Clean is still unported at the native dialog level. Its Core preview, accepted-plan
+execution, recursive submodule batches and remaining native work are recorded in
+[Clean parity](CLEAN-PARITY.md).
 
 ## Current comparison
 

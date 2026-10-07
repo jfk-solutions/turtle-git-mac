@@ -2,7 +2,7 @@
 
 The Clean workflow is incomplete. There is no native Clean dialog or Finder Clean
 route yet. Core preview and accepted-plan execution are implemented; native
-confirmation/progress and submodule traversal remain unported.
+confirmation/progress and sandbox grant integration remain unported.
 
 ## Pinned behavior
 
@@ -69,11 +69,45 @@ injected Trash failure without deletion fallback. Owned Trash items are removed
 after their recovered contents are checked. See
 [the execution QA record](qa/clean-execution-2026-10-07.json).
 
+## Recursive submodule batches
+
+`cleanBatchPreview(includeSubmodules: true)` discovers registered initialized
+checkouts from the index and `.gitmodules`. Selected containing folders include
+matching children; selected children then include all their initialized descendants.
+The low-level API also accepts an exact child-checkout scope. Finder file selection
+and nearest-repository resolution still need their native adapter. Uninitialized
+or deinitialized directories are skipped. Symlinked checkouts and a checkout whose
+Git top-level resolves elsewhere are refused. Discovery and shared submodule path
+reads now accept owned cancellation.
+
+The parent preview is first, followed by child paths in deterministic order. Each
+child gets its own whole-working-tree preview. Entries already covered by an
+ancestor’s unmanaged-directory removal are omitted to avoid executing against a
+checkout just removed by its parent. Each entry exposes required checkout, Git-dir
+and common-dir locations for future native access-grant checks; exposing these
+locations does not establish signed sandbox access.
+
+Batch execution rechecks all registered/initialized roots, administrative locations
+and candidate contents before its first removal. It then uses each repository’s
+existing accepted-plan executor. Later failure reports completed repository results
+and any current partial result, including recoverable Trash URLs. Locks are per
+repository, not a transaction across the whole tree; completed work remains when
+a later child fails. Native callers must retain every required access lease.
+
+The real submodule fixture uses local submodule add/update, Git files, initialized
+grandchildren, a deinitialized checkout, Unicode/newline checkout names and mixed
+tracked index/working changes. Tests cover scope exclusion, administrative locations,
+exact index/config/HEAD/working preservation, changed child/topology refusal before
+parent removal, symlink refusal, actual parent Trash recovery after a locked child,
+and removal of a former submodule without duplicate execution. See
+[the submodule QA record](qa/clean-submodules-2026-10-07.json).
+
 ## Remaining work
 
 - Native resource-matching controls and per-repository option persistence.
 - Finder/main-app command routing and file-to-directory scope adaptation.
-- Initialized submodule traversal with access leases and recursive scope rules.
+- Native access-grant integration for recursive checkouts and external Git/common
+  directories, plus signed traversal acceptance.
 - Native confirmation and progress around Core execution, Retry and dry-run
   post-actions; operation progress/cancellation UI and signed Trash acceptance.
 - Displayed light/dark layout, original icons, keyboard/VoiceOver and signed sandbox

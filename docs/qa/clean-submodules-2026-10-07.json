@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "aba5b831664c809b360c3b729136a2a4b1df27c1",
+  "previous_goal_turn": "progress: accepted Clean execution with stale validation and actual Trash recovery",
+  "scope": "Initialized recursive Clean submodule batches, scope/checkout identity/admin access locations, all-child preflight, overlap omission and partial/recoverable results",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "Sources/TurtleGitCore/Clean.swift": "f902aedf13422225d305fb0d5f743878895de3ff42d9fb32bbac153c629d2423",
+    "Sources/TurtleGitCore/SubmoduleUpdate.swift": "d3101b4c9380008ecafa3d4df989620acb00e7c120dfa40fd67dda91e14eb806",
+    "Sources/TurtleGitCore/CommitSelection.swift": "aa6c327087bc43cc2f18c4fbd3622a901907f898bd52fa00b079dd37581b12ac",
+    "Tests/TurtleGitCoreTests/CleanSubmoduleTests.swift": "6891e9a935b49fa70726df63e4522da218b6af50180a57bf00cba17f60fbdb0e",
+    "docs/CLEAN-PARITY.md": "76f72188366f91094fc499e72b7b3e654cb2778b3ebd978675eef2fd8bd907d1",
+    "docs/upstream-files.csv": "d414b6cde5240a9fe0dc5565e72f1be339708da68e0ab8fb9b76289c33c152c0",
+    "docs/UI-PARITY.md": "02a5d4a8192ac8c3d59c2bcc808cb075d5e88d351abe04df81f502492acb2ae1"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/Commands/CleanupCommand.cpp": "800b5e42166343e9a86e032ef946ad41a4447c0b19e759f785ea48920397b4ef",
+    "src/TortoiseProc/CleanTypeDlg.cpp": "7edf29911cfbfb092b80525a8e0485c55f05658bf227bb8fedaca26ebcf353a6"
+  },
+  "all_sources_manifest_sha256": "4455ab5436e259099c42b36ba031ea6d8f7a0feb61c54efe96f1ffc1b30ade5d",
+  "verification": {
+    "system_git": "Final 18 tests passed on Apple Git 2.50.1: six CleanTests, six CleanSubmoduleTests and six existing SubmoduleUpdateTests.",
+    "compatibility": "Final six recursive cases passed sequentially on 2.37.1, 2.39.5 and bundled 2.55.0.",
+    "coverage": "Owned real local submodule add/update with nested Git-file checkout, deinitialized sibling, Unicode/newline child path, staged and later working tracked bytes. Parent-first deterministic roots; scope folder/trailing slash/exact child/excluded scope; required checkout/Git/common locations; actual scoped permanent cleanup leaves parent/sibling candidates and exact all HEAD/index/config/working bytes unchanged. Changed child data/new initialization refused before parent removal. Symlinked checkout refused. Later owned child index lock after successful actual parent Trash move reports recoverable URL in error, retains foreign lock and unprocessed children; recovered bytes checked and only returned owned Trash item removed. Explicit unmanaged removal of former child excludes covered descendants and executes without duplicate child cleanup. Owned repository/source fixtures removed.",
+    "builds": [
+      "SwiftPM final test build",
+      "Unsigned Debug final",
+      "Unsigned AppStore"
+    ],
+    "audits": "Both validators and exact NOTICE comparisons passed, including 90 original icons, Finder extension/licenses and Store --require-git universal runtime. Unsigned builds do not prove signed sandbox/Store acceptance.",
+    "native": "No native Clean dialog/grant/routing implemented; no main app or native/menu/provider receiver launched or remaining.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "Low-level exact-child scopes supported; Finder containing-folder/nearest-repository adapter still absent. Native required-access grant acquisition/retention, signed traversal, progress/confirmation/Retry/dry-run post-actions pending. Batch is not a transaction over all repositories; later failure retains earlier completed work. Discovery and preview require accessible metadata; exposing required locations does not establish signed access. Full port/activated Finder/displayed UI/signed Store/manual/screenshots/hosted CI/site incomplete."
+  },
+  "logs": {
+    "build/qa/clean-submodules/build.log": "8cd026e022139c073097d15ece265fbb6a6874445c48d29f4de8b292880ecce0",
+    "build/qa/clean-submodules/core-2.37.1.log": "f1d20938883493bb3b15006386df8fd7b4b6322ab5e4b1aba522a61225646a5e",
+    "build/qa/clean-submodules/core-2.39.5.log": "d4e6c3441e0917dad9bac104cd112e3ca737b5600e1219d060c509f012c960e1",
+    "build/qa/clean-submodules/core-2.55.0.log": "fcd04e8f8b83b008f19811137b115bbd343797086900470a1f265dc444f91746",
+    "build/qa/clean-submodules/core-complete.log": "4cbb591355050ab18dd26e5a1ed8db66e03108500f7304e5712d11807df2960e",
+    "build/qa/clean-submodules/core-final.log": "c5dd03096952e26ee315881d271c5594a9fb3140220f6cd85d7f50b92bfc9d68",
+    "build/qa/clean-submodules/core-verified.log": "40c469eae9e81ef25de36cbeb029e45d5de836be2777bc8d45768b7ff8802839",
+    "build/qa/clean-submodules/core.log": "d9d5932ae7d6b8d3ab36d46202cab7301900f7f17fdc933426c81c170c161bf0",
+    "build/qa/clean-submodules/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/clean-submodules/debug-complete.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/clean-submodules/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/clean-submodules/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/clean-submodules/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/clean-submodules/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/clean-submodules/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
