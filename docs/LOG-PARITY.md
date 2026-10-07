@@ -949,3 +949,19 @@ Single-revision Log Export now has the original icon and a native archive
 dialog with HEAD/Branch/Tag/Commit, Whole Project and overwrite confirmation.
 [Revision Export](REVISION-EXPORT.md) records the implementation and remaining
 displayed, signed sandbox and entry-point checks.
+
+## Compare parent with working tree
+
+The historical file menu now offers Compare parent with working tree, using the
+original comparison icon and a parent subject/hash label. Parent subjects are
+loaded for ordinary commits as well as merges. The command uses the first parent
+because the current changed-file reader lists first-parent changes; it reuses the
+root revision-file comparison viewer, including rename mapping and missing sides.
+Root commits and the synthetic working-tree row have no command. Busy, bare,
+invalidated, multi-revision and empty file selections refuse the handoff.
+
+This follows GitStatusListCtrl.cpp's GetParentCommitInfo and StartDiffWC(parent),
+but the broader upstream per-parent grouped merge-file list remains unported.
+Shift selection of an external two-pane diff tool is also pending. The native
+receiver checks model dispatch and actual comparison bytes with an injected root
+viewer callback; displayed menu/window and signed sandbox acceptance are separate.

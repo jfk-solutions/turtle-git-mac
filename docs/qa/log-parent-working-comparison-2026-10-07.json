@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "3d281d2",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log historical file Compare parent with working tree, parent subject/hash label and first-parent routing through existing revision-file viewer",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:1760-1775 menu",
+    "src/Git/GitStatusListCtrl.cpp:2996-3023 StartDiffWC(parent)",
+    "src/Git/GitStatusListCtrl.cpp:4573-4600 GetParentCommitInfo"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "7bf2534adb1d5b7ef537f3a57c0fbf01ed5f2589cdd5c9342f990e134c4e7811",
+    "docs/LOG-PARITY.md": "866f0be331a08142e73fae2a02d8741197fb0dbb57fc04485ba5c6b68927273f",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "f577aa987ddd1cba552f9ca60f27f722d2aefcc280cab9c8a282535bde42098d"
+  },
+  "all_sources_manifest_sha256": "73718e5595c6e35f8971a4bb128d8e6122c19f126377b7d84e899d2ec8ad0ec2",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Real repository with modified, renamed Unicode/newline path and deleted files. Parent title loads/truncates subject and shows hash. Model callback pins actual first parent and working destination; real revisionFileComparison/comparisonFile reads rename mapping, missing deleted side and invalid-UTF8 working bytes. HEAD/index unchanged. Busy/bare/root/working/multi-revision/empty/invalidation refuse callback. Real merge uses first parent matching current listed files. Existing focused native fixtures pass."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed. All 90 upstream icons and universal Git/EditorConfig/IssueRegex helpers verified; Store --require-git passed.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Root viewer callback injected; actual core comparison engine read. SwiftUI menu entry and original icon compiled/source-inspected, not activated. Bare refusal tests model flag; actual bare behavior remains covered by existing fixtures. Displayed menu/windows, input events and signed sandbox acceptance unverified. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-parent-working/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-parent-working/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-parent-working/native.log": "6e84759028a17d21df0ca87f4e800d45f9a56a2269f5b328ff598fb39d801b7c",
+    "build/qa/log-parent-working/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-parent-working/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-parent-working/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-parent-working/swift.log": "fb9f0e03eb0edf7d277c2ee2f3b5b66494c8a047a2b406ff598b7e021019902d"
+  },
+  "remaining": "Per-parent grouped merge-file list, alternate two-pane diff-tool selection, full dialogs/Finder parity, screenshots/publishing and signed App Store acceptance."
+}

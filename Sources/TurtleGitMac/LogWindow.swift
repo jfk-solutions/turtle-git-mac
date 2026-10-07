@@ -800,7 +800,7 @@ struct LogCommandRequest: Identifiable {
                 let result = try await repository.files(in: revision, cancellation: cancellation)
                 guard request == detailGeneration else { return }
                 files = result
-                if revision.parents.count > 1 {
+                if !revision.parents.isEmpty {
                     let choices = try? await repository.logParentChoices(revision, cancellation: cancellation)
                     guard request == detailGeneration else { return }
                     if let choices { parentMetadata[revision.hash] = choices }
@@ -1165,7 +1165,20 @@ struct LogCommandRequest: Identifiable {
         guard chosen.count == 2, chosen.allSatisfy({ !$0.isSubmodule }) else { return }
         onFilePairCompare(revision.hash, chosen)
     }
-    func compareFiles(_ ids: Set<String>, workingTree: Bool = false) {
+    var fileParentComparisonTitle: String? {
+        guard !selectedWorkingTree, let revision, let parent = parentChoices(for: revision).first else { return nil }
+        return "Compare parent with working tree: " + parent.title
+    }
+    func canCompareFilesWithParent(_ ids: Set<String>) -> Bool {
+        !busy && !isInvalidated && !bare && !selectedWorkingTree && revision?.parents.first != nil && onFileCompare != nil && visibleFiles.contains { ids.contains($0.id) }
+    }
+    func compareFiles(_ ids: Set<String>, workingTree: Bool = false, parentWorkingTree: Bool = false) {
+        guard !isInvalidated else { return }
+        if parentWorkingTree {
+            guard canCompareFilesWithParent(ids), let parent = revision?.parents.first else { return }
+            onFileCompare?(.revision(parent), .workingTree, visibleFiles.filter { ids.contains($0.id) }.map(\.path))
+            return
+        }
         if selectedWorkingTree, !workingTree, !busy, let onFileCompare, let snapshot = workingTreeSnapshot {
             let paths = files.filter { ids.contains($0.id) }.map(\.path)
             if !paths.isEmpty { onFileCompare(snapshot.entry.parents.first.map { .revision($0) } ?? .emptyTree, .workingTree, paths) }; return
@@ -1326,6 +1339,9 @@ struct LogDialog: View {
         Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
         Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.busy || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
         Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)
+        if !model.bare, let title = model.fileParentComparisonTitle {
+            Button { model.compareFiles(ids, parentWorkingTree: true) } label: { CommandLabel(title: title, icon: .compare) }.disabled(!model.canCompareFilesWithParent(ids))
+        }
         if model.canCompareFilePair(ids) {
             Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
         }
