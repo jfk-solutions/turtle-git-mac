@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "f9b952b",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log working/historical file Ignore name/extension/folder routing and repository-wide refresh after writing rules",
+  "upstream_source": [
+    "src/TortoiseProc/LogDlg.cpp:308 status-list menu mask includes Ignore, excludes Restore/changelists",
+    "src/Git/GitStatusListCtrl.cpp:1930-1995 unversioned/deleted Ignore, same/mixed extensions and folder menu",
+    "src/Git/GitStatusListCtrl.cpp:2510-2549 IgnoreFile name/mask/folder and RefreshParent"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/IgnoreWindow.swift": "356b96ab91861e541c357e4ad61ffd70051ee2874d248601765c549593726a8c",
+    "Sources/TurtleGitMac/LogWindow.swift": "f7867c1348485286aad44b72958326cf134aaaf153dd5f50d47c26ff498384bf",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "4530d82131baf977abdf018ff77d6e045fb4ecbb84be1838295dc710ea17be94",
+    "docs/LOG-PARITY.md": "0f8b9f6811361638beb544313cc74dc505c8a98af7a5492cabb5a4e2f424d065",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "ebfccddda3b6d0f4399e325fd7981a351be9e6fd776796f6d761df4d5ea4feae"
+  },
+  "all_sources_manifest_sha256": "c948680b35670418290bb0dd17f9fd1324de3002de929b77c6d96a4efeb97d4b",
+  "verification": {
+    "native": {
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Actual native Log model routes selected unusual literal path by name/mask/folder and absent historical deletion path; actual native Ignore model writes escaped name rule and completion refresh removes ignored untracked row. HEAD, complete logical index and selected/other working bytes preserved. Busy/bare/selection/invalidation and external staging reject cached requests. Existing focused fixtures pass. Root/dialog handoffs and completion refresh callbacks injected; no windows shown."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; 90 upstream icons and Store --require-git runtime verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after matrix.",
+    "fixture_correction": "Initial native precondition ran before historical detail Task finished. Final fixture waits for the actual deleted row; all four versions passed. Initial failure log retained.",
+    "limitations": "First selected visible file determines eligibility, not a separate Windows selection mark. SwiftUI menus, mixed-extension presentation and root repository-wide completion wiring compiled/source-inspected, not activated. Native fixture executes name rule only; mask/folder routing verified but rule engine unchanged. Displayed dialog/input, signed sandbox behavior, GitHub CI and publication unverified. Full port incomplete. No Core changes or new Core tests."
+  },
+  "logs": {
+    "build/qa/log-ignore/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-ignore/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-ignore/native-before-detail-wait.log": "de1c3fff539975df30750853b7c69b9115e9bdeda1494a7a40f10854f0ebfd5f",
+    "build/qa/log-ignore/native.log": "71c1d0f33fe008c87692f7fdc1c17c8b0a4c2448a3d547b7274add27ee229a4b",
+    "build/qa/log-ignore/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-ignore/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-ignore/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-ignore/swift.log": "c861475638095d77d6a2b55aef1ae2e67ee7e93cdf5e17751e8427beea47fb60"
+  },
+  "remaining": "Working-file Delete/Shift Add and other remaining file commands, selection-mark behavior, full dialog/menu/layout parity, Finder activation, screenshots/publication and signed App Store acceptance."
+}

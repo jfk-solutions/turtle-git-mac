@@ -779,6 +779,77 @@ import TurtleGitCore
     print("Native Log Revert/index flags: decline preserves index; actual assume/skip/clear cycles retain rows/status and Commit guard, unchanged blobs/work, fresh stale-menu refusal, confirmation selection/invalidation guards, flagged gitlink type, scoped Revert chooser and actual Revert progress restore only selected path, refresh Log and preserve HEAD/untracked/other files passed. Confirmations/root callbacks injected; owned Trash files removed; no windows shown.")
 }
 
+@MainActor func verifyNativeLogIgnore(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-ignore-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgSign", "false"])
+    try Data("tracked\n".utf8).write(to: root.appendingPathComponent("tracked"))
+    try Data("deleted\n".utf8).write(to: root.appendingPathComponent("gone.txt"))
+    try await repo.stage(["tracked", "gone.txt"]); _ = try await repo.commit(message: "base")
+    _ = try await repo.run(["rm", "--", "gone.txt"]); _ = try await repo.commit(message: "delete")
+    let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    let path = "folder/new [雪]*.txt"
+    let bytes = Data("untracked\n".utf8)
+    try bytes.write(to: root.appendingPathComponent(path))
+    try Data("working\n".utf8).write(to: root.appendingPathComponent("tracked"))
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    func until(_ condition: () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition())
+    }
+    var requests: [(RepositoryAction, [String])] = []
+    log.onIgnoreFiles = { requests.append(($0, $1)) }
+    log.showUnversionedFiles = true; log.reload(); try await until { !log.busy }; log.select([""])
+    precondition(log.canIgnoreFiles([path]) && !log.canIgnoreFiles(["tracked"]))
+    log.requestIgnoreFiles([path]); try await until { !log.busy }
+    precondition(requests.last?.0 == .ignore && requests.last?.1 == [path])
+    log.requestIgnoreFiles([path], mask: true); try await until { !log.busy }
+    precondition(requests.last?.0 == .ignoreMask && requests.last?.1 == [path])
+    log.requestIgnoreFiles([path], folder: true); try await until { !log.busy }
+    precondition(requests.last?.0 == .ignore && requests.last?.1 == ["folder"])
+    let count = requests.count
+    log.busy = true; log.requestIgnoreFiles([path]); log.busy = false
+    log.bare = true; log.requestIgnoreFiles([path]); log.bare = false
+    log.requestIgnoreFiles([path]); log.selected = [String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)]
+    try await until { !log.busy }; precondition(requests.count == count)
+    log.select([""]); try await repo.stage([path])
+    log.error = nil; log.requestIgnoreFiles([path]); try await until { !log.busy }
+    precondition(requests.count == count && log.error != nil)
+    _ = try await repo.run(["reset", "--", path])
+    // A deleted historical row remains eligible even though its path is absent on disk.
+    log.select([String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)]); try await until { !log.busy && log.files.contains { $0.path == "gone.txt" } }
+    precondition(log.canIgnoreFiles(["gone.txt"]))
+    log.requestIgnoreFiles(["gone.txt"]); try await until { !log.busy }
+    precondition(requests.last?.1 == ["gone.txt"])
+    let ignore = IgnoreWindowModel(repository: repo, access: nil, options: try IgnoreOptions(paths: [path]))
+    var applied = false
+    ignore.onRulesWritten = { _ in applied = true; log.requestRepositoryRefresh() }
+    ignore.apply(); try await until { applied && !log.busy }
+    let rules = try String(contentsOf: root.appendingPathComponent(".gitignore"), encoding: .utf8)
+    precondition(rules.contains("/folder/new \\[雪\\]\\*.txt".replacingOccurrences(of: "new ", with: "new\\ ")))
+    log.select([""]); try await until { !log.busy }
+    precondition(!log.files.contains { $0.path == path })
+    let finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let stagedTracked = try await repo.run(["show", ":tracked"]).stdout
+    let finalWork = try Data(contentsOf: root.appendingPathComponent(path))
+    let trackedWork = try Data(contentsOf: root.appendingPathComponent("tracked"))
+    precondition(finalHead == head && stagedTracked == Data("tracked\n".utf8) && finalWork == bytes && trackedWork == Data("working\n".utf8))
+    // Status/refresh is readonly; rule writing must not change the index.
+    let finalIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
+    precondition(finalIndex == index)
+    log.select([String(decoding: head, as: UTF8.self).trimmingCharacters(in: .newlines)]); try await until { !log.busy && log.files.contains { $0.path == "gone.txt" } }
+    let finalCount = requests.count
+    log.requestIgnoreFiles(["gone.txt"]); log.invalidate(); try await until { !log.busy }
+    precondition(requests.count == finalCount)
+    print("Native Log Ignore: name/mask/folder and deleted historical path handoffs, real Ignore model literal rules, refreshed untracked visibility, unchanged HEAD/index/work bytes, busy/bare/selection/invalidation and stale staged-file refusal passed. Root and completion callbacks injected; no windows shown.")
+}
+
 @MainActor func verifyNativeLogWorkingAddCommit(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-add-commit-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1665,6 +1736,7 @@ import TurtleGitCore
     try await verifyNativeLogDeferredRefresh(executable: repo.executable)
     try await verifyNativeLogUnifiedViewerRouting(executable: repo.executable)
     try await verifyNativeLogParentWorkingComparison(executable: repo.executable)
+    try await verifyNativeLogIgnore(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
     try await verifyNativeLogRevertFlags(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))

@@ -127,6 +127,13 @@ struct IgnoreSelectionMenu: View {
     var deleting = false
     let action: (RepositoryAction, [String]) -> Void
     var body: some View {
+        let suffixes = paths.map { ($0 as NSString).pathExtension }
+        if !deleting && Set(suffixes.map { $0.lowercased() }).count > 1 {
+            Button { action(.ignore, paths) } label: { CommandLabel(title: "Ignore \(paths.count) items by name", icon: .ignore) }
+            if let suffix = suffixes.first, !suffix.isEmpty {
+                Button { action(.ignoreMask, paths) } label: { CommandLabel(title: "Ignore \(paths.count) items by extension", icon: .ignore) }
+            }
+        } else {
         Menu {
             Button { action(deleting ? .ignoreDelete : .ignore, paths) } label: { CommandLabel(title: paths.count == 1 ? (paths[0] as NSString).lastPathComponent : "Ignore \(paths.count) items by name", icon: .ignore) }
             let suffixes = paths.map { ($0 as NSString).pathExtension }
@@ -138,5 +145,6 @@ struct IgnoreSelectionMenu: View {
                 if !folder.isEmpty { Button { action(.ignore, [folder]) } label: { CommandLabel(title: folder, icon: .ignore) } }
             }
         } label: { CommandLabel(title: deleting ? "Delete and add to ignore list" : "Add to ignore list", icon: .ignore) }
+        }
     }
 }

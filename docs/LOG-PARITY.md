@@ -1052,3 +1052,23 @@ duplicate-parent occurrences, summaries and stale/bare/invalidation guards with
 injected dialog callbacks. Displayed menus/dialogs, the Ignore/Abort failure
 interaction and signed sandbox acceptance remain unverified. Full port parity is
 still incomplete.
+
+## File Ignore menu
+
+Log now offers Add to ignore list when the first selected visible file is unversioned or deleted,
+including historical deletions. Name, extension and single-file containing-folder
+choices reuse the native Ignore dialog. Mixed extensions use separate name/mask
+commands as in GitStatusListCtrl.cpp; matching extensions retain the submenu.
+Original Ignore icons remain attached. Selections are read in visible list order;
+actual historical parent groups or fresh working status are checked before the
+handoff. Busy/bare, changed selection, invalidation and externally staged cached
+unversioned rows prevent dispatch. Ignore writes rules without removing tracked
+files or their working contents. Rule changes now refresh all repository Logs.
+
+Hidden native fixtures verify path/mask/folder routing and historical deleted
+paths, then execute the native Ignore model to write a literal unusual filename
+rule and refresh unversioned visibility. Dialog and root/completion callbacks are
+injected. Menu layout and displayed Ignore interaction, signed sandbox access,
+working-file Delete and other outstanding file commands still need acceptance.
+SwiftUI file selection currently uses the first selected visible row for menu
+eligibility; matching Windows selection-mark behavior remains pending.

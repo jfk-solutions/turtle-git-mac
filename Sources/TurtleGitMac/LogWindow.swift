@@ -1155,6 +1155,46 @@ struct LogCommandRequest: Identifiable {
         }
     }
     @Published private(set) var historicalRevertTrash: [URL] = []
+    var onIgnoreFiles: ((RepositoryAction, [String]) -> Void)?
+    func canIgnoreFiles(_ ids: Set<String>) -> Bool {
+        guard !busy, !isInvalidated, !bare, onIgnoreFiles != nil,
+              let mark = visibleFiles.first(where: { ids.contains($0.id) }) else { return false }
+        return mark.action == "?" || mark.action.hasPrefix("D")
+    }
+    func requestIgnoreFiles(_ ids: Set<String>, mask: Bool = false, folder: Bool = false) {
+        guard canIgnoreFiles(ids) else { return }
+        let chosen = visibleFiles.filter { ids.contains($0.id) }
+        var paths = chosen.map(\.path)
+        if folder {
+            guard chosen.count == 1 else { return }
+            let parent = (paths[0] as NSString).deletingLastPathComponent
+            guard !parent.isEmpty, parent != "." else { return }
+            paths = [parent]
+        }
+        do { _ = try IgnoreOptions(paths: paths, mask: mask) }
+        catch { self.error = error.localizedDescription; return }
+        let request = generation, selection = selected, fileSelection = selectedFiles
+        let working = selectedWorkingTree, revision = self.revision
+        let ignorePaths = paths
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                for path in ignorePaths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
+                let available: [CommitFile]
+                if working {
+                    guard let fresh = try await repository.workingTreeHistory() else { throw RevisionComparisonFailure.selection }
+                    available = fresh.files + fresh.unversioned
+                } else {
+                    guard let revision else { throw RevisionComparisonFailure.selection }
+                    available = try await repository.logFileGroups(in: revision).flatMap { group in group.files.map { $0.inParentGroup(group.id) } }
+                }
+                guard chosen.allSatisfy({ file in available.contains { $0.path == file.path && $0.oldPath == file.oldPath && $0.action == file.action && (working || $0.parentIndex == (file.parentIndex ?? 0)) } }) else { throw RevisionComparisonFailure.selection }
+                guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+                busy = false; onIgnoreFiles?(mask ? .ignoreMask : .ignore, ignorePaths)
+            } catch { if request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
+        }
+    }
     var handleHistoricalRevertFailure: (String) async -> Bool = { _ in false }
     var showHistoricalRevertResult: (String) -> Void = { _ in }
     func canRevertHistoricalFiles(_ ids: Set<String>, parent: Bool) -> Bool {
@@ -1542,6 +1582,12 @@ struct LogDialog: View {
         }
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") {
             preparedComparisonActions(ids, file: file)
+        }
+        if model.canIgnoreFiles(ids) {
+            let paths = model.visibleFiles.filter { ids.contains($0.id) }.map(\.path)
+            IgnoreSelectionMenu(paths: paths) { action, selected in
+                model.requestIgnoreFiles(ids, mask: action.ignoresByExtension, folder: selected != paths)
+            }
         }
         Menu {
             ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in

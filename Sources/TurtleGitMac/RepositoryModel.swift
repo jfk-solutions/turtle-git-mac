@@ -537,6 +537,7 @@ import TurtleGitCore
             let controller = try ignoreWindows[key] ?? IgnoreWindowController(repository: repository, access: access, paths: paths, mask: action.ignoresByExtension, delete: action.removesWhenIgnoring)
             controller.onClosed = { [weak self] in self?.ignoreWindows.removeValue(forKey: key) }
             controller.onChanged = { [weak self] output in
+                self?.refreshRepositoryLogs(root)
                 self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
                 guard let self, self.root == root else { return }
                 self.output = output; Task { await self.refresh() }
@@ -983,6 +984,9 @@ import TurtleGitCore
             if action == .add { self?.showAdd(repository: repository, access: access, paths: paths) }
             else if action == .commit { self?.showCommitDialog(repository: repository, access: access, paths: paths) }
             else if action == .revert { self?.showRevert(repository: repository, access: access, paths: paths) }
+        }
+        controller.model.onIgnoreFiles = { [weak self] action, paths in
+            self?.showIgnore(repository: repository, access: access, paths: paths, action: action)
         }
         controller.model.onWorkingFilePairCompare = { [weak self] paths in self?.showWorkingFilePair(repository: repository, access: access, paths: paths) }
         controller.model.onConflictAction = { [weak self] action, paths in
