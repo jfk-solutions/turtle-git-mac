@@ -546,7 +546,9 @@ includes both names of a rename. Core regressions pass; native pair and multi-fi
 patch acceptance, merge-parent variants and signed sandbox checks remain pending.
 Log’s Walk Behavior menu now provides First Parent, No merges, Follow renames,
 Full history, Compressed Graph and labeled-only choices. Display filtering retains
-actual parents for revision actions; per-node rollup and displayed acceptance
-remain in progress.
+actual parents for revision actions. Ordinary path history uses Git's rewritten
+graph links to connect omitted ancestors, with real parents retained for file
+details and revert targets; per-node rollup and displayed acceptance remain in
+progress.
 
 See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.

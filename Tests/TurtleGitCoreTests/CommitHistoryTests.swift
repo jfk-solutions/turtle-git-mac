@@ -31,6 +31,45 @@ final class CommitHistoryTests: XCTestCase {
         let after = try await repo.run(["rev-parse", "HEAD"]).stdout
         XCTAssertEqual(after, head); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), bytes)
     }
+    func testHistoryWalkRewrittenGraphPreservesActualFileActionParents() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["tag", "graph-base", base])
+        try Data("unrelated\n".utf8).write(to: root.appendingPathComponent("unrelated"))
+        try await repo.stage(["unrelated"]); _ = try await repo.commit(message: "omitted intermediate")
+        let intermediate = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        try Data("path changed\n".utf8).write(to: root.appendingPathComponent(path))
+        try await repo.stage([path]); _ = try await repo.commit(message: "visible path change")
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let bytes = try Data(contentsOf: root.appendingPathComponent(path))
+        var options = HistoryOptions(); options.paths = [path]
+        let entries = try await repo.history(options: options)
+        XCTAssertEqual(entries.map(\.subject), ["visible path change", "base"])
+        let latest = try XCTUnwrap(entries.first)
+        XCTAssertEqual(latest.parents, [intermediate])
+        XCTAssertEqual(latest.graphParents, [base])
+        XCTAssertEqual(entries.last?.graphParents, [])
+        let graph = CommitGraph.project(entries, walk: options.walk)
+        XCTAssertTrue(graph.graph[1].edges.contains { $0.endsAtNode }, "Path history must connect across an omitted intermediate commit")
+        XCTAssertEqual(graph.entries[0].parents, [intermediate])
+        XCTAssertTrue(CommitGraph.layout(entries)[1].edges.contains { $0.endsAtNode })
+        let files = try await repo.files(in: latest)
+        XCTAssertEqual(files.map(\.path), [path], "File details must compare the actual parent, not the graph ancestor")
+        let targets = try await repo.prepareLogFileRevert(latest, files: files, parent: true)
+        XCTAssertEqual(targets.map(\.revision), [intermediate])
+        options.walk.graphMode = .labeled
+        XCTAssertTrue(CommitGraph.project(entries, walk: options.walk).graph.last!.edges.contains { $0.endsAtNode })
+        options.walk.fullHistory = true
+        let full = try await repo.history(options: options)
+        XCTAssertEqual(full.first?.parents, [intermediate]); XCTAssertNil(full.first?.graphParents)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(after, head)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), bytes)
+    }
     func testHistoryWalkFollowsLiteralRenameAndRejectsFolderOrMultiplePaths() async throws {
         let (root, baseRepo, old) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

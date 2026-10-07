@@ -1170,7 +1170,26 @@ import TurtleGitCore
     let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
     let afterBytes = try Data(contentsOf: root.appendingPathComponent(new))
     precondition(afterIndex == index && afterHead == head && afterBytes == bytes)
-    print("Native Log Walk Behavior: all six model controls, actual first-parent/no-merge rows and retained merge parents, full-history toggle, compressed fork/merge and labeled-only views with working row, mutual mode toggles, literal rename history, all-branch/whole-project exclusion, single-file eligibility, multi/folder reset, busy/closed guards, hidden hosted menu and exact index/HEAD/file preservation passed. Displayed gestures and per-node rollup remain pending.")
+    try Data("gap\n".utf8).write(to: root.appendingPathComponent("gap-file")); try await repo.stage(["gap-file"]); _ = try await repo.commit(message: "graph omitted gap")
+    let gap = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    try Data("graph path change\n".utf8).write(to: root.appendingPathComponent(new)); try await repo.stage([new]); _ = try await repo.commit(message: "graph visible path")
+    let graphIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), graphHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let graphBytes = try Data(contentsOf: root.appendingPathComponent(new))
+    let scoped = LogWindowModel(repository: repo, access: nil); defer { scoped.invalidate() }
+    scoped.setPathScope([new]); try await until { !scoped.busy }
+    precondition(scoped.error == nil)
+    let pathEntries = scoped.entries.filter { !$0.hash.isEmpty }
+    precondition(pathEntries.map(\.subject) == ["graph visible path", "walk rename"])
+    precondition(pathEntries[0].parents == [gap] && pathEntries[0].graphParents == [pathEntries[1].hash])
+    let olderRow = scoped.entries.firstIndex { $0.hash == pathEntries[1].hash }!
+    precondition(scoped.graph[olderRow].edges.contains { $0.endsAtNode })
+    let graphFiles = try await repo.files(in: pathEntries[0]); precondition(graphFiles.map(\.path) == [new])
+    let graphTargets = try await repo.prepareLogFileRevert(pathEntries[0], files: graphFiles, parent: true)
+    precondition(graphTargets.map(\.revision) == [gap])
+    let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let finalBytes = try Data(contentsOf: root.appendingPathComponent(new))
+    precondition(finalIndex == graphIndex && finalHead == graphHead && finalBytes == graphBytes)
+    print("Native Log Walk Behavior: rewritten path graph with actual file/revert parents, all six model controls, actual first-parent/no-merge rows and retained merge parents, full-history toggle, compressed fork/merge and labeled-only views with working row, mutual mode toggles, literal rename history, all-branch/whole-project exclusion, single-file eligibility, multi/folder reset, busy/closed guards, hidden hosted menu and exact index/HEAD/file preservation passed. Displayed gestures and per-node rollup remain pending.")
 }
 
 @MainActor func verifyNativeLogWorkingAddCommit(executable: URL) async throws {

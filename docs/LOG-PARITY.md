@@ -1207,10 +1207,15 @@ fork points. Labeled-only keeps HEAD/reference rows. The synthetic working-tree
 row remains visible. Graph copies bridge hidden **loaded** linear ancestors;
 actions, parent comparisons and file groups continue to use actual commit parent
 hashes. Merge/fork node shapes retain actual topology even when graph edges
-collapse. The normal history reader returns raw walked entries; the native Log
-applies this display projection separately.
+collapse. Ordinary walks now use the same `--parents` flag as upstream
+`GetLogCmd`. Git's rewritten links are stored separately as graph parents; actual
+parents are recovered in bounded batches from pinned commit hashes. This connects
+path-filtered rows across omitted intermediate commits while file groups, path
+search and parent actions still use the real commit topology. Full history keeps
+raw parents, matching upstream's mutually exclusive flag choice. The native Log
+applies display projection separately.
 
-Three Core tests exercise real merge and rename histories, combined First Parent
+Four Core tests exercise real merge and rename histories, combined First Parent
 and No merges, a merge that hides mainline path changes unless Full history is
 used, scope restrictions, a bare administration-directory name collision, readonly
 repository preservation and graph projection invariants. The existing 34 Commit
@@ -1220,8 +1225,15 @@ All Branches/Whole Project transitions, scope reset and busy/closed guards, with
 an actual hidden hosted Log view. See [the walk QA record](qa/log-history-walk-2026-10-07.json).
 
 Per-node Expand/Collapse rollup commands, reference visibility masks, compressed
-search combinations, graph parent rewriting across commits omitted by path or
-No-merges walks, displayed light/dark/keyboard/VoiceOver acceptance and signed
+search combinations, graph gaps not rewritten by Git (including Follow renames
+and the synthetic working row above a hidden HEAD), displayed
+light/dark/keyboard/VoiceOver acceptance and signed
 sandbox behavior remain pending. Compression currently applies to the loaded
 revision batch, so Show next 200 can reveal more retained nodes. This is progress
 toward the complete upstream walk/graph behavior, not full Log acceptance.
+
+The graph-parent regression additionally verifies a real omitted path ancestor,
+connected normal/labeled graph rows, actual file lists and parent-revert targets,
+Full history raw-parent behavior and exact repository preservation. The native
+receiver checks the same path graph through `LogWindowModel`. See
+[the graph-parent QA record](qa/log-graph-parents-2026-10-07.json).

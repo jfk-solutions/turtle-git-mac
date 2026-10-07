@@ -77,6 +77,8 @@ public struct LogEntry: Identifiable, Sendable {
     public let date: String
     public let subject: String
     public var parents: [String] = []
+    /// Git's history-simplified edges; `parents` always describes the actual commit.
+    public var graphParents: [String]?
     public var email: String = ""
     public var message: String = ""
     public var committer: String = ""

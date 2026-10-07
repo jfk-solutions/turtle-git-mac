@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "0a92257",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Ordinary history --parents graph rewriting, separate actual action parents recovered from pinned hashes, path history graph/action regressions",
+  "sha256": {
+    "README.md": "1869e80120b80ab19c0828c46d13a544dd42c7611ab0c913f295b922efe277c6",
+    "Sources/TurtleGitCore/CommitHistory.swift": "c208285c2bf84469ad6d309173b826e8797ea1c0e74e2d9b12eb7c668ff28ca1",
+    "Sources/TurtleGitCore/GitModels.swift": "30d8be333ec8c415a83b8711454124c4b9498daf6c8f1f529a2b588321a0fee1",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "3f7f3050157bc3693965427671d8f641f152bb779fea6bb92884f8a2cc446319",
+    "docs/LOG-PARITY.md": "7959447946687dabe7100d1973fb8f8b4b8379f00422660c0e38589b1bec7f6a",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "4c08dd1c6280cce8cf1528ded1aa2478dc26c879fe066c7b3049f5b95623fb7a"
+  },
+  "upstream_evidence": {
+    "src/Git/Git.cpp": "4b0d0830cb066480d6ed76395654dd41ba4673e16124930c5efa342c2b0b7247"
+  },
+  "verification": {
+    "core": "All 38 CommitHistoryTests passed on system Git; four testHistoryWalk cases passed on Git 2.37.1, 2.39.5 and bundled 2.55.0. New real omitted-path-ancestor fixture verifies connected default/direct/labeled graph, actual file list and parent-revert targets, Full history raw-parent behavior and exact HEAD/index/working bytes. Full package suite not repeated. Initial labeled-graph fixture had no base label; corrected with a real tag and retained failed log.",
+    "native": "All four sequential check-cherry-pick-native.py --menus-only runs passed. New real scoped LogWindowModel fixture connects omitted path ancestor while preserving actual file/revert parents and exact HEAD/index/file bytes. Existing common native regressions passed. Hidden views only; no main app launch.",
+    "builds": [
+      "SwiftPM",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "limitations": "Git does not rewrite all excluded-parent cases (Follow renames, no-merges and synthetic working row above hidden HEAD); per-node rollup, reference masks, compressed search and loaded batch limits remain. Physical gestures, displayed screenshots/light/dark/VoiceOver and signed sandbox/Finder/App Store acceptance remain pending. Whole port incomplete. Hosted CI not verified or published.",
+    "process_audit": "No app or native/menu/provider receiver remained.",
+    "site": "Local site generation passed; unpublished.",
+    "audits": "Both bundle validators passed; Store --require-git, 90 original icons and exact NOTICE comparisons passed."
+  },
+  "all_sources_manifest_sha256": "5aba4ddd2b8678c89262e8af9f340c7a16808172528954aa36639921663b1e1e",
+  "logs": {
+    "build/qa/log-graph-parents/2.37.1-core.log": "5d8edeeabc7dcd7963f1c0077e240e8db32e634e6348a40482aefd358ac6a494",
+    "build/qa/log-graph-parents/2.39.5-core.log": "7d2d0aab43ecb894161b4db37fe3c4310ed8360e2896a60c7302383adb5f6a03",
+    "build/qa/log-graph-parents/2.55.0-core.log": "17156830322500e180646d6cb376115a465bf796f54c716c66949b1445c29b00",
+    "build/qa/log-graph-parents/core-final.log": "0d474744ec6405ce844c9eedb10f3c353545c20617bbaae3531d55b4eac64559",
+    "build/qa/log-graph-parents/core.log": "1ce539f8658cfbcf0037f3d2b101b1647db11775d872997b22e777b7e25dda2c",
+    "build/qa/log-graph-parents/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-graph-parents/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-graph-parents/native.log": "35810c386cf8ae6e1126a9a697f77cb4a457bb06589a3e092a9ee973de873980",
+    "build/qa/log-graph-parents/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-graph-parents/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-graph-parents/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

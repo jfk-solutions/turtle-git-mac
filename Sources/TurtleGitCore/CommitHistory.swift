@@ -386,7 +386,7 @@ public enum CommitGraph {
     /// Compression changes only graph copies, never action/detail parent metadata.
     public static func project(_ entries: [LogEntry], walk: HistoryWalkOptions) -> (entries: [LogEntry], graph: [CommitGraphRow]) {
         var children: [String: Set<String>] = [:]
-        for entry in entries { for parent in entry.parents { children[parent, default: []].insert(entry.hash) } }
+        for entry in entries { for parent in entry.graphParents ?? entry.parents { children[parent, default: []].insert(entry.hash) } }
         let visible = entries.filter { entry in
             if entry.hash.isEmpty || walk.graphMode == .all { return true }
             let labeled = entry.isHead || entry.references.contains { ref in
@@ -396,7 +396,10 @@ public enum CommitGraph {
         }
         let visibleHashes = Set(visible.map(\.hash))
         let records = Dictionary(uniqueKeysWithValues: entries.map { ($0.hash, $0) })
-        func graphParents(_ entry: LogEntry) -> [String] { walk.firstParent ? Array(entry.parents.prefix(1)) : entry.parents }
+        func graphParents(_ entry: LogEntry) -> [String] {
+            let parents = entry.graphParents ?? entry.parents
+            return walk.firstParent ? Array(parents.prefix(1)) : parents
+        }
         func nearestVisible(_ origin: String) -> [String] {
             var pending = [origin], seen = Set<String>(), result: [String] = []
             while let hash = pending.popLast() {
@@ -409,6 +412,7 @@ public enum CommitGraph {
         let graphEntries = visible.map { entry -> LogEntry in
             var copy = entry, seen = Set<String>()
             copy.parents = graphParents(entry).flatMap(nearestVisible).filter { seen.insert($0).inserted }
+            copy.graphParents = nil
             return copy
         }
         let graph = zip(visible, layout(graphEntries)).map { entry, row in
@@ -422,8 +426,9 @@ public enum CommitGraph {
         var lanes: [Lane] = []
         var nextColor = 0
         var childCounts: [String: Int] = [:]
-        for entry in entries { for parent in entry.parents { childCounts[parent, default: 0] += 1 } }
+        for entry in entries { for parent in entry.graphParents ?? entry.parents { childCounts[parent, default: 0] += 1 } }
         return entries.map { entry in
+            let parents = entry.graphParents ?? entry.parents
             let hasIncoming = lanes.contains(where: { $0.hash == entry.hash })
             if !hasIncoming {
                 lanes.append(Lane(hash: entry.hash, color: nextColor)); nextColor += 1
@@ -432,7 +437,7 @@ public enum CommitGraph {
             let column = lanes.firstIndex { $0.hash == entry.hash }!
             let color = lanes[column].color
             lanes.remove(at: column)
-            for (index, parent) in entry.parents.enumerated() where !lanes.contains(where: { $0.hash == parent }) {
+            for (index, parent) in parents.enumerated() where !lanes.contains(where: { $0.hash == parent }) {
                 let lane = Lane(hash: parent, color: index == 0 ? color : nextColor)
                 if index == 0 { lanes.insert(lane, at: min(column, lanes.count)) }
                 else { lanes.append(lane); nextColor += 1 }
@@ -445,7 +450,7 @@ public enum CommitGraph {
                     edges.append(.init(from: index, to: destination, color: lane.color, startsAtNode: false, endsAtNode: false))
                 }
             }
-            for parent in entry.parents {
+            for parent in parents {
                 if let destination = lanes.firstIndex(where: { $0.hash == parent }) {
                     edges.append(.init(from: column, to: destination, color: lanes[destination].color, startsAtNode: true, endsAtNode: false))
                 }
@@ -634,6 +639,9 @@ extension GitRepository {
         // Git fixed-string grep is equivalent only for one positive message term.
         let filterInMemory = filtering && (options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
         var args = ["log", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]
+        // Match GetLogCmd: parent rewriting for normal walks, raw full history.
+        let rewritesParents = !options.walk.fullHistory
+        if rewritesParents { args.append("--parents") }
         if options.walk.firstParent { args.append("--first-parent") }
         if options.walk.noMerges { args.append("--no-merges") }
         if options.walk.followRenames { args.append("--follow") }
@@ -710,6 +718,25 @@ extension GitRepository {
             return paths.sorted()
         }
         let fieldsInHistory = String(decoding: try historyRun(args).stdout, as: UTF8.self).components(separatedBy: "\0")
+        var actualParents: [String: [String]] = [:]
+        if rewritesParents {
+            let hashes = stride(from: 0, to: max(0, fieldsInHistory.count - 9), by: 10).map {
+                fieldsInHistory[$0].trimmingCharacters(in: .whitespacesAndNewlines)
+            }.filter { !$0.isEmpty }
+            guard hashes.allSatisfy({ ($0.count == 40 || $0.count == 64) && $0.allSatisfy { $0.isASCII && $0.isHexDigit } }) else { throw RevisionComparisonFailure.range }
+            // Bound argv size even when in-memory searching scans a large history.
+            for start in stride(from: 0, to: hashes.count, by: 128) {
+                let batch = Array(hashes[start..<min(start + 128, hashes.count)])
+                let fields = String(decoding: try historyRun(["show", "--no-patch", "--no-notes", "--format=%H%x00%P%x00"] + batch + ["--"]).stdout, as: UTF8.self).components(separatedBy: "\0")
+                var index = 0
+                while index + 1 < fields.count {
+                    let hash = fields[index].trimmingCharacters(in: .whitespacesAndNewlines)
+                    actualParents[hash] = fields[index + 1].split(whereSeparator: \.isWhitespace).map(String.init)
+                    index += 2
+                }
+                guard batch.allSatisfy({ actualParents[$0] != nil }) else { throw RevisionComparisonFailure.range }
+            }
+        }
         var entries: [LogEntry] = []
         var regexTexts: [String] = []
         var record = 0
@@ -717,6 +744,10 @@ extension GitRepository {
             try cancellation?.check()
             let fields = Array(fieldsInHistory[record..<(record + 10)])
             record += 10
+            let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !hash.isEmpty else { continue }
+            let walkedParents = fields[1].split(separator: " ").map(String.init)
+            let parents = actualParents[hash] ?? walkedParents
             if filterInMemory {
                 var searchable: [String] = []
                 if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(fields[5]) }
@@ -734,16 +765,15 @@ extension GitRepository {
                     searchable += (references[hash] ?? []).map(\.name) + (peeledReferenceNames[hash] ?? [])
                 }
                 if options.searchFields.contains(.tagInfo) { searchable.append(dateSettings.tagInfo(try tagInfo(fields[0].trimmingCharacters(in: .whitespacesAndNewlines)))) }
-                if options.searchFields.contains(.paths) { searchable += try changedPaths(fields[0].trimmingCharacters(in: .whitespacesAndNewlines), parents: fields[1].split(separator: " ").map(String.init)) }
+                if options.searchFields.contains(.paths) { searchable += try changedPaths(hash, parents: parents) }
                 let text = searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n"
                 if options.searchRegex { regexTexts.append(text) }
                 else { guard query.matches(text) else { continue } }
             }
-            let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !hash.isEmpty else { continue }
             var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
-                parents: fields[1].split(separator: " ").map(String.init), email: fields[3], message: fields[6],
+                parents: parents, email: fields[3], message: fields[6],
                 committer: fields[7], committerEmail: fields[8], committerDate: fields[9])
+            if rewritesParents { entry.graphParents = walkedParents }
             entry.issueIDs = try issueIDs(hash, message: fields[6])
             entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
             if filtering && !options.searchRegex && options.limit > 0 && entries.count >= options.limit { break }
