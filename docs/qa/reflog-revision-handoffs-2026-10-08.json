@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "867b615984895338eea009aef1856238762922bd",
+  "scope": "RefLog Browser, Branch, Tag and Export immutable selected-revision handoffs, source current-stash/index-parent creation gates and Browser/Export reuse predicates. Partial parity; full macOS port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/TortoiseProc/refloglist.cpp": "c1fb07f5fa8bf318d436fbb877656944b8d2f008"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "e0cd380e9759a8eacae47f630e97a3bbf8650cf21df95947e6bbcdaf09403200",
+    "NOTICE": "388a615a5333cca0abc59b23e44d5e625a5841c0080c56b2319ae02f803226cb",
+    "Sources/TurtleGitMac/ExportWindow.swift": "38636b472b4bfe7520325d8afea70d3d59231094f07564ffffe670b4f5ccd45f",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "bc779e19c1ece8e939ce17fbba19b34de831c037b9b183f71f10a0d383414c05",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "017baca76a2bd61c711a8be60cce018d1761648c64da5d8cb6513750ec82b5ad",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "82ae764796bfdce6001501a32c22e61207f77e200f75d5820c1972d0a14ff964",
+    "docs/PORTING.md": "153481193c7a7be5dc0b53693107f86af1e28439fa31b1ff6e3b8af6fe084bed",
+    "docs/REFLOG-PARITY.md": "6bf6be76982c4ca0aac1fa9b8e5ce6da971d060e09524a14083119aae754b2da",
+    "docs/qa/reflog-revision-handoffs-native-2026-10-08.swift": "83d5b57c4004ac58a6d0156fa98bf13687fc21b3551099b26d3a6d51219cdc30",
+    "docs/upstream-files.csv": "dca1577142354b30d8879c0bd331eded01646b2837a7e3f5e8207ad0e262b63f",
+    "scripts/test-reflog-revision-handoffs.py": "ede578f7f82b05614bb841562def971e80ce3c054414f0f206d1370411b7d915"
+  },
+  "all_sources_manifest_sha256": "005cacd002141025a1e8df750a0c428be5ff3be116c37b64e87616cfa2b7efa5",
+  "verification": {
+    "native": "Final receiver passed system Git, Git 2.37.1, 2.39.5 and bundled 2.55.0. Four exact-one immutable callbacks load actual older-revision Browser tree/blob, Branch/Tag base choosers and whole-project Export without automatic creation/export. Missing callbacks, empty/invalid/multi/busy selection, revision chooser creation and current/older stash plus adjacent two-parent index gates verified. Original icon mapping verified. Production reuse helpers reject changed revision, busy/invalid Browser, mismatched loaded snapshot and changed Export destination/scope. HEAD/refs/index/config/worktree byte-exact preserved by reads. No displayed UI, general clipboard or preference writes.",
+    "regression": "General RefLog deletion receiver passed all four Git versions after factory reuse changes. It retains real reverse-index deletion, full branch-log removal without ref movement, stale-after-confirmation rejection, stash Drop/Clear, chooser gates and actual hidden default-button alerts. That regression predates only the final extra Browser snapshot-revision predicate; final handoff receiver tests that predicate directly. No physical prompt clicks.",
+    "iterations": "Initial Debug and both four-Git matrices passed. Found Browser/Export factory reuse could retain edited state, added matching idle model predicates and independent owned keys; Debug and both native matrices passed. Added loaded Browser snapshot-revision gate and receiver fixture for an edited revision with an unrefreshed different tree; final Debug and four-Git handoff matrix passed. No failed build/native iteration. Before-refinement logs retained.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and byte-exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "core": "No Core source changed; real Git/native receivers exercise existing Core APIs. No additional Core suite run for this checkpoint.",
+    "documentation": "RefLog parity, PORTING summary and pinned source inventory updated. Inventory pin check and 3277 seven-column source rows validated. NOTICE attribution added. Local documentation site generated; unpublished.",
+    "ci": "Native handoff receiver added to macOS workflow. Hosted CI/authentication/push unavailable and unverified; no retry.",
+    "processes": "All compiler/build/native/audit sessions terminal. Main GUI never launched. Handoff receiver displays no windows; deletion receiver uses only hidden native alerts. Final app/native receiver process audit empty.",
+    "limitations": "Physical context menu/icon rendering, source complete menu ordering/actions, actual Browser/Export factory reuse and independent close, busy Branch/Tag factory handoff, choosers without navigation callbacks, light/dark layout and signed sandbox access remain pending. This is callback/model/Git evidence, not physical window acceptance. Full application/dialog/Finder parity, refreshed genuine screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-revision-handoffs/debug-audit-before-reuse.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-revision-handoffs/debug-audit-before-snapshot-gate.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-revision-handoffs/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-revision-handoffs/debug-before-reuse.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-revision-handoffs/debug-before-snapshot-gate.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-revision-handoffs/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-revision-handoffs/deletion-regression-before-reuse.log": "09f1fb04ce697e10439e0b121aa43a997d1e0e54abea25e14d9a4cfec435fe89",
+    "build/qa/reflog-revision-handoffs/deletion-regression-before-snapshot-gate.log": "09f1fb04ce697e10439e0b121aa43a997d1e0e54abea25e14d9a4cfec435fe89",
+    "build/qa/reflog-revision-handoffs/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-revision-handoffs/native-before-reuse.log": "a9323c6f97f8a6002e259ff840f51fd84db89ba3e3709f0383d1656a39508279",
+    "build/qa/reflog-revision-handoffs/native-before-snapshot-gate.log": "a9323c6f97f8a6002e259ff840f51fd84db89ba3e3709f0383d1656a39508279",
+    "build/qa/reflog-revision-handoffs/native.log": "a9323c6f97f8a6002e259ff840f51fd84db89ba3e3709f0383d1656a39508279",
+    "build/qa/reflog-revision-handoffs/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-revision-handoffs/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-revision-handoffs/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-revision-handoffs/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-revision-handoffs/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

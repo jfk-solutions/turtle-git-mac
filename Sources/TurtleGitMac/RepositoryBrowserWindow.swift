@@ -148,6 +148,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
     func sizeText(_ entry: RepositoryBrowserEntry) -> String { entry.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "" }
     func invalidate() { active = false; generation = UUID() }
+    func canReuseForRevision(_ requestedRevision: String) -> Bool {
+        active && !busy && !mutating && !confirmingQuit && revision == requestedRevision && snapshot?.revision == requestedRevision && snapshot?.directory == ""
+    }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }

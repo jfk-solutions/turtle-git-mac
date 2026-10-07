@@ -25,8 +25,9 @@ inspection and Copy to clipboard using the original icons. Delete also applies
 to HEAD and ordinary full-reference logs. Selected Apply passes the displayed commit
 hash to the native restore controller, preventing a later stash-index change from
 redirecting that selection. Inspection uses the first-parent diff and full commit
-metadata. General reflog entries currently offer Log navigation, inspection and
-the three clipboard formats; other revision actions remain pending.
+metadata. General reflog entries also offer Browse repository, Create Branch/Tag and
+Export at the selected revision. These use the original command icons and the
+existing native dialogs; other revision actions remain pending.
 
 Deletion and Clear prompt with Delete/Abort. Selected Delete defaults to Delete;
 Clear stash defaults to Abort, matching their distinct source calls. Before executing either, the core
@@ -235,3 +236,30 @@ errors. Raw new-object IDs, epoch/offset and UTF-8 messages are retained in reve
 file order. Eight Core tests include empty HEAD with an intact branch log and
 independent linked-worktree HEAD deletion. Broader malformed records, object types,
 encoding and signed administrative-directory access remain pending.
+
+## Browser, Branch, Tag and Export revision actions
+
+The four context commands pass exactly one current row's immutable hash to the
+repository owner. Browser opens the repository tree at that revision; Branch and
+Tag preset their revision chooser without creating a reference; Export presets
+the whole-project revision without writing an archive. Empty, stale or multiple
+selections, loading and absent callbacks suppress dispatch. Revision choosers
+suppress Branch/Tag creation. The source `IsOnStash` gate excludes the current
+`refs/stash` tip and its adjacent index-parent row when that tip has two parents.
+Older stash revisions remain eligible, matching the source's exact ref mapping.
+
+Browser and Export reuse now require matching repository/runtime, revision and
+scope, no active operation or sheet, and no edited Export destination/result.
+Edited or busy windows retain their own ownership while a new request opens a
+correctly preset window. Browser reuse additionally requires the requested tree
+at its root. Physical factory reuse/independent close and busy Branch/Tag handoff
+remain acceptance work.
+
+[Revision handoff receiver](qa/reflog-revision-handoffs-native-2026-10-08.swift)
+and [QA record](qa/reflog-revision-handoffs-2026-10-08.json) check all four callbacks
+against actual older-revision Browser/Branch/Tag/Export models, the old blob ID,
+exact selection and chooser gates, current/older stash and adjacent index-parent
+gates, original icon mapping and reuse predicates. HEAD, refs, index, config and
+working file remain unchanged by those reads. These checks display no UI; physical
+menu/icon rendering, complete upstream context order and actions, edited/busy
+window routing, light/dark layouts and signed sandbox execution remain pending.

@@ -79,6 +79,9 @@ import TurtleGitCore
     var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && $0.symbolicTarget == nil } }
     var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
     var revision: String { switch target { case .head: return "HEAD"; case .branch: return branch; case .tag: return tag; case .commit: return commit } }
+    func canReuseForRevision(_ requestedRevision: String, directory requestedDirectory: String) -> Bool {
+        !busy && revision == requestedRevision && directory == requestedDirectory && destination.isEmpty && exported == nil && wholeProject == requestedDirectory.isEmpty
+    }
     static func directoryScope(root: URL, paths: [String]) -> String {
         guard paths.count == 1, paths[0] != ".", !paths[0].isEmpty,
               (try? root.appendingPathComponent(paths[0]).resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true else { return "" }

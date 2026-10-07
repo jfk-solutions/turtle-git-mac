@@ -854,6 +854,9 @@ import TurtleGitCore
         let controller = referenceLogWindows[root.path] ?? ReferenceLogWindowController(repository: repository, access: access, reference: reference)
         controller.onClosed = { [weak self] in self?.referenceLogWindows.removeValue(forKey: root.path) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
+        controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
+        controller.model.onCreateReference = { [weak self] isTag, hash in self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash) }
+        controller.model.onExport = { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash) }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -924,8 +927,13 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showRepositoryBrowser(repository: GitRepository, access: RepositoryAccessLease?, revision: String = "HEAD") {
-        let key = repository.root.path + "\0" + revision
-        let controller = browserWindows[key] ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision)
+        let baseKey = repository.root.path + "\0" + revision
+        let reusable = browserWindows.first { _, controller in
+            controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
+            controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision)
+        }
+        let key = reusable?.key ?? (browserWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
+        let controller = reusable?.value ?? RepositoryBrowserWindowController(repository: repository, access: access, revision: revision)
         controller.onClosed = { [weak self] in self?.browserWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash) }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
@@ -1083,8 +1091,13 @@ import TurtleGitCore
     private func showExport(repository: GitRepository, access: RepositoryAccessLease?, revision: String, paths: [String] = []) {
         let root = repository.root
         let directory = ExportWindowModel.directoryScope(root: root, paths: paths)
-        let key = root.path + "\0" + revision + "\0" + directory
-        let controller = exportWindows[key] ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory)
+        let baseKey = root.path + "\0" + revision + "\0" + directory
+        let reusable = exportWindows.first { _, controller in
+            controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
+            controller.window?.attachedSheet == nil && controller.model.canReuseForRevision(revision, directory: directory)
+        }
+        let key = reusable?.key ?? (exportWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
+        let controller = reusable?.value ?? ExportWindowController(repository: repository, access: access, revision: revision, directory: directory)
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

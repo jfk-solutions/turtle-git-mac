@@ -105,6 +105,11 @@ import TurtleGitCore
     func accept() { if selecting { if !busy, let entry = selectedEntry { onChoose(entry) } } else { close() } }
     var onApply: (String) -> Void = { _ in }
     var onLog: ((String) -> Void)?
+    var onBrowseRepository: ((String) -> Void)?
+    var onCreateReference: ((Bool, String) -> Void)?
+    var onExport: ((String) -> Void)?
+    @Published private(set) var currentStashHash: String?
+    private var currentStashIndexParent: String?
     var onChanged: (String) -> Void = { _ in }
     var confirmDelete: (String, Bool, @escaping () -> Void) -> Void = { _, _, _ in }
     var close: () -> Void = {}
@@ -118,7 +123,17 @@ import TurtleGitCore
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let refs = try await repository.referenceLogNames(), result = try await repository.referenceLog(reference)
+                var stashHash: String?, indexParent: String?
+                if refs.contains("refs/stash") {
+                    let hash = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "refs/stash"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
+                    if !hash.isEmpty {
+                        stashHash = hash
+                        let parents = ((try? await repository.run(["rev-list", "--parents", "-n", "1", hash, "--"]).text) ?? "").split(whereSeparator: \.isWhitespace)
+                        if parents.count == 3 { indexParent = String(parents[2]) }
+                    }
+                }
                 guard request == generation else { return }
+                currentStashHash = stashHash; currentStashIndexParent = indexParent
                 names = Array(Set(refs + [reference])).sorted(); entries = result
                 selection.formIntersection(Set(result.map(\.id))); searchIndex = 0; searchWrapped = false; busy = false
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
@@ -173,6 +188,28 @@ import TurtleGitCore
         }
         error = "\"\(find)\" was not found."
     }
+    func isOnStash(_ entry: ReferenceLogEntry) -> Bool {
+        if entry.hash == currentStashHash { return true }
+        guard let index = entries.firstIndex(where: { $0.id == entry.id }), index > 0 else { return false }
+        return entries[index - 1].hash == currentStashHash && entry.hash == currentStashIndexParent
+    }
+    func canPerform(_ command: ReferenceLogRevisionCommand, ids: Set<String>) -> Bool {
+        guard !busy, ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return false }
+        switch command {
+        case .browseRepository: return onBrowseRepository != nil
+        case .export: return onExport != nil
+        case .createBranch, .createTag: return !selecting && !isOnStash(entry) && onCreateReference != nil
+        }
+    }
+    func perform(_ command: ReferenceLogRevisionCommand, ids: Set<String>) {
+        guard canPerform(command, ids: ids), let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+        switch command {
+        case .browseRepository: onBrowseRepository?(entry.hash)
+        case .export: onExport?(entry.hash)
+        case .createBranch: onCreateReference?(false, entry.hash)
+        case .createTag: onCreateReference?(true, entry.hash)
+        }
+    }
     func activateRows(_ ids: Set<String>) {
         guard !busy else { return }
         if selecting { selection = ids; accept() }
@@ -219,6 +256,25 @@ import TurtleGitCore
     }
 }
 enum ReferenceLogCopyFormat { case full, hashes, messages }
+enum ReferenceLogRevisionCommand: CaseIterable, Hashable {
+    case browseRepository, createBranch, createTag, export
+    var title: String {
+        switch self {
+        case .browseRepository: return "Browse repository"
+        case .createBranch: return "Create Branch at this version…"
+        case .createTag: return "Create Tag at this version…"
+        case .export: return "Export this version…"
+        }
+    }
+    var icon: MenuIcon {
+        switch self {
+        case .browseRepository: return .repositoryBrowser
+        case .createBranch: return .branch
+        case .createTag: return .tag
+        case .export: return .export
+        }
+    }
+}
 
 private struct ReferenceLogDialog: View {
     @ObservedObject var model: ReferenceLogWindowModel
@@ -237,6 +293,9 @@ private struct ReferenceLogDialog: View {
             }.contextMenu(forSelectionType: String.self) { ids in
                 TurtleGitContextMenu {
                     Button { model.showLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.count != 1 || model.onLog == nil)
+                    ForEach(ReferenceLogRevisionCommand.allCases, id: \.self) { command in
+                        Button { model.perform(command, ids: ids) } label: { CommandLabel(title: command.title, icon: command.icon) }.disabled(!model.canPerform(command, ids: ids))
+                    }
                     Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1)
                     if !model.selecting { Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty) }
                     if !model.selecting && model.reference == "refs/stash" {
