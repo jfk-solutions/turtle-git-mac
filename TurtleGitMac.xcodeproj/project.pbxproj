@@ -132,6 +132,7 @@
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
 		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
 		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
+		CC6D27AC08555115BD75EB87 /* Clean.swift in Sources */ = {isa = PBXBuildFile; fileRef = 340673250460ADE4B0D7C99C /* Clean.swift */; };
 		D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */; };
 		D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A48D22D1E6D22153CBA3744 /* Push.swift */; };
 		D346F92FAD1A13414F11CBB9 /* AlternativeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1461AE9BD8BFDBA1939F33FF /* AlternativeEditorPreferences.swift */; };
@@ -259,6 +260,7 @@
 		326985003F83908822D7B91E /* MergeWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWindow.swift; sourceTree = "<group>"; };
 		331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRevert.swift; sourceTree = "<group>"; };
 		3329485A1DA9D2066A853483 /* MessageCompletion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCompletion.swift; sourceTree = "<group>"; };
+		340673250460ADE4B0D7C99C /* Clean.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Clean.swift; sourceTree = "<group>"; };
 		3452891FA131668D74905133 /* WorkingTreeHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTreeHistory.swift; sourceTree = "<group>"; };
 		35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeEditorPreferences.swift; sourceTree = "<group>"; };
 		366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionArchive.swift; sourceTree = "<group>"; };
@@ -505,6 +507,7 @@
 				D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */,
 				CA08DAA6757DBD3FB0045BC5 /* Changelists.swift */,
 				593DF9B126BBA7E5D206ABE5 /* Checkout.swift */,
+				340673250460ADE4B0D7C99C /* Clean.swift */,
 				08425BF4A91945D52E0F6D99 /* Clone.swift */,
 				A2D91605384F213DBC8C3C9F /* CommitAmend.swift */,
 				DF6352B22FB03878FC59F470 /* CommitHistory.swift */,
@@ -794,6 +797,7 @@
 				52754E5252F132BF5D20794B /* CancellableGitProcess.swift in Sources */,
 				46F03179364D977A48FD1EC5 /* Changelists.swift in Sources */,
 				0195C6B3141B1AE8A2DD732B /* Checkout.swift in Sources */,
+				CC6D27AC08555115BD75EB87 /* Clean.swift in Sources */,
 				A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */,
 				B172FF1DD6076D00FCEB58D7 /* CommitAmend.swift in Sources */,
 				FB06077C7097755667D83917 /* CommitHistory.swift in Sources */,

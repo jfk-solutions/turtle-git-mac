@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "4be47152fe9c315d042abca506a96f761de093f7",
+  "previous_goal_turn": "progress: pinned inventory integrity and dependency documentation corrected",
+  "scope": "First Clean Core dry-run reader with upstream type/directory/unmanaged switches and quoted filename decoding; native Clean remains absent",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "Sources/TurtleGitCore/Clean.swift": "eb968309aef375078d814742c31b165ba961dccd410dc5b12b57b4aedcf654ca",
+    "Tests/TurtleGitCoreTests/CleanTests.swift": "d174d2d064da60ca97cdbf59d1c24b722d3b07fc188884882295c60f06b19f2b",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "66a0ea91e6a2ba58401d31c8c0e824bc0e166417845419a59b488945dd6eeea2",
+    "docs/CLEAN-PARITY.md": "4e54a52d5c9de52b27ee2305376fd6bf9d01548355b4fbdf26c9b4498f388d4f",
+    "docs/UI-PARITY.md": "1a4dda0f38f663611f25a3eb2ddcb8433ba2e1547230ab72ec53a7b8bc4c7076",
+    "docs/upstream-files.csv": "00c373de037bd75b69589b0488312178a86d4d3cf8912c441ee4f5ec9d009bf0"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/CleanTypeDlg.cpp": "7edf29911cfbfb092b80525a8e0485c55f05658bf227bb8fedaca26ebcf353a6",
+    "src/TortoiseProc/Commands/CleanupCommand.cpp": "800b5e42166343e9a86e032ef946ad41a4447c0b19e759f785ea48920397b4ef"
+  },
+  "all_sources_manifest_sha256": "110dfe85f8747a81916cd6239432919038bb9fbddd50e351c1f55a4819beb16e",
+  "verification": {
+    "core": "Two final CleanTests passed on Apple Git 2.50.1, 2.37.1, 2.39.5 and bundled 2.55.0. Literal Unicode/newline/quote/backslash/pathspec-looking filenames decoded; all/nonignored/ignored modes, directory filtering, protected and explicitly eligible unmanaged repository candidates, scoped preview and core.quotepath=false, bare/invalid scope/pre-canceled refusal verified. Exact HEAD/index/config and binary/modified working bytes preserved. Temporary repositories removed.",
+    "builds": [
+      "SwiftPM test build",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "project": "XcodeGen regenerated checked-in project to include new Core source; four project lines changed.",
+    "audits": "Both bundle validators and exact NOTICE comparisons passed, including original 90 icons, Finder extension/licenses and Store --require-git universal runtime audit. Unsigned builds do not prove signed sandbox/Store acceptance.",
+    "native": "No native dialog or route implemented; no main app or receiver launched. No remaining app/receiver process observed.",
+    "site": "Local site generated successfully; unpublished.",
+    "limitations": "No execution API. Native controls/persistence/routing, Finder file-to-directory adaptation, initialized submodule traversal/access, confirmed Trash/permanent deletion, fresh-plan validation, partial results/cancellation/progress/retry and dry-run post-actions remain pending. Unsupported invalid-UTF-8 candidate names fail. Full port/displayed UI/Finder activation/signed Store/manual/screenshots/hosted CI/site incomplete."
+  },
+  "logs": {
+    "build/qa/clean-preview/core-2.37.1.log": "faddd45b5fb7973c8f0bc15016b9ec2dd631c8266ec2b2161c0598978b4faba3",
+    "build/qa/clean-preview/core-2.39.5.log": "c3e0d9ba9729df9ebd54f2db97e9d89a3f5e0843e68728fe3b0ba5a7ddf944f4",
+    "build/qa/clean-preview/core-2.55.0.log": "77137a1a7f0cb78361526f4c05063ad315f0711daa192675d67c7e7d32a005b1",
+    "build/qa/clean-preview/core-final.log": "6dd9288b97da443d99e3dc4f5cf3c411f4e1287199a8c4f49c61375856f56b40",
+    "build/qa/clean-preview/core.log": "06b2d03421a96a20ad13423190b9b3d2db35f992d20596b13fdac5d8d96ad80a",
+    "build/qa/clean-preview/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/clean-preview/debug.log": "a9efa7ed11ad4dcc3f8cce45c98b68fa8ce8d5c369e6f841d69c73c92f8133ed",
+    "build/qa/clean-preview/project.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/clean-preview/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/clean-preview/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/clean-preview/store.log": "c3317a93e73643be09045c50c69229cd4545aac229542d1968ba51680e6abb72"
+  }
+}
