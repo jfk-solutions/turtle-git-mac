@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "50b728fc40dde148b293fd150314de5151bcb9ef",
+  "previous_goal_turn": "progress: committed Log patch docking and explicit scrollable window limits",
+  "scope": "Verify live Log patch reader with real merge-parent rows, rename paths, binary markers, invalid UTF-8 bytes, diff.context=0 and unchanged repository state",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_evidence": {
+    "src/TortoiseProc/LogDlg.cpp": "f7f61c888ae379112be47151d62d01255230cdbad2df852dbf26f6928a4e730c",
+    "src/Git/Git.cpp": "4b0d0830cb066480d6ed76395654dd41ba4673e16124930c5efa342c2b0b7247"
+  },
+  "sha256": {
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "0e247908aa187964da8422d20e2c5604122141ba7a453229244018596f55714a",
+    "docs/LOG-PARITY.md": "50324f4db2e44a328cca64190652001c71fd9dad80a31fdbffdc46133a4855df",
+    "Sources/TurtleGitCore/CommitHistory.swift": "7311cc60b16e1783f485ced00105164007fca10eb546fc4d36a4fdc7f038c67c"
+  },
+  "all_sources_manifest_sha256": "4280d5ffe378ca5c6bbeec6efb0db10c1f6d28db9b48bd29e3085d924218fd3a",
+  "verification": {
+    "system_git": "42 CommitHistoryTests passed on Apple Git 2.50.1, including new fixture.",
+    "compatibility": "New fixture passed on Git 2.37.1, 2.39.5 and bundled Store Git 2.55.0 using final SwiftPM test binary with --skip-build.",
+    "coverage": "Real two-parent merge; first-parent whole-stat patch; selected rows from both parents in deliberate list order; literal pathspec/newline/Unicode rename with both names; exact Data and invalid-byte assertions; binary marker; zero-context lines distinguished from hunk heading; actual parents despite empty cached parents; notes/displayRef and log.showSignature settings on unsigned merge; exact HEAD/index/config/notes ref/working bytes preservation.",
+    "repairs": "Fixture initially re-added already-staged removed source after git mv; removed invalid pathspec. Then used first-parent files API instead of native grouped-row API; corrected to logFileGroups plus inParentGroup. Zero-context assertion initially matched hunk heading text; diagnostic proved context correct, assertion now checks actual context lines. Failed logs retained. Production unchanged.",
+    "metadata_experiment": "Raw commit with invalid PGP signature and /usr/bin/false verifier produced only parent hash with and without no-show-signature/no-notes. No parser bug proven; no speculative production flags added.",
+    "builds": "SwiftPM test compilation passed. Sources unchanged from 50b728f; unsigned Debug/Store and native receiver not rerun for test/docs-only change.",
+    "site": "Local generation passed; unpublished.",
+    "process_audit": "No main app or native/menu/provider receiver remained; no app launched.",
+    "limitations": "Core raw bytes do not prove native Save As exports, displayed behavior or signed-commit metadata. Octopus merges, submodule preview, displayed light/dark, physical input, VoiceOver and signed sandbox unverified. Full port/Finder/signed App Store/screenshots/docs/hosted CI/site remain incomplete."
+  },
+  "logs": {
+    "build/qa/log-patch-metadata/context-diagnostic.log": "8d9761d18f350ea77425404b65167b6f11af641f99bc461365b7c58c426713e7",
+    "build/qa/log-patch-metadata/core-2.37.1.log": "6834431ec66e521284c325739a1ecee3f9855304fd3c4fda0bbe3971a8ed7aeb",
+    "build/qa/log-patch-metadata/core-2.39.5.log": "540a4a86abf9364a74f057fccd9f23dfa4cf1aae441c88f8346c21d95aff1b2a",
+    "build/qa/log-patch-metadata/core-2.55.0.log": "ea17a100dc385b967b1e70ae0b05a24ddf159cb57fadf30d34bf07c8418e1ddd",
+    "build/qa/log-patch-metadata/core-final.log": "d500d109c557cbcab0de98e11fc6aa2242181fe561a732ba920597fdb50d3152",
+    "build/qa/log-patch-metadata/core-verified.log": "df3c9640b822ef98ec3185e41d3469f163a09e1cb479322528efa24bf0237670",
+    "build/qa/log-patch-metadata/core.log": "50e77f2c2cd15d4b7c0d28282b30a3ba7a715cf206c2055fdf04bbe65693619f",
+    "build/qa/log-patch-metadata/history-final.log": "e7d133cecbe4ea097d76d32827dd978ef4b2aeb5c4c4d2845ade6fe9bd882ade",
+    "build/qa/log-patch-metadata/reproduction.log": "c3a1f40527bad48a663adfeea0555863218a338d0a3961b8dd19dd3b86097a3d",
+    "build/qa/log-patch-metadata/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

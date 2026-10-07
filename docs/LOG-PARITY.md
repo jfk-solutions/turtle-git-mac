@@ -1326,10 +1326,18 @@ patch child to check data, disabled applying, reopening and close behavior.
 
 Core checks cover whole statistics, literal selected-file bytes, working changes,
 unversioned omission, roots, cancellation and exact HEAD/index preservation. See
-[the patch preview QA record](qa/log-patch-preview-2026-10-07.json). Merge-parent
-preview variants, binary/invalid-UTF-8 export variants, displayed alignment and
-moving/resizing, keyboard/physical menu/light-dark/VoiceOver and signed sandbox
-acceptance remain pending. Full Log acceptance remains incomplete.
+[the patch preview QA record](qa/log-patch-preview-2026-10-07.json). A further real
+merge fixture verifies selected rows from both actual parents, visible-order
+concatenation, both rename paths (including literal pathspec syntax and newline),
+raw invalid-UTF-8 patch bytes, binary-file markers and configured zero context.
+It deliberately clears the caller’s cached parent list and checks that previews
+still resolve actual parents. Whole preview bytes match first-parent diff-tree
+output; HEAD, index, config, notes ref and working bytes remain unchanged. See
+[the merge and byte QA record](qa/log-patch-metadata-2026-10-07.json). These are
+Core reader checks, not viewer Save As acceptance. Actual signed-commit metadata,
+binary/invalid-UTF-8 viewer exports, displayed alignment and moving/resizing,
+keyboard/physical menu/light-dark/VoiceOver and signed sandbox acceptance remain
+pending. Full Log acceptance remains incomplete.
 
 View Patch visibility now changes immediately even if remembering the repository
 setting fails, matching upstream's independent create/destroy behavior. Failed

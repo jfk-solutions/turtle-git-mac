@@ -129,6 +129,70 @@ final class CommitHistoryTests: XCTestCase {
         XCTAssertEqual(after, head); XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), Data("working\n".utf8))
     }
+    func testLogPatchPreviewMergeParentsRenameRawBytesAndConfiguredContext() async throws {
+        let (root, fixtureRepo, original) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        let raw = "raw.txt", binary = "binary.dat", renamed = ":(glob)* renamed 雪\n.txt"
+        try Data([0xff, 0x0a]).write(to: root.appendingPathComponent(raw))
+        try Data([0, 0xff, 1]).write(to: root.appendingPathComponent(binary))
+        try await repo.stage([raw, binary]); _ = try await repo.commit(message: "preview byte base")
+        _ = try await repo.run(["branch", "preview-side"])
+        try Data("main only\n".utf8).write(to: root.appendingPathComponent("main-only"))
+        try await repo.stage(["main-only"]); _ = try await repo.commit(message: "preview main")
+        let firstParent = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["switch", "preview-side"])
+        _ = try await repo.run(["mv", "--", original, renamed])
+        let renamedText = try String(contentsOf: root.appendingPathComponent(renamed), encoding: .utf8).replacingOccurrences(of: "line 15\n", with: "side change\n")
+        try Data(renamedText.utf8).write(to: root.appendingPathComponent(renamed))
+        try Data([0xfe, 0x0a]).write(to: root.appendingPathComponent(raw))
+        try Data([0, 0xfe, 2]).write(to: root.appendingPathComponent(binary))
+        try await repo.stage([renamed, raw, binary]); _ = try await repo.commit(message: "preview side")
+        let secondParent = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["switch", "main"])
+        _ = try await repo.run(["merge", "--no-ff", "preview-side", "-m", "preview merge"])
+        let entries = try await repo.history(), merge = try XCTUnwrap(entries.first)
+        XCTAssertEqual(merge.parents, [firstParent, secondParent])
+        let groups = try await repo.logFileGroups(in: merge)
+        let files = groups.flatMap { group in group.files.map { $0.inParentGroup(group.id) } }
+        let rename = try XCTUnwrap(files.first { $0.path == renamed && $0.parentIndex == 0 })
+        XCTAssertEqual(rename.oldPath, original)
+        let fromSecond = try XCTUnwrap(files.first { $0.path == "main-only" && $0.parentIndex == 1 })
+        let rawRow = try XCTUnwrap(files.first { $0.path == raw && $0.parentIndex == 0 })
+        let binaryRow = try XCTUnwrap(files.first { $0.path == binary && $0.parentIndex == 0 })
+        _ = try await repo.run(["config", "diff.context", "0"])
+        _ = try await repo.run(["notes", "add", "-m", "Patch metadata note", merge.hash])
+        _ = try await repo.run(["config", "notes.displayRef", "refs/notes/commits"])
+        _ = try await repo.run(["config", "log.showSignature", "true"])
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let notes = try await repo.run(["rev-parse", "refs/notes/commits"]).stdout
+        // A filtered graph's supplied parents must not control actual file comparisons.
+        var displayed = merge; displayed.parents = []
+        let selected = try await repo.logPatchPreviewData(displayed, files: [fromSecond, rename, rawRow, binaryRow])
+        var expected = Data()
+        for (parent, paths) in [(secondParent, ["main-only"]), (firstParent, [original, renamed]), (firstParent, [raw]), (firstParent, [binary])] {
+            expected.append(try await repo.run(["diff", "--no-ext-diff", "--no-textconv", "--no-color", parent, merge.hash, "--"] + paths).stdout)
+        }
+        XCTAssertEqual(selected, expected, "Selected rows must retain visible order, real merge parents and both rename paths")
+        XCTAssertNotNil(selected.range(of: Data([0x2d, 0xff, 0x0a])))
+        XCTAssertNotNil(selected.range(of: Data([0x2b, 0xfe, 0x0a])))
+        XCTAssertTrue(String(decoding: selected, as: UTF8.self).contains("Binary files"))
+        XCTAssertFalse(String(decoding: selected, as: UTF8.self).components(separatedBy: "\n").contains(" line 14"), "Configured zero context must be respected")
+        let whole = try await repo.logPatchPreviewData(displayed)
+        let wholeExpected = try await repo.run(["diff-tree", "-r", "-p", "--stat", "--no-ext-diff", "--no-textconv", "--no-color", firstParent, merge.hash, "--"]).stdout
+        XCTAssertEqual(whole, wholeExpected)
+        XCTAssertFalse(String(decoding: whole, as: UTF8.self).contains("Patch metadata note"))
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let afterNotes = try await repo.run(["rev-parse", "refs/notes/commits"]).stdout
+        XCTAssertEqual(afterHead, head); XCTAssertEqual(afterNotes, notes)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), config)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(raw)), Data([0xfe, 0x0a]))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(binary)), Data([0, 0xfe, 2]))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(renamed)), Data(renamedText.utf8))
+    }
     func testHistoryPathScopesMatchLiteralPrefixesDirectoriesAndRenameOrigins() async throws {
         func file(_ path: String, _ action: String = "M", old: String? = nil, module: Bool = false) -> CommitFile {
             CommitFile(path: path, oldPath: old, action: action, added: nil, removed: nil, hasStatistics: false, isSubmodule: module)
