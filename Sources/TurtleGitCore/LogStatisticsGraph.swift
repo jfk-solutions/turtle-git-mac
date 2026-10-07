@@ -119,6 +119,20 @@ public struct LogStatisticsGraph: Sendable {
         return categoryLabels.indices.map { (groups[$0] ?? []).sorted { $0.series < $1.series } }
     }
     public var populatedBarSeries: [[Point]] { originalSeries.map { $0.filter { $0.value > 0 } }.filter { !$0.isEmpty } }
+    public var legendLabels: [String] { metric.byAuthor ? categoryLabels : seriesLabels }
+    public var pieCategories: [Int] { populatedBarSeries.map { metric.byAuthor ? 0 : $0[0].category } }
+    /// MyGraph preserves the last group (often Others), replacing the penultimate
+    /// visible row with dots. A lone omitted group is shown rather than elided.
+    public func legendGroupIndices(capacity: Int) -> [Int?] {
+        let count = legendLabels.count
+        guard count > 0, capacity > 0 else { return [] }
+        let shown = min(count, capacity + (capacity == count - 1 ? 1 : 0))
+        if shown == count { return (0..<count).map { Optional($0) } }
+        return (0..<shown).map { row in
+            if row == shown - 2 { return nil }
+            return row == shown - 1 ? count - 1 : row
+        }
+    }
     public func barLayout(stacked: Bool) -> [Bar] {
         let rows = populatedBarSeries
         guard let maximumGroups = rows.map(\.count).max(), maximumGroups > 0 else { return [] }

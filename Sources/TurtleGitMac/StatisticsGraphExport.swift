@@ -32,16 +32,12 @@ enum StatisticsGraphExportFailure: LocalizedError {
         guard metric != .statistics else { throw StatisticsGraphExportFailure.unavailable }
         guard validSize(size) else { throw StatisticsGraphExportFailure.invalidSize }
         let chart = StatisticsChart(graph: graph, style: style, byAuthor: metric.byAuthor, exporting: true)
-        // Scroll containers are not ImageRenderer drawing primitives. Measure the
-        // shared pie content intrinsically, including wrapped legends and every
-        // date group; preserve the current viewport dimensions for other styles.
-        let content: AnyView
-        if style == .pie { content = AnyView(chart.frame(width: size.width).fixedSize(horizontal: false, vertical: true).frame(minHeight: size.height)) }
-        else { content = AnyView(chart.frame(width: size.width, height: size.height)) }
-        let renderer = ImageRenderer(content: content
+        // All styles share the current viewport, including the horizontal pies
+        // and one right-hand legend. No offscreen scroll content is synthesized.
+        let renderer = ImageRenderer(content: chart.frame(width: size.width, height: size.height)
             .background(StatisticsChart.backgroundColor(dark: dark))
             .environment(\.colorScheme, dark ? .dark : .light))
-        renderer.proposedSize = ProposedViewSize(width: size.width, height: style == .pie ? nil : size.height)
+        renderer.proposedSize = ProposedViewSize(width: size.width, height: size.height)
         renderer.scale = 1; renderer.isOpaque = true
         var canvasSize = CGSize.zero
         renderer.render { measured, _ in canvasSize = measured }

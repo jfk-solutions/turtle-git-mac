@@ -348,7 +348,7 @@ provenance; the upstream resource license and GPL alternative apply as above.
 Exact displayed graph and signed export acceptance remain pending.
 The graph presentation also adapts MyGraph.cpp/.h's per-series integer average,
 1/2/5 integer axis-tick progression, integer HLS palette generation and author
-stacked-bar arrangement, populated-series bar geometry, value-tooltip formatting
-and left-start pie progression from
+stacked-bar arrangement, populated-series bar geometry, value-tooltip formatting,
+left-start pie progression, horizontal populated pies and shared legend elision from
 src/Utils/MiscUI, retained under the upstream source/license attribution above.
 Their pinned source blob IDs are recorded in the Statistics graph QA record.

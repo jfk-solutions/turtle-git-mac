@@ -43,8 +43,10 @@ appearance. Very high author counts retain the source palette's repeated colors.
 With a graph selected, choose **File → Save Graph As…**. Select PDF, PNG, JPEG,
 BMP or GIF in the save sheet's **Format** field and choose a destination. PDF is
 the native replacement for TortoiseGit's Windows metafile export. Pie exports
-include all date groups and legends, even when scrolling is needed in the window.
-Other exports use the current graph area size. The text summary cannot be exported
+use the current graph area size, just like the other styles. Date pies share one
+horizontal row and shrink to fit; zero-valued intervals leave no empty slot.
+All graph styles have a boxed legend on the right. Crowded legends keep the last
+group and show dots for omitted middle rows; narrow graphs hide the legend. The text summary cannot be exported
 through this command.
 
 This dialog is still being compared with TortoiseGit. Exact displayed label geometry, outlines/shading,

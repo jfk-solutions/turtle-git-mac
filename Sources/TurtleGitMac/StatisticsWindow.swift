@@ -206,7 +206,16 @@ struct StatisticsChart: View {
     var body: some View {
         VStack(spacing: 8) {
             Text(graph.metric.title).font(.headline).multilineTextAlignment(.center).help("Title")
-            plot
+            GeometryReader { geometry in
+                HStack(spacing: 10) {
+                    plot.frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // MyGraph hides the legend below 300 pixels inside its
+                    // ten-pixel graph margins on either side.
+                    if geometry.size.width > 320 && !graph.legendLabels.isEmpty {
+                        StatisticsLegend(graph: graph, height: geometry.size.height)
+                    }
+                }
+            }
         }.background(Self.backgroundColor(dark: colorScheme == .dark))
     }
     @ViewBuilder private var plot: some View {
@@ -237,6 +246,7 @@ struct StatisticsChart: View {
                         .accessibilityLabel(Text(graph.averageTooltip(style: style)))
                 }
             }.chartForegroundStyleScale(domain: byAuthor ? graph.categoryLabels : graph.seriesLabels, range: graph.colors.map(\.chartColor))
+            .chartLegend(.hidden)
             .chartXAxisLabel(graph.xAxisLabel, position: .bottom, alignment: .center).chartYAxisLabel(graph.yAxisLabel, position: .leading)
             .chartXScale(domain: 0.0...Double(max(1, xLabels.count))).chartYScale(domain: 0.0...Double(graph.yAxisMaximum(style: style)))
             .chartYAxis { AxisMarks(position: .leading, values: graph.yAxisTicks(style: style).map(Double.init)) { value in
@@ -281,45 +291,95 @@ struct StatisticsChart: View {
     }
 }
 
+/// Native text metrics replace GDI font measurements while retaining its
+/// minimum size, fit-to-height and penultimate-dots/last-group policy.
+struct StatisticsLegendLayout {
+    let fontSize: CGFloat
+    let rowHeight: CGFloat
+    let width: CGFloat
+    let groups: [Int?]
+    init(graph: LogStatisticsGraph, height: CGFloat) {
+        let initial = max(7, height / 80)
+        let initialFont = NSFont.systemFont(ofSize: initial)
+        let initialHeight = max(1, ceil(initialFont.ascender - initialFont.descender + initialFont.leading))
+        let available = max(0, height - 20)
+        fontSize = max(7, min(initial, initial * available / CGFloat(max(1, graph.legendLabels.count)) / initialHeight))
+        let font = NSFont.systemFont(ofSize: fontSize)
+        rowHeight = max(1, ceil(font.ascender - font.descender + font.leading))
+        groups = graph.legendGroupIndices(capacity: max(1, Int(available / rowHeight) - 1))
+        width = ceil(graph.legendLabels.map { ($0 as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0) + 50
+    }
+}
+
+private struct StatisticsLegend: View {
+    let graph: LogStatisticsGraph
+    let height: CGFloat
+    var body: some View {
+        let layout = StatisticsLegendLayout(graph: graph, height: height)
+        let colors = graph.colors.map(\.chartColor)
+        VStack(spacing: 0) {
+            ForEach(Array(layout.groups.enumerated()), id: \.offset) { _, group in
+                HStack(spacing: 10) {
+                    Text(group.map { graph.legendLabels[$0] } ?? "...").lineLimit(1).fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 0)
+                    if let group {
+                        Rectangle().fill(colors[group]).padding(1)
+                            .overlay(Rectangle().stroke(Color.primary, lineWidth: 1))
+                            .frame(width: 28, height: max(1, layout.rowHeight - 2))
+                            .accessibilityHidden(true)
+                    }
+                }.frame(height: layout.rowHeight)
+            }
+        }.font(.system(size: layout.fontSize)).padding(5)
+            .frame(width: layout.width)
+            .overlay(Rectangle().stroke(Color.primary, lineWidth: 1))
+            .help("Legend").padding(.trailing, 10)
+    }
+}
+
 private struct StatisticsPies: View {
     let graph: LogStatisticsGraph
     let byAuthor: Bool
     var exporting = false
     @State private var hoverTips: [Int: String] = [:]
     var body: some View {
-        if exporting { content } else { ScrollView { content } }
-    }
-    private var content: some View {
         let colors = graph.colors.map(\.chartColor)
-        return VStack {
-                ForEach(0..<(byAuthor ? 1 : graph.categoryLabels.count), id: \.self) { category in
-                    let points = byAuthor ? graph.points : graph.points.filter { $0.category == category }
-                    Text(byAuthor ? graph.seriesLabels.first ?? "" : graph.categoryLabels[category])
-                    Canvas { context, size in
-                        let total = Double(points.reduce(0) { $0 + $1.value }); var angle = Double.pi
-                        let center = CGPoint(x: size.width / 2, y: size.height / 2), radius = min(size.width, size.height) * 0.45
-                        for point in points where point.value > 0 && total > 0 {
-                            let next = angle - Double(point.value) / total * 2 * .pi
-                            var path = Path(); path.move(to: center); path.addArc(center: center, radius: radius, startAngle: .radians(angle), endAngle: .radians(next), clockwise: true); path.closeSubpath()
-                            context.fill(path, with: .color(colors[byAuthor ? point.category : point.series])); angle = next
-                        }
-                    }.frame(height: 220).overlay {
-                        if !exporting {
-                            GeometryReader { geometry in
-                                Color.clear.contentShape(Rectangle()).onContinuousHover { phase in
-                                    var tip = ""
-                                    if case .active(let location) = phase {
-                                        let radius = min(geometry.size.width, geometry.size.height) * 0.45
-                                        if radius > 0, let point = graph.piePoint(category: category, x: Double((location.x - geometry.size.width / 2) / radius), y: Double((location.y - geometry.size.height / 2) / radius)) { tip = graph.tooltip(for: point) }
+        let categories = graph.pieCategories
+        GeometryReader { geometry in
+            let slot = max(0, min(geometry.size.width / CGFloat(max(1, categories.count)), geometry.size.height - 50))
+            VStack(spacing: 10) {
+                HStack(spacing: 0) {
+                    ForEach(categories, id: \.self) { category in
+                        let points = byAuthor ? graph.points : graph.points.filter { $0.category == category }
+                        VStack(spacing: 10) {
+                            Canvas { context, size in
+                                let total = Double(points.reduce(0) { $0 + $1.value }); var angle = Double.pi
+                                let center = CGPoint(x: size.width / 2, y: size.height / 2), radius = min(size.width, size.height) * 0.425
+                                for point in points where point.value > 0 && total > 0 {
+                                    let next = angle - Double(point.value) / total * 2 * .pi
+                                    var path = Path(); path.move(to: center); path.addArc(center: center, radius: radius, startAngle: .radians(angle), endAngle: .radians(next), clockwise: true); path.closeSubpath()
+                                    context.fill(path, with: .color(colors[byAuthor ? point.category : point.series])); angle = next
+                                }
+                            }.frame(width: slot, height: slot).overlay {
+                                if !exporting {
+                                    GeometryReader { pieGeometry in
+                                        Color.clear.contentShape(Rectangle()).onContinuousHover { phase in
+                                            var tip = ""
+                                            if case .active(let location) = phase {
+                                                let radius = min(pieGeometry.size.width, pieGeometry.size.height) * 0.425
+                                                if radius > 0, let point = graph.piePoint(category: category, x: Double((location.x - pieGeometry.size.width / 2) / radius), y: Double((location.y - pieGeometry.size.height / 2) / radius)) { tip = graph.tooltip(for: point) }
+                                            }
+                                            if hoverTips[category] != tip { hoverTips[category] = tip }
+                                        }.help(hoverTips[category] ?? "")
                                     }
-                                    if hoverTips[category] != tip { hoverTips[category] = tip }
-                                }.help(hoverTips[category] ?? "")
+                                }
                             }
-                        }
+                            Text(byAuthor ? "" : graph.categoryLabels[category]).font(.caption2).lineLimit(1).frame(height: 14)
+                        }.frame(width: slot)
                     }
-                    ForEach(Array(points.enumerated()), id: \.offset) { _, point in HStack { Circle().fill(colors[byAuthor ? point.category : point.series]).frame(width: 10, height: 10); Text(byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series]); Text("\(point.value)") }.help(graph.tooltip(for: point)) }
                 }
                 Text(graph.xAxisLabel).font(.caption)
-            }
+            }.frame(width: geometry.size.width, height: geometry.size.height)
+        }.padding(10)
     }
 }

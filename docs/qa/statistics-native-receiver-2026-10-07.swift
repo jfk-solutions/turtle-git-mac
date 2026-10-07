@@ -33,6 +33,34 @@ import PDFKit
             precondition(matching > 10, "Multi-author PNG lost a source group color")
         }
     }
+    static func verifyHorizontalPies(_ image: CGImage, colors: [LogStatisticsColor]) {
+        var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)!
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        var verticalCenters: [Double] = []
+        for (index, color) in colors.enumerated() {
+            var runs = 0, previous = false, minY = image.height, maxY = 0
+            // Exclude the right-hand legend. The fixture has three date pies,
+            // red/cyan/red, so red must occupy two distinct column runs.
+            for x in 0..<(image.width * 3 / 4) {
+                var count = 0
+                for y in 0..<image.height {
+                    let offset = (y * image.width + x) * 4
+                    if abs(Int(bytes[offset]) - Int(color.red)) <= 2 && abs(Int(bytes[offset+1]) - Int(color.green)) <= 2 && abs(Int(bytes[offset+2]) - Int(color.blue)) <= 2 {
+                        count += 1; minY = min(minY, y); maxY = max(maxY, y)
+                    }
+                }
+                let active = count > 2
+                if active && !previous { runs += 1 }; previous = active
+            }
+            precondition(runs == (index == 0 ? 2 : 1), "Date pies are not in distinct horizontal slots")
+            precondition(maxY > minY, "Pie has no visible area")
+            verticalCenters.append(Double(minY + maxY) / 2)
+        }
+        precondition(abs(verticalCenters[0] - verticalCenters[1]) <= 1, "Date pies lost their common vertical center")
+    }
     @MainActor static func verifyExport(_ controller: StatisticsWindowController, root: URL) throws {
         let model = controller.model
         let choice = StatisticsGraphSavePanel()
@@ -60,7 +88,11 @@ import PDFKit
                     if format == .pdf {
                         guard let document = PDFDocument(data: data), let page = document.page(at: 0) else { preconditionFailure("Invalid PDF") }
                         precondition(document.pageCount == 1 && page.bounds(for: .mediaBox).width == 640)
-                        precondition(document.string?.contains("Statistics QA") == true, "PDF lost graph labels")
+                        if let path = ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_EXPORT_QA_DIR"] {
+                            let directory = URL(fileURLWithPath: path); try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+                            try data.write(to: directory.appendingPathComponent(file.lastPathComponent))
+                        }
+                        precondition(document.string?.contains("Statistics QA") == true, "PDF lost graph labels in style \(style.rawValue): \(document.string ?? "")")
                     } else {
                         guard let source = CGImageSourceCreateWithData(data as CFData, nil), let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { preconditionFailure("Invalid raster") }
                         precondition(CGImageSourceGetType(source) as String? == format.contentType.identifier && image.width == 640 && image.height >= 360)
@@ -113,7 +145,7 @@ import PDFKit
             let data = try StatisticsGraphExport.data(graph: multiple, metric: .commitsByDate, style: style, size: CGSize(width: 640, height: 360), dark: false, format: .pdf)
             let document = PDFDocument(data: data)!
             for label in multiple.categoryLabels + multiple.seriesLabels { precondition(document.string?.contains(label) == true, "Export lost a date group/author") }
-            if style == .pie { precondition(document.page(at: 0)!.bounds(for: .mediaBox).height > 720) }
+            precondition(document.page(at: 0)!.bounds(for: .mediaBox).size == CGSize(width: 640, height: 360), "Graph export changed the viewport size")
             if let path = ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_EXPORT_QA_DIR"] {
                 try data.write(to: URL(fileURLWithPath: path).appendingPathComponent("multi-date-\(style.rawValue).pdf"))
             }
@@ -121,7 +153,9 @@ import PDFKit
         for style in [LogStatisticsStyle.bar, .stackedBar, .pie] {
             let data = try StatisticsGraphExport.data(graph: multiple, metric: .commitsByDate, style: style, size: CGSize(width: 640, height: 360), dark: false, format: .png)
             let source = CGImageSourceCreateWithData(data as CFData, nil)!
-            verifySourceColors(CGImageSourceCreateImageAtIndex(source, 0, nil)!, colors: multiple.colors)
+            let image = CGImageSourceCreateImageAtIndex(source, 0, nil)!
+            verifySourceColors(image, colors: multiple.colors)
+            if style == .pie { verifyHorizontalPies(image, colors: multiple.colors) }
             if let path = ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_EXPORT_QA_DIR"] {
                 try data.write(to: URL(fileURLWithPath: path).appendingPathComponent("multi-date-\(style.rawValue).png"))
             }
@@ -132,6 +166,19 @@ import PDFKit
             let document = PDFDocument(data: data)!
             precondition(document.string!.contains("Ada") && document.string!.contains("Linus"))
         }
+        let denseEntries = (0..<50).map { index in
+            LogEntry(hash: "dense-\(index)", author: String(format: "Author%03d", index), date: "2024-01-01T12:00:00Z", subject: "", committerDate: "2024-01-01T12:00:00Z")
+        }
+        let dense = try LogStatisticsGraph.make(LogStatistics.analyze(denseEntries), metric: .commitsByAuthor, authorsShown: 50, alphabetical: true)
+        let denseLayout = StatisticsLegendLayout(graph: dense, height: 336)
+        precondition(denseLayout.groups.contains(nil) && denseLayout.groups.last! == 49 && denseLayout.fontSize >= 7)
+        for style in [LogStatisticsStyle.bar, .pie] {
+            let data = try StatisticsGraphExport.data(graph: dense, metric: .commitsByAuthor, style: style, size: CGSize(width: 640, height: 360), dark: false, format: .pdf)
+            let text = PDFDocument(data: data)!.string!
+            precondition(text.contains("...") && text.contains("Author049") && !text.contains("Author040"), "Crowded legend lost source elision/final group")
+        }
+        let narrow = try StatisticsGraphExport.data(graph: authors, metric: .commitsByAuthor, style: .bar, size: CGSize(width: 300, height: 360), dark: false, format: .pdf)
+        precondition(PDFDocument(data: narrow)!.string?.contains("Ada") == false, "Narrow graph did not hide its legend")
         let empty = try LogStatisticsGraph.make(LogStatistics.analyze([]), metric: .commitsByDate, authorsShown: 1)
         let emptyData = try StatisticsGraphExport.data(graph: empty, metric: .commitsByDate, style: .bar, size: CGSize(width: 640, height: 360), dark: false, format: .pdf)
         precondition(PDFDocument(data: emptyData)?.string?.contains("No graph data available.") == true)

@@ -131,13 +131,40 @@ Stacked-area polygons have no data hover regions, as in the source.
 
 Pie wedges now progress counterclockwise from the left, following
 `WedgeEndFromDegrees`, and use the same progression to map the native mouse position
-to a data tooltip. Pie value rows also offer that text as a native convenience.
-Each pie stores hover text separately so moving between groups does not clear the
+to a data tooltip. Each pie stores hover text separately so moving between groups does not clear the
 new group's value. Empty/outside regions clear the hover text. Exports omit mouse
-tracking overlays. The source's pie virtual-average hit region, generic legend
-hover, tiny-wedge pixel skipping, centre/shared-border region overlap and physical
+tracking overlays. The source's pie virtual-average hit region, tiny-wedge pixel skipping, centre/shared-border region overlap and physical
 hover timing/VoiceOver remain pending. Logical helper tests and compilation do not
 prove actual pointer interaction; see [interaction QA](qa/statistics-interaction-2026-10-07.json).
+
+## Shared legend and horizontal pies
+
+All five styles now use one boxed legend on the right, vertically centered with
+labels followed by bordered color swatches. The automatic Charts legend and
+repeated per-pie value lists are removed. The legend offers the source generic
+`Legend` help text. Font fitting uses native system-font metrics and the source
+seven-point minimum; crowded legends replace the penultimate visible row with
+`...` and preserve the final group, often Others. A lone omitted group is shown
+instead of elided. The legend disappears when the graph's width after its two
+ten-point margins is at most 300, following the source visibility threshold.
+Native font metrics replace GDI measurements; exact point/pixel sizing, frame
+coordinates and very long labels remain subject to displayed acceptance.
+
+Date pies occupy one horizontal row of populated intervals. Zero-valued intervals
+leave no empty slot. Slots share a size constrained by the available width and
+height, with pie diameter 85% of the slot and centered as a group. Interval labels
+sit below the circles, followed by the common x-axis unit; author pies have no
+series caption. All styles, including pies, export at the current viewport size.
+Dense history therefore shrinks the pies rather than growing a vertical canvas.
+The native reserved label/title space is adapted to SwiftUI; exact GDI margins,
+tiny-wedge behavior and physical mouse/keyboard acceptance remain pending.
+
+Core checks cover populated pie categories and legend elision/last-group rules.
+The native receiver checks actual PDF viewport dimensions and crowded/narrow
+legend text, plus PNG color-column runs and matching vertical centers for a
+three-date red/cyan/red pie fixture. These checks verify rendered export layout,
+not displayed windows or physical interaction. See
+[layout QA](qa/statistics-layout-2026-10-07.json).
 
 ## Graph palette
 
@@ -182,10 +209,9 @@ platform adaptations, not Windows metafile compatibility.
 
 The shared SwiftUI graph is rendered with Apple's
 [ImageRenderer](https://developer.apple.com/documentation/swiftui/imagerenderer)
-and encoded by Core Graphics/ImageIO. PDF retains searchable labels. Pie export
-measures its complete content without the on-screen scroll container, extending
-the canvas to include every interval group and wrapped legend. Other styles use
-the graph viewport size at one pixel per point. Canvases over 16,384 points on an
+and encoded by Core Graphics/ImageIO. PDF retains searchable labels. Every style
+uses the graph viewport size at one pixel per point, including the horizontal pie
+row and shared right-hand legend. Canvases over 16,384 points on an
 axis or 32 million pixels are rejected with an error before bitmap allocation.
 Writes are atomic, hold the save-panel URL's available security scope and report
 encoding/write failures to the window. A cancelled sheet does not write.
