@@ -587,7 +587,32 @@ struct LogCommandRequest: Identifiable {
     @Published var from = Date(timeIntervalSince1970: 0)
     @Published var to = Date()
     @Published var useDates = false
-    @Published var busy = false
+    @Published var busy = false {
+        didSet { if !busy { scheduleRepositoryRefresh() } }
+    }
+    private var pendingRepositoryRefresh = false
+    private var repositoryRefreshTask: Task<Void, Never>?
+    /// Repository completions coalesce while an action/history read is active.
+    /// Defer to the next main-actor turn so view updates never start a reload.
+    func requestRepositoryRefresh() {
+        guard !isInvalidated else { return }
+        pendingRepositoryRefresh = true
+        scheduleRepositoryRefresh()
+    }
+    private func scheduleRepositoryRefresh() {
+        guard pendingRepositoryRefresh, !busy, !isInvalidated, repositoryRefreshTask == nil else { return }
+        repositoryRefreshTask = Task { [weak self] in
+            guard let self, !Task.isCancelled else { return }
+            self.repositoryRefreshTask = nil
+            guard self.pendingRepositoryRefresh, !self.busy, !self.isInvalidated else { return }
+            self.pendingRepositoryRefresh = false
+            self.reload()
+        }
+    }
+    private func cancelRepositoryRefresh() {
+        pendingRepositoryRefresh = false
+        repositoryRefreshTask?.cancel(); repositoryRefreshTask = nil
+    }
     @Published var bare = true
     @Published var error: String?
     var unifiedWindow: PatchWindowController?
@@ -706,6 +731,7 @@ struct LogCommandRequest: Identifiable {
     }
     func invalidate() {
         isInvalidated = true
+        cancelRepositoryRefresh()
         cancelNoteRead()
         cancelJump()
         cancelActionReads()
@@ -716,6 +742,7 @@ struct LogCommandRequest: Identifiable {
     }
     func reload(more: Bool = false) {
         guard !busy || loadingHistory else { return }
+        cancelRepositoryRefresh()
         isInvalidated = false
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil; scrollRevision = nil

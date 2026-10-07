@@ -291,8 +291,8 @@ Busy, bare, changed-selection and invalidated models refuse dispatch.
 
 Root routes reuse the existing text/delete/submodule editors and the quick Resolve
 dialog with confirmation. Their completion callbacks now refresh live normal
-Logs for the same repository. As with other completion refreshes, an already
-busy Log can refuse reload; deferred refresh is not implemented.
+Logs for the same repository. Repository completion notifications now queue a
+refresh while Log is busy and combine repeated notifications into one reload.
 
 The hidden native fixture opens/closes a text editor, executes actual
 Current/Mine/Theirs through ResolveWindowModel, and preserves unrelated staged
@@ -302,6 +302,20 @@ stale menu semantics. Root editor subtype dispatch and repository-wide refresh
 are compiled/source-inspected, not activated. Text editor inspection is hidden;
 delete/submodule routes, confirmation sheets, input events and signed access
 still require native acceptance.
+
+## Deferred repository refresh
+
+Repository mutation callbacks and Bisect picker observers request a queued Log
+refresh. A busy Log reloads when its current action or history read finishes;
+repeated requests before that reload starts are combined. An explicit reload
+consumes pending work, and closing the model cancels queued work. A completion
+cannot revive a retained, closed Log.
+
+The hidden native fixture holds an injected unified-diff handoff while actual
+HEAD advances, then verifies the latest commit appears after release with one
+reload. It also checks idle coalescing, manual reload, and closing before a queued
+refresh or during the held action. Root callback wiring is compiled and inspected;
+displayed interaction and signed sandbox acceptance remain pending.
 
 ## Working-tree repository commands
 

@@ -74,7 +74,7 @@ import TurtleGitCore
     private func changed(_ output: String) {
         onChanged(output)
         logObservers.removeAll { $0.model == nil || $0.model?.isInvalidated == true }
-        for observer in logObservers { observer.model?.reload() }
+        for observer in logObservers { observer.model?.requestRepositoryRefresh() }
     }
     var onSubmoduleUpdate: (() -> Void)?
     var canUpdateSubmodules: Bool { !busy && hasSubmodules && lastExitCode == 0 && onSubmoduleUpdate != nil }

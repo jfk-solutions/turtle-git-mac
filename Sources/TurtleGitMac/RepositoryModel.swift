@@ -517,7 +517,7 @@ import TurtleGitCore
         controller.model.onStatus = { [weak self] in self?.showStatus(repository: repository, access: access, paths: []) }
         controller.model.onReset = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
-            self?.logWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root); self?.commitWindows[root.path]?.model.reload()
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
             completion?()
         }
@@ -804,7 +804,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.referenceLogWindows.removeValue(forKey: root.path) }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
-            self?.logWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         referenceLogWindows[root.path] = controller
@@ -929,7 +929,7 @@ import TurtleGitCore
         blameWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func refreshRepositoryLogs(_ root: URL) {
-        for log in logWindows.values where log.model.repository.root == root && !log.model.isInvalidated { log.model.reload() }
+        for log in logWindows.values where log.model.repository.root == root && !log.model.isInvalidated { log.model.requestRepositoryRefresh() }
     }
     private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil) {
         let root = repository.root
@@ -1003,7 +1003,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.bisectWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] output in
             guard let self else { return }
-            for log in self.logWindows.values where log.model.repository.root == root { log.model.reload() }
+            self.refreshRepositoryLogs(root)
             self.commitWindows[root.path]?.model.reload(); self.statusWindows[root.path]?.model.reload()
             if self.root == root { self.output = output; Task { await self.refresh() } }
         }
@@ -1024,7 +1024,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
-            self?.statusWindows[root.path]?.model.reload(); self?.logWindows[root.path]?.model.reload()
+            self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
             self?.commitWindows[root.path]?.model.reload()
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
@@ -1096,7 +1096,7 @@ import TurtleGitCore
         let controller = existing ?? RebaseWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.rebaseWindows.removeValue(forKey: root.path) }
         controller.model.onChanged = { [weak self] in
-            self?.logWindows.values.filter { $0.model.repository.root == root }.forEach { $0.model.reload() }; self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if self?.root == root { Task { await self?.refresh() } }
         }
         controller.model.onShowStatus = { [weak self] in
@@ -1122,7 +1122,7 @@ import TurtleGitCore
         revisionLog.onPush = { [weak self] hash in self?.showPush(repository: repository, access: access, source: hash) }
         revisionLog.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         revisionLog.onRevisionChanged = { [weak self] output in
-            self?.logWindows.values.filter { $0.model.repository.root == root }.forEach { $0.model.reload() }
+            self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output }
         }
         controller.model.onShowRevisionLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
@@ -1165,7 +1165,7 @@ import TurtleGitCore
         let controller = pushWindows[root.path] ?? PushWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: root.path) }
         controller.model.onPushed = { [weak self] output in
-            self?.logWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         pushWindows[root.path] = controller; controller.model.load(source: source)
@@ -1176,7 +1176,7 @@ import TurtleGitCore
         let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag)
         controller.onClosed = { [weak self] in self?.referenceWindows.removeValue(forKey: key) }
         controller.model.onCreated = { [weak self] output in
-            self?.logWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root)
             self?.statusWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
@@ -1190,7 +1190,7 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: root.path) }
         controller.model.onSwitched = { [weak self] output in
             self?.statusWindows[root.path]?.model.reload()
-            self?.logWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }

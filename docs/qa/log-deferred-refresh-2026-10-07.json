@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "0f46840",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Deferred/coalesced repository completion refresh for normal Logs and Bisect Log pickers, with closed-model cancellation",
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "86497b1906c41c449045c5ee188a85d1fd380b603506eab68c6878321fcbb4f2",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "21e152aa994d8c0cd916d031a4c2d1cbb4954b8906b281686d60c59ae8fbd20a",
+    "Sources/TurtleGitMac/BisectWindow.swift": "25e5065349e7d1fefb7fac6a515204fc8a6856d0b323448083cae68aefadf4fd",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "f12a295efa82a054df99dfbb99281f41a68242eea980762d444b6faefc6b5280",
+    "docs/BISECT-PARITY.md": "9b4aec66368825fc34abae5506ed76c3040dded68486a97265f8afd3b53d46f4"
+  },
+  "all_sources_manifest_sha256": "a640c5e5b25d5863ee8b3c5a965d4cb3d5f7f95987d04c1651b5a2f53f26a591",
+  "verification": {
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Real repository HEAD changes while an injected unified-diff handoff is suspended; busy and idle refresh requests coalesce to exactly one reload; new HEAD appears after release; explicit reload consumes pending work; invalidate before queued task starts and while actual diff action is suspended prevents retained-model revival. Existing focused Log/Bisect/Rebase native fixtures also passed."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed. Store --require-git, all 90 upstream icons, universal Git/EditorConfig/IssueRegex helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after native matrix",
+    "limitations": "Unified-diff handoff suspended via injected continuation; model state and Combine busy transitions asserted. No displayed windows or input events. Root repository callback wiring compiled/source-inspected, not activated. Signed sandbox acceptance, GitHub CI and published site unverified. No new Core behavior or Core unit tests. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-deferred-refresh/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-deferred-refresh/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-deferred-refresh/native.log": "599afcf6f6e1cfc66d8840783f11633804c99e678b08fa16e139d5dc3b77e4c8",
+    "build/qa/log-deferred-refresh/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-deferred-refresh/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-deferred-refresh/store.log": "c6b15ded77af7ec7402dc88d58d90ea2c6f5d12d00f06b8ebc9ee7ec80f316ea",
+    "build/qa/log-deferred-refresh/swift.log": "f0d131f3e112fb7f93ed40b9b6a7bed2d0c4d85e21a8fa212785e52a99a69482"
+  },
+  "remaining": "Full dialog/functionality parity, broader working-file menus, alternate diff-tool selection, Cleanup, preferences/navigation, activated Finder integration and signed App Store acceptance."
+}

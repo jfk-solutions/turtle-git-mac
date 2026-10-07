@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 @testable import TurtleGitMac
 
@@ -709,6 +710,63 @@ import TurtleGitCore
     precondition(!window.isVisible)
     print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy/Preserve guards passed. Events injected; no displayed keyboard acceptance.")
 }
+@MainActor func verifyNativeLogDeferredRefresh(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-refresh-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgSign", "false"])
+    func commit(_ value: String) async throws -> String {
+        try Data((value + "\n").utf8).write(to: root.appendingPathComponent("file"))
+        try await repo.stage(["file"]); _ = try await repo.commit(message: value)
+        return try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    }
+    let initial = try await commit("initial")
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    func until(_ condition: () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition())
+    }
+    log.reload(); try await until { !log.busy && log.entries.contains { $0.hash == initial } }; log.select([""])
+    var starts = 0
+    let subscription = log.$busy.dropFirst().sink { if $0 { starts += 1 } }; defer { subscription.cancel() }
+    var gate: CheckedContinuation<Void, Never>?
+    log.onUnifiedDiff = { _, _ in await withCheckedContinuation { gate = $0 } }
+    defer { gate?.resume() }
+    func release() { let pending = gate; gate = nil; pending?.resume() }
+    log.diff(); try await until { log.busy && gate != nil }
+    let updated = try await commit("updated while viewer handoff waits")
+    for _ in 0..<5 { log.requestRepositoryRefresh() }
+    precondition(starts == 1 && log.busy && !log.entries.contains { $0.hash == updated })
+    release(); try await until { !log.busy && log.entries.contains { $0.hash == updated } }
+    precondition(starts == 2 && log.error == nil)
+    let beforeIdle = starts
+    for _ in 0..<5 { log.requestRepositoryRefresh() }
+    try await until { starts > beforeIdle && !log.busy }; precondition(starts == beforeIdle + 1)
+    // A direct user reload consumes an already queued repository refresh.
+    let manualHead = try await commit("manual reload consumes pending")
+    let beforeManual = starts
+    log.requestRepositoryRefresh(); log.reload()
+    try await until { !log.busy && log.entries.contains { $0.hash == manualHead } }
+    precondition(starts == beforeManual + 1)
+    // Closing before the deferred task starts cancels that task.
+    let beforeClose = starts
+    log.requestRepositoryRefresh(); log.invalidate()
+    try await Task.sleep(nanoseconds: 20_000_000)
+    precondition(log.isInvalidated && starts == beforeClose && !log.busy)
+    log.reload(); try await until { !log.busy }; log.select([""])
+    // Closing with a real operation held also clears its deferred refresh.
+    log.diff(); try await until { log.busy && gate != nil }
+    let afterClosed = try await commit("closed model must not revive")
+    log.requestRepositoryRefresh(); let beforeHeldClose = starts; log.invalidate(); release()
+    try await until { !log.busy }; try await Task.sleep(nanoseconds: 20_000_000)
+    precondition(log.isInvalidated && starts == beforeHeldClose && !log.entries.contains { $0.hash == afterClosed })
+    print("Native deferred Log refresh: real unified-diff handoff held while HEAD advances, busy and idle notifications coalesce to one reload, latest HEAD appears after release, direct reload consumes queued work, close cancels queued and busy refresh without reviving retained model passed. Handoff gate injected; no windows shown.")
+}
+
 @MainActor func verifyNativeLogWorkingConflicts(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-conflict-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1284,6 +1342,7 @@ import TurtleGitCore
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); try await verifyNativeRepeatedAndOmittedReferences(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
     try await verifyNativeBisect(executable: repo.executable)
     try await verifyNativeLogWorkingConflicts(executable: repo.executable)
+    try await verifyNativeLogDeferredRefresh(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
