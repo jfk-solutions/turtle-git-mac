@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "e0b767c",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log working-tree Stash Save/Pop/List, Pull/Fetch/Submodule Update commands; source selection and fresh metadata guards; repository-scoped completion refresh",
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "31b3c87e5698f89ef8530e5ce440750a47674f212a7355c4b1290c8b64a8a450",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "914a89bd23b31329f49162256ef299045b9adf8799aa76161140686a840bc015",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "8439259ee95ec792ef50d8476f7be057f996368930cc428dc8c377af8088530c",
+    "docs/BISECT-PARITY.md": "04b415f9ae3219db7fcab928473f101d147a72815d03510cc0c969663a163100",
+    "README.md": "6452aa7799ab48f3f10cc261825313e7913b81e33afc43c1de9bf608414886eb"
+  },
+  "all_sources_manifest_sha256": "4e9b11ff1a13f671ad374dba8097a0513e67acbd75a2fcde3145980e52516f5e",
+  "verification": {
+    "native_matrix": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "receiver_sha256": "636c1f1ddbda667f6f470292fe1775e379c927cae144bdf1401f84dfef31583e",
+      "coverage": "Actual menu icons/targets/enabled state and injected Save/Pop/List/Pull/Fetch/Submodule Update handoffs. Merge marker hides Save/Pull while Fetch remains; stale Merge/stash/config disappearance and busy/selection changes refuse dispatch. Selected real stash row offers Pop/List. Existing working-tree row, Bisect, Export, Log integration and focused Rebase fixtures pass."
+    },
+    "final_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git",
+      "passed": "2.50.1 Apple Git-155",
+      "receiver_adjustment": "After the matrix, the manually assigned stash-history fixture also rebuilds its graph. Production sources unchanged. Final system receiver passed with current receiver SHA."
+    },
+    "limitations": "Hidden owned views/windows; callbacks injected, no network Fetch/Pull or actual Stash Pop through new menu callbacks. Merge marker/config removal fabricated in disposable real repo. Root dispatch and repository-scoped completion refresh compiled and source-inspected, not activated through displayed UI. Keyboard/accessibility, screenshots, Finder activation and signed sandbox unverified.",
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; Store --require-git; 90 original icons and universal helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app, native receiver or menu receiver remained"
+  },
+  "logs": {
+    "/tmp/turtlegit-log-working-commands-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-log-working-commands-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-log-working-commands-native-final.log": "1590c3e3d3e5cd288959d109814dfd7332132bbe86dcb109aed6161b1c8914fb",
+    "/tmp/turtlegit-log-working-commands-native.log": "baed0335dcf5e013de296cc6f7ff581647145437a8a4885bdd3bd7b60cbba52a",
+    "/tmp/turtlegit-log-working-commands-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-log-working-commands-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-log-working-commands-store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "/tmp/turtlegit-log-working-commands-swift.log": "02068620ac9c8eb722ef09924a9043ea6713ca6355d49938731e0211f6b148a5"
+  },
+  "remaining": "Cleanup menu/dialog, advanced working-file actions, preference persistence/navigation, activated dialog/completion refresh, displayed/Finder/signed App Store acceptance; full port incomplete."
+}

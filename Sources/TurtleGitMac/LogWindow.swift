@@ -191,6 +191,10 @@ private enum LogBisectFailure: LocalizedError {
     case marked
     var errorDescription: String? { "The selected commit is already marked by Bisect. Refresh the Log." }
 }
+private enum LogWorkingCommandFailure: LocalizedError {
+    case unavailable
+    var errorDescription: String? { "This command is no longer available. Refresh the Log." }
+}
 private enum LogIntegrationFailure: LocalizedError {
     case worktree, head, active
     var errorDescription: String? {
@@ -237,6 +241,41 @@ struct LogCommandRequest: Identifiable {
     @Published var parentMetadata: [String: [LogParentChoice]] = [:]
     @Published var mergeActive = false
     @Published var bisectActive = false
+    @Published var hasStash = false
+    @Published var hasSubmodules = false
+    var onWorkingCommand: ((RepositoryAction) -> Void)?
+    private func workingCommandAllowed(_ action: RepositoryAction, working: Bool, stashRow: Bool, bare: Bool, merging: Bool, stash: Bool, submodules: Bool) -> Bool {
+        switch action {
+        case .stash: return working && !bare && !merging
+        case .stashPop: return (working || stashRow) && !bare && stash
+        case .stashList: return (working || stashRow) && stash
+        case .pull: return working && !bare && !merging
+        case .fetch: return working && !bare
+        case .submoduleUpdate: return working && !bare && submodules
+        default: return false
+        }
+    }
+    func workingCommandAvailable(_ action: RepositoryAction) -> Bool {
+        workingCommandAllowed(action, working: selectedWorkingTree, stashRow: selectedIsStash, bare: bare, merging: mergeActive, stash: hasStash, submodules: hasSubmodules)
+    }
+    func canWorkingCommand(_ action: RepositoryAction) -> Bool {
+        workingCommandAvailable(action) && onWorkingCommand != nil && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !copyingDetails
+    }
+    func requestWorkingCommand(_ action: RepositoryAction) {
+        guard canWorkingCommand(action) else { return }
+        let selection = selected, request = generation, working = selectedWorkingTree, stashRow = selectedIsStash
+        busy = true; error = nil
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let fresh = try await repository.finderMetadata()
+                guard workingCommandAllowed(action, working: working, stashRow: stashRow, bare: fresh.bare, merging: fresh.mergeActive, stash: fresh.hasStash, submodules: fresh.hasSubmoduleConfig) else { throw LogWorkingCommandFailure.unavailable }
+                guard request == generation, selection == selected else { return }
+                busy = false; onWorkingCommand?(action)
+            } catch { if request == generation { self.error = error.localizedDescription } }
+        }
+    }
     @Published var showWorkingTree = true
     @Published var showUnversionedFiles = false
     @Published private(set) var workingTreeSnapshot: WorkingTreeHistory?
@@ -634,7 +673,7 @@ struct LogCommandRequest: Identifiable {
             do {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let mergeActive = try await repository.logMergeActive(cancellation: cancellation)
-                let bisectActive = try await repository.finderMetadata().bisectActive
+                let metadata = try await repository.finderMetadata(), bisectActive = metadata.bisectActive
                 let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
@@ -642,6 +681,7 @@ struct LogCommandRequest: Identifiable {
                 if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
                 self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
+                hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
                 entries = result; graph = CommitGraph.layout(result)
                 workingTreeSnapshot = working
                 if let working { revisionActions[""] = .classify(working.files) } else { revisionActions.removeValue(forKey: "") }
@@ -1318,11 +1358,21 @@ struct RevisionTable: NSViewRepresentable {
                 item("Compare with previous revision", #selector(compare), icon: .compare, enabled: !model.busy && model.onCompare != nil)
                 item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: !model.busy && model.workingTreeSnapshot?.entry.parents.first != nil)
                 menu.addItem(.separator())
+                for action in [RepositoryAction.stash, .stashPop, .stashList] where model.workingCommandAvailable(action) {
+                    workingItem(action, menu: menu)
+                }
+                menu.addItem(.separator())
                 for command in [LogBisectCommand.good, .bad, .skip, .reset] where model.bisectAvailable(command) {
                     let selector = command == .good ? #selector(bisectGood) : command == .bad ? #selector(bisectBad) : command == .skip ? #selector(bisectSkip) : #selector(bisectReset)
                     item(command.title, selector, icon: command.icon, enabled: model.canBisect(command))
                 }
+                menu.addItem(.separator())
+                for action in [RepositoryAction.pull, .fetch, .submoduleUpdate] where model.workingCommandAvailable(action) { workingItem(action, menu: menu) }
                 return
+            }
+            if model.selectedIsStash {
+                for action in [RepositoryAction.stashPop, .stashList] where model.workingCommandAvailable(action) { workingItem(action, menu: menu) }
+                menu.addItem(.separator())
             }
             let one = model.revision != nil, two = model.revisions.count == 2
             item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one && !model.bare && !model.busy && model.onCompare != nil)
@@ -1435,6 +1485,15 @@ struct RevisionTable: NSViewRepresentable {
         @objc func bisectSkip() { model.requestBisect(.skip) }
         @objc func bisectReset() { model.requestBisect(.reset) }
         @objc func commitWorkingTree() { if model.selectedWorkingTree && !model.busy { model.onCommit() } }
+        private func workingItem(_ action: RepositoryAction, menu: NSMenu) {
+            let item = NSMenuItem(title: action.title, action: #selector(workingCommand), keyEquivalent: "")
+            item.image = action.icon.contextImage(); item.target = self; item.representedObject = action.rawValue
+            item.isEnabled = model.canWorkingCommand(action); menu.addItem(item)
+        }
+        @objc func workingCommand(_ sender: NSMenuItem) {
+            guard let value = sender.representedObject as? String, let action = RepositoryAction(rawValue: value) else { return }
+            model.requestWorkingCommand(action)
+        }
         @objc func copyAuthors() { model.copy(model.revisions.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n")) }
         @objc func copyAuthorNames() { model.copy(model.revisions.map(\.author).joined(separator: "\n")) }
         @objc func copyAuthorEmails() { model.copy(model.revisions.map(\.email).joined(separator: "\n")) }

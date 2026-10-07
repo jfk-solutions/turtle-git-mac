@@ -126,9 +126,9 @@ These receivers do not activate the Finder extension or exercise real URL openin
 ## Remaining work
 
 The working-tree row now supports current-commit classification and Reset.
-Its remaining repository menu commands (Stash, Pull, Fetch, Submodule Update and
-Cleanup), advanced working-file actions, preference persistence and navigation
-acceptance remain incomplete. Activated Finder URL opening and signed handoff are
+Its Cleanup command, advanced working-file actions, preference persistence and
+navigation acceptance remain incomplete. Stash, Pull, Fetch and Submodule Update
+now have repository dialog handoffs as described below. Activated Finder URL opening and signed handoff are
 also unverified. So do activated Log pickers, native alert interaction,
 Submodule Update handoff acceptance, progress cancellation, displayed light/dark verification, keyboard
 and accessibility checks, screenshots and signed sandbox acceptance. Broader Git
@@ -231,3 +231,27 @@ busy refusal and row show/hide. Handoffs are injected. Displayed graph/layout,
 keyboard/accessibility, activated menus and signed sandbox remain unverified.
 Working-file Blame, export/open/save, prepared comparison and conflict actions
 still require their upstream-specific implementation and acceptance.
+
+## Working-tree repository commands
+
+The row now offers Stash Save, Stash Pop, Stash List, Pull, Fetch and Submodule
+Update using original icons and the pinned Log menu groups. Save and Pull exclude
+an active Merge; Fetch remains available during Merge. Pop/List require a stash;
+Submodule Update requires current submodule configuration. A selected stash row
+also offers Pop/List, matching the upstream latest-stash commands rather than
+applying the selected commit. Cleanup remains unported.
+
+Each request rechecks repository metadata and its captured selection before
+handoff. A new Merge refuses Save/Pull, a removed stash refuses Pop/List and
+removed configuration refuses Submodule Update. Busy operations or note editing
+disable dispatch. Root callbacks retain the Log's repository and access grant,
+open the existing native dialogs and refresh open normal Logs for that repository
+(including path/revision-scoped Logs) after Stash Save/Pop, Fetch/Pull and
+Submodule Update completion. No Git command is executed directly by the menu.
+
+The hidden native receiver checks icons, targets, enabled state and injected
+handoffs; merge conditions, busy/selection changes, fresh stash/config removal
+and selected stash-row Pop/List. It fabricates the Merge marker and temporary
+configuration in a disposable real repository and removes/restores its test
+refs. It does not fetch from a network or pop a stash through these callbacks.
+Activated dialogs and root completion refresh still need displayed acceptance.

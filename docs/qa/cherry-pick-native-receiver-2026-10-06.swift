@@ -929,6 +929,48 @@ import TurtleGitCore
     coordinator.menuNeedsUpdate(menu)
     precondition(menu.items.first { $0.title == "Commit…" }?.image != nil && menuItem(.reset) == nil)
     coordinator.commitWorkingTree(); precondition(commits == 1)
+    var workingCommands: [RepositoryAction] = []
+    log.onWorkingCommand = { workingCommands.append($0) }
+    func workingItem(_ action: RepositoryAction) -> NSMenuItem? {
+        coordinator.menuNeedsUpdate(menu); return menu.items.first { $0.representedObject as? String == action.rawValue }
+    }
+    for action in [RepositoryAction.stash, .stashPop, .stashList, .pull, .fetch] {
+        guard let item = workingItem(action) else { fatalError("Missing working-tree command \(action)") }
+        precondition(item.isEnabled && item.image != nil && item.target === coordinator)
+        coordinator.workingCommand(item); try await waitLog(); precondition(workingCommands.last == action)
+    }
+    precondition(workingItem(.submoduleUpdate) == nil)
+    let commandCount = workingCommands.count
+    log.busy = true; log.requestWorkingCommand(.fetch); precondition(workingCommands.count == commandCount && workingItem(.fetch)?.isEnabled == false); log.busy = false
+    log.requestWorkingCommand(.fetch); log.selected = [hashes[1]]; try await waitLog(); precondition(workingCommands.count == commandCount)
+    log.select([""])
+    try Data((hashes[7] + "\n").utf8).write(to: root.appendingPathComponent(".git/MERGE_HEAD"))
+    log.requestWorkingCommand(.pull); try await waitLog(); precondition(log.error != nil && workingCommands.count == commandCount)
+    log.error = nil; log.reload(); try await waitLog(); log.select([""])
+    precondition(workingItem(.pull) == nil && workingItem(.stash) == nil && workingItem(.fetch)?.isEnabled == true)
+    log.requestWorkingCommand(.fetch); try await waitLog(); precondition(workingCommands.last == .fetch && workingCommands.count == commandCount + 1)
+    try FileManager.default.removeItem(at: root.appendingPathComponent(".git/MERGE_HEAD"))
+    log.reload(); try await waitLog(); log.select([""])
+    let stashRef = try await repo.run(["rev-parse", "refs/stash"]).text.trimmingCharacters(in: .newlines)
+    _ = try await repo.run(["update-ref", "-d", "refs/stash"])
+    log.requestWorkingCommand(.stashPop); try await waitLog(); precondition(log.error != nil && workingCommands.count == commandCount + 1)
+    log.error = nil; log.reload(); try await waitLog(); log.select([""])
+    precondition(workingItem(.stashPop) == nil && workingItem(.stashList) == nil)
+    _ = try await repo.run(["update-ref", "refs/stash", stashRef])
+    try Data("[submodule \"fixture\"]\n\tpath = fixture\n\turl = ./fixture\n".utf8).write(to: root.appendingPathComponent(".gitmodules"))
+    log.reload(); try await waitLog(); log.select([""])
+    guard let submoduleItem = workingItem(.submoduleUpdate) else { fatalError("Missing Submodule Update") }
+    precondition(submoduleItem.image != nil && submoduleItem.isEnabled)
+    coordinator.workingCommand(submoduleItem); try await waitLog(); precondition(workingCommands.last == .submoduleUpdate)
+    let beforeStaleSubmodule = workingCommands.count
+    try FileManager.default.removeItem(at: root.appendingPathComponent(".gitmodules"))
+    log.requestWorkingCommand(.submoduleUpdate); try await waitLog(); precondition(log.error != nil && workingCommands.count == beforeStaleSubmodule)
+    log.error = nil
+    var stashHistory = HistoryOptions(); stashHistory.allBranches = true
+    log.entries = try await repo.history(options: stashHistory); log.graph = CommitGraph.layout(log.entries); log.selected = [stashRef]
+    precondition(log.selectedIsStash && workingItem(.stashPop)?.isEnabled == true && workingItem(.stashList)?.isEnabled == true && workingItem(.fetch) == nil)
+    log.reload(); try await waitLog(); log.select([""])
+    print("Native working-tree repository menus: original icons/targets, Stash Save/Pop/List and Pull/Fetch handoffs, Submodule Update presence, merge hides Save/Pull while Fetch remains, busy/selection guards, fresh Merge/stash/config disappearance refusal and selected stash-row Pop/List passed. Handoffs injected; no network or stash pop executed.")
     coordinator.compare(); precondition(comparisons.last?.0 == .revision(hashes[7]) && comparisons.last?.1 == .workingTree)
     log.selected = ["", hashes[0]]; coordinator.compare(); precondition(comparisons.last?.0 == .revision(hashes[0]) && comparisons.last?.1 == .workingTree)
     let savedWorking = try Data(contentsOf: root.appendingPathComponent("change"))
