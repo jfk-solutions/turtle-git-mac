@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "133280c",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Normal Log Show submodule log, recorded child revision/general history routing and validated child checkout",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:1869-1877 parent/submodule Log menus",
+    "src/Git/GitStatusListCtrl.cpp:2412-2435 IDGITLC_LOG/LOGSUBMODULE, LogSubmoduleShowRevision default true and deleted-row exception",
+    "src/TortoiseProc/TortoiseProc.cpp:303 SetCurrentDir submodule flag"
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "327368e47471219918f248c81e77775b84948bdda6f4ba7c1f27d57436f8a744",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "87469b61c103a0bcb075e213ad01f6523987abd27a0b243ed61403148836415b",
+    "docs/LOG-PARITY.md": "1a9b898d101d8d969ec6123d8a1e4f7a01a6be702f17542c52034d396f2ba3c8",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "7f8b339fe80f98577f6f67faa0bc2870f39e9b21f22294c9e1cf587e382cc09f"
+  },
+  "all_sources_manifest_sha256": "f4e06f4e000c35d6fe5d765ab2b07fab8b92d2cdf3e48bf7cd2beffbddedd84a",
+  "verification": {
+    "native": {
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Actual native Log model routes literal gitlink path separately to parent filtered Log and child URL/hash. Default historical child revision pins recorded gitlink; real child Log model range contains first child commit and excludes newer second commit. Disabled preference, actual modified working gitlink and deleted historical gitlink route general child history. Missing child object refuses pinned route but permits general route with preference disabled. Temporarily absent .git file refuses initialization. Busy/bare/multiple/changed revision/invalidation guards. Exact parent and actual submodule admin indexes preserved around readonly requests. Existing focused fixtures pass. Root callback injected; local file clone only, no network/windows shown."
+    },
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; 90 original icon resources and Store --require-git runtime verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after final matrix.",
+    "fixture_corrections": "Initial fixture assumed submodule .git/index; corrected through rev-parse --git-path index. Second fixture compared URLs constructed before/after directory creation; focused Foundation check confirmed URL false/path true due directory flag. Final fixture compares actual checkout paths; full matrix passed. Failed native logs retained.",
+    "limitations": "SwiftUI menu and normal Root child Log window wiring compiled/source-inspected, not activated. Displayed child windows, physical input, merge-parent submodule occurrences, changed-file-selection path and signed sandbox access unverified in this new route. Existing Core submodule comparison engine unchanged; no new Core unit tests. GitHub CI and publication unverified. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-submodule/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-submodule/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-submodule/native-before-checkout-identity-fix.log": "414db4193ff75672cdb0b4e3687f97db665f86953d5ba31d8c9c2ee315990be3",
+    "build/qa/log-submodule/native-before-index-location-fix.log": "f14df5260808fb5be28a7d0075d493395da7bbfa4afad5b042b4d1aac367d5a4",
+    "build/qa/log-submodule/native.log": "8c072cca0015bc500e31eddb536f8cf6a2be850a9a040650f6a6fe25f53fecec",
+    "build/qa/log-submodule/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-submodule/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-submodule/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-submodule/swift.log": "a2a24ce436aabe411de645f438a44d87753469f0c06686f886b7eb2109b6a206"
+  },
+  "remaining": "Browser pinned file restore still uses checkout --end-of-options, the older-Git incompatible option fixed earlier in historical Log restore; verify/fix that route next. Remaining file commands/Shift Add, selection-mark events, exact dialogs/layout/input, Finder activation, screenshots/publication and signed App Store acceptance."
+}

@@ -996,6 +996,10 @@ import TurtleGitCore
         controller.model.onFileCompare = { [weak self] from, to, paths in self?.showHistoricalFiles(repository: repository, access: access, from: from, to: to, paths: paths) }
         controller.model.onFileComparisons = { [weak self] requests in self?.showGroupedHistoricalFiles(repository: repository, access: access, requests: requests) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
+        controller.model.onSubmoduleFileLog = { [weak self] checkout, hash in
+            let child = GitRepository(root: checkout, executable: repository.executable)
+            self?.showLog(repository: child, access: access, paths: [], endRevision: hash)
+        }
         controller.model.onBlame = { [weak self] path, hash in self?.showBlame(repository: repository, access: access, path: path, revision: hash) }
         controller.model.onCommit = { [weak self] in
             guard let self else { return }

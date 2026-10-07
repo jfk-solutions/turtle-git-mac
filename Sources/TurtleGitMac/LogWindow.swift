@@ -24,6 +24,15 @@ struct PreparedFileComparisonMark {
 }
 
 enum HistoricalOpenAction { case open, openWith, alternativeEditor }
+private enum LogSubmoduleHistoryFailure: LocalizedError {
+    case uninitialized, unavailableRevision
+    var errorDescription: String? {
+        switch self {
+        case .uninitialized: return "The submodule is not initialized. Initialize its working checkout to show its history."
+        case .unavailableRevision: return "The selected gitlink revision is unavailable in the child repository. Update the submodule to show that revision."
+        }
+    }
+}
 
 @MainActor enum HistoricalPreviewFiles {
     private static var previews: [URL: HistoricalFilePreview] = [:]
@@ -989,6 +998,44 @@ struct LogCommandRequest: Identifiable {
             guard let path = file.oldPath else { return }; onFileLog(path, nil)
         } else { onFileLog(file.path, revision.hash) }
     }
+    var onSubmoduleFileLog: ((URL, String?) -> Void)?
+    func canShowSubmoduleFileLog(_ ids: Set<String>) -> Bool {
+        !busy && !isInvalidated && !bare && onSubmoduleFileLog != nil && ids.count == 1 && visibleFiles.contains { ids.contains($0.id) && $0.isSubmodule && $0.action != "?" }
+    }
+    func showSubmoduleFileLog(_ ids: Set<String>) {
+        guard canShowSubmoduleFileLog(ids), let file = visibleFiles.first(where: { ids.contains($0.id) }) else { return }
+        let request = generation, selection = selected, fileSelection = selectedFiles
+        let working = selectedWorkingTree, revision = self.revision
+        let pinRevision = UserDefaults.standard.object(forKey: "LogSubmoduleShowRevision") == nil || UserDefaults.standard.bool(forKey: "LogSubmoduleShowRevision")
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                try validateWorkingFileAccess(repository.root.appendingPathComponent(file.path))
+                let from: String, to: String?
+                if working {
+                    guard let fresh = try await repository.workingTreeHistory(), fresh.files.contains(where: { $0.path == file.path && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
+                    from = fresh.entry.parents.first ?? ""; to = nil
+                } else {
+                    guard let revision else { throw RevisionComparisonFailure.selection }
+                    let groups = try await repository.logFileGroups(in: revision)
+                    guard let group = groups.first(where: { $0.id == (file.parentIndex ?? 0) }), group.files.contains(where: { $0.path == file.path && $0.isSubmodule && $0.action == file.action }) else { throw RevisionComparisonFailure.selection }
+                    from = file.action.hasPrefix("D") ? group.parent ?? "" : revision.hash
+                    to = revision.hash
+                }
+                let module = try await repository.submoduleComparison(path: file.path, from: from, to: to)
+                guard let checkout = module.checkout else { throw LogSubmoduleHistoryFailure.uninitialized }
+                try validateWorkingFileAccess(checkout)
+                let endRevision: String?
+                if !working && !file.action.hasPrefix("D") && pinRevision {
+                    guard module.to.available, let hash = module.to.revision else { throw LogSubmoduleHistoryFailure.unavailableRevision }
+                    endRevision = hash
+                } else { endRevision = nil }
+                guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+                busy = false; onSubmoduleFileLog?(checkout, endRevision)
+            } catch { if request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
+        }
+    }
     func canBlameFile(_ ids: Set<String>) -> Bool {
         guard !busy, !isInvalidated, onBlame != nil, ids.count == 1,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return false }
@@ -1618,6 +1665,9 @@ struct LogDialog: View {
         Divider()
         if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
             Button { model.fileLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(model.busy || model.onFileLog == nil || model.selectedWorkingTree && file.action == "?")
+            if file.isSubmodule && !model.bare {
+                Button { model.showSubmoduleFileLog(ids) } label: { CommandLabel(title: "Show submodule log", icon: .log) }.disabled(!model.canShowSubmoduleFileLog(ids))
+            }
             if file.oldPath != nil {
                 Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
             }

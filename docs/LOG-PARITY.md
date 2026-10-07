@@ -1103,3 +1103,26 @@ an unversioned row, and parent 1 then parent 2 duplicate-path occurrences.
 Ambiguous multi-row additions retain an existing selected mark or use a first-row
 fallback. Right-clicking an already selected row, range endpoints, keyboard
 anchors and displayed selection behavior still require runtime acceptance.
+
+## Show submodule log
+
+Gitlink rows now offer Show submodule log with the original Log icon, separately
+from Show log in the parent repository. The child repository is validated through
+the existing submodule-comparison reader. Historical nondeleted rows default to
+the exact recorded gitlink hash, matching LogSubmoduleShowRevision (default true).
+Disabling that preference, selecting a working-tree row, or selecting a deleted
+historical gitlink opens general child history. Deleted rows resolve the actual
+parent group's gitlink; merge file occurrence metadata is retained.
+
+The route checks fresh working status or actual historical group membership,
+repository access and child checkout identity before handing off. An uninitialized
+checkout or unavailable pinned child revision reports an error without fetching
+or initialization. Busy/bare, multiple-file, changed revision/file selection and
+invalidation guards prevent stale dispatch. Root wiring opens child Log with no
+parent path filter, retaining the parent's access lease and selected Git runtime.
+
+Hidden native fixtures exercise literal gitlink paths, parent versus child Log,
+recorded hash and actual child history range, preference-disabled/working/deleted
+history, unavailable revisions, missing initialization and exact index preservation.
+Root callbacks are injected. Displayed menus/child windows, event input and signed
+sandbox acceptance remain pending.

@@ -779,6 +779,94 @@ import TurtleGitCore
     print("Native Log Revert/index flags: decline preserves index; actual assume/skip/clear cycles retain rows/status and Commit guard, unchanged blobs/work, fresh stale-menu refusal, confirmation selection/invalidation guards, flagged gitlink type, scoped Revert chooser and actual Revert progress restore only selected path, refresh Log and preserve HEAD/untracked/other files passed. Confirmations/root callbacks injected; owned Trash files removed; no windows shown.")
 }
 
+@MainActor func verifyNativeLogSubmodule(executable: URL) async throws {
+    let base = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-submodule-" + UUID().uuidString)
+    let root = base.appendingPathComponent("parent"), origin = base.appendingPathComponent("origin")
+    for url in [root, origin] { try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true) }
+    defer { try? FileManager.default.removeItem(at: base) }
+    let repo = GitRepository(root: root, executable: executable), source = GitRepository(root: origin, executable: executable)
+    for repository in [repo, source] {
+        _ = try await repository.run(["init", "--initial-branch=main"])
+        _ = try await repository.run(["config", "user.name", "Native QA"]); _ = try await repository.run(["config", "user.email", "native@example.invalid"])
+        _ = try await repository.run(["config", "commit.gpgSign", "false"])
+    }
+    try Data("first\n".utf8).write(to: origin.appendingPathComponent("file")); try await source.stage(["file"]); _ = try await source.commit(message: "child first")
+    let first = try await source.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    let path = "module 雪 [*]", checkout = root.appendingPathComponent(path)
+    _ = try await repo.run(["-c", "protocol.file.allow=always", "submodule", "add", "--", origin.path, path]); _ = try await repo.commit(message: "add child")
+    let added = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    let child = GitRepository(root: checkout, executable: executable)
+    let indexLocation = try await child.run(["rev-parse", "--git-path", "index"]).text.trimmingCharacters(in: .newlines)
+    let childIndexURL = indexLocation.hasPrefix("/") ? URL(fileURLWithPath: indexLocation) : checkout.appendingPathComponent(indexLocation)
+    _ = try await child.run(["config", "user.name", "Native QA"]); _ = try await child.run(["config", "user.email", "native@example.invalid"]); _ = try await child.run(["config", "commit.gpgSign", "false"])
+    try Data("second\n".utf8).write(to: checkout.appendingPathComponent("file")); try await child.stage(["file"]); _ = try await child.commit(message: "child second")
+    let second = try await child.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    try await repo.stage([path]); _ = try await repo.commit(message: "advance child")
+    let advanced = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    let preference = UserDefaults.standard.object(forKey: "LogSubmoduleShowRevision")
+    defer { if let preference { UserDefaults.standard.set(preference, forKey: "LogSubmoduleShowRevision") } else { UserDefaults.standard.removeObject(forKey: "LogSubmoduleShowRevision") } }
+    UserDefaults.standard.removeObject(forKey: "LogSubmoduleShowRevision")
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    func until(_ condition: () -> Bool, line: UInt = #line) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition(), "Submodule fixture timeout at \(line): \(log.error ?? "none")")
+    }
+    var requests: [(URL, String?)] = [], parentLogs: [(String, String?)] = []
+    log.onSubmoduleFileLog = { requests.append(($0, $1)) }; log.onFileLog = { parentLogs.append(($0, $1)) }
+    log.reload(); try await until { !log.busy }; log.select([added]); try await until { log.files.contains { $0.path == path } }
+    let parentIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), childIndex = try Data(contentsOf: childIndexURL)
+    log.fileLog([path]); precondition(parentLogs.last?.0 == path && parentLogs.last?.1 == added)
+    log.showSubmoduleFileLog([path]); try await until { !log.busy }
+    precondition(requests.last?.0.path == checkout.path && requests.last?.1 == first, "Submodule request=\(String(describing: requests.last)), expected=\(checkout.path) @ \(first), error=\(log.error ?? "none")")
+    let childLog = LogWindowModel(repository: child, access: nil); defer { childLog.invalidate() }
+    childLog.endRevision = requests.last!.1; childLog.reload(); try await until { !childLog.busy }
+    precondition(childLog.entries.contains { $0.hash == first } && !childLog.entries.contains { $0.hash == second })
+    UserDefaults.standard.set(false, forKey: "LogSubmoduleShowRevision")
+    log.showSubmoduleFileLog([path]); try await until { !log.busy }; precondition(requests.last?.1 == nil)
+    UserDefaults.standard.removeObject(forKey: "LogSubmoduleShowRevision")
+    let initialParentAfter = try Data(contentsOf: root.appendingPathComponent(".git/index")), initialChildAfter = try Data(contentsOf: childIndexURL)
+    precondition(initialParentAfter == parentIndex && initialChildAfter == childIndex)
+    // Working-row history follows child HEAD, independently of the staged gitlink.
+    try Data("third\n".utf8).write(to: checkout.appendingPathComponent("file")); try await child.stage(["file"]); _ = try await child.commit(message: "child third")
+    log.reload(); try await until { !log.busy }; log.select([""])
+    precondition(log.canShowSubmoduleFileLog([path]))
+    log.showSubmoduleFileLog([path]); try await until { !log.busy }; precondition(requests.last?.0.path == checkout.path && requests.last?.1 == nil)
+    // A deleted historical gitlink can still show a retained child's general history.
+    _ = try await repo.run(["rm", "--cached", "--", path]); _ = try await repo.commit(message: "delete gitlink, retain child")
+    let deleted = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    log.reload(); try await until { !log.busy }; log.select([deleted]); try await until { log.files.contains { $0.path == path && $0.action.hasPrefix("D") } }
+    log.showSubmoduleFileLog([path]); try await until { !log.busy }; precondition(requests.last?.1 == nil)
+    // An unavailable historical hash refuses a pinned Log, while the preference can choose general history.
+    let unavailable = String(repeating: "a", count: 40)
+    _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + unavailable + "," + path]); _ = try await repo.commit(message: "unavailable gitlink")
+    let missing = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    log.reload(); try await until { !log.busy }; log.select([missing]); try await until { log.files.contains { $0.path == path } }
+    let count = requests.count
+    log.error = nil; log.showSubmoduleFileLog([path]); try await until { !log.busy }; precondition(log.error != nil && requests.count == count)
+    UserDefaults.standard.set(false, forKey: "LogSubmoduleShowRevision")
+    log.error = nil; log.showSubmoduleFileLog([path]); try await until { !log.busy }; precondition(requests.count == count + 1 && requests.last?.1 == nil)
+    // Uninitialized checkout is never fetched/initialized implicitly.
+    let admin = checkout.appendingPathComponent(".git"), savedAdmin = checkout.appendingPathComponent(".git.saved")
+    try FileManager.default.moveItem(at: admin, to: savedAdmin)
+    log.error = nil; log.showSubmoduleFileLog([path]); try await until { !log.busy }; precondition(log.error != nil && requests.count == count + 1)
+    try FileManager.default.moveItem(at: savedAdmin, to: admin)
+    log.error = nil; log.busy = true; precondition(!log.canShowSubmoduleFileLog([path])); log.busy = false
+    log.bare = true; precondition(!log.canShowSubmoduleFileLog([path])); log.bare = false
+    precondition(!log.canShowSubmoduleFileLog([path, ".gitmodules"]))
+    log.showSubmoduleFileLog([path]); log.select([advanced]); try await until { !log.busy }; precondition(requests.count == count + 1 && log.error == nil)
+    try await until { log.files.contains { $0.path == path } }
+    log.showSubmoduleFileLog([path]); log.invalidate(); try await until { !log.busy }; precondition(requests.count == count + 1)
+    // Compare indexes around a readonly request, after the fixture's intentional commits.
+    let stableParentIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), stableChildIndex = try Data(contentsOf: childIndexURL)
+    let readOnly = LogWindowModel(repository: repo, access: nil); defer { readOnly.invalidate() }
+    readOnly.onSubmoduleFileLog = { _, _ in }; readOnly.reload(); try await until { !readOnly.busy }; readOnly.select([added]); try await until { readOnly.files.contains { $0.path == path } }
+    readOnly.showSubmoduleFileLog([path]); try await until { !readOnly.busy }
+    let afterParentIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterChildIndex = try Data(contentsOf: childIndexURL)
+    precondition(stableParentIndex == afterParentIndex && stableChildIndex == afterChildIndex)
+    print("Native Log submodule history: parent path Log stays in superproject, recorded historical child hash and actual child range, preference-disabled/working/deleted general history, literal gitlink path, unavailable revision/uninitialized checkout refusal, busy/bare/multi/stale/closed guards and exact indexes preserved passed. Root callback injected; no network or windows shown.")
+}
+
 @MainActor func verifyNativeLogDelete(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-delete-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1816,6 +1904,7 @@ import TurtleGitCore
     try await verifyNativeLogDeferredRefresh(executable: repo.executable)
     try await verifyNativeLogUnifiedViewerRouting(executable: repo.executable)
     try await verifyNativeLogParentWorkingComparison(executable: repo.executable)
+    try await verifyNativeLogSubmodule(executable: repo.executable)
     try await verifyNativeLogDelete(executable: repo.executable)
     try await verifyNativeLogIgnore(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
