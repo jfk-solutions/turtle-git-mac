@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "a4ab9fd6830bb3f6db1ef23930eb7bc479d78f60",
+  "previous_goal_turn": "progress: Commit/Log shared enabled-by-default unversioned preference",
+  "scope": "Non-staging commit eligibility, count and request follow visible checked rows; cached checks survive reveal; full-index staging unchanged",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "12768b170556f95b08853deb4811724b1e13ddeb523394d9dcf0fb59799090d6",
+    "scripts/check-cherry-pick-native.py": "229da5e21285feed8f1ffc38b83de3e6a2df2da85b4f1aea457f0d5eacf406e7",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "7a830c57c3b01fcedb41c0242c07f8238ecb135d8cc0785ab2b8aabc42b35983",
+    "docs/COMMIT-PARITY.md": "02828fd88a4ba04b069cfe56a49d48a27a9d65c14403f9f17865e6eb5b101145",
+    "docs/upstream-files.csv": "67bfc6df5ab84257c0f00ea4e29ec27abb627e1136091f4e042df1aac6c19837"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/CommitDlg.cpp": "455cfa3b883565ab7d37c4636156a47b73ad7856afcf80dbbd51039943b41578",
+    "src/Git/GitStatusListCtrl.cpp": "3e36539a5a969f1164d5a1295c77db2f1b2d5646eae33689ef858f1e49fc2546"
+  },
+  "all_sources_manifest_sha256": "2d501bd93e0ef2024d8beee510eac22a7c2c0d14d5fa4257ecebce563a677b0a",
+  "verification": {
+    "native": "Four sequential --commit-selection-only runs passed on Apple Git 2.50.1, Git 2.37.1, 2.39.5 and bundled 2.55.0. Full native matrix not repeated for this focused Commit change. New fixture also registered in normal native checks.",
+    "coverage": "Real status/reload on scoped tracked/untracked/ignored files; cached checked paths include hidden out-of-scope, ignored and stale paths. Absent visible checks disable ordinary Commit; reveal and Whole Project recover eligible paths; cached checks unchanged; clipboard excludes hidden unknown. Real non-staging commit changes only visible inside/file; unknown remains untracked, outside index bytes remain base, config unchanged and all working bytes retained. Second actual staging commit changes outside scope from full index with no checked paths. Private preference domain/owned repository removed; no displayed app launch.",
+    "builds": [
+      "SwiftPM",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed, including 90 upstream icons, Finder extension/licenses and Store --require-git universal Git audit. Unsigned builds do not establish signed Store acceptance.",
+    "core": "Core readers/commit engine unchanged; Core suite not repeated.",
+    "process_audit": "No main app or native/menu/provider receiver remained after four focused runs.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "Hidden/model/real-Git checks do not prove displayed footer/clicks, physical keyboard, VoiceOver, signed sandbox or full Commit parity. Full port, Finder activation, signed App Store distribution, screenshots/docs completeness and hosted CI/site remain incomplete."
+  },
+  "logs": {
+    "build/qa/commit-visible-selection/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/commit-visible-selection/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-visible-selection/native.log": "45a6c9a8a4d077227203d668f1fc032354e0eccd109168df3349e2b003761442",
+    "build/qa/commit-visible-selection/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-visible-selection/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/commit-visible-selection/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/commit-visible-selection/swift.log": "dab185519d5e5c682d6d70f5b4b9bb499c6c71f255bfd008bd1c5ba92a4efcc9"
+  }
+}

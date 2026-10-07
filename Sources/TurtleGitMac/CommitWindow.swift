@@ -568,7 +568,8 @@ import UniformTypeIdentifiers
         let origin = entry.originalPath.map { "Renamed from " + $0 } ?? entry.path
         return changelists.assignments[entry.path].map { origin + "\nChangelist: " + $0 } ?? origin
     }
-    var canCommit: Bool { !busy && !confirmingQuit && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checked.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
+    var checkedPathsForCommit: Set<String> { Set(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
+    var canCommit: Bool { !busy && !confirmingQuit && loadedMessage && changelistsLoaded && (messageOnly || (stagingEnabled ? entries.contains(where: \.staged) || operation == .merge || amend : !checkedPathsForCommit.isEmpty || operation == .merge || (amend && amendDiffToLastCommit))) && !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && (!createBranch || !newBranch.isEmpty) && (!setAuthor || !author.isEmpty) }
     func didRename(_ source: String, to destination: String) {
         func moved(_ path: String) -> String { path == source ? destination : path.hasPrefix(source + "/") ? destination + path.dropFirst(source.count) : path }
         checked = Set(checked.map(moved)); selection = Set(selection.map(moved)); scopePaths = scopePaths.map(moved); reload()
@@ -763,7 +764,7 @@ import UniformTypeIdentifiers
     }
     func commit(_ action: CompletionAction = .commit) {
         guard canCommit, replaySplit == nil || action == .commit else { return }
-        let rawMessage = message, rawIssueID = issueID, properties = issueProperties, paths = checked, staging = stagingEnabled
+        let rawMessage = message, rawIssueID = issueID, properties = issueProperties, paths = checkedPathsForCommit, staging = stagingEnabled
         let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : messageOnly ? Set<String>() : paths
         let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
         let pruningScope = showWholeProject ? [] : scopePaths
@@ -1026,7 +1027,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                                 } else {
                                     Button(model.viewingPatch ? "Hide Patch «" : "View Patch »") { model.showViewPatch() }
                                 }
-                                Text(model.stagingEnabled ? "\(model.stagedEntries.count) staged, \(model.unstagedEntries.count) unstaged files shown" : "\(model.checked.count) files checked, \(model.visibleEntries.count) files shown").font(.caption)
+                                Text(model.stagingEnabled ? "\(model.stagedEntries.count) staged, \(model.unstagedEntries.count) unstaged files shown" : "\(model.checkedPathsForCommit.count) files checked, \(model.visibleEntries.count) files shown").font(.caption)
                             }
                         }
                     }.padding(4)

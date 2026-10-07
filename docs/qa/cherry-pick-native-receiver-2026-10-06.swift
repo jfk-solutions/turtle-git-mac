@@ -1299,6 +1299,64 @@ import TurtleGitCore
     print("Native Log View paths: default Gray, exclusive Hide/Gray/All toggles without history reload, real directory boundary and literal rename-origin match, source action colors/gray precedence and selected text, hidden selection/clipboard refusal, Whole Project bypass, busy/closed guards, hidden hosted menu, working tracked paths retained and grayed, unversioned switch/exemption and exact HEAD/index/work preservation passed. Displayed colors/gestures remain pending.")
 }
 
+@MainActor func verifyNativeCommitVisibleSelection(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-commit-visible-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root.appendingPathComponent("inside"), withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let suite = "TurtleGit.CommitVisible.QA." + UUID().uuidString
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"])
+    _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgsign", "false"])
+    for path in ["inside/file", "outside"] { try Data("base\n".utf8).write(to: root.appendingPathComponent(path)) }
+    try Data("ignored\n".utf8).write(to: root.appendingPathComponent(".gitignore"))
+    try await repo.stage(["inside/file", "outside", ".gitignore"]); _ = try await repo.commit(message: "visible selection base")
+    for path in ["inside/file", "outside"] { try Data("changed\n".utf8).write(to: root.appendingPathComponent(path)) }
+    try Data("unknown\n".utf8).write(to: root.appendingPathComponent("inside/unknown"))
+    try Data("ignored bytes\n".utf8).write(to: root.appendingPathComponent("ignored"))
+    let model = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults)
+    model.reload(paths: ["inside"]); try await settleCommit(model); model.message = "Visible tracked only"
+    let cached: Set<String> = ["inside/file", "inside/unknown", "outside", "ignored", "stale"]
+    model.checked = cached
+    precondition(model.checkedPathsForCommit == ["inside/file", "inside/unknown"] && model.canCommit)
+    model.setShowUnversioned(false)
+    precondition(model.checked == cached && model.checkedPathsForCommit == ["inside/file"] && model.canCommit)
+    precondition(!model.checkedFileList.contains("inside/unknown"))
+    model.checked = ["inside/unknown", "outside", "ignored", "stale"]
+    precondition(model.checkedPathsForCommit.isEmpty && !model.canCommit)
+    model.setShowUnversioned(true)
+    precondition(model.checkedPathsForCommit == ["inside/unknown"] && model.canCommit)
+    model.showWholeProject = true; precondition(model.checkedPathsForCommit == ["inside/unknown", "outside"])
+    model.showWholeProject = false; model.setShowUnversioned(false); model.checked = cached
+    let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+    var closed = false, completions = 0
+    model.close = { closed = true }; model.onCommitted = { _ in completions += 1 }
+    model.commit(); try await settleCommit(model)
+    precondition(closed && completions == 1)
+    let changed = try await repo.run(["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"]).text
+    precondition(changed == "inside/file\n", changed)
+    let unknown = try await repo.run(["ls-files", "--", "inside/unknown"]).stdout
+    precondition(unknown.isEmpty)
+    let outsideIndex = try await repo.run(["show", ":outside"]).stdout
+    precondition(outsideIndex == Data("base\n".utf8))
+    let afterConfig = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+    precondition(afterConfig == config)
+    // Staging mode continues to commit the full index independently of checkboxes.
+    try await repo.stage(["outside"]); model.reload(paths: ["inside"]); try await settleCommit(model)
+    model.stagingEnabled = true; model.checked = []; model.message = "Full index outside scope"
+    precondition(model.canCommit)
+    model.commit(); try await settleCommit(model)
+    let stagedChanged = try await repo.run(["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"]).text
+    precondition(stagedChanged == "outside\n" && completions == 2)
+    for (path, expected) in [("inside/file", "changed\n"), ("outside", "changed\n"), ("inside/unknown", "unknown\n"), ("ignored", "ignored bytes\n")] {
+        let bytes = try Data(contentsOf: root.appendingPathComponent(path)); precondition(bytes == Data(expected.utf8))
+    }
+    print("Native Commit visible checks: hidden unversioned/scoped/ignored/stale checks excluded from button/count/clipboard/real commit, checks retained on reveal, Whole Project visibility, full-index staging behavior and owned private preferences/repository cleanup passed.")
+}
+
 @MainActor func verifyNativeSharedUnversionedPreference(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-unversioned-preference-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -2377,6 +2435,7 @@ import TurtleGitCore
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     let git = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_COMMIT_SELECTION_ONLY"] == "1" { try await verifyNativeCommitVisibleSelection(executable: git); return }
     let repo = GitRepository(root: root, executable: git)
     _ = try await repo.run(["init", "--initial-branch=main"])
     _ = try await repo.run(["config", "user.name", "Native tester"])
@@ -2406,6 +2465,7 @@ import TurtleGitCore
     try await verifyNativeLogIgnore(executable: repo.executable)
     try await verifyNativeLogAddModes(executable: repo.executable)
     try await verifyNativeLogHistoryWalk(executable: repo.executable)
+    try await verifyNativeCommitVisibleSelection(executable: repo.executable)
     try await verifyNativeSharedUnversionedPreference(executable: repo.executable)
     try await verifyNativeLogLabelVisibility(executable: repo.executable)
     try await verifyNativeLogUnrelatedPaths(executable: repo.executable)

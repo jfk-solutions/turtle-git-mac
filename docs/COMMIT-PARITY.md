@@ -1284,3 +1284,25 @@ Busy/closing guards refuse preference changes. The native receiver uses a privat
 preference domain and real tracked/untracked files to check default visibility,
 hide/show, reopen in both directions and exact repository preservation. See
 [the shared unversioned QA record](qa/shared-unversioned-2026-10-07.json).
+
+## Visible checked rows form the non-staging commit selection
+
+The non-staging Commit button, checked-file count and commit request now use the
+checked rows currently shown in the file list. This matches upstream
+`WriteCheckedNamesToPathList`, which iterates displayed list items. Hiding
+unversioned files or restricting the project scope can no longer silently commit
+cached checks outside that view; ignored and stale paths are excluded too.
+The cached checks are retained so revealing a row restores its checkbox.
+The checked-file clipboard already uses the same visible-row filter.
+Staging mode continues to commit the whole index, independently of checkbox state.
+
+A native fixture makes an actual scoped tracked-file commit while hidden checks
+include unversioned, out-of-scope, ignored and stale paths. It checks committed
+paths, the untracked path’s absence from the index, unchanged outside index bytes
+and working-file bytes, then makes a full-index staging commit outside the scope.
+The fixture also verifies button eligibility and reveal/Whole Project behavior.
+Run it with `scripts/check-cherry-pick-native.py --commit-selection-only`; it is
+included in the normal native checks as well. See
+[the visible-selection QA record](qa/commit-visible-selection-2026-10-07.json).
+These model/real-Git checks do not prove displayed gestures or signed sandbox
+execution. Full Commit acceptance remains incomplete.
