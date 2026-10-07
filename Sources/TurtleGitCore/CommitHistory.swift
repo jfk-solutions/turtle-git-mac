@@ -270,6 +270,8 @@ public struct CommitFile: Identifiable, Hashable, Sendable {
         case "R": return "Renamed"
         case "C": return "Copied"
         case "T": return "Type changed"
+        case "U": return "Conflicted"
+        case "?": return "Unversioned"
         default: return "Modified"
         }
     }

@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "b230066",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Read-only core data foundation for the synthetic Log working-tree row; native row not yet integrated",
+  "sha256": {
+    "Sources/TurtleGitCore/WorkingTreeHistory.swift": "d0448b1995155b9aa19e62840cd25641836843e85e730a39fce45e19122ef491",
+    "Sources/TurtleGitCore/CommitHistory.swift": "47dd77a8a16294836fde368edd3e0d3b9b61a2bc1a80f1910c18cc813311e388",
+    "Tests/TurtleGitCoreTests/WorkingTreeHistoryTests.swift": "cc2245006dda0d649be3ff8fce8850fcbb6aef87d9701e0b5e59e3f225a51e2b",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "fcef5c0b2b9982ff79339249031a97689be898eec32a7838a93e3208c237d4d3",
+    "docs/BISECT-PARITY.md": "60ec2e4be2f35570198616e181da64b72e873a18060f91e401d61572f304b6b3"
+  },
+  "all_sources_manifest_sha256": "487952826d80a9301f788f303ba222c0bf728bee10eb923c3f124373f5faa2b5",
+  "verification": {
+    "system_core": {
+      "command": "swift test --filter WorkingTreeHistoryTests|CommitHistoryTests",
+      "tests": 36,
+      "failures": 0,
+      "new_tests": 4,
+      "coverage": "Actual HEAD/empty-hash row, clean and changed data, rename/literal newline Unicode pathspec-looking paths, staged+unstaged text stats, binary stats, net-HEAD-clean index change, ignored exclusion, separate unversioned/cached-removal copy, graph edge to HEAD, unborn/bare/cancelled reads, unmerged conflicts and gitlink typing with net-clean pointer. Exact index/HEAD/file/stage preservation checked where relevant."
+    },
+    "selected_git": {
+      "command": "TURTLEGIT_WORKING_ROW_TEST_GIT=<selected executable> swift test --skip-build --filter WorkingTreeHistoryTests",
+      "passed": [
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "tests_per_version": 4,
+      "failures": 0,
+      "fixture_note": "Shared GitPatchTests fixture seeds initial repository with system Git. Subsequent fixture mutations and all working-tree reads use the selected executable; unborn fixture uses selected Git from init."
+    },
+    "builds": [
+      "SwiftPM via swift test",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "project": "xcodegen registered WorkingTreeHistory.swift in framework Sources; generated project diff is four registrations only.",
+    "audits": "Both bundle validators and exact NOTICE cmp passed; Store --require-git; 90 original icons and universal helper runtimes verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app, menu receiver or native receiver remained; no native app launched this turn"
+  },
+  "logs": {
+    "/tmp/turtlegit-working-row-2.37.1.log": "9694ecbe443f46a091d55ec0fa4a3f9be94797dbe8452a495030a7e273150aa5",
+    "/tmp/turtlegit-working-row-2.39.5.log": "5952a6936e8412d47e41847386f7e930d1f8e193b12b366a76df433985d8a4ac",
+    "/tmp/turtlegit-working-row-2.55.0.log": "dea067e6d201976dfb579f1bbfd5a10155653eddbe169417e3e8e77310fd883a",
+    "/tmp/turtlegit-working-row-core.log": "a0520ecbc0a84c557d40ff1c407daa2c988b7b06a0f94014dfb23ed3667fd985",
+    "/tmp/turtlegit-working-row-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-working-row-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-working-row-project.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "/tmp/turtlegit-working-row-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-working-row-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-working-row-store.log": "c3317a93e73643be09045c50c69229cd4545aac229542d1968ba51680e6abb72"
+  },
+  "remaining": "Native working-tree row rendering/selection, Show Unversioned Files option, file operations/comparisons and current-commit Bisect Good/Bad/Skip/Reset routing; activated/displayed/Finder/signed App Store acceptance and broader whole-port requirements incomplete."
+}

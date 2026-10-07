@@ -125,7 +125,8 @@ These receivers do not activate the Finder extension or exercise real URL openin
 ## Remaining work
 
 The Log working-tree row, including its current-commit classification and Reset
-menu, remains pending. Activated Finder URL opening and signed handoff are
+menu, remains pending in the native dialog. Its read-only data foundation is
+implemented as described below. Activated Finder URL opening and signed handoff are
 also unverified. So do activated Log pickers, native alert interaction,
 Submodule Update handoff acceptance, progress cancellation, displayed light/dark verification, keyboard
 and accessibility checks, screenshots and signed sandbox acceptance. Broader Git
@@ -175,3 +176,34 @@ in the source Log. A closed retained picker stays invalidated, and a released
 model is not retained by observation. These checks use injected root handoff;
 they do not establish activated menus, working-tree row support or
 displayed/signed acceptance.
+
+## Working-tree row data foundation
+
+Upstream `GitLogListBase.h/.cpp` represents the row with an empty commit hash
+and the actual HEAD as its parent. It prepends the row to Log, reads working-tree
+changes and keeps unversioned files separately for the display option. This
+contract now has a core reader in `WorkingTreeHistory.swift`; it is not yet
+inserted into the native Log or routed through its context/file menus.
+
+The reader returns the synthetic row, versioned changes and a separate
+unversioned list. Its parent is actual HEAD, independent of a displayed range.
+Combined HEAD/worktree diff supplies rename paths, binary-aware line statistics
+and gitlink modes. Porcelain status retains index changes even when the working
+bytes have returned to HEAD. Index mode data preserves submodule typing in that
+case. Conflicts retain their status; ignored files are excluded. A cached removal
+with a surviving local copy appears in both the versioned and unversioned lists.
+
+Reads disable optional Git index writes, external diff and text conversion, use
+NUL-delimited literal paths and accept cancellation. Bare repositories return no
+row. An unborn repository has no parent; staged/unversioned statuses are available
+without inventing commit statistics. Reading does not create an empty-tree object
+or change HEAD, index, working files or conflict stages.
+
+Four real-Git tests cover clean and changed rows, staged plus unstaged text,
+binary statistics, Unicode/newline/pathspec-looking names, renames, net-HEAD-clean
+index differences, ignored/unversioned files, conflicts, cached removal copies,
+unborn/bare repositories, cancellation and submodule pointer/index differences.
+They compare index bytes, HEAD, working bytes and unmerged stages where relevant.
+A graph check confirms the synthetic row links to the actual HEAD row. Native row
+rendering, selection, file operations, working-tree comparisons and Bisect Reset
+dispatch still require implementation and acceptance.
