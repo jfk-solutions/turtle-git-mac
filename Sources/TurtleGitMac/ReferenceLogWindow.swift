@@ -6,10 +6,11 @@ import TurtleGitCore
     let model: ReferenceLogWindowModel
     var onClosed: () -> Void = {}
     private var selectionCompletion: ((ReferenceLogEntry?) -> Void)?
+    private(set) var findController: ReferenceLogFindController?
     init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, onChoose: ((ReferenceLogEntry?) -> Void)? = nil) {
         model = ReferenceLogWindowModel(repository: repository, access: access, reference: reference, selecting: onChoose != nil)
         selectionCompletion = onChoose
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 530), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+        let window = ReferenceLogNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 530), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – RefLog – TurtleGit"
         window.minSize = NSSize(width: 800, height: 360); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ReferenceLogDialog(model: model))
@@ -28,7 +29,26 @@ import TurtleGitCore
             alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Delete")
             alert.beginSheetModal(for: window) { response in if response == .alertSecondButtonReturn { proceed() } }
         }
+        model.openFind = { [weak self] in self?.openFind() }
+        window.functionKey = { [weak self] code in
+            guard let self, !self.model.busy else { return false }
+            if code == 99 { self.model.openFind(); return true } // F3
+            if code == 96 { self.model.reload(); return true } // F5
+            return false
+        }
         model.reload()
+    }
+    func openFind(visible: Bool = true) {
+        guard !model.busy else { return }
+        if let findController {
+            if visible { findController.showWindow(nil); findController.window?.makeKeyAndOrderFront(nil) }
+            return
+        }
+        model.find = ""; model.matchCase = false
+        let finder = ReferenceLogFindController(model: model)
+        findController = finder
+        finder.onClosed = { [weak self] in self?.findController = nil }
+        if visible { finder.showWindow(nil); finder.window?.makeKeyAndOrderFront(nil) }
     }
     private func finishSelection(_ entry: ReferenceLogEntry?) {
         guard let completion = selectionCompletion else { return }; selectionCompletion = nil
@@ -39,7 +59,10 @@ import TurtleGitCore
         guard !model.busy else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
-    func windowWillClose(_ notification: Notification) { let completion = selectionCompletion; selectionCompletion = nil; completion?(nil); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        findController?.close(); findController = nil
+        let completion = selectionCompletion; selectionCompletion = nil; completion?(nil); onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceLogWindowModel: ObservableObject {
@@ -49,13 +72,18 @@ import TurtleGitCore
     @Published var reference: String
     @Published var names: [String]
     @Published var entries: [ReferenceLogEntry] = []
-    @Published var selection = Set<String>()
+    @Published var selection = Set<String>() {
+        didSet { if !finding { searchIndex = entries.firstIndex { selection.contains($0.id) } ?? 0 } }
+    }
     @Published var busy = false
     @Published var error: String?
     @Published var patch: String?
-    @Published var showFind = false
-    @Published var find = ""
-    @Published var matchCase = false
+    var openFind: () -> Void = {}
+    @Published private(set) var searchWrapped = false
+    private var searchIndex = 0
+    private var finding = false
+    @Published var find = "" { didSet { searchWrapped = false } }
+    @Published var matchCase = false { didSet { searchWrapped = false } }
     private var generation = 0
     var onChoose: (ReferenceLogEntry) -> Void = { _ in }
     func accept() { if selecting { if !busy, let entry = selectedEntry { onChoose(entry) } } else { close() } }
@@ -75,7 +103,7 @@ import TurtleGitCore
                 let refs = try await repository.referenceLogNames(), result = try await repository.referenceLog(reference)
                 guard request == generation else { return }
                 names = Array(Set(refs + [reference])).sorted(); entries = result
-                selection.formIntersection(Set(result.map(\.id))); busy = false
+                selection.formIntersection(Set(result.map(\.id))); searchIndex = 0; searchWrapped = false; busy = false
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
         }
     }
@@ -97,14 +125,20 @@ import TurtleGitCore
         }
     }
     func findNext() {
-        guard !entries.isEmpty, !find.isEmpty else { return }
-        let start = entries.firstIndex(where: { selection.contains($0.id) }).map { $0 + 1 } ?? 0
+        guard !busy, !entries.isEmpty, !find.isEmpty else { return }
+        searchWrapped = searchIndex >= entries.count
+        let start = searchWrapped ? 0 : searchIndex
         for offset in 0..<entries.count {
-            let entry = entries[(start + offset) % entries.count]
-            let text = [entry.hash, entry.selector, entry.subject].joined(separator: " ")
-            if text.range(of: find, options: matchCase ? [] : [.caseInsensitive]) != nil { selection = [entry.id]; return }
+            let index = (start + offset) % entries.count, entry = entries[index]
+            // RefLogDlg searches the displayed ref, action, hash and message,
+            // separated by newlines. Reflog messages do not carry a commit body.
+            let text = [entry.selector, entry.action, entry.hash, entry.message, ""].joined(separator: "\n")
+            if text.range(of: find, options: matchCase ? [] : [.caseInsensitive]) != nil {
+                finding = true; selection = [entry.id]; finding = false
+                searchIndex = index + 1; return
+            }
         }
-        error = "No matching reference-log entry was found."
+        error = "\"\(find)\" was not found."
     }
     func copy(_ ids: Set<String>) {
         NSPasteboard.general.clearContents()
@@ -141,7 +175,7 @@ private struct ReferenceLogDialog: View {
                 }
             } primaryAction: { ids in if model.selecting { model.selection = ids; model.accept() } else { model.inspect(ids) } }
             HStack {
-                Button("Search…") { model.showFind = true }.keyboardShortcut("f")
+                Button("Search…") { model.openFind() }.keyboardShortcut("f")
                 if !model.selecting && model.reference == "refs/stash" { Button("Clear stash") { model.delete([], clear: true) }.disabled(model.entries.isEmpty) }
                 Button("Refresh") { model.reload() }.keyboardShortcut("r")
                 if model.busy { ProgressView().controlSize(.small) }
@@ -152,14 +186,6 @@ private struct ReferenceLogDialog: View {
             }
         }.padding(12).disabled(model.busy)
         .onChange(of: model.reference) { _ in model.selection = []; model.reload() }
-        .sheet(isPresented: $model.showFind) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Find in RefLog").font(.headline)
-                TextField("Find", text: $model.find).textFieldStyle(.roundedBorder).onSubmit { model.findNext() }
-                Toggle("Match case", isOn: $model.matchCase).toggleStyle(.checkbox)
-                HStack { Spacer(); Button("Find Next") { model.findNext() }.disabled(model.find.isEmpty); Button("Close") { model.showFind = false }.keyboardShortcut(.cancelAction) }
-            }.padding(20).frame(width: 360)
-        }
         .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) {
             VStack { OutputView(text: model.patch ?? ""); HStack { Spacer(); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }.padding(12) }.frame(width: 900, height: 600)
         }
@@ -187,5 +213,47 @@ private struct ReferenceLogPicker: NSViewRepresentable {
         var parent: ReferenceLogPicker
         init(_ parent: ReferenceLogPicker) { self.parent = parent }
         @objc func changed(_ sender: NSPopUpButton) { if let title = sender.titleOfSelectedItem { parent.selection = title } }
+    }
+}
+
+/// Function keys are handled by the owning RefLog window, without a global event monitor.
+@MainActor final class ReferenceLogNativeWindow: NSWindow {
+    var functionKey: (UInt16) -> Bool = { _ in false }
+    func handleFunctionKey(_ event: NSEvent) -> Bool {
+        guard event.type == .keyDown, event.keyCode == 99 || event.keyCode == 96 else { return false }
+        return functionKey(event.keyCode)
+    }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        handleFunctionKey(event) || super.performKeyEquivalent(with: event)
+    }
+    override func keyDown(with event: NSEvent) {
+        if !handleFunctionKey(event) { super.keyDown(with: event) }
+    }
+}
+
+@MainActor final class ReferenceLogFindController: NSWindowController, NSWindowDelegate {
+    var onClosed: () -> Void = {}
+    init(model: ReferenceLogWindowModel) {
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 170), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Find – RefLog – TurtleGit"; window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: ReferenceLogFindDialog(model: model, close: { [weak window] in window?.close() }))
+        super.init(window: window); window.delegate = self; window.center()
+    }
+    func windowWillClose(_ notification: Notification) { onClosed() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+private struct ReferenceLogFindDialog: View {
+    @ObservedObject var model: ReferenceLogWindowModel
+    let close: () -> Void
+    @FocusState private var focused: Bool
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("Find what:", text: $model.find).textFieldStyle(.roundedBorder).focused($focused).onSubmit { model.findNext() }
+            Toggle("Match case", isOn: $model.matchCase).toggleStyle(.checkbox)
+            if model.searchWrapped { Text("Search wrapped to the beginning.").font(.caption).foregroundStyle(.secondary) }
+            HStack { Spacer(); Button("Find Next") { model.findNext() }.disabled(model.find.isEmpty || model.busy).keyboardShortcut(.defaultAction)
+                Button("Cancel", action: close).keyboardShortcut(.cancelAction) }
+        }.padding(20).onAppear { focused = true }
     }
 }

@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "2032844f00f11502683a418b707bc143fe5dc830",
+  "scope": "RefLog modeless native Find singleton, F3/F5 window dispatch, selected-row search cursor and wrap/case/no-match behavior. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/RefLogDlg.cpp": "e65a202ed236c50d0f9a5174ac34fd29df9e034b",
+    "src/TortoiseProc/refloglist.cpp": "c1fb07f5fa8bf318d436fbb877656944b8d2f008"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "1a64a4f4b27135b8675024df22e4a420097ab2973009af0b9c7dc278c28e41bf",
+    "NOTICE": "ce0bb27c924cbb35aa9470d629127c457c7c0dd3065d9bee80e67d734061917a",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "f892b4c16f3b5e5679de3f610dcab815551e1bca3464f8ed520bba0f1745dd06",
+    "docs/REFLOG-PARITY.md": "d3119dd9bb8f5a3ab8978d9715613a6e81803635faf72d382ab4785d7f142138",
+    "docs/upstream-files.csv": "074a06236a963113147397b7256537308dcf055c935374ced6fcbded73d4ab8a",
+    "scripts/test-reflog-search.py": "4b9332514a76a5039c89b3944184feff6250b3c8e44fdc61248dc7dc93018852",
+    "docs/qa/reflog-search-native-2026-10-08.swift": "6f7b06d95ac99222982e0361b2f95295a860ff114b530760954f9c7ac7272620"
+  },
+  "all_sources_manifest_sha256": "7530d7faf41605c5e1721c292c2bece76bbb8238731247432920046bb01c41b9",
+  "verification": {
+    "native": "Final receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Actual hidden non-sheet RefLog/Find windows, singleton reuse and retained query, Find close/reopen defaults, owner release and exactly one child close callback on parent close. Direct constructed key-handler inputs exercise F3/F5 and busy/unknown-key guards; events are never sent to an app. Real selected-row/repeated/wrapped/case/ref/action/hash searches, query edit clearing wrap status, no-match selection retention, refresh cursor reset and chooser-mode search passed. HEAD/index/config/worktree are byte-exact unchanged. No visible UI or physical input acceptance is claimed.",
+    "regression": "Push source-picker receiver passed all four Git versions against final sources: real Log/HEAD RefLog acceptance, cancellation retention, immutable hashes and explicit older-commit Push retained.",
+    "iterations": "Initial Debug passed; NOTICE then included and Debug rebuilt. First receiver failed an immediate weak-controller-deallocation assertion after parent close. Replaced that assumption with actual owner release, exactly one close callback and closed-window checks; all four Git versions passed without a production cleanup change. Review then added wrap-status clearing on search-text/case edits; final Debug, both native matrices, Store and both audits repeated. Initial failure and earlier passing logs retained.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 upstream icons verified. Store --require-git audited 11 universal Git Mach-O files and real Git fixtures. EditorConfig/IssueRegex audits passed.",
+    "core": "No Core source change and no new Core suite run in this checkpoint; native receiver uses real Git fixtures and the existing Core RefLog reader.",
+    "documentation": "RefLog parity, pinned source inventory and NOTICE updated. Inventory pin and seven-column CSV validation passed. Local documentation site generated, unpublished.",
+    "ci": "Native receiver added to macOS workflow. Hosted CI/push remain unverified; authentication unavailable, no retry.",
+    "processes": "All compiler/native/audit sessions terminal. No main app launched; receiver windows remain hidden and owned windows close. Final app/native receiver process audit empty. Twelve empty owned PushSourcePickers UUID preference files removed across current/prior flushes and regression iterations; unrelated/nonempty files retained.",
+    "limitations": "Physical F3/F5/Command-F routing, Find focus and owner visibility/minimization, scroll-to-match, rendered light/dark layout, broader Unicode matching and signed sandbox execution remain pending. Reflog action/message are searched; commit-message bodies are not loaded by the current reader. Full revision menus, non-stash deletion, sorting/columns/geometry, Finder activation, complete dialog parity, updated genuine screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-search/cleanup.log": "ebc40b15ad003e4226c50a9d8e40bb7edb8cbff9680613d08fe7af0975355082",
+    "build/qa/reflog-search/debug-audit-before-wrap-reset.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-search/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-search/debug-before-notice.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-search/debug-before-wrap-reset.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-search/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-search/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-search/native-before-wrap-reset.log": "bb43be836614074d56fd52a9bd466622b61a7327764bbee4c716a37067461ad1",
+    "build/qa/reflog-search/native-initial.log": "64875162db7679b08633c1043ba0dbf7d33e293cde56123dccd1ac2821b13905",
+    "build/qa/reflog-search/native.log": "bb43be836614074d56fd52a9bd466622b61a7327764bbee4c716a37067461ad1",
+    "build/qa/reflog-search/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-search/push-pickers-regression-before-wrap-reset.log": "b1c0d94e4f9e1bfad2c3fa257c7db9fbc6e3403d65a8ee19c0e3c47f47bdbb58",
+    "build/qa/reflog-search/push-pickers-regression.log": "b1c0d94e4f9e1bfad2c3fa257c7db9fbc6e3403d65a8ee19c0e3c47f47bdbb58",
+    "build/qa/reflog-search/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-search/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-search/store-audit-before-wrap-reset.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-search/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-search/store-before-wrap-reset.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/reflog-search/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

@@ -14,7 +14,7 @@ Message, Date. A row's identity is its reflog selector rather than its commit ha
 so repeated HEAD positions remain independently selectable.
 
 The lower row keeps Search, conditionally visible Clear stash, OK, Cancel and
-Help, with an additional native Refresh button. Search uses a native sheet with
+Help, with an additional native Refresh button. Search uses a native modeless Find window with
 Find Next and Match case. It selects matching rows and wraps instead of filtering
 the underlying snapshot. Clear stash is hidden for other refs and disabled when
 the stash list is empty. The window and controls disable while repository work
@@ -64,8 +64,8 @@ Apply, inspection and Delete Abort checks above were completed.
 
 - Complete revision/ref context menus and deletion for non-stash reflogs.
 - Chooser double-click, multi-selection rejection and normal stash-mode regression QA.
-- Upstream modeless search behavior, F3/F5 shortcuts, no-match presentation and
-  broader case/Unicode search QA.
+- Physical modeless Find focus, F3/F5 routing, scroll-to-match and broader
+  Unicode search acceptance; the native receiver checks are recorded below.
 - Native multi-selection Delete execution, Clear execution, clipboard verification
   and stale-view error recovery. Core deletion tests do not prove these UI paths.
 - Saved column widths/order, sorting, saved geometry, minimum-size and dark-mode QA.
@@ -88,3 +88,33 @@ child HEAD, the child index and its dirty file were unchanged, and the QA proces
 was closed. See [comparison evidence](SUBMODULE-DIFF-PARITY.md) for screenshots and
 remaining chooser checks. This does not verify all ordinary RefLog workflows in
 dark mode.
+
+## Modeless Find and function keys
+
+Search and Command-F now open a separate native Find window, retaining a single
+instance per RefLog window. Repeating Search or F3 focuses that existing window
+and retains its search text and case option. Cancel or its close gesture releases
+it; reopening starts with empty text and Match case off. Closing RefLog closes
+its owned Find window. The list remains usable while Find stays open, matching
+`CRefLogDlg::OnFind` instead of blocking the list with a sheet.
+
+F3 opens Find and F5 refreshes through the owning native window's key handler;
+Command-F/Command-R remain macOS shortcuts. Function keys and Find Next are gated
+while the list loads. Refresh retains the Find window and resets its search cursor.
+Find starts at the selected row, advances after each match, wraps through the
+list and searches the ref, action, full hash and reflog message as newline-separated
+fields. Manual selection repositions the cursor. Match case uses native Unicode
+matching. A search starting past the last row shows an accessible wrap message;
+editing the text or case option clears that message. A no-match search reports
+the requested text and retains selection. Windows taskbar/window
+flashing is replaced by that message. Commit-message bodies are not loaded by this
+reflog reader; the reflog action/message are the available search payload.
+
+[Native receiver](qa/reflog-search-native-2026-10-08.swift) and
+[QA record](qa/reflog-search-2026-10-08.json) cover actual hidden Find/RefLog window
+ownership, singleton reuse, close/reopen and parent cleanup; direct constructed
+function-key inputs; real ref/action/hash/case/cursor search and refresh; chooser
+mode search; and byte-exact HEAD/index/config/worktree preservation. No events
+are sent to an application and these checks do not establish physical key routing,
+Find focus, scroll-to-match, rendered light/dark layout or signed sandbox execution.
+The full RefLog/dialog/application port remains incomplete.

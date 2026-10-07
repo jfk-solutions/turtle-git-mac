@@ -450,3 +450,8 @@ Push source Browse References/Log/RefLog menu adapts PushDlg's
 OnBnClickedButtonBrowseSourceBranch under the upstream source license. Existing
 native selection-mode Log and RefLog sheets return immutable commit hashes,
 retaining the repository-access lease; menu icons reuse original artwork.
+
+RefLog modeless Find, function-key dispatch and the ref/action/hash/message search
+cursor behavior are adapted from RefLogDlg.cpp at the recorded TortoiseGit pin.
+Native macOS Find windows retain a single owner and close with the parent. Search
+uses native Unicode case matching and an accessible wrap message.
