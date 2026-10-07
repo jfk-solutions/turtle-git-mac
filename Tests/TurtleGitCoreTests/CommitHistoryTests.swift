@@ -102,6 +102,36 @@ final class CommitHistoryTests: XCTestCase {
         let moduleAllowed = try await bareRepo.canFollowHistory(paths: ["uninitialized-module"]); XCTAssertFalse(moduleAllowed)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
+    func testHistoryPathScopesMatchLiteralPrefixesDirectoriesAndRenameOrigins() async throws {
+        func file(_ path: String, _ action: String = "M", old: String? = nil, module: Bool = false) -> CommitFile {
+            CommitFile(path: path, oldPath: old, action: action, added: nil, removed: nil, hasStatistics: false, isSubmodule: module)
+        }
+        let folder = HistoryPathScope(path: "folder", isDirectory: true)
+        XCTAssertTrue(folder.contains(file("folder/file"))); XCTAssertFalse(folder.contains(file("folder-extra/file")))
+        XCTAssertTrue(folder.contains(file("folder", module: true))); XCTAssertFalse(folder.contains(file("folder-extra", module: true)))
+        XCTAssertTrue(folder.contains(file("elsewhere", "R100", old: "folder/original")))
+        XCTAssertTrue(folder.contains(file("elsewhere", "C100", old: "folder/original")))
+        XCTAssertFalse(folder.contains(file("elsewhere", "M", old: "folder/original")))
+        let literal = HistoryPathScope(path: "file :(glob)* 雪\n", isDirectory: false)
+        XCTAssertTrue(literal.contains(file(literal.path + ".txt")), "Upstream file scopes are literal prefixes")
+        XCTAssertFalse(literal.contains(file("file something else")))
+        XCTAssertFalse(HistoryPathScope(path: "é", isDirectory: false).contains(file("e\u{301}")), "Git path bytes must not be canonically normalized")
+        var mode = HistoryUnrelatedPathMode.gray; mode.toggle(.hide); XCTAssertEqual(mode, .hide); mode.toggle(.hide); XCTAssertEqual(mode, .all)
+        let (root, baseRepo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? baseRepo.executable)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
+        try Data("nested\n".utf8).write(to: root.appendingPathComponent("folder/file"))
+        try Data("objects\n".utf8).write(to: root.appendingPathComponent("objects"))
+        try await repo.stage(["folder", "objects"]); _ = try await repo.commit(message: "scope tree")
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + hash + ",module"]); _ = try await repo.commit(message: "scope gitlink")
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let bare = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", "--", root.path, bare.path])
+        let bareRepo = GitRepository(root: bare, executable: repo.executable)
+        let scopes = try await bareRepo.historyPathScopes(paths: ["folder", "objects", "module", "missing/", "missing"])
+        XCTAssertEqual(scopes.map(\.isDirectory), [true, false, true, true, false])
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
     func testHistoryLabelMasksPreserveMetadataAndFilterGraphNodesByUpstreamKinds() {
         func entry(_ hash: String, _ parent: String?, _ ref: String? = nil) -> LogEntry {
             var result = LogEntry(hash: hash, author: "", date: "", subject: hash, parents: parent.map { [$0] } ?? [])

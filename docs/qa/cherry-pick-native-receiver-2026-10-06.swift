@@ -1112,6 +1112,66 @@ import TurtleGitCore
     print("Native Log Add modes: last-added selection mark, literal mixed executable and symlink direct progress use real 100755/120000 index modes and raw blobs without chmod/disk links, normal folder progress stages gitlink, lock/cancel exact-index preservation, unrelated staged/HEAD preservation, busy/bare/stale-stage/file-selection/closed guards passed. Root callbacks injected; Shift events/post-action menus not activated; no windows shown.")
 }
 
+@MainActor func verifyNativeLogUnrelatedPaths(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-path-view-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: root.appendingPathComponent("folder-extra"), withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"]); _ = try await repo.run(["config", "commit.gpgsign", "false"])
+    let renameBytes = Data((0..<30).map { "rename line \($0)\n" }.joined().utf8)
+    for path in ["folder/file", "folder-extra/file", "unrelated"] { try Data("base\n".utf8).write(to: root.appendingPathComponent(path)) }
+    try renameBytes.write(to: root.appendingPathComponent("folder/old :(glob)* 雪\n"))
+    try await repo.stage(["folder", "folder-extra", "unrelated"]); _ = try await repo.commit(message: "view base")
+    for path in ["folder/file", "folder-extra/file", "unrelated"] { try Data("changed\n".utf8).write(to: root.appendingPathComponent(path)) }
+    _ = try await repo.run(["mv", "--", "folder/old :(glob)* 雪\n", "renamed-outside"])
+    try await repo.stage(["folder", "folder-extra", "unrelated"]); _ = try await repo.commit(message: "view all paths")
+    let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let model = LogWindowModel(repository: repo, access: nil, selecting: true); defer { model.invalidate() }
+    func until(_ condition: () -> Bool) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition(), model.error ?? "Path View timeout")
+    }
+    model.setPathScope(["folder"]); try await until { !model.busy && model.files.count == 4 }
+    precondition(model.unrelatedPathMode == .gray && model.visibleFiles.count == 4 && model.pathScopes == [HistoryPathScope(path: "folder", isDirectory: true)])
+    let outside = model.files.first { $0.path == "unrelated" }!, inside = model.files.first { $0.path == "folder/file" }!, renamed = model.files.first { $0.path == "renamed-outside" }!
+    precondition(renamed.oldPath == "folder/old :(glob)* 雪\n" && !model.grayFile(renamed))
+    precondition(model.grayFile(outside) && model.fileForeground(outside, selected: false) == .secondary && model.fileForeground(inside, selected: false) == .blue)
+    precondition(model.fileForeground(renamed, selected: false) == .brown && model.fileForeground(outside, selected: true) == .primary)
+    let revisions = model.entries.map(\.hash), selection = model.selected
+    model.fileTableSelection.wrappedValue = [outside.id]
+    precondition(model.fileSelectionMark == outside.id)
+    model.toggleUnrelatedPaths(.hide)
+    precondition(!model.busy && model.entries.map(\.hash) == revisions && model.selected == selection)
+    precondition(Set(model.visibleFiles.map(\.path)) == ["folder/file", "renamed-outside"] && model.files.count == 4)
+    precondition(model.selectedFiles.isEmpty && model.fileSelectionMark == nil && !model.canCopyFiles([outside.id]))
+    model.toggleUnrelatedPaths(.hide); precondition(model.unrelatedPathMode == .all && model.visibleFiles.count == 4 && !model.grayFile(outside))
+    model.toggleUnrelatedPaths(.gray); precondition(model.unrelatedPathMode == .gray)
+    model.toggleUnrelatedPaths(.gray); precondition(model.unrelatedPathMode == .all)
+    model.toggleUnrelatedPaths(.hide); model.showWholeProject = true
+    precondition(model.visibleFiles.count == 4 && !model.unrelatedFile(outside)); model.showWholeProject = false
+    let host = NSHostingView(rootView: LogDialog(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1100, height: 760); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
+    model.busy = true; model.toggleUnrelatedPaths(.gray); precondition(model.unrelatedPathMode == .hide); model.busy = false
+    model.invalidate(); model.toggleUnrelatedPaths(.gray); precondition(model.unrelatedPathMode == .hide)
+    let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    let historicalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    precondition(afterHead == head && historicalIndex == index)
+    try Data("work inside\n".utf8).write(to: root.appendingPathComponent("folder/file")); try Data("work outside\n".utf8).write(to: root.appendingPathComponent("unrelated"))
+    try Data("unversioned\n".utf8).write(to: root.appendingPathComponent("unversioned-outside"))
+    let working = LogWindowModel(repository: repo, access: nil); defer { working.invalidate() }
+    working.setPathScope(["folder"]); try await until { !working.busy && working.selectedWorkingTree && working.files.count == 2 }
+    precondition(working.visibleFiles.count == 2 && working.grayFile(working.files.first { $0.path == "unrelated" }!))
+    working.toggleUnrelatedPaths(.hide); precondition(working.visibleFiles.map(\.path) == ["folder/file"])
+    working.toggleUnversionedFiles(); precondition(working.showUnversionedFiles && Set(working.visibleFiles.map(\.path)) == ["folder/file", "unversioned-outside"])
+    precondition(!working.grayFile(working.visibleFiles.first { $0.path == "unversioned-outside" }!))
+    working.toggleUnversionedFiles(); precondition(!working.showUnversionedFiles && working.visibleFiles.count == 1)
+    let workingIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), insideBytes = try Data(contentsOf: root.appendingPathComponent("folder/file")), outsideBytes = try Data(contentsOf: root.appendingPathComponent("unrelated"))
+    precondition(workingIndex == index && insideBytes == Data("work inside\n".utf8) && outsideBytes == Data("work outside\n".utf8))
+    print("Native Log View paths: default Gray, exclusive Hide/Gray/All toggles without history reload, real directory boundary and literal rename-origin match, source action colors/gray precedence and selected text, hidden selection/clipboard refusal, Whole Project bypass, busy/closed guards, hidden hosted menu, working tracked paths retained and grayed, unversioned switch/exemption and exact HEAD/index/work preservation passed. Displayed colors/gestures remain pending.")
+}
+
 @MainActor func verifyNativeLogLabelVisibility(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-labels-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -2163,6 +2223,7 @@ import TurtleGitCore
     try await verifyNativeLogAddModes(executable: repo.executable)
     try await verifyNativeLogHistoryWalk(executable: repo.executable)
     try await verifyNativeLogLabelVisibility(executable: repo.executable)
+    try await verifyNativeLogUnrelatedPaths(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
     try await verifyNativeLogRevertFlags(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))

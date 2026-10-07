@@ -1262,7 +1262,40 @@ isolation, actual labeled/compressed rows and edges, closed/busy refusal and exa
 HEAD/index/working-file preservation. Its preference domain is private and removed.
 See [the label QA record](qa/log-label-visibility-2026-10-07.json).
 
-The View menu's Hide/Gray unrelated paths, Gravatar and View Patch commands remain
-pending. Footer ordering now places All Branches before Walk Behavior and View;
+The View menu's Gravatar and View Patch commands remain pending. Footer ordering now places All Branches before Walk Behavior and View;
 exact displayed spacing, physical menu interaction, color/layout and accessibility
 acceptance remain pending.
+
+## View → unrelated changed paths
+
+View now has Hide Unrelated Changed Paths and Gray Unrelated Changed Paths before
+Show Unversioned Files and Labels, matching upstream order. Gray starts enabled
+for each new Log; these two modes are mutually exclusive and selecting the active
+mode returns to showing all paths. Mode changes act on loaded file details without
+reloading history. Hiding a selected file prunes its selection and selection mark;
+existing commands refuse hidden rows. Whole Project bypasses the scope styling.
+
+Literal prefix matching follows `FillLogMessageCtrl`, including old paths for
+renames/copies and directory/submodule boundaries. Multiple native scopes form a
+union. Directory types come from working filesystem attributes or pinned Git tree
+modes; bare Git administration directories are not used as working directories.
+Git path UTF-8 bytes are compared without case folding or Unicode normalization.
+The complete changed-file list is retained. In particular, working-tree details
+no longer discard unrelated tracked paths before Gray/Hide can act. Unversioned
+paths are inserted independently of the unrelated-path mode, as upstream does.
+
+All five file columns now use status colors: modified blue, added/copied purple,
+deleted/renamed brown, conflicted red and unversioned normal text. Gray overrides
+status color for unrelated paths, and selected text uses native primary color.
+Colors adapt through SwiftUI's semantic colors; exact displayed theme colors and
+user-configurable color settings remain pending.
+
+Core checks exercise literal special/Unicode/newline prefixes, Unicode byte
+inequality, directory-prefix collisions, gitlinks, rename/copy origins, toggle
+states and directory typing in a real bare repository. The native receiver checks
+a real rename out of a scoped folder, historical and working tracked paths,
+mode/selection/clipboard guards, color choices, Whole Project bypass, unversioned
+controls, hidden hosted menu construction and repository bytes. See
+[the path View QA record](qa/log-path-view-2026-10-07.json). Physical menu and color
+appearance acceptance, richer path-filter expressions and multi-revision file
+aggregation remain pending.

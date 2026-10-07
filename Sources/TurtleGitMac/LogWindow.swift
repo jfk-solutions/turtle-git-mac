@@ -371,9 +371,7 @@ struct LogCommandRequest: Identifiable {
         let ignored = workingIndexFiles.filter { ($0.assumeUnchanged || $0.skipWorktree) && !tracked.contains($0.id) }.map {
             CommitFile(path: $0.id, oldPath: nil, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: workingSubmodules.contains($0.id))
         }
-        files = (snapshot.files + ignored + (showUnversionedFiles ? snapshot.unversioned.filter { !tracked.contains($0.path) } : [])).filter { file in
-            showWholeProject || historyPaths.contains { scope in file.path == scope || file.path.hasPrefix(scope + "/") || file.oldPath == scope || file.oldPath?.hasPrefix(scope + "/") == true }
-        }
+        files = snapshot.files + ignored + (showUnversionedFiles ? snapshot.unversioned.filter { !tracked.contains($0.path) } : [])
     }
     @Published var currentBranch = ""
     var onExportRevision: ((String) -> Void)?
@@ -479,6 +477,32 @@ struct LogCommandRequest: Identifiable {
     @Published var endRevision: String?
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
+    @Published private(set) var unrelatedPathMode = HistoryUnrelatedPathMode.gray
+    @Published private(set) var pathScopes: [HistoryPathScope] = []
+    func unrelatedFile(_ file: CommitFile) -> Bool {
+        !showWholeProject && !pathScopes.isEmpty && file.action != "?" && !pathScopes.contains { $0.contains(file) }
+    }
+    func grayFile(_ file: CommitFile) -> Bool { unrelatedPathMode == .gray && unrelatedFile(file) }
+    func toggleUnrelatedPaths(_ mode: HistoryUnrelatedPathMode) {
+        guard !busy, !isInvalidated, mode != .all else { return }
+        unrelatedPathMode.toggle(mode)
+        selectedFiles.formIntersection(Set(visibleFiles.map(\.id)))
+        if fileSelectionMark.map({ !selectedFiles.contains($0) }) == true { fileSelectionMark = visibleFiles.first { selectedFiles.contains($0.id) }?.id }
+    }
+    func toggleUnversionedFiles() {
+        guard !busy, !isInvalidated else { return }
+        showUnversionedFiles.toggle(); updateWorkingFiles()
+        selectedFiles.formIntersection(Set(visibleFiles.map(\.id)))
+    }
+    func fileForeground(_ file: CommitFile, selected: Bool) -> Color {
+        if selected { return .primary }
+        if grayFile(file) { return .secondary }
+        if file.action.hasPrefix("U") { return .red }
+        if file.action.hasPrefix("M") { return .blue }
+        if file.action.hasPrefix("A") || file.action.hasPrefix("C") { return .purple }
+        if file.action.hasPrefix("D") || file.action.hasPrefix("R") { return .brown }
+        return .primary
+    }
     private var detailCancellation: OperationCancellation?
     private var historyCancellation: OperationCancellation?
     var loadingHistory: Bool { historyCancellation != nil }
@@ -720,7 +744,9 @@ struct LogCommandRequest: Identifiable {
     var finishMultipleSelection: ([LogEntry]?) -> Void = { _ in }
     var revisions: [LogEntry] { entries.filter { !$0.hash.isEmpty && selected.contains($0.hash) } }
     var revision: LogEntry? { selected.count == 1 && revisions.count == 1 ? revisions.first : nil }
-    var visibleFiles: [CommitFile] { files.filter { filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths) } }
+    var visibleFiles: [CommitFile] {
+        files.filter { (unrelatedPathMode != .hide || !unrelatedFile($0)) && (filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths)) }
+    }
     var message: String {
         if selectedWorkingTree, let snapshot = workingTreeSnapshot { return "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "") }
         guard let revision else { return selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected." }
@@ -837,6 +863,7 @@ struct LogCommandRequest: Identifiable {
                 let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.endRevision, cancellation: cancellation)
+                let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.endRevision, cancellation: cancellation)
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 let working = showWorkingTree && !selecting && !bare ? try await repository.workingTreeHistory(cancellation: cancellation) : nil
                 let indexFiles = working == nil ? [] : try await repository.workingTreeStatus(refreshIndex: false)
@@ -847,6 +874,7 @@ struct LogCommandRequest: Identifiable {
                 self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
                 canFollowRenames = followAllowed
+                self.pathScopes = pathScopes
                 let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility)
                 entries = projection.entries; graph = projection.graph
                 result = projection.entries
@@ -1564,7 +1592,7 @@ extension LogWindowModel {
         }
         return fileGroups.flatMap { group -> [LogFileTableRow] in
             let visible = visibleFiles.filter { $0.parentIndex == group.id }
-            if !filterPaths.isEmpty && visible.isEmpty { return [] }
+            if (!filterPaths.isEmpty || unrelatedPathMode == .hide) && visible.isEmpty { return [] }
             let title = "Diff with parent \(group.id + 1): " + (group.parent.map { String($0.prefix(8)) } ?? "Empty tree")
             return [LogFileTableRow(id: "\0header\(group.id)", file: nil, header: title)] + visible.map { LogFileTableRow(id: $0.id, file: $0, header: nil) }
         }
@@ -1636,13 +1664,13 @@ struct LogDialog: View {
                         if let header = row.header {
                             Text(header).fontWeight(.semibold).foregroundStyle(Color.accentColor).accessibilityAddTraits(.isHeader)
                         } else if let file = row.file {
-                            Text(StatusListClipboard.displayedPath(file)).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
+                            Text(StatusListClipboard.displayedPath(file)).foregroundStyle(model.fileForeground(file, selected: model.selectedFiles.contains(file.id))).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
                         }
                     }.width(min: 260, ideal: 460)
-                    TableColumn("Extension") { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "") }.width(80)
-                    TableColumn("Status") { row in Text(row.file.map(model.fileStatus) ?? "") }.width(95)
-                    TableColumn("Lines added") { row in Text(row.file?.addedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(90)
-                    TableColumn("Lines removed") { row in Text(row.file?.removedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(105)
+                    TableColumn("Extension") { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(80)
+                    TableColumn("Status") { row in Text(row.file.map(model.fileStatus) ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(95)
+                    TableColumn("Lines added") { row in Text(row.file?.addedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(90)
+                    TableColumn("Lines removed") { row in Text(row.file?.removedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.id)) } ?? .primary) }.width(105)
                 }.frame(minHeight: 130, idealHeight: 180)
                 .onDeleteCommand { model.deleteWorkingFiles(model.selectedFiles, permanently: NSEvent.modifierFlags.contains(.shift), keyboard: true) }
                 .contextMenu(forSelectionType: String.self) { ids in
@@ -1667,6 +1695,11 @@ struct LogDialog: View {
                     }
                 } label: { Text(model.historyWalk.isActive ? "✓ Walk Behavior" : "Walk Behavior") }.disabled(model.busy || model.isInvalidated)
                 Menu("View") {
+                    Toggle("Hide Unrelated Changed Paths", isOn: Binding(get: { model.unrelatedPathMode == .hide }, set: { _ in model.toggleUnrelatedPaths(.hide) }))
+                    Toggle("Gray Unrelated Changed Paths", isOn: Binding(get: { model.unrelatedPathMode == .gray }, set: { _ in model.toggleUnrelatedPaths(.gray) }))
+                    Divider()
+                    Toggle("Show Unversioned Files", isOn: Binding(get: { model.showUnversionedFiles }, set: { _ in model.toggleUnversionedFiles() }))
+                    Divider()
                     Menu("Labels") {
                         ForEach(HistoryLabelCommand.allCases, id: \.self) { command in
                             Toggle(command.rawValue, isOn: Binding(get: { model.referenceVisibility.contains(command.flag) }, set: { _ in model.toggleHistoryLabel(command) }))
@@ -1675,7 +1708,6 @@ struct LogDialog: View {
                 }.disabled(model.busy || model.isInvalidated)
                 if !model.selecting && !model.bare {
                     Toggle("Show Working Tree Changes", isOn: $model.showWorkingTree).toggleStyle(.checkbox).onChange(of: model.showWorkingTree) { _ in model.reload() }
-                    Toggle("Show Unversioned Files", isOn: $model.showUnversionedFiles).toggleStyle(.checkbox).onChange(of: model.showUnversionedFiles) { _ in model.updateWorkingFiles() }
                 }
                 if !model.historyPaths.isEmpty {
                     Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).disabled(model.historyWalk.followRenames).onChange(of: model.showWholeProject) { _ in model.reload() }

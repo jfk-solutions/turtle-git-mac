@@ -49,6 +49,28 @@ public struct HistoryReferenceVisibility: OptionSet, Sendable {
     }
 }
 
+public enum HistoryUnrelatedPathMode: Int, Sendable {
+    case all = 0, hide = 1, gray = 2
+    public mutating func toggle(_ mode: Self) { self = self == mode ? .all : mode }
+}
+
+public struct HistoryPathScope: Sendable, Equatable {
+    public let path: String
+    public let isDirectory: Bool
+    public init(path: String, isDirectory: Bool) { self.path = path; self.isDirectory = isDirectory }
+    /// Match FillLogMessageCtrl's literal prefix and directory/gitlink boundary rules.
+    public func contains(_ file: CommitFile) -> Bool {
+        if path.isEmpty || path == "." { return true }
+        let directoryPath = path.hasSuffix("/") ? String(path.dropLast()) : path
+        let prefix = isDirectory ? directoryPath + "/" : path
+        func matches(_ candidate: String) -> Bool {
+            if isDirectory && file.isSubmodule && candidate.utf8.elementsEqual(directoryPath.utf8) { return true }
+            return candidate.utf8.starts(with: prefix.utf8)
+        }
+        return matches(file.path) || ((file.action.hasPrefix("R") || file.action.hasPrefix("C")) && file.oldPath.map(matches) == true)
+    }
+}
+
 public struct HistorySearchFields: OptionSet, Sendable {
     public let rawValue: Int
     public init(rawValue: Int) { self.rawValue = rawValue }
@@ -841,6 +863,22 @@ extension GitRepository {
         let tree = try run(["ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout
         let record = String(decoding: tree, as: UTF8.self)
         return !record.hasPrefix("040000 ") && !record.hasPrefix("160000 ")
+    }
+    public func historyPathScopes(paths: [String], revision: String? = nil, cancellation: OperationCancellation? = nil) throws -> [HistoryPathScope] {
+        guard !paths.isEmpty else { return [] }
+        let bare = try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
+        let pinned = try run(["rev-parse", "--verify", "--quiet", "--end-of-options", (revision ?? "HEAD") + "^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
+        let hash = pinned.text.trimmingCharacters(in: .newlines)
+        return try paths.map { path in
+            try cancellation?.check()
+            var directory = path == "." || path.hasSuffix("/")
+            if !bare, (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[.type] as? FileAttributeType) == .typeDirectory { directory = true }
+            if !directory, pinned.exitCode == 0 {
+                let record = String(decoding: try run(["ls-tree", "-z", hash, "--", path], cancellation: cancellation).stdout, as: UTF8.self)
+                directory = record.hasPrefix("040000 ") || record.hasPrefix("160000 ")
+            }
+            return HistoryPathScope(path: path, isDirectory: directory)
+        }
     }
     /// Full log clipboard details for a pinned commit, including every parent's
     /// changed paths, Git notes and annotated tags. Use native LF line endings.

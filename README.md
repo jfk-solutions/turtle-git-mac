@@ -555,4 +555,8 @@ Log’s View → Labels menu provides per-repository Tags, Local branches, Remot
 branches and Other refs switches. They update label rendering and the
 compressed/labeled graph while preserving reference metadata for actions.
 
+Log’s View menu also offers Hide/Gray Unrelated Changed Paths, with Gray enabled
+by default, and Show Unversioned Files. Historical and working tracked rows
+retain unrelated paths for these controls; status colors now distinguish changes.
+
 See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.

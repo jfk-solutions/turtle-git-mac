@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "136fd07",
+  "previous_goal_turn": "progress: committed Log label controls and graph mask checks",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log View Hide/Gray unrelated paths and unversioned control; complete tracked working details; source status color families",
+  "sha256": {
+    "README.md": "e8a10d6cae122af636a68667a9b6971f50c3c06ca4f1b0e823345de753cf0d07",
+    "Sources/TurtleGitCore/CommitHistory.swift": "802acba9f1962f48f0ef682bc9e7ac28e09a1849f74c520d896a4969fb70563f",
+    "Sources/TurtleGitMac/LogWindow.swift": "feb769953604e6e4074cf1a5c1d0967af2094ec77ee1f95d49e28ebc046505c3",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "6a02622395190525f42928787d3360b22d1dd6fa3eb7de4b44e305b4c13aa8f9",
+    "docs/LOG-PARITY.md": "31d0f69a1954990a3f6d451b0ece71fecba8dce6e2b0ce07800124481d527035",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "bb888242a9923fc1321b0641bfa2746cf3c600507069ee53b3b74f19d7170bb1"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/LogDlg.cpp": "f7f61c888ae379112be47151d62d01255230cdbad2df852dbf26f6928a4e730c",
+    "src/Git/GitStatusListCtrl.cpp": "3e36539a5a969f1164d5a1295c77db2f1b2d5646eae33689ef858f1e49fc2546",
+    "src/Resources/TortoiseProcENG.rc": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6"
+  },
+  "verification": {
+    "core": "All 40 CommitHistoryTests passed on system Git. New real bare/tree scope test also passed on Git 2.37.1, 2.39.5 and bundled 2.55.0. Literal prefix, Unicode byte inequality, directory/submodule boundary, rename/copy origins, mode toggles, bare admin-name collision, gitlink modes and index preservation checked. Full package suite not repeated.",
+    "native": "All four sequential scripts/check-cherry-pick-native.py --menus-only runs passed on Apple Git 2.50.1, Git 2.37.1, 2.39.5 and bundled 2.55.0. Real directory scope and rename out of scope, default Gray and exclusive Hide/Gray/All transitions without reload, source color family/gray precedence model choices, native selection binding hidden-mark pruning and copy refusal, Whole Project bypass, busy/closed guards, working tracked rows retained/grayed and unversioned toggle/exemption, hidden hosted View construction and exact HEAD/index/work preservation checked. Existing common native regressions passed. Initial receiver compile tried a private selection setter; corrected to UI Binding and retained failed log. Production sources frozen during compilation/runtime. Physical gestures and displayed color acceptance not checked.",
+    "builds": [
+      "SwiftPM",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "audits": "Both bundle validators passed, Store --require-git, all 90 original icons and both exact NOTICE comparisons.",
+    "site": "Local site generation passed; unpublished.",
+    "limitations": "Gravatar and View Patch, richer file-filter expressions, unversioned default/preference parity, multi-revision file aggregation, exact configurable status/ref colors and special-ref decoration, physical menu/light-dark/VoiceOver acceptance remain pending. Per-node rollup, loaded-batch/compressed-search gaps, signed Finder/sandbox, Store distribution, complete screenshots/manual and hosted CI/site remain incomplete. Full port incomplete.",
+    "process_audit": "No app or native/menu/provider receiver remained."
+  },
+  "all_sources_manifest_sha256": "cdba43f85de9f3838e75526f64fd38fa26c41cbc1f3698a078fb36609223f1a2",
+  "logs": {
+    "build/qa/log-path-view/2.37.1-core.log": "fa449e7a92f02011f253614dd52ff91134e71b232d14900da81fad978526e043",
+    "build/qa/log-path-view/2.39.5-core.log": "7a14f4fd73f6a848b99d4ea50d4638bcf3f3ada0710086a93c6bd9d68db75fb7",
+    "build/qa/log-path-view/2.55.0-core.log": "00edea733a7dee9d47d8e6e7a470181be02cdfc5bab929b8044d990cba269358",
+    "build/qa/log-path-view/core.log": "2c03420b0cbd4124bfd370afeed181f00537d704d7f82664b35da37a65c638f8",
+    "build/qa/log-path-view/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-path-view/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/log-path-view/native-final.log": "3f59a5519ac1066f32f01fd35f917e9a7784c39d100eff2429acb44681f0f294",
+    "build/qa/log-path-view/native.log": "0e2b86cd44daec50102039fab140995dbda2946a4aeee766287527d1c252b3ad",
+    "build/qa/log-path-view/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-path-view/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-path-view/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
