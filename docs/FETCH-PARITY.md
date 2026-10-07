@@ -32,7 +32,7 @@ remote branch browsing with Unicode names, URL fetch to FETCH_HEAD, shallow dept
 1 then 2, all-remotes updates and invalid destination/depth/refspec requests.
 Two additional Fetch/Rebase tests verify a pinned fetched branch, dirty-worktree
 preservation, replay ancestry and active-session rejection. The current focused
-Pull/Fetch tests passed all 17 checks within the 20-test run that also covers
+Pull/Fetch tests passed all 18 checks within the 21-test run that also covers
 registered-parent metadata. Three added tests exercise submodule branch defaults,
 read-only lookup and fallback, as detailed below.
 
@@ -52,8 +52,9 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
   chooser lists heads only. Full remote settings and their mutation/recovery QA.
 - History deletion, complete settings
   and window-size persistence.
-- Streaming progress/cancellation, interactive credentials, network/SSH and signed
-  sandbox runtime checks. Cancel is disabled while Git runs.
+- Streaming progress output, full progress-window layout, interactive credentials,
+  network/SSH and signed sandbox runtime checks. Transport cancellation is now
+  implemented as detailed below.
 - Native shallow/depth, all-remotes, broader error recovery, keyboard, resize, light appearance
   and accessibility QA; integration tests alone do not establish those UI behaviors.
 - Pull merge options are now native; full interactive rebase recovery remains
@@ -158,3 +159,32 @@ were checked. The user pasteboard was neither read nor modified by these tests.
 Physical pasteboard/radio/keyboard acceptance, complex shell quoting and paths
 with spaces, platform whitespace equivalence, clipboard support in other dialogs,
 history deletion and signed sandbox checks remain pending. Full port incomplete.
+
+
+## Transport cancellation
+
+Cancel and the window close gesture request cancellation during Fetch, merge Pull
+and Fetch-before-Rebase. Controls remain locked until the operation finishes;
+Cancel shows Cancelling… while the owned process group stops. The window stays
+open with its selected inputs and a cancellation result. Idle Cancel closes it.
+A cancelled fetch does not trigger success or open Rebase. A fresh cancellation
+token is created for every invocation. Cancellation does not roll back changes
+Git has already made.
+
+The Dialogs settings page now exposes the source **Confirm to kill running git
+process** preference (`ConfirmKillProcess`, default false). When enabled, Cancel
+asks **The process is still running. / Are you sure to abort?**, with Yes as the
+default, matching the source MB_YESNO prompt. No leaves the transport running; Yes stops it. This adapts
+`CProgressDlg::OnCancel` and `SetDialogs2`; owned POSIX process-group signals
+replace the Windows console/process-tree APIs. The setting is currently consumed
+by Pull/Fetch, rather than every operation in the application.
+
+[Cancellation QA](qa/fetch-cancellation-2026-10-07.json) records pre-cancelled core
+requests and headless native Fetch, Pull and Fetch-before-Rebase models. A real
+wrapper process and its child are stopped while an unrelated process survives;
+No/Yes confirmation, retained inputs, absent success/Rebase callbacks, unchanged
+HEAD/index when stopped before transport, and idle close are checked. A hidden
+settings layout is constructed and closed. These checks do not establish
+physical Cancel/Escape/window-close/sheet interaction, light/dark/accessibility,
+retry acceptance, cancellation after Git mutation, separate progress-window
+layout, streaming output or signed sandbox execution. Full parity remains incomplete.

@@ -45,15 +45,16 @@ public enum FetchRebaseFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func fetchForRebase(_ options: FetchOptions) throws -> FetchRebaseResult {
+    public func fetchForRebase(_ options: FetchOptions, cancellation: OperationCancellation? = nil) throws -> FetchRebaseResult {
+        try cancellation?.check()
         guard !(try rebaseState()).active else { throw FetchRebaseFailure.active }
         guard !options.allRemotes, !options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FetchRebaseFailure.destination }
         // Fetch exactly the selected branch even when ordinary Fetch uses all
         // configured refspecs. FETCH_HEAD then identifies that branch, including
         // remotes whose refspecs do not map to refs/remotes/<name>/<branch>.
         var selected = options; selected.namedRemoteFetchAll = false
-        let output = try fetch(selected)
-        let upstream = try run(["rev-parse", "--verify", "FETCH_HEAD^{commit}"]).text.trimmingCharacters(in: .newlines)
+        let output = try fetch(selected, cancellation: cancellation)
+        let upstream = try run(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         return FetchRebaseResult(output: output, upstream: upstream)
     }
     private func fetchConfig(_ key: String) -> String { ((try? run(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
@@ -98,7 +99,8 @@ extension GitRepository {
             return String(fields[1].dropFirst(11))
         }.sorted()
     }
-    public func fetch(_ options: FetchOptions) throws -> String {
+    public func fetch(_ options: FetchOptions, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         let names = try remoteNames()
         guard !(options.allRemotes && options.arbitraryURL), options.allRemotes ? !names.isEmpty : (!options.remote.isEmpty && !options.remote.contains("\0") && (options.arbitraryURL || names.contains(options.remote))) else { throw FetchFailure.remote }
         if let depth = options.depth, depth <= 0 { throw FetchFailure.depth }
@@ -114,7 +116,7 @@ extension GitRepository {
         if options.prune != .configured { args.append(options.prune == .enabled ? "--prune" : "--no-prune") }
         if options.allRemotes { args.append("--all") }
         else { args += ["--", options.remote]; if useBranch { args.append(branch) } }
-        return try run(args).text
+        return try run(args, cancellation: cancellation).text
     }
 }
 

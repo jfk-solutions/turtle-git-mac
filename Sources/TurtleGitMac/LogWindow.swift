@@ -2061,6 +2061,7 @@ struct LogDialog: View {
 }
 
 struct LogDialogSettings: View {
+    @AppStorage("ConfirmKillProcess") private var confirmKillProcess = false
     @AppStorage("DiffByDoubleClickInLog") private var diffByDoubleClick = false
     @AppStorage("EnableGravatar") private var enableGravatar = false
     @AppStorage("GravatarUrl") private var gravatarURL = LogGravatarRequest.defaultTemplate
@@ -2070,6 +2071,8 @@ struct LogDialogSettings: View {
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     var body: some View {
         Form {
+            Toggle("Confirm to kill running git process", isOn: $confirmKillProcess)
+                .help("When closing a progress dialog with a running git process, ask for confirmation before killing it")
             GroupBox("Log messages") {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("Can double-click in log list to compare with previous revision", isOn: $diffByDoubleClick)

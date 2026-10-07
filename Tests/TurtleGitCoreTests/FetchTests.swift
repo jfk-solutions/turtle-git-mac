@@ -2,6 +2,25 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FetchTests: XCTestCase {
+    func testPreCancelledFetchPullAndRebaseTransportPreserveRepository() async throws {
+        let (root, _, _, consumer, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let index = try Data(contentsOf: consumer.root.appendingPathComponent(".git/index"))
+        let head = try await consumer.run(["rev-parse", "HEAD"]).stdout
+        let token = OperationCancellation(); token.cancel()
+        var options = FetchOptions(); options.remote = "origin"; options.branch = "main"
+        for kind in 0..<3 {
+            do {
+                switch kind {
+                case 0: _ = try await consumer.fetch(options, cancellation: token)
+                case 1: var pull = PullOptions(); pull.fetch = options; _ = try await consumer.pull(pull, cancellation: token)
+                default: _ = try await consumer.fetchForRebase(options, cancellation: token)
+                }
+                XCTFail("Cancelled transport ran")
+            } catch is OperationCancellationFailure { }
+        }
+        let finalHead = try await consumer.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(head, finalHead); XCTAssertEqual(index, try Data(contentsOf: consumer.root.appendingPathComponent(".git/index")))
+    }
     func testClipboardSourceCommandPrefixTruncationAndFieldSplit() {
         let value = FetchClipboardInput.selection("git pull https://example.invalid/repo topic ignored", isPull: true)
         XCTAssertEqual(value?.url, "https://example.invalid/repo"); XCTAssertEqual(value?.branch, "topic")

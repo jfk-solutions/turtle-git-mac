@@ -409,3 +409,8 @@ Pull/Fetch clipboard prefilling adapts AppUtils::GetClipboardLink and
 PullFetchDlg::OnBnClickedRd under the upstream source license. Native Unicode
 pasteboard input replaces Windows clipboard handles; POSIX absolute paths and
 file URLs supplement source schemes/drive paths without shell execution.
+
+Pull/Fetch transport cancellation and its optional ConfirmKillProcess setting
+adapt CProgressDlg::OnCancel and SetDialogs2 under the upstream source license.
+Native owned-process-group cancellation replaces Windows console/process-tree
+APIs, retaining the shared dialog inputs and avoiding unrelated Git processes.

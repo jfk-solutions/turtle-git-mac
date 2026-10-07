@@ -36,7 +36,7 @@ staged/unstaged changes, forced merge commits, No Commit and subsequent completi
 squash staging without a merge parent, diverged ff-only rejection, a true merge
 conflict and Git abort, URL branch selection, configuration precedence, backend rejection of unsupported automatic rebase
 without mutation and invalid flags/refspec input. Native configured Pull uses the
-separate Fetch/Rebase route. The current focused Pull/Fetch tests passed all 17 checks within the 20-test
+separate Fetch/Rebase route. The current focused Pull/Fetch tests passed all 18 checks within the 21-test
 run that also covers registered-parent metadata.
 
 Native QA pulled a real new commit from the disposable documentation remote with
@@ -52,7 +52,7 @@ A missing URL produced an error; Open Working Tree opened the correct status win
 - Full fast-forward choices, post-operation actions and continue/abort recovery.
   Fetch → Rebase routing and configured auto-start are implemented; native
   preserve-merges/configured-mode combinations still need broader QA.
-- Progress/cancellation and full post-operation actions: compare old/new revisions,
+- Streaming progress/separate progress-window layout and full post-operation actions: compare old/new revisions,
   filtered Log, Push, submodule update, stash, reset and unrelated-history retry.
 - Native squash/No Commit/divergence/conflict completion and abort QA; the tests
   prove Git effects but not those full native workflows.
@@ -83,3 +83,9 @@ precedence, literal-dot behavior and remaining acceptance.
 Arbitrary URL now prefills from copied Pull/Fetch text with the shared source
 parser and macOS path/file-URL additions. See FETCH-PARITY.md for the exact rules
 and remaining physical pasteboard acceptance.
+
+
+Transport Cancel now stops the operation's owned process group, optionally asks
+the shared ConfirmKillProcess question and retains the dialog inputs. Cancelled
+configured-rebase Fetch does not open Rebase. See FETCH-PARITY.md for source
+mapping, native evidence and remaining cancellation/progress acceptance.

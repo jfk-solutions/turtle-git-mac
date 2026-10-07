@@ -12,8 +12,21 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: FetchDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational
+            alert.messageText = "The process is still running."
+            alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
     }
     func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard model.transportRunning else { return true }
+        model.cancel(); return false
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class FetchWindowModel: ObservableObject {
@@ -42,6 +55,12 @@ import TurtleGitCore
     @Published var tagsDefault = ""
     @Published var pruneDefault = ""
     @Published var busy = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    private var cancellation: OperationCancellation?
+    var transportRunning: Bool { cancellation != nil }
+    var canCancel: Bool { !busy || transportRunning && !cancelling && !confirmingCancellation }
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var error: String?
     @Published var browsing = false
     @Published var managing = false
@@ -117,6 +136,20 @@ import TurtleGitCore
         if !remotes.contains(options.remote) { options.remote = remotes.first ?? "" }
         remoteChanged()
     }
+    func cancel() {
+        guard busy else { close(); return }
+        guard let token = cancellation, !cancelling, !confirmingCancellation else { return }
+        func stop() { cancelling = true; token.cancel() }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true
+            confirmCancellation { [weak self] proceed in
+                guard let self else { return }
+                self.confirmingCancellation = false
+                guard self.cancellation === token else { return }
+                if proceed { self.cancelling = true; token.cancel() }
+            }
+        } else { stop() }
+    }
     func fetch() {
         guard !busy else { return }
         if options.arbitraryURL {
@@ -134,18 +167,21 @@ import TurtleGitCore
         }
         var pullOptions = PullOptions(); pullOptions.fetch = snapshot; pullOptions.squash = squash; pullOptions.noCommit = noCommit; pullOptions.noFastForward = noFastForward; pullOptions.fastForwardOnly = fastForwardOnly
         branchHistory = FetchDialogHistory.save(options.branch, entries: branchHistory, preferences: preferences, key: "History.PullRemoteBranch", caseSensitive: false)
+        let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
         busy = true
         preferences.set(wantsRebase, forKey: key + ".rebase")
         if isPull { preferences.set(fastForwardOnly, forKey: key + ".ffonly") }
         if !options.arbitraryURL && !options.allRemotes { preferences.set(options.remote, forKey: key + ".remote") }
         Task {
-            defer { busy = false }
+            defer { cancellation = nil; cancelling = false; confirmingCancellation = false; busy = false }
             do {
                 if wantsRebase {
-                    let result = try await repository.fetchForRebase(snapshot)
+                    let result = try await repository.fetchForRebase(snapshot, cancellation: token)
+                    guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                     close(); onFetched(result.output); onRebase(result.upstream, autoStart, keepMerges)
                 } else {
-                    let output = isPull ? try await repository.pull(pullOptions) : try await repository.fetch(snapshot)
+                    let output = isPull ? try await repository.pull(pullOptions, cancellation: token) : try await repository.fetch(snapshot, cancellation: token)
+                    guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                     close(); onFetched(output)
                 }
             } catch { self.error = error.localizedDescription }
@@ -156,6 +192,7 @@ private struct FetchDialog: View {
     @ObservedObject var model: FetchWindowModel
     var body: some View {
         VStack(spacing: 14) {
+            Group {
             GroupBox("Remote") { VStack(spacing: 10) {
                 HStack { PushDestinationRadio(title: "Remote:", selected: !model.options.arbitraryURL) { model.options.arbitraryURL = false; model.launchRebase = model.rebaseRequired }.frame(width: 140)
                     PushRemotePopup(values: (!model.isPull && model.remotes.count > 1 ? ["*"] : []) + (model.remotes.isEmpty ? [""] : model.remotes), selection: Binding(get: { model.options.allRemotes ? "*" : model.options.remote }, set: { model.options.allRemotes = $0 == "*"; if model.options.allRemotes { model.launchRebase = false }; if $0 != "*" { model.options.remote = $0 }; model.remoteChanged() })).disabled(model.options.arbitraryURL)
@@ -178,9 +215,10 @@ private struct FetchDialog: View {
             HStack { Text("SSH uses configured Git credential helpers and SSH agent.").font(.caption).foregroundStyle(.secondary); Spacer(); Button("Manage Remotes") { model.managing = true } }
             Toggle("Launch Rebase After Fetch", isOn: $model.launchRebase).disabled(model.bare || model.options.allRemotes || model.options.arbitraryURL || model.configuredRebase).help("Fetch the selected branch and open its native Rebase plan.")
             if model.rebaseRequired && !model.options.arbitraryURL { Text("Git configuration requires Rebase. Fetch will open and start its native Rebase plan.").font(.caption).foregroundStyle(.secondary) }
+            }.disabled(model.busy)
             Spacer(minLength: 0)
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction); Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-pull.html")!) } }
-        }.padding(16).disabled(model.busy)
+            HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction).disabled(model.busy); Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-pull.html")!) } }
+        }.padding(16)
         .onChange(of: model.options.remote) { _ in model.remoteChanged() }
         .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.managing, onDismiss: { model.reloadRemotes() }) { PushRemoteSettings(onClose: { model.managing = false }, model: model.remoteSettings) }

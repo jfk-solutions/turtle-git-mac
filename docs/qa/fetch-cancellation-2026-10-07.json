@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-07",
+  "completed_date": "2026-10-08",
+  "parent_checkpoint": "af11246a130169d2573a5f0bc04f2553852e7e41",
+  "scope": "Pull/Fetch transport cancellation and optional shared abort confirmation. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/Settings/SetDialogs2.cpp": "67abf27cae395ac4a013856199960db6aac3aee6",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "193b033566cda5ff33b174d5ca74bdf5d75d7bcfc71fe802e751e0689942b8dd",
+    "NOTICE": "23822cd4792f1974e8af05a68656718825d0fdd6e1dfb0b2916f9255c28ef9cc",
+    "Sources/TurtleGitCore/Fetch.swift": "24b877d4f93d24ad34771c82f87753a4b5849df6eecd1163afc3890fca5f57da",
+    "Sources/TurtleGitCore/Pull.swift": "0a8a39936002bd5e24888c01280ed35cf96715d0abef87b1f842a7100750a9bd",
+    "Sources/TurtleGitMac/FetchWindow.swift": "b1dcfc24d944ee7dade0ec5dffc5ab2917be24419c9e5bb6d376fa0fe24d9497",
+    "Sources/TurtleGitMac/LogWindow.swift": "7892b62a1480e48936d81a84f5cc50c02cedca20d4bad6228387209410648732",
+    "Tests/TurtleGitCoreTests/FetchTests.swift": "4ec65c60d045c607cb28b8be179d7cb7f2a77aeb7605a4101c75a9853e2c189d",
+    "docs/FETCH-PARITY.md": "7a272647aab44d74818d1711e2ff8a04ee3e2bfc6df386a3da54cc5497af0ae7",
+    "docs/PULL-PARITY.md": "de3836bd43a469e33b3864b68fa8fb6416b1cd2ee4ba6a7533192eba34c34277",
+    "docs/qa/fetch-cancellation-native-2026-10-07.swift": "e89f3b976e602245ea041712aead459876221ba4993963e028d7bbe8ea620e9a",
+    "docs/upstream-files.csv": "1b42c5bd0f3f588249673a2fa6758b764c4e9b052fb18be42c7ccd4b69d96e3f",
+    "scripts/test-fetch-cancellation.py": "4e6115da09c311237c9dbdb8d81c40830006d0b12219b44f6ee7766500b5cf88"
+  },
+  "all_sources_manifest_sha256": "ed8ec98dafc9958388a06475f75b299ad3832b1c832f058d16126eaad96fc100",
+  "verification": {
+    "core": "All 21 selected tests passed (13 Fetch, 5 Pull, 3 FinderSubmoduleMetadata). New pre-cancelled Fetch/Pull/Fetch-before-Rebase requests reject before transport and preserve exact HEAD/index.",
+    "native": "Headless native model receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0, both initially and after prompt-default alignment. Fetch, Pull and Fetch-before-Rebase stop actual owned wrapper/helper processes. Optional confirmation No leaves transport running; Yes cancels. Inputs retained, no success/Rebase callback, pre-transport HEAD/index unchanged, unrelated process alive, idle Cancel closes. Hidden settings layout created and closed. No physical sheet/window/keyboard acceptance or screenshot evidence.",
+    "iterations": "Source review found MB_YESNO uses default Yes; initial native prompt default No corrected to Yes. Rebuilt Debug and Store and repeated native matrix after this change. No runtime test failure. Focused core not repeated for the native prompt-only correction.",
+    "builds": "Final unsigned Debug and AppStore builds passed; both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icon resources verified; Store --require-git audited 11 universal Git Mach-O files and fixture operations. EditorConfig/IssueRegex audits passed.",
+    "documentation": "Pull/Fetch parity, ProgressDlg and SetDialogs2 source inventory, NOTICE updated. Source-pin inventory regression and seven-column CSV check passed. Local site generated, unpublished.",
+    "ci": "Added native cancellation receiver to macOS workflow. Hosted CI and push remain unverified; authentication unavailable, no retry.",
+    "processes": "All compiler/core/native/audit sessions terminal. No main app launch. Hidden settings windows closed, owned decoy processes terminated by receiver cleanup. Final app/receiver process audit empty. Eight empty owned TransportCancellation QA UUID preference files removed across two native matrices; unrelated preferences retained.",
+    "limitations": "Cancellation does not roll back completed Git mutations. Physical Cancel/Escape/window-close/confirmation sheet/default-button/light-dark/accessibility, retry acceptance, cancellation during/after real Git mutation, separate upstream progress-window layout, streaming output and signed sandbox checks remain pending. Only Pull/Fetch consume ConfirmKillProcess here. Full application/dialog parity, Finder activation, genuine screenshots/full manual, signed distribution/App Store/license clearance and hosted publication remain incomplete."
+  },
+  "logs": {
+    "build/qa/fetch-cancellation/core.log": "962825889773fd245f9ac7c2ed5601dd3f57f99f6bbf3997340e544c8febab83",
+    "build/qa/fetch-cancellation/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/fetch-cancellation/debug-initial.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-cancellation/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-cancellation/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/fetch-cancellation/native-initial.log": "16bf069f9a1894c5e2880ff11812585268323cd3d3760951093bdaae2212e599",
+    "build/qa/fetch-cancellation/native.log": "16bf069f9a1894c5e2880ff11812585268323cd3d3760951093bdaae2212e599",
+    "build/qa/fetch-cancellation/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/fetch-cancellation/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-cancellation/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/fetch-cancellation/store-initial.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/fetch-cancellation/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/fetch-cancellation/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
