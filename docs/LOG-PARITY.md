@@ -1002,7 +1002,7 @@ file, plus Commit for the selected paths, using the original icons. Both read fr
 working status and retain selection/invalidation guards before handing off. Add
 reuses the native Add progress route; Commit reuses the existing scoped Commit
 dialog and now refreshes repository Logs on completion. These commands pass paths,
-not the whole repository. Shift Add as executable/symlink, the remaining file
+not the whole repository. Displayed Shift Add mode menus, the remaining file
 commands and displayed menu/dialog acceptance are still pending.
 
 ## Working-file Revert and index flags
@@ -1126,3 +1126,23 @@ recorded hash and actual child history range, preference-disabled/working/delete
 history, unavailable revisions, missing initialization and exact index preservation.
 Root callbacks are injected. Displayed menus/child windows, event input and signed
 sandbox acceptance remain pending.
+
+## Working-file Shift Add modes
+
+With Shift held, an eligible marked unversioned file now offers Add as Executable
+(+x) and Add as Symlink with the original Add icons. All selected paths are passed
+to direct Add progress, as in GitStatusListCtrl.cpp; ordinary Log Add now also uses
+that direct route, including selected folders. The Explorer/main Add chooser route
+is retained separately. The progress model carries the initial mode through the
+reviewed-path validation into the existing private-index Add engine. Executable
+and symlink modes update Git index entries to 100755 and 120000 without chmod or
+creating a disk link. Selected directories keep their child modes unchanged.
+
+Marked-row eligibility, fresh unversioned status, real file type for Shift modes,
+access and stale revision/file-selection guards precede handoff. Progress completion
+refreshes repository Logs. Alternate mode post-actions are shown only after normal
+Add; Commit remains available after a successful variant Add. Native fixtures run
+real mixed file-mode Add progress, raw blob checks, unchanged regular working-file
+permissions/types, directory/gitlink Add, held-index/pre-cancel refusal and unrelated
+staged/HEAD preservation. Root callbacks are injected. Displayed Shift events,
+progress post-action menus and signed sandbox acceptance remain pending.

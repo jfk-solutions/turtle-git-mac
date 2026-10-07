@@ -1014,6 +1014,91 @@ import TurtleGitCore
     print("Native Log Ignore: name/mask/folder and deleted historical path handoffs, real Ignore model literal rules, refreshed untracked visibility, unchanged HEAD/index/work bytes, busy/bare/selection/invalidation and stale staged-file refusal passed. Root and completion callbacks injected; no windows shown.")
 }
 
+@MainActor func verifyNativeLogAddModes(executable: URL) async throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-add-modes-" + UUID().uuidString)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let repo = GitRepository(root: root, executable: executable)
+    _ = try await repo.run(["init", "--initial-branch=main"])
+    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
+    _ = try await repo.run(["config", "commit.gpgSign", "false"])
+    for path in ["tracked", "unrelated"] { try Data("base\n".utf8).write(to: root.appendingPathComponent(path)) }
+    try await repo.stage(["tracked", "unrelated"]); _ = try await repo.commit(message: "base")
+    let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+    try Data("unrelated staged\n".utf8).write(to: root.appendingPathComponent("unrelated")); try await repo.stage(["unrelated"])
+    let unrelated = try await repo.run(["ls-files", "--stage", "-z", "--", "unrelated"]).stdout
+    try Data("tracked working\n".utf8).write(to: root.appendingPathComponent("tracked")); try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: root.appendingPathComponent("tracked").path)
+    let executablePath = "new :(glob)* 雪\n.sh", linkPath = "link target.txt", executableBytes = Data([0xff, 10]), linkBytes = Data("target file\n".utf8)
+    for (path, bytes) in [(executablePath, executableBytes), (linkPath, linkBytes)] { try bytes.write(to: root.appendingPathComponent(path)); try FileManager.default.setAttributes([.posixPermissions: 0o644], ofItemAtPath: root.appendingPathComponent(path).path) }
+    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    func until(_ condition: () -> Bool, line: UInt = #line) async throws {
+        let deadline = Date().addingTimeInterval(30)
+        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(condition(), "Add modes fixture timeout at \(line): \(log.error ?? "none")")
+    }
+    var requests: [([String], WorkingFileAddMode)] = []
+    log.onWorkingAdd = { requests.append(($0, $1)) }
+    log.showUnversionedFiles = true; log.reload(); try await until { !log.busy }; log.select([""])
+    log.fileTableSelection.wrappedValue = ["tracked"]; precondition(!log.canWorkingAdd(["tracked", executablePath], mode: .executable))
+    log.fileTableSelection.wrappedValue = ["tracked", executablePath]
+    precondition(log.canWorkingAdd(["tracked", executablePath], mode: .executable))
+    log.requestWorkingAdd(["tracked", executablePath], mode: .executable); try await until { !log.busy }
+    precondition(requests.last?.1 == .executable && requests.last?.0 == ["tracked", executablePath])
+    let progress = AddProgressWindowModel(repository: repo, access: nil, paths: requests.last!.0, mode: requests.last!.1)
+    progress.onFinished = { _, ok in precondition(ok); log.requestRepositoryRefresh() }
+    await progress.run(); try await until { !log.busy && log.files.contains { $0.path == executablePath && $0.action != "?" } }
+    for path in ["tracked", executablePath] {
+        let index = try await repo.run(["ls-files", "--stage", "-z", "--", path]).text
+        precondition(index.hasPrefix("100755 "))
+        let type = try FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)
+        precondition(type[.type] as? FileAttributeType == .typeRegular && type[.posixPermissions] as? Int == 0o644)
+    }
+    let executableBlob = try await repo.run(["show", ":" + executablePath]).stdout; precondition(executableBlob == executableBytes)
+    log.requestWorkingAdd([linkPath], mode: .symlink); try await until { !log.busy }
+    precondition(requests.last?.1 == .symlink && requests.last?.0 == [linkPath])
+    let beforeFailure = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    let lock = root.appendingPathComponent(".git/index.lock"); try Data("held\n".utf8).write(to: lock)
+    let failed = AddProgressWindowModel(repository: repo, access: nil, paths: [linkPath], mode: .symlink)
+    await failed.run(); let failedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    precondition(!failed.success && failedIndex == beforeFailure)
+    try FileManager.default.removeItem(at: lock)
+    let cancelled = AddProgressWindowModel(repository: repo, access: nil, paths: [linkPath], mode: .symlink)
+    cancelled.cancel(); await cancelled.run(); let cancelledIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    precondition(cancelled.cancelled && !cancelled.success && cancelledIndex == beforeFailure)
+    let link = AddProgressWindowModel(repository: repo, access: nil, paths: [linkPath], mode: .symlink)
+    link.onFinished = { _, ok in precondition(ok); log.requestRepositoryRefresh() }
+    await link.run(); try await until { !log.busy && log.files.contains { $0.path == linkPath && $0.action != "?" } }
+    let linkIndex = try await repo.run(["ls-files", "--stage", "-z", "--", linkPath]).text, linkBlob = try await repo.run(["show", ":" + linkPath]).stdout
+    let linkType = try FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(linkPath).path)
+    let linkWork = try Data(contentsOf: root.appendingPathComponent(linkPath))
+    precondition(linkIndex.hasPrefix("120000 ") && linkBlob == linkBytes && linkWork == linkBytes && linkType[.type] as? FileAttributeType == .typeRegular && linkType[.posixPermissions] as? Int == 0o644)
+    // A marked folder permits normal direct progress but not Shift mode variants.
+    let nested = root.appendingPathComponent("nested"); try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+    let nestedRepo = GitRepository(root: nested, executable: executable)
+    _ = try await nestedRepo.run(["init", "--initial-branch=main"]); _ = try await nestedRepo.run(["config", "user.name", "Native QA"]); _ = try await nestedRepo.run(["config", "user.email", "native@example.invalid"]); _ = try await nestedRepo.run(["config", "commit.gpgSign", "false"])
+    try Data("nested\n".utf8).write(to: nested.appendingPathComponent("file")); try await nestedRepo.stage(["file"]); _ = try await nestedRepo.commit(message: "nested")
+    log.reload(); try await until { !log.busy }; log.select([""])
+    let folder = log.files.first { $0.path.hasPrefix("nested") }!.id
+    precondition(log.canWorkingAdd([folder]) && !log.canWorkingAdd([folder], mode: .executable) && !log.canWorkingAdd([folder], mode: .symlink))
+    log.requestWorkingAdd([folder]); try await until { !log.busy }; precondition(requests.last?.1 == .normal && requests.last?.0 == [folder])
+    let folderProgress = AddProgressWindowModel(repository: repo, access: nil, paths: [folder])
+    await folderProgress.run(); precondition(folderProgress.success)
+    let folderIndex = try await repo.run(["ls-files", "--stage", "-z", "--", "nested"]).text; precondition(folderIndex.hasPrefix("160000 "))
+    let finalUnrelated = try await repo.run(["ls-files", "--stage", "-z", "--", "unrelated"]).stdout, finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+    precondition(finalUnrelated == unrelated && finalHead == head)
+    let stale = "stale.txt"; try Data("stale\n".utf8).write(to: root.appendingPathComponent(stale))
+    log.reload(); try await until { !log.busy }; log.select([""])
+    let count = requests.count
+    log.busy = true; precondition(!log.canWorkingAdd([stale], mode: .executable)); log.busy = false
+    log.bare = true; precondition(!log.canWorkingAdd([stale], mode: .executable)); log.bare = false
+    try await repo.stage([stale]); log.error = nil; log.requestWorkingAdd([stale], mode: .executable); try await until { !log.busy }
+    precondition(requests.count == count && log.error != nil)
+    _ = try await repo.run(["reset", "--", stale]); log.reload(); try await until { !log.busy }; log.select([""])
+    log.error = nil; log.requestWorkingAdd([stale], mode: .symlink); log.selectedFiles = [stale]; try await until { !log.busy }; precondition(requests.count == count && log.error == nil)
+    log.select([""]); log.requestWorkingAdd([stale], mode: .symlink); log.invalidate(); try await until { !log.busy }; precondition(requests.count == count)
+    print("Native Log Add modes: last-added selection mark, literal mixed executable and symlink direct progress use real 100755/120000 index modes and raw blobs without chmod/disk links, normal folder progress stages gitlink, lock/cancel exact-index preservation, unrelated staged/HEAD preservation, busy/bare/stale-stage/file-selection/closed guards passed. Root callbacks injected; Shift events/post-action menus not activated; no windows shown.")
+}
+
 @MainActor func verifyNativeLogWorkingAddCommit(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-add-commit-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1907,6 +1992,7 @@ import TurtleGitCore
     try await verifyNativeLogSubmodule(executable: repo.executable)
     try await verifyNativeLogDelete(executable: repo.executable)
     try await verifyNativeLogIgnore(executable: repo.executable)
+    try await verifyNativeLogAddModes(executable: repo.executable)
     try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
     try await verifyNativeLogRevertFlags(executable: repo.executable)
     try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))

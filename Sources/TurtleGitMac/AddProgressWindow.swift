@@ -5,8 +5,8 @@ import TurtleGitCore
 @MainActor final class AddProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: AddProgressWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
-        model = AddProgressWindowModel(repository: repository, access: access, paths: paths)
+    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {
+        model = AddProgressWindowModel(repository: repository, access: access, paths: paths, mode: mode)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 800, height: 460), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Add – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 580, height: 330)
@@ -21,6 +21,7 @@ import TurtleGitCore
 @MainActor final class AddProgressWindowModel: ObservableObject {
     let repository: GitRepository
     let paths: [String]
+    let mode: WorkingFileAddMode
     private let access: RepositoryAccessLease?
     private var cancellation = OperationCancellation()
     private var started = false
@@ -32,13 +33,13 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onFinished: (String, Bool) -> Void = { _, _ in }
     var onCommit: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) { self.repository = repository; self.access = access; self.paths = paths }
+    init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) { self.repository = repository; self.access = access; self.paths = paths; self.mode = mode; information = mode.rawValue + "…" }
     func cancel() { guard busy else { return }; cancellation.cancel(); information = "Cancelling…" }
     func run() async {
         guard !started else { return }; started = true
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            let output = try await repository.addReviewedPaths(paths, cancellation: cancellation)
+            let output = try await repository.addReviewedPaths(paths, mode: mode, cancellation: cancellation)
             success = true; information = "\(paths.count) item(s) added." + (output.isEmpty ? "" : "\n" + output)
         } catch { cancelled = cancellation.isCancelled; information = cancelled ? "Cancelled. The index was not replaced." : error.localizedDescription }
         busy = false; onFinished(information, success)
@@ -69,8 +70,10 @@ struct AddProgressView: View {
                         Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) }
                         Menu {
                         Button { model.onCommit() } label: { CommandLabel(title: "Commit…", icon: .commit) }
-                        Button { Task { await model.changeMode(.executable) } } label: { CommandLabel(title: WorkingFileAddMode.executable.rawValue, icon: .add) }
-                        Button { Task { await model.changeMode(.symlink) } } label: { CommandLabel(title: WorkingFileAddMode.symlink.rawValue, icon: .add) }
+                        if model.mode == .normal {
+                            Button { Task { await model.changeMode(.executable) } } label: { CommandLabel(title: WorkingFileAddMode.executable.rawValue, icon: .add) }
+                            Button { Task { await model.changeMode(.symlink) } } label: { CommandLabel(title: WorkingFileAddMode.symlink.rawValue, icon: .add) }
+                        }
                         } label: { Image(systemName: "chevron.down").accessibilityLabel("Add post-actions") }
                         .menuStyle(.borderlessButton).fixedSize()
                     }.disabled(model.busy)

@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "cec56b1",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log Shift Add executable/symlink, marked eligibility, direct selected-path progress including folders and repository Log refresh",
+  "upstream_source": [
+    "src/Git/GitStatusListCtrl.cpp:1721-1733 unversioned marked-file Shift Add menus",
+    "src/Git/GitStatusListCtrl.cpp:2370-2395 direct AddProgressCommand path/mode handoff and refresh",
+    "src/TortoiseProc/ProgressCommands/AddProgressCommand.cpp:101-141 add -f, mode overrides and normal-only alternate post-actions"
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/Add.swift": "2269b9147d93fa0fe71746437037e07f6e373c092916f2a3773831cb712a3c6a",
+    "Sources/TurtleGitMac/AddProgressWindow.swift": "f458fd439daf09d2acc74a04e045f3315260066271ec979888d9d55659bf06a3",
+    "Sources/TurtleGitMac/LogWindow.swift": "516788a32ca094d8b603620fdb14e23fea469affac0f5b27a1922adaef21ebb1",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "b5e9b149a11a29c0a1c50b84a245484c94dedae00c2435a6abf9619a5e0eadb8",
+    "docs/LOG-PARITY.md": "a26abc2cf38bdfb05ea5e6e3716dbf44682269fbb1105e3f91a4f036d4695c31",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "be55ed6eede98f774068ccdca0c848e35eb55be97712f849e0c4431b97b9beaf"
+  },
+  "all_sources_manifest_sha256": "ac1eff37158dc2f59e717fb3def53dde1979c04eade3d9fee0150670eeaef617",
+  "verification": {
+    "core": "All 10 AddTests/WorkingFileAddTests passed. Existing mode engine unchanged; reviewed-path API now forwards an initial mode with normal as default.",
+    "native": {
+      "passed": [
+        "2.50.1 Apple Git-155",
+        "2.37.1",
+        "2.39.5",
+        "2.55.0"
+      ],
+      "coverage": "Real selection binding marks unversioned file added after tracked row. Selected literal mixed paths use actual AddProgressWindowModel initial executable mode, setting both index entries 100755 while preserving regular disk type/0644 permissions and raw invalid-UTF8 blob. Initial symlink mode sets 120000 with exact blob while disk remains a regular unchanged file. Held-index and pre-cancel initial-mode progress leave exact real index unchanged. Directory mark suppresses mode variants; normal direct directory progress stages embedded repository as gitlink. HEAD and unrelated staged entry preserved. Busy/bare/external-staging/file-selection/invalidation guards. Existing focused fixtures pass. Root and completion callbacks injected; no windows shown."
+    },
+    "builds": [
+      "SwiftPM test build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed, including 90 original icons and Store --require-git.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app or native/menu receiver remained after matrix.",
+    "limitations": "Physical Shift/mouse/keyboard events, displayed context menu/progress post-actions, Root direct progress window and actual repository-wide completion wiring compiled/source-inspected, not activated. Fresh-file-to-directory race, ignored-copy marked eligibility and signed sandbox paths unverified in new route. Native fixture executes ordinary directory/gitlink Add; mixed directory+file variant behavior retained from existing engine tests. GitHub CI/publication unverified. Full port incomplete."
+  },
+  "logs": {
+    "build/qa/log-add-modes/core.log": "fa67f9289983017467820fe4d9a7bbb6ee6bb76eff919c233104df7560b1ed89",
+    "build/qa/log-add-modes/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-add-modes/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-add-modes/native.log": "08705a244a89e85396b20a313e5c168035d852a388882e264cf698e14b57907b",
+    "build/qa/log-add-modes/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-add-modes/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-add-modes/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  },
+  "remaining": "Other file/repository commands, exact dialog/layout/input/selection-mark parity, LFS integrations, Finder activation, screenshots/publication and signed App Store acceptance."
+}

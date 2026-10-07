@@ -615,10 +615,11 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription }
         }
     }
-    private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
-        let id = UUID(), controller = AddProgressWindowController(repository: repository, access: access, paths: paths)
+    private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {
+        let id = UUID(), controller = AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode)
         controller.onClosed = { [weak self] in self?.addProgressWindows.removeValue(forKey: id) }
         controller.model.onFinished = { [weak self] text, _ in
+            self?.refreshRepositoryLogs(repository.root)
             self?.output = text
             if self?.root?.path == repository.root.path { Task { await self?.refresh() } }
         }
@@ -984,6 +985,9 @@ import TurtleGitCore
             if action == .add { self?.showAdd(repository: repository, access: access, paths: paths) }
             else if action == .commit { self?.showCommitDialog(repository: repository, access: access, paths: paths) }
             else if action == .revert { self?.showRevert(repository: repository, access: access, paths: paths) }
+        }
+        controller.model.onWorkingAdd = { [weak self] paths, mode in
+            self?.showAddProgress(repository: repository, access: access, paths: paths, mode: mode)
         }
         controller.model.onIgnoreFiles = { [weak self] action, paths in
             self?.showIgnore(repository: repository, access: access, paths: paths, action: action)

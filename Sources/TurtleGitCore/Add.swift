@@ -56,7 +56,7 @@ extension GitRepository {
         return AddDialogSelection(entries: rows.values.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }, initiallyChecked: checked)
     }
     /// Original CLI AddProgressCommand uses add -f for the explicitly reviewed list.
-    public func addReviewedPaths(_ paths: [String], cancellation: OperationCancellation? = nil) async throws -> String {
+    public func addReviewedPaths(_ paths: [String], mode: WorkingFileAddMode = .normal, cancellation: OperationCancellation? = nil) async throws -> String {
         try cancellation?.check()
         guard !paths.isEmpty, Set(paths).count == paths.count, try !isBare() else { throw AddFailure.selection }
         var parents = Set<String>()
@@ -68,7 +68,7 @@ extension GitRepository {
             let owner = try await parent.discoverRoot()
             guard owner.path == root.path else { throw AddFailure.outsideRepository }
         }
-        try addWorkingFiles(paths: paths, cancellation: cancellation)
+        try addWorkingFiles(paths: paths, mode: mode, cancellation: cancellation)
         return ""
     }
 }

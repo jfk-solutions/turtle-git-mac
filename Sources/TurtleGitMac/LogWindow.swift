@@ -1361,16 +1361,46 @@ struct LogCommandRequest: Identifiable {
         if selectedWorkingTree, let flags = workingIndexFiles.first(where: { $0.id == file.path }), flags.assumeUnchanged || flags.skipWorktree { return flags.status }
         return file.status
     }
+    var onWorkingAdd: (([String], WorkingFileAddMode) -> Void)?
+    func canWorkingAdd(_ ids: Set<String>, mode: WorkingFileAddMode = .normal) -> Bool {
+        guard !busy, !isInvalidated, !bare, selectedWorkingTree,
+              onWorkingAdd != nil || mode == .normal && onWorkingFiles != nil,
+              let mark = markedFile(ids), mark.action == "?" || workingFlagMark(ids)?.entry.hasUnversionedCopy == true else { return false }
+        if mode == .normal { return true }
+        guard !mark.isSubmodule, let type = try? FileManager.default.attributesOfItem(atPath: repository.root.appendingPathComponent(mark.path).path)[.type] as? FileAttributeType else { return false }
+        return type != .typeDirectory
+    }
+    func requestWorkingAdd(_ ids: Set<String>, mode: WorkingFileAddMode = .normal) {
+        guard canWorkingAdd(ids, mode: mode), let mark = markedFile(ids) else { return }
+        let paths = visibleFiles.filter { ids.contains($0.id) }.map(\.path)
+        let request = generation, selection = selected, fileSelection = selectedFiles
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
+                guard let fresh = try await repository.workingTreeHistory() else { throw RevisionComparisonFailure.selection }
+                let available = fresh.files + fresh.unversioned
+                guard Set(paths).isSubset(of: Set(available.map(\.path))), fresh.unversioned.contains(where: { $0.path == mark.path }) else { throw RevisionComparisonFailure.selection }
+                if mode != .normal, try await !repository.addSelectionIsFiles([mark.path]) { throw RevisionComparisonFailure.selection }
+                guard request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
+                busy = false
+                if let onWorkingAdd { onWorkingAdd(paths, mode) }
+                else if mode == .normal { onWorkingFiles?(.add, paths) }
+            } catch { if request == generation, selection == selected, fileSelection == selectedFiles, !isInvalidated { self.error = error.localizedDescription } }
+        }
+    }
     func canWorkingFiles(_ action: RepositoryAction, ids: Set<String>) -> Bool {
+        if action == .add { return canWorkingAdd(ids) }
         guard !busy, !isInvalidated, !bare, selectedWorkingTree, onWorkingFiles != nil else { return false }
         let chosen = visibleFiles.filter { ids.contains($0.id) }
         guard !chosen.isEmpty else { return false }
-        if action == .add { return chosen.contains { $0.action == "?" } }
         if action == .revert { return chosen.contains { $0.action != "?" } }
         if action == .commit, let mark = workingFlagMark(ids), mark.assumeUnchanged || mark.skipWorktree { return false }
         return action == .commit
     }
     func requestWorkingFiles(_ action: RepositoryAction, ids: Set<String>) {
+        if action == .add { requestWorkingAdd(ids); return }
         guard canWorkingFiles(action, ids: ids), let onWorkingFiles else { return }
         let paths = visibleFiles.filter { ids.contains($0.id) && (action != .revert || $0.action != "?") }.map(\.path)
         let request = generation, selection = selected
@@ -1381,7 +1411,7 @@ struct LogCommandRequest: Identifiable {
                 for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
                 guard let fresh = try await repository.workingTreeHistory() else { throw RevisionComparisonFailure.selection }
                 let available = fresh.files + fresh.unversioned
-                guard Set(paths).isSubset(of: Set(available.map(\.path))), action != .add || available.contains(where: { paths.contains($0.path) && $0.action == "?" }) else { throw RevisionComparisonFailure.selection }
+                guard Set(paths).isSubset(of: Set(available.map(\.path))) else { throw RevisionComparisonFailure.selection }
                 guard request == generation, selection == selected, !isInvalidated else { return }
                 busy = false; onWorkingFiles(action, paths)
             } catch { if request == generation, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
@@ -1627,8 +1657,15 @@ struct LogDialog: View {
     }
     @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
         if model.selectedWorkingTree {
-            if model.visibleFiles.contains(where: { ids.contains($0.id) && $0.action == "?" }) {
+            if model.markedFile(ids)?.action == "?" || model.workingFlagMark(ids)?.entry.hasUnversionedCopy == true {
                 Button { model.requestWorkingFiles(.add, ids: ids) } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canWorkingFiles(.add, ids: ids))
+                if NSEvent.modifierFlags.contains(.shift) {
+                    ForEach([WorkingFileAddMode.executable, .symlink], id: \.self) { mode in
+                        if model.canWorkingAdd(ids, mode: mode) {
+                            Button { model.requestWorkingAdd(ids, mode: mode) } label: { CommandLabel(title: mode.rawValue, icon: .add) }
+                        }
+                    }
+                }
             }
             Button { model.requestWorkingFiles(.commit, ids: ids) } label: { CommandLabel(title: "Commit…", icon: .commit) }.disabled(!model.canWorkingFiles(.commit, ids: ids))
             if model.visibleFiles.contains(where: { ids.contains($0.id) && $0.action != "?" }) {
