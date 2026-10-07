@@ -1360,5 +1360,42 @@ snapshots, two-entry history and a real ReCommit. Hidden settings layout is not
 physical control acceptance. Displayed checkbox/stepper input, keyboard and
 VoiceOver, scope/missing combinations involving renames, full replay selection,
 completion timeout UI changes and signed sandbox acceptance remain pending.
-The source Strip commented lines setting and the remaining Dialogs 2 controls
-are still outstanding; this does not establish full Commit parity.
+The remaining Dialogs 2 controls are still outstanding; this does not establish
+full Commit parity. Comment stripping is described below.
+
+## Commit-message file formatting and comment stripping
+
+Settings → Commit now includes **Strip lines starting with "#" in commit
+message**, off by default. The shared message-file formatter follows
+`CAppUtils::SaveCommitUnicodeFile`. When enabled it reads `core.commentchar`,
+defaults an absent/empty value to `#`, and removes lines starting with that exact
+UTF-16 prefix. Indented later lines remain. The pinned source treats `auto` as
+a literal prefix; this port retains that behavior rather than interpreting it as
+Git's automatic comment-character selection.
+
+The existing Advanced **SanitizeCommitMsg** option now controls the formatter,
+on by default. It trims outer ASCII spaces/CR/LF from the draft (not tabs), trims
+trailing spaces/CR from each output line, collapses runs of blank lines to one and
+drops trailing blank output lines. With sanitization disabled, line endings and
+trailing spaces/CR are still processed as source does, but blank lines are kept.
+Each written line ends in LF. Ordinary comments remain when stripping is off.
+Git's configured final cleanup can independently alter the supplied text.
+
+The dialog and Recent messages retain the outer-trimmed draft, including stripped
+comments; Git receives the separately formatted contents. Commit formats after
+its preflight prompts, before calling the existing selected/full-index engines.
+Rebase edit, squash and checked-conflict continuation consume the same formatter.
+Comment stripping also bypasses the source conflict-hint warning because those
+comment lines are being removed. The existing Core APIs remain explicit and do
+not read global app preferences themselves.
+
+[QA evidence](qa/commit-message-file-2026-10-07.json) covers exact formatted bytes,
+ordinal Unicode prefix comparison, custom prefix configuration and read-only
+preparation. Native actual commits with `commit.cleanup=verbatim` verify default
+comments, enabled/custom stripping, sanitization on/off, retained draft/history
+and stripped-empty refusal. A real Rebase edit pause verifies continued message
+bytes and unchanged file contents. Programmatic model and hidden settings layout
+are not displayed checkbox or physical keyboard evidence. Non-UTF-8 commit
+encoding, full NUL/tab-only validation, other SaveCommitUnicodeFile callers,
+complete squash/checked-conflict combinations, displayed controls/VoiceOver and
+signed sandbox execution remain pending. The full port remains incomplete.

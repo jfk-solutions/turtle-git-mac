@@ -80,3 +80,11 @@ buttons, window reopening/closing, cross-tab lifecycle, repainting an open
 Worktree List, light/dark screenshots, source locale digits and signed acceptance
 remain unverified. Full settings navigation and remaining consumers remain part
 of the full-app goal. See [verification record](qa/advanced-settings-2026-10-06.json).
+
+SanitizeCommitMsg is now consumed by the shared Commit/Rebase message-file
+formatter, using the source default-on ASCII trimming and blank-line rules.
+Native commits with verbatim Git cleanup verify that disabling it preserves
+blank lines while retaining source per-line trailing-space/CR trimming. See
+[message formatting](COMMIT-PARITY.md#commit-message-file-formatting-and-comment-stripping)
+and [QA record](qa/commit-message-file-2026-10-07.json). Other consumers and full
+settings acceptance remain incomplete.

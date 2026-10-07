@@ -376,3 +376,9 @@ Commit selection defaults and the Commit settings controls adapt CommitCommand,
 CommitDlg, GitStatusListCtrl and Settings/SetDialogs2 under the upstream source
 license. macOS preferences replace the source registry; explicit file selections
 retain the source exception to automatic selection and missing-file exclusion.
+
+Commit-message file formatting, comment stripping, outer draft trimming and
+conflict-hint exemption adapt AppUtils::SaveCommitUnicodeFile and
+MessageContainsConflictHints under the upstream source license. The native
+Commit and Rebase models consume the shared formatter; Git retains its own
+configured final cleanup and commit encoding behavior.

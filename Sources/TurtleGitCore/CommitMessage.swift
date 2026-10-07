@@ -6,9 +6,49 @@ public struct CommitMessageSeed: Sendable {
     public let warnings: [String]
 }
 
+/// Text retained by the dialog/history and text actually passed to Git differ
+/// in upstream SaveCommitUnicodeFile: only outer trimming mutates the draft.
+public struct CommitMessageFile: Equatable, Sendable {
+    public let draft: String
+    public let contents: String
+
+    public static func format(_ message: String, stripComments: Bool = false, sanitize: Bool = true, commentPrefix: String = "#") -> Self {
+        let draft = sanitize ? message.trimmingCharacters(in: CharacterSet(charactersIn: " \r\n")) : message
+        let prefix = commentPrefix.isEmpty ? "#" : commentPrefix
+        guard !draft.isEmpty else { return Self(draft: draft, contents: "") }
+        var lines = draft.components(separatedBy: "\n")
+        if draft.hasSuffix("\n") { lines.removeLast() }
+        var output = "", emptyLines = 0
+        for raw in lines {
+            // CStringUtils::StartsWith compares the original UTF-16 units, before
+            // trimming the line. Leading indentation within later lines is retained.
+            if stripComments && raw.utf16.starts(with: prefix.utf16) { continue }
+            var line = raw
+            while let last = line.unicodeScalars.last, last.value == 32 || last.value == 13 { line.unicodeScalars.removeLast() }
+            if sanitize {
+                if line.isEmpty { emptyLines += 1; continue }
+                if emptyLines != 0 { output += "\n" }
+                emptyLines = 0
+            }
+            output += line + "\n"
+        }
+        return Self(draft: draft, contents: output)
+    }
+}
+
 extension GitRepository {
+    public func prepareCommitMessageFile(_ message: String, stripComments: Bool = false, sanitize: Bool = true) throws -> CommitMessageFile {
+        var prefix = "#"
+        if stripComments {
+            do { prefix = try run(["config", "--get", "core.commentchar"]).text.trimmingCharacters(in: .newlines) }
+            catch let failure as GitFailure where failure.code == 1 { }
+        }
+        return CommitMessageFile.format(message, stripComments: stripComments, sanitize: sanitize, commentPrefix: prefix)
+    }
+
     /// Mirrors upstream AppUtils' conflict hint detection and cleanup exemptions.
-    public func rebaseMessageContainsConflictHints(_ message: String) throws -> Bool {
+    public func rebaseMessageContainsConflictHints(_ message: String, stripComments: Bool = false) throws -> Bool {
+        if stripComments { return false }
         func value(_ key: String) throws -> String {
             do { return try run(["config", "--get", key]).text.trimmingCharacters(in: .newlines) }
             catch let failure as GitFailure where failure.code == 1 { return "" }

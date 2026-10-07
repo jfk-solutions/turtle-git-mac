@@ -173,6 +173,7 @@ private final class MessageTextView: NSTextView {
 }
 
 struct CommitEditorSettings: View {
+    @AppStorage("StripCommentedLines") private var stripComments = false
     @AppStorage("SelectFilesForCommit") private var selectFiles = true
     @AppStorage("AutoselectMissingFiles") private var noMissing = false
     @AppStorage("Commit.MaxHistoryItems") private var historyLimit = 25
@@ -189,6 +190,7 @@ struct CommitEditorSettings: View {
             Toggle("Use auto-completion of file paths and keywords", isOn: $autocompletion)
             Stepper("Timeout in seconds to stop the auto-completion parsing: \(parseTimeout)", value: $parseTimeout, in: 1...100).disabled(!autocompletion)
             Stepper("Max. items to keep in the log message history: \(historyLimit)", value: $historyLimit, in: 1...100)
+            Toggle("Strip lines starting with \"#\" in commit message", isOn: $stripComments)
             Toggle("Select items automatically", isOn: $selectFiles)
             Toggle("Do not auto-select \"missing\" files (deleted, but unstaged)", isOn: $noMissing)
             Stepper("Complete after \(completionMinimum) characters", value: $completionMinimum, in: 1...100).disabled(!autocompletion)

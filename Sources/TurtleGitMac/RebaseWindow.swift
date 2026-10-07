@@ -91,6 +91,7 @@ import TurtleGitCore
 @MainActor final class RebaseWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    private let messageDefaults: UserDefaults
     var repositoryAccess: RepositoryAccessLease? { access }
     @Published var options = RebaseOptions()
     @Published var ontoEnabled = false
@@ -261,7 +262,7 @@ import TurtleGitCore
         default: return "\(plan?.entries.count ?? 0) commits in the \(operationTitle.lowercased()) plan"
         }
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, messageDefaults: UserDefaults = .standard) { self.repository = repository; self.access = access; self.messageDefaults = messageDefaults }
     var revisionMenuAvailable: Bool { !busy && !selectingSplit && !pickingCommits && !revisionMenuLog.busy && !revisionMenuLog.loadingNote && !revisionMenuLog.savingNote && !revisionMenuLog.copyingDetails }
     func revisionMenuRows(_ ids: Set<String>) -> [RebaseEntry] { entries.filter { ids.contains($0.id) } }
     @discardableResult func prepareRevisionMenu(_ ids: Set<String>) -> LogWindowModel? {
@@ -500,8 +501,10 @@ import TurtleGitCore
                 case "abort": result = try await repository.abortRebase()
                 case "skip": result = try await repository.skipRebase()
                 default:
-                    let text = amendMessage, paths = checkedConflicts, head = conflictHead
-                    if fileRecovery, state?.split == nil, !UserDefaults.standard.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(text) {
+                    let rawText = amendMessage, paths = checkedConflicts, head = conflictHead
+                    let stripComments = messageDefaults.bool(forKey: "StripCommentedLines")
+                    let text = try await repository.prepareCommitMessageFile(rawText, stripComments: stripComments, sanitize: messageDefaults.object(forKey: "SanitizeCommitMsg") as? Bool ?? true).contents
+                    if fileRecovery, state?.split == nil, !UserDefaults.standard.bool(forKey: "CommitMessageContainsConflictHint"), try await repository.rebaseMessageContainsConflictHints(rawText, stripComments: stripComments) {
                         guard await confirmConflictHints() else { tab = 1; return }
                     }
                     if state?.squashMessage?.skipBaseHead != nil { result = try await repository.continueRebase() }
@@ -517,7 +520,7 @@ import TurtleGitCore
                         if empty, !(try await repository.rebaseConflictSelectionIsEmpty(paths: paths, expected: captured, expectedHead: head)) { throw RebaseFailure.changed }
                         if choice == .skip { skippedID = state?.stoppedEntryID; result = try await repository.skipRebase() }
                         else { result = try await repository.commitRebaseConflictSelection(message: text, paths: paths, expected: captured, expectedHead: head, allowEmpty: empty) }
-                    } else { result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : amendMessage, editMessage: state?.isEditPause == true ? amendMessage : nil) }
+                    } else { result = try await repository.continueRebase(squashMessage: state?.squashMessage == nil ? nil : text, editMessage: state?.isEditPause == true ? text : nil) }
                 }
                 output += result.output + "\n"; state = result.state; finished = result.exitCode == 0 && !result.state.active; completedSuccessfully = finished && action != "abort"; completion = action == "abort" ? "\(operationTitle) aborted" : "\(operationTitle) finished"
                 if result.exitCode == 0, let skippedID { replayRows = replayRows.map { var row = $0; if row.id == skippedID { row.action = .skip }; return row } }

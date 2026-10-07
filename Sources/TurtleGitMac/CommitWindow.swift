@@ -827,12 +827,14 @@ import UniformTypeIdentifiers
                         }
                     }
                 }
+                let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize: dialogDefaults.object(forKey: "SanitizeCommitMsg") as? Bool ?? true)
+                text = written.contents; message = written.draft
                 let output: String
                 commitAttempted = true
                 if let replaySplit { output = try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit) }
                 else if staging { output = try await repository.commitIndex(message: text, options: options) }
                 else { output = try await repository.commitSelected(message: text, paths: paths, options: options) }
-                messageHistory?.add(text)
+                messageHistory?.add(written.draft)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 onCommitted(output)
                 do { try await restoreSavedCopies(Set(restoreCopies.keys)) }

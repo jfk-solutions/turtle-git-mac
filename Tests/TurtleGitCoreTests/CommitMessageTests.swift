@@ -2,6 +2,45 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitMessageTests: XCTestCase {
+    func testMessageFileFormattingMatchesSourceWhitespaceAndDraftMutation() {
+        let raw = " \r\nTitle   \r\n\r\n\r\nBody \t \r\n\r\n "
+        let result = CommitMessageFile.format(raw)
+        XCTAssertEqual(result.draft, "Title   \r\n\r\n\r\nBody \t")
+        XCTAssertEqual(result.contents, "Title\n\nBody \t\n")
+        XCTAssertEqual(CommitMessageFile.format("a\n\n").contents, "a\n")
+        XCTAssertEqual(CommitMessageFile.format("a\n\n", sanitize: false).contents, "a\n\n")
+        XCTAssertEqual(CommitMessageFile.format(" \n", sanitize: false).contents, "\n")
+        XCTAssertEqual(CommitMessageFile.format("a\n ", sanitize: false).contents, "a\n\n")
+        XCTAssertEqual(CommitMessageFile.format("\t", sanitize: true).contents, "\t\n")
+        XCTAssertEqual(CommitMessageFile.format("\n\n").contents, "")
+        XCTAssertEqual(CommitMessageFile.format("").contents, "")
+        XCTAssertEqual(CommitMessageFile.format("雪\u{00A0}  ").contents, "雪\u{00A0}\n")
+    }
+    func testMessageFileCommentPrefixOrderAndOrdinalUTF16() {
+        let raw = " # first\nTitle\n # indented\n# hidden\n\t# tab\nBody\n"
+        let result = CommitMessageFile.format(raw, stripComments: true)
+        XCTAssertEqual(result.contents, "Title\n # indented\n\t# tab\nBody\n")
+        XCTAssertTrue(result.draft.contains("# hidden"), "History draft must retain stripped comments")
+        XCTAssertEqual(CommitMessageFile.format("Title\n# keep", stripComments: false).contents, "Title\n# keep\n")
+        XCTAssertEqual(CommitMessageFile.format("Title\n; drop\n# keep", stripComments: true, commentPrefix: ";").contents, "Title\n# keep\n")
+        XCTAssertEqual(CommitMessageFile.format("Title\n## drop\n# keep", stripComments: true, commentPrefix: "##").contents, "Title\n# keep\n")
+        XCTAssertEqual(CommitMessageFile.format("# only", stripComments: true, commentPrefix: "").contents, "")
+        XCTAssertEqual(CommitMessageFile.format("auto drop\n# keep", stripComments: true, commentPrefix: "auto").contents, "# keep\n", "Upstream treats auto as a literal prefix")
+        let ordinal = CommitMessageFile.format("e\u{0301} keep\né drop", stripComments: true, commentPrefix: "é").contents
+        XCTAssertEqual(Data(ordinal.utf8), Data("e\u{0301} keep\n".utf8))
+    }
+    func testConfiguredCommentPrefixAndConflictHintExemptionAreReadOnly() async throws {
+        let (root, repo) = try await CommitSelectionTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["config", "core.commentchar", ";"])
+        let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        let result = try await repo.prepareCommitMessageFile("Title\n; drop\n# retain", stripComments: true)
+        XCTAssertEqual(result.contents, "Title\n# retain\n")
+        let exempt = try await repo.rebaseMessageContainsConflictHints("Title\n; Conflicts:\n;\tfile", stripComments: true)
+        XCTAssertFalse(exempt)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), config)
+    }
+
     func testTemplateAndOperationMessagesAppendWithoutChangingRepository() async throws {
         let helper = CommitSelectionTests(), (root, repo) = try await helper.fixture()
         defer { try? FileManager.default.removeItem(at: root) }

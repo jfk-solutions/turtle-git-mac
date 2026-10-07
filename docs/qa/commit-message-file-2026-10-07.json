@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "ecfe4684e722d4c21029648ac6cb9ac2f828b209",
+  "previous_goal_turn": "Progress: Commit automatic-selection/history settings checkpoint ecfe468 committed.",
+  "scope": "Shared SaveCommitUnicodeFile text formatting and conflict-hint stripping exemption, default-off comment checkbox, default-on SanitizeCommitMsg consumption in Commit/Rebase. Full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/TortoiseProc/RebaseDlg.cpp": "92f8f3d666bcc43a83b311e6e35d84feb895be05",
+    "src/TortoiseProc/Settings/SetDialogs2.cpp": "67abf27cae395ac4a013856199960db6aac3aee6",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "6a67960874a7ffca694cde66f7cd0008c223f2d64171de01144e6a652cd32cee",
+    "NOTICE": "263893fb532ab08a09edba4d127cfd6d2f339d28662bf5c435f67f0b3dc7634d",
+    "Sources/TurtleGitCore/CommitMessage.swift": "dd4a7a6501a853036c74f2a79533631a08bb8a1b5a7ca606496e69f479d35c52",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "2bb9faf60d637dc69c6f4553a80e4e29e964c95e06f09a9f7d0f078546beb0d4",
+    "Sources/TurtleGitMac/CommitWindow.swift": "4ad05fbfe34df26b128c6334a5f6abb199e220c7b12e448f0b81119493c9474a",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "81849c147b3c41d829bc3dcb8e87e1714c798d66d639bc33f8a72b589fcb5e5e",
+    "Tests/TurtleGitCoreTests/CommitMessageTests.swift": "fca75733086a74049386a4d14c74addf44ec4a56ea5b63e6fbf7511af2180f42",
+    "docs/ADVANCED-SETTINGS-PARITY.md": "a6f1cc1cb046d6e5cf1f959d12a584f70133c48b6ab6ae86fe2ef4d8a7518e25",
+    "docs/COMMIT-PARITY.md": "31bc9970e949d46c7a8e8d5da7d63e88aadcdfdf5ee54ed786a0f70d6661199b",
+    "docs/qa/commit-message-file-native-2026-10-07.swift": "85991a22791bbee7c5f4d912a92f6045add38fd08520a2028d07050b5ca75fd9",
+    "docs/upstream-controls.csv": "0bd281bd74e907164fffbba478ba988adb837c1a32657e8f907f206f6b01379f",
+    "docs/upstream-files.csv": "d9c9be3154f8b4f2e31f4f7dd0f7272bb56ae5e7ca0e41a84e86e53b991e995e",
+    "scripts/test-commit-message-file.py": "caac5d653c1e9222ad9764b2a19c83061f46a0301f1f4b87e8c601bc98f28d89"
+  },
+  "all_sources_manifest_sha256": "32f9aa6f9dfaf14ce64fdcec7f47758bd15e31701745310c43b1324ff22ec1c0",
+  "verification": {
+    "core": "All 16 selected CommitMessage/Rebase conflict/AdvancedSettings/CommitMessageHistory tests passed. New tests cover separate draft/output mutation, ASCII outer/per-line trimming, blank-line/trailing-LF rules with sanitize on/off, tabs and NBSP preservation, default/custom/multichar/auto-as-literal prefixes, leading indentation order, UTF-16 ordinal comparison (UTF-8 byte assertion avoids canonical equivalence), configured prefix read without config mutation and strip-enabled conflict-hint exemption.",
+    "native": "Final receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Actual native Commit model commits and cat-file raw bodies under commit.cleanup=verbatim prove default comments, live flag changes, custom semicolon stripping, sanitize on/off, retained source draft/history, and comment-only refusal with unchanged index/HEAD/history. Real Rebase force/edit pause continued through native model with stripped custom comment, preserved ordinary hash-comment and unchanged edited file bytes. Owned settings window hosted/layout/closed without display. These are model/Git/hidden layout checks, not physical checkbox/keyboard/screenshot evidence.",
+    "initial_failure": "First native receiver compilation used forceRebase instead of the existing RebaseOptions.force property. Corrected receiver; final four-Git matrix passed. No runtime had launched or production changes were needed for that correction.",
+    "builds": "Unsigned Debug and AppStore builds passed. Both bundle validators and exact bundled NOTICE comparisons passed with all 96 original icon resources. Store --require-git verified 11 universal Git Mach-O files and fixture operations; EditorConfig and IssueRegex audits passed.",
+    "ci": "Added native Commit/Rebase message-file receiver to macOS workflow. Hosted CI and publication unverified; no authentication/push retry.",
+    "documentation": "Updated Commit/Advanced settings parity and control/file inventory; local site generated, unpublished.",
+    "processes": "All compilers/receivers terminal, owned hidden settings windows closed, no main GUI app launched. Headless rebase-editor command completed. Final app/receiver process audit empty. Private preference domains cleared and four empty owned MessageFile QA UUID plists removed; unrelated preferences retained.",
+    "limitations": "Non-UTF-8 commit encoding, full NUL/tab-only validation and other SaveCommitUnicodeFile callers remain unported/unverified. Complete squash/checked-conflict/replay combinations, displayed controls/keyboard/VoiceOver and signed sandbox acceptance pending. Full application/dialog parity, Finder activation, genuine screenshots/full manual, signed release/App Store/license clearance and hosted site remain incomplete."
+  },
+  "logs": {
+    "build/qa/commit-message-file/core.log": "dcac56cab8fe511b5bb994ba73d697dadf3fd7addeee8c5142720870dd22aa64",
+    "build/qa/commit-message-file/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/commit-message-file/debug.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/commit-message-file/native-final.log": "08a26390de3d44d61f720c4410978fbb1dadbbd5c309d19f82d9b6a36689e107",
+    "build/qa/commit-message-file/native.log": "2d55b97a824689ca88cba5e4f5886b628ab86fcf67039ce1aff7429dda875ada",
+    "build/qa/commit-message-file/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-message-file/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/commit-message-file/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/commit-message-file/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
