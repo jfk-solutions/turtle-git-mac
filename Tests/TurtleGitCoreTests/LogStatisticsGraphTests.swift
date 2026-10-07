@@ -66,4 +66,15 @@ final class LogStatisticsGraphTests: XCTestCase {
         XCTAssertEqual(empty.yAxisTicks(style: .bar), [1])
     }
 
+    func testPaletteMatchesPinnedCppReferenceIncludingHighAuthorCounts() throws {
+        struct Reference: Decodable { let count: Int; let colors: [[Int]] }
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let reference = try JSONDecoder().decode([Reference].self, from: Data(contentsOf: root.appendingPathComponent("docs/qa/statistics-palette-reference-2026-10-07.json")))
+        for item in reference {
+            let authors = Dictionary(uniqueKeysWithValues: (0..<item.count).map { (String(format: "A%04d", $0), 1) })
+            let graph = try LogStatisticsGraph.make(summary(authors), metric: .commitsByAuthor, authorsShown: item.count)
+            XCTAssertEqual(graph.colors.map { [Int($0.red), Int($0.green), Int($0.blue)] }, item.colors, "Pinned C++ palette for \(item.count) groups")
+        }
+    }
+
 }

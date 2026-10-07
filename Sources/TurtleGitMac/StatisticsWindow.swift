@@ -188,16 +188,21 @@ private struct StatisticsSummary: View {
     private func activity(_ label: String, _ author: String) -> some View { let values = summary.activity(for: author); return GridRow { Text(label); Text(author); Text("\(values.average)"); Text("\(values.minimum)"); Text("\(values.maximum)") } }
 }
 
+private extension LogStatisticsColor {
+    var chartColor: Color { Color(.sRGB, red: Double(red) / 255, green: Double(green) / 255, blue: Double(blue) / 255, opacity: 1) }
+}
 struct StatisticsChart: View {
+    @Environment(\.colorScheme) private var colorScheme
     let graph: LogStatisticsGraph
     let style: LogStatisticsStyle
     let byAuthor: Bool
     var exporting = false
+    static func backgroundColor(dark: Bool) -> Color { dark ? Color(.sRGB, red: 32.0 / 255, green: 32.0 / 255, blue: 32.0 / 255, opacity: 1) : .white }
     var body: some View {
         VStack(spacing: 8) {
             Text(graph.metric.title).font(.headline).multilineTextAlignment(.center)
             plot
-        }
+        }.background(Self.backgroundColor(dark: colorScheme == .dark))
     }
     @ViewBuilder private var plot: some View {
         if graph.points.isEmpty { Text("No graph data available.") }
@@ -212,7 +217,8 @@ struct StatisticsChart: View {
                     RuleMark(y: .value("Average", graph.averageGuide)).foregroundStyle(Color.primary).lineStyle(StrokeStyle(lineWidth: 1))
                         .accessibilityLabel("Average: \(graph.averageGuide) \(graph.yAxisLabel)")
                 }
-            }.chartXAxisLabel(graph.xAxisLabel, position: .bottom, alignment: .center).chartYAxisLabel(graph.yAxisLabel, position: .leading)
+            }.chartForegroundStyleScale(domain: byAuthor ? graph.categoryLabels : graph.seriesLabels, range: graph.colors.map(\.chartColor))
+            .chartXAxisLabel(graph.xAxisLabel, position: .bottom, alignment: .center).chartYAxisLabel(graph.yAxisLabel, position: .leading)
             .chartYScale(domain: 0...graph.yAxisMaximum(style: style))
             .chartYAxis { AxisMarks(position: .leading, values: graph.yAxisTicks(style: style)) { AxisTick(); AxisValueLabel() } }
             .chartXAxis { AxisMarks(values: byAuthor && style == .stackedBar ? [""] : graph.categoryLabels.indices.map { String($0) }) { value in AxisTick(); AxisValueLabel { if let key = value.as(String.self), let index = Int(key), graph.categoryLabels.indices.contains(index) { Text(graph.categoryLabels[index]).font(.caption2) } } } }.padding(10)
@@ -224,25 +230,25 @@ private struct StatisticsPies: View {
     let graph: LogStatisticsGraph
     let byAuthor: Bool
     var exporting = false
-    private let colors: [Color] = [.blue, .orange, .green, .purple, .red, .cyan, .pink, .yellow]
     var body: some View {
         if exporting { content } else { ScrollView { content } }
     }
     private var content: some View {
-            VStack {
+        let colors = graph.colors.map(\.chartColor)
+        return VStack {
                 ForEach(0..<(byAuthor ? 1 : graph.categoryLabels.count), id: \.self) { category in
                     let points = byAuthor ? graph.points : graph.points.filter { $0.category == category }
                     Text(byAuthor ? graph.seriesLabels.first ?? "" : graph.categoryLabels[category])
                     Canvas { context, size in
                         let total = Double(points.reduce(0) { $0 + $1.value }); var angle = -Double.pi / 2
                         let center = CGPoint(x: size.width / 2, y: size.height / 2), radius = min(size.width, size.height) * 0.45
-                        for (index, point) in points.enumerated() where point.value > 0 && total > 0 {
+                        for point in points where point.value > 0 && total > 0 {
                             let next = angle + Double(point.value) / total * 2 * .pi
                             var path = Path(); path.move(to: center); path.addArc(center: center, radius: radius, startAngle: .radians(angle), endAngle: .radians(next), clockwise: false); path.closeSubpath()
-                            context.fill(path, with: .color(colors[index % colors.count])); angle = next
+                            context.fill(path, with: .color(colors[byAuthor ? point.category : point.series])); angle = next
                         }
                     }.frame(height: 220)
-                    ForEach(Array(points.enumerated()), id: \.offset) { index, point in HStack { Circle().fill(colors[index % colors.count]).frame(width: 10, height: 10); Text(byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series]); Text("\(point.value)") } }
+                    ForEach(Array(points.enumerated()), id: \.offset) { _, point in HStack { Circle().fill(colors[byAuthor ? point.category : point.series]).frame(width: 10, height: 10); Text(byAuthor ? graph.categoryLabels[point.category] : graph.seriesLabels[point.series]); Text("\(point.value)") } }
                 }
                 Text(graph.xAxisLabel).font(.caption)
             }

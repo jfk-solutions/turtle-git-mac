@@ -10,6 +10,29 @@ import PDFKit
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(!model.busy, "Statistics timed out")
     }
+    static func matchingColorCount(_ bytes: [UInt8], color: LogStatisticsColor) -> Int {
+        let red = Int(color.red), green = Int(color.green), blue = Int(color.blue)
+        var matches = 0, offset = 0
+        while offset + 2 < bytes.count {
+            let dr = abs(Int(bytes[offset]) - red)
+            let dg = abs(Int(bytes[offset+1]) - green)
+            let db = abs(Int(bytes[offset+2]) - blue)
+            if dr <= 2 && dg <= 2 && db <= 2 { matches += 1 }
+            offset += 4
+        }
+        return matches
+    }
+    static func verifySourceColors(_ image: CGImage, colors: [LogStatisticsColor]) {
+        var bytes = [UInt8](repeating: 0, count: image.width * image.height * 4)
+        bytes.withUnsafeMutableBytes { buffer in
+            let context = CGContext(data: buffer.baseAddress, width: image.width, height: image.height, bitsPerComponent: 8, bytesPerRow: image.width * 4, space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue)!
+            context.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
+        }
+        for color in colors {
+            let matching = matchingColorCount(bytes, color: color)
+            precondition(matching > 10, "Multi-author PNG lost a source group color")
+        }
+    }
     @MainActor static func verifyExport(_ controller: StatisticsWindowController, root: URL) throws {
         let model = controller.model
         let choice = StatisticsGraphSavePanel()
@@ -49,6 +72,13 @@ import PDFKit
                             return stride(from: 0, to: pixels.count, by: 4).filter { max(pixels[$0], pixels[$0+1], pixels[$0+2]) - min(pixels[$0], pixels[$0+1], pixels[$0+2]) > 30 }.count
                         }
                         precondition(colorful > 50, "Raster lost graph colors")
+                        if format == .png {
+                            let expected = model.graph!.colors[0]
+                            let matching = matchingColorCount(bytes, color: expected)
+                            precondition(matching > 10, "PNG lost the original source palette")
+                            let background = dark ? 32 : 255
+                            precondition((0..<3).allSatisfy { abs(Int(bytes[$0]) - background) <= 2 }, "PNG lost the source graph background")
+                        }
                     }
                     if let path = ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_EXPORT_QA_DIR"] {
                         let directory = URL(fileURLWithPath: path); try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -88,6 +118,14 @@ import PDFKit
                 try data.write(to: URL(fileURLWithPath: path).appendingPathComponent("multi-date-\(style.rawValue).pdf"))
             }
         }
+        for style in [LogStatisticsStyle.bar, .stackedBar, .pie] {
+            let data = try StatisticsGraphExport.data(graph: multiple, metric: .commitsByDate, style: style, size: CGSize(width: 640, height: 360), dark: false, format: .png)
+            let source = CGImageSourceCreateWithData(data as CFData, nil)!
+            verifySourceColors(CGImageSourceCreateImageAtIndex(source, 0, nil)!, colors: multiple.colors)
+            if let path = ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_EXPORT_QA_DIR"] {
+                try data.write(to: URL(fileURLWithPath: path).appendingPathComponent("multi-date-\(style.rawValue).png"))
+            }
+        }
         let authors = try LogStatisticsGraph.make(summary, metric: .commitsByAuthor, authorsShown: 2)
         for style in [LogStatisticsStyle.bar, .pie] {
             let data = try StatisticsGraphExport.data(graph: authors, metric: .commitsByAuthor, style: style, size: CGSize(width: 640, height: 360), dark: true, format: .pdf)
@@ -103,7 +141,7 @@ import PDFKit
         let unwritable = root.appendingPathComponent("missing/graph.png")
         do { try controller.exportGraph(to: unwritable, format: .png); preconditionFailure("Write failure swallowed") } catch { }
         model.busy = true; precondition(!model.canExportGraph); model.busy = false
-        print("Statistics export: five actual encodings × five styles × light/dark decoded; PDF labels, raster colors, multi-author/date-group/empty content, all metric titles/axis labels, summary/busy refusal and write failure passed")
+        print("Statistics export: five actual encodings × five styles × light/dark decoded; PDF labels, raster colors, multi-author/date-group/empty content, all metric titles/axis labels, source palette/background pixels, summary/busy refusal and write failure passed")
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)

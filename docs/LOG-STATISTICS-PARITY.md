@@ -69,8 +69,10 @@ cancels its calculation and closes the owned window. The selector, central
 summary/graph region and lower checkbox/slider/style controls follow `IDD_STATGRAPH`.
 Graph styles use native Swift Charts for bar, stacked bar, line and stacked area
 (the upstream stacked-line style is filled), plus Canvas pies. Date pies retain
-separate interval groups. Colors adapt with the native appearance; exact upstream
-palette and displayed layout remain unverified.
+separate interval groups. Graph data colors use the pinned MyGraph integer HLS palette in both appearances.
+The default light background is white and the source dark background is `#202020`;
+controls and text retain native appearance handling. Displayed geometry and full
+theme/high-contrast acceptance remain unverified.
 
 The graph projection selects authors by activity before alphabetical presentation,
 names the last lone omitted author and sums larger omissions as `Others (n)`.
@@ -105,6 +107,31 @@ selection calculation, private preference restoration, cancellation and exact
 repository preservation. It requests layout across all five chart styles; these
 checks do not prove pixel appearance, displayed clicks or accessibility. See
 [the native Statistics QA record](qa/statistics-native-2026-10-07.json).
+
+## Graph palette
+
+MyGraph distributes group hue with integer `240 / groupCount`, alternates
+luminosity 120/180 and derives saturation 180/210/240 from group position. The
+integer HLS-to-RGB rounding and WORD hue conversion are preserved. The source's
+light-mode darker-line alternative is inside `#if 0`, so it is not enabled here.
+For more than 240 groups, integer hue spacing becomes zero; the resulting repeated
+red/pink colors are retained as source behavior. The palette applies to the chosen
+individual authors and Others group, so changing the author limit can change the
+colors just as it does upstream.
+
+Charts now use an explicit color scale in group order; pie wedges and legends use
+the same source RGB values instead of an independent eight-color cycle. The shared
+window/export graph uses the default source white/light and `#202020`/dark
+backgrounds. Native text and controls still follow AppKit/SwiftUI appearance.
+
+A standalone reference built from the pinned C++ conversion routines generated
+[the palette vectors](qa/statistics-palette-reference-2026-10-07.json). Core tests
+compare all 756 RGB triplets for nine group counts, including empty, 240, 241 and
+251. Native receiver PNG checks verify original palette/background pixels in every
+style and both appearances, plus both colors in multi-author bar/stack/pie graphs.
+These pixel checks allow a two-level RGB conversion tolerance. They do not prove
+full displayed GDI/native geometry, antialiasing, outline/shading, high contrast or
+accessibility equivalence. See [palette QA](qa/statistics-palette-2026-10-07.json).
 
 ## Save Graph As
 
@@ -146,6 +173,6 @@ Source labels/average/stack/tick verification: [graph presentation QA](qa/statis
 - Displayed File-menu/save-sheet/overwrite/cancel and signed export acceptance.
 - Displayed axis/title/average-guide geometry, tooltips/selection, high-density
   legends/graphs and exact
-  original color/geometry comparison, plus sparse-date/year-wrap acceptance.
+  outline/shading/font/geometry comparison, plus sparse-date/year-wrap acceptance.
 - Displayed layout, regional/DST/case acceptance, keyboard/VoiceOver and signed
   sandbox/App Store verification. The full application port remains incomplete.

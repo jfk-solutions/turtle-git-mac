@@ -31,6 +31,11 @@ public enum LogStatisticsMetric: Int, CaseIterable, Sendable {
     public var byAuthor: Bool { self == .commitsByAuthor || self == .authorship }
 }
 public enum LogStatisticsStyle: Int, CaseIterable, Sendable { case stackedBar = 1, bar = 2, stackedLine = 3, line = 4, pie = 5 }
+public struct LogStatisticsColor: Equatable, Sendable {
+    public let red: UInt8
+    public let green: UInt8
+    public let blue: UInt8
+}
 public struct LogStatisticsGraph: Sendable {
     public struct Point: Sendable {
         public let category: Int
@@ -41,6 +46,31 @@ public struct LogStatisticsGraph: Sendable {
     public let unit: LogStatisticsUnit
     public var xAxisLabel: String { metric.xAxisLabel(unit: unit) }
     public var yAxisLabel: String { metric.yAxisLabel }
+    /// The source palette is independent of appearance; its disabled light-mode
+    /// line-color alternative is intentionally not enabled here.
+    public var colors: [LogStatisticsColor] {
+        let count = metric.byAuthor ? categoryLabels.count : seriesLabels.count
+        guard count > 0 else { return [] }
+        let delta = 240 / count
+        return (0..<count).map { group in
+            let hue = delta * group, lum = 120 + 60 * (group % 2)
+            let sat = 180 + 30 * ((1 - group % 2) * (group % 3))
+            let magic2 = lum <= 120 ? (lum * (240 + sat) + 120) / 240 : lum + sat - (lum * sat + 120) / 240
+            let magic1 = 2 * lum - magic2
+            func channel(_ hue: Int) -> UInt8 {
+                // Preserve the source WORD conversion before its range check.
+                var value = Int(UInt16(truncatingIfNeeded: hue))
+                if value > 240 { value -= 240 }
+                let hls: Int
+                if value < 40 { hls = magic1 + ((magic2 - magic1) * value + 20) / 40 }
+                else if value < 120 { hls = magic2 }
+                else if value < 160 { hls = magic1 + ((magic2 - magic1) * (160 - value) + 20) / 40 }
+                else { hls = magic1 }
+                return UInt8((hls * 255 + 120) / 240)
+            }
+            return LogStatisticsColor(red: channel(hue + 80), green: channel(hue), blue: channel(hue - 80))
+        }
+    }
     public let categoryLabels: [String]
     public let seriesLabels: [String]
     public let points: [Point]

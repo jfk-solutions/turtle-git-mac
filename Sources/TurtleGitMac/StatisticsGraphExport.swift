@@ -39,7 +39,7 @@ enum StatisticsGraphExportFailure: LocalizedError {
         if style == .pie { content = AnyView(chart.frame(width: size.width).fixedSize(horizontal: false, vertical: true).frame(minHeight: size.height)) }
         else { content = AnyView(chart.frame(width: size.width, height: size.height)) }
         let renderer = ImageRenderer(content: content
-            .background(dark ? Color(nsColor: NSColor(calibratedWhite: 0.12, alpha: 1)) : .white)
+            .background(StatisticsChart.backgroundColor(dark: dark))
             .environment(\.colorScheme, dark ? .dark : .light))
         renderer.proposedSize = ProposedViewSize(width: size.width, height: style == .pie ? nil : size.height)
         renderer.scale = 1; renderer.isOpaque = true
