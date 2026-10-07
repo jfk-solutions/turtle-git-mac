@@ -175,9 +175,9 @@ remain valid. Ordinary logs use `git reflog delete -- <full selector>` without
 path retains `stash drop` and Clear retains `stash clear`, with their stack/ref
 semantics. Errors retain the dialog and reload; successful deletion refreshes
 repository views. The preflight comparison is not a cross-process lock, and
-partial command failure is not rolled back. The native batch currently stops on
-the first command failure; upstream presents each failure and continues. That
-recovery difference remains pending.
+partial command failure is not rolled back. The native batch now continues after
+command failures, with per-failure acknowledgement and partial-result refresh,
+as recorded below.
 
 [Deletion receiver](qa/reflog-deletion-native-2026-10-08.swift) and
 [QA record](qa/reflog-deletion-2026-10-08.json) cover source confirmation text,
@@ -186,6 +186,52 @@ rejection, whole-log removal without moving the ref, stash Drop/Clear regression
 chooser guards, hidden native default-button alerts and HEAD/index/config/worktree
 preservation for general deletion. Six Core reflog tests also cover invalid refs,
 cross-log selection and stale snapshots. These checks do not exercise displayed
-prompt clicks or menu routing. Physical deletion/recovery, command failure/partial
-results, concurrent external writers, signed sandbox execution and full RefLog
+prompt clicks or menu routing. Physical deletion/recovery, command failure presentation, concurrent external
+writers, signed sandbox execution and full RefLog
 revision-menu parity remain pending.
+
+## Deletion command failures and continuation
+
+The selected-entry batch now follows `ID_REFLOG_DEL`'s error loop: attempt every
+selected positional entry from oldest to newest, report each command failure and
+continue after acknowledgement. The shared Core path applies to ordinary reflogs
+and stash Drop; Clear stash remains one command. The entire snapshot/reference/
+selection validation still precedes the first command and prevents execution on
+preflight failure. Source command order preserves younger original indices when
+an older command fails. Concurrent external writers can still invalidate those
+positions while an error is being acknowledged; this is not a cross-process lock.
+
+Core records completed selectors, accumulated successful output and every failed
+selector with its diagnostic. It throws a structured partial-result failure only
+after all attempts. An optional async failure handler lets the native controller
+show each error sheet before starting the next command. The dialog keeps its
+repository access and busy state while acknowledging errors. The final batch
+refreshes the list and repository views even when every command fails. A native
+caption retains the aggregate result without repeating individual errors in a
+second modal prompt; headless callers without a presenter receive the summary
+error. Retry uses the newly loaded snapshot and clears the prior report. Completed
+deletions are not rolled back. Delete now precedes Stash apply in the context menu,
+matching the upstream ordering of those entries.
+
+[Partial-failure receiver](qa/reflog-partial-failure-native-2026-10-08.swift) and
+[QA record](qa/reflog-partial-failure-2026-10-08.json) inject a real Git command
+failure in the middle of HEAD and stash batches, verify later deletions and their
+remaining rows, pause in async failure acknowledgement to verify no next command
+has started, check all-failed refresh and retry/report reset, preserve Unicode
+diagnostics and verify ordinary HEAD/index/config/worktree preservation. The
+existing general deletion receiver and eight Core tests retain snapshot/selector
+validation, confirmations, Drop/Clear and chooser guards. Actual error sheets,
+caption/menu rendering, native retry gestures, external writers and signed sandbox
+execution remain unverified. Full RefLog/application parity remains incomplete.
+
+The partial-failure retry fixture exposed Git reflog-walk fallback: after the final
+HEAD entry is deleted, `git reflog show HEAD` can return branch-log entries as HEAD
+selectors. The native reader now reads the exact `logs/<reference>` file, following
+the source libgit2/gitdll backends, instead of inheriting another log. Git's
+`rev-parse --git-path` resolves regular, bare and linked-worktree administrative
+locations; HEAD/full-reference validation prevents revision expressions and path
+traversal. Missing or empty logs return no entries, while access failures remain
+errors. Raw new-object IDs, epoch/offset and UTF-8 messages are retained in reverse
+file order. Eight Core tests include empty HEAD with an intact branch log and
+independent linked-worktree HEAD deletion. Broader malformed records, object types,
+encoding and signed administrative-directory access remain pending.

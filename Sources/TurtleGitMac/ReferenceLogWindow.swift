@@ -26,6 +26,7 @@ import TurtleGitCore
             let alert = Self.deletionAlert(message: message, clear: clear)
             alert.beginSheetModal(for: window) { response in if response == .alertFirstButtonReturn { proceed() } }
         }
+        model.presentDeletionFailure = { [weak self] issue in await self?.showDeletionFailure(issue) }
         model.openFind = { [weak self] in self?.openFind() }
         window.functionKey = { [weak self] code in
             guard let self, !self.model.busy else { return false }
@@ -34,6 +35,15 @@ import TurtleGitCore
             return false
         }
         model.reload()
+    }
+    private func showDeletionFailure(_ issue: ReferenceLogDeleteIssue) async {
+        guard let window, window.attachedSheet == nil else { return }
+        await withCheckedContinuation { continuation in
+            let alert = NSAlert(); alert.alertStyle = .critical
+            alert.messageText = issue.details; alert.informativeText = issue.selector
+            alert.addButton(withTitle: "OK")
+            alert.beginSheetModal(for: window) { _ in continuation.resume() }
+        }
     }
     static func deletionAlert(message: String, clear: Bool) -> NSAlert {
         let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = message
@@ -82,6 +92,8 @@ import TurtleGitCore
     @Published var busy = false
     @Published var error: String?
     @Published var patch: String?
+    @Published private(set) var deletionReport: String?
+    var presentDeletionFailure: (@Sendable (ReferenceLogDeleteIssue) async -> Void)?
     var openFind: () -> Void = {}
     @Published private(set) var searchWrapped = false
     private var searchIndex = 0
@@ -129,11 +141,16 @@ import TurtleGitCore
         confirmDelete(message, clear) { [weak self] in
             guard let self, !self.busy else { return }
             guard self.reference == reference, self.entries == expected else { self.error = ReferenceLogFailure.stale.localizedDescription; return }
-            self.busy = true
+            self.busy = true; self.error = nil; self.deletionReport = nil
             Task {
                 do {
-                    let output = clear ? try await self.repository.deleteStashEntries([], expected: expected, clear: true) : try await self.repository.deleteReferenceLogEntries(ids, reference: reference, expected: expected)
+                    let output = clear ? try await self.repository.deleteStashEntries([], expected: expected, clear: true) : try await self.repository.deleteReferenceLogEntries(ids, reference: reference, expected: expected, onFailure: self.presentDeletionFailure)
                     self.onChanged(output)
+                }
+                catch let failure as ReferenceLogDeleteBatchFailure {
+                    self.deletionReport = failure.localizedDescription
+                    self.onChanged(failure.output + failure.localizedDescription)
+                    if self.presentDeletionFailure == nil { self.error = failure.localizedDescription }
                 }
                 catch { self.error = error.localizedDescription }
                 self.reload()
@@ -221,10 +238,10 @@ private struct ReferenceLogDialog: View {
                 TurtleGitContextMenu {
                     Button { model.showLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.count != 1 || model.onLog == nil)
                     Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1)
+                    if !model.selecting { Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty) }
                     if !model.selecting && model.reference == "refs/stash" {
                         Button { model.apply(ids) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }.disabled(ids.count != 1)
                     }
-                    if !model.selecting { Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty) }
                     Divider()
                     Menu {
                         Button { model.copy(ids, format: .full) } label: { CommandLabel(title: "Full data", icon: .copy) }
@@ -233,6 +250,7 @@ private struct ReferenceLogDialog: View {
                     } label: { CommandLabel(title: "Copy to clipboard", icon: .copy) }.disabled(ids.isEmpty)
                 }
             } primaryAction: { ids in model.activateRows(ids) }
+            if let report = model.deletionReport { Text(report).font(.caption).foregroundStyle(.red).lineLimit(3).help(report) }
             HStack {
                 Button("Search…") { model.openFind() }.keyboardShortcut("f")
                 if !model.selecting && model.reference == "refs/stash" { Button("Clear stash") { model.delete([], clear: true) }.disabled(model.entries.isEmpty) }

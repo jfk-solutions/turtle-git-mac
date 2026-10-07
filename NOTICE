@@ -467,3 +467,12 @@ Git reflog deletion are adapted from GitLogListAction.cpp at the recorded pin.
 Native deletion validates the entire displayed snapshot after confirmation; stash
 entries continue through stash drop and Clear through stash clear. Delete and
 Clear preserve the source's distinct default confirmation buttons.
+
+RefLog selected-entry deletion now retains GitLogListAction.cpp's continue-after-
+command-failure behavior and per-failure presentation, for ordinary and stash logs.
+Native batches retain completed selectors/output and each failure, refresh partial
+results, and present an aggregate status after individual error sheets.
+
+Exact reflog-file reading follows GitRevLoglist.cpp's libgit2/gitdll semantics,
+using Git's git-path resolution for regular and linked worktree administrative
+locations. Empty HEAD logs no longer inherit a branch reflog through Git's walk.

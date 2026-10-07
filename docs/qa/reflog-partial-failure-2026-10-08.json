@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "7c9bc2e4240531de2c5d6eaadb4494aaf98d945f",
+  "scope": "RefLog selected-entry batches continue after command failures, acknowledge each diagnostic asynchronously and retain/refresh partial results; exact raw reflog-file reading avoids empty-HEAD branch fallback. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/Git/GitRevLoglist.cpp": "252a5b591b9d5ee7c46539b9f6bfb74235d6845c"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "5f85dcf27ee8a4ec1c97f42c419b7171f65883efd79ecdf2e9a5df43595cd06c",
+    "NOTICE": "5405b20cc158ea534387bc5057a8daf44356e3ad68689e0ed0ae773667267ab5",
+    "Sources/TurtleGitCore/ReferenceLog.swift": "0220f09dc5f56a6c22eb2876a7a72111763697e14b0a5b2b6dc45108a4b5c5bf",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "9848b034a746a868dd34574c072875da45eb54ecfa1ff68a6fed713adaaf3bd2",
+    "Tests/TurtleGitCoreTests/ReferenceLogTests.swift": "d6afb8756b5359157c5bb35b03ffa145ce506fd824d42b3634cb3c4e53b348be",
+    "docs/REFLOG-PARITY.md": "b0e6dce94e0675c5d594a248415961bf3a8a8481cfcdf0abd622085acaf04e91",
+    "docs/upstream-files.csv": "6705dafb29ccabb37e881d5519df6b506761581498d6c4751b1b3d3a5a82edab",
+    "scripts/test-reflog-partial-failure.py": "64964a0a817e044b34a70a1ec6ba6b99925f34fe4ef775fc8160739923c51f22",
+    "docs/qa/reflog-partial-failure-native-2026-10-08.swift": "af84a9cdac729ac4211e89fa45f2eefa00da8de7f56d4fd84d8c490a1ea369f5"
+  },
+  "all_sources_manifest_sha256": "8681854c1bd21ba7699e79649784e3145e092fd7587fa27fdefefbd5f5f76c07",
+  "verification": {
+    "core": "Eight ReferenceLogTests passed. New real wrapper fails a middle HEAD delete; all later selected commands run, completed/failed selectors retained and HEAD unchanged. Empty HEAD does not inherit an intact branch reflog, and linked-worktree HEAD and shared branch logs remain independent. Existing selector/Unicode, stale/invalid/ref guards, ordinary reverse deletion and stash Drop/Clear tests passed.",
+    "native": "System Git and Git 2.37.1, 2.39.5 and bundled 2.55.0 passed. Actual HEAD and stash batches fail in the middle, continue through later deletions and retain the failed row. Async failure acknowledgement pauses before the next command, with model busy and Unicode diagnostic retained. Partial/all-failed batches refresh, successful retry clears error/report and empty HEAD stays empty. Ordinary HEAD/index/config/worktree are byte-exact unchanged. No displayed UI.",
+    "regressions": "General deletion, modeless Find and revision Log/clipboard native matrices each passed all four Git versions against final source/reader. Hidden alert default buttons, Find ownership/direct key inputs, immutable scoped Log, clipboard/private pasteboard, byte preservation and snapshot/chooser guards retained. No events sent to an app and no general clipboard write.",
+    "iterations": "Initial seven Core tests/Debug passed; clarified summary labels and repeated. First partial-failure native receiver failed at final HEAD-entry retry because Git reflog show HEAD falls back to the branch log after HEAD log becomes empty. A disposable direct Git reproduction confirmed empty HEAD log bytes with inherited output. Reader changed to exact raw file semantics, following upstream primary libgit2/gitdll backend; added empty/linked-worktree regression. Final eight Core tests, Debug, all four native matrices, Store and audits passed. Earlier passing/failing logs retained.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git Mach-O files and real fixture operations; EditorConfig/IssueRegex audits passed.",
+    "documentation": "RefLog parity, exact-reader and action source mappings, and NOTICE updated. Inventory pin and seven-column CSV validation passed. Local documentation site generated, unpublished.",
+    "ci": "Native partial-failure receiver added to macOS workflow. Hosted CI/push remain unverified; authentication unavailable, no retry.",
+    "processes": "All Core/compiler/native/audit sessions terminal. No main app launch. Hidden regression alert/Find windows explicitly close. Final app/native receiver process audit empty. No owned RefLogActions preference files found after private-domain cleanup; unrelated preferences retained. Private pasteboards released, general clipboard untouched.",
+    "limitations": "Actual per-error sheets/caption/menu ordering, native retry/focus and intermediate refresh presentation remain unverified. Completed mutations are not rolled back; snapshot validation is not a cross-process lock and external writers can shift positions during error acknowledgement. Broader raw malformed/encoding/object/SHA-256/bare/symbolic-ref cases and signed administrative-directory access remain pending. Full revision actions/columns/geometry, Finder activation, complete dialog parity, genuine updated screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-partial-failure/actions-regression.log": "97428e5411499329dd8ee55d1d21ade9272199e419a77a292ad3c11c7fc616ae",
+    "build/qa/reflog-partial-failure/cleanup.log": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+    "build/qa/reflog-partial-failure/core-before-exact-reader.log": "1300d24f708a112d1bacf2f14c7c4893368634793ddcc4b3e6ef8ca4345560fd",
+    "build/qa/reflog-partial-failure/core-before-summary-text.log": "0ca3dcfbbd84842995be78025bf03f9423b8789b115261e1c12fa1c6abeeff91",
+    "build/qa/reflog-partial-failure/core.log": "bedbe086ab1666ef92a2bbdcb7c5c172672222ad3f71f508a990f508bd8969ad",
+    "build/qa/reflog-partial-failure/debug-audit-before-exact-reader.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-partial-failure/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-partial-failure/debug-before-exact-reader.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-partial-failure/debug-before-summary-text.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/reflog-partial-failure/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-partial-failure/deletion-regression-before-exact-reader.log": "09f1fb04ce697e10439e0b121aa43a997d1e0e54abea25e14d9a4cfec435fe89",
+    "build/qa/reflog-partial-failure/deletion-regression.log": "09f1fb04ce697e10439e0b121aa43a997d1e0e54abea25e14d9a4cfec435fe89",
+    "build/qa/reflog-partial-failure/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-partial-failure/native-before-exact-reader.log": "c8ce9327a43368214a5c0e03f7429caffb62291989d5c3c895c9e109c77ebafd",
+    "build/qa/reflog-partial-failure/native.log": "b9803aa1d1056f211182ef8c1f6bef24fe2164bacb496e4154993a5fe5795c36",
+    "build/qa/reflog-partial-failure/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-partial-failure/search-regression.log": "bb43be836614074d56fd52a9bd466622b61a7327764bbee4c716a37067461ad1",
+    "build/qa/reflog-partial-failure/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-partial-failure/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-partial-failure/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-partial-failure/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
