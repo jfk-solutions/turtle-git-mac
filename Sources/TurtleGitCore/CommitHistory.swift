@@ -35,7 +35,7 @@ public struct LogRevisionActions: OptionSet, Sendable {
     public static let deleted = Self(rawValue: 1 << 2)
     public static let replaced = Self(rawValue: 1 << 3)
     public static let conflicted = Self(rawValue: 1 << 4)
-    static func classify(_ files: [CommitFile]) -> Self {
+    public static func classify(_ files: [CommitFile]) -> Self {
         var actions = Self()
         for file in files {
             switch file.action.first {

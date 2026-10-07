@@ -722,7 +722,7 @@ import TurtleGitCore
     unbornLog.reload()
     let unbornDeadline = Date().addingTimeInterval(30)
     while unbornLog.busy && Date() < unbornDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
-    precondition(!unbornLog.busy && unbornLog.error == nil && unbornLog.entries.isEmpty && !unbornLog.bisectActive)
+    precondition(!unbornLog.busy && unbornLog.error == nil && unbornLog.entries.count == 1 && unbornLog.entries[0].hash.isEmpty && !unbornLog.bisectActive)
     unbornLog.invalidate()
     var hashes: [String] = []
     for step in 0...7 {
@@ -918,7 +918,49 @@ import TurtleGitCore
     log.error = nil; coordinator.bisectBad(); try await waitLog()
     precondition(requests.count == 5 && log.error == BisectFailure.inactive.localizedDescription)
     let logResetState = try await repo.bisectState(); precondition(!logResetState.active && logResetState.head == hashes[7])
-    print("Native Log Bisect revision commands: actual menu icons/targets, two-row Bad/Good order, ref/hash and moved-ref presets, busy/bare/merge/selection guards, active Start refusal, marked-row exclusion, selected Good/Bad and literal multi-Skip execution, stale mark/ended-session refusal passed. Handoff injected; working-tree row/Reset menu pending.")
+    // Working-tree row rendering, comparison and current-commit operations.
+    log.error = nil; log.reload(); try await waitLog(); log.select([""])
+    precondition(log.selectedWorkingTree && log.entries.first?.hash == "" && log.entries.first?.parents == [hashes[7]])
+    precondition(log.revision == nil && !log.canEditNotes && !log.canCherryPick && !log.integrationAvailable && log.formatPatchPreset == nil)
+    log.showUnversionedFiles = true; log.updateWorkingFiles(); precondition(log.files.contains { $0.path == "untracked" && $0.status == "Unversioned" })
+    log.showUnversionedFiles = false; log.updateWorkingFiles(); precondition(log.files.isEmpty)
+    var comparisons: [(ComparisonRevision, ComparisonRevision)] = [], comparedPaths: [String] = [], commits = 0
+    log.onCompare = { comparisons.append(($0, $1)) }; log.onFileCompare = { _, _, paths in comparedPaths = paths }; log.onCommit = { commits += 1 }
+    coordinator.menuNeedsUpdate(menu)
+    precondition(menu.items.first { $0.title == "Commit…" }?.image != nil && menuItem(.reset) == nil)
+    coordinator.commitWorkingTree(); precondition(commits == 1)
+    coordinator.compare(); precondition(comparisons.last?.0 == .revision(hashes[7]) && comparisons.last?.1 == .workingTree)
+    log.selected = ["", hashes[0]]; coordinator.compare(); precondition(comparisons.last?.0 == .revision(hashes[0]) && comparisons.last?.1 == .workingTree)
+    let savedWorking = try Data(contentsOf: root.appendingPathComponent("change"))
+    try Data("native working-row diff\n".utf8).write(to: root.appendingPathComponent("change"))
+    log.reload(); try await waitLog(); log.select([""])
+    precondition(log.files.contains { $0.path == "change" && $0.status == "Modified" })
+    log.compareFiles(["change"]); precondition(comparedPaths == ["change"])
+    var workingPatch = Data(); log.onUnifiedDiff = { bytes, _ in workingPatch = bytes }
+    coordinator.showDiff(); try await waitLog(); precondition(String(decoding: workingPatch, as: UTF8.self).contains("+native working-row diff"))
+    try savedWorking.write(to: root.appendingPathComponent("change"))
+    reopened.model.load(good: hashes[0], bad: hashes[7], requireStart: true); try await wait(reopened.model)
+    reopened.model.start(); try await wait(reopened.model); try await waitLog()
+    log.select([""])
+    for command in [LogBisectCommand.good, .bad, .skip, .reset] { precondition(menuItem(command)?.image != nil && menuItem(command)?.isEnabled == true) }
+    log.busy = true; let prior = requests.count; coordinator.bisectReset(); precondition(requests.count == prior && menuItem(.reset)?.isEnabled == false); log.busy = false
+    for command in [LogBisectCommand.skip, .good, .bad] {
+        log.select([""])
+        let candidate = reopened.model.state!.head
+        log.requestBisect(command); try await waitLog()
+        precondition(requests.last?.operation == command.operation && requests.last?.revisions.isEmpty == true)
+        reopened.model.load(operation: requests.last!.operation, revisions: requests.last!.revisions); try await wait(reopened.model); try await waitLog()
+        precondition(reopened.model.error == nil && reopened.model.state?.log.contains("git bisect " + command.operation!.rawValue + " " + candidate) == true)
+    }
+    log.select([""]); coordinator.bisectReset(); try await waitLog()
+    precondition(requests.last?.operation == .reset && requests.last?.revisions.isEmpty == true)
+    reopened.model.load(operation: .reset); try await wait(reopened.model); try await waitLog()
+    precondition(!log.bisectActive && log.workingTreeSnapshot?.entry.parents == [hashes[7]])
+    log.showWorkingTree = false; log.reload(); try await waitLog(); precondition(log.entries.allSatisfy { !$0.hash.isEmpty })
+    log.showWorkingTree = true; log.reload(); try await waitLog(); precondition(log.entries.first?.hash.isEmpty == true)
+    precondition(bisectPicker.model.entries.allSatisfy { !$0.hash.isEmpty })
+    print("Native working-tree Log row: top/HEAD linkage, unversioned toggle, tracked details, Commit callback, whole and mixed-revision/file comparisons, real unified patch, no commit-only routes, active current-commit Skip/Good/Bad and Reset, busy guard and show/hide passed. Handoffs injected; advanced working-file actions pending.")
+    print("Native Log Bisect revision commands: actual menu icons/targets, two-row Bad/Good order, ref/hash and moved-ref presets, busy/bare/merge/selection guards, active Start refusal, marked-row exclusion, selected Good/Bad and literal multi-Skip execution, stale mark/ended-session refusal passed. Handoff injected; activated menus pending.")
     print("Native Bisect picker refresh: real hidden picker and source Log refresh HEAD/Good/Skip/Bad references without manual reload; Reset clears session/marks; closed retained picker stays invalidated and weak observers release models. Root handoff injected.")
     let branch = try await repo.branch(); precondition(branch == "main")
     do { let keptUntracked = try Data(contentsOf: root.appendingPathComponent("untracked")); precondition(keptUntracked == untracked) }

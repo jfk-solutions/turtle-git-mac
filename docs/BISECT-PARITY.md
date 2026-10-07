@@ -4,7 +4,8 @@ The repository engine now implements Bisect Start, Good, Bad, Skip and Reset.
 The repository sidebar now opens a native Bisect window. The start view follows
 upstream's two-row Good/Bad layout; the same window expands to show Git output
 and continuation controls. Finder commands and Log revision commands now use the
-native workflow. The Log working-tree row and its Reset menu remain pending.
+native workflow. Log also displays a working-tree row with current-commit
+classification and Reset; its wider working-file/menu parity remains incomplete.
 This does not establish complete Bisect or application parity.
 
 ## Upstream contract
@@ -28,7 +29,7 @@ The audit uses TortoiseGit commit
   use the selected commit; Finder classification uses the current commit.
 - Shell `MenuInfo.cpp` rules are ported with original `menubisect`,
   `menubisectreset`, `thumb_up` and `thumb_down` artwork. Log revision rules are
-  ported; working-tree row rules remain pending.
+  ported, including current-commit classification and working-tree Reset.
 
 ## Implemented engine
 
@@ -124,9 +125,10 @@ These receivers do not activate the Finder extension or exercise real URL openin
 
 ## Remaining work
 
-The Log working-tree row, including its current-commit classification and Reset
-menu, remains pending in the native dialog. Its read-only data foundation is
-implemented as described below. Activated Finder URL opening and signed handoff are
+The working-tree row now supports current-commit classification and Reset.
+Its remaining repository menu commands (Stash, Pull, Fetch, Submodule Update and
+Cleanup), advanced working-file actions, preference persistence and navigation
+acceptance remain incomplete. Activated Finder URL opening and signed handoff are
 also unverified. So do activated Log pickers, native alert interaction,
 Submodule Update handoff acceptance, progress cancellation, displayed light/dark verification, keyboard
 and accessibility checks, screenshots and signed sandbox acceptance. Broader Git
@@ -174,7 +176,7 @@ An actual hidden picker also refreshes HEAD and Good/Bad/Skip references after
 classification without manual reload. Reset clears active state and markers
 in the source Log. A closed retained picker stays invalidated, and a released
 model is not retained by observation. These checks use injected root handoff;
-they do not establish activated menus, working-tree row support or
+they do not establish activated menus, complete working-file parity or
 displayed/signed acceptance.
 
 ## Working-tree row data foundation
@@ -182,8 +184,8 @@ displayed/signed acceptance.
 Upstream `GitLogListBase.h/.cpp` represents the row with an empty commit hash
 and the actual HEAD as its parent. It prepends the row to Log, reads working-tree
 changes and keeps unversioned files separately for the display option. This
-contract now has a core reader in `WorkingTreeHistory.swift`; it is not yet
-inserted into the native Log or routed through its context/file menus.
+contract now has a core reader in `WorkingTreeHistory.swift`; it is now
+inserted into normal native Logs and routed through basic comparison and Bisect menus.
 
 The reader returns the synthetic row, versioned changes and a separate
 unversioned list. Its parent is actual HEAD, independent of a displayed range.
@@ -204,6 +206,28 @@ binary statistics, Unicode/newline/pathspec-looking names, renames, net-HEAD-cle
 index differences, ignored/unversioned files, conflicts, cached removal copies,
 unborn/bare repositories, cancellation and submodule pointer/index differences.
 They compare index bytes, HEAD, working bytes and unmerged stages where relevant.
-A graph check confirms the synthetic row links to the actual HEAD row. Native row
-rendering, selection, file operations, working-tree comparisons and Bisect Reset
-dispatch still require implementation and acceptance.
+A graph check confirms the synthetic row links to the actual HEAD row.
+
+Normal Logs prepend the row by default; revision pickers omit it. Show Working
+Tree Changes toggles the row, and Show Unversioned Files toggles its separate
+file list. Literal path scopes filter tracked and unversioned files. Cached
+removal copies share a path identity with the deletion row and are currently
+shown once; separate upstream-style list grouping still requires implementation.
+The row has its own message, Commit callback and whole/file comparison with HEAD.
+Selecting it together with one commit compares that commit with the working tree.
+Unified whole-tree diff is available when a HEAD/base exists; unborn whole-tree
+unified diff and selected working-file unified diff remain pending. File Log
+uses the current repository; historical-only file actions stay unavailable.
+
+An active session offers Good/Bad/Skip/Reset with original icons. Pure-row
+classification passes no revision, so Git acts on current HEAD; Reset restores
+its original branch. Mixed row/commit selection offers Skip with only the selected
+commit hashes. Commit-only actions exclude the synthetic empty hash.
+
+The hidden native receiver checks row/head linkage, unversioned and tracked
+details, whole/mixed/file comparison callbacks, actual Git unified patch bytes,
+Commit dispatch, empty-hash exclusion, current-commit Skip/Good/Bad and Reset,
+busy refusal and row show/hide. Handoffs are injected. Displayed graph/layout,
+keyboard/accessibility, activated menus and signed sandbox remain unverified.
+Working-file Blame, export/open/save, prepared comparison and conflict actions
+still require their upstream-specific implementation and acceptance.

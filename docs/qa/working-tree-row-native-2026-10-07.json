@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "371db27",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Log working-tree row with basic comparison, Commit and current-commit Bisect/Reset routes",
+  "sha256": {
+    "Sources/TurtleGitCore/CommitHistory.swift": "35c5e530ab9db1f2f48358af6ea2eff32bee2d26356f4700ebf6db287c681492",
+    "Sources/TurtleGitMac/LogWindow.swift": "6b645f781f1eb497de650dabee8a39f5de5865ef6f416554610b6bc5e437e85b",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "1e94eac4981fe0c49213cfd42a7c2c2aa687c214e332325de71ba2e02892d456",
+    "docs/BISECT-PARITY.md": "07185607264dc0d1f581c62ab93fdb289847507c5c5e871ebecef2732d760e1e",
+    "docs/LOG-PARITY.md": "5222b3301c6bf14147c1577d5503fd708b1c2aecd1b7a5ce05f9bd9ec3224a32",
+    "README.md": "308a0bcdcafa035de171757deca1dc374c8aabdfcad93297b697e4a7cd9a9c36"
+  },
+  "all_sources_manifest_sha256": "38d4df3112f7d15d803ef536ddc05e226cf4722ca7850051918b5d80d63a989c",
+  "verification": {
+    "focused_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only --git /usr/bin/git --git build/replay-test-git/2.37.1/bin/git --git build/replay-test-git/2.39.5/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git",
+      "passed": [
+        "git version 2.50.1 (Apple Git-155)",
+        "git version 2.37.1",
+        "git version 2.39.5",
+        "git version 2.55.0"
+      ],
+      "new_coverage": "Top synthetic row and actual HEAD parent, default omission in revision pickers, unversioned toggle and tracked file details, Commit callback, whole/mixed/file comparison callbacks, actual Git working-tree unified patch bytes, exclusion from commit-only Notes/Cherry Pick/Format Patch/integration routes, current-commit Skip/Good/Bad execution with no revision arguments, Reset restores original HEAD and fresh working-row parent, busy refusal and show/hide. Prior Bisect, Export, Log integration and focused Rebase fixtures pass."
+    },
+    "full_native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --git /usr/bin/git",
+      "passed": "git version 2.50.1 (Apple Git-155)",
+      "coverage": "Full existing native receiver passed, including draft Add, empty results, Squash, Split, conflict workflows, reference recovery, session context, completion and replay row commands."
+    },
+    "limitations": "Hidden owned views/windows, injected handoffs and prompt replies; displayed layout/graph/color, activated menu gestures, keyboard/accessibility, Finder opening, screenshots and signed sandbox not verified. Advanced working-file actions, remaining repository row commands, persistence, navigation and duplicated cached-removal list grouping remain incomplete.",
+    "builds": [
+      "SwiftPM swift build",
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore"
+    ],
+    "audits": "Both bundle validators and exact NOTICE comparisons passed; Store --require-git; 90 original icons and universal helpers verified.",
+    "site": "Local generation passed; not published",
+    "process_audit": "No main app, native receiver or menu receiver remained"
+  },
+  "logs": {
+    "/tmp/turtlegit-working-row-native-check.log": "89ce63d6c28526d21c61a7f235177cfe978aeaa83e6344e1e2af2c3d1d8dca7c",
+    "/tmp/turtlegit-working-row-native-debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "/tmp/turtlegit-working-row-native-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "/tmp/turtlegit-working-row-native-full.log": "4764f065c67f34c0d5b20ceb13a10bdc69b60df53985dbb000cc64700bec5a48",
+    "/tmp/turtlegit-working-row-native-site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "/tmp/turtlegit-working-row-native-store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "/tmp/turtlegit-working-row-native-store.log": "c6b15ded77af7ec7402dc88d58d90ea2c6f5d12d00f06b8ebc9ee7ec80f316ea",
+    "/tmp/turtlegit-working-row-native-swift.log": "324a474a6b17b37a95a3cb0ee4e38bcf2b41d9730a12b19847a51d818aec0a2c"
+  },
+  "remaining": "Working-row Stash/Pull/Fetch/Submodule Update/Cleanup menus, selected working-file unified diff, Blame/export/open/save/conflict and prepared-comparison routes, preference persistence/navigation, activated/displayed/Finder/signed App Store acceptance; full port incomplete."
+}

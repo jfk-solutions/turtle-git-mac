@@ -396,11 +396,11 @@ merge graph, file stats and double-click diff with disposable sample repositorie
 | Area | Remaining behavior |
 | --- | --- |
 | Columns | ID/rebase and SVN columns; displayed header/reset and cross-launch persistence acceptance |
-| Graph | Working-tree pseudo revision, collapse/expand, hidden refs and all merge parent choices |
+| Graph | Collapse/expand, hidden refs and all merge parent choices; the working-tree row is now implemented with basic comparison/Bisect routing, see [Bisect parity](BISECT-PARITY.md) for remaining row gaps |
 | References | Branch/ref chooser, remote ref deletion and tracking menus |
 | Search/filter | Full history scope controls, search highlighting, displayed jump/selection-history acceptance and keyboard navigation; implemented fields/modes are recorded above |
 | Files | Multi-revision union, multi-file diff, file log/blame, restore, save/export revision, open/editor/Finder actions |
-| Revision menus | Clicked-ref targeting, revision export, bisect, squash, ref containment/search; see later sections for implemented browser/patch commands |
+| Revision menus | Clicked-ref targeting, squash, ref containment/search; revision Export and revision/working-tree Bisect now have native routes, see [Export](REVISION-EXPORT.md) and [Bisect](BISECT-PARITY.md); see later sections for browser/patch commands |
 | Mutations | Full branch/tag options, checkout branches, advanced Cherry Pick options and displayed acceptance ([audit](CHERRY-PICK-PARITY.md)), multi-commit Revert and other operations, conflict continue/abort |
 | Footer | Statistics, walk behavior, View options and upstream settings persistence |
 | Comparison | Native side-by-side/three-way editor, merge combined diffs and external tool configuration |

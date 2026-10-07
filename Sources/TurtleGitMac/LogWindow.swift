@@ -176,8 +176,8 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
 
 enum LogIntegrationCommand { case merge, rebase }
 enum LogBisectCommand: CaseIterable {
-    case start, good, bad, skip
-    var operation: BisectOperation? { switch self { case .start: return nil; case .good: return .good; case .bad: return .bad; case .skip: return .skip } }
+    case start, good, bad, skip, reset
+    var operation: BisectOperation? { switch self { case .start: return nil; case .good: return .good; case .bad: return .bad; case .skip: return .skip; case .reset: return .reset } }
     var title: String { "Bisect " + (self == .start ? "start…" : operation!.rawValue) }
     var icon: MenuIcon { operation?.icon ?? .bisect }
 }
@@ -237,6 +237,18 @@ struct LogCommandRequest: Identifiable {
     @Published var parentMetadata: [String: [LogParentChoice]] = [:]
     @Published var mergeActive = false
     @Published var bisectActive = false
+    @Published var showWorkingTree = true
+    @Published var showUnversionedFiles = false
+    @Published private(set) var workingTreeSnapshot: WorkingTreeHistory?
+    var selectedWorkingTree: Bool { selected == [""] && workingTreeSnapshot != nil }
+    var includesWorkingTree: Bool { selected.contains("") && workingTreeSnapshot != nil }
+    func updateWorkingFiles() {
+        guard selectedWorkingTree, let snapshot = workingTreeSnapshot else { return }
+        let tracked = Set(snapshot.files.map(\.path))
+        files = (snapshot.files + (showUnversionedFiles ? snapshot.unversioned.filter { !tracked.contains($0.path) } : [])).filter { file in
+            showWholeProject || historyPaths.contains { scope in file.path == scope || file.path.hasPrefix(scope + "/") || file.oldPath == scope || file.oldPath?.hasPrefix(scope + "/") == true }
+        }
+    }
     @Published var currentBranch = ""
     var onExportRevision: ((String) -> Void)?
     var canExportRevision: Bool { revision != nil && !selectedIsStash && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && onExportRevision != nil }
@@ -248,6 +260,9 @@ struct LogCommandRequest: Identifiable {
     var onRebaseRevision: ((String) -> Void)?
     var onBisect: ((LogBisectRequest) -> Void)?
     func bisectAvailable(_ command: LogBisectCommand) -> Bool {
+        if selectedWorkingTree { return !bare && bisectActive && command != .start }
+        if includesWorkingTree { return !bare && bisectActive && command == .skip }
+        if command == .reset { return false }
         let chosen = revisions
         guard !bare, !chosen.isEmpty, chosen.count == selected.count, let first = chosen.first, !first.hash.isEmpty else { return false }
         if command == .start { return chosen.count == 2 && !bisectActive && !mergeActive && !isStash(first) }
@@ -280,8 +295,10 @@ struct LogCommandRequest: Identifiable {
                     handoff = LogBisectRequest(good: good, bad: bad, operation: nil, revisions: [])
                 } else {
                     guard state.active else { throw BisectFailure.inactive }
-                    let marks = try await repository.run(["for-each-ref", "--points-at", chosen[0].hash, "--format=%(refname)", "refs/bisect/"]).text
-                    guard marks.isEmpty else { throw LogBisectFailure.marked }
+                    if !selection.contains(""), let first = chosen.first {
+                        let marks = try await repository.run(["for-each-ref", "--points-at", first.hash, "--format=%(refname)", "refs/bisect/"]).text
+                        guard marks.isEmpty else { throw LogBisectFailure.marked }
+                    }
                     handoff = LogBisectRequest(good: nil, bad: nil, operation: command.operation, revisions: chosen.map(\.hash))
                 }
                 guard generation == request, selected == selection else { return }
@@ -338,7 +355,7 @@ struct LogCommandRequest: Identifiable {
     var cherryPickSelection: [LogEntry] { entries.filter { selected.contains($0.hash) } }
     var cherryPickAvailable: Bool {
         let chosen = cherryPickSelection
-        return !chosen.isEmpty && chosen.count == selected.count && !bare && !mergeActive && chosen.first?.isHead == false
+        return !includesWorkingTree && !chosen.isEmpty && chosen.count == selected.count && !bare && !mergeActive && chosen.first?.isHead == false
     }
     var canCherryPick: Bool { cherryPickAvailable && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && onCherryPick != nil }
     func requestCherryPick() {
@@ -433,7 +450,7 @@ struct LogCommandRequest: Identifiable {
         jumpCancellation?.cancel(); jumpCancellation = nil; jumping = false; jumpGeneration += 1
     }
     func jump(up: Bool) {
-        guard !busy, !jumping else { return }
+        guard !busy, !jumping, !includesWorkingTree else { return }
         if jumpKind == .selectionHistory {
             highlightedRevision = nil
             if let hash = selectionNavigation.move(up: up) {
@@ -442,7 +459,7 @@ struct LogCommandRequest: Identifiable {
             }
             return
         }
-        let snapshot = entries, selection = selected, kind = jumpKind
+        let snapshot = entries.filter { !$0.hash.isEmpty }, selection = selected, kind = jumpKind
         guard kind.candidates(entries: snapshot, selected: selection, up: up) != nil else { return }
         select([])
         let token = OperationCancellation(); jumpCancellation = token; let request = jumpGeneration
@@ -496,7 +513,8 @@ struct LogCommandRequest: Identifiable {
     var onBrowseRepository: ((String) -> Void)?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
     var formatPatchPreset: FormatPatchPreset? {
-        FormatPatchPreset.logSelection(orderedHashes: entries.map(\.hash), selected: selected)
+        guard !includesWorkingTree else { return nil }
+        return FormatPatchPreset.logSelection(orderedHashes: entries.filter { !$0.hash.isEmpty }.map(\.hash), selected: selected)
     }
     var onReset: (String) -> Void = { _ in }
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
@@ -514,15 +532,16 @@ struct LogCommandRequest: Identifiable {
     var close: () -> Void = {}
     var finishSelection: (LogEntry?) -> Void = { _ in }
     var finishMultipleSelection: ([LogEntry]?) -> Void = { _ in }
-    var revisions: [LogEntry] { entries.filter { selected.contains($0.hash) } }
-    var revision: LogEntry? { revisions.count == 1 ? revisions.first : nil }
+    var revisions: [LogEntry] { entries.filter { !$0.hash.isEmpty && selected.contains($0.hash) } }
+    var revision: LogEntry? { selected.count == 1 && revisions.count == 1 ? revisions.first : nil }
     var visibleFiles: [CommitFile] { files.filter { filterPaths.isEmpty || $0.path.localizedCaseInsensitiveContains(filterPaths) } }
     var message: String {
+        if selectedWorkingTree, let snapshot = workingTreeSnapshot { return "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "") }
         guard let revision else { return selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected." }
         return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
-    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false) { self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple }
+    init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false) { self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; showWorkingTree = !selecting }
     func selectSearchFields(_ fields: HistorySearchFields) {
         guard !busy else { return }
         searchFields = fields.intersection(LogSearchSelection.all)
@@ -562,6 +581,7 @@ struct LogCommandRequest: Identifiable {
         actionQueue = []; activeActionHash = nil; actionGeneration += 1
     }
     func requestActions(_ entry: LogEntry) {
+        if entry.hash.isEmpty { if revisionActions[""] == nil, let snapshot = workingTreeSnapshot { revisionActions[""] = .classify(snapshot.files) }; return }
         guard !busy, revisionActions[entry.hash] == nil, !actionFailures.contains(entry.hash),
             activeActionHash != entry.hash, !actionQueue.contains(where: { $0.hash == entry.hash }) else { return }
         actionQueue.append(entry)
@@ -617,10 +637,14 @@ struct LogCommandRequest: Identifiable {
                 let bisectActive = try await repository.finderMetadata().bisectActive
                 let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
-                let result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
+                var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
+                let working = showWorkingTree && !selecting && !bare ? try await repository.workingTreeHistory(cancellation: cancellation) : nil
+                if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
                 self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
                 entries = result; graph = CommitGraph.layout(result)
+                workingTreeSnapshot = working
+                if let working { revisionActions[""] = .classify(working.files) } else { revisionActions.removeValue(forKey: "") }
                 let hashes = Set(result.map(\.hash)); revisionActions = revisionActions.filter { hashes.contains($0.key) }
                 parentMetadata = parentMetadata.filter { hashes.contains($0.key) }
                 selected.formIntersection(Set(result.map(\.hash)))
@@ -632,11 +656,12 @@ struct LogCommandRequest: Identifiable {
     func select(_ hashes: Set<String>) {
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil
-        for entry in entries where hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
+        for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
         selected = hashes; selectedFiles = []; files = []
         detailGeneration += 1; let request = detailGeneration
+        if selectedWorkingTree { updateWorkingFiles(); return }
         guard let revision else { return }
         let cancellation = OperationCancellation(); detailCancellation = cancellation
         Task {
@@ -719,6 +744,7 @@ struct LogCommandRequest: Identifiable {
     }
     func diff(workingTree: Bool = false, path: String? = nil, alternate: Bool = false) {
         guard !busy, !unifiedViewerBusy, !workingTree || !bare else { return }
+        if includesWorkingTree { workingTreeDiff(path: path, alternate: alternate); return }
         let revisions = self.revisions
         guard (1...2).contains(revisions.count) else { return }
         busy = true
@@ -781,6 +807,9 @@ struct LogCommandRequest: Identifiable {
         copy(text)
     }
     func fileLog(_ ids: Set<String>, oldName: Bool = false) {
+        if selectedWorkingTree, !busy, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), let onFileLog {
+            onFileLog(oldName ? file.oldPath ?? file.path : file.path, nil); return
+        }
         guard !busy, let onFileLog, let revision, ids.count == 1,
               let file = files.first(where: { ids.contains($0.id) }) else { return }
         if oldName {
@@ -897,6 +926,10 @@ struct LogCommandRequest: Identifiable {
         onFilePairCompare(revision.hash, chosen)
     }
     func compareFiles(_ ids: Set<String>, workingTree: Bool = false) {
+        if selectedWorkingTree, !workingTree, !busy, let onFileCompare, let snapshot = workingTreeSnapshot {
+            let paths = files.filter { ids.contains($0.id) }.map(\.path)
+            if !paths.isEmpty { onFileCompare(snapshot.entry.parents.first.map { .revision($0) } ?? .emptyTree, .workingTree, paths) }; return
+        }
         guard !busy, let onFileCompare, let revision, !workingTree || !bare else { return }
         let paths = files.filter { ids.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }
@@ -906,11 +939,30 @@ struct LogCommandRequest: Identifiable {
     }
     func compare(workingTree: Bool = false) {
         guard !busy, let onCompare, !workingTree || !bare else { return }
+        if includesWorkingTree, !workingTree, selected.count <= 2 {
+            let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first
+            onCompare(base.map { .revision($0) } ?? .emptyTree, .workingTree); return
+        }
         let chosen = revisions
         guard chosen.count == 1 || chosen.count == 2 && !workingTree else { return }
         if workingTree { onCompare(.revision(chosen[0].hash), .workingTree) }
         else if chosen.count == 2 { onCompare(.revision(chosen[1].hash), .revision(chosen[0].hash)) }
         else { onCompare(chosen[0].parents.first.map { .revision($0) } ?? .emptyTree, .revision(chosen[0].hash)) }
+    }
+    private func workingTreeDiff(path: String?, alternate: Bool) {
+        guard selected.count <= 2, let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first else { return }
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                var args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", base, "--"]
+                if let path { args.append(path) }
+                let bytes = try await repository.run(args).stdout
+                if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
+                else { unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", onClosed: { [weak self] in self?.unifiedWindow = nil }) }
+            } catch { self.error = error.localizedDescription }
+        }
     }
 }
 
@@ -982,10 +1034,14 @@ struct LogDialog: View {
                     model.selectedFiles = ids; model.compareFiles(ids)
                 }
             }
-            Text("Showing \(model.entries.count) revision(s) • \(model.selected.count) revision(s) selected • \(model.files.count) changed file(s) (merge changes against first parent)")
+            Text("Showing \(model.entries.filter { !$0.hash.isEmpty }.count) revision(s) • \(model.selectedWorkingTree ? "Working tree selected" : "\(model.revisions.count) revision(s) selected") • \(model.files.count) changed file(s)")
                 .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             HStack {
                 Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil).onChange(of: model.allBranches) { _ in model.reload() }
+                if !model.selecting && !model.bare {
+                    Toggle("Show Working Tree Changes", isOn: $model.showWorkingTree).toggleStyle(.checkbox).onChange(of: model.showWorkingTree) { _ in model.reload() }
+                    Toggle("Show Unversioned Files", isOn: $model.showUnversionedFiles).toggleStyle(.checkbox).onChange(of: model.showUnversionedFiles) { _ in model.updateWorkingFiles() }
+                }
                 if !model.historyPaths.isEmpty {
                     Toggle("Show Whole Project", isOn: $model.showWholeProject).toggleStyle(.checkbox).onChange(of: model.showWholeProject) { _ in model.reload() }
                         .help(model.historyPaths.joined(separator: "\n"))
@@ -1018,7 +1074,7 @@ struct LogDialog: View {
     @ViewBuilder private func fileContextActions(_ ids: Set<String>) -> some View {
         Button { model.compareFiles(ids) } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || model.busy)
         Button { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || model.revision == nil || model.busy)
-        Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.bare || model.onFileCompare == nil || model.busy)
+        Button { model.compareFiles(ids, workingTree: true) } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || model.busy)
         if model.canCompareFilePair(ids) {
             Button { model.compareFilePair(ids) } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(model.busy || model.revision == nil || model.onFilePairCompare == nil)
         }
@@ -1029,7 +1085,7 @@ struct LogDialog: View {
                 Button { model.fileLog(ids, oldName: true) } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(model.busy || model.onFileLog == nil)
             }
             if !file.isSubmodule && !file.action.hasPrefix("D") {
-                Button { if let revision = model.revision { model.onBlame?(file.path, revision.hash) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(model.busy || model.onBlame == nil)
+                Button { if let revision = model.revision { model.onBlame?(file.path, revision.hash) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(model.busy || model.revision == nil || model.onBlame == nil)
             }
             Divider()
         }
@@ -1058,10 +1114,10 @@ struct LogDialog: View {
         }
     }
     @ViewBuilder private func historicalFileActions(_ ids: Set<String>) -> some View {
-        Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy)
-        Button { model.openHistoricalFile(ids, action: .alternativeEditor) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy)
-        Button { model.openHistoricalFile(ids, action: .open) } label: { CommandLabel(title: "Open", icon: .open) }.disabled(model.busy)
-        Button { model.openHistoricalFile(ids, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(model.busy)
+        Button { model.saveHistoricalFile(ids) } label: { CommandLabel(title: "Save revision to…", icon: .saveAs) }.disabled(model.busy || model.revision == nil)
+        Button { model.openHistoricalFile(ids, action: .alternativeEditor) } label: { CommandLabel(title: "View revision in alternative editor", icon: .editor) }.disabled(model.busy || model.revision == nil)
+        Button { model.openHistoricalFile(ids, action: .open) } label: { CommandLabel(title: "Open", icon: .open) }.disabled(model.busy || model.revision == nil)
+        Button { model.openHistoricalFile(ids, action: .openWith) } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(model.busy || model.revision == nil)
     }
 
 }
@@ -1257,10 +1313,21 @@ struct RevisionTable: NSViewRepresentable {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(); item.target = self; item.isEnabled = enabled; menu.addItem(item)
             }
             menu.autoenablesItems = false
+            if model.selectedWorkingTree {
+                item("Commit…", #selector(commitWorkingTree), icon: .commit, enabled: !model.busy)
+                item("Compare with previous revision", #selector(compare), icon: .compare, enabled: !model.busy && model.onCompare != nil)
+                item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: !model.busy && model.workingTreeSnapshot?.entry.parents.first != nil)
+                menu.addItem(.separator())
+                for command in [LogBisectCommand.good, .bad, .skip, .reset] where model.bisectAvailable(command) {
+                    let selector = command == .good ? #selector(bisectGood) : command == .bad ? #selector(bisectBad) : command == .skip ? #selector(bisectSkip) : #selector(bisectReset)
+                    item(command.title, selector, icon: command.icon, enabled: model.canBisect(command))
+                }
+                return
+            }
             let one = model.revision != nil, two = model.revisions.count == 2
             item("Compare with working tree", #selector(workingDiff), icon: .compare, enabled: one && !model.bare && !model.busy && model.onCompare != nil)
-            item(two ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (one || two) && !model.busy && model.onCompare != nil)
-            item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: (one || two) && !model.busy)
+            item(two || model.includesWorkingTree ? "Compare revisions" : "Compare with previous revision", #selector(compare), icon: .compare, enabled: (one || two || model.includesWorkingTree && model.selected.count == 2) && !model.busy && model.onCompare != nil)
+            item("Show changes as unified diff", #selector(showDiff), icon: .unifiedDiff, enabled: (one || two || model.includesWorkingTree && model.selected.count == 2) && !model.busy)
             menu.addItem(.separator())
             for command in [LogBisectCommand.good, .bad, .skip] where one && model.bisectAvailable(command) {
                 let selector = command == .good ? #selector(bisectGood) : command == .bad ? #selector(bisectBad) : #selector(bisectSkip)
@@ -1366,6 +1433,8 @@ struct RevisionTable: NSViewRepresentable {
         @objc func bisectGood() { model.requestBisect(.good) }
         @objc func bisectBad() { model.requestBisect(.bad) }
         @objc func bisectSkip() { model.requestBisect(.skip) }
+        @objc func bisectReset() { model.requestBisect(.reset) }
+        @objc func commitWorkingTree() { if model.selectedWorkingTree && !model.busy { model.onCommit() } }
         @objc func copyAuthors() { model.copy(model.revisions.map { "\($0.author) <\($0.email)>" }.joined(separator: "\n")) }
         @objc func copyAuthorNames() { model.copy(model.revisions.map(\.author).joined(separator: "\n")) }
         @objc func copyAuthorEmails() { model.copy(model.revisions.map(\.email).joined(separator: "\n")) }
