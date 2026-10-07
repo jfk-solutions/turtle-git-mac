@@ -32,7 +32,7 @@ Six existing real Git integration tests cover named destinations/upstream config
 selected and renamed tags, commit hashes to new branches, all branches plus tags,
 non-fast-forward rejection, stale and valid force-with-lease, partial all-remotes
 failure, arbitrary paths, saved defaults, remote deletion, invalid input and a
-literal server option containing spaces and punctuation. The current focused Push suite has eight passing tests, including read-only
+literal server option containing spaces and punctuation. The current focused Push suite has nine passing tests, including read-only
 submission validation and a pre-cancelled request that preserves remote refs and local config. Mixed staged/unstaged contents are preserved by push.
 
 Native QA used only a disposable documentation repository and local bare remote.
@@ -168,3 +168,28 @@ history matrix also runs against the new preference-save gate. Physical modal
 interaction, Escape/default-button activation, sheet/window close, real submodule
 recursion, accessibility/theme and signed sandbox acceptance remain pending.
 Full Push and application parity remain incomplete.
+
+
+## Short source branch/tag uniqueness
+
+Submission validation now follows the exact reference lookup in
+`CGit::IsBranchTagNameUnique`: it rejects a supplied short name when both
+`refs/heads/<name>` and `refs/tags/<name>` exist. Revision resolution alone
+can succeed with an ambiguity warning, so it is insufficient for this gate.
+The native implementation uses exact `show-ref --verify --quiet` lookups rather
+than relying on that warning or passing the ambiguous name to transport.
+Rejection occurs before history/config saving and is shared by direct core Push.
+Fully qualified references retain their branch/tag identity; the source check
+forms refs from the supplied text and also permits such uncollided expressions.
+
+[Source-validation QA](qa/push-source-validation-2026-10-08.json) records a real
+branch/tag collision, read-only rejection, unchanged config and absent remote refs,
+then qualified branch and tag pushes to separate expected ref namespaces. Native
+models reject the short collision without saving any history or creating its
+remote destination. The broader four-Git history workflow is also exercised.
+The native local chooser currently supplies qualified branch refs, while the
+upstream dialog normalizes selected local branches to short names; that chooser/
+normalization path still needs parity work. Alternate upstream CLI suffix-pattern
+lookup behavior, repository-access failures, physical controls and signed sandbox
+acceptance remain pending. This does not establish complete Push validation or
+application parity.

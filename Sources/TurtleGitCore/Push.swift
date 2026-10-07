@@ -72,6 +72,13 @@ extension GitRepository {
                             setUpstream: branch != nil && merge.isEmpty, localBranch: branch)
     }
     public func pushSubmoduleDefault() -> PushSubmodules { PushSubmodules(rawValue: pushConfig("push.recurseSubmodules")) ?? .none }
+    private func pushSourceIsUnique(_ source: String) -> Bool {
+        // CGit::IsBranchTagNameUnique checks exact refs formed from the supplied
+        // name. Fully qualified refs/revision expressions retain their source behavior.
+        let branch = (try? run(["show-ref", "--verify", "--quiet", "--", "refs/heads/" + source])) != nil
+        let tag = (try? run(["show-ref", "--verify", "--quiet", "--", "refs/tags/" + source])) != nil
+        return !(branch && tag)
+    }
     private func validatedPush(_ options: PushOptions, cancellation: OperationCancellation?) throws -> (source: String, destination: String, remotes: [String], localBranch: String?, destinationRef: String) {
         try cancellation?.check()
         let names = try remoteNames(), source = options.source.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -82,7 +89,7 @@ extension GitRepository {
         guard !options.pushOption.contains("\0"), !options.pushOption.contains("\n") else { throw PushValidationFailure.pushOption }
         if !options.allBranches, !source.isEmpty {
             // Verify before passing the original ref to push, retaining branch/tag identity.
-            guard !source.contains(":"), !source.hasPrefix("+"), (try? run(["rev-parse", "--verify", "--end-of-options", source + "^{object}"])) != nil else { throw PushValidationFailure.source }
+            guard !source.contains(":"), !source.hasPrefix("+"), pushSourceIsUnique(source), (try? run(["rev-parse", "--verify", "--end-of-options", source + "^{object}"])) != nil else { throw PushValidationFailure.source }
         }
         if !options.allBranches, !destination.isEmpty {
             let full = destination.hasPrefix("refs/") ? destination : "refs/heads/" + destination

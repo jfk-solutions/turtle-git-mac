@@ -116,4 +116,23 @@ final class PushTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), before)
     }
 
+    func testCollidingShortBranchAndTagRejectBeforeSavingOrTransport() async throws {
+        let (root, repo, remote, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["branch", "collision"]); _ = try await repo.run(["tag", "collision"])
+        var options = PushOptions(); options.remote = "origin"; options.source = "collision"; options.destination = "published"
+        options.savePushRemote = true; options.savePushBranch = true
+        let before = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        do { try await repo.validatePushOptions(options); XCTFail("Colliding short name must reject") }
+        catch PushValidationFailure.source {}
+        do { _ = try await repo.push(options); XCTFail("Direct transport must also reject") }
+        catch PushValidationFailure.source {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/config")), before)
+        let emptyRefs = try await remote.checkoutReferences(); XCTAssertTrue(emptyRefs.isEmpty)
+        options.source = "refs/heads/collision"; options.savePushRemote = false; options.savePushBranch = false
+        _ = try await repo.push(options)
+        options.source = "refs/tags/collision"; options.destination = "published-tag"; _ = try await repo.push(options)
+        let refs = try await remote.checkoutReferences()
+        XCTAssertEqual(Set(refs.map(\.name)), ["refs/heads/published", "refs/tags/published-tag"])
+    }
+
 }

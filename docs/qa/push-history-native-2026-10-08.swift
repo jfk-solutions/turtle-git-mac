@@ -54,6 +54,14 @@ import TurtleGitCore
         let savedURLs = preferences.stringArray(forKey: urlKey), savedBranches = preferences.stringArray(forKey: branchKey), savedOptions = preferences.stringArray(forKey: optionKey)
         model.options.destination = "../invalid"; model.options.pushOption = "not-saved"; model.push(); try await wait(model, allowError: true)
         precondition(preferences.stringArray(forKey: urlKey) == savedURLs && preferences.stringArray(forKey: branchKey) == savedBranches && preferences.stringArray(forKey: optionKey) == savedOptions)
+        // A short branch/tag collision must reject before histories or config change.
+        _ = try await repo.run(["branch", "collision"]); _ = try await repo.run(["tag", "collision"])
+        model.options.source = "collision"; model.options.destination = "collision-target"
+        model.push(); try await wait(model, allowError: true)
+        precondition(model.error == "Choose an unambiguous local reference or revision.")
+        precondition(preferences.stringArray(forKey: urlKey) == savedURLs && preferences.stringArray(forKey: branchKey) == savedBranches && preferences.stringArray(forKey: optionKey) == savedOptions)
+        let unchangedRefs = try await remote.checkoutReferences(); precondition(!unchangedRefs.contains { $0.name == "refs/heads/collision-target" })
+        model.options.source = "refs/heads/main"
         // All branches asks before saving and excludes URL/branch entries, but saves server options.
         model.url = bare.path; model.options.allBranches = true; model.options.pushOption = "all-option"; model.push()
         precondition(!model.busy && model.confirmation != nil && preferences.stringArray(forKey: optionKey) == savedOptions)

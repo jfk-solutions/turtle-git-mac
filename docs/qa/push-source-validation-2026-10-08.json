@@ -1,0 +1,41 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "6c2e804541ea752a802bf4fb9773c2553bba731b",
+  "scope": "Exact supplied short source branch/tag collision validation before history/config saving or Push transport. Partial parity; full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/TortoiseProc/PushDlg.cpp": "9fc65e54a987e17aece767b750732f723d97becc"
+  },
+  "sha256": {
+    "NOTICE": "3038f5b89ccc33e6c573be42f256183ec618f514d263f6e4e979348d50462ad8",
+    "Sources/TurtleGitCore/Push.swift": "40a7663989fd1e4c9cb7bda1c5481d60210b4b462ad316705074d6a01aa105c3",
+    "Tests/TurtleGitCoreTests/PushTests.swift": "2733c3e36f6037dbfa871299f825330c432a74363e80d5eef1f37e3d36bfea93",
+    "docs/PUSH-PARITY.md": "2f3efe85f3c60b34fc09beff0cfe3d9c3ba5e8613c3dfbe27c255a304a74010a",
+    "docs/qa/push-history-native-2026-10-08.swift": "72919b092745ae04c6e3d24700b6c84df7d782e247487535b3b767373d60b6e3",
+    "docs/upstream-files.csv": "2fee5b35c91a5aba176cb5c6266160845ad857c28198eaeb38f8b7ea51612d7a"
+  },
+  "all_sources_manifest_sha256": "f97df49465ff37ddbc0ccd33fde0d18a63742569c505d9651a260ea9737cb274",
+  "verification": {
+    "core": "All nine selected Push tests passed. New collision fixture rejects identical short branch/tag names in read-only validation and direct Push before saved config or remote effects. Local config byte-identical and remote refs absent. Explicit refs/heads and refs/tags pushes then create exactly expected branch/tag namespaces. Existing transport/lease/partial remotes/option/deletion/validation/cancellation checks retained.",
+    "native": "Expanded existing Push history receiver passed system Git and Git 2.37.1, 2.39.5 and bundled 2.55.0. Short collision returns source validation failure, leaves all three saved histories unchanged, and creates no remote collision destination. Existing real URL/named push, remote deletion, history gates/persistence/snapshot/ordering/limit, clipboard and hidden combo checks passed. Private preferences used; user pasteboard neither read nor modified. This is native-model/Git/hidden-control evidence, not physical interaction or screenshots.",
+    "iterations": "Focused core, native matrix and both builds passed without a failure. Source audit distinguished exact libgit2 lookup from alternate CLI suffix-pattern matching and native chooser normalization; those remaining paths are explicitly recorded.",
+    "builds": "Unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 upstream icons verified. Store --require-git audited 11 universal Git Mach-O files and fixture operations; EditorConfig/IssueRegex audits passed.",
+    "documentation": "Push parity, Git.cpp/PushDlg source inventory and NOTICE updated. Git.cpp marked partial for mapped excerpts rather than full-file completion. Inventory pin regression and seven-column CSV validation passed. Local site generated, unpublished.",
+    "ci": "Existing native history CI receiver expanded with collision rejection; hosted CI/push remain unverified, authentication unavailable, no retry.",
+    "processes": "All core/compiler/native/audit sessions terminal. No main GUI launch. Owned hidden native combo windows closed. Final app/receiver audit empty. Four empty owned PushHistory QA UUID preference files removed; unrelated preferences retained.",
+    "limitations": "Native local chooser currently supplies qualified branch refs while upstream selected local branches normalize to short names; chooser/default normalization remains pending. Alternate upstream CLI suffix-pattern lookup, access/error equivalence, physical controls and signed sandbox acceptance unverified. Full application/dialog parity, Finder activation, genuine updated screenshots/full manual, hosted publication and signed App Store distribution/license clearance remain incomplete."
+  },
+  "logs": {
+    "build/qa/push-source-validation/core.log": "c6ab9b4a385b9d05f53ee52327cb0b4d76bfb0057783b4567ef1c4780f17817c",
+    "build/qa/push-source-validation/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/push-source-validation/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-source-validation/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/push-source-validation/native.log": "c51fd1957a6034a1c995bd5d32750ab62307a9702e81874978b472a72d53a018",
+    "build/qa/push-source-validation/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/push-source-validation/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-source-validation/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/push-source-validation/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/push-source-validation/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

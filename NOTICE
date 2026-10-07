@@ -430,3 +430,8 @@ Push saved AllRemotes/RecurseSubmodules choices and native Yes/No submission
 questions adapt PushDlg::OnInitDialog/Refresh/OnBnClickedOk and source resources.
 The all-branches suppression choice retains the upstream remembered-Yes behavior
 even when No cancels the current submission; native alerts replace MessageBox.
+
+Push short branch/tag collision validation adapts CGit::IsBranchTagNameUnique
+and PushDlg::OnBnClickedOk under the upstream source license. Exact native
+show-ref lookups replace the libgit2 reference lookup before history/config
+saving and transport; fully qualified ref inputs retain their identity.
