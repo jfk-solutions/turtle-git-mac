@@ -1164,6 +1164,31 @@ import TurtleGitCore
     precondition(child.model.exportDocument.bytes == reopened.model.patchPreviewData && !child.model.canApplyLines && !child.model.canApplyHunks)
     reopened.model.busy = true; child.window?.performClose(nil); reopened.model.busy = false
     precondition(reopened.patchPreviewWindow == nil && !reopened.model.patchPreviewVisible)
+    try await until { !reopened.model.patchPreferenceSaving }
+    let lock = root.appendingPathComponent(".git/config.lock"), lockBytes = Data("owned preference lock\n".utf8)
+    try lockBytes.write(to: lock); defer { try? FileManager.default.removeItem(at: lock) }
+    let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+    let locked = LogWindowController(repository: repo, access: nil); defer { locked.window?.performClose(nil) }
+    try await until { !locked.model.busy }
+    locked.model.select([revision.hash]); try await until { locked.model.files.count == 2 }
+    locked.model.setPatchPreview(true)
+    precondition(locked.model.patchPreviewVisible && locked.patchPreviewWindow != nil && !locked.model.busy)
+    try await until { !locked.model.patchPreferenceSaving && !locked.model.patchPreviewLoading }
+    precondition(locked.model.patchPreferenceError != nil && locked.model.patchPreviewError == nil && !locked.model.patchPreviewData.isEmpty)
+    precondition(locked.patchPreviewWindow!.model.exportDocument.bytes == locked.model.patchPreviewData)
+    locked.model.setPatchPreview(false)
+    precondition(!locked.model.patchPreviewVisible && locked.patchPreviewWindow == nil && !locked.model.busy)
+    try await until { !locked.model.patchPreferenceSaving }
+    precondition(locked.model.patchPreferenceError != nil)
+    let lockedConfig = try Data(contentsOf: root.appendingPathComponent(".git/config")), retainedLock = try Data(contentsOf: lock)
+    precondition(lockedConfig == config && retainedLock == lockBytes)
+    try FileManager.default.removeItem(at: lock)
+    locked.model.setPatchPreview(true); locked.model.setPatchPreview(false); locked.model.setPatchPreview(true)
+    precondition(locked.model.patchPreviewVisible && !locked.model.busy)
+    try await until { !locked.model.patchPreferenceSaving && !locked.model.patchPreviewLoading }
+    let remembered = try await repo.run(["config", "--bool", "--get", "tgit.logshowpatch"]).text.trimmingCharacters(in: .newlines)
+    precondition(remembered == "true" && locked.model.patchPreferenceError == nil)
+    locked.model.setPatchPreview(false); try await until { !locked.model.patchPreferenceSaving }
     model.readPatchPreview = { _, _, _ in try await withCheckedThrowingContinuation { held = $0 } }
     model.refreshPatchPreview(); try await until { held != nil }
     model.invalidate(); held!.resume(returning: Data("closed preview".utf8)); held = nil
@@ -1173,7 +1198,7 @@ import TurtleGitCore
     let setting = try await repo.run(["config", "--bool", "--get", "tgit.logshowpatch"]).text.trimmingCharacters(in: .newlines)
     precondition(afterHead == head && afterIndex == index && setting == "false")
     let workBytes = try Data(contentsOf: root.appendingPathComponent(path)); precondition(workBytes == Data("changed\n".utf8))
-    print("Native Log Patch: whole/stat and selected literal file bytes, multi/root clearing, selection-stale and closed read refusal, repo setting and reopening, actual hidden read-only child window/content with applying disabled, child close during busy Log and owned cleanup, exact HEAD/index/work preservation passed. Displayed alignment/gestures pending.")
+    print("Native Log Patch: real config-lock failure preserves usable open/close preview and exact config/owned lock, ordered rapid preference writes and recovery, whole/stat and selected literal file bytes, multi/root clearing, selection-stale and closed read refusal, repo setting and reopening, actual hidden read-only child window/content with applying disabled, child close during busy Log and owned cleanup, exact HEAD/index/work preservation passed. Displayed alignment/gestures pending.")
 }
 
 @MainActor func verifyNativeLogUnrelatedPaths(executable: URL) async throws {

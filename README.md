@@ -562,5 +562,7 @@ retain unrelated paths for these controls; status colors now distinguish changes
 View Patch now opens a read-only native panel that follows revision/file selection,
 clears on multi-selection, preserves raw patch bytes, and reopens from the
 repository setting. Stale reads are canceled when selection changes or Log closes.
+The panel remains usable when saving that setting fails, and rapid toggles save
+the final choice in order.
 
 See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.

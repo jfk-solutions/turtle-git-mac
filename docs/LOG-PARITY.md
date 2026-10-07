@@ -1330,3 +1330,12 @@ unversioned omission, roots, cancellation and exact HEAD/index preservation. See
 preview variants, binary/invalid-UTF-8 export variants, displayed alignment and
 moving/resizing, keyboard/physical menu/light-dark/VoiceOver and signed sandbox
 acceptance remain pending. Full Log acceptance remains incomplete.
+
+View Patch visibility now changes immediately even if remembering the repository
+setting fails, matching upstream's independent create/destroy behavior. Failed
+persistence is shown separately from a patch-read error; it does not set Log busy,
+close a usable viewer or prevent hiding it. Preference writes are ordered so rapid
+show/hide/show sequences finish with the last requested setting. A real config-lock
+receiver case checks usable open/close, exact config and owned-lock preservation,
+recovery after removing the lock and ordered rapid toggles. See
+[the preference failure QA record](qa/log-patch-preferences-2026-10-07.json).

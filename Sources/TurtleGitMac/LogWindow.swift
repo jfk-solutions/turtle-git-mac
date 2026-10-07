@@ -724,6 +724,8 @@ struct LogCommandRequest: Identifiable {
     @Published private(set) var patchPreviewData = Data()
     @Published private(set) var patchPreviewLoading = false
     @Published private(set) var patchPreviewError: String?
+    @Published private(set) var patchPreferenceSaving = false
+    @Published private(set) var patchPreferenceError: String?
     var onPatchPreviewVisibility: ((Bool) -> Void)?
     var onPatchPreviewContent: ((Data) -> Void)?
     var readPatchPreview: ((LogEntry, [CommitFile]?, OperationCancellation) async throws -> Data)?
@@ -731,25 +733,31 @@ struct LogCommandRequest: Identifiable {
     private var patchPreviewTask: Task<Void, Never>?
     private var patchPreviewGeneration = 0
     private var patchPreviewPreferenceLoaded = false
+    private var patchPreferenceTask: Task<Void, Never>?
+    private var patchPreferenceGeneration = 0
     func setPatchPreview(_ visible: Bool) {
         guard !busy, !isInvalidated, visible != patchPreviewVisible else { return }
-        busy = true
-        Task {
-            do {
-                _ = try await repository.run(["config", "--local", "tgit.logshowpatch", visible ? "true" : "false"])
-                busy = false
-                guard !isInvalidated else { return }
-                patchPreviewPreferenceLoaded = true; patchPreviewVisible = visible
-                onPatchPreviewVisibility?(visible); refreshPatchPreview()
-            } catch { busy = false; if !isInvalidated { self.error = error.localizedDescription } }
-        }
+        changePatchPreview(visible)
     }
     func patchPreviewClosed() {
         guard !isInvalidated, patchPreviewVisible else { return }
-        patchPreviewPreferenceLoaded = true; patchPreviewVisible = false; cancelPatchPreview(); onPatchPreviewVisibility?(false)
-        Task {
-            do { _ = try await repository.run(["config", "--local", "tgit.logshowpatch", "false"]) }
-            catch { if !isInvalidated { self.error = error.localizedDescription } }
+        changePatchPreview(false)
+    }
+    private func changePatchPreview(_ visible: Bool) {
+        patchPreviewPreferenceLoaded = true; patchPreviewVisible = visible
+        onPatchPreviewVisibility?(visible); refreshPatchPreview()
+        patchPreferenceGeneration += 1
+        let request = patchPreferenceGeneration, previous = patchPreferenceTask
+        patchPreferenceSaving = true; patchPreferenceError = nil
+        // Preserve intent order even when rapid toggles enqueue several writes.
+        // Persistence never controls whether this session's viewer opens/closes.
+        patchPreferenceTask = Task {
+            await previous?.value
+            do { _ = try await repository.run(["config", "--local", "tgit.logshowpatch", visible ? "true" : "false"]) }
+            catch {
+                if request == patchPreferenceGeneration, !isInvalidated { patchPreferenceError = error.localizedDescription }
+            }
+            if request == patchPreferenceGeneration { patchPreferenceSaving = false; patchPreferenceTask = nil }
         }
     }
     private func cancelPatchPreview() {
@@ -1808,6 +1816,7 @@ struct LogDialog: View {
                 if model.busy { ProgressView().controlSize(.small) }
                 if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
                 if let error = model.patchPreviewError { Text(error).foregroundStyle(.red).font(.caption) }
+                if let error = model.patchPreferenceError { Text("Could not remember View Patch: " + error).foregroundStyle(.red).font(.caption) }
                 if model.loadingNote { ProgressView("Reading notes…").controlSize(.small) }
                 if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
                 Spacer()

@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "e978677",
+  "previous_goal_turn": "progress: live read-only Log patch panel and verification committed",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Patch visibility independent of repository preference-write success, ordered asynchronous persistence, separate failure reporting",
+  "sha256": {
+    "README.md": "4346fca29a74a9da4d6b320fd00e61b3708d83e3e66a81518a6acf6561f41f29",
+    "Sources/TurtleGitMac/LogWindow.swift": "0412cfdfe7c86bc6a4c338c8bff65c1069969c91e93f8b36965efb219ebd1951",
+    "docs/LOG-PARITY.md": "db1a3c02aef98ee09e8a9fc1e23827d4ff9f83ec034177e41e10528a327f48c9",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "1cf527b70c047bde787dbe8d062f18f25090244fdce062c987848bd3f0e92830"
+  },
+  "upstream_evidence": {
+    "src/TortoiseProc/LogDlg.cpp": "f7f61c888ae379112be47151d62d01255230cdbad2df852dbf26f6928a4e730c"
+  },
+  "verification": {
+    "native": "All four sequential scripts/check-cherry-pick-native.py --menus-only runs passed on Apple Git 2.50.1, Git 2.37.1, 2.39.5 and bundled 2.55.0. Actual .git/config.lock write failure leaves an actual hidden patch child usable with valid data; open/close does not change Log busy; error separated from patch read; config and owned lock exact bytes preserved. Removing lock and rapid true/false/true writes finish with persisted true, no error, then false cleanup. Existing selected bytes, root/multi clearing, stale/closed reads, busy child close, reopening, applying disabled and exact HEAD/index/work preservation checks passed. Viewer-width preference restored, owned windows closed. Physical displayed interaction not checked.",
+    "core": "Core sources/readers unchanged; Core suite not repeated. Native regression invokes actual patch readers.",
+    "builds": [
+      "SwiftPM",
+      "Unsigned Debug",
+      "Unsigned AppStore"
+    ],
+    "audits": "Both bundle validators passed, Store --require-git, 90 original icons and exact NOTICE comparisons.",
+    "site": "Local generation passed; unpublished.",
+    "limitations": "Actual read-only filesystem/signed sandbox rather than config-lock refusal still requires acceptance; displayed errors/menus/colors, merge-parent/native-working/binary variants, alignment and moving/resizing remain pending. Full Log/dialog/Finder/App Store/manual/screenshots/hosted site/CI objectives remain incomplete.",
+    "process_audit": "No app or native/menu/provider receiver remained."
+  },
+  "all_sources_manifest_sha256": "a625de517c6c20ca3f13e21f7db93ff3f95c5a26e08720aa8481d2565be5c7e0",
+  "logs": {
+    "build/qa/log-patch-preferences/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-patch-preferences/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-patch-preferences/native.log": "ec1390528c2782247626cd1848327b8578ae8f9cc639a2ff0ec5423162af1475",
+    "build/qa/log-patch-preferences/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-patch-preferences/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-patch-preferences/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/log-patch-preferences/swift.log": "1dce920106fa8f9ed5adf3e766108699d8cdb0fce4af828391d706358f67ecab"
+  }
+}
