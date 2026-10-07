@@ -728,6 +728,8 @@ import TurtleGitCore
     try Data("working\n".utf8).write(to: root.appendingPathComponent(path))
     try Data("untracked\n".utf8).write(to: root.appendingPathComponent("untracked"))
     let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    log.clipboard = NSPasteboard(name: .init("TurtleGit-log-flags-copy-" + UUID().uuidString))
+    defer { log.clipboard.releaseGlobally() }
     func until(_ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -745,6 +747,14 @@ import TurtleGitCore
     log.confirmWorkingFlags = { _ in true }
     log.setWorkingFlag(.assumeUnchanged, ids: [path]); try await until { !log.busy && log.workingIndexFiles.contains { $0.id == path && $0.assumeUnchanged } }
     precondition(log.files.contains { $0.path == path && log.fileStatus($0) == "Assume unchanged" } && !log.canWorkingFiles(.commit, ids: [path]) && log.canWorkingFlag(.clear, ids: [path]))
+    let copyIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    log.copyFiles([path], information: .all)
+    precondition(log.clipboard.string(forType: .string) == "Path\tExtension\tStatus\tLines added\tLines removed\n" + path + "\t.txt\tAssume unchanged\t–\t–\n")
+    let copiedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    precondition(copiedIndex == copyIndex && changes == 1)
+    let copied = log.clipboard.string(forType: .string)
+    log.busy = true; precondition(!log.canCopyFiles([path])); log.copyFiles([path], information: .names); log.busy = false
+    precondition(log.clipboard.string(forType: .string) == copied)
     log.setWorkingFlag(.skipWorktree, ids: [path]); try await until { !log.busy && log.workingIndexFiles.contains { $0.id == path && $0.assumeUnchanged && $0.skipWorktree } }
     log.setWorkingFlag(.clear, ids: [path]); try await until { !log.busy && log.workingIndexFiles.contains { $0.id == path && !$0.assumeUnchanged && !$0.skipWorktree } }
     precondition(changes == 3 && log.canWorkingFiles(.commit, ids: [path]))
@@ -762,6 +772,9 @@ import TurtleGitCore
     gate?.resume(returning: true); gate = nil; try await until { !log.busy }; precondition(changes == 3)
     try await refresh(); log.setWorkingFlag(.assumeUnchanged, ids: [path]); try await until { gate != nil }
     log.invalidate(); gate?.resume(returning: true); gate = nil; try await until { !log.busy }; precondition(changes == 3 && log.isInvalidated)
+    let closedClipboard = log.clipboard.string(forType: .string)
+    precondition(!log.canCopyFiles([path])); log.copyFiles([path], information: .relativePaths)
+    precondition(log.clipboard.string(forType: .string) == closedClipboard)
     try await repo.setIndexFlags(.skipWorktree, paths: ["module"]); try await refresh()
     precondition(log.files.contains { $0.path == "module" && $0.isSubmodule && log.fileStatus($0) == "Skip-worktree" })
     log.confirmWorkingFlags = { _ in true }; log.setWorkingFlag(.clear, ids: ["module"])
@@ -1192,6 +1205,14 @@ import TurtleGitCore
     }
     log.reload(); try await until { !log.busy }; log.select([changed])
     try await until { log.files.count == 3 && log.parentMetadata[changed] != nil }
+    let renameIDs = Set(log.files.filter { $0.path == new }.map(\.id))
+    let beforeCopyIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    log.copyFiles(renameIDs, information: .all)
+    precondition(log.clipboard.string(forType: .string) == "Path\tExtension\tStatus\tLines added\tLines removed\n" + new + " (from " + old + ")\t.txt\tRenamed\t0\t0\n")
+    log.copyFiles(renameIDs, information: .fullPaths); precondition(log.clipboard.string(forType: .string) == root.appendingPathComponent(new).path + "\n")
+    log.copyFiles(renameIDs, information: .names); precondition(log.clipboard.string(forType: .string) == new + "\n")
+    let afterCopyIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+    precondition(beforeCopyIndex == afterCopyIndex)
     precondition(log.fileParentComparisonTitle(Set(log.files.map(\.id)))?.contains("A parent subject lon...") == true && log.fileParentComparisonTitle(Set(log.files.map(\.id)))?.contains(String(base.prefix(8))) == true)
     var requests: [(ComparisonRevision, ComparisonRevision, [String])] = []
     log.onFileCompare = { requests.append(($0, $1, $2)) }
@@ -1269,7 +1290,14 @@ import TurtleGitCore
     log.selectedFileDiff(duplicates); try await until { !log.busy }
     let text = String(decoding: patch, as: UTF8.self)
     precondition(text.contains("-left") && text.contains("-right") && text.components(separatedBy: "+merged").count == 3)
-    log.copyFiles(duplicates, information: .relativePaths); precondition(log.clipboard.string(forType: .string) == "keep\nkeep")
+    log.copyFiles(duplicates, information: .relativePaths); precondition(log.clipboard.string(forType: .string) == "keep\nkeep\n")
+    log.copyFiles(duplicates, information: .all)
+    precondition(log.clipboard.string(forType: .string) == "Path\tExtension\tStatus\tLines added\tLines removed\nkeep\t\tModified\t1\t1\nkeep\t\tModified\t1\t1\n")
+    let mergedClipboard = log.clipboard.string(forType: .string)
+    let headerIDs = Set(log.fileTableRows.filter { $0.header != nil }.map(\.id))
+    precondition(!log.canCopyFiles(headerIDs)); log.copyFiles(headerIDs, information: .all)
+    log.filterPaths = "missing"; precondition(!log.canCopyFiles(duplicates)); log.copyFiles(duplicates, information: .all); log.filterPaths = ""
+    precondition(log.clipboard.string(forType: .string) == mergedClipboard)
     var ownedTrash: [URL] = []; defer { for file in ownedTrash { try? FileManager.default.removeItem(at: file) } }
     var restoreResults: [String] = [], restoreFailures: [String] = [], restoreChanges = 0
     log.showHistoricalRevertResult = { restoreResults.append($0) }

@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-07",
+  "parent_checkpoint": "ef79505",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Log file clipboard source formatting and displayed Path/Extension values",
+  "sha256": {
+    "Sources/TurtleGitCore/StatusListClipboard.swift": "8a567824dce7d28ece619f9419cee910803776b0bbc949fa3e2b9e8815e8dbd7",
+    "Sources/TurtleGitMac/LogWindow.swift": "6ce7ee395702ebab9edc5036f1b58e14a65a8235c5fbaf6099c5afc125da9b6c",
+    "Tests/TurtleGitCoreTests/StatusListClipboardTests.swift": "1c9a1bd5e4223f9c894b52e31517c015a9f216d709526a7e03a198d82e42c6e5",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "463315a3755940129e5c247936497c4ffe29caa4323389fe72af7ce948c97311",
+    "docs/LOG-PARITY.md": "338ca7edd49f764786d98185127929ce98250f904ffb8ec093e73d5b45fe624d",
+    "docs/upstream-files.csv": "661fa17bbf90d7b066d8d9f926925958a869f1d1d3db07b46ae241032123c249"
+  },
+  "upstream_evidence": {
+    "src/Git/GitStatusListCtrl.cpp": {
+      "sha256": "3e36539a5a969f1164d5a1295c77db2f1b2d5646eae33689ef858f1e49fc2546",
+      "sections": [
+        "GetCellText, lines 1018 onward",
+        "clipboard menu, lines 1994 onward",
+        "COPYEXT dispatch, lines 2676 onward",
+        "CopySelectedEntriesToClipboard, lines 3880 onward"
+      ]
+    },
+    "src/Resources/TortoiseProcENG.rc": {
+      "sha256": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6",
+      "strings": [
+        "IDS_STATUSLIST_FROM (from %s)",
+        "IDS_STATUSLIST_CONTEXT_COPYEXT Copy all information to clipboard"
+      ]
+    }
+  },
+  "verification": {
+    "core": "Five StatusListClipboardTests passed, including three existing status-list cases and two occurrence/literal-name cases. Duplicate paths retain different parent statistics/status IDs; rename/copy labels, dotfiles, typed gitlink extensions, visible column order/empty input, exact headings/tabs and LF termination checked. Full suite not repeated; prior ef79505 full run remains separate evidence.",
+    "native": {
+      "command": "python3 scripts/check-cherry-pick-native.py --menus-only with all four --git paths below",
+      "versions": {
+        "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+        "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+        "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+        "build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git": "git version 2.55.0"
+      },
+      "result": "All four sequential runs passed. Actual Log model copied historical rename cells with source heading/label/dotted suffix, raw full paths/names with LF, two duplicate merge-parent rows, and real working Assume unchanged status. Private pasteboards used; actual index bytes unchanged around copying. Busy, invalidated, group-header-only and filtered-out calls retained prior clipboard. Existing focused native menus/replay/common fixtures passed. Confirmations and window handoffs injected; no windows displayed."
+    },
+    "builds": [
+      "Unsigned Xcode Debug",
+      "Unsigned Xcode AppStore",
+      "SwiftPM focused test/build"
+    ],
+    "audits": "Both bundle validators passed, including Store --require-git, all 90 upstream icon resources and exact NOTICE comparisons.",
+    "limitations": "No displayed copy-menu/keyboard gestures, new light/dark screenshot or VoiceOver acceptance. Current-column context command, native column order/visibility persistence and AbbreviateRenamings consumer remain pending. Standard five-column output verified; no arbitrary live column layout claim. Signed Finder/sandbox/App Store acceptance and hosted CI not established. Full port incomplete.",
+    "site": "Local site generation passed; not published.",
+    "process_audit": "No main app or native/menu/provider receiver remained after completion."
+  },
+  "remaining": "Complete all upstream behaviors/dialogs; Log file-table/menu input and layout parity; Finder activation; signed App Store distribution; full user manual, screenshots and site publication.",
+  "all_sources_manifest_sha256": "1c64706daa87793422ad73b124edf79bb5e3792df8faa822faa2ee0448ec2322",
+  "logs": {
+    "build/qa/log-file-clipboard/core.log": "249dadf1ada4692ebd218867219890ba28149d25f4eb48d80b2bfacb8dc8d1ac",
+    "build/qa/log-file-clipboard/debug-audit.log": "4dcc1217127a993de5843e6eb5714522f9c33523ad6e20b203b76b2b9597b099",
+    "build/qa/log-file-clipboard/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-file-clipboard/native.log": "8be2da420b2911f20dd7655663b75bd913e54bcff3861a05fc63a36de7ae4fe4",
+    "build/qa/log-file-clipboard/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-file-clipboard/store-audit.log": "383be6fb0e11b6c564294947c2ed6a66d3decdddc83b1d28701eff63677ba00f",
+    "build/qa/log-file-clipboard/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

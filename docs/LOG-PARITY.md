@@ -1146,3 +1146,40 @@ real mixed file-mode Add progress, raw blob checks, unchanged regular working-fi
 permissions/types, directory/gitlink Add, held-index/pre-cancel refusal and unrelated
 staged/HEAD preservation. Root callbacks are injected. Displayed Shift events,
 progress post-action menus and signed sandbox acceptance remain pending.
+
+
+## File clipboard headings and displayed values
+
+A follow-up audit of the pinned `GitStatusListCtrl.cpp` menu, `GetCellText` and
+`CopySelectedEntriesToClipboard` corrected Log's file clipboard formatting.
+The upstream `COPYEXT` command means **Copy all information to clipboard**;
+it is not a separate extension-only command. The four existing named commands
+remain, with the original Copy artwork.
+
+Full paths, relative paths and file/folder names now end each selected row with
+LF, including the last row. All information adds the Path, Extension, Status,
+Lines added and Lines removed headings followed by tab-separated cells. Log
+uses a shared status-list formatter while retaining each merge-parent occurrence
+and its own statistics. Working-tree copies use the displayed Assume unchanged
+or Skip-worktree status instead of a generic Modified label. Group headers and
+filtered-out files are excluded; busy and invalidated models preserve the
+previous clipboard.
+
+The native Path cells now show the default source `(from old path)` rename/copy
+suffix, and Extension includes the leading dot, including dotfiles. Typed gitlinks
+have no extension. These are display labels; Git commands and the three path/name
+copy commands retain actual paths. The formatter preserves Unicode and embedded
+newlines/tabs rather than quoting or deduplicating paths.
+
+The five focused Core tests cover both existing status-list consumers and the
+new occurrence-aware format, different statistics for duplicate paths, displayed
+flag overrides, rename/copy labels, reordered/empty column inputs, literal names
+and gitlinks. Native receiver checks use actual historical rename/merge rows and
+working index flags with a private pasteboard; resulting records are in
+[the file clipboard QA record](qa/log-file-clipboard-2026-10-07.json).
+The Core tests do not establish displayed interaction acceptance.
+
+Log's current-column context command, native column visibility/order persistence,
+AbbreviateRenamings setting consumer, composed light/dark appearance, physical
+menu/keyboard gestures and signed sandbox acceptance remain pending. The default
+five-column clipboard change does not establish complete menu or Log parity.

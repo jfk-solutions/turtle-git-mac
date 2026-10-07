@@ -972,21 +972,21 @@ struct LogCommandRequest: Identifiable {
     enum CopyFileInformation: String, CaseIterable {
         case fullPaths = "Full paths", relativePaths = "Relative paths", names = "File/folder names", all = "Copy all information to clipboard"
     }
+    func canCopyFiles(_ ids: Set<String>) -> Bool {
+        !busy && !isInvalidated && visibleFiles.contains { ids.contains($0.id) }
+    }
     func copyFiles(_ ids: Set<String>, information: CopyFileInformation) {
-        let selected = visibleFiles.filter { ids.contains($0.id) }; guard !selected.isEmpty else { return }
-        let text: String
-        if information == .all { text = ComparisonFileList.clipboard(selected, extended: true) }
-        else {
-            text = selected.map { file in
-                switch information {
-                case .fullPaths: return repository.root.appendingPathComponent(file.path).path
-                case .relativePaths: return file.path
-                case .names: return (file.path as NSString).lastPathComponent
-                case .all: return ""
-                }
-            }.joined(separator: "\n")
+        guard canCopyFiles(ids) else { return }
+        let selected = visibleFiles.filter { ids.contains($0.id) }
+        let kind: StatusListCopy
+        switch information {
+        case .fullPaths: kind = .fullPaths
+        case .relativePaths: kind = .relativePaths
+        case .names: kind = .names
+        case .all: kind = .all
         }
-        copy(text)
+        let statuses = Dictionary(uniqueKeysWithValues: selected.map { ($0.id, fileStatus($0)) })
+        copy(StatusListClipboard.text(selected, root: repository.root, statuses: statuses, copy: kind))
     }
     func fileLog(_ ids: Set<String>, oldName: Bool = false) {
         if selectedWorkingTree, !busy, ids.count == 1, let file = files.first(where: { ids.contains($0.id) }), file.action != "?", let onFileLog {
@@ -1601,10 +1601,10 @@ struct LogDialog: View {
                         if let header = row.header {
                             Text(header).fontWeight(.semibold).foregroundStyle(Color.accentColor).accessibilityAddTraits(.isHeader)
                         } else if let file = row.file {
-                            Text(file.path).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
+                            Text(StatusListClipboard.displayedPath(file)).foregroundStyle(model.selectedFiles.contains(file.id) ? Color.primary : Color.blue).help(file.oldPath.map { "Renamed from \($0)" } ?? file.path)
                         }
                     }.width(min: 260, ideal: 460)
-                    TableColumn("Extension") { row in Text(row.file?.fileExtension ?? "") }.width(80)
+                    TableColumn("Extension") { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "") }.width(80)
                     TableColumn("Status") { row in Text(row.file.map(model.fileStatus) ?? "") }.width(95)
                     TableColumn("Lines added") { row in Text(row.file?.addedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(90)
                     TableColumn("Lines removed") { row in Text(row.file?.removedText ?? "").foregroundStyle(model.selectedFiles.contains(row.id) ? Color.primary : Color.blue) }.width(105)
@@ -1737,7 +1737,7 @@ struct LogDialog: View {
             ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
                 Button { model.copyFiles(ids, information: information) } label: { CommandLabel(title: information.rawValue, icon: .copy) }
             }
-        } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(ids.isEmpty)
+        } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(!model.canCopyFiles(ids))
     }
     @ViewBuilder private func preparedComparisonActions(_ ids: Set<String>, file: CommitFile) -> some View {
         Divider()
