@@ -215,6 +215,19 @@ enum MergePostAction: String, CaseIterable, Hashable {
     private let access: RepositoryAccessLease?
     private var cancellation = OperationCancellation()
     private var started = false
+    private let preferences: UserDefaults
+    static let conflictHintPreference = "MergeConflictsNeedsCommit"
+    static let conflictHint = """
+    While merging, i.e. integrating changes of another (remote) branch into your local branch, a conflict in at least one file occurred. This means that you need to resolve this manually (i.e., you need to integrate your changes into a file which was also modified on another branch).
+
+    After resolving all files, you need to perform a commit in order to complete the merge.
+
+    If you want to abort the merge, do a hard reset on HEAD or select abort merge on the context menu.
+
+    See help for more information.
+    """
+    @Published private(set) var confirmingConflictHint = false
+    var presentConflictHint: (() async -> Bool)?
     @Published private(set) var busy = true
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
@@ -226,10 +239,10 @@ enum MergePostAction: String, CaseIterable, Hashable {
     var onChanged: (String) -> Void = { _ in }
     var onPostAction: ((MergePostAction, MergeOptions) -> Void)?
     var confirmDeletion: (String, @escaping (Bool) -> Void) -> Void = { _, choose in choose(false) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: MergeOptions, target: CheckoutTarget, showStashPop: Bool) { self.repository = repository; self.access = access; self.options = options; self.target = target; self.showStashPop = showStashPop }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: MergeOptions, target: CheckoutTarget, showStashPop: Bool, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.target = target; self.showStashPop = showStashPop; self.preferences = preferences }
     func start() { Task { await run() } }
     func run() async { guard !started else { return }; started = true; await execute(options) }
-    func cancel() { guard busy else { return }; cancellation.cancel() }
+    func cancel() { guard busy, !confirmingConflictHint else { return }; cancellation.cancel() }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
@@ -247,7 +260,15 @@ enum MergePostAction: String, CaseIterable, Hashable {
                 postActions.append(.push)
             }
         } else {
-            if (try? await repository.status(refreshIndex: false).contains { $0.state == .conflicted }) == true { postActions += [.resolve, .commit] }
+            if (try? await repository.status(refreshIndex: false).contains { $0.state == .conflicted }) == true {
+                if !preferences.bool(forKey: Self.conflictHintPreference), let presentConflictHint {
+                    confirmingConflictHint = true
+                    let suppress = await presentConflictHint()
+                    confirmingConflictHint = false
+                    if suppress { preferences.set(true, forKey: Self.conflictHintPreference) }
+                }
+                postActions += [.resolve, .commit]
+            }
             let head = try? await repository.run(["rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines)
             let revision = try? await repository.run(["rev-parse", "--verify", "--end-of-options", options.revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
             var common = false
@@ -298,6 +319,16 @@ enum MergePostAction: String, CaseIterable, Hashable {
             guard let self, !self.model.busy, !self.model.confirmingDeletion, self.window?.attachedSheet == nil else { return }
             if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
         }
+        model.presentConflictHint = { [weak window] in
+            guard let window, window.attachedSheet == nil else { return false }
+            return await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.alertStyle = .informational
+                alert.messageText = "TurtleGit"; alert.informativeText = MergeProgressWindowModel.conflictHint
+                alert.addButton(withTitle: "OK")
+                alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Don't show this message again"
+                alert.beginSheetModal(for: window) { _ in continuation.resume(returning: alert.suppressionButton?.state == .on) }
+            }
+        }
         model.confirmDeletion = { [weak window] branch, choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Delete branch \"\(branch)\"?"
@@ -306,6 +337,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.confirmingConflictHint { return false }
         if model.busy { model.cancel(); return false }
         guard !model.confirmingDeletion, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
@@ -332,7 +364,7 @@ private struct MergeProgressDialog: View {
                     }.disabled(model.busy || model.confirmingDeletion)
                 }
                 Spacer()
-                if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
+                if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.confirmingConflictHint) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.confirmingDeletion) }
             }
         }.padding(12)

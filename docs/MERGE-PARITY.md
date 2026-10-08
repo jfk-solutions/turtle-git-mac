@@ -63,7 +63,7 @@ Escape and Cancel. HEAD/index/worktree remained unchanged.
 - Full reference chooser controls, persisted revision history and native chooser
   acceptance with a different branch/commit, tag merge and detached/unborn cases.
 - Physical progress/sheet/cancellation and post-action routing acceptance, live
-  streaming, conflict-hint suppression, git-svn post-action and cancel-to-Abort flow.
+  streaming, displayed conflict-hint acceptance, git-svn post-action and cancel-to-Abort flow.
 - Dedicated Abort Merge dialog and three-way conflict editor. Conflicts and abort
   are covered in backend tests; native conflict recovery is not yet verified.
 - Interactive hooks/signing/editor workflows, strategy variants, user-data/rebase
@@ -104,7 +104,41 @@ The [receiver](qa/merge-progress-native-2026-10-08.swift) and
 without windows. Core adds optional cancellation and the unrelated-history flag.
 App Store progress checks the retained security-scope lease before any Git read.
 Physical window/menu/sheet/confirmation/cancel/refresh routing, active-process
-interruption, live streaming, conflict hint/suppression, source cancel-to-Abort
+interruption, live streaming, displayed conflict hint acceptance, source cancel-to-Abort
 behavior, git-svn post-actions, pre-dialog user-data/rebase guards and signed access
 remain pending. Existing screenshots depict the options, not the progress sheet.
 Full Merge/application parity remains incomplete.
+
+## Conflict hint and Abort reset foundation
+
+A failed merge with actual unmerged index entries now presents upstream's conflict
+information in an owned informational sheet, including the reminder to commit
+resolved files and the `Don't show this message again` checkbox. Progress stays
+busy and its post-actions remain unavailable until acknowledgement. Unchecked OK
+does not save a preference. Checked OK saves `MergeConflictsNeedsCommit`, and
+later merges skip the hint. The progress owner cannot close or cancel while the
+hint sheet is pending. No hint is shown for failures without conflicts. Only the
+native controller presents the sheet; headless callers can supply a presenter.
+
+The Abort Merge backend now exposes source's three reset modes: Merge defaults
+to `git reset --merge`; Mixed and Hard reset HEAD. This differs from substituting
+`git merge --abort`. Merge reconstructs the prior index while preserving unrelated
+working edits, Mixed resets the index while retaining working files, and Hard
+restores tracked files. All modes preserve HEAD and untracked files. Pre-cancelled
+operations do not run, and bare repositories are rejected.
+
+The [receiver](qa/merge-conflict-hint-native-2026-10-08.swift) and
+[QA record](qa/merge-conflict-hint-2026-10-08.json) cover blocking acknowledgement,
+checked/unchecked suppression, a fresh-process preference read, later suppression,
+non-conflict failure and all three Core modes. They do not display windows.
+Private UUID preference domains are used and removed; standard preferences and
+clipboard are untouched. Core tests additionally check unrelated working edits,
+untracked preservation, unchanged HEAD, pre-cancellation and bare rejection.
+
+Source review confirms that Close returns OK; Cancel/titlebar close return Cancel
+and open Abort Merge when conflicts remain. The dedicated native Abort Merge
+dialog (three radio choices, working-tree comparison, OK/Cancel/Help), cancel route,
+full Reset progress/post-actions, physical hint/suppression/keyboard rendering,
+signed access and broader abort/recovery cases remain pending. The hint retains
+upstream wording; its Abort Merge context-menu entry still needs implementation.
+Full application parity remains incomplete.

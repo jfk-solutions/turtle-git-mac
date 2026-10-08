@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "6e94efbf3063022cd262ec95f51f7f158c0b9292",
+  "scope": "Merge conflict information and persistent suppression; Core Abort Merge reset mode foundation (Merge/Mixed/Hard). Dedicated native Abort dialog/menu/cancel routing and full application port remain incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/MergeAbortDlg.cpp": "82f9ab5eb47252802236ca2203f408f2dae8a239",
+    "src/TortoiseProc/MergeAbortDlg.h": "499da16eb5c2962f5995d0d6eee9f5fcedde194a",
+    "src/Utils/MiscUI/MessageBox.cpp": "9cff2f2887d83bf5dfebf1b6a90acda2048bc42b",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "3b3613866ee8b346876e17c6c174ac87f1f956aa77e4388f0d53928586c0973c",
+    "NOTICE": "4027a6a951c038feb6b1ecd3e8a00b4a494398d90f144db1b8c21de9e8ea8654",
+    "Sources/TurtleGitCore/Reset.swift": "9888eaad1b021e499e278636f19bed7388dc4ea6c80596d40edea189824c0d79",
+    "Sources/TurtleGitMac/MergeWindow.swift": "061f94c986451305b8d85527c08a583788fbd264acfc3c6d89c9248f6949836d",
+    "Tests/TurtleGitCoreTests/ResetTests.swift": "e173cdcc62519ae3e341b36a022f93bb5c58de90e8e2bbffe9ce05df37418202",
+    "docs/MERGE-PARITY.md": "9b016d4112f825492a80b1481851e2ffe7cc41703a40711d68060d4a2c744cf0",
+    "docs/upstream-files.csv": "89a37f2b206b15a91705ede10c5fc67b3a59360a8a79109825ccf643bc2b9f9f",
+    "docs/qa/merge-conflict-hint-native-2026-10-08.swift": "76f05b5643c6d5c515fa94e2790912f300036b1b92f19b0cc3a35a0cb9af3c4b",
+    "scripts/test-merge-conflict-hint.py": "0a1dbce6f62d66f9555a181ecc08d2e4f63130424ef3f215b4f216c2e311ec64"
+  },
+  "all_sources_manifest_sha256": "2cec02ffc41b50d9f6b54dc545c78325e60e969e135388aae87566ecc348a593",
+  "verification": {
+    "core": "MergeAbortResetTests and ResetTests: 5 passed. Three abort modes preserve HEAD and untracked files; Merge preserves unrelated working notes and reconstructs conflicted file, Mixed retains working conflict text, Hard restores tracked notes/file. All clear merge/unmerged index state. Pre-cancelled hard reset preserves HEAD/MERGE_HEAD/index/file; bare rejected. Existing Reset tests passed.",
+    "native": "Final hint receiver passed system Git, 2.37.1, 2.39.5 and bundled 2.55.0. Actual conflict blocks completion/actions while custom presenter awaits acknowledgement. Unchecked acknowledgement stores no suppression and leaves post-conflict HEAD/refs/index/working bytes unchanged. Checked acknowledgement persists an isolated UUID preference and a fresh executable process reads it; subsequent model skips presenter. Non-conflict failure skips hint. All three Core abort modes also execute against each Git with expected conflict working-tree effects and unchanged HEAD. Private domains removed via defer; no windows, standard preferences or clipboard writes.",
+    "regression": "Existing Merge progress receiver passed all four Git versions after hint additions, before only the final Core abort-reset argument compatibility change. It does not call the new abort-reset method. Final hint receiver compiles all native Sources and executes all abort modes against final Debug Core framework.",
+    "iterations": "Initial Debug/Core passed. First native matrix passed system Git and hint/persistence phase on 2.37.1, then failed because that Git rejects reset --mixed --end-of-options HEAD --. Both receiver/regression sessions were terminal before changing Core. For fixed trusted HEAD use reset <mode> HEAD --, preserving source effects. Final Debug/Core and four-Git native matrix passed. Failed log and earlier builds/tests retained.",
+    "limitations": "Physical informational sheet/text/checkbox/default-key/suppression and window-close acceptance unverified. Fresh-process read is headless, not installed app relaunch. Dedicated Abort Merge dialog/menu, working-tree comparison, cancel-to-Abort routing and complete Reset progress/post-actions pending. Hint retains source wording that references an Abort Merge context menu still pending in native app. Source Close returns OK while Cancel/titlebar close can invoke Abort only when conflicts remain; not yet wired. Active cancellation/unsafe reset failure scenarios, unborn/worktrees/submodules/bisect, signed scope and broader recovery pending. Full dialogs/Finder parity, updated real screenshots/manual, hosted CI/publication and signed App Store distribution incomplete. GitHub auth unavailable; not retried.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git 2.55.0 Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "documentation": "Merge parity, NOTICE, five upstream source mappings and native workflow step updated. Pin checker and all 3277 seven-column source rows passed. Local site generated; unpublished.",
+    "processes": "All compiler/native/build/audit sessions terminal. Main GUI never launched. Hint receiver uses model-only parent and headless fresh-process preference probe; both terminal. Final app/native receiver process audit empty. UUID preference domains removed; six empty private test plist files removed after native sessions terminal, no nonempty files touched. No standard preferences or clipboard writes."
+  },
+  "logs": {
+    "build/qa/merge-conflict-hint/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/merge-conflict-hint/core-before-reset-compatibility.log": "3fc24df3d1f8ed3472fbffaf6f5ccbe3d155e7d9c0dbac3be4ca59a8ebe51ac0",
+    "build/qa/merge-conflict-hint/core.log": "6fe3ae6aa58cb311fca5dd367129409b9ff89960dc1b8b0d7c7248264005f15d",
+    "build/qa/merge-conflict-hint/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/merge-conflict-hint/debug-before-reset-compatibility.log": "d6859eb25d548494cf9410a51d188c4622dcd6bb51be9eba7011e970aec77d25",
+    "build/qa/merge-conflict-hint/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-conflict-hint/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-conflict-hint/native-before-reset-compatibility-failed.log": "58824a8d790a6b2e84af1400626e937a908d77fbfcb4f3c8e9b5089d1c7965a4",
+    "build/qa/merge-conflict-hint/native.log": "a31e8995b97181969464c5d79cdc071a7046132c19a3c3d5763c91712d8ba192",
+    "build/qa/merge-conflict-hint/private-preference-cleanup.log": "05fc9fa0eaa16acd0d8e175afaf81d07412e0284b12a166f684ca29a327aa49e",
+    "build/qa/merge-conflict-hint/progress-regression.log": "1c31ca8f890a5244863235b9bd118044dbe9cefe111669568818624d27ba5884",
+    "build/qa/merge-conflict-hint/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-conflict-hint/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-conflict-hint/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/merge-conflict-hint/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

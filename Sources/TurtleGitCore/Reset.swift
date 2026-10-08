@@ -46,3 +46,21 @@ extension GitRepository {
         return (url, destination.object)
     }
 }
+
+/// Abort Merge uses these reset modes in upstream, rather than git merge --abort.
+public enum MergeAbortMode: String, CaseIterable, Sendable { case merge, mixed, hard }
+public enum MergeAbortFailure: LocalizedError {
+    case workingTreeRequired
+    public var errorDescription: String? { "Abort Merge requires a working tree." }
+}
+extension GitRepository {
+    public func abortMerge(mode: MergeAbortMode = .merge, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        guard try !isBare() else { throw MergeAbortFailure.workingTreeRequired }
+        _ = try run(["rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"])
+        // Match AppUtils::Reset effects. HEAD is a fixed target, so no option-like
+        // revision is accepted. Omit --end-of-options for Git 2.37 compatibility.
+        let args = mode == .merge ? ["reset", "--merge"] : ["reset", "--" + mode.rawValue, "HEAD", "--"]
+        return try run(args, cancellation: cancellation).text
+    }
+}

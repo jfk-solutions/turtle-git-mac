@@ -70,3 +70,45 @@ final class ResetTests: XCTestCase {
         XCTAssertEqual(head, base); XCTAssertEqual(main, latest)
     }
 }
+
+final class MergeAbortResetTests: XCTestCase {
+    func fixture() async throws -> (URL, GitRepository, String) {
+        let (root, repo, path) = try await GitPatchTests().fixture()
+        try Data("notes\n".utf8).write(to: root.appendingPathComponent("notes")); try await repo.stage(["notes"]); _ = try await repo.commit(message: "notes")
+        _ = try await repo.run(["switch", "-c", "feature"])
+        try Data("theirs\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "theirs")
+        _ = try await repo.run(["switch", "main"])
+        try Data("ours\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "ours")
+        try Data("local notes\n".utf8).write(to: root.appendingPathComponent("notes"))
+        try Data("untracked\n".utf8).write(to: root.appendingPathComponent("untracked"))
+        do { var options = MergeOptions(); options.revision = "feature"; _ = try await repo.merge(options); XCTFail("Expected merge conflict") } catch is GitFailure {}
+        return (root, repo, path)
+    }
+    func testThreeAbortModesMatchSourceResetSemanticsWithoutMovingHead() async throws {
+        for mode in MergeAbortMode.allCases {
+            let (root, repo, path) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+            let head = try await repo.run(["rev-parse", "HEAD"]).stdout
+            let conflict = try Data(contentsOf: root.appendingPathComponent(path))
+            _ = try await repo.abortMerge(mode: mode)
+            let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, unmerged = try await repo.conflicts()
+            let mergeHead = try await repo.run(["rev-parse", "--verify", "--quiet", "MERGE_HEAD"], successfulExitCodes: 0...1).exitCode
+            XCTAssertEqual(head, afterHead); XCTAssertTrue(unmerged.isEmpty); XCTAssertEqual(mergeHead, 1)
+            XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("notes")), mode == .hard ? "notes\n" : "local notes\n")
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(path)), mode == .mixed ? conflict : Data("ours\n".utf8))
+            XCTAssertEqual(try String(contentsOf: root.appendingPathComponent("untracked")), "untracked\n")
+        }
+    }
+    func testPreCancellationPreservesConflictStateAndBareRepositoriesAreRejected() async throws {
+        let (root, repo, path) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, merge = try await repo.run(["rev-parse", "MERGE_HEAD"]).stdout
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent(path))
+        let cancellation = OperationCancellation(); cancellation.cancel()
+        do { _ = try await repo.abortMerge(mode: .hard, cancellation: cancellation); XCTFail("Pre-cancelled reset ran") } catch is OperationCancellationFailure {}
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterMerge = try await repo.run(["rev-parse", "MERGE_HEAD"]).stdout
+        XCTAssertEqual(head, afterHead); XCTAssertEqual(merge, afterMerge)
+        XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index"))); XCTAssertEqual(file, try Data(contentsOf: root.appendingPathComponent(path)))
+        let bareRoot = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        let bare = GitRepository(root: bareRoot, executable: repo.executable)
+        do { _ = try await bare.abortMerge(); XCTFail("Bare abort accepted") } catch MergeAbortFailure.workingTreeRequired {}
+    }
+}

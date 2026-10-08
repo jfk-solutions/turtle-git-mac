@@ -518,3 +518,7 @@ its captured save request while the owned progress sheet runs.
 Native Merge progress, unrelated-history retry, conflict and success post-actions
 adapt AppUtils.cpp DoMerge at the recorded upstream pin. Local branch removal
 retains source confirmation and Git's explicit force-delete operation.
+
+Merge's conflict information and suppression preference adapt AppUtils.cpp,
+MessageBox.cpp and IDS_NEED_TO_RESOLVE_CONFLICTS_HINT. Abort Merge's three Core
+reset modes follow MergeAbortDlg.cpp and AppUtils.cpp Reset at the recorded pin.
