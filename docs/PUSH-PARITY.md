@@ -318,7 +318,7 @@ cancels the owned request and releases its result after completion.
 ordered actions, close policies, immutable presets/duplicate/dispatch guards,
 submodule detection, rejected-versus-hook failures, Fetch presets, and owned
 cancellation/retry. Hidden progress layout is not displayed acceptance.
-Streaming output, complete progress controls/layout, project pre/post-Push hooks,
+Complete progress controls/layout, project pre/post-Push hooks,
 physical sheets/defaults/menus/keyboard/close/themes/accessibility, actual nested
 follow-up windows and signed sandbox/network/Finder/App Store acceptance remain
 pending. Existing screenshots predate the progress sheet. Full Push/application
@@ -341,3 +341,41 @@ success/failed notification counts, preflight exclusion, and a real deletion who
 failed count still refreshes Log. The retained-progress regression checks a
 cancelled transport notification without a success callback. Actual displayed
 cross-window refresh and signed/sandbox/network acceptance remain pending.
+
+
+## Live CLI output
+
+Push now uses the byte-oriented GitCliOutputParser already ported for Clone.
+The baseline is `CAppUtils::DoPush` and `CProgressDlg::UpdateCmdOutput` /
+`UpdateProgressFromLine`: `--progress`, the shared command-list parser,
+CR replacement, phase/percentage, output limits and scrolling to the end.
+Each branch/tag transport for every remote, and the optional first-parent count,
+forwards typed stdout/stderr chunks through the owned process runner. Validation
+and saved-default commands remain outside the transport display. Wake-ups are
+coalesced; pending bytes are retained in the parser until consumed.
+
+The result captures GitOutputLimitinKiB at construction (default 2048 KiB,
+bounded 16..102400). It shows live output, a green percentage bar when available,
+a phase label and end scrolling; parser drop mode stops display growth after its
+soft limit. The raw transport result and completed-destination diagnostics remain
+complete. Follow-up classification uses that raw result, so a rejection after
+visible truncation still offers Pull/Fetch/Push. Failure summaries include the
+failed destination and completed phases, without replaying already displayed Git
+output. Structured Git failure information also preserves a later count error.
+Headless compatibility without an owned result keeps its existing raw completion
+path. No new transport mutation or automatic post-action is introduced.
+
+[Live-output QA](qa/push-stream-2026-10-08.json) records focused Core checks and
+four-Git native receiver checks: Unicode split across writes, local CR replacement,
+phase/percentage while an owned helper still runs, a hidden progress host,
+complete raw callbacks, real published refs, No/Yes cancellation and child cleanup,
+captured 16 KiB limit after preference changes, and recovery after a real rejection
+whose output falls beyond that limit. Existing retained-result, partial-refresh
+and branch-counter receivers are regression gates. Helper-generated progress
+verifies delivery timing; it is not a real network throughput test.
+
+Physical scrolling/focus/default buttons/keyboard/themes/accessibility, all
+progress controls, project hooks, authentication/libgit2 progress, real remote
+transfer timing and signed Finder/sandbox/App Store acceptance remain pending.
+Existing screenshots predate live Push output. Full Push/application parity is
+still incomplete.

@@ -281,7 +281,7 @@ import TurtleGitCore
                     progress = captured; result = captured; onProgress(captured)
                 } else { result = nil }
                 do {
-                let output = try await repository.push(snapshot, cancellation: token)
+                let output = try await runPush(snapshot, cancellation: token, result: result)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 cancellation = nil; cancelling = false; confirmingCancellation = false
                 onTransportResult(output, true); onPushed(output)
@@ -290,12 +290,26 @@ import TurtleGitCore
                 } catch {
                     cancellation = nil; cancelling = false; confirmingCancellation = false
                     onTransportResult(error.localizedDescription, false)
-                    if let result { result.complete(output: error.localizedDescription, success: false, cancelled: token.isCancelled) }
+                    if let result { result.complete(output: error.localizedDescription, success: false, cancelled: token.isCancelled, failure: error as? PushExecutionFailure) }
                     else { self.error = error.localizedDescription }
                 }
             }
             catch { self.error = error.localizedDescription }
         }
+    }
+    private func runPush(_ snapshot: PushOptions, cancellation: OperationCancellation, result: PushProgressWindowModel?) async throws -> String {
+        guard let result else { return try await repository.push(snapshot, cancellation: cancellation) }
+        let parser = GitCliOutputParser(limit: result.outputLimit)
+        let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let operation = Task {
+            defer { continuation.finish() }
+            return try await repository.push(snapshot, cancellation: cancellation, onOutput: { chunk in
+                parser.appendChunk(chunk.data); continuation.yield(())
+            })
+        }
+        for await _ in updates { result.consume(parser.processPending(), parser: parser) }
+        result.consume(parser.processPending(), parser: parser); result.consume(parser.finish(), parser: parser)
+        return try await operation.value
     }
     func pick(_ reference: CheckoutReference, destination: Bool) {
         if !destination { options.source = PushSourcePresentation.normalized(reference.name); sourceChanged() }
@@ -520,14 +534,47 @@ enum PushPostAction: String, Hashable {
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
     @Published private(set) var postActions: [PushPostAction] = []
+    @Published private(set) var percentage: Int?
+    @Published private(set) var currentWork = ""
+    let outputLimit: Int
+    private var displayedBytes = Data(), displayTruncated = false
     var close: () -> Void = {}
     var cancelWithoutPresenter: () -> Void = {}
     var onPostAction: ((PushPostAction) -> Void)?
-    init(options: PushOptions, superproject: URL?, preferences: UserDefaults = .standard) { self.options = options; self.superproject = superproject; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    init(options: PushOptions, superproject: URL?, preferences: UserDefaults = .standard) { self.options = options; self.superproject = superproject; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputLimit = max(16, min(preferences.object(forKey: "GitOutputLimitinKiB") as? Int ?? 2048, 100 * 1024)) * 1024 }
     func invalidate() { invalidated = true }
     func abandonPresentation() { abandoned = true; cancelWithoutPresenter(); if !busy { close() } }
-    func complete(output: String, success: Bool, cancelled: Bool) {
-        guard busy else { return }; self.output = output; self.success = success; self.cancelled = cancelled
+    func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        guard !invalidated, !displayTruncated else { return }
+        if emission.erasePreviousLineBytes > 0 { displayedBytes.removeLast(min(displayedBytes.count, emission.erasePreviousLineBytes)) }
+        displayedBytes.append(emission.data)
+        output = String(decoding: displayedBytes, as: UTF8.self).replacingOccurrences(of: "\u{1b}\\[[0-9;]*m|\u{1b}\\[K", with: "", options: .regularExpression)
+        for line in String(decoding: emission.data, as: UTF8.self).split(separator: "\n") {
+            guard let colon = line.lastIndex(of: ":"), let percent = line.firstIndex(of: "%") else { continue }
+            currentWork = String(line[..<colon])
+            let digits = line[..<percent].reversed().prefix { $0.isASCII && $0.isNumber }.reversed()
+            if let value = Int(String(digits)), value > 0 { percentage = min(value, 100) }
+        }
+        if emission.limited || displayedBytes.count >= outputLimit {
+            displayTruncated = true; parser.activateDropMode()
+            currentWork = "[Output truncated at about \(displayedBytes.count / 1024) KiB]"; percentage = nil
+            output += "\n\n...\n" + currentWork
+        }
+    }
+    func complete(output: String, success: Bool, cancelled: Bool, failure: PushExecutionFailure? = nil) {
+        guard busy else { return }
+        if displayedBytes.isEmpty { self.output = output }
+        else if !success {
+            // Keep live stderr and CR replacement; classify recovery using the full
+            // raw result below, even if the visible log has reached its limit.
+            let summary: String
+            if let failure {
+                let details = failure.commandFailure.map { "Git command failed (\($0.code))." } ?? failure.details
+                summary = (failure.completed.isEmpty ? "" : "Completed: " + failure.completed.joined(separator: ", ") + ".\n") + "Push to \(failure.failedRemote) failed.\n" + details
+            } else { summary = output }
+            self.output += (self.output.hasSuffix("\n") ? "" : "\n") + String(decoding: Data(summary.utf8).prefix(8192), as: UTF8.self)
+        }
+        self.success = success; self.cancelled = cancelled
         if success { postActions = [.requestPull, .push, .switchBranch]; if superproject != nil { postActions.append(.commitSuperproject) } }
         else {
             // Native transport uses --porcelain, where the ! flag and [rejected]
@@ -565,8 +612,13 @@ struct PushProgressDialog: View {
     @ObservedObject var result: PushProgressWindowModel
     var body: some View {
         VStack(alignment:.leading,spacing:12) {
-            ScrollView { Text(result.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
-            HStack { if result.busy { ProgressView().controlSize(.small) }; Text(result.busy ? owner.cancelling ? "Cancelling…" : "Pushing…" : result.cancelled ? "Cancelled" : result.success ? "Finished" : "Push failed").foregroundStyle(result.busy ? Color.primary : result.success ? Color.green : Color.red); Spacer() }
+            ScrollViewReader { reader in
+                ScrollView { VStack(alignment:.leading,spacing:0) { Text(result.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading); Color.clear.frame(height:1).id("push-output-end") } }
+                    .onChange(of: result.output) { _ in reader.scrollTo("push-output-end",anchor:.bottom) }
+            }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
+            if result.busy, let percentage = result.percentage { ProgressView(value:Double(percentage),total:100).tint(.green) }
+            if !result.currentWork.isEmpty { Text(result.currentWork).font(.caption).lineLimit(2) }
+            HStack { if result.busy && result.percentage == nil { ProgressView().controlSize(.small) }; Text(result.busy ? owner.cancelling ? "Cancelling…" : "Pushing…" : result.cancelled ? "Cancelled" : result.success ? "Finished" : "Push failed").foregroundStyle(result.busy ? Color.primary : result.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if let first = result.postActions.first {
                     Button { result.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }

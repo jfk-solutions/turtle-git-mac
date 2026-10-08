@@ -144,3 +144,10 @@ Merge pane menus now include Tab/Space and Smart tab char. Native Space
 insertion, nearby-tab Smart choice, multiline Tab/Shift-Tab, Undo and exact Save
 bytes were verified. Global preferences, EditorConfig, precise partial-column
 selection restoration and broader key/view behavior remain pending.
+
+
+Push live output now follows the shared source CLI parser, with CR replacement,
+phase/percentage, captured output limit and end scrolling. Complete raw results
+still drive recovery after display truncation. [Push live-output QA](qa/push-stream-2026-10-08.json)
+records Core and four-Git hidden native evidence; physical scrolling, complete
+progress controls, hooks/network and signed acceptance remain pending.

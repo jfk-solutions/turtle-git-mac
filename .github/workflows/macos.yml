@@ -74,6 +74,8 @@ jobs:
         run: python3 scripts/test-clean-progress-policy.py
       - name: Native Reset retained progress and follow-ups
         run: python3 scripts/test-reset-progress.py
+      - name: Native Push live output and truncated rejection recovery
+        run: python3 scripts/test-push-stream.py
       - name: Native Push partial result refresh
         run: python3 scripts/test-push-result-refresh.py
       - name: Native Push retained progress and post-actions

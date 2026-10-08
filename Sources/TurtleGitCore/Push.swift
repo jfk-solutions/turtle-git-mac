@@ -30,8 +30,9 @@ public struct PushExecutionFailure: LocalizedError {
     public let failedRemote: String
     public let details: String
     public let output: String
-    public init(completed: [String], failedRemote: String, details: String, output: String = "") {
-        self.completed = completed; self.failedRemote = failedRemote; self.details = details; self.output = output
+    public let commandFailure: GitFailure?
+    public init(completed: [String], failedRemote: String, details: String, output: String = "", commandFailure: GitFailure? = nil) {
+        self.completed = completed; self.failedRemote = failedRemote; self.details = details; self.output = output; self.commandFailure = commandFailure
     }
     public var errorDescription: String? {
         output + (completed.isEmpty ? "" : "Completed: " + completed.joined(separator: ", ") + ".\n") + "Push to \(failedRemote) failed.\n" + details
@@ -118,10 +119,10 @@ extension GitRepository {
         _ = try validatedPush(options, cancellation: cancellation)
     }
     /// The upstream first-parent counter is a display value, not a unique revision ID.
-    public func branchRevisionNumber(_ revision: String, cancellation: OperationCancellation? = nil) throws -> String {
-        try run(["rev-list", "--count", "--first-parent", "--end-of-options", revision, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+    public func branchRevisionNumber(_ revision: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+        try run(["rev-list", "--count", "--first-parent", "--end-of-options", revision, "--"], cancellation: cancellation, onOutput: onOutput).text.trimmingCharacters(in: .newlines)
     }
-    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil) throws -> String {
+    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         let plan = try validatedPush(options, cancellation: cancellation)
         let source = plan.source, destination = plan.destination, remotes = plan.remotes, destinationRef = plan.destinationRef
         if options.savePushRemote || options.savePushBranch {
@@ -143,18 +144,18 @@ extension GitRepository {
             do {
                 try cancellation?.check()
                 if options.allBranches {
-                    output += try run(["push", "--all"] + flags + ["--", remote], cancellation: cancellation).text
+                    output += try run(["push", "--all"] + flags + ["--", remote], cancellation: cancellation, onOutput: onOutput).text
                     completed.append(remote + " (branches)")
-                    if options.includeTags { output += try run(["push", "--tags"] + flags + ["--", remote], cancellation: cancellation).text; completed.append(remote + " (tags)") }
+                    if options.includeTags { output += try run(["push", "--tags"] + flags + ["--", remote], cancellation: cancellation, onOutput: onOutput).text; completed.append(remote + " (tags)") }
                 } else {
                     var args = ["push"] + flags
                     if options.includeTags { args.append("--tags") }
                     args += ["--", remote]
                     if !source.isEmpty || !destination.isEmpty { args.append(source + (destinationRef.isEmpty ? "" : ":" + destinationRef)) }
-                    output += try run(args, cancellation: cancellation).text; completed.append(remote)
-                    if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: cancellation) + "\n" }
+                    output += try run(args, cancellation: cancellation, onOutput: onOutput).text; completed.append(remote)
+                    if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: cancellation, onOutput: onOutput) + "\n" }
                 }
-            } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription, output: output) }
+            } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription, output: output, commandFailure: error as? GitFailure) }
         }
         return output
     }

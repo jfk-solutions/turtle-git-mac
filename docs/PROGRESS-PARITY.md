@@ -28,7 +28,7 @@ does not prove displayed picker interaction.
 
 ## Remaining parity
 
-Streaming adoption outside Clone, complete progress-window controls/layout, physical
+Streaming adoption outside Clone and Push, complete progress-window controls/layout, physical
 Close/Escape/titlebar/nested-sheet/default/accessibility/theme behavior,
 remaining progress replacements for other command dialogs,
 command-line closeonend override and libgit2 progress variants remain pending.
@@ -60,3 +60,11 @@ Clone now streams byte-oriented CLI output through a port of GitCliOutputParser,
 with percentage/phase presentation, output limits and automatic end scrolling.
 See [live-output QA](qa/clone-stream-2026-10-08.json); physical and signed acceptance
 and streaming in other dialogs remain pending.
+
+
+Push now adopts the shared byte-oriented CLI parser for every remote, branch/tag
+phase and optional first-parent count. Its live percentage/phase and captured
+output limit preserve full raw result classification after display truncation.
+See [Push parity](PUSH-PARITY.md#live-cli-output) and
+[live-output QA](qa/push-stream-2026-10-08.json); physical/signed acceptance and
+streaming adoption in other dialogs remain pending.

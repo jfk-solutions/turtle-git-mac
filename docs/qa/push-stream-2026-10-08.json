@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "86b573c8c7794e936d80178eb2a10cb9b0cdd911",
+  "scope": "Live Push output through shared CLI parser, captured display limits and full raw recovery. Full application/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/GitCliOutputParser.cpp": "719cd542dbb77314dedca6f28f6ad1c29eb43421",
+    "src/TortoiseProc/GitCliOutputParser.h": "dbbe922317200247c2be24a4dc278f4a37f569db",
+    "src/TortoiseProc/Commands/PushCommand.cpp": "73303586f54851d457191a0768a86cbf97f90161"
+  },
+  "sources_manifest_sha256": "e71be040867f3d4393f6820e02884b2a2909d3461f5fbd012d0e9f0a4d95a018",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "b992da3b0bac6fb0afd831503f21408930277832a563cc020d366c07d0e55944",
+    "NOTICE": "2223b856c66f9f95d0c9927e7e2fb676b0bc9370ff2ea76970f96bb5022a64b3",
+    "Sources/TurtleGitCore/Push.swift": "998975f7f39fb3e2fdaf5ed202bf6f76039c6c3278bdc5f2879660fdf34f731d",
+    "Sources/TurtleGitMac/PushWindow.swift": "4ae7b6872fbf3bce4cb6175432c065a3ae555414dc3dccea64ed39e333928ef8",
+    "Tests/TurtleGitCoreTests/PushTests.swift": "3e1f3084252c9dd3df62b462e52faf13a7c58f22ed25630588859aaf633a2dbe",
+    "docs/PROGRESS-PARITY.md": "3761e8b0bc43b0767c88c64ee18b18b3b1a84f91a0573bf9514c51868e4754a4",
+    "docs/PUSH-PARITY.md": "349feb6ed1dff671524e53a4879d23e2613684b52f851361d6670c10dd638d2f",
+    "docs/UI-PARITY.md": "132ca5092c93eda3deb327de9439e6fce524dd7879541caa9de239d8b0f79ab7",
+    "docs/upstream-files.csv": "1d622c3fe8515f09bbc729b620ebb6091375cc07d803e04608e22333511af864",
+    "docs/qa/push-stream-native-2026-10-08.swift": "7590e7c888665606a58619f5806d5be5f69d4cd878851d46d11f8ca823fbe8b2",
+    "scripts/test-push-stream.py": "005b1ca6b744f49bc69c499a0583792e493457c46834c2f7cdca7f4162603a90"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "22 focused tests passed: 14 Push (including observer coverage for every remote branch/tag phase and first-parent count, exact byte-count final drains, partial publication and structured command failure), four pinned-source parser, one live binary output and three process cancellation regressions. Not a full-suite rerun.",
+    "native": "Four-Git live Push receiver passed split Unicode, local CR replacement and 50%/phase visible before owned helper exits; hidden native host. Real published ref and complete raw callback retain CR bytes. No/Yes cancellation preserves source HEAD/index/working file, does not publish cancelled ref and stops owned leader/child. Captured 16 KiB display limit survives preference changed to 100 MiB; real rejection beyond visible limit retains full raw payload/rejection and Pull/Fetch/Push actions. No real network progress cadence claimed.",
+    "regressions": "Four-Git existing retained Push progress, partial result refresh and branch revision counter receivers passed. Includes real success/rejection/hook rejection, three close policies, captured once-only post-actions, cancellation/missing presenter, superproject and Fetch presets; real partial all-remotes publication and count-after-deletion refresh; native Log first-parent lanes and captured Push count setting.",
+    "implementation": "Optional observer forwarded only to actual push branch/tag commands and count; final raw output remains unchanged. AsyncStream coalesces wake-ups with parser-held bytes; source CR/local/remote rules and soft presentation limit, ANSI removal, green percentage/phase and automatic end scrolling. Complete raw diagnostics classify rejection independently of truncated display. Structured GitFailure enables concise failure summary without replaying live output. Legacy no-result completion retains raw path. Cross-stream ordering is sampled, not a strict chronological merge.",
+    "builds": "Initial/final unsigned Debug and final unsigned AppStore builds passed. Bundle audits passed Finder extension, 98 original icons, licenses, universal EditorConfig/IssueRegex; Store Git 2.55.0 has 11 universal Mach-O files and passed local fixtures. NOTICE identical in both bundles. NOTICE-only attribution edit after all native sessions stopped; application source stationary during Core/native compilation and matrix runs.",
+    "documentation": "Push/shared-progress/UI audits and CI receiver step updated. Five upstream mappings remain partial, with new evidence and explicit limits. Source inventory remains 3,277 seven-column LF data rows. Site uses existing real screenshots, which predate streaming; no new displayed capture or hosted deployment.",
+    "processes": "No main GUI launch or synthetic events; NSApplication activation prohibited and only hidden host used. All compiler/native sessions terminal before Store start. Sixteen empty owned UUID preference files removed; standard/nonempty domains untouched. Final process audit found no app, native receiver or owned slow helper running.",
+    "limitations": "Headless checks do not prove physical auto-scroll/focus/menus/defaults/keyboard/themes/accessibility, complete progress-window controls, production Root follow-up windows, project hooks, real remote network cadence or signed sandbox/Finder/App Store acceptance. Authentication/SSH/LFS/SVN/libgit2 and all-dialog streaming remain unfinished. Full application/distribution goal active. GitHub authorization and CUA unavailable; not retried."
+  },
+  "logs_sha256": {
+    "build/qa/push-stream/core.log": "a9b358bf8e09c3134a0ea131d69d8a2013c417a36498b18de37a0e022f4cf684",
+    "build/qa/push-stream/counter.log": "f04ed8a2ebee1a086a36d34c063c865deafa6ff41937ee9f1666298a0049ac31",
+    "build/qa/push-stream/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-stream/debug.log": "e6471fec72392e9a3dd22f6ac55c28b0b2b55d41f61a98746a4b567c45cfc80d",
+    "build/qa/push-stream/native.log": "7bf8d0b4c2351a3c00be4db202ffd9a8848c15d843ea996183479e07c163063e",
+    "build/qa/push-stream/pin-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/push-stream/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/push-stream/progress.log": "ac066609f0fd91463463e441b68db8d0f1c818c70b69775036f46860613c4e32",
+    "build/qa/push-stream/refresh.log": "0286a4eee5f8c1f76543a3e6b55924cbdcca921dcdb0d9952d3ae4dcbbb2a8e8",
+    "build/qa/push-stream/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-stream/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/push-stream/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

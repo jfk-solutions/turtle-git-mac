@@ -196,4 +196,56 @@ final class PushTests: XCTestCase {
         XCTAssertFalse(refs.contains { $0.name == "refs/heads/delete-me" })
     }
 
+    func testOutputObserverIncludesEveryRemoteBranchTagAndRevisionCounter() async throws {
+        let (root, repo, _, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let second = root.appendingPathComponent("second.git")
+        try FileManager.default.createDirectory(at: second, withIntermediateDirectories: true)
+        _ = try await GitRepository(root: second).run(["init", "--bare"])
+        try await repo.saveRemote(name: "second", fetchURL: second.path, pushURL: "", existing: false)
+        _ = try await repo.run(["tag", "observer-tag"])
+        let capture = PushStreamCapture()
+        var options = PushOptions(); options.allRemotes = true; options.allBranches = true; options.includeTags = true
+        let output = try await repo.push(options, onOutput: { capture.append($0) })
+        let observed = capture.bytes
+        XCTAssertEqual(output.utf8.count, observed.0.count + observed.1.count)
+        let stdout = String(decoding: observed.0, as: UTF8.self)
+        XCTAssertEqual(stdout.components(separatedBy: "refs/heads/main").count - 1, 4)
+        XCTAssertEqual(stdout.components(separatedBy: "refs/tags/observer-tag").count - 1, 4)
+        XCTAssertTrue(String(decoding: observed.1, as: UTF8.self).contains("Writing objects"))
+        let counter = PushStreamCapture()
+        options = PushOptions(); options.remote = "origin"; options.source = "main"; options.destination = "counted"; options.showBranchRevisionNumber = true
+        let counted = try await repo.push(options, onOutput: { counter.append($0) })
+        let bytes = counter.bytes
+        XCTAssertEqual(counted.utf8.count, bytes.0.count + bytes.1.count)
+        XCTAssertTrue(String(decoding: bytes.0, as: UTF8.self).hasSuffix("1\n"))
+    }
+
+    func testOutputObserverRetainsPartialPublicationAndStructuredCommandFailure() async throws {
+        let (root, repo, _, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["remote", "rename", "origin", "a-good"])
+        try await repo.saveRemote(name: "z-bad", fetchURL: root.appendingPathComponent("missing.git").path, pushURL: "", existing: false)
+        let capture = PushStreamCapture()
+        var options = PushOptions(); options.allRemotes = true; options.source = "main"
+        do { _ = try await repo.push(options, onOutput: { capture.append($0) }); XCTFail("Missing remote accepted") }
+        catch let failure as PushExecutionFailure {
+            XCTAssertEqual(failure.completed, ["a-good"]); XCTAssertEqual(failure.failedRemote, "z-bad")
+            XCTAssertEqual(failure.commandFailure?.arguments.first, "push")
+            XCTAssertNotEqual(failure.commandFailure?.code, 0)
+            let bytes = capture.bytes
+            XCTAssertTrue(String(decoding: bytes.0, as: UTF8.self).contains("refs/heads/main"))
+            XCTAssertTrue(String(decoding: bytes.1, as: UTF8.self).contains("missing.git"))
+            XCTAssertEqual(bytes.0.count + bytes.1.count, failure.output.utf8.count + (failure.commandFailure?.message.utf8.count ?? 0))
+        }
+    }
+
+}
+
+private final class PushStreamCapture: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stdout = Data(), stderr = Data()
+    func append(_ chunk: GitOutputChunk) {
+        lock.lock(); defer { lock.unlock() }
+        switch chunk.stream { case .stdout: stdout.append(chunk.data); case .stderr: stderr.append(chunk.data) }
+    }
+    var bytes: (Data, Data) { lock.lock(); defer { lock.unlock() }; return (stdout, stderr) }
 }
