@@ -63,7 +63,23 @@ This complements the injected native dialog tests above. It does not establish
 authenticated provider or signed sandbox acceptance. See the
 [runtime QA record](qa/git-lfs-runtime-2026-10-08.json).
 
-Commit/Working Tree LFS columns and context actions, Finder routing, source
+Commit and Working Tree now offer original-icon LFS Lock/Unlock context actions
+when the repository has a common-directory LFS marker and the selection contains
+files without conflicts. With the owner column hidden, both actions match upstream
+AppendLocksMenuItems. Their captured selections run in a native sheet attached to
+the originating dialog; the owner stays busy through result review. Cancellation
+retains completed changes, failed unlock offers explicit Force retry against the
+original paths, and closing results refreshes the owner. No remote locks query is
+made to build this hidden-owner-column menu or refresh its local file rows.
+The standalone Locks window continues to refresh remote lock ownership.
+Working Tree joins the global Quit-confirmation guard; Commit and Working Tree
+refuse new LFS actions while busy or deciding whether to quit. The hidden native
+receiver checks these methods, actual sheet attachment, captured Force retry and
+original-icon availability with injected LFS responses against Apple Git and the
+bundled engine. See [status-action QA](qa/lfs-status-actions-2026-10-08.json).
+Physical menu/pointer/keyboard input is not established by these checks.
+
+Commit/Working Tree LFS owner columns, Finder routing, source
 availability gates, tri-state select-all, full shared column settings and
 locking progress/post-Pull actions remain incomplete. The native list adds an
 explicit Refresh button alongside F5. Physical keyboard/menu/pointer behavior,

@@ -65,11 +65,88 @@ import TurtleGitCore
         await task.value
         precondition(model.results.count == 1 && model.information.contains("Completed server changes remain"))
         model.finishProgress(); try await settle { window.attachedSheet == nil }; window.close()
+        // Exercise both actual status-list owners and their production routing.
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(".git/lfs"), withIntermediateDirectories: true)
+        let unusual = "-雪\t\n🦎.bin"
+        try Data("untracked LFS candidate\n".utf8).write(to: root.appendingPathComponent(unusual))
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
+        let defaultsName = "TurtleGit.LFS.StatusQA." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        let commit = CommitWindowController(repository: repository, access: nil, defaults: defaults)
+        let status = StatusWindowController(repository: repository, access: nil)
+        defer { defaults.removePersistentDomain(forName: defaultsName); commit.window?.close(); status.window?.close() }
+        commit.model.reload(); status.model.reload()
+        try await settle { !commit.model.busy && !status.model.busy && commit.model.hasLFS && status.model.hasLFS }
+        let entry = commit.model.entries.first { $0.path == unusual }!
+        precondition(commit.model.canLockLFS([entry]))
+        precondition(!LFSLockingSelection.isAvailable([entry], hasLFS: false, root: root, directories: []))
+        precondition(!LFSLockingSelection.isAvailable([entry], hasLFS: true, root: root, directories: [unusual]))
+        let folderEntry = StatusEntry.parse(Data("?? folder\0".utf8))[0]
+        let conflictEntry = StatusEntry.parse(Data("UU tracked\0".utf8))[0]
+        precondition(!LFSLockingSelection.isAvailable([folderEntry], hasLFS: true, root: root, directories: []))
+        precondition(!LFSLockingSelection.isAvailable([entry, folderEntry], hasLFS: true, root: root, directories: []))
+        precondition(!LFSLockingSelection.isAvailable([conflictEntry], hasLFS: true, root: root, directories: []))
+        commit.model.confirmingQuit = true
+        commit.model.setLFSLocked([unusual], locked: true)
+        precondition(!commit.model.busy)
+        commit.model.confirmingQuit = false
+        var captured: LFSFileOperationController?
+        var operations: [([String], Bool, Bool)] = []
+        let factory: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { repository, access in
+            let controller = LFSFileOperationController(repository: repository, access: access)
+            controller.model.query = { _ in preconditionFailure("Hidden owner-column operation must not query remote locks") }
+            controller.model.lockChange = { paths, _, report in
+                operations.append((paths, true, false))
+                let result = LFSFileResult(path: paths[0], success: true, output: "Locked")
+                report(result); return LFSBatchResult(files: [result])
+            }
+            controller.model.change = { paths, force, _, report in
+                operations.append((paths, false, force))
+                let result = LFSFileResult(path: paths[0], success: force, output: force ? "Unlocked" : "owned by another user")
+                report(result); return LFSBatchResult(files: [result])
+            }
+            captured = controller; return controller
+        }
+        commit.makeLFSOperation = factory; status.makeLFSOperation = factory
+        for locked in [true, false] {
+            commit.model.setLFSLocked([unusual], locked: locked)
+            try await settle { captured?.model.showingProgress == true && captured?.model.busy == false }
+            let operation = captured!
+            precondition(commit.window?.attachedSheet === operation.window && commit.model.busy)
+            precondition(operation.model.operationLocked == locked && operations.last!.0 == [unusual] && operations.last!.1 == locked && !operations.last!.2)
+            precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+            let count = operations.count; commit.model.setLFSLocked([unusual], locked: !locked)
+            precondition(operations.count == count)
+            if !locked {
+                commit.model.selection = []
+                await operation.model.unlock(forceRetry: true)
+                precondition(operations.last!.0 == [unusual] && operations.last!.2)
+            }
+            operation.model.finishProgress()
+            try await settle { commit.window?.attachedSheet == nil && !commit.model.busy }
+            captured = nil
+        }
+        status.model.confirmingQuit = true
+        status.model.setLFSLocked([unusual], locked: true)
+        precondition(captured == nil && !status.model.busy && !status.windowShouldClose(status.window!))
+        status.model.confirmingQuit = false
+        status.model.setLFSLocked([unusual, "not-a-row"], locked: true)
+        precondition(captured == nil && !status.model.busy)
+        status.model.setLFSLocked([unusual], locked: true)
+        try await settle { captured?.model.showingProgress == true && captured?.model.busy == false }
+        let operation = captured!
+        precondition(status.window?.attachedSheet === operation.window && status.model.busy)
+        precondition(!status.windowShouldClose(status.window!))
+        precondition(operations.last!.0 == [unusual] && operations.last!.1)
+        operation.model.finishProgress()
+        try await settle { status.window?.attachedSheet == nil && !status.model.busy }
+        captured = nil
+        commit.window?.close(); status.window?.close()
         let afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let afterFile = try Data(contentsOf: root.appendingPathComponent("tracked"))
         precondition(afterHead == head && index == afterIndex)
         precondition(afterFile == Data("retained\n".utf8))
-        print("PASS: hidden native LFS Locks window/table, original lock/unlock artwork, checked targets/select-all, injected mixed per-file outcomes and refresh, captured force retry targets, actual progress-sheet ownership and Quit refusal, busy/confirmation guards, refresh failure and cancellation with retained completed results. HEAD/raw index/working contents retained; owned window/sheet closed. No real LFS server/helper or physical input acceptance claimed.")
+        print("PASS: hidden native LFS Locks window/table, original lock/unlock artwork, checked targets/select-all, injected mixed per-file outcomes and refresh, captured force retry targets, actual progress-sheet ownership and Quit refusal, busy/confirmation guards, refresh failure and cancellation with retained completed results. HEAD/raw index/working contents retained; owned window/sheet closed. Commit and Working Tree selection gating, Lock/Unlock captured routing and attached progress/Force retry validated. No real LFS server/helper or physical input acceptance claimed.")
     }
 }

@@ -23,6 +23,8 @@ struct StatusRow: Identifiable {
 @MainActor final class StatusWindowController: NSWindowController, NSWindowDelegate {
     let model: StatusWindowModel
     var onClosed: () -> Void = {}
+    private var lfsOperation: LFSFileOperationController?
+    var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = StatusWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 630),
@@ -34,6 +36,17 @@ struct StatusRow: Identifiable {
         window.setContentSize(NSSize(width: 1100, height: 630)); window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.savePatch = { [weak self] text in self?.savePatch(text) }
+        model.onLFSOperation = { [weak self, weak window] paths, locked in
+            guard let self, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
+            let progress = self.makeLFSOperation(repository, access)
+            progress.onClosed = { [weak self] in
+                guard let self else { return }
+                self.lfsOperation = nil; self.model.busy = false; self.model.reload(); self.model.onChanged()
+            }
+            self.lfsOperation = progress; progress.present(owner: window, paths: paths, locked: locked)
+            return true
+        }
+
 
         DialogGeometry.attach(window, identifier: "StatusWindowController")
     }
@@ -47,7 +60,7 @@ struct StatusRow: Identifiable {
             catch { model?.error = error.localizedDescription }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.unifiedViewerBusy && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingQuit && !model.unifiedViewerBusy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.unifiedWindow?.close(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -57,12 +70,15 @@ struct StatusRow: Identifiable {
     private let access: RepositoryAccessLease?
     @Published var conflictRebase = false
     @Published var submodules = Set<String>()
+    @Published var hasLFS = false
+    var onLFSOperation: ([String], Bool) -> Bool = { _, _ in false }
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: [String: CommitFile] = [:]
     @Published var selection = Set<String>()
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
     @Published var busy = false
+    @Published var confirmingQuit = false
     @Published var error: String?
     var unifiedWindow: PatchWindowController?
     var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.window?.attachedSheet != nil }
@@ -87,10 +103,21 @@ struct StatusRow: Identifiable {
             do {
                 files = try await repository.workingTreeStatus(); branch = try await repository.branch()
                 conflictRebase = (try await repository.conflictIsRebase()); submodules = try await repository.submodulePaths()
+                hasLFS = try await repository.hasLFS()
                 statistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 selection.formIntersection(Set(visibleFiles.map(\.id)))
             } catch { self.error = error.localizedDescription }
         }
+    }
+    func canLockLFS(_ selected: [WorkingTreeFile]) -> Bool {
+        LFSLockingSelection.isAvailable(selected.map(\.entry), hasLFS: hasLFS, root: repository.root, directories: submodules)
+    }
+    func setLFSLocked(_ ids: Set<String>, locked: Bool) {
+        guard !busy, !confirmingQuit else { return }
+        let selected = visibleFiles.filter { ids.contains($0.id) }
+        guard selected.count == ids.count, canLockLFS(selected) else { return }
+        busy = true
+        if !onLFSOperation(selected.map(\.id), locked) { busy = false }
     }
     func stage(_ ids: Set<String>, staged: Bool) {
         guard !busy, !ids.isEmpty else { return }; busy = true
@@ -193,6 +220,10 @@ struct StatusDialog: View {
                     if !selected.isEmpty && selected.allSatisfy({ ![FileState.normal, .untracked, .ignored].contains($0.state) }) {
                         Button { model.onAction(.revert, selected.map(\.id)) } label: { CommandLabel(title: "Revert…", icon: .revert) }
                     }
+                    if model.canLockLFS(selected) {
+                        Button { model.setLFSLocked(ids, locked: true) } label: { CommandLabel(title: "LFS Lock", icon: .lock) }.disabled(model.busy)
+                        Button { model.setLFSLocked(ids, locked: false) } label: { CommandLabel(title: "LFS Unlock", icon: .unlock) }.disabled(model.busy)
+                    }
                     IndexFlagsMenu(files: selected) { model.setFlags($0, files: selected) }
                     if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
                         ResolveSelectionMenu(paths: selected.map(\.id), rebase: model.conflictRebase, canEdit: selected.count == 1, action: model.onAction)
@@ -234,7 +265,7 @@ struct StatusDialog: View {
                 Button("Refresh") { model.reload() }.keyboardShortcut("r")
                 Button("OK") { model.close() }.keyboardShortcut(.defaultAction)
             }
-        }.padding(12).disabled(model.busy)
+        }.padding(12).disabled(model.busy || model.confirmingQuit)
         .onChange(of: model.filter) { _ in model.selection.formIntersection(Set(model.visibleFiles.map(\.id))) }
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }

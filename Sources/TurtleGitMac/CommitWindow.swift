@@ -21,8 +21,10 @@ import UniformTypeIdentifiers
     private var historyWindow: NSWindow?
     private var logPicker: LogWindowController?
     private var progressController: CommitProgressWindowController?
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = CommitWindowModel(repository: repository, access: access)
+    private var lfsOperation: LFSFileOperationController?
+    var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
+    init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        model = CommitWindowModel(repository: repository, access: access, unversionedDefaults: defaults, dialogDefaults: defaults)
         let window = CommitNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
             styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Commit – TurtleGit"
@@ -39,6 +41,16 @@ import UniformTypeIdentifiers
             controller.onClosed = { [weak self] in self?.progressController = nil }
             self.progressController = controller
             if let child = controller.window { window.beginSheet(child) }
+        }
+        model.onLFSOperation = { [weak self, weak window] paths, locked in
+            guard let self, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
+            let progress = self.makeLFSOperation(repository, access)
+            progress.onClosed = { [weak self] in
+                guard let self else { return }
+                self.lfsOperation = nil; self.model.busy = false; self.model.reload(); self.model.refreshPartial()
+            }
+            self.lfsOperation = progress; progress.present(owner: window, paths: paths, locked: locked)
+            return true
         }
         model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
         model.showViewPatch = { [weak self] in self?.showPartial(staged: false, readOnly: true) }
@@ -249,6 +261,8 @@ import UniformTypeIdentifiers
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
     @Published var fileMetadata: [String: StatusListMetadata] = [:]
+    @Published var hasLFS = false
+    var onLFSOperation: ([String], Bool) -> Bool = { _, _ in false }
     @Published var fileColumns = StatusListColumnSettings()
     var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) } }
     @Published var fileSortOrder = [CommitFileSort(column: .path)]
@@ -598,6 +612,16 @@ import UniformTypeIdentifiers
             } catch { self.error = error.localizedDescription; busy = false; reload() }
         }
     }
+    func canLockLFS(_ selected: [StatusEntry]) -> Bool {
+        LFSLockingSelection.isAvailable(selected, hasLFS: hasLFS, root: repository.root, directories: submodules)
+    }
+    func setLFSLocked(_ ids: Set<String>, locked: Bool) {
+        guard !busy, !confirmingQuit else { return }
+        let selected = entries.filter { ids.contains($0.id) }
+        guard selected.count == ids.count, canLockLFS(selected) else { return }
+        busy = true
+        if !onLFSOperation(selected.map(\.path), locked) { busy = false }
+    }
     func addFiles(_ selected: [StatusEntry], mode: WorkingFileAddMode) {
         guard !busy, !confirmingQuit, !selected.isEmpty else { return }
         busy = true
@@ -701,6 +725,7 @@ import UniformTypeIdentifiers
                 entries = try await repository.commitDialogStatus(amendToParent: amendToParent); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
                 try validateRestoreAccess()
                 fileMetadata = await repository.statusListMetadata(paths: entries.map(\.path))
+                hasLFS = try await repository.hasLFS()
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
                 messageSnippets = await snippetLoader.load(userURL: snippetURL)
                 changelistsLoaded = false
@@ -1303,6 +1328,10 @@ GroupBox("Changes made (double-click on file for diff):") {
                         } else {
                             Button { model.markForRestore(ids) } label: { CommandLabel(title: "Restore after commit", icon: .restore) }
                         }
+                    }
+                    if model.canLockLFS(selected) {
+                        Button { model.setLFSLocked(ids, locked: true) } label: { CommandLabel(title: "LFS Lock", icon: .lock) }.disabled(model.busy || model.confirmingQuit)
+                        Button { model.setLFSLocked(ids, locked: false) } label: { CommandLabel(title: "LFS Unlock", icon: .unlock) }.disabled(model.busy || model.confirmingQuit)
                     }
                     if !selected.isEmpty, let mark = model.indexFlagFiles.first(where: { $0.id == selectionMark?.id }) {
                         IndexFlagsMenu(files: flagFiles, selectionMark: mark) { model.setFlags($0, files: flagFiles, selectionMark: mark) }

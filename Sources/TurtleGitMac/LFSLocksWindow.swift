@@ -51,20 +51,24 @@ import TurtleGitCore
     @Published var error: String?
     @Published var information = ""
     @Published var results: [LFSFileResult] = []
+    @Published var operationLocked = false
     @Published var showingProgress = false { didSet { if oldValue != showingProgress { onProgressVisibility(showingProgress) } } }
     private var cancellation = OperationCancellation()
     private var batchID = UUID()
     private var operationPaths: [String] = []
     var onProgressVisibility: (Bool) -> Void = { _ in }
+    var refreshLocksAfterOperation = true
     var close: () -> Void = {}
     var query: (OperationCancellation) async throws -> [LFSLock]
     var change: ([String], Bool, OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult
+    var lockChange: ([String], OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult
     var canUnlock: Bool { !busy && !confirmingQuit && locks.contains { checked.contains($0.id) } }
     var rows: [LFSLock] { locks.sorted(using: sortOrder) }
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         self.repository = repository; self.access = access
         query = { try await repository.lfsLocks(cancellation: $0) }
         change = { try await repository.setLFSLocked(paths: $0, locked: false, force: $1, cancellation: $2, onResult: $3) }
+        lockChange = { try await repository.setLFSLocked(paths: $0, locked: true, cancellation: $1, onResult: $2) }
     }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -95,29 +99,40 @@ import TurtleGitCore
     func unlock(forceRetry: Bool = false) async {
         guard !busy, !confirmingQuit else { return }
         guard forceRetry || !showingProgress else { return }
-        if !forceRetry { operationPaths = rows.filter { checked.contains($0.id) }.map(\.path) }
+        if !forceRetry { operationLocked = false; operationPaths = rows.filter { checked.contains($0.id) }.map(\.path) }
+        await runOperation(forceRetry: forceRetry)
+    }
+    func perform(paths: [String], locked: Bool) async {
+        guard !busy, !confirmingQuit, !showingProgress, !paths.isEmpty else { return }
+        operationPaths = paths; operationLocked = locked
+        await runOperation(forceRetry: false)
+    }
+    private func runOperation(forceRetry: Bool) async {
         guard !operationPaths.isEmpty, !forceRetry || showingProgress && results.contains(where: { !$0.success }) else { return }
-        let useForce = forceRetry || force
+        let useForce = !operationLocked && (forceRetry || force)
         busy = true; showingProgress = true; results = []; error = nil
         cancellation = OperationCancellation(); batchID = UUID(); let generation = batchID
-        information = "Unlocking \(operationPaths.count) file(s)…"
+        information = "\(operationLocked ? "Locking" : "Unlocking") \(operationPaths.count) file(s)…"
         defer { busy = false }
         do {
             try validateAccess()
-            let batch = try await change(operationPaths, useForce, cancellation) { [weak self] file in
+            let report: @Sendable (LFSFileResult) -> Void = { [weak self] file in
                 Task { @MainActor in
                     guard let self, self.busy, self.batchID == generation else { return }
                     self.results.append(file)
                 }
             }
+            let batch: LFSBatchResult
+            if operationLocked { batch = try await lockChange(operationPaths, cancellation, report) }
+            else { batch = try await change(operationPaths, useForce, cancellation, report) }
             results = batch.files
-            information = batch.cancelled ? "Cancelled. Completed server changes remain; refresh to verify lock state." : "\(results.filter(\.success).count) of \(operationPaths.count) file(s) unlocked."
-            if !batch.cancelled {
+            information = batch.cancelled ? "Cancelled. Completed server changes remain; refresh to verify lock state." : "\(results.filter(\.success).count) of \(operationPaths.count) file(s) \(operationLocked ? "locked" : "unlocked")."
+            if !batch.cancelled && refreshLocksAfterOperation {
                 locks = []; checked = []; selection = []
                 do { locks = try await query(cancellation); checked = Set(locks.map(\.id)); selection.formIntersection(checked) }
-                catch { self.error = "Unlock results are retained. Refresh failed: " + error.localizedDescription }
+                catch { self.error = "Operation results are retained. Refresh failed: " + error.localizedDescription }
             }
-        } catch { self.error = error.localizedDescription; information = "Could not unlock files." }
+        } catch { self.error = error.localizedDescription; information = "Could not \(operationLocked ? "lock" : "unlock") files." }
     }
     func finishProgress() { guard !busy, !confirmingQuit else { return }; showingProgress = false }
 }
@@ -149,21 +164,21 @@ struct LFSLocksDialog: View {
         }.padding(12)
     }
 }
-private struct LFSUnlockProgress: View {
+struct LFSUnlockProgress: View {
     @ObservedObject var model: LFSLocksWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            CommandLabel(title: "LFS Unlock", icon: .unlock).font(.headline)
+            CommandLabel(title: model.operationLocked ? "LFS Lock" : "LFS Unlock", icon: model.operationLocked ? .lock : .unlock).font(.headline)
             Table(model.results) {
                 TableColumn("Path", value: \.path).width(min: 230, ideal: 340)
-                TableColumn("Result") { result in Text(result.success ? "Unlocked" : "Failed").foregroundStyle(result.success ? .green : .red) }.width(80)
+                TableColumn("Result") { result in Text(result.success ? (model.operationLocked ? "Locked" : "Unlocked") : "Failed").foregroundStyle(result.success ? .green : .red) }.width(80)
                 TableColumn("Message", value: \.output).width(min: 170, ideal: 330)
             }.frame(minHeight: 200)
             if model.busy { ProgressView().controlSize(.small) }
             Text(model.information).textSelection(.enabled)
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             HStack {
-                if !model.busy && model.results.contains(where: { !$0.success }) {
+                if !model.busy && !model.operationLocked && model.results.contains(where: { !$0.success }) {
                     Button { Task { await model.unlock(forceRetry: true) } } label: { CommandLabel(title: "Force unlock", icon: .unlock) }.disabled(model.confirmingQuit)
                 }
                 Spacer()
@@ -172,4 +187,47 @@ private struct LFSUnlockProgress: View {
             }
         }.padding(14).frame(width: 760, height: 390).interactiveDismissDisabled(model.busy || model.confirmingQuit)
     }
+}
+
+/// Status lists with the optional owner column hidden match upstream's two actions.
+@MainActor enum LFSLockingSelection {
+    static func isAvailable(_ entries: [StatusEntry], hasLFS: Bool, root: URL, directories: Set<String>) -> Bool {
+        guard hasLFS, !entries.isEmpty else { return false }
+        return entries.allSatisfy { entry in
+            guard entry.state != .conflicted, !directories.contains(entry.path) else { return false }
+            var directory: ObjCBool = false
+            _ = FileManager.default.fileExists(atPath: root.appendingPathComponent(entry.path).path, isDirectory: &directory)
+            return !directory.boolValue
+        }
+    }
+}
+
+/// Shared progress sheet for Commit and Working Tree; the owner remains busy
+/// through result review so a new Git operation cannot overlap the batch.
+@MainActor final class LFSFileOperationController: NSWindowController, NSWindowDelegate {
+    let model: LFSLocksWindowModel
+    var onClosed: () -> Void = {}
+    init(repository: GitRepository, access: RepositoryAccessLease?) {
+        model = LFSLocksWindowModel(repository: repository, access: access)
+        model.refreshLocksAfterOperation = false
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 390), styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: LFSUnlockProgress(model: model))
+        super.init(window: window); window.delegate = self
+        model.onProgressVisibility = { [weak self] visible in if !visible { self?.finish() } }
+    }
+    func present(owner: NSWindow, paths: [String], locked: Bool) {
+        guard owner.attachedSheet == nil, let window else { return }
+        window.title = locked ? "LFS Lock – TurtleGit" : "LFS Unlock – TurtleGit"
+        model.operationLocked = locked
+        owner.beginSheet(window)
+        Task { await model.perform(paths: paths, locked: locked) }
+    }
+    private func finish() {
+        guard let window else { return }
+        if let parent = window.sheetParent { parent.endSheet(window) }
+        window.orderOut(nil); window.close(); onClosed()
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { false }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

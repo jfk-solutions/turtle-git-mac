@@ -807,3 +807,10 @@ LICENSE.md, Go 1.27.0 LICENSE/PATENTS and retained notices for all 28 external
 Go modules recorded in the binaries. A repackage kit and exact archive/notice
 hashes are included. Configuration/GitLFSRuntime.json pins this material.
 These notices supplement, rather than replace, each dependency's license.
+
+Commit/Working Tree LFS menu actions adapt GitStatusListCtrl.cpp
+AppendLocksMenuItems and its current-working-tree/conflict gate, copyright
+(C) 2008-2026 TortoiseGit and (C) 2003-2008, 2013-2015 TortoiseSVN, GPL
+version 2 or later. Native owned progress sheets share the retained per-file
+results, cancellation and original-selection Force unlock retry from the Locks
+dialog. LFS owner columns, Finder routing and full progress parity remain pending.

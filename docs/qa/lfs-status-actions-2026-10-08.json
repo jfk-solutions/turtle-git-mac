@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "39c4f98eb969dfe2c195b55afcfd248157883f49",
+  "scope": "Commit and Working Tree original-icon LFS Lock/Unlock actions, hidden-owner-column source gate and native owned shared per-file progress. Full port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15"
+  },
+  "sources_manifest_sha256": "eee2ba98c67c372356ee5c4eb7da6ad05e3b434093825777dd790ea7412f4a08",
+  "changed_files_sha256": {
+    "NOTICE": "043b43f70d6f19d9cb511b7c05d9e7d56c554de21e43f4a6f35cc3e55c2ba7a9",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "2de3b49c3d9ae5f0e89d8e9facfa8a6df524e53c339f726703163add117ddd87",
+    "Sources/TurtleGitMac/CommitWindow.swift": "d93a9d2d129f56bdf79b07ba558fc06e262967dbcb3be1a747de76b96c731498",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "636a9d573793ae92c191d5e088327a07cd01966c8939d1c39bc4dc1b701ee98f",
+    "Sources/TurtleGitMac/StatusWindow.swift": "2bc9d671d1314d062726f0f5439ada2b156a0ee70ec0847bc6c6ff4eb3dd08a0",
+    "docs/LFS-PARITY.md": "27d2311a75dca03882fac76f8fdfa7a1f9e501fd8790d1744cfb28b1d6811f15",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "b9e27ce6ee3e2fd057b06f5d1138373c0d351dd59af556f1af82190be17270f9",
+    "docs/upstream-files.csv": "d0b82d533636417ed49d3f68fe04b75f8ba056639a56091f67f3a67635353a1d"
+  },
+  "verification": {
+    "native": "Final receiver passes Apple Git and bundled Git 2.55.0. Existing Locks window checked targets, streamed outcomes, cancellation/Force/refresh/Quit guards retained. Actual Commit and Working Tree owners reload against real private repositories, discover .git/lfs, route captured option-like Unicode/tab/newline path to Lock/Unlock, attach shared native result sheet, hold owner busy through result review, refuse duplicate operations and Quit/Close. Failed Unlock force retry retains original paths after selection changes. Folder/mixed-folder/conflict/no-LFS/submodule and invalid-row selection gates checked. Both status owners refuse LFS during Quit confirmation; Working Tree refuses close. Injected external-operation lock-list query is a fatal assertion and is never invoked. Final HEAD/raw index/tracked working bytes retained. Server operations are injected, not authenticated provider or physical menu activation proof.",
+    "builds": "Final Debug and sequential unsigned AppStore builds and both current bundle audits pass; embedded Git/LFS component, EditorConfig/IssueRegex and 99 original icons verified. NOTICE equal to both current packages. Sources/NOTICE/receivers frozen during compiler/native handles; docs-only edits permitted.",
+    "inventory": "3277 seven-field LF CSV records retained; upstream pin check passes, GitStatusListCtrl source mapping extended, stale helper-packaging/Commit-menu pending notes updated.",
+    "core": "No Core sources changed. Existing command-layer and real bundled-client loopback tests from the preceding commits complement this native injected routing coverage; they are not claimed as fresh end-to-end native/provider tests.",
+    "quit": "Application delegate enrolls Working Tree in pending global Quit decisions and resets its guard afterwards. Native test invokes the guard and checks refusal; the complete asynchronous cross-dialog termination decision is not newly exercised.",
+    "site": "Local Pages generator passed and includes updated LFS parity and status-action QA; no deployment or new screenshot claim."
+  },
+  "iterations": [
+    "Added Commit controller private-defaults injection so receiver reload/history initialization uses an owned suite.",
+    "After initial native pass, strengthened negative selection tests and initialized the progress mode before sheet presentation.",
+    "Review found unnecessary remote lock-list refresh in shared progress. Standalone Locks retains remote refresh; file-operation sheets now skip it, with a fatal native assertion if queried.",
+    "Review found idle Working Tree absent from global Quit-confirmation enrollment. Added guard/enrollment/reset and a native refusal check, then rebuilt/reverified final sources."
+  ],
+  "limitations": [
+    "LFS owner columns and ownership-dependent menu variants, Finder routing, tri-state checkbox, shared column settings and full source progress/post-Pull behavior remain pending.",
+    "Physical menu/pointer/keyboard input, light/dark visual inspection, accessibility and fresh screenshots remain unverified.",
+    "Signed sandbox/Finder/helper inheritance, authenticated LFS providers, App Store eligibility and whole-application parity are incomplete.",
+    "External GitHub CI/push inaccessible; no external CI, push or deployment performed."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "fixture_search_roots": [
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T",
+      "/tmp"
+    ],
+    "private_preference_plists": [],
+    "preferences": "Owned private suite removed in receiver defer; Commit controller injects that suite into both dialog and unversioned preferences. DialogGeometry store left unset.",
+    "main_app_launches": 0,
+    "owned_windows": "Receiver closes standalone Locks, both status-list owners and all owned sheets; receiver process exited."
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-status-actions-2026-10-08/debug-audit-current.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-status-actions-2026-10-08/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-status-actions-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-status-actions-2026-10-08/debug-current.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-status-actions-2026-10-08/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-status-actions-2026-10-08/debug-lookup-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-status-actions-2026-10-08/debug-quit-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-status-actions-2026-10-08/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-status-actions-2026-10-08/native-final.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/lfs-status-actions-2026-10-08/native-lookup-final.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/lfs-status-actions-2026-10-08/native-quit-final.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/lfs-status-actions-2026-10-08/native.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/lfs-status-actions-2026-10-08/pin-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-status-actions-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-status-actions-2026-10-08/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/lfs-status-actions-2026-10-08/store-final.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/lfs-status-actions-2026-10-08/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/lfs-status-actions-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

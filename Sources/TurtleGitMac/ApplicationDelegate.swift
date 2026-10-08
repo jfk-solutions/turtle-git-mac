@@ -24,6 +24,7 @@ import AppKit
         if sender.windows.compactMap({ $0.delegate as? ImportPatchWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? FormatPatchWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? WorktreeCreateWindowController }).contains(where: { $0.model.busy || $0.model.chooser.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        if sender.windows.contains(where: { $0.delegate is LFSFileOperationController }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? LFSLocksWindowController }).contains(where: { $0.model.busy || $0.model.showingProgress || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? WorktreeListWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         let reviews = sender.windows.compactMap { $0.delegate as? WorkingTreePatchWindowController }
@@ -32,6 +33,7 @@ import AppKit
         let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
         let adds = sender.windows.compactMap { $0.delegate as? AddWindowController }
         let lfsLocks = sender.windows.compactMap { $0.delegate as? LFSLocksWindowController }
+        let statuses = sender.windows.compactMap { $0.delegate as? StatusWindowController }
         let addProgress = sender.windows.compactMap { $0.delegate as? AddProgressWindowController }
         let reverts = sender.windows.compactMap { $0.delegate as? RevertWindowController }
         let browsers = sender.windows.compactMap { $0.delegate as? RepositoryBrowserWindowController }
@@ -44,6 +46,7 @@ import AppKit
         guard !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         for controller in lfsLocks { controller.model.confirmingQuit = true }
+        for controller in statuses { controller.model.confirmingQuit = true }
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
         repositoryModel?.confirmingQuit = true
@@ -117,6 +120,7 @@ import AppKit
             for controller in imports { controller.setQuitConfirmation(false) }
             for controller in reviews { controller.setQuitConfirmation(false) }
             for controller in lfsLocks { controller.model.confirmingQuit = false }
+            for controller in statuses { controller.model.confirmingQuit = false }
             confirmingQuit = false
             replyToTermination(sender, allowQuit)
         }
