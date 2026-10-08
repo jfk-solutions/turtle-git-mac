@@ -518,3 +518,25 @@ comparisons. Its Tab/Space, Smart and 1/2/4/8 choices are retained; the label no
 includes current settings for accessibility. Native re-acceptance of this
 refactored three-pane menu remains pending. See
 [comparison tab acceptance](qa/comparison-tabs-2026-10-05.json).
+
+## Nine-style source alignment
+
+Mine/Theirs read-only alignment now uses the shared FileTextLines boundary
+recognition for CRLF, LF, CR, LFCR, VT, FF, NEL, LS and PS. Each numbered cell
+retains its exact source text and ending; removed Base rows and gap rows remain
+display-only. The native source panes render one LF per display row, with original
+source numbering and linked scrolling. Source ending differences still count as
+changes; alignment does not silently normalize stage text.
+
+[Three-pane endings QA](qa/three-pane-endings-2026-10-08.json) records 41 focused
+Core tests, including 729 Base/Mine/Theirs style combinations, and native checks
+against four Git versions. Each native run creates nine real unmerged source
+pairs and loads the production three-pane controllers. It checks exact stage
+text, unequal conflict-side/gap numbering, read-only display and rulers, linked
+scrolling, and unchanged HEAD/raw index/conflicted working bytes. All owned
+hidden windows close after testing; the main application is not launched.
+
+This verifies source alignment and display. Physical keyboard/menu interaction,
+full source merge-engine equivalence, exhaustive mixed-ending/selection cases,
+final-empty-row behavior, and signed sandbox acceptance remain pending. The
+existing result conflict parser and save paths are separate from this change.

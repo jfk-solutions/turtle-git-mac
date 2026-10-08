@@ -719,3 +719,8 @@ EOL.h copyright (C) 2023 TortoiseGit and (C) 2007, 2013 TortoiseSVN, GPL 2 or la
 Native comparison editing retains LF for a buffer without endings; recognized
 styles and tie ordering follow the pinned source. This extends typing, block
 transfer, marked-block resolution and display without claiming full editor parity.
+
+Three-pane read-only source alignment also uses the shared FileTextLines.cpp
+boundary recognition for all nine EOL.h styles. The line-ending attribution
+above applies. Native Mine/Theirs gap rows and source numbering remain separate
+from result bytes; full source merge-engine and physical UI parity remain pending.

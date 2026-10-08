@@ -104,12 +104,8 @@ public struct MergeSourceComparison: Sendable {
     private struct Hunk { let base: Range<Int>; let side: Range<Int>; let mine: Bool }
     private struct Region { var base: Range<Int>; var hunks: [Hunk] }
     private static func lines(_ text: String) -> [String] {
-        guard !text.isEmpty else { return [] }
-        // Foundation splits the LF inside CRLF without splitting Unicode graphemes.
-        let pieces = text.components(separatedBy: "\n")
-        var lines = pieces.dropLast().map { $0 + "\n" }
-        if let last = pieces.last, !last.isEmpty { lines.append(last) }
-        return lines
+        let source = text as NSString
+        return MergeLineEndings.lineRanges(in: text).map { source.substring(with: $0) }
     }
     private static func hunks(base: [String], side: [String], mine: Bool) -> [Hunk] {
         let difference = side.difference(from: base, by: sameBytes)

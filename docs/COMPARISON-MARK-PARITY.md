@@ -442,6 +442,7 @@ extra separator after an exotic ending.
 [Editor endings QA](qa/editor-endings-2026-10-08.json) records focused Core and
 headless native checks. The native receiver exercises every style through actual
 aligned display, insertText, private Undo/Redo, ordinary Save and block transfer,
-checking exact output bytes and unchanged Base. Physical format-menu interaction,
-three-pane alignment, explicit pane-style persistence after deleting/changing the
+checking exact output bytes and unchanged Base. Physical format-menu interaction, explicit pane-style persistence after deleting/changing the
 dominant ending, and exhaustive mixed-ending/selection combinations remain pending.
+Three-pane read-only source alignment now shares the boundary parser; see
+[its parity record](TEXT-MERGE-PARITY.md#nine-style-source-alignment).

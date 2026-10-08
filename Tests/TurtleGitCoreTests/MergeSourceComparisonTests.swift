@@ -10,6 +10,36 @@ final class MergeSourceComparisonTests: XCTestCase {
         XCTAssertEqual(view.rows.map(\.theirs.lineNumber), [1, nil, nil, 2, nil, nil, 3])
         XCTAssertEqual(view.rows[1].mine.displayText, "old1")
     }
+    func testEveryEndingAlignsConflictsGapsAndUnterminatedSources() {
+        for ending in MergeLineEnding.allCases {
+            let eol = ending.rawValue
+            let base = ["head", "old", "tail"].joined(separator: eol)
+            let mine = ["head", "mine1", "mine2", "tail"].joined(separator: eol)
+            let theirs = ["head", "theirs", "tail"].joined(separator: eol)
+            let rows = MergeSourceComparison(base: base, mine: mine, theirs: theirs).rows
+            XCTAssertEqual(rows.map(\.mine.lineNumber), [1, nil, 2, 3, 4])
+            XCTAssertEqual(rows.map(\.theirs.lineNumber), [1, nil, 2, nil, 3])
+            XCTAssertEqual(rows.map(\.mine.state), [.normal, .removed, .conflicted, .conflicted, .normal])
+            XCTAssertEqual(rows.map(\.mine.displayText), ["head", "old", "mine1", "mine2", "tail"])
+            XCTAssertEqual(rows.map(\.theirs.displayText), ["head", "old", "theirs", "", "tail"])
+            XCTAssertEqual(Data(rows.filter { $0.mine.lineNumber != nil }.map(\.mine.text).joined().utf8), Data(mine.utf8))
+            XCTAssertEqual(Data(rows.filter { $0.theirs.lineNumber != nil }.map(\.theirs.text).joined().utf8), Data(theirs.utf8))
+        }
+    }
+    func testDifferentEndingsInAllThreeSourcesRetainByteOrderAndNumbering() {
+        for baseEnding in MergeLineEnding.allCases { for mineEnding in MergeLineEnding.allCases { for theirEnding in MergeLineEnding.allCases {
+            let base = ["雪", "old", "tail"].joined(separator: baseEnding.rawValue)
+            let mine = ["雪", "🦎", "mine", "tail"].joined(separator: mineEnding.rawValue)
+            let theirs = ["雪", "theirs", "tail"].joined(separator: theirEnding.rawValue)
+            let rows = MergeSourceComparison(base: base, mine: mine, theirs: theirs).rows
+            for (cells, original, count) in [(rows.map(\.mine), mine, 4), (rows.map(\.theirs), theirs, 3)] {
+                let numbered = cells.filter { $0.lineNumber != nil }
+                XCTAssertEqual(Data(numbered.map(\.text).joined().utf8), Data(original.utf8))
+                XCTAssertEqual(numbered.compactMap(\.lineNumber), Array(1...count))
+                XCTAssertTrue(numbered.allSatisfy { MergeLineEndings.styles(in: $0.displayText).isEmpty })
+            }
+        } } }
+    }
     func testIndependentChangesAndIdenticalAdditions() {
         let view = MergeSourceComparison(base: "first\nsecond\n", mine: "mine\nsecond\nend\n", theirs: "first\ntheirs\nend\n")
         XCTAssertEqual(view.rows.map(\.mine.state), [.removed, .added, .normal, .empty, .added])

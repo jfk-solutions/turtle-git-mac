@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "24f61d02df9d034ffd03a31dfdfeb75960bab064",
+  "scope": "Three-pane read-only Mine/Theirs source alignment uses shared nine-style boundary recognition. Full port and distribution remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/FileTextLines.cpp": "e9ac66ef889687750921f09d4ccafce7f843e996",
+    "src/TortoiseMerge/EOL.h": "6c0cb1571cbf1a79d8eafba0f31e944824c90ac0",
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5"
+  },
+  "sources_manifest_sha256": "8f339546f84af0ffc37bf0853c46fcb7ede3730fa5513413b7975dac8288f6db",
+  "changed_files_sha256": {
+    "NOTICE": "76e12ae63a8ebaabc7f9dd51029755a74d230b9f80524ce19f0a750f188576b7",
+    "Sources/TurtleGitCore/MergeSourceComparison.swift": "efc103bd52c013a34a185b66bbddc1c55b876187bd6c569499986ca390ab5faf",
+    "Tests/TurtleGitCoreTests/MergeSourceComparisonTests.swift": "d8c59624305b88a8000c8240ab037621b804ae9a87a6fa32a72c44342b94af5a",
+    "docs/COMPARISON-MARK-PARITY.md": "e8e4e3d7919b4a229a2ce2ac19feb0a3442c70023dae2e56d0954c2c895a05df",
+    "docs/TEXT-MERGE-PARITY.md": "9814f44861adc1f39bc802d038088d83345a8efbec0f1ba4e5f7b3677f8d30b8",
+    "docs/upstream-files.csv": "6d3328f41ddcc684ecf549d92b18c0ec25d8bfd596b2d2a4d8c439b7e52ae714",
+    "scripts/test-three-pane-endings.py": "01cb973fc339abd76d3304a12214d9afd8cec83cd4f42b0ccb43117a34ab4cf5",
+    "docs/qa/three-pane-endings-native-2026-10-08.swift": "42c3e755b4600605916a4c0fe6367274cb04b3f6104876fc4631605edb7df58e"
+  },
+  "verification": {
+    "core": "41 cases pass on default Apple Git: 7 MergeSourceComparison (including all 729 Base/Mine/Theirs ending-style combinations and nine-style unequal-conflict/gap/numbering/display cases), 5 MergeLineEndings, 19 FileComparisonEditing, 10 FileComparison. Existing repeated/overlapping/Unicode/ending/working-file cases retained. Not four-engine Core results.",
+    "native": "Dedicated production-controller receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Each run creates nine actual unmerged source pairs with 80 context lines and unequal Mine/Theirs edits, loads three-pane windows, checks exact stage text and 85 aligned rows, original source numbers and ruler arrays, read-only display with LF separators, removed/gap rows and linked scrolling. HEAD/raw index/conflicted working bytes preserved. Owned windows closed; no main app, synthetic/physical input or screenshots.",
+    "builds": "Unsigned Debug, then dedicated receiver against stationary Debug, then AppStore; both bundle audits, NOTICE byte equality, upstream pin and diff check pass. Source/NOTICE/tests/receiver frozen during live compiler/native sessions.",
+    "site": "Static GitHub Pages generator passes with parity and QA links."
+  },
+  "iterations": [
+    "Focused Core suite, native four-engine receiver, Debug and Store pass first run."
+  ],
+  "limitations": [
+    "Source merge-engine equivalence, exhaustive mixed-ending/selection combinations and final-empty-row behavior remain pending.",
+    "Physical keyboard/menu/layout/accessibility, signed sandbox access and complete result/save parity remain unverified.",
+    "Full app parity, Finder deployment, real screenshots, App Store eligibility and external CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_native_fixtures": [],
+    "main_app_launched": false,
+    "native_windows": "Nine owned hidden controllers per engine; each closed after source checks."
+  },
+  "logs_sha256": {
+    "build/qa/three-pane-endings/cleanup.json": "107b60814d0fa2a270b475df928a07c233e0be2cbd25d527194e891bed59d1c7",
+    "build/qa/three-pane-endings/core.log": "472cf3a519f4ccd3e73314a95a1c185369d4450ccda1d6835cd04e09cf5dcb09",
+    "build/qa/three-pane-endings/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/three-pane-endings/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/three-pane-endings/native.log": "bcc70a9340c34b77d826cd8c7908dc57aaccd8d610a368a3db9562655010371c",
+    "build/qa/three-pane-endings/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/three-pane-endings/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/three-pane-endings/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/three-pane-endings/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
