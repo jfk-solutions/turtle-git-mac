@@ -34,6 +34,12 @@ public struct FetchRebaseResult: Sendable {
     public let output: String
     /// Immutable target from this fetch, independent of later FETCH_HEAD updates.
     public let upstream: String
+    /// The conventional named-remote ref before transport, as in DoFetch.
+    public let oldUpstream: String
+    public let head: String
+    public let currentIsUpToDate: Bool
+    public let canFastForward: Bool
+    public var unchangedAtHEAD: Bool { !oldUpstream.isEmpty && oldUpstream == upstream && upstream == head }
 }
 public enum FetchRebaseFailure: LocalizedError {
     case destination, active
@@ -52,10 +58,22 @@ extension GitRepository {
         // Fetch exactly the selected branch even when ordinary Fetch uses all
         // configured refspecs. FETCH_HEAD then identifies that branch, including
         // remotes whose refspecs do not map to refs/remotes/<name>/<branch>.
+        let branch = options.branch.trimmingCharacters(in: .whitespacesAndNewlines)
+        let conventional = "refs/remotes/" + options.remote + "/" + (branch.hasPrefix("refs/heads/") ? String(branch.dropFirst(11)) : branch)
+        let oldUpstream = options.arbitraryURL ? "" : ((try? run(["rev-parse", "--verify", "--end-of-options", conventional + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? "")
         var selected = options; selected.namedRemoteFetchAll = false
         let output = try fetch(selected, cancellation: cancellation)
         let upstream = try run(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
-        return FetchRebaseResult(output: output, upstream: upstream)
+        try cancellation?.check()
+        let head = (try? run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? ""
+        func ancestor(_ from: String, _ to: String) throws -> Bool {
+            guard !from.isEmpty, !to.isEmpty else { return false }
+            return try run(["merge-base", "--is-ancestor", from, to], successfulExitCodes: 0...1, cancellation: cancellation).exitCode == 0
+        }
+        let currentIsUpToDate = try ancestor(upstream, head)
+        let canFastForward = try ancestor(head, upstream)
+        try cancellation?.check()
+        return FetchRebaseResult(output: output, upstream: upstream, oldUpstream: oldUpstream, head: head, currentIsUpToDate: currentIsUpToDate, canFastForward: canFastForward)
     }
     private func fetchConfig(_ key: String) -> String { ((try? run(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
     public func fetchDefaults(remote selected: String? = nil) throws -> FetchDefaults {

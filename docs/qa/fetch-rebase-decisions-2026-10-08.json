@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "c0198b4046d6ab62f83c5e5c0a0304a4eb0770ae",
+  "scope": "Owned Fetch/Rebase source post-execution questions, remembered answers, fast-forward Merge, retained abort/failure and configured automatic handoff. Full port/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/PullFetchDlg.cpp": "261e75446acd8f6c3a14ed29dd57dd56d92a449a",
+    "src/TortoiseProc/Commands/FetchCommand.cpp": "f4c60bae0c5c297c249146430e3b7004ee091e0a",
+    "src/TortoiseProc/Commands/PullCommand.cpp": "62eb81ecf9cbc06f86831471d3fcc58a6cb80fc7",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f",
+    "src/Utils/MiscUI/MessageBox.cpp": "9cff2f2887d83bf5dfebf1b6a90acda2048bc42b",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803"
+  },
+  "sources_manifest_sha256": "f58b84e726db41edf2449789abf942e110dd42e635bc5a79cd0baf0e16312e80",
+  "files_sha256": {
+    "NOTICE": "3b42c56e289a6ac660f423e04f1085890debb6dbb2c0498d3ed687332960cac4",
+    "README.md": "05e9a1bb02937fc40aac1c52b4408a832eeb30e8798e0ab20a9e48dc40970660",
+    ".github/workflows/macos.yml": "bbf438f1d2a82eb9e5f82ce3f81efdff5ae7d28978bae0d25b30cd33658dad7a",
+    "docs/FETCH-PARITY.md": "35c5b9875caa8d294d2c665bf97fa3a07df63a7ef50e6e1264e01cdc8318b3aa",
+    "docs/PULL-PARITY.md": "3a75b3eaac62d1179fd38f64cb1552b9191634cfec49be126644dd830bacc737",
+    "docs/REBASE-PARITY.md": "e7d0e594ea639fca7ca1a7bd61aa64e4995e14fbdca2733b4653c84b824f549a",
+    "docs/upstream-files.csv": "509872a98b81945d854afd54fc66660ce77a35a23792190e3af96dbf0e4539af",
+    "Sources/TurtleGitCore/Fetch.swift": "03b8ddbcc8446e6873f0cb7654fc357cda79bb1c70b85193e0302e55f4beec48",
+    "Sources/TurtleGitMac/FetchWindow.swift": "60730078452217dcdbbd922b5142520e9b4be4d2b6f0cc4d5366cc1d94718855",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "98d04620d19b026b8374a2500b88f408e5a6c93263ecc9c25ee2babeabc108a7",
+    "docs/qa/fetch-rebase-decisions-native-2026-10-08.swift": "fb07f2fde5503136d83e465d084edc440fb41ed888c1c8851d27fddee1a59d48",
+    "docs/qa/fetch-cancellation-native-2026-10-07.swift": "dca119e4370f7ce4a10780053b444b40a870d6e37109e4beab20166507e9b297",
+    "scripts/test-fetch-rebase-decisions.py": "70e990177a12a6fadd0b4837350d307a0b7b08338a04f00b89891a6cff70ae56"
+  },
+  "git_matrix": [
+    "2.50.1 (Apple Git-155)",
+    "2.37.1",
+    "2.39.5",
+    "2.55.0 (bundled)"
+  ],
+  "verification": {
+    "core": "13 existing FetchTests passed: named/all-remotes flags, selected immutable target under custom refspecs, mixed edits preserved, failed destination cannot reuse stale FETCH_HEAD, native Rebase replay ancestry/active-session rejection and transport pre-cancellation. New ancestry/old-ref cases are checked by the real native matrix.",
+    "native": "Final extended receiver passed all four Gits: equal/ahead/diverged/fast-forward classification; source ordered up-to-date/unchanged/three-way prompts and defaults; unchecked responses not persisted; saved Yes/No and Rebase/Abort/Merge answers bypass presenter; actual later fast-forward from saved Merge. Native configured Pull owner forwards automatic/preserve-merges and closes once without manual prompts. Immutable Rebase target, real ff-only mutation, held-prompt owner/cancel/duplicate gates, retained dirty failure and conflicted failure Commit-routed Resolve callback, captured Retry all passed. No windows launched.",
+    "cancellation": "Updated six-mode native receiver passed all four Gits. Owned wrapper/helper die, unrelated process survives; No/Yes confirmation; no success/Rebase callback, unchanged pre-transport HEAD/index. Additional Fetch-before-Rebase owned-close mode clears result/owner after cleanup. Headless default models may retain results; actual controller closes after accepted cancellation. One hidden owned settings window constructed/closed per process.",
+    "ordinary_regression": "Existing ordinary Fetch progress receiver passed four Gits: result retention, exact actions, captured Retry, real partial all-remotes update, fresh tracked Hard Reset default and HEAD/index/worktree preservation. This preceded only diagnostic formatting and Merge-failure status-label/NOTICE changes; final decisions/cancellation receivers check final source.",
+    "builds": "Unsigned final Debug and AppStore builds passed; both bundle audits passed with embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 upstream icons. Bundled NOTICE byte-identical in both. Store bundled Git 2.55.0: 11 arm64/x86_64 Mach-O files and real local Git fixture operations passed. No signed distribution claim.",
+    "documentation": "README, Fetch/Pull/Rebase parity, NOTICE, native CI step and eight partial source mappings updated. Pin checker passed; no file marked fully ported based on these narrow cases. Local site generated, unpublished.",
+    "processes": "All compiler/Core/native receiver sessions terminal before AppStore build. Main GUI never launched; prohibited activation, no user pasteboard or standard preference writes. Owned hidden settings window closed. Final app/receiver process audit empty. Private UUID domain cleanup details in private-preference-cleanup.log; only empty files removed, nonempty files untouched. Initial assertion failure preceded decoy defer; its bounded sleep subsequently ended before final audit. Final transport/sleep process audit empty. Removed 16 empty owned UUID preference plists; one nonempty owned test-domain file from earlier failed assertion left untouched.",
+    "limitations": "Physical native sheet/button/Return/Escape/suppression, resize/light/dark/accessibility, destination/Rebase editor, live streaming, credential/network, source libgit2, empty-branch/all-remotes Rebase and signed sandbox/Finder/AppStore acceptance pending. Native fetchForRebase still explicitly fetches selected branch/pins FETCH_HEAD rather than source conventional-ref target; pre-fetch conventional hash used for unchanged check. Fast-forward uses same macOS progress sheet rather than another source modal. Full source/application parity and hosted CI/site/distribution incomplete. GitHub authorization unavailable, not retried.",
+    "earlier_failures": "Initial Debug exposed mistaken Pull-controller member guard and conflict-status expression; corrected. New receiver compilation initially omitted isPull argument; corrected. Cancellation regression exposed extra leading newline in error; corrected before final six-mode matrix. Failed logs retained."
+  },
+  "logs_sha256": {
+    "build/qa/fetch-rebase-decisions/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/fetch-rebase-decisions/cancellation-diagnostic-prefix-failed.log": "68b47b793e632ffb21cd35f56135bca9ed8fb540a540a6ffcd3bdce5e53607e5",
+    "build/qa/fetch-rebase-decisions/cancellation.log": "14c5d36176690166a348edcd11658cc4aff537f95a029208303236c00c9eeba6",
+    "build/qa/fetch-rebase-decisions/core.log": "47cbd9d12f33ff05bb82741a6117b7033f59c112c464dc330fa4b5e4c3b45c96",
+    "build/qa/fetch-rebase-decisions/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/fetch-rebase-decisions/debug-before-diagnostic-fix.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-rebase-decisions/debug-before-final-notice.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-rebase-decisions/debug-initial-failed.log": "12948d6bfc45a5371b2f4055166e4d2db3b23df2bdc282ad459f4d2c9ddc68c4",
+    "build/qa/fetch-rebase-decisions/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-rebase-decisions/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/fetch-rebase-decisions/native-before-remembered-merge.log": "41cc777594679ccdf0dea4cef052f2003d6d51c7ea354dc731464b95e7bd65fb",
+    "build/qa/fetch-rebase-decisions/native-compile-failed.log": "fadb3cf7a54b4bb5b446c9efc2f2e272afb720f00bf5fa67a21fd0cf844d8616",
+    "build/qa/fetch-rebase-decisions/native.log": "41cc777594679ccdf0dea4cef052f2003d6d51c7ea354dc731464b95e7bd65fb",
+    "build/qa/fetch-rebase-decisions/ordinary-regression.log": "57b6effe62397a8e4cec5fd91733a6bd71b60c5a29716b22c6009010334c2b95",
+    "build/qa/fetch-rebase-decisions/private-preference-cleanup.log": "5f12e75a449eb226c5bac69de876bd8e9e29cd6e026de507b35382a080200f66",
+    "build/qa/fetch-rebase-decisions/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-rebase-decisions/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-rebase-decisions/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/fetch-rebase-decisions/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/fetch-rebase-decisions/transport-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

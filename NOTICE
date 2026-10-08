@@ -538,3 +538,7 @@ source follow-up flags; native owned sheets replace the Windows modal progress.
 Ordinary Fetch owned progress adapts AppUtils.cpp::DoFetch post-command
 actions, all-remotes failure Log, captured Retry and tracked Hard Reset default.
 Native progress Cancel closes its owner after the owned transport ends.
+
+Fetch/Rebase post-execution choices adapt AppUtils.cpp::DoFetch and
+MessageBox.cpp::ShowCheck answer suppression, with native owned sheets and
+a fast-forward merge phase. Source messages and answer keys are retained.

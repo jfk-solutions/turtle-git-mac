@@ -98,7 +98,9 @@ not current visual, behavior or accessibility parity.
 
 ## Remaining workflows
 
-- Fetch/Pull handoffs, old-upstream detection, fast-forward choices and config defaults.
+- Complete Fetch/Pull variants, native factory acceptance, hook/network/signed
+  execution and remaining configuration parity. Manual Fetch/Rebase decisions
+  and old-upstream checks are now adapted; see FETCH-PARITY.md.
 - Remaining advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
 - Remaining reword/author editing and complete conflict/resolution menus and tabs.
 - Remaining row targeting/shortcuts and drag reordering, customizable columns and persisted layout. Action and move shortcuts now have headless native coverage; displayed acceptance remains pending.
@@ -187,3 +189,9 @@ and after-Fetch behavior, mail/export adaptation and remaining acceptance.
 Active session context now restores original options and Fetch/Pull completion
 origin after reopening. [Session context](REBASE-SESSION-CONTEXT.md) records
 versioned metadata, fallback and verification limits.
+
+Manual Fetch/Rebase now asks the upstream up-to-date and unchanged questions,
+then offers Merge/Rebase/Abort for an ancestor target. Answers can be remembered.
+Configured automatic Pull/Rebase skips those prompts. Actual ff-only Merge and
+retained dirty/conflicted failures are recorded in the Fetch decision QA; native
+Rebase factory/editor acceptance and full workflow parity remain pending.

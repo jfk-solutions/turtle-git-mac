@@ -23,7 +23,7 @@ Browse retrieves actual remote heads through `ls-remote` and offers a searchable
 native selection sheet. Manage reuses the basic remote settings sheet from Push.
 Configured Git credential helpers and SSH agents replace PuTTY key loading.
 Ordinary Fetch retains success or failure in an owned progress sheet, with source
-post-actions described below. Configured Fetch → Rebase retains its existing handoff.
+post-actions described below. Fetch → Rebase shares this owned progress and its post-execution decisions.
 
 ## Evidence
 
@@ -48,7 +48,8 @@ Git's error, retained its URL/branch, and allowed Cancel. `site/assets/fetch.png
 ## Remaining parity
 
 - Launch Rebase After Fetch now opens the selected branch's native plan. Upstream
-  fast-forward choices, post-operation actions and full conflict recovery remain.
+  full interactive Rebase recovery remains; native post-execution decisions are
+  described below.
 - Full remote reference chooser hierarchy, tag selection and histories; the current
   chooser lists heads only. Full remote settings and their mutation/recovery QA.
 - Physical history deletion/completion acceptance, complete settings
@@ -168,7 +169,8 @@ Cancel and the window close gesture request cancellation during Fetch, merge Pul
 and Fetch-before-Rebase. Controls remain locked until the operation finishes;
 Cancel shows Cancelling… while the owned process group stops. Ordinary Fetch and
 merge-based Pull close their owned progress/options after accepted cancellation
-finishes. Fetch-before-Rebase retains its inputs and cancellation result. Idle Cancel closes it.
+finishes. Fetch-before-Rebase now shares the same owned progress policy. Headless
+models can retain results for inspection. Idle Cancel closes it.
 A cancelled fetch does not trigger success or open Rebase. A fresh cancellation
 token is created for every invocation. Merge-based Pull now retains the result in
 its own progress sheet; see PULL-PARITY.md for its actions and owning-window lifecycle. Cancellation does not roll back changes
@@ -244,9 +246,50 @@ failure, fresh tracked Reset defaults, bare action conditions, duplicate dispatc
 and cancellation cleanup. It also records updated shared-history, clipboard and
 submodule regressions. No main GUI is launched by these receivers.
 
-Configured Fetch → Rebase still uses its earlier route. Upstream's up-to-date,
-unchanged and fast-forward decision prompts and automatic mode variants remain
-pending. Physical progress-sheet controls, destination windows, light/dark,
+Fetch → Rebase now uses the owned progress and source decision prompts described
+below. Physical progress-sheet controls, destination windows, light/dark,
 keyboard/accessibility, streaming output, network credentials and signed sandbox
 acceptance remain pending. The existing screenshot shows options and predates
 this progress sheet. Full application parity is incomplete.
+
+## Fetch → Rebase decisions
+
+Manual Launch Rebase After Fetch now follows the command-line DoFetch conditions
+and order. If the local branch is equal to or newer than the fetched target, it
+asks whether to open Rebase anyway (default No). If the pre-fetch conventional
+remote-tracking hash, fetched target and HEAD are equal and nonempty, it next asks
+whether to open Rebase for an unchanged branch (default No). These are separate
+questions; Yes on the first can lead to the second. If HEAD is an ancestor of the
+target, including equality, it offers Merge, Rebase and Abort (default Rebase).
+An unchecked answer affects this invocation only. Don't show this message again
+stores the selected answer under the original three OpenRebaseRemoteBranch keys,
+including Yes/No and all three fast-forward answers, as upstream ShowCheck does.
+
+A No or Abort retains the successful Fetch result and its Log/Reset/Fetch/Switch
+actions. Rebase closes the owned result/options and opens the native plan with
+the immutable fetched hash. A Git-configured rebase Pull uses automatic mode,
+skips these questions, and forwards auto-start and preserve-merges. Diverged
+branches proceed to the plan without a fast-forward question.
+
+Merge executes a real --ff-only merge of that immutable target. Its successful
+result closes automatically; failure stays in progress. A failure with working
+tree conflicts offers Resolve, routed to native Commit as the upstream callback
+does; a failure without conflicts offers no post-action. macOS uses the existing
+owned progress sheet for this merge phase rather than another modal window.
+Inputs, duplicate fetch/close and cancellation stay gated during an owned decision
+sheet; subsequent transport uses the existing cancellation policy.
+
+[Decision QA](qa/fetch-rebase-decisions-2026-10-08.json) records real equal, ahead,
+diverged and fast-forward histories, held decision gates, retained Abort/No,
+saved answers, automatic handoff, actual fast-forward mutation, dirty/conflicted
+merge failures and captured retry. Ordinary Fetch/cancellation regressions also
+run. The native presenter is wired but physical button/default/Escape/suppression
+interaction and factory/editor acceptance remain unverified.
+
+The earlier safety adaptation remains: fetchForRebase fetches the selected branch
+explicitly and pins FETCH_HEAD immediately. Source DoFetch uses its conventional
+remote-tracking ref. A custom refspec therefore does not make the native plan use
+a stale conventional ref; the unchanged test uses the pre-fetch conventional hash
+as upstream does. Native full remote chooser, empty-branch fallback/all-remotes
+Rebase, libgit2 mode, failure after mutation, hook/credential/streaming and signed
+sandbox acceptance remain pending. Full port and distribution remain incomplete.

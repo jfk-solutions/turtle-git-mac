@@ -1345,6 +1345,7 @@ import TurtleGitCore
             case .fetch: self?.showFetch(repository: repository, access: access)
             case .rebase: self?.showRebase(repository: repository, access: access, afterFetch: true)
             case .switchBranch: self?.showSwitch(repository: repository, access: access)
+            case .resolve: self?.showCommitDialog(repository: repository, access: access, paths: [])
             case .retry: break
             }
         }

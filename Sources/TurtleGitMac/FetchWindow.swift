@@ -72,10 +72,8 @@ import TurtleGitCore
     @Published var tagsDefault = ""
     @Published var pruneDefault = ""
     @Published var busy = false
-    @Published private var legacyCancelling = false
-    @Published private var legacyConfirmingCancellation = false
-    var cancelling: Bool { progress?.cancelling ?? fetchProgress?.cancelling ?? legacyCancelling }
-    var confirmingCancellation: Bool { progress?.confirmingCancellation ?? fetchProgress?.confirmingCancellation ?? legacyConfirmingCancellation }
+    var cancelling: Bool { progress?.cancelling ?? fetchProgress?.cancelling ?? false }
+    var confirmingCancellation: Bool { progress?.confirmingCancellation ?? fetchProgress?.confirmingCancellation ?? false }
     @Published private(set) var progress: PullProgressWindowModel?
     @Published private(set) var fetchProgress: FetchProgressWindowModel?
     var onFetchProgress: ((FetchProgressWindowModel) -> Void)?
@@ -92,12 +90,11 @@ import TurtleGitCore
         progress = nil; error = nil; result.invalidate(); close()
     }
     func finishFetch(_ result: FetchProgressWindowModel) {
-        guard fetchProgress === result, !result.busy, !result.confirmingCancellation, !result.dispatchingAction else { return }
+        guard fetchProgress === result, !result.busy, !result.confirmingCancellation, !result.confirmingRebaseDecision, !result.dispatchingAction else { return }
         fetchProgress = nil; error = nil; result.invalidate(); close()
     }
-    private var cancellation: OperationCancellation?
-    var transportRunning: Bool { progress?.busy ?? fetchProgress?.busy ?? (cancellation != nil) }
-    var canCancel: Bool { progress?.canCancel ?? fetchProgress?.canCancel ?? (!busy || transportRunning && !cancelling && !confirmingCancellation) }
+    var transportRunning: Bool { progress?.busy ?? fetchProgress?.busy ?? false }
+    var canCancel: Bool { progress?.canCancel ?? fetchProgress?.canCancel ?? !busy }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var error: String?
     @Published var browsing = false
@@ -185,19 +182,9 @@ import TurtleGitCore
     func cancel() {
         if let progress { if progress.busy { progress.cancel() } else { progress.close() }; return }
         if let fetchProgress { if fetchProgress.busy { fetchProgress.cancel() } else { fetchProgress.close() }; return }
-        guard busy else { close(); return }
-        guard let token = cancellation, !cancelling, !confirmingCancellation else { return }
-        func stop() { legacyCancelling = true; token.cancel() }
-        if preferences.bool(forKey: "ConfirmKillProcess") {
-            legacyConfirmingCancellation = true
-            confirmCancellation { [weak self] proceed in
-                guard let self else { return }
-                self.legacyConfirmingCancellation = false
-                guard self.cancellation === token else { return }
-                if proceed { self.legacyCancelling = true; token.cancel() }
-            }
-        } else { stop() }
+        if !busy { close() }
     }
+
     func fetch() {
         guard !invalidated, !operationActive else { return }
         if options.arbitraryURL {
@@ -234,35 +221,19 @@ import TurtleGitCore
             progress.close = { [weak self, weak progress] in if let progress { self?.finish(progress) } }
             onProgress?(progress); progress.start(); return
         }
-        if !wantsRebase {
-            let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences)
-            fetchProgress = progress
-            progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
-            progress.onPostAction = onFetchPostAction
-            progress.onCompleted = { [weak self, weak progress] in
-                guard let self, let progress else { return }; self.busy = false
-                self.error = progress.success ? nil : progress.output; self.onChanged(progress.output)
-                if progress.success { self.onFetched(progress.output) }
-            }
-            progress.close = { [weak self, weak progress] in if let progress { self?.finishFetch(progress) } }
-            onFetchProgress?(progress); progress.start(); return
+        let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences, rebaseMode: wantsRebase ? (autoStart ? .automatic : .manual) : .none, preserveMerges: keepMerges)
+        fetchProgress = progress
+        progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
+        progress.onPostAction = onFetchPostAction
+        progress.onRebase = onRebase
+        progress.onCompleted = { [weak self, weak progress] in
+            guard let self, let progress else { return }; self.busy = false
+            self.error = progress.success ? nil : progress.output; self.onChanged(progress.output)
+            if progress.success { self.onFetched(progress.output) }
         }
-        let token = OperationCancellation(); cancellation = token; legacyCancelling = false
-        Task {
-            defer { cancellation = nil; legacyCancelling = false; legacyConfirmingCancellation = false; busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                if wantsRebase {
-                    let result = try await repository.fetchForRebase(snapshot, cancellation: token)
-                    guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
-                    cancellation = nil; busy = false; close(); onFetched(result.output); onRebase(result.upstream, autoStart, keepMerges)
-                } else {
-                    let output = isPull ? try await repository.pull(pullOptions, cancellation: token) : try await repository.fetch(snapshot, cancellation: token)
-                    guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
-                    cancellation = nil; busy = false; close(); onFetched(output)
-                }
-            } catch { self.error = error.localizedDescription }
-        }
+        progress.close = { [weak self, weak progress] in if let progress { self?.finishFetch(progress) } }
+        onFetchProgress?(progress); progress.start()
+
     }
 }
 private struct FetchDialog: View {
@@ -635,20 +606,38 @@ private struct PullProgressDialog: View {
     }
 }
 
-// Ordinary Fetch keeps the command-line DoFetch result; configured Fetch/Rebase
-// has its separate post-execution workflow and is not silently replaced here.
+// Command-line DoFetch result and its manual/automatic Rebase post-execution choices.
 enum FetchPostAction: String, CaseIterable, Hashable {
-    case retry, log, reset, fetch, rebase, switchBranch
+    case retry, log, reset, fetch, rebase, switchBranch, resolve
     var title: String {
-        switch self { case .retry: return "Retry"; case .log: return "Show log"; case .reset: return "Reset…"; case .fetch: return "Fetch…"; case .rebase: return "Rebase…"; case .switchBranch: return "Switch/Checkout…" }
+        switch self { case .retry: return "Retry"; case .log: return "Show log"; case .reset: return "Reset…"; case .fetch: return "Fetch…"; case .rebase: return "Rebase…"; case .switchBranch: return "Switch/Checkout…"; case .resolve: return "Resolve" }
     }
     var icon: MenuIcon {
-        switch self { case .retry: return .refresh; case .log: return .log; case .reset: return .reset; case .fetch: return .fetch; case .rebase: return .rebase; case .switchBranch: return .checkout }
+        switch self { case .retry: return .refresh; case .log: return .log; case .reset: return .reset; case .fetch: return .fetch; case .rebase: return .rebase; case .switchBranch: return .checkout; case .resolve: return .resolve }
     }
 }
+enum FetchRebaseMode { case none, manual, automatic }
+enum FetchRebasePrompt: String, CaseIterable {
+    case upToDate = "OpenRebaseRemoteBranchEqualsHEAD"
+    case unchanged = "OpenRebaseRemoteBranchUnchanged"
+    case fastForward = "OpenRebaseRemoteBranchFastForwards"
+    var message: String {
+        switch self {
+        case .upToDate: return "Current branch is up to date or newer than the fetched branch. Open rebase anyway?"
+        case .unchanged: return "The remote branch has not changed.\n\nOpen the rebase dialog anyway?"
+        case .fastForward: return "The fetched branch fast-forwards upon the current branch.\n\nMerge or open the rebase dialog anyway?"
+        }
+    }
+    var buttons: [String] { self == .fastForward ? ["Merge", "Rebase", "Abort"] : ["Yes", "No"] }
+    var answers: [Int] { self == .fastForward ? [1, 2, 3] : [6, 7] }
+    var defaultIndex: Int { 1 }
+}
+struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
 @MainActor final class FetchProgressWindowModel: ObservableObject {
     let repository: GitRepository
     let options: FetchOptions
+    let rebaseMode: FetchRebaseMode
+    let preserveMerges: Bool
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
     private var cancellation = OperationCancellation()
@@ -661,14 +650,28 @@ enum FetchPostAction: String, CaseIterable, Hashable {
     @Published private(set) var dispatchingAction = false
     @Published private(set) var output = ""
     @Published private(set) var postActions: [FetchPostAction] = []
-    var canCancel: Bool { !dispatchingAction && (!busy || !cancelling && !confirmingCancellation) }
+    @Published private(set) var confirmingRebaseDecision = false
+    @Published private(set) var merging = false
+    var canCancel: Bool { !dispatchingAction && !confirmingRebaseDecision && (!busy || !cancelling && !confirmingCancellation) }
     var closeAfterCancellation = false
     var close: () -> Void = {}
     var onCompleted: () -> Void = {}
     var onPostAction: ((FetchPostAction, String) -> Void)?
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard) {
+    var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
+    var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false) {
         self.repository = repository; self.access = access; self.options = options; self.preferences = preferences
+        self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges
+    }
+    private func answer(_ prompt: FetchRebasePrompt) async -> Int {
+        if let saved = preferences.object(forKey: prompt.rawValue) as? Int, prompt.answers.contains(saved) { return saved }
+        confirmingRebaseDecision = true
+        let result = await presentRebasePrompt(prompt)
+        confirmingRebaseDecision = false
+        let value = prompt.answers.contains(result.value) ? result.value : prompt.answers[prompt.defaultIndex]
+        if result.suppress { preferences.set(value, forKey: prompt.rawValue) }
+        return value
     }
     func invalidate() { invalidated = true }
     func start() { Task { await run() } }
@@ -677,19 +680,46 @@ enum FetchPostAction: String, CaseIterable, Hashable {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute() async {
-        busy = true; success = false; cancelled = false; cancelling = false; output = ""; postActions = []
+        busy = true; success = false; cancelled = false; cancelling = false; merging = false; output = ""; postActions = []
         do {
             try validateAccess()
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-            output = try await repository.fetch(options, cancellation: cancellation)
+            var fetched: FetchRebaseResult?
+            if rebaseMode == .none { output = try await repository.fetch(options, cancellation: cancellation) }
+            else { let result = try await repository.fetchForRebase(options, cancellation: cancellation); fetched = result; output = result.output }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+            if let fetched {
+                var openRebase = true
+                if rebaseMode == .manual {
+                    if fetched.currentIsUpToDate { if await answer(.upToDate) == 7 { openRebase = false } }
+                    if openRebase && fetched.unchangedAtHEAD { if await answer(.unchanged) == 7 { openRebase = false } }
+                    if openRebase && fetched.canFastForward {
+                        let choice = await answer(.fastForward)
+                        if choice == 3 { openRebase = false }
+                        if choice == 1 {
+                            merging = true
+                            var merge = MergeOptions(); merge.revision = fetched.upstream; merge.fastForwardOnly = true
+                            output += "\n" + (try await repository.merge(merge, cancellation: cancellation))
+                            if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                            success = true; busy = false; onCompleted(); close(); return
+                        }
+                    }
+                }
+                if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+                if openRebase {
+                    success = true; busy = false; onCompleted(); close()
+                    onRebase(fetched.upstream, rebaseMode == .automatic, preserveMerges); return
+                }
+            }
             success = true
             postActions = [.log, .reset, .fetch]
-            if (try? await repository.isBare()) == false { postActions.append(.rebase) }
+            if rebaseMode == .none { if (try? await repository.isBare()) == false { postActions.append(.rebase) } }
+            if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             postActions.append(.switchBranch)
         } catch {
-            output = error.localizedDescription; cancelled = cancellation.isCancelled
-            postActions = [.retry]; if options.allRemotes { postActions.append(.log) }
+            output += (output.isEmpty ? "" : "\n") + error.localizedDescription; cancelled = cancellation.isCancelled; success = false
+            if merging { postActions = ((try? await repository.status(refreshIndex: false).contains(where: { $0.state == .conflicted })) ?? false) ? [.resolve] : [] }
+            else { postActions = [.retry]; if options.allRemotes { postActions.append(.log) } }
         }
         busy = false; cancelling = false; confirmingCancellation = false; onCompleted()
         if cancelled && closeAfterCancellation { close() }
@@ -734,7 +764,7 @@ enum FetchPostAction: String, CaseIterable, Hashable {
         window.contentViewController = NSHostingController(rootView: FetchProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in
-            guard let self, !self.model.busy, !self.model.dispatchingAction, self.window?.attachedSheet == nil else { return }
+            guard let self, !self.model.busy, !self.model.dispatchingAction, !self.model.confirmingRebaseDecision, self.window?.attachedSheet == nil else { return }
             if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
         }
         model.confirmCancellation = { [weak window] choose in
@@ -743,10 +773,29 @@ enum FetchPostAction: String, CaseIterable, Hashable {
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
+        model.presentRebasePrompt = { [weak window] prompt in
+            guard let window, window.attachedSheet == nil else { return FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
+            return await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "TurtleGit"; alert.informativeText = prompt.message
+                for (index, title) in prompt.buttons.enumerated() {
+                    let button = alert.addButton(withTitle: title)
+                    button.keyEquivalent = index == prompt.defaultIndex ? "\r" : ""
+                    if index == prompt.defaultIndex { alert.window.defaultButtonCell = button.cell as? NSButtonCell }
+                }
+                if prompt == .fastForward { alert.buttons.last?.keyEquivalent = "\u{1b}" }
+                alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Don't show this message again"
+                alert.beginSheetModal(for: window) { response in
+                    let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+                    let value = prompt.answers.indices.contains(index) ? prompt.answers[index] : prompt.answers[prompt.defaultIndex]
+                    continuation.resume(returning: FetchRebaseAnswer(value: value, suppress: alert.suppressionButton?.state == .on))
+                }
+            }
+        }
+
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }
-        guard !model.dispatchingAction, sender.attachedSheet == nil else { return false }
+        guard !model.dispatchingAction, !model.confirmingRebaseDecision, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
@@ -757,7 +806,7 @@ private struct FetchProgressDialog: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Fetching…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Fetch failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.confirmingRebaseDecision ? "Waiting for your choice…" : model.merging ? "Merging…" : "Fetching…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : model.merging ? "Merge failed" : "Fetch failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if let first = model.postActions.first {
                     Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }

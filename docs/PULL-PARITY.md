@@ -49,7 +49,7 @@ A missing URL produced an error; Open Working Tree opened the correct status win
 
 ## Remaining comparison work
 
-- Full fast-forward choices, post-operation actions and continue/abort recovery.
+- Full interactive Rebase continue/abort recovery and remaining operation workflows.
   Fetch → Rebase routing and configured auto-start are implemented; native
   preserve-merges/configured-mode combinations still need broader QA.
 - Live streaming and physical owned-progress/menu/close acceptance, source conflict
@@ -86,7 +86,8 @@ and remaining physical pasteboard acceptance.
 
 
 Transport Cancel now stops the operation's owned process group, optionally asks
-the shared ConfirmKillProcess question. Fetch-before-Rebase retains its inputs;
+the shared ConfirmKillProcess question. Fetch-before-Rebase now shares owned
+Fetch progress and closes after accepted cancellation finishes;
 merge-based Pull now closes its owned progress/options after accepted cancellation
 finishes. Cancelled configured-rebase Fetch does not open Rebase. See FETCH-PARITY.md for source
 mapping, native evidence and remaining cancellation/progress acceptance.
@@ -100,7 +101,7 @@ drafts and caller follow-up flags. Closing completed progress closes its options
 owner. Busy Cancel uses the same optional ConfirmKillProcess Yes/No question and
 owned process-group cancellation; accepting Cancel closes Pull progress and its
 options owner after the operation finishes. Fetch and Fetch-before-Rebase keep their existing
-workflows; upstream does not carry Pull's Stash Pop/Push flags into DoFetch/Rebase.
+source decisions; upstream does not carry Pull's Stash Pop/Push flags into DoFetch/Rebase.
 
 Successful Pull offers requested Stash Pop, Pulled Diff, Pulled Log, requested Push,
 then applicable Submodule Update, in source order. Compare receives the immutable
@@ -140,3 +141,8 @@ and Git, with the final Pop backend called after its callback; no destination
 controller or installed app is activated. Physical sheets/buttons/keyboard/close,
 source result questions, submodules, streaming, screenshot updates, signing and
 full application parity remain incomplete.
+
+Configured automatic Rebase bypasses the new manual Fetch/Rebase questions and
+forwards auto-start/preserve-merges. Manual Fetch/Rebase now offers source
+up-to-date/unchanged/fast-forward choices; see FETCH-PARITY.md for real Git
+evidence, retained results and remaining physical/signed acceptance.
