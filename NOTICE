@@ -814,3 +814,11 @@ AppendLocksMenuItems and its current-working-tree/conflict gate, copyright
 version 2 or later. Native owned progress sheets share the retained per-file
 results, cancellation and original-selection Force unlock retry from the Locks
 dialog. LFS owner columns, Finder routing and full progress parity remain pending.
+
+Commit LFS owner column adapts GitStatusListCtrl.cpp Init/GetStatus,
+OnColumnVisibilityChanged, AppendLFSLocks and AppendLocksMenuItems, and
+GitStatusListCtrlHelpers.cpp owner comparison, under GPL version 2 or later.
+Ownership integrates with existing native saved columns, width fitting and
+clipboard output. Queries run only when the LFS column is visible in an LFS
+repository; cancelled/failed ownership remains unknown. Working Tree ownership
+columns, shared Locks-list layout and full physical/provider/signed parity remain pending.

@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "8221c625cd81ca9d646252cc3610b9fae5203671",
+  "scope": "Commit optional LFS owner column, native saved layout/sorting/clipboard, visible-only query, ownership menu variants and failed/cancelled unknown state. Full port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/GitStatusListCtrlHelpers.cpp": "96130c1e179a071f66f962fab17fd3ab71af9cd3",
+    "src/TortoiseProc/ColumnManager.cpp": "6776d4d47a80a9af042223ebd5f8589cd48b57f3"
+  },
+  "sources_manifest_sha256": "0e85de19bb238dd52388209aaacfe7fba245219434461fe3d76921a95fc1df52",
+  "changed_files_sha256": {
+    "NOTICE": "1f0ed6e4b0282fccf5a015e39c6b595af1ef97e90375b69121c74bec481dac5a",
+    "Sources/TurtleGitCore/LFSLocks.swift": "c5750644aac8c5a4ada7353e9430ffeaa74395d42c1439e5f3589d39e6b455fc",
+    "Sources/TurtleGitCore/StatusListClipboard.swift": "4fdf1ebf7439c13e4deab1b1771fc66c32b82bcd7598734feb94fbce404f743c",
+    "Sources/TurtleGitCore/StatusListGroups.swift": "34a2b31b438427841f88cad183d4d99279c5a08ddf253d5032379fdd4495a2e8",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "330680b3944bbfde5e34a6181c705f0266a3390ebf51fc3e29b2434d5bbf1127",
+    "Sources/TurtleGitMac/CommitWindow.swift": "3f70213d53312763b3eed387b9871ab6df8afc309c25a9acb7122e6a30802250",
+    "Tests/TurtleGitCoreTests/LFSLocksTests.swift": "9147a9f1e087f3e607762c8b760080b82388f9ab51474dbe5d568a0ac83bc6da",
+    "docs/LFS-PARITY.md": "d95aac01cb50128c12122054204818e7db1383a299bd88b99dbd772fd44c7216",
+    "docs/qa/commit-column-sorting-native-2026-10-08.swift": "1a2f8a23b6a7bdf52ad348c3e7d98550321d8fef2ee240b52789298a308406fd",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "e45886fea643b0618d02932ed2c9ca14fa6cf72b8e3a3d1c54fa4758416ed3e9",
+    "docs/upstream-files.csv": "5b2874802e14ae23dfd01a3b717e3ed789f2d227fb9bc0de9ae91653c5e9e13c"
+  },
+  "verification": {
+    "core": "21 LFSLocksTests/StatusListSortingTests/StatusListClipboardTests pass. Hidden/known locked/known unlocked/mixed/unknown menu policy, empty-owner membership classification, owner clipboard/case-insensitive nonnumeric sort/path tie, additive saved order/visibility/width migration and existing command/cancellation/metadata cases verified.",
+    "native_lfs": "Apple Git and bundled Git 2.55.0 pass final receiver. Actual ten-column Commit table/probe, repository-gated header choice, native header target dispatch, default hiding/no query, shown query, owners/membership, checked/highlighted retention, owner text, saved 217-point adjusted width/model reopening, uniform/mixed menu variants, hiding restores both operations, removing marker removes choice. Failure and cancelled-stale-reply cases use an unhosted model to avoid error alerts; unknown ownership offers neither operation and stale owners are never published. Existing Locks/Commit/Working Tree progress, cancellation/Force/guards still execute. HEAD/raw index/tracked working bytes retained. LFS replies injected; no physical menu input or authenticated server proof.",
+    "native_columns": "Regular eight-column receiver passes Apple Git with ten physical columns: defaults/header choices, saved native order/width and actual table reopening, sort binding/data source, metadata clipboard, group/selection identity, automatic offscreen fitting/manual retention/reset. It skips unavailable LFS choice in its non-LFS fixture; dedicated receiver verifies owner column.",
+    "builds": "Final Debug with current NOTICE, sequential unsigned AppStore and current bundle audits pass. Both NOTICE resources equal current source; 99 artwork assets, EditorConfig, IssueRegex, Git/LFS provenance verified. Sources/NOTICE/tests/receivers frozen during all compiler/Core/native handles.",
+    "inventory": "3277 seven-field LF CSV records and pin checker pass; three shared status/column source mappings remain partial with added coverage.",
+    "site": "Local Pages generator includes current LFS parity and owner-column QA; no deployment or fresh screenshot claim."
+  },
+  "iterations": [
+    "Extended the regular-column receiver for the new hidden physical column and absent LFS choice in non-LFS repositories.",
+    "Used unhosted models for error and cancelled-stale ownership so the hidden receiver does not show production error alerts.",
+    "Core/native/build tests passed. Cleanup audit found owned private preference plist files, including older CommitSorting suites; removed explicit QA domains with defaults then remaining empty files, and revalidated cleanup."
+  ],
+  "limitations": [
+    "Working Tree LFS owner column, shared Locks-list layout, Finder routing, tri-state select-all and full progress/post-Pull parity remain pending.",
+    "Physical menu/input, visual light/dark/font/display checks, accessibility and fresh screenshots remain unverified.",
+    "Cancellation tested at model token/stale-reply boundary; no new real remote-process termination or provider coverage.",
+    "Signed sandbox/Finder/helper inheritance, authenticated providers, macOS 13 physical execution, Intel execution, App Store eligibility, GitHub CI/push and whole-app parity remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "fixture_search_roots": [
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T",
+      "/tmp"
+    ],
+    "private_preference_plists": [],
+    "main_app_launches": 0,
+    "preferences": "Model defaults injected; regular-column host uses private defaultAppStorage. Domain removal left empty files and earlier CommitSorting QA files. Post-receiver defaults deletion removed 14 explicitly named owned QA domains and any remaining empty files; no main app preferences deleted.",
+    "preference_cleanup_record": "build/qa/lfs-owner-column-2026-10-08/preference-cleanup.json",
+    "preference_cleanup_sha256": "6ec94ae38d509fe210192b62e93e063493027b514983ae93bff49956bdbad27a",
+    "windows": "Both receivers exited after closing owned windows/sheets; DialogGeometry store unset."
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-owner-column-2026-10-08/columns-native.log": "2cd7ed2a7a013e42dddaeb853b8e1b73ea6d290db313b947228176d2d5aa87fd",
+    "build/qa/lfs-owner-column-2026-10-08/core.log": "7dad1f660ed79a5da84367051e52a0f9dcfb0c155e92a9fe63e89c058187f92c",
+    "build/qa/lfs-owner-column-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-owner-column-2026-10-08/debug-notice-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-owner-column-2026-10-08/debug.log": "323e81860f030bbdfcd2111f1dd95ce5693b68720b3fbc20add2ea489daa63ef",
+    "build/qa/lfs-owner-column-2026-10-08/native.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/lfs-owner-column-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-owner-column-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/lfs-owner-column-2026-10-08/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/lfs-owner-column-2026-10-08/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

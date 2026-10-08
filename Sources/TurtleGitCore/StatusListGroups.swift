@@ -86,7 +86,7 @@ public enum StatusListSorting {
     public static func compare(_ lhs: StatusEntry, _ rhs: StatusEntry, column: StatusListColumn,
                                lhsStatistics: CommitFile? = nil, rhsStatistics: CommitFile? = nil,
                                lhsDirectory: Bool = false, rhsDirectory: Bool = false,
-                               lhsMetadata: StatusListMetadata? = nil, rhsMetadata: StatusListMetadata? = nil) -> ComparisonResult {
+                               lhsMetadata: StatusListMetadata? = nil, rhsMetadata: StatusListMetadata? = nil, lhsLFSOwner: String = "", rhsLFSOwner: String = "") -> ComparisonResult {
         func text(_ a: String, _ b: String, numeric: Bool = true) -> ComparisonResult {
             a.compare(b, options: numeric ? [.caseInsensitive, .numeric] : [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
         }
@@ -99,6 +99,7 @@ public enum StatusListSorting {
         }
         var result: ComparisonResult
         switch column {
+        case .lfsOwner: result = text(lhsLFSOwner, rhsLFSOwner, numeric: false)
         case .path: result = text(lhs.path, rhs.path)
         case .fileName: result = text((lhs.path as NSString).lastPathComponent, (rhs.path as NSString).lastPathComponent)
         case .lastModified:

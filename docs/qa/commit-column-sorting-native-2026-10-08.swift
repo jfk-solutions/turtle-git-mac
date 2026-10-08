@@ -51,7 +51,7 @@ import TurtleGitCore
         func probe() -> CommitFileInteraction.Probe { descendants(window.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first! }
         let groups = probe().rows.compactMap(\.group)
         precondition(groups == [.modified, .unversioned, .changelist("review")])
-        precondition(table.tableColumns.count == 9 && table.tableColumns[0].sortDescriptorPrototype == nil)
+        precondition(table.tableColumns.count == 10 && table.tableColumns[0].sortDescriptorPrototype == nil)
         func request(_ column: Int, ascending: Bool) {
             let old = table.sortDescriptors
             let prototype = table.tableColumns[column].sortDescriptorPrototype!
@@ -62,7 +62,7 @@ import TurtleGitCore
         let initialFilenameWidth = table.tableColumns[2].width
         let menu = probe().columnMenu()
         precondition(menu.item(withTitle: "Path") == nil)
-        for column in StatusListColumn.allCases {
+        for column in StatusListColumn.allCases where column != .lfsOwner {
             let index = StatusListColumn.allCases.firstIndex(of: column)! + 1
             precondition(table.tableColumns[index].isHidden == !StatusListColumn.defaultColumns.contains(column))
         }
@@ -125,7 +125,7 @@ import TurtleGitCore
         print("RESET WIDTH DIAGNOSTIC", "initial", initialFilenameWidth, "before resize", originalWidth, "custom", customizedWidth, "reset", original.width); fflush(stdout)
         precondition(abs(original.width - initialFilenameWidth) < 0.5)
         precondition(StatusListColumnSettings.load(from: defaults) == StatusListColumnSettings())
-        for column in StatusListColumn.allCases {
+        for column in StatusListColumn.allCases where column != .lfsOwner {
             let index = StatusListColumn.allCases.firstIndex(of: column)! + 1
             for ascending in [true, false] {
                 request(index, ascending: ascending)

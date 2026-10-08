@@ -10,6 +10,32 @@ final class LFSLocksTests: XCTestCase {
             XCTAssertThrowsError(try LFSLock.parse(Data(text.utf8)))
         }
     }
+    func testOwnerVisibilityMenuAndUnknownOwnership() {
+        let locked: Set<String> = ["locked", "empty-owner"]
+        XCTAssertEqual(LFSLockMenu.actions(paths: [], ownersVisible: false, lockedPaths: [], ownershipKnown: false), [])
+        XCTAssertEqual(LFSLockMenu.actions(paths: ["locked", "free"], ownersVisible: false, lockedPaths: locked, ownershipKnown: false), [.lock, .unlock])
+        XCTAssertEqual(LFSLockMenu.actions(paths: ["locked", "empty-owner"], ownersVisible: true, lockedPaths: locked, ownershipKnown: true), [.unlock])
+        XCTAssertEqual(LFSLockMenu.actions(paths: ["free"], ownersVisible: true, lockedPaths: locked, ownershipKnown: true), [.lock])
+        XCTAssertEqual(LFSLockMenu.actions(paths: ["locked", "free"], ownersVisible: true, lockedPaths: locked, ownershipKnown: true), [])
+        XCTAssertEqual(LFSLockMenu.actions(paths: ["free"], ownersVisible: true, lockedPaths: locked, ownershipKnown: false), [])
+    }
+    func testOwnerColumnClipboardSortAndPreferenceMigration() {
+        let a = StatusEntry.parse(Data(" M 雪.bin\0".utf8))[0], b = StatusEntry.parse(Data(" M b.bin\0".utf8))[0]
+        let root = URL(fileURLWithPath: "/fixture")
+        XCTAssertEqual(StatusListClipboard.text([a,b], root: root, statistics: [:], copy: .all, lfsOwners: [a.path: "Alice"], visibleColumns: [.path,.lfsOwner]), "Path\tLFS Lock\n雪.bin\tAlice\nb.bin\t\n")
+        XCTAssertEqual(StatusListSorting.compare(a,b,column: .lfsOwner,lhsLFSOwner: "Alice",rhsLFSOwner: "Bob"), .orderedAscending)
+        XCTAssertEqual(StatusListSorting.compare(a,b,column: .lfsOwner,lhsLFSOwner: "Owner10",rhsLFSOwner: "owner2"), .orderedAscending)
+        XCTAssertEqual(StatusListSorting.compare(a,b,column: .lfsOwner,lhsLFSOwner: "Alice",rhsLFSOwner: "alice"), StatusListSorting.compare(a,b,column: .path))
+        let suite = "TurtleGit.LFS.Columns.Core." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(1, forKey: "Commit.FileColumns.Version")
+        defaults.set(["Path"], forKey: "Commit.FileColumns")
+        defaults.set(["Path", "Filename"], forKey: "Commit.FileColumns.Order")
+        let legacy = StatusListColumnSettings.load(from: defaults)
+        XCTAssertTrue(legacy.order.contains(.lfsOwner)); XCTAssertFalse(legacy.visible.contains(.lfsOwner))
+        let settings = StatusListColumnSettings(visible: [.path,.lfsOwner], order: [.lfsOwner,.path], widths: [.lfsOwner: 217])
+        settings.save(to: defaults); XCTAssertEqual(StatusListColumnSettings.load(from: defaults), settings)
+    }
     func fixture() async throws -> (URL, GitRepository, URL) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-lfs-core-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

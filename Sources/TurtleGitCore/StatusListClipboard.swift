@@ -1,7 +1,7 @@
 import Foundation
 
 public enum StatusListColumn: String, CaseIterable, Sendable {
-    case path = "Path", fileName = "Filename", fileExtension = "Extension", status = "Status", added = "Lines added", removed = "Lines removed", lastModified = "Last modified", fileSize = "File size"
+    case path = "Path", fileName = "Filename", fileExtension = "Extension", status = "Status", added = "Lines added", removed = "Lines removed", lastModified = "Last modified", fileSize = "File size", lfsOwner = "LFS Lock"
     public static let defaultColumns: [StatusListColumn] = [.path, .fileExtension, .status, .added, .removed]
     /// The native list has a leading checkbox column, which carries no text.
     public static func nativeColumn(_ index: Int, columns: [StatusListColumn] = defaultColumns) -> StatusListColumn? {
@@ -42,6 +42,7 @@ public enum StatusListClipboard {
             case .path: return displayedPath(file)
             case .fileName: return (file.path as NSString).lastPathComponent
             case .lastModified, .fileSize: return "–"
+            case .lfsOwner: return ""
             case .fileExtension: return fileExtension(file.path, isDirectory: file.isSubmodule)
             case .status: return statuses[file.id] ?? file.status
             case .added: return file.addedText
@@ -53,7 +54,7 @@ public enum StatusListClipboard {
 
     /// Copy the displayed row order. Single-column output has no heading;
     /// multi-column output uses headings and tabs, with macOS LF line endings.
-    public static func text(_ entries: [StatusEntry], root: URL, statistics: [String: CommitFile], copy: StatusListCopy, metadata: [String: StatusListMetadata] = [:], visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
+    public static func text(_ entries: [StatusEntry], root: URL, statistics: [String: CommitFile], copy: StatusListCopy, metadata: [String: StatusListMetadata] = [:], lfsOwners: [String: String] = [:], visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
         func cell(_ entry: StatusEntry, _ column: StatusListColumn) -> String {
             let stats = statistics[entry.path]
             switch column {
@@ -61,6 +62,7 @@ public enum StatusListClipboard {
             case .fileName: return (entry.path as NSString).lastPathComponent
             case .lastModified: return metadata[entry.path]?.dateText ?? "–"
             case .fileSize: return metadata[entry.path]?.sizeText ?? "–"
+            case .lfsOwner: return lfsOwners[entry.path] ?? ""
             case .fileExtension: return fileExtension(entry.path, isDirectory: stats?.isSubmodule == true || metadata[entry.path]?.isDirectory == true)
             case .status: return entry.index == "R" || entry.worktree == "R" ? "Renamed" : stats?.status ?? entry.state.rawValue.capitalized
             case .added: return stats?.added.map(String.init) ?? "–"

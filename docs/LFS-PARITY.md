@@ -79,7 +79,18 @@ original-icon availability with injected LFS responses against Apple Git and the
 bundled engine. See [status-action QA](qa/lfs-status-actions-2026-10-08.json).
 Physical menu/pointer/keyboard input is not established by these checks.
 
-Commit/Working Tree LFS owner columns, Finder routing, source
+Commit now adds an optional **LFS Lock** owner column to its saved header layout.
+It is offered only with the common-directory LFS marker, and stays hidden by
+default. Showing it refreshes ownership; hidden columns do not request locks.
+The owner participates in case-insensitive sorting, path ties, autosizing and
+visible-column clipboard output. Lock state is independent of a nonempty owner
+name. Known uniformly locked selections offer Unlock, uniformly unlocked ones
+offer Lock, and mixed selections offer neither. A query failure or cancelled
+reply clears ownership instead of presenting unknown files as unlocked; Cancel
+interrupts an in-flight owner query. Existing visibility/order/width preferences
+migrate additively. See [owner-column QA](qa/lfs-owner-column-2026-10-08.json).
+
+Working Tree LFS owner columns, Finder routing, source
 availability gates, tri-state select-all, full shared column settings and
 locking progress/post-Pull actions remain incomplete. The native list adds an
 explicit Refresh button alongside F5. Physical keyboard/menu/pointer behavior,

@@ -86,3 +86,21 @@ extension GitRepository {
         return LFSBatchResult(files: files, cancelled: cancellation?.isCancelled == true)
     }
 }
+
+public enum LFSLockMenuAction: String, CaseIterable, Sendable {
+    case lock = "LFS Lock", unlock = "LFS Unlock"
+}
+
+/// Upstream AppendLocksMenuItems: hidden ownership offers both operations;
+/// visible ownership offers one operation only for a uniformly locked selection.
+public enum LFSLockMenu {
+    public static func actions(paths: [String], ownersVisible: Bool, lockedPaths: Set<String>, ownershipKnown: Bool) -> [LFSLockMenuAction] {
+        guard !paths.isEmpty else { return [] }
+        if !ownersVisible { return [.lock, .unlock] }
+        guard ownershipKnown else { return [] }
+        let locked = paths.filter { lockedPaths.contains($0) }.count
+        if locked == 0 { return [.lock] }
+        if locked == paths.count { return [.unlock] }
+        return []
+    }
+}

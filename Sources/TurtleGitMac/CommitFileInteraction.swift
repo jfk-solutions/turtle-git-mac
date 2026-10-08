@@ -7,6 +7,7 @@ import TurtleGitCore
 struct CommitFileInteraction: NSViewRepresentable {
     let rows: [StatusListRow]
     let visibleColumns: Set<StatusListColumn>
+    var availableColumns: Set<StatusListColumn> = Set(StatusListColumn.allCases)
     let columnText: (StatusEntry, StatusListColumn) -> String
     let savedOrder: [StatusListColumn]
     let savedWidths: [StatusListColumn: Double]
@@ -27,7 +28,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     func updateNSView(_ view: Probe, context: Context) {
         view.columnText = columnText
         view.savedOrder = savedOrder; view.savedWidths = savedWidths; view.saveLayout = saveLayout
-        view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
+        view.availableColumns = availableColumns; view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
         view.rows = rows; view.focusedPath = $focusedPath
         view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn; view.toggleCheck = toggleCheck
         DispatchQueue.main.async { [weak view] in view?.configureColumns() }
@@ -37,6 +38,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     final class Probe: NSView {
         var rows: [StatusListRow] = []
         var visibleColumns = Set(StatusListColumn.defaultColumns)
+        var availableColumns = Set(StatusListColumn.allCases)
         var columnText: (StatusEntry, StatusListColumn) -> String = { _, _ in "" }
         var savedOrder = StatusListColumn.allCases
         var savedWidths: [StatusListColumn: Double] = [:]
@@ -160,7 +162,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             let menu = NSMenu(); menu.autoenablesItems = false
             let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumnLayout(_:)), keyEquivalent: "")
             reset.target = self; reset.isEnabled = enabled; menu.addItem(reset); menu.addItem(.separator())
-            for (index, column) in StatusListColumn.allCases.enumerated() where column != .path {
+            for (index, column) in StatusListColumn.allCases.enumerated() where column != .path && availableColumns.contains(column) {
                 let item = NSMenuItem(title: column.rawValue, action: #selector(toggleColumn(_:)), keyEquivalent: "")
                 item.target = self; item.tag = index; item.state = visibleColumns.contains(column) ? .on : .off
                 item.isEnabled = enabled && column != .path; menu.addItem(item)
@@ -170,7 +172,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         @objc private func toggleColumn(_ sender: NSMenuItem) {
             guard enabled, StatusListColumn.allCases.indices.contains(sender.tag) else { return }
             let column = StatusListColumn.allCases[sender.tag]
-            guard column != .path else { return }
+            guard column != .path, availableColumns.contains(column) else { return }
             setColumnVisible(column, !visibleColumns.contains(column))
         }
         @objc private func resetColumnLayout(_ sender: Any?) {

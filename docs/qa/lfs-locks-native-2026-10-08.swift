@@ -141,6 +141,60 @@ import TurtleGitCore
         operation.model.finishProgress()
         try await settle { status.window?.attachedSheet == nil && !status.model.busy }
         captured = nil
+        // Original header action controls the optional ninth text column.
+        func ownerProbe() -> CommitFileInteraction.Probe {
+            descendants(commit.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!
+        }
+        try Data("unlocked candidate\n".utf8).write(to: root.appendingPathComponent("unlocked.bin"))
+        var ownerQueries = 0
+        commit.model.queryLFSOwners = { _ in
+            ownerQueries += 1
+            return [LFSLock(id: "owner", path: unusual, owner: "Alice")]
+        }
+        commit.model.reload(); try await settle { !commit.model.busy }
+        precondition(ownerQueries == 0 && !commit.model.visibleFileColumns.contains(.lfsOwner))
+        try await settle { descendants(commit.window!.contentView!).contains { $0 is CommitFileInteraction.Probe } }
+        let ownerTable = descendants(commit.window!.contentView!).compactMap { $0 as? NSTableView }.first!
+        try await settle { ownerTable.tableColumns.count == 10 && ownerProbe().columnMenu().item(withTitle: "LFS Lock") != nil }
+        let savedChecks = commit.model.checked
+        commit.model.selection = [unusual]
+        let ownerItem = ownerProbe().columnMenu().item(withTitle: "LFS Lock")!
+        _ = NSApplication.shared.sendAction(ownerItem.action!, to: ownerItem.target, from: ownerItem)
+        try await settle { !commit.model.busy && commit.model.lfsOwnershipKnown }
+        precondition(ownerQueries == 1 && commit.model.lfsOwners[unusual] == "Alice" && commit.model.checked == savedChecks && commit.model.selection == [unusual])
+        let lockedEntry = commit.model.entries.first { $0.path == unusual }!, freeEntry = commit.model.entries.first { $0.path == "unlocked.bin" }!
+        precondition(commit.model.lfsActions([lockedEntry]) == [.unlock] && commit.model.lfsActions([freeEntry]) == [.lock] && commit.model.lfsActions([lockedEntry,freeEntry]).isEmpty)
+        let ownerColumn = ownerTable.tableColumns.first { $0.headerCell.stringValue == "LFS Lock" }!
+        precondition(!ownerColumn.isHidden)
+        let text = StatusListClipboard.text([lockedEntry], root: root, statistics: [:], copy: .column(.lfsOwner), lfsOwners: commit.model.lfsOwners)
+        precondition(text == "Alice\n")
+        ownerColumn.width = 217
+        ownerProbe().rememberNativeColumnLayout(adjustedColumn: .lfsOwner)
+        let restored = CommitWindowModel(repository: repository, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
+        precondition(restored.fileColumns.visible.contains(.lfsOwner) && restored.fileColumns.widths[.lfsOwner] == 217)
+        // Error and cancellation use an unhosted model to avoid showing the
+        // production error alert during headless acceptance.
+        let failureModel = CommitWindowModel(repository: repository, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
+        failureModel.queryLFSOwners = { _ in throw LFSLocksFailure.selection }
+        failureModel.reload(); try await settle { !failureModel.busy }
+        precondition(failureModel.error != nil && !failureModel.lfsOwnershipKnown && failureModel.lfsOwners.isEmpty && failureModel.lfsActions([freeEntry]).isEmpty)
+        var querying = false
+        failureModel.queryLFSOwners = { token in
+            querying = true
+            while !token.isCancelled { try await Task.sleep(nanoseconds: 5_000_000) }
+            return [LFSLock(id: "stale", path: unusual, owner: "Stale")]
+        }
+        failureModel.reload(); try await settle { querying && failureModel.busy }
+        failureModel.cancel(closeWindow: false)
+        try await settle { !failureModel.busy }
+        precondition(!failureModel.lfsOwnershipKnown && failureModel.lfsOwners.isEmpty)
+        let hide = ownerProbe().columnMenu().item(withTitle: "LFS Lock")!
+        _ = NSApplication.shared.sendAction(hide.action!, to: hide.target, from: hide)
+        try await settle { ownerColumn.isHidden }
+        precondition(commit.model.lfsActions([lockedEntry,freeEntry]) == [.lock,.unlock])
+        try FileManager.default.removeItem(at: root.appendingPathComponent(".git/lfs"))
+        commit.model.reload(); try await settle { !commit.model.busy && !commit.model.hasLFS }
+        try await settle { ownerProbe().columnMenu().item(withTitle: "LFS Lock") == nil }
         commit.window?.close(); status.window?.close()
         let afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))

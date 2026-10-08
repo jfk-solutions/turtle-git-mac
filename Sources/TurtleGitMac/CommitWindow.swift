@@ -262,9 +262,15 @@ import UniformTypeIdentifiers
     @Published var selection = Set<String>()
     @Published var fileMetadata: [String: StatusListMetadata] = [:]
     @Published var hasLFS = false
+    @Published var lfsOwners: [String: String] = [:]
+    @Published var lfsLockedPaths = Set<String>()
+    @Published var lfsOwnershipKnown = false
+    private var lfsOwnerCancellation: OperationCancellation?
+    var queryLFSOwners: (OperationCancellation) async throws -> [LFSLock]
     var onLFSOperation: ([String], Bool) -> Bool = { _, _ in false }
     @Published var fileColumns = StatusListColumnSettings()
-    var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) } }
+    var availableFileColumns: Set<StatusListColumn> { Set(StatusListColumn.allCases).subtracting(hasLFS ? [] : [.lfsOwner]) }
+    var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && availableFileColumns.contains($0) } }
     @Published var fileSortOrder = [CommitFileSort(column: .path)]
     @Published var focusedFiles: [String: String] = [:]
     @Published var changelists = GitChangelists()
@@ -427,6 +433,7 @@ import UniformTypeIdentifiers
     init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard, dialogDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
         self.dialogDefaults = dialogDefaults
+        queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
         fileColumns = .load(from: dialogDefaults)
         completionAction = CompletionAction(sourceIndex: dialogDefaults.integer(forKey: "CommitLastAction"))
         selectFilesAutomatically = dialogDefaults.object(forKey: "SelectFilesForCommit") as? Bool ?? true
@@ -446,7 +453,7 @@ import UniformTypeIdentifiers
     }
     func sortedFiles(_ files: [StatusEntry], statistics: [String: CommitFile]) -> [StatusEntry] {
         guard let comparator = fileSortOrder.first else { return files }
-        return files.map { CommitSortableRow(row: .file($0), statistics: statistics[$0.path], isDirectory: submodules.contains($0.path) || fileMetadata[$0.path]?.isDirectory == true, metadata: fileMetadata[$0.path]) }
+        return files.map { CommitSortableRow(row: .file($0), statistics: statistics[$0.path], isDirectory: submodules.contains($0.path) || fileMetadata[$0.path]?.isDirectory == true, metadata: fileMetadata[$0.path], lfsOwner: lfsOwners[$0.path] ?? "") }
             .sorted(using: comparator).compactMap(\.entry)
     }
     @discardableResult func saveFileColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
@@ -456,9 +463,10 @@ import UniformTypeIdentifiers
         return true
     }
     func setFileColumn(_ column: StatusListColumn, visible: Bool) {
-        guard column != .path, !busy, !confirmingQuit else { return }
+        guard column != .path, availableFileColumns.contains(column), !busy, !confirmingQuit else { return }
         if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
         fileColumns.save(to: dialogDefaults)
+        if column == .lfsOwner { if visible { reload() } else { lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false } }
     }
     @discardableResult func resetFileColumns() -> Bool {
         guard !busy, !confirmingQuit else { return false }
@@ -526,7 +534,7 @@ import UniformTypeIdentifiers
     }
     func copyFileText(_ selected: [StatusEntry], statistics: [String: CommitFile], copy: StatusListCopy) {
         guard !selected.isEmpty else { return }
-        let text = StatusListClipboard.text(selected, root: repository.root, statistics: statistics, copy: copy, metadata: fileMetadata, visibleColumns: visibleFileColumns)
+        let text = StatusListClipboard.text(selected, root: repository.root, statistics: statistics, copy: copy, metadata: fileMetadata, lfsOwners: lfsOwners, visibleColumns: visibleFileColumns)
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     private func validateRestoreAccess() throws {
@@ -615,10 +623,14 @@ import UniformTypeIdentifiers
     func canLockLFS(_ selected: [StatusEntry]) -> Bool {
         LFSLockingSelection.isAvailable(selected, hasLFS: hasLFS, root: repository.root, directories: submodules)
     }
+    func lfsActions(_ selected: [StatusEntry]) -> [LFSLockMenuAction] {
+        guard canLockLFS(selected) else { return [] }
+        return LFSLockMenu.actions(paths: selected.map(\.path), ownersVisible: visibleFileColumns.contains(.lfsOwner), lockedPaths: lfsLockedPaths, ownershipKnown: lfsOwnershipKnown)
+    }
     func setLFSLocked(_ ids: Set<String>, locked: Bool) {
         guard !busy, !confirmingQuit else { return }
         let selected = entries.filter { ids.contains($0.id) }
-        guard selected.count == ids.count, canLockLFS(selected) else { return }
+        guard selected.count == ids.count, lfsActions(selected).contains(locked ? .lock : .unlock) else { return }
         busy = true
         if !onLFSOperation(selected.map(\.path), locked) { busy = false }
     }
@@ -706,6 +718,7 @@ import UniformTypeIdentifiers
     }
     func reload(paths: [String]? = nil) {
         guard !busy else { return }; busy = true
+        lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
         let resetChecks = paths != nil && (!hasLoaded || (paths!.contains(".") ? [] : paths!) != scopePaths)
         if let paths { scopePaths = paths.contains(".") ? [] : paths; showWholeProject = scopePaths.isEmpty }
         Task {
@@ -767,6 +780,17 @@ import UniformTypeIdentifiers
                 }
                 prepareMessageCompletions(force: true)
                 if restorePatch { if stagingEnabled { showPartial(false) } else { showViewPatch() } }
+                if visibleFileColumns.contains(.lfsOwner) {
+                    let token = OperationCancellation(); lfsOwnerCancellation = token
+                    defer { lfsOwnerCancellation = nil }
+                    do {
+                        let locks = try await queryLFSOwners(token)
+                        guard !token.isCancelled else { return }
+                        lfsOwners = Dictionary(locks.map { ($0.path, $0.owner) }, uniquingKeysWith: { first, _ in first })
+                        lfsLockedPaths = Set(locks.map(\.path)); lfsOwnershipKnown = true
+                    } catch { self.error = token.isCancelled ? "Getting LFS locks cancelled." : "Could not get LFS locks: " + error.localizedDescription }
+                }
+
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -1022,6 +1046,7 @@ import UniformTypeIdentifiers
         }.joined()
     }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
+        if let token = lfsOwnerCancellation { token.cancel(); completion?(false); return }
         if let commitProgress { commitProgress.cancel(); completion?(false); return }
         guard !busy, !confirmingQuit || !closeWindow else { completion?(false); return }
         let changed = !message.isEmpty && message != (amend ? originalAmendMessage : messageTemplate)
@@ -1057,6 +1082,7 @@ struct CommitSortableRow: Identifiable {
     let statistics: CommitFile?
     let isDirectory: Bool
     var metadata: StatusListMetadata? = nil
+    var lfsOwner = ""
     var id: String { row.id }
     var entry: StatusEntry? { row.entry }
     var group: StatusListGroup? { row.group }
@@ -1066,7 +1092,7 @@ struct CommitFileSort: SortComparator {
     var order: SortOrder = .forward
     func compare(_ lhs: CommitSortableRow, _ rhs: CommitSortableRow) -> ComparisonResult {
         guard let a = lhs.entry, let b = rhs.entry else { return .orderedSame }
-        let comparison = StatusListSorting.compare(a, b, column: column, lhsStatistics: lhs.statistics, rhsStatistics: rhs.statistics, lhsDirectory: lhs.isDirectory, rhsDirectory: rhs.isDirectory, lhsMetadata: lhs.metadata, rhsMetadata: rhs.metadata)
+        let comparison = StatusListSorting.compare(a, b, column: column, lhsStatistics: lhs.statistics, rhsStatistics: rhs.statistics, lhsDirectory: lhs.isDirectory, rhsDirectory: rhs.isDirectory, lhsMetadata: lhs.metadata, rhsMetadata: rhs.metadata, lhsLFSOwner: lhs.lfsOwner, rhsLFSOwner: rhs.lfsOwner)
         if order == .forward { return comparison }
         return comparison == .orderedAscending ? .orderedDescending : comparison == .orderedDescending ? .orderedAscending : .orderedSame
     }
@@ -1236,7 +1262,7 @@ GroupBox("Changes made (double-click on file for diff):") {
         let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
         let ignored = Set(model.indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
         let rows = StatusListGroups.rows(entries: entries, changelists: model.changelists, locallyIgnored: ignored)
-        let tableRows = rows.map { CommitSortableRow(row: $0, statistics: $0.entry.flatMap { statistics[$0.path] }, isDirectory: $0.entry.map { model.submodules.contains($0.path) } ?? false, metadata: $0.entry.flatMap { model.fileMetadata[$0.path] }) }
+        let tableRows = rows.map { CommitSortableRow(row: $0, statistics: $0.entry.flatMap { statistics[$0.path] }, isDirectory: $0.entry.map { model.submodules.contains($0.path) } ?? false, metadata: $0.entry.flatMap { model.fileMetadata[$0.path] }, lfsOwner: $0.entry.flatMap { model.lfsOwners[$0.path] } ?? "") }
         let sort = Binding(get: { model.fileSortOrder }, set: { model.setFileSortOrder($0) })
         return Table(tableRows, selection: selection, sortOrder: sort) {
             TableColumn("") { (row: CommitSortableRow) in
@@ -1287,6 +1313,9 @@ GroupBox("Changes made (double-click on file for diff):") {
             TableColumn("File size", sortUsing: CommitFileSort(column: .fileSize)) { (row: CommitSortableRow) in
                 if row.entry != nil { Text(row.metadata?.sizeText ?? "–") } else { groupRule }
             }.width(min: 60, ideal: 90)
+            TableColumn("LFS Lock", sortUsing: CommitFileSort(column: .lfsOwner)) { (row: CommitSortableRow) in
+                if row.entry != nil { Text(row.lfsOwner) } else { groupRule }
+            }.width(min: 100, ideal: 160)
         }.contextMenu(forSelectionType: String.self) { requested in
             TurtleGitContextMenu {
                 let ids = requested.intersection(Set(entries.map(\.id)))
@@ -1329,9 +1358,8 @@ GroupBox("Changes made (double-click on file for diff):") {
                             Button { model.markForRestore(ids) } label: { CommandLabel(title: "Restore after commit", icon: .restore) }
                         }
                     }
-                    if model.canLockLFS(selected) {
-                        Button { model.setLFSLocked(ids, locked: true) } label: { CommandLabel(title: "LFS Lock", icon: .lock) }.disabled(model.busy || model.confirmingQuit)
-                        Button { model.setLFSLocked(ids, locked: false) } label: { CommandLabel(title: "LFS Unlock", icon: .unlock) }.disabled(model.busy || model.confirmingQuit)
+                    ForEach(model.lfsActions(selected), id: \.self) { action in
+                        Button { model.setLFSLocked(ids, locked: action == .lock) } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
                     }
                     if !selected.isEmpty, let mark = model.indexFlagFiles.first(where: { $0.id == selectionMark?.id }) {
                         IndexFlagsMenu(files: flagFiles, selectionMark: mark) { model.setFlags($0, files: flagFiles, selectionMark: mark) }
@@ -1410,8 +1438,8 @@ GroupBox("Changes made (double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows, visibleColumns: Set(model.visibleFileColumns), columnText: { entry, column in
-            String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata).dropLast())
+        .background(CommitFileInteraction(rows: rows, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
+            String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? !(mark.staged && mark.worktree == " ") : !model.checked.contains(mark.id)
             model.setFileChecked(mark, files: files, highlighted: Set(files.map(\.id)), checked: next)
