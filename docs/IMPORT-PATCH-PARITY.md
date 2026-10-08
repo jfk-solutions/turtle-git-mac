@@ -116,8 +116,20 @@ leases stay retained through the service callback, and viewer handoff/compositio
 block concurrent import, row mutation and window close. Failures re-enable the
 controls. Context icons follow the application context-menu icon setting.
 
-The source's **Review Patch with TortoiseGitMerge** command needs a patch review
-and application workflow and remains pending. The source suppresses the generic
+The source's **Review Patch with TortoiseGitMerge** command opens a working-tree
+review/application workflow, separate from the serial `git am` import. Its native
+window and context command remain pending.
+
+The Core review/application backend now keeps original patch bytes, obtains Git's
+statistics and summary, and checks applicability without staging or committing.
+Application rechecks the same byte snapshot against current files and invokes
+whole-patch `git apply` without index/reject/unsafe-path options. Reversal and
+explicit path strip counts are supported. Reviews are bound to their repository.
+Git handles text, binary payloads, renames, mode changes, additions and deletions.
+[Working-tree patch QA](qa/working-tree-patch-2026-10-08.json) verifies real files,
+unchanged HEAD/index, stale-review rejection and unrelated local changes. This
+backend does not establish per-file before/after review, editable merge panes,
+partial application or complete TortoiseGitMerge patch-engine parity. The source suppresses the generic
 Apply context command in Import Patch; this native list does too.
 
 The headless receiver checks source selection conditions, exact UTF-16 bytes and

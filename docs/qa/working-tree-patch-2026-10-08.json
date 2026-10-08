@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "7b497960eb17165b4f31c7223a854d77454942a9",
+  "scope": "Working-tree patch review/apply Core foundation for upstream StartExtPatch workflow. Native merge review and full port/distribution remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/PatchListCtrl.cpp": "dea42bf97d4a1b265d31712e9b60ce7dd87dda8d"
+  },
+  "sources_manifest_sha256": "27d386457ffac6999421346f72c591e23ca8f04347207a1c11e402451bc966a3",
+  "changed_files_sha256": {
+    "Sources/TurtleGitCore/GitPatch.swift": "095463c895bd9002108e93d955ce3afa6bfe6e50456ac812a8a69795c1ff75aa",
+    "Tests/TurtleGitCoreTests/WorkingTreePatchReviewTests.swift": "f2eb237d04fceefac137ecb82621749de699b508c9d17f7dfa841af3561677ad",
+    "docs/IMPORT-PATCH-PARITY.md": "5fe8a341406b899d2234684bcfcf7863e6853a6775522bd4b3ff4eea902ac802",
+    "docs/upstream-files.csv": "c073dbdca599ea050d38a54b70318c9c27ef0825ddf81b5d8aa0a9e857d26ecd"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Four cases on four engines = 16 passing executions. Real text/binary/rename/mode/add/delete patch checked and applied, then reversed; original bytes preserved. HEAD and raw index bytes unchanged. Stale current file makes check fail; no other patch files applied, unrelated local modification preserved after valid apply. Unsafe ../ and .git paths rejected; mismatched repository blocked. Empty/malformed/negative-strip input rejected and plain -p0 patch applies.",
+    "native": "No UI production changes or native receiver run. Native Review Patch command/window remain pending.",
+    "builds": "Unsigned Debug and Store builds pass. Sources/tests frozen during compiler sessions; Core tests sequential across engines and terminal before builds. Debug then Store sequential.",
+    "bundles": "Debug/Store validators and NOTICE comparisons, inventory pin, CSV 3277 records/7 fields, documentation site and whitespace checks pass."
+  },
+  "iterations": [
+    "First Apple Core run passes; subsequent three engine runs pass. No repair iteration."
+  ],
+  "cleanup": {
+    "app_or_receiver_processes": [],
+    "fixtures": "All four-engine XCTest fixture roots removed via defer. Private patch snapshots removed via defer after review/application, including failed checks. No GUI, private preferences or shared pasteboards used.",
+    "remaining_fixture_roots": []
+  },
+  "limitations": [
+    "This uses Git CLI whole-patch application as the native backend; full TortoiseGitMerge patch parsing, per-file before/after merge, editing, partial application and patch-path guessing are not implemented.",
+    "No visible Review Patch command added until the native workflow exists.",
+    "Linked worktrees, signed sandbox external patch/repository access, cancellation and huge/complex patch performance not separately tested.",
+    "A fresh --check is followed by normal git apply validation; external writers are not globally locked. Git default failure semantics apply, without --reject or --unsafe-paths.",
+    "Statistics/summary are Git text; original document bytes stay immutable. Repository-root binding does not pin HEAD/index, since working-tree applicability is rechecked.",
+    "Unsigned builds do not establish signed sandbox/Finder/App Store or screenshot acceptance. GitHub auth/CI/push and CUA remain unavailable from previous evidence, not retried. Full objective active."
+  ],
+  "logs_sha256": {
+    "build/qa/working-tree-patch/cleanup.json": "f49a8c8a1bd9113053f663eb27f2a4441b114cf345d8b44addf96f903fc861be",
+    "build/qa/working-tree-patch/core-2.37.1.log": "cc6aa370dd74d44d5b802a4a613cf61136246a5de52c91d81d91330ef16ddbc0",
+    "build/qa/working-tree-patch/core-2.39.5.log": "6c7b25d474c725301a10a1b7411ebfa0cbc72b1fb7bd58700c6a392531e43970",
+    "build/qa/working-tree-patch/core-2.55.0.log": "ff188648c8bc8caa88930ebe4c80c85f38d082e25965aac34e8aa5312955fd07",
+    "build/qa/working-tree-patch/core-apple.log": "e6a2bf2bbf2971d6d173515e46983a65dd4269c73ae34540f3a0f8a537935ca2",
+    "build/qa/working-tree-patch/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/working-tree-patch/debug.log": "ea04b3c84d77a3c00c9e9720878612be91056ad168893f541bbc51144158fa50",
+    "build/qa/working-tree-patch/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/working-tree-patch/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/working-tree-patch/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/working-tree-patch/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

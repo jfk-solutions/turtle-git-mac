@@ -139,3 +139,57 @@ extension GitRepository {
         _ = try run(args + [url.path])
     }
 }
+
+/// A byte-preserving review of a patch against the current working tree.
+/// Applying it changes files, without staging them or creating a commit.
+public struct WorkingTreePatchReview: Sendable {
+    public let document: UnifiedDiffDocument
+    public let statistics: String
+    public let summary: String
+    public let validationError: String?
+    public var canApply: Bool { validationError == nil }
+    fileprivate let repositoryRoot: URL
+    fileprivate let reversed: Bool
+    fileprivate let stripCount: Int
+}
+
+public enum WorkingTreePatchFailure: LocalizedError {
+    case stripCount, review
+    public var errorDescription: String? {
+        switch self {
+        case .stripCount: return "The patch path strip count must be nonnegative."
+        case .review: return "Review an applicable patch in this repository before applying it."
+        }
+    }
+}
+
+extension GitRepository {
+    public func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool = false, stripCount: Int = 1) throws -> WorkingTreePatchReview {
+        guard stripCount >= 0 else { throw WorkingTreePatchFailure.stripCount }
+        return try withWorkingTreePatch(bytes) { file in
+            let arguments = ["apply", "-p\(stripCount)"] + (reversed ? ["--reverse"] : [])
+            let statistics = try run(arguments + ["--stat", "--", file.path]).text
+            let summary = try run(arguments + ["--summary", "--", file.path]).text
+            var failure: String?
+            do { _ = try run(arguments + ["--check", "--", file.path]) }
+            catch let error as GitFailure { failure = error.localizedDescription }
+            return WorkingTreePatchReview(document: UnifiedDiffDocument(bytes: bytes), statistics: statistics, summary: summary, validationError: failure, repositoryRoot: root, reversed: reversed, stripCount: stripCount)
+        }
+    }
+    public func applyWorkingTreePatch(_ review: WorkingTreePatchReview) throws -> String {
+        guard review.repositoryRoot == root, review.canApply else { throw WorkingTreePatchFailure.review }
+        return try withWorkingTreePatch(review.document.bytes) { file in
+            let arguments = ["apply", "-p\(review.stripCount)"] + (review.reversed ? ["--reverse"] : [])
+            // Revalidate against current files, then let Git validate again when
+            // applying. No --index/--cached/--reject or unsafe-path override.
+            _ = try run(arguments + ["--check", "--", file.path])
+            return try run(arguments + ["--", file.path]).text
+        }
+    }
+    private func withWorkingTreePatch<T>(_ bytes: Data, _ operation: (URL) throws -> T) throws -> T {
+        let file = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-review-patch-\(UUID().uuidString)")
+        guard FileManager.default.createFile(atPath: file.path, contents: bytes, attributes: [.posixPermissions: 0o600]) else { throw CocoaError(.fileWriteUnknown) }
+        defer { try? FileManager.default.removeItem(at: file) }
+        return try operation(file)
+    }
+}
