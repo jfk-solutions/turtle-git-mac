@@ -110,7 +110,7 @@ import TurtleGitCore
     }
     func invalidate() { invalidated = true }
     func finish(_ progress: MergeProgressWindowModel) {
-        guard self.progress === progress, !progress.busy, !progress.confirmingDeletion else { return }
+        guard self.progress === progress, !progress.busy, !progress.confirmingCancellation, !progress.confirmingDeletion else { return }
         self.progress = nil; busy = false; close()
     }
 }
@@ -236,6 +236,15 @@ enum MergePostAction: String, CaseIterable, Hashable {
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
     @Published private(set) var output = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var currentWork = ""
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    private(set) var rawOutput = ""
+    private var outputState: GitProgressOutputState
+    var outputLimit: Int { outputState.limit }
+    var canCancel: Bool { busy && !cancelling && !confirmingCancellation && !confirmingConflictHint }
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     @Published private(set) var postActions: [MergePostAction] = []
     @Published private(set) var confirmingDeletion = false
     @Published var deletionError: String?
@@ -243,19 +252,57 @@ enum MergePostAction: String, CaseIterable, Hashable {
     var onChanged: (String) -> Void = { _ in }
     var onPostAction: ((MergePostAction, MergeOptions) -> Void)?
     var confirmDeletion: (String, @escaping (Bool) -> Void) -> Void = { _, choose in choose(false) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: MergeOptions, target: CheckoutTarget, showStashPop: Bool, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.target = target; self.showStashPop = showStashPop; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: MergeOptions, target: CheckoutTarget, showStashPop: Bool, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.target = target; self.showStashPop = showStashPop; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputState = GitProgressOutputState(preferences: preferences) }
     func start() { Task { await run() } }
     func run() async { guard !started else { return }; started = true; await execute(options) }
-    func cancel() { guard busy, !confirmingConflictHint else { return }; cancellation.cancel() }
+    func cancel() {
+        guard canCancel else { return }; let token = cancellation
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true; var answered = false
+            confirmCancellation { [weak self] accepted in
+                guard !answered, let self, self.confirmingCancellation, self.cancellation === token else { return }
+                answered = true; self.confirmingCancellation = false
+                if self.busy && accepted { self.cancelling = true; token.cancel() }
+                self.finishResult()
+            }
+        } else { cancelling = true; token.cancel() }
+    }
+    private func finishResult() {
+        guard !busy, !confirmingCancellation, !confirmingConflictHint else { return }
+        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+        else if cancelled, onAbortRequested != nil { cancelResult() }
+    }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        outputState.consume(emission, parser: parser)
+        output = outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
+    }
+    private func streamMerge(_ snapshot: MergeOptions) async throws -> String {
+        let parser = GitCliOutputParser(limit: outputState.limit)
+        let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let operation = Task {
+            defer { continuation.finish() }
+            return try await repository.merge(snapshot, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+        }
+        for await _ in updates { consume(parser.processPending(), parser: parser) }
+        consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
+        return try await operation.value
+    }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute(_ snapshot: MergeOptions) async {
-        busy = true; success = false; cancelled = false; output = ""; postActions = []
+        busy = true; success = false; cancelled = false; cancelling = false; outputState.reset(); output = ""; rawOutput = ""; percentage = nil; currentWork = ""; postActions = []
         do { try validateAccess() }
-        catch { output = error.localizedDescription; busy = false; onChanged(output); return }
-        do { output = try await repository.merge(snapshot, cancellation: cancellation); success = true }
-        catch { output = error.localizedDescription; cancelled = cancellation.isCancelled }
+        catch { output = error.localizedDescription; rawOutput = output; busy = false; onChanged(rawOutput); return }
+        do { rawOutput = try await streamMerge(snapshot); if !outputState.hasOutput { output = rawOutput }; success = true }
+        catch {
+            if let failure = error as? GitCommandCancellationFailure { rawOutput = failure.result.text + "\n" + failure.localizedDescription }
+            else { rawOutput = error.localizedDescription }
+            let message: String
+            if let failure = error as? GitFailure, failure.arguments.first == "merge", outputState.hasOutput { message = "Git command failed (\(failure.code))." }
+            else { message = error.localizedDescription }
+            output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message; cancelled = cancellation.isCancelled
+        }
         if success {
             if showStashPop { postActions.append(.stashPop) }
             if options.noCommit || options.squash { postActions.append(.commit) }
@@ -280,12 +327,10 @@ enum MergePostAction: String, CaseIterable, Hashable {
             if !common { postActions.append(.mergeUnrelated) }
             postActions.append(.stash)
         }
-        busy = false; onChanged(output)
-        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
-        else if cancelled, onAbortRequested != nil { cancelResult() }
+        busy = false; cancelling = false; onChanged(rawOutput); finishResult()
     }
     func cancelResult() {
-        guard !busy, !confirmingConflictHint, !confirmingDeletion, !checkingDismissal else { return }
+        guard !busy, !confirmingCancellation, !confirmingConflictHint, !confirmingDeletion, !checkingDismissal else { return }
         checkingDismissal = true
         Task {
             var conflicts = false
@@ -296,7 +341,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         }
     }
     func perform(_ action: MergePostAction) {
-        guard !busy, !confirmingDeletion, !checkingDismissal, postActions.contains(action) else { return }
+        guard !busy, !confirmingCancellation, !confirmingDeletion, !checkingDismissal, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
             var snapshot = options; snapshot.allowUnrelatedHistories = true
             busy = true; cancellation = OperationCancellation()
@@ -316,9 +361,9 @@ enum MergePostAction: String, CaseIterable, Hashable {
             do {
                 try validateAccess()
                 let result = try await repository.run(["branch", "-D", "--", String(options.revision.dropFirst("refs/heads/".count))], cancellation: cancellation)
-                output += "\n" + result.text; postActions.removeAll { $0 == .removeBranch }
-            } catch { deletionError = error.localizedDescription; output += "\n" + error.localizedDescription }
-            busy = false; onChanged(output)
+                rawOutput += "\n" + result.text; output += "\n" + result.text; postActions.removeAll { $0 == .removeBranch }
+            } catch { deletionError = error.localizedDescription; rawOutput += "\n" + error.localizedDescription; output += "\n" + error.localizedDescription }
+            busy = false; cancelling = false; onChanged(rawOutput)
         }
     }
 }
@@ -333,7 +378,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         window.contentViewController = NSHostingController(rootView: MergeProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in
-            guard let self, !self.model.busy, !self.model.confirmingDeletion, !self.model.checkingDismissal, self.window?.attachedSheet == nil else { return }
+            guard let self, !self.model.busy, !self.model.confirmingDeletion, !self.model.confirmingCancellation, !self.model.checkingDismissal, self.window?.attachedSheet == nil else { return }
             if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
         }
         model.presentConflictHint = { [weak window] in
@@ -346,6 +391,12 @@ enum MergePostAction: String, CaseIterable, Hashable {
                 alert.beginSheetModal(for: window) { _ in continuation.resume(returning: alert.suppressionButton?.state == .on) }
             }
         }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
         model.confirmDeletion = { [weak window] branch, choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = "Delete branch \"\(branch)\"?"
@@ -354,7 +405,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.confirmingConflictHint { return false }
+        if model.confirmingConflictHint || model.confirmingCancellation { return false }
         if model.busy { model.cancel(); return false }
         guard !model.confirmingDeletion, !model.checkingDismissal, sender.attachedSheet == nil else { return false }
         model.cancelResult(); return false
@@ -362,14 +413,19 @@ enum MergePostAction: String, CaseIterable, Hashable {
     func windowWillClose(_ notification: Notification) { onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
-private struct MergeProgressDialog: View {
+struct MergeProgressDialog: View {
     @ObservedObject var model: MergeProgressWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Merge \(model.options.revision)").font(.headline)
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            ScrollViewReader { reader in
+                ScrollView { VStack(alignment: .leading, spacing: 0) { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading); Color.clear.frame(height: 1).id("merge-output-end") } }
+                    .onChange(of: model.output) { _ in reader.scrollTo("merge-output-end", anchor: .bottom) }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
+            if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text("Running…") }
+                if model.busy { if model.percentage == nil { ProgressView().controlSize(.small) }; Text(model.cancelling ? "Cancelling…" : "Running…") }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Merge failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }
@@ -378,13 +434,13 @@ private struct MergeProgressDialog: View {
                     HStack(spacing: 2) {
                         Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
                         Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Merge post-actions") }.menuStyle(.borderlessButton).fixedSize()
-                    }.disabled(model.busy || model.confirmingDeletion || model.checkingDismissal)
+                    }.disabled(model.busy || model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal)
                 }
                 Spacer()
-                if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.confirmingConflictHint) }
+                if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else {
-                    if !model.success { Button("Cancel") { model.cancelResult() }.keyboardShortcut(.cancelAction).disabled(model.confirmingDeletion || model.checkingDismissal) }
-                    Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.confirmingDeletion || model.checkingDismissal)
+                    if !model.success { Button("Cancel") { model.cancelResult() }.keyboardShortcut(.cancelAction).disabled(model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal) }
+                    Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.confirmingCancellation || model.confirmingDeletion || model.checkingDismissal)
                 }
             }
         }.padding(12)

@@ -313,7 +313,8 @@ Retry creates a fresh token/parser and clears previous bytes, truncation and
 phase while retaining captured options and display-limit policy. Existing
 Rebase questions, immutable target and automatic handoff are preserved. When
 manual Fetch/Rebase chooses its ff-only Merge, the Fetch percentage is cleared
-before that phase; Merge output still uses its existing completion path.
+before that phase. The later Merge streaming section supersedes the original
+completion-time output behavior.
 
 [Fetch/Pull live-output QA](qa/fetch-pull-stream-2026-10-08.json) records Core
 observer/result checks and four-Git hidden native checks for ordinary Fetch,
@@ -326,5 +327,31 @@ progress verifies delivery timing, not real network transfer cadence.
 
 Physical scrolling, focus, keyboard/defaults, themes/accessibility, all progress
 controls, full libgit2/source-hook variants, real network authentication/timing,
-streaming the ff-only Merge phase and signed Finder/sandbox/App Store acceptance
+full modal ownership and signed Finder/sandbox/App Store acceptance
 remain pending. Existing screenshots predate this progress behavior.
+
+
+## Streaming the ff-only Merge phase
+
+Manual Fetch/Rebase's Merge choice now streams its actual ff-only command.
+The pinned DoFetch creates a separate Merge CProgressDlg with no-error auto-close.
+TurtleGit retains its existing owned Fetch result window, preserves the bounded
+Fetch log as a prefix, and starts a fresh captured-limit parser/presentation for
+Merge. Each phase has its own soft display limit; the combined view can contain
+two bounded logs. Full raw Fetch and Merge diagnostics remain together. This is
+an existing Mac window-ownership adaptation, not complete upstream modal parity.
+
+Successful ff-only Merge still closes explicitly; failure uses repository conflict
+state for Resolve. Confirmation pending at natural completion now defers that
+close. Ordinary Fetch auto-close and Rebase handoff also wait for the answer;
+late Yes and duplicate answers do not cancel completed transport or repeat the
+handoff. Root's Fetch completion notification receives complete raw diagnostics,
+independently of the bounded visible log.
+
+[Merge live-output QA](qa/merge-stream-2026-10-08.json) records live Merge
+phase/percentage before helper release, real ff-only HEAD advancement, retained
+Fetch log/raw diagnostics, No/Yes cancellation leaving HEAD unchanged, and success
+while cancellation confirmation is held. Existing four-Git decision and live
+Fetch/Pull receivers cover the other routes. Physical/nested-modal factory,
+scrolling/theme/focus/default/accessibility, real network and signed acceptance
+remain pending. Older completion-time-output notes are superseded for this phase.

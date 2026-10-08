@@ -33,7 +33,7 @@ extension GitRepository {
         let value = (try? run(["config", "--get", "merge.log"]).text.trimmingCharacters(in: .newlines)) ?? ""
         return Int(value).flatMap { $0 > 0 ? $0 : nil } ?? 20
     }
-    public func merge(_ options: MergeOptions, cancellation: OperationCancellation? = nil) throws -> String {
+    public func merge(_ options: MergeOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         guard !(options.noFastForward && (options.fastForwardOnly || options.squash)) else { throw MergeFailure.combination }
         if let count = options.logCount, count < 0 { throw MergeFailure.logCount }
@@ -68,6 +68,6 @@ extension GitRepository {
         }
         // Keep the selected ref name for Git's generated message; -- prevents options.
         args += ["--", options.revision]
-        return try run(args, cancellation: cancellation).text
+        return try run(args, cancellation: cancellation, onOutput: onOutput).text
     }
 }

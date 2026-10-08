@@ -28,7 +28,7 @@ does not prove displayed picker interaction.
 
 ## Remaining parity
 
-Streaming adoption outside Clone, Push, Fetch and merge-based Pull, complete progress-window controls/layout, physical
+Streaming adoption outside Clone, Push, Fetch, merge-based Pull and Merge, complete progress-window controls/layout, physical
 Close/Escape/titlebar/nested-sheet/default/accessibility/theme behavior,
 remaining progress replacements for other command dialogs,
 command-line closeonend override and libgit2 progress variants remain pending.
@@ -72,6 +72,14 @@ streaming adoption in other dialogs remain pending.
 
 Fetch, its selected-branch Rebase route and merge-based Pull now stream the shared
 CLI parser, with captured display limits and complete raw diagnostics. Retry
-resets the parser and visible phase. The ff-only Merge chosen after Fetch still
-uses completion-time output. See [Fetch/Pull live-output QA](qa/fetch-pull-stream-2026-10-08.json)
+resets the parser and visible phase. The later Merge adoption section supersedes the original completion-time
+output behavior for the ff-only Merge chosen after Fetch. See [Fetch/Pull live-output QA](qa/fetch-pull-stream-2026-10-08.json)
 and the individual parity documents; physical/signed acceptance remains pending.
+
+
+Primary Merge and Fetch's ff-only Merge now adopt the shared source CLI parser
+and captured-limit presentation. Merge honors ConfirmKillProcess; Merge result
+close, Fetch explicit/automatic close and Rebase handoff defer while a question
+is pending. Late answers preserve natural success. See
+[Merge live-output QA](qa/merge-stream-2026-10-08.json). Branch-deletion progress
+and complete controls/physical/signed acceptance remain pending.

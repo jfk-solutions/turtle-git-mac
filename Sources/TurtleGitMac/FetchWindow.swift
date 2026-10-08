@@ -236,7 +236,7 @@ import TurtleGitCore
         progress.onRebase = onRebase
         progress.onCompleted = { [weak self, weak progress] in
             guard let self, let progress else { return }; self.busy = false
-            self.error = progress.success ? nil : progress.output; self.onChanged(progress.output)
+            self.error = progress.success ? nil : progress.output; self.onChanged(progress.rawOutput)
             if progress.success { self.onFetched(progress.output) }
         }
         progress.close = { [weak self, weak progress] in if let progress { self?.finishFetch(progress) } }
@@ -691,6 +691,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     private let autoClosePolicy: GitProgressAutoClose
     private var cancellation = OperationCancellation()
     private var started = false, invalidated = false, dispatched = false
+    private var explicitCloseRequested = false
+    private var deferredRebase: (() -> Void)?
     @Published private(set) var busy = true
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
@@ -703,16 +705,16 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     private(set) var rawOutput = ""
     private var outputState: GitProgressOutputState
     var outputLimit: Int { outputState.limit }
-    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser, prefix: String = "") {
         guard !invalidated else { return }
         outputState.consume(emission, parser: parser)
-        output = outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
+        output = prefix + outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
     }
     private func resetOutput() {
         outputState.reset(); output = ""; rawOutput = ""; percentage = nil; currentWork = ""
     }
     private func displayFailure(_ error: Error, transport: String) {
-        if let failure = error as? GitCommandCancellationFailure { rawOutput = failure.result.text + "\n" + failure.localizedDescription }
+        if let failure = error as? GitCommandCancellationFailure { rawOutput += (rawOutput.isEmpty ? "" : "\n") + failure.result.text + "\n" + failure.localizedDescription }
         else { rawOutput += (rawOutput.isEmpty ? "" : "\n") + error.localizedDescription }
         let message: String
         if let failure = error as? GitFailure, failure.arguments.first == transport, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
@@ -744,14 +746,19 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         if result.suppress { preferences.set(value, forKey: prompt.rawValue) }
         return value
     }
-    func invalidate() { invalidated = true }
+    private func finishCompletion() {
+        guard !busy, !invalidated, !confirmingCancellation else { return }
+        if let deferredRebase { self.deferredRebase = nil; deferredRebase(); return }
+        if explicitCloseRequested || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
+    }
+    func invalidate() { invalidated = true; deferredRebase = nil }
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute() async {
-        busy = true; success = false; cancelled = false; cancelling = false; merging = false; resetOutput(); postActions = []
+        busy = true; success = false; cancelled = false; cancelling = false; merging = false; explicitCloseRequested = false; deferredRebase = nil; resetOutput(); postActions = []
         do {
             try validateAccess()
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
@@ -770,17 +777,18 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
                         if choice == 1 {
                             merging = true; percentage = nil; currentWork = ""
                             var merge = MergeOptions(); merge.revision = fetched.upstream; merge.fastForwardOnly = true
-                            let mergeOutput = try await repository.merge(merge, cancellation: cancellation)
-                            rawOutput += "\n" + mergeOutput; output += "\n" + mergeOutput
+                            let mergeOutput = try await streamMerge(merge)
+                            rawOutput += "\n" + mergeOutput
                             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-                            success = true; busy = false; onCompleted(); close(); return
+                            success = true; busy = false; explicitCloseRequested = true; onCompleted(); finishCompletion(); return
                         }
                     }
                 }
                 if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                 if openRebase {
-                    success = true; busy = false; onCompleted(); close()
-                    onRebase(fetched.upstream, rebaseMode == .automatic, preserveMerges); return
+                    success = true; busy = false
+                    deferredRebase = { [weak self] in guard let self else { return }; self.close(); self.onRebase(fetched.upstream, self.rebaseMode == .automatic, self.preserveMerges) }
+                    onCompleted(); finishCompletion(); return
                 }
             }
             success = true
@@ -789,12 +797,11 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             postActions.append(.switchBranch)
         } catch {
-            displayFailure(error, transport: "fetch"); cancelled = cancellation.isCancelled; success = false
+            displayFailure(error, transport: merging ? "merge" : "fetch"); cancelled = cancellation.isCancelled; success = false
             if merging { postActions = ((try? await repository.status(refreshIndex: false).contains(where: { $0.state == .conflicted })) ?? false) ? [.resolve] : [] }
             else { postActions = [.retry]; if options.allRemotes { postActions.append(.log) } }
         }
-        busy = false; cancelling = false; confirmingCancellation = false; onCompleted()
-        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
+        busy = false; cancelling = false; onCompleted(); finishCompletion()
     }
     private func streamFetch() async throws -> (String, FetchRebaseResult?) {
         let parser = GitCliOutputParser(limit: outputState.limit)
@@ -810,6 +817,20 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
         return try await operation.value
     }
+    private func streamMerge(_ options: MergeOptions) async throws -> String {
+        // Upstream creates a new Merge progress dialog. Keep the retained Fetch
+        // log here, but start an independent captured-limit presentation phase.
+        let prefix = output + "\n"; outputState.reset(); percentage = nil; currentWork = ""
+        let parser = GitCliOutputParser(limit: outputState.limit)
+        let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let operation = Task {
+            defer { continuation.finish() }
+            return try await repository.merge(options, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+        }
+        for await _ in updates { consume(parser.processPending(), parser: parser, prefix: prefix) }
+        consume(parser.processPending(), parser: parser, prefix: prefix); consume(parser.finish(), parser: parser, prefix: prefix)
+        return try await operation.value
+    }
     func cancel() {
         guard !invalidated, busy, canCancel else { return }
         let token = cancellation
@@ -818,7 +839,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             confirmCancellation { [weak self] accepted in
                 guard let self, self.confirmingCancellation, self.cancellation === token else { return }
                 self.confirmingCancellation = false
-                if accepted { self.cancelling = true; token.cancel() }
+                if self.busy && accepted { self.cancelling = true; token.cancel() }
+                self.finishCompletion()
             }
         } else { cancelling = true; token.cancel() }
     }

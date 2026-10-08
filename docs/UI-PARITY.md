@@ -159,3 +159,12 @@ source decisions and immutable target; ff-only Merge clears the Fetch phase but
 still returns completion-time output. [Fetch/Pull live-output QA](qa/fetch-pull-stream-2026-10-08.json)
 records Core and four-Git hidden native checks. Complete controls, physical
 scrolling/focus/defaults/themes, real network and signed acceptance remain pending.
+
+
+Merge now streams source CLI bytes, phase/percentage and captured output limits,
+with raw diagnostics preserved after truncation. ConfirmKillProcess uses the
+source Yes/No sheet; completion while it is pending defers close/post-actions.
+Fetch's ff-only Merge has its own presentation phase in the existing owned result.
+[Merge live-output QA](qa/merge-stream-2026-10-08.json) records Core and four-Git
+hidden native evidence. Complete controls, upstream modal ownership, physical
+scrolling/defaults/focus/themes, hooks and signed acceptance remain pending.

@@ -198,3 +198,47 @@ after abort/refresh. The builder creates no Finder controller, windows or popups
 See [the verification record](qa/merge-abort-menu-2026-10-08.json). Installed Finder
 activation, security-scope approval, app menu gestures and new real screenshots
 remain pending; cache freshness depends on repository refresh.
+
+
+## Live CLI output and cancellation confirmation
+
+The primary Merge result now uses the shared GitCliOutputParser and native
+GitProgressOutputState presentation. The pinned baseline is
+`CAppUtils::DoMerge`, `CProgressDlg::UpdateCmdOutput` / `UpdateProgressFromLine`
+and `OnCancel`. Core Merge forwards typed stdout/stderr chunks for its actual
+merge command; validation remains outside the transport log. Coalesced wake-ups
+retain parser-held bytes, CR updates replace the preceding line, and split UTF-8
+is decoded after parser emission. The native view shows phase/green percentage
+when Git or a hook provides it and scrolls to the end. This does not invent a
+percentage for commands that emit no progress.
+
+GitOutputLimitinKiB is captured at result construction (default 2048 KiB, bounded
+16..102400). Its soft display limit drops presentation bytes; full success,
+failure and cancellation diagnostics remain in rawOutput and the completion
+callback. Repository conflict/common-ancestor queries still determine recovery
+independently of display truncation. Explicit unrelated retry resets the parser,
+phase and visible bytes with a fresh token. Later branch-deletion completion
+appends its diagnostics to the full raw callback, preserving prior Merge output.
+Branch deletion itself still uses its existing completion-time output path.
+
+Cancel now honors ConfirmKillProcess. The native Yes/No sheet uses the source
+wording and default Yes. No retains the owned process; Yes cancels its process
+group. Cancellation cannot be submitted twice while a question is pending.
+If transport finishes while the question is open, result close/post-actions wait;
+a late answer cannot mark that completed merge cancelled. The existing
+cancelled-result conflict check and Abort Merge handoff remain in place.
+
+[Merge live-output QA](qa/merge-stream-2026-10-08.json) records focused Core and
+four-Git hidden native checks: split Unicode, local CR replacement and 50% while
+an owned helper still runs; actual fast-forward HEAD and three conflict stages;
+16 KiB capture after preference changes and complete raw diagnostics/recovery;
+No/Yes cancellation with unchanged HEAD/index and owned child cleanup; deferred
+successful auto-close with duplicate late answers; full diagnostics after real
+branch deletion. Existing Merge progress and Fetch/Rebase receivers are
+regression gates. Helper-generated progress verifies delivery timing, not actual
+Git merge throughput or displayed UI.
+
+Complete progress controls/layout, physical scrolling/defaults/focus/keyboard/
+themes/accessibility, source project hooks and git-svn variants, full post-action
+progress, signed permissions/Finder/App Store acceptance remain pending. Existing
+screenshots predate these changes. Full Merge/application parity is incomplete.

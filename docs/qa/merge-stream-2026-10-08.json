@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "30a75b5c2fdf3c5ef7fa18d24aef35dcffb69037",
+  "scope": "Primary Merge and Fetch ff-only live CLI output; cancellation confirmation, deferred completion and raw diagnostics. Full application/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/Commands/MergeCommand.cpp": "5e16896e8b894defd5a184d02b0563751dd6382a",
+    "src/TortoiseProc/Commands/MergeCommand.h": "016ae4246be4f8082b69671577da634f04adf333",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/GitCliOutputParser.cpp": "719cd542dbb77314dedca6f28f6ad1c29eb43421",
+    "src/TortoiseProc/GitCliOutputParser.h": "dbbe922317200247c2be24a4dc278f4a37f569db"
+  },
+  "sources_manifest_sha256": "7f202c440715089c7b6e4c4f5a6c173c69827eb536e29f600878849a5e34afc2",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "9382c83207b3dd98175d8a762c7ae282dc28658b65620d9fc5a656aaedd7361e",
+    "NOTICE": "161cb1c73943ccbd8fce4d77c09d7890f9fb67d1d095dd38b79d3de77c4318cd",
+    "Sources/TurtleGitCore/Merge.swift": "907400704d6aa7dd77c1358ae4ce0bdad42772694e29ffdf4c5d6bf57b745e5d",
+    "Sources/TurtleGitMac/MergeWindow.swift": "78a403e17cc6fe0ecbc2ff0942c1415ba02349bdc2de30e83879fa1b200fad13",
+    "Sources/TurtleGitMac/FetchWindow.swift": "327c8dcb4181459c3018dc41f13617307d69e8445accb0f877c1f5c7682211b6",
+    "Tests/TurtleGitCoreTests/MergeOutputTests.swift": "57d247571fad34c6846f6282a0832dfea2160bb0426cb2c74b5ffb0f73c705eb",
+    "docs/MERGE-PARITY.md": "d2d94bc65a7f714a7c924f565699895112b4c86266d47058cb7bf9aaf9474aa8",
+    "docs/FETCH-PARITY.md": "62c4b3843615c909760430f7961fabc86f703d4a78e9cf08e33149dbf0bdafd2",
+    "docs/PROGRESS-PARITY.md": "a07a7a57a57617b98f1e57c7b662abef839f49b1491f60f4e0a1a66b7194a6e3",
+    "docs/UI-PARITY.md": "a9a0c6bfb847f9737c477c10b502502f5fd9ed0dcec0f0be7ec14c199a7f0569",
+    "docs/upstream-files.csv": "cc0f1533d88cb9753b3f664a68d0f9a1c4f5656e26aa5c36429ad94f730036db",
+    "docs/qa/merge-stream-native-2026-10-08.swift": "2a8a08ced0c0cdd576531d769db62be7ca7e2e188f1a1e7cb8cd24b841691609",
+    "scripts/test-merge-stream.py": "c3db12e254749fcaa7275df61181582e6ab8ddbbc68230516fbe5c41992f4d35"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "29 focused tests passed: two new Merge observer/raw result and conflict-failure checks, six Merge, thirteen Fetch, four pinned-source parser, one binary stream and three process-cancellation regressions. Observed text equals actual successful result and failed Git message; actual fast-forward HEAD and three unmerged index stages checked. Not a full-suite rerun.",
+    "native": "Final four-Git receiver passed split Unicode, local CR replacement and 50%/phase before owned helper exits; hidden Merge host. Actual primary Merge advances HEAD and retains source post-actions/raw callbacks. Real branch deletion retains prior raw 10% CR diagnostics in callback while visible output remains replacement-only. No/Yes cancellation preserves HEAD/index and stops leader/child. Natural success while confirmation held delays auto-close; duplicate late Yes closes once without cancellation. Captured 16 KiB after preference changed to 100 MiB retains full payload/CONFLICT raw diagnostics and Resolve/Commit/Stash based on real three-stage conflict. Fetch ff-only phase retains preceding bounded Fetch log, streams independent phase, advances real HEAD, preserves full raw Fetch/Merge diagnostics; No/Yes cancellation leaves HEAD unchanged, and natural success under held question defers explicit close with once-only answer.",
+    "regressions": "Final four-Git existing Merge progress, Fetch/Rebase decisions and live Fetch/Pull receivers passed after branch-deletion callback correction. Includes captured options/No Commit/Squash/Stash Pop, force-delete Abort/Continue/duplicate safeguards and HEAD preservation, remote exclusion/Push, actual conflicts and unrelated two-parent retry; sequential/suppressed Fetch decisions, equal/ahead/diverged/ff and dirty/conflicted Merge outcomes; live ordinary Fetch/automatic Rebase/Pull, real refs/mixed changes, cancellation/limits and fresh Retry.",
+    "iterations": "Initial Debug/Core/all four receiver matrices passed. Review found branch-deletion completion still forwarding bounded visible output; raw append/callback corrected and assertion added for retained CR diagnostics after actual deletion. All earlier jobs terminal before edit. Final Debug and all four matrices recompiled/rerun afterward. Core code/tests unchanged after their passed run. Earlier logs retained.",
+    "implementation": "Optional typed observer affects actual Merge command, excluding validation. Shared parser/presentation coalesces wake-ups without dropping parser bytes, captures soft limits and preserves raw results/cancellation independent of visible output. Primary Merge honors ConfirmKillProcess with source Yes/No/default Yes and token/duplicate guards; final result close/post-actions wait while confirmation pending. Fetch starts an independent captured-limit Merge phase with retained bounded Fetch prefix, preserving combined raw diagnostics and explicit success-close. Fetch ordinary auto-close and Rebase handoff also defer pending confirmation. Existing window-ownership adaptation retained; two independent bounded phase logs can appear in one Fetch result. No fabricated percentage for quiet commands; helper progress verifies delivery timing only.",
+    "builds": "Initial/final unsigned Debug and final unsigned AppStore builds passed. Debug/Store bundle audits passed Finder extension, 98 original icons/licenses, universal EditorConfig/IssueRegex; Store Git 2.55.0 has 11 universal Mach-O files and passed local fixtures. NOTICE matches both bundles byte-for-byte. Sources/NOTICE/receivers stationary during each compiler/native session; all native/Core jobs terminal before Store started.",
+    "documentation": "Merge/Fetch/shared-progress/UI audits, CI step and NOTICE updated. Four upstream mappings retain partial status with new evidence and remaining gaps. Source inventory remains 3,277 seven-column LF rows; site built locally using existing actual native screenshots, which predate this change. Hosted CI/site unverified.",
+    "processes": "No main GUI launches or synthetic events; NSApplication prohibited with hidden Merge host only. Twenty-four empty owned UUID preference domains removed across two Merge/Rebase/FetchPull matrices; standard/nonempty domains untouched. Existing failed private QA domain retained. Final process audit found no app, receiver or owned slow helper running.",
+    "limitations": "No physical scrolling/default/focus/keyboard/theme/accessibility or nested/modal factory acceptance, complete progress controls, source hooks/git-svn/libgit2, real remote timing or signed folder/Finder/App Store proof. Branch deletion and other dialog streaming remain pending. Full application/distribution goal active. GitHub authorization/CUA unavailable and not retried."
+  },
+  "logs_sha256": {
+    "build/qa/merge-stream/core.log": "53bdc36fe59ebcd4f6d69ba67df49cc02a6e47e8a9de643911d77bc63a4f35d7",
+    "build/qa/merge-stream/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/merge-stream/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-stream/debug.log": "aa9e3d4d12aa68cb0c36305b889cb1417e2f0509c565b330cdde84c4ac6f3247",
+    "build/qa/merge-stream/fetch-pull-regression-final.log": "fd586d13ae9c5bfc72fe006b8df12db95ade2bd143ad7fbe3c19a477e25a518d",
+    "build/qa/merge-stream/fetch-pull-regression.log": "fd586d13ae9c5bfc72fe006b8df12db95ade2bd143ad7fbe3c19a477e25a518d",
+    "build/qa/merge-stream/merge-progress-final.log": "1c31ca8f890a5244863235b9bd118044dbe9cefe111669568818624d27ba5884",
+    "build/qa/merge-stream/merge-progress.log": "1c31ca8f890a5244863235b9bd118044dbe9cefe111669568818624d27ba5884",
+    "build/qa/merge-stream/native-final.log": "96d56c8b68691a3503e28e82ca447c2de540e918eb0246ee53d237de7ab0eae6",
+    "build/qa/merge-stream/native.log": "96d56c8b68691a3503e28e82ca447c2de540e918eb0246ee53d237de7ab0eae6",
+    "build/qa/merge-stream/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-stream/preferences.log": "4774e35ffe0a26526739595d687b133b586bacdd2936ebd8c45dfad23481321a",
+    "build/qa/merge-stream/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/merge-stream/rebase-decisions-final.log": "41cc777594679ccdf0dea4cef052f2003d6d51c7ea354dc731464b95e7bd65fb",
+    "build/qa/merge-stream/rebase-decisions.log": "41cc777594679ccdf0dea4cef052f2003d6d51c7ea354dc731464b95e7bd65fb",
+    "build/qa/merge-stream/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-stream/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-stream/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/merge-stream/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
