@@ -2139,6 +2139,10 @@ private enum LogRevisionColumns {
 
 struct RevisionTable: NSViewRepresentable {
     @ObservedObject var model: LogWindowModel
+    var savesColumnLayout = true
+    @AppStorage("LogFontForLogCtrl") private var useLogFont = false
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     @AppStorage("LogDateFormat") private var shortDate = true
     @AppStorage("RelativeTimes") private var relativeTimes = false
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
@@ -2155,8 +2159,10 @@ struct RevisionTable: NSViewRepresentable {
             column.minWidth = id == "graph" ? 38 : 70; table.addTableColumn(column)
         }
         table.allowsColumnReordering = true; table.allowsColumnResizing = true
-        table.autosaveName = "TurtleGit.Log.RevisionColumns"
-        table.autosaveTableColumns = true
+        if savesColumnLayout {
+            table.autosaveName = "TurtleGit.Log.RevisionColumns"
+            table.autosaveTableColumns = true
+        }
         let headerMenu = NSMenu(); headerMenu.delegate = context.coordinator
         table.headerView?.menu = headerMenu; context.coordinator.headerMenu = headerMenu
         table.delegate = context.coordinator; table.dataSource = context.coordinator
@@ -2173,13 +2179,16 @@ struct RevisionTable: NSViewRepresentable {
         coordinator.updating = true
         let dateSettings = HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale)
         let datesChanged = coordinator.dateSettings != dateSettings; coordinator.dateSettings = dateSettings
+        let font = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
+        let fontChanged = coordinator.logFont != font; coordinator.logFont = font
+        table.rowHeight = font.map { max(24, ceil($0.ascender - $0.descender + $0.leading) + 4) } ?? 24
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
         let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility
         coordinator.referenceVisibility = model.referenceVisibility
         let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
         coordinator.highlightedRevision = model.highlightedRevision
-        if signature != coordinator.signature || datesChanged || highlightChanged || labelsChanged {
+        if signature != coordinator.signature || datesChanged || highlightChanged || labelsChanged || fontChanged {
             coordinator.signature = signature
             table.reloadData()
             if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
@@ -2208,6 +2217,7 @@ struct RevisionTable: NSViewRepresentable {
         var headerMenu: NSMenu?
         var updating = false
         var signature: [String] = []
+        var logFont: NSFont?
         var dateSettings = HistoryDateSettings.load()
         var highlightedRevision: String?
         var referenceVisibility = HistoryReferenceVisibility.all
@@ -2245,10 +2255,11 @@ struct RevisionTable: NSViewRepresentable {
             }
             let text = NSTextField(labelWithString: "")
             text.lineBreakMode = .byTruncatingTail; text.maximumNumberOfLines = 1
-            text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular)
+            if let logFont { text.font = entry.isHead ? NSFontManager.shared.convert(logFont, toHaveTrait: .boldFontMask) : logFont }
+            else { text.font = .systemFont(ofSize: 12, weight: entry.isHead ? .bold : .regular) }
             if model.highlightedRevision == entry.hash { text.drawsBackground = true; text.backgroundColor = NSColor.systemYellow.withAlphaComponent(0.3) }
             switch column?.identifier.rawValue {
-            case "hash": text.stringValue = entry.hash; text.font = .monospacedSystemFont(ofSize: 11, weight: .regular)
+            case "hash": text.stringValue = entry.hash; if logFont == nil { text.font = .monospacedSystemFont(ofSize: 11, weight: .regular) }
             case "email": text.stringValue = entry.email
             case "committer": text.stringValue = entry.committer
             case "committerEmail": text.stringValue = entry.committerEmail
@@ -2260,7 +2271,7 @@ struct RevisionTable: NSViewRepresentable {
                 let label = NSMutableAttributedString()
                 for reference in model.visibleReferences(for: entry) {
                     let color: NSColor = reference.isCurrent ? .systemRed : reference.name.hasPrefix("refs/tags/") ? .systemYellow : reference.name.hasPrefix("refs/remotes/") ? .systemOrange : .systemGreen
-                    label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color.withAlphaComponent(0.3), .font: NSFont.systemFont(ofSize: 11, weight: .medium)]))
+                    label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color.withAlphaComponent(0.3), .font: logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)]))
                     label.append(NSAttributedString(string: " "))
                 }
                 label.append(NSAttributedString(string: entry.subject, attributes: [.font: text.font!]))

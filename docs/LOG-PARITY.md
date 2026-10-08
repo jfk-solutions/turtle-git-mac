@@ -1505,9 +1505,9 @@ See [Push parity](PUSH-PARITY.md) for the matching post-transport counter.
 ## Configured log message font
 
 Settings → Dialogs → Font for log messages now applies to the message details
-pane, matching `LogDlg.cpp::SetupLogMessageViewControl`. The revision table and
-changed-file list keep their existing native fonts, as this source call targets
-`IDC_MSGVIEW`. The setting shares `LogFontName`/`LogFontSize` with Commit, Merge
+pane, matching `LogDlg.cpp::SetupLogMessageViewControl`. This call targets
+`IDC_MSGVIEW`; the revision table has the separate opt-in described below.
+The changed-file list keeps its existing native font. The setting shares `LogFontName`/`LogFontSize` with Commit, Merge
 and Rebase. Menlo replaces Consolas on macOS, with the source default of 9 points.
 Changing preferences updates an open pane and retains its selected text.
 
@@ -1516,3 +1516,22 @@ views keep their existing 12-point system monospaced font. See
 [Log/Rebase font QA](qa/log-rebase-font-2026-10-08.json) for actual hidden native
 pane checks. Physical font-control interactions, light/dark composed appearance,
 rich-message links/styling and the complete Log dialog remain partially verified.
+
+
+## Optional font for the revision list
+
+Advanced → `LogFontForLogCtrl` now enables the shared log font for the native
+revision table, matching `GitLogListBase.cpp::InsertGitColumn`. It defaults to
+false. With it enabled, text columns and reference-label text use the selected
+font, HEAD keeps a bold face when available, and row height follows native font
+metrics with a 24-point minimum so text is not clipped. Font preference changes
+reload the cells without changing the displayed revision set. Disabling the
+option restores the existing table typography and 24-point rows.
+
+After building Debug, `python3 scripts/test-log-table-font.py` checks an actual
+hidden table using two real Git commits. It verifies default-off behavior, enable,
+live size change, disable, HEAD bold, message attributes and font-aware row height.
+Column autosave is disabled only in the isolated fixture. See
+[revision-table font QA](qa/log-table-font-2026-10-08.json). Physical Advanced
+editing, selection/scroll/column-layout preservation, visible graph composition,
+light/dark appearance and all shared GitLogListBase consumers remain unverified.

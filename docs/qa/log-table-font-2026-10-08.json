@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "96609dd01af0220c28b4c9f8ff7b3eda3caaaea2",
+  "scope": "Make existing Advanced LogFontForLogCtrl preference functional in native Log revision table; default-off, shared fonts/HEAD bold/ref-label text, font-metric row height and live reload. Full goal remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187"
+  },
+  "sources_manifest_sha256": "8fa5770adb85ce319551c750f33e5003e43575532f26f9e3191e52abd3dbefb0",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "b96939645b2f8100ec78cca0d64ec4a3831fde2ab7cdd7d22a548b04bbb68f24",
+    "NOTICE": "a8b8a0c939566dd9ee134b8f81604a96352084484e1394749980227dd33f82b7",
+    "Sources/TurtleGitMac/LogWindow.swift": "39989960d57b0362aa62c45aec94198fff036ddfc70d709835022ef098f0e290",
+    "docs/LOG-PARITY.md": "1c1582dc77a179dbf637115e296836a2acd994c49ae969cd7d00c64569ae8c41",
+    "docs/qa/log-table-font-native-2026-10-08.swift": "b2007b7303b7913d2caf5d4f790eceea32a4e1fb6c1e7d74b5dacac5823ad12e",
+    "docs/upstream-files.csv": "fa247721857ce5d0abe51b74d2eef7ff24d7708997da07d6b501a1dbc08c6708",
+    "scripts/test-log-table-font.py": "a69fb49b6e91a837e66c546f43f7091997f79dc028546dfb0ca1189fd3ea8435"
+  },
+  "logs_sha256": {
+    "build/qa/log-table-font/cleanup.json": "f012413c2630105e7b492195820da191b22d12bb977fe5096959206a49ea00a3",
+    "build/qa/log-table-font/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/log-table-font/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-table-font/debug.log": "829746203d89b2da794c96a00ea36598ee3d17bbd0efa1ac0c9fca81063fec82",
+    "build/qa/log-table-font/native.log": "6fae70a09cd443a6994d87a5703de8dac0ff944dfa7434d9c891c6dca6b613c2",
+    "build/qa/log-table-font/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-table-font/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-table-font/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/log-table-font/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  },
+  "verification": {
+    "native": "One actual hidden RevisionTable receiver passed with two real Git commits: default native 12-point author/24-point rows, changing global size while option off leaves font unchanged, enabling existing source key uses Menlo 22, HEAD bold, subject attributes, sufficient row height, live 18 and disabling restores 12/24. Fixture disables column autosave and action fetching; private AppStorage.",
+    "core": "No Core changes; no additional Core tests for this native-only option wiring.",
+    "builds": "Initial Debug and final Debug/unsigned AppStore builds pass. Native compiles final Mac source against stationary unchanged Core Debug framework; final Debug builds corrected NOTICE and column-autosave fixture parameter.",
+    "bundles": "Final Debug/Store audits and NOTICE comparisons pass: 98 icons, universal helpers; Store Git 11 universal Mach-O files/local fixtures.",
+    "other": "Pinned inventory verifier, site generation, inventory 3277/7 fields and whitespace checks pass."
+  },
+  "iterations": "No failed compile/test iteration. Initial NOTICE misattributed GitLogListBase contributor; corrected to pinned header Marco Costalba before native compile/final builds. Added optional column-autosave parameter (default true) before native compile so private fixture never saves user column preferences.",
+  "cleanup": {
+    "empty_owned_preferences_removed": [
+      "TurtleGit.LogTableFont.QA.4A01BA35-9C2F-48E3-A501-F801669A6933.plist"
+    ],
+    "nonempty_preferences_preserved": [],
+    "owned_app_or_receiver_processes": []
+  },
+  "limitations": [
+    "Physical Advanced setting edit, selection/scroll/column layout and visible graph/light-dark composition unverified.",
+    "Reference-label font assignment inspected but fixture lacks reference labels; message subject attribute is runtime checked.",
+    "Other shared GitLogListBase consumers and remaining global-font dialogs pending. Import Patch/Revision Graph native dialogs need further work.",
+    "Native bold face conversion only when available; synthetic Windows font traits pending.",
+    "Unsigned builds do not prove signing, sandbox/Finder runtime or App Store readiness.",
+    "Full app goal active; unavailable GitHub auth/CI/push and CUA not retried."
+  ]
+}

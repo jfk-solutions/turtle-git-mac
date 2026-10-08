@@ -653,3 +653,8 @@ LogDlg.cpp::SetupLogMessageViewControl and RebaseDlg.cpp's font call sites,
 copyright (C) 2008-2026 TortoiseGit and, for LogDlg.cpp,
 (C) 2003-2009, 2015 TortoiseSVN, under GPL version 2 or later.
 AppKit and SwiftUI replace the Windows text controls.
+
+The revision-table LogFontForLogCtrl option follows
+GitLogListBase.cpp::InsertGitColumn's optional log font and HEAD bold font,
+copyright (C) 2008-2026 TortoiseGit and (C) 2005-2007 Marco Costalba,
+under the upstream GPL version 2 or later. Native row heights follow AppKit metrics.
