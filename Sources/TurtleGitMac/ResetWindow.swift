@@ -24,7 +24,7 @@ import TurtleGitCore
             alert.beginSheetModal(for: window) { [weak model] response in if response == .alertSecondButtonReturn { model?.apply(plan) } }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

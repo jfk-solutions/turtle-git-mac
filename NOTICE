@@ -497,3 +497,7 @@ raw patch bytes through the shared native/external unified-diff viewer.
 RefLog previous-revision and merge-parent comparisons follow
 GitLogListBase.cpp/GitLogListAction.cpp's Compare with previous revision menu,
 parent choices and base-to-selected Changed Files handoff at the recorded pin.
+
+RefLog Switch/Checkout and Reset commands follow GitLogListBase.cpp's working-tree,
+HEAD and current-stash eligibility, original icons and selected revision handoffs
+to native dialogs at the recorded TortoiseGit pin.

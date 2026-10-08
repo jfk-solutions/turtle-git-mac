@@ -499,8 +499,8 @@ import TurtleGitCore
         deleteConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, completion: (() -> Void)? = nil) {
-        let root = repository.root, key = root.path + "\0" + (revision ?? "")
-        if let existing = resetWindows[key] {
+        let root = repository.root, key = root.path + "\0" + (revision.map { $0 + "\0" + UUID().uuidString } ?? "")
+        if revision == nil, let existing = resetWindows[key] {
             if let completion { let previous = existing.model.onReset; existing.model.onReset = { output in previous(output); completion() } }
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
         }
@@ -865,6 +865,8 @@ import TurtleGitCore
         controller.model.onCreateReference = { [weak self] isTag, hash in self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash) }
         controller.model.onExport = { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash) }
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
+        controller.model.onCheckout = { [weak self] hash in self?.showSwitch(repository: repository, access: access, revision: hash) }
+        controller.model.onReset = { [weak self] hash in self?.showReset(repository: repository, access: access, revision: hash) }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -1294,15 +1296,18 @@ import TurtleGitCore
     }
     private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
         let root = repository.root
-        let controller = switchWindows[root.path] ?? SwitchWindowController(repository: repository, access: access)
-        controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: root.path) }
+        let key = root.path + (revision.map { "\0" + $0 + "\0" + UUID().uuidString } ?? "")
+        let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision)
+        controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: key) }
         controller.model.onSwitched = { [weak self] output in
+            self?.referenceLogWindows[root.path]?.model.reload()
+            self?.commitWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload()
             self?.refreshRepositoryLogs(root)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        switchWindows[root.path] = controller; controller.model.load(revision: revision)
+        switchWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     func execute(_ action: RepositoryAction, value: String) {

@@ -392,3 +392,35 @@ config/working bytes remain unchanged by reads. No windows are displayed. Physic
 menu/parent/icon rendering, activation and window ownership, octopus/missing-parent
 variants and signed sandbox access remain pending. Full RefLog/dialog/application
 parity remains incomplete.
+
+## Switch/Checkout and Reset handoffs
+
+RefLog now offers Reset active branch and Switch/Checkout to this revision after
+Browse repository and before branch/tag creation. Both require exactly one current
+entry, a working tree, a resolved HEAD and a supplied callback. They exclude the
+current stash tip and the adjacent two-parent stash index row. Reset accepts HEAD;
+Switch/Checkout requires another revision. Older stash commits retain source
+eligibility. Revision choosers suppress these commands. Bare/unborn repositories,
+empty/stale/multiple selections, loading and closed models cannot dispatch.
+
+The immutable selected hash presets the existing native Switch or Reset dialog
+without applying an operation. Explicit revision requests open independently owned
+windows, preserving existing draft targets/options and operations. Generic menu
+requests retain their existing window behavior. Switch's explicit initial revision
+also survives a model reload; Switch has no automatic appearance-load callback.
+Successful Switch/Reset callbacks refresh RefLog metadata and repository views.
+Reset refuses close while its confirmation sheet is attached, and Switch refuses
+close during an operation/reference chooser/tag-conflict sheet. Actual dialog
+ownership and close routing remain acceptance work.
+
+[History-action receiver](qa/reflog-history-actions-native-2026-10-08.swift) and
+[QA record](qa/reflog-history-actions-2026-10-08.json) load actual Switch/Reset
+models at an older hash and check target/type and reload retention without execution.
+HEAD checkout/reset distinction, current/older stash, selection/callback/busy/
+chooser/bare/unborn/invalidation guards and original icons are checked. Ordinary
+HEAD/refs/index/config/working bytes remain unchanged by those reads. No windows
+are displayed. Physical menu/title/icon rendering, independently owned windows,
+confirmation/operation/close acceptance, adjacent stash index history-action gates,
+detached captions, remote-reference default guessing/express branch switching,
+broader Switch/Reset parity and signed access remain pending.
+Full RefLog/dialog/application parity remains incomplete.

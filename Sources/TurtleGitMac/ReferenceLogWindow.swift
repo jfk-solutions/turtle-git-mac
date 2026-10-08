@@ -120,6 +120,10 @@ import TurtleGitCore
     var onCreateReference: ((Bool, String) -> Void)?
     var onExport: ((String) -> Void)?
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
+    var onCheckout: ((String) -> Void)?
+    var onReset: ((String) -> Void)?
+    @Published private(set) var currentHeadHash: String?
+    @Published private(set) var currentBranch = ""
     @Published private(set) var hasWorkingTree = false
     @Published private(set) var currentStashHash: String?
     private var currentStashIndexParent: String?
@@ -139,6 +143,8 @@ import TurtleGitCore
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let refs = try await repository.referenceLogNames(), result = try await repository.referenceLog(reference)
                 let bare = try await repository.isBare()
+                let head = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "HEAD"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
+                let branch = try await repository.branch()
                 var stashHash: String?, indexParent: String?
                 if refs.contains("refs/stash") {
                     let hash = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "refs/stash"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
@@ -151,6 +157,7 @@ import TurtleGitCore
                 guard request == generation else { return }
                 currentStashHash = stashHash; currentStashIndexParent = indexParent
                 hasWorkingTree = !bare
+                currentHeadHash = head.isEmpty ? nil : head; currentBranch = branch
                 names = Array(Set(refs + [reference])).sorted(); entries = result
                 let hashes = Set(result.map(\.hash)); diffParents = diffParents.filter { hashes.contains($0.key) }
                 selection.formIntersection(Set(result.map(\.id))); searchIndex = 0; searchWrapped = false; busy = false
@@ -232,6 +239,18 @@ import TurtleGitCore
         guard !busy else { return }
         if selecting { selection = ids; accept() }
         else if let entry = entries.first(where: { ids.contains($0.id) }) { onLog?(entry.hash) }
+    }
+    func canPerformHistory(_ command: ReferenceLogHistoryCommand, ids: Set<String>) -> Bool {
+        guard !invalidated, !selecting, !busy, hasWorkingTree, currentHeadHash != nil, ids.count == 1,
+              let entry = entries.first(where: { ids.contains($0.id) }), !isOnStash(entry) else { return false }
+        switch command {
+        case .reset: return onReset != nil
+        case .checkout: return currentHeadHash != nil && entry.hash != currentHeadHash && onCheckout != nil
+        }
+    }
+    func performHistory(_ command: ReferenceLogHistoryCommand, ids: Set<String>) {
+        guard canPerformHistory(command, ids: ids), let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+        switch command { case .reset: onReset?(entry.hash); case .checkout: onCheckout?(entry.hash) }
     }
     func comparisonSides(_ command: ReferenceLogComparisonCommand, ids: Set<String>) -> (ComparisonRevision, ComparisonRevision)? {
         guard !busy, !ids.isEmpty else { return nil }
@@ -366,6 +385,11 @@ import TurtleGitCore
     }
 }
 enum ReferenceLogCopyFormat { case full, hashes, messages }
+enum ReferenceLogHistoryCommand: CaseIterable, Hashable {
+    case reset, checkout
+    var icon: MenuIcon { self == .reset ? .reset : .checkout }
+    func title(branch: String) -> String { self == .reset ? "Reset \"" + (branch.isEmpty ? "(no branch)" : branch) + "\" to this…" : "Switch/Checkout to this…" }
+}
 enum ReferenceLogRangeCommand: CaseIterable, Hashable { case forward, reverse, symmetric }
 enum ReferenceLogComparisonCommand {
     case workingTree, revisions
@@ -438,7 +462,13 @@ private struct ReferenceLogDialog: View {
                         Divider()
                     }
                     Button { model.showLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.count != 1 || model.onLog == nil)
-                    ForEach(ReferenceLogRevisionCommand.allCases, id: \.self) { command in
+                    Button { model.perform(.browseRepository, ids: ids) } label: { CommandLabel(title: ReferenceLogRevisionCommand.browseRepository.title, icon: .repositoryBrowser) }.disabled(!model.canPerform(.browseRepository, ids: ids))
+                    if !model.selecting && model.hasWorkingTree && ids.count == 1 {
+                        ForEach(ReferenceLogHistoryCommand.allCases, id: \.self) { command in
+                            Button { model.performHistory(command, ids: ids) } label: { CommandLabel(title: command.title(branch: model.currentBranch), icon: command.icon) }.disabled(!model.canPerformHistory(command, ids: ids))
+                        }
+                    }
+                    ForEach(ReferenceLogRevisionCommand.allCases.filter { $0 != .browseRepository }, id: \.self) { command in
                         Button { model.perform(command, ids: ids) } label: { CommandLabel(title: command.title, icon: command.icon) }.disabled(!model.canPerform(command, ids: ids))
                     }
                     Divider()

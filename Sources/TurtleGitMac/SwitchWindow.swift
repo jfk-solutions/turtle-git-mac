@@ -5,8 +5,8 @@ import TurtleGitCore
 @MainActor final class SwitchWindowController: NSWindowController, NSWindowDelegate {
     let model: SwitchWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = SwitchWindowModel(repository: repository, access: access)
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
+        model = SwitchWindowModel(repository: repository, access: access, revision: revision)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Switch/Checkout – TurtleGit"
@@ -17,12 +17,14 @@ import TurtleGitCore
         model.close = { [weak window] in window?.close() }
     }
     func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.browser == nil && !model.tagConflict && sender.attachedSheet == nil }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class SwitchWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    private let initialRevision: String?
     @Published var references: [CheckoutReference] = []
     @Published var options = CheckoutOptions()
     @Published var branchRevision = ""
@@ -39,9 +41,10 @@ import TurtleGitCore
     var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
     var revision: String { switch options.target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
     var remote: Bool { options.target == .branch && references.first { $0.name == branchRevision }?.remote == true }
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    func load(revision: String? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) { self.repository = repository; self.access = access; initialRevision = revision }
+    func load(revision preset: String? = nil) {
         guard !busy else { return }; busy = true
+        let revision = preset ?? initialRevision
         Task {
             defer { busy = false }
             do {
