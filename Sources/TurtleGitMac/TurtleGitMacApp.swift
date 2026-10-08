@@ -10,6 +10,7 @@ import TurtleGitCore
     @StateObject private var statisticsMenuContext = StatisticsMenuContext()
     init() {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
+        ProgressActionLog.install()
     }
     var body: some Scene {
         WindowGroup("TurtleGit for Mac") {
@@ -73,6 +74,7 @@ import TurtleGitCore
                 BlameSettings().tabItem { Label("Blame", systemImage: "text.alignleft") }
                 AlternativeEditorSettings().tabItem { Label("Alternative Editor", systemImage: "pencil") }
                 UnifiedDiffSettingsPage().tabItem { Label("Unified Diff", systemImage: "doc.text") }
+                SavedDataSettingsPage().tabItem { Label("Saved Data", systemImage: "archivebox") }
                 AdvancedSettingsPage().tabItem { Label("Advanced", systemImage: "slider.horizontal.3") }
             }.frame(width: 760, height: 700)
         }

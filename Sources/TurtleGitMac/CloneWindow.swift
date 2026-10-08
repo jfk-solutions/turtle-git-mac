@@ -415,6 +415,7 @@ enum ClonePostAction: String, Hashable {
     func perform(_ action: ClonePostAction) {
         guard !busy, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .retry {
+            ProgressActionLog.nextAttempt(self);
             busy = true; success = false; cancelled = false; cancelling = false; output = ""; displayedBytes.removeAll(); displayTruncated = false; percentage = nil; currentWork = ""; postActions = []; repository = nil; cancellation = OperationCancellation()
             Task { await execute() }; return
         }
@@ -437,7 +438,7 @@ enum ClonePostAction: String, Hashable {
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
-    func windowWillClose(_ notification: Notification) { model.invalidate() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct CloneProgressDialog: View {

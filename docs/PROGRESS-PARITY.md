@@ -83,3 +83,11 @@ close, Fetch explicit/automatic close and Rebase handoff defer while a question
 is pending. Late answers preserve natural success. See
 [Merge live-output QA](qa/merge-stream-2026-10-08.json). Branch-deletion progress
 and complete controls/physical/signed acceptance remain pending.
+
+## Persistent Action log
+
+Twelve native progress window implementations now preserve displayed results on
+close and before replacing an attempt, using the source retention/cancellation
+rules. Settings → Saved Data provides the source Action log group. The
+[Action log guide](ACTION-LOG.md) lists coverage and explicit remaining gaps;
+headless QA is recorded in [the checkpoint](qa/action-log-2026-10-08.json).

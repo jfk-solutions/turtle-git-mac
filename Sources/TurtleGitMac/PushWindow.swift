@@ -604,7 +604,7 @@ enum PushPostAction: String, Hashable {
         result.close = { [weak self] in guard let self, !self.result.busy, !self.pushModel.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if result.busy { pushModel.cancel(); return false }; guard !pushModel.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
-    func windowWillClose(_ notification: Notification) { result.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { ProgressActionLog.record(owner: result, repository: pushModel.repository.root, output: result.output, cancelled: result.cancelled); result.invalidate(); onClosed() }
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct PushProgressDialog: View {

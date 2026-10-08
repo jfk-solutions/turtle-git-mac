@@ -37,7 +37,7 @@ import TurtleGitCore
         model.load()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); patch?.close(); onClosed() }
     private func chooseDirectory() {
         guard let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
@@ -195,6 +195,7 @@ import TurtleGitCore
         if mode == .since { preferences.set(since, forKey: sinceKey) }
         preferences.set(sendMail, forKey: "FormatPatchSendMail"); preferences.set(prefix, forKey: "FormatPatchNoPrefix")
         progressClosePolicy = GitProgressAutoClose(preferences: preferences)
+        ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
         busy = true; progress = true; success = false; output = "Creating patch series…"; files = []
         cancelRequested = false; cancelled = false
         let token = OperationCancellation(); cancellation = token
@@ -242,7 +243,7 @@ import TurtleGitCore
         } else { cancelRequested = true; token.cancel() }
     }
     func finish() {
-        guard !busy, progress, !confirmingCancellation, !finishScheduled, !invalidated else { return }; progress = false
+        guard !busy, progress, !confirmingCancellation, !finishScheduled, !invalidated else { return }; saveActionLog(); progress = false
         guard success else { return }
         finishScheduled = true
         DispatchQueue.main.async { [weak self] in

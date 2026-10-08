@@ -22,6 +22,13 @@ days. Expired files can remain until replaced or removed by temporary-file clean
 URLSession can also use its normal HTTP cache. No avatar data is sent to a
 TurtleGit service. See [the author-picture guide](GRAVATAR.md).
 
+The persistent [action log](ACTION-LOG.md) keeps displayed operation output,
+local timestamps and repository paths in private Application Support storage.
+It may include displayed Git/hook output and remote addresses. Its default
+retention is 4000 lines, with the complete newest operation always retained.
+Settings → Saved Data lets users show or clear it; setting the line count to 0
+disables new entries without deleting old ones. TurtleGit does not upload it.
+
 Saved repository bookmarks, display names and last-known paths live in the app's
 private Application Support directory. The bookmark file uses owner-only file
 permissions. Sandboxed builds place that directory inside their application

@@ -356,7 +356,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SwitchProgressWindowModel: ObservableObject {
@@ -412,6 +412,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     func perform(_ action: SwitchPostAction) {
         guard !busy, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .retry || action == .switchWithMerge {
+            ProgressActionLog.nextAttempt(self);
             let merge = action == .switchWithMerge || merging
             busy = true; cancellation = OperationCancellation()
             Task { await execute(merge: merge) }

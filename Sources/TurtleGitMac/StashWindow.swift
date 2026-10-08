@@ -191,7 +191,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
         guard sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct StashSaveProgressDialog: View {

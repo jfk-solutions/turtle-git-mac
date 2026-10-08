@@ -1,0 +1,98 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "a6605466ee2de20cfc571c54d298dad15b8bac4e",
+  "scope": "Source action-log storage, Saved Data Action log group and close/repeated-attempt integration in twelve current native progress windows. Full application/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/LogFile.cpp": "a720c2002c338a39d9ffdf3aa4e747e14e092697",
+    "src/TortoiseProc/LogFile.h": "15a41ae954c947aabb2ab2682feddc7f3f1d5036",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/Settings/SetSavedDataPage.cpp": "761468a1b46c2f4ec196a351527e76de1ffbbc7c",
+    "src/TortoiseProc/Settings/SetSavedDataPage.h": "4951f95f7d126fa52bd2fe37465efc8308b2ff60",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "5237fd77fdb82a863fa7909baef3cafb37032718b11d12f735c5108352e5fb81",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "aa29e483bdbd537f0ac7e161f2bb6b749b6550feab9ba373e9ab653703058bcf",
+    "NOTICE": "b30fac931ebc0bec824e5be41c2dba2c064dbb023c53fc839cb8e109999bb804",
+    "Sources/TurtleGitCore/ActionLog.swift": "3838412c1a3c3912e6bb7c4d821ae7543596a55e1ae8b8ce7917d86e404e7394",
+    "Sources/TurtleGitMac/CleanWindow.swift": "f05c1d661a02590251ec654ed926c54a226b704b3992a996ccd0d718a9e8a17f",
+    "Sources/TurtleGitMac/CloneWindow.swift": "8cc7970805ea8aaf3c2218dacc1824cd4507ef73c593c04e404671a4cbbabeba",
+    "Sources/TurtleGitMac/CommitWindow.swift": "8c1e3256caa98d85592b15b49cf4ef06d2f0c165e64c4af90215c54fff65d607",
+    "Sources/TurtleGitMac/ExportWindow.swift": "2703cad07f5c1f214c0339b7a55ab0538a6cd149267fe75f02092ac4aef78ad8",
+    "Sources/TurtleGitMac/FetchWindow.swift": "5946ba124eadf85cc6f97ce58bf419e1b94f6bf9d064d5c37461b19aca8887f0",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "2708a3c399acdc05d0b995ff1ea355610cecf93d262ffc6043ff479f3dfebe1d",
+    "Sources/TurtleGitMac/MergeWindow.swift": "185019304bc70d6f248d530a221c572d1bfd953eeaed0b553795627c3247cdca",
+    "Sources/TurtleGitMac/ProgressActionLog.swift": "924f8fbec9ae578a09023f689a51718446bb937be3a7d900caf6f3cd0376a4df",
+    "Sources/TurtleGitMac/PushWindow.swift": "8f0429d86d8bbb0089e50ce9794300433d87f99204f9590b0a133d1f193b2be7",
+    "Sources/TurtleGitMac/ResetWindow.swift": "acc9e4c050675b42e650382dbca67697ad3f9df14f390db06214fd5b5d948e5f",
+    "Sources/TurtleGitMac/SavedDataSettings.swift": "8ca07c00cc96f5df062158278582c22ad39f50a3f1096baa1e38260c1f6a7dc0",
+    "Sources/TurtleGitMac/StashWindow.swift": "4c831f6053c80cc3f555d2f5b7348f4caca94d91dad06fce63cdd27b1a91f69f",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "5fdc5fd1c310e334b8f8711c4f9057b6fce693ff32e85c7570558c56a9dcaf3d",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "27561df9873f2e5c69946c7b6b98956cff935c175fffa123b9d047fc2b83411e",
+    "Tests/TurtleGitCoreTests/ActionLogTests.swift": "e6a711cae32c6abfa79c0f5a1318b413fa3b79e91129c430c8b4a48c43d00492",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "349bffae073eee6d2e0734e6f52e3f892cc6a2bc3bfb3638da1e4a1b0ab87cd3",
+    "docs/ACTION-LOG.md": "47d07c4ac0b8f762c25f5e7132e1d87be580c904aa227c7248557bfb62267267",
+    "docs/PRIVACY.md": "4818c20c97aeaa1e97db88b0ff1c279a50dbf250cac9fbcb2b252937b9c7d748",
+    "docs/PROGRESS-PARITY.md": "faec6509cc1feda81f125e0eba6650ffd5a57b29be168d53259364875e85e846",
+    "docs/README.md": "7eef5571dc780bd475b29e7af39dd1a473cfd01734d80badd2c621d524f4c45f",
+    "docs/TESTING.md": "d9392d474bcea9e709d880e5ef2f4610e8914114711b3c4d2f9890f19a2e1048",
+    "docs/UI-PARITY.md": "22faa6d446e0f1cf93dc62678fb02f9b8cb8eab106b88a027fee32d57dfaf5e5",
+    "docs/qa/action-log-native-2026-10-08.swift": "ccca2cdcd6ed2af3567e416ad3efd2016395fc2d6477a28b38d6d867ba391c58",
+    "docs/upstream-files.csv": "230249f23c9f20691b4075975fdc92b57f314d154f3edbf87dabdf7c5d16d0f3",
+    "scripts/test-action-log.py": "57dcf25a8aac0287f1c0008d0491b5f770729c416d0f3074289a4ec3419172f1"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Five ActionLogTests passed: source CR/LF/CRLF/NUL splitting, Unicode, localized header/cancellation, owner-only permissions, old-suffix retention and entire oversized newest record, zero disable/no directory creation/no old-log deletion, Clear preserves repository sentinel, eight concurrent writers retain every record. Not a full-suite rerun.",
+    "native": "Final four-Git private-store receiver passed actual hidden Reset controllers closing once, real mixed Reset displayed log, stale-plan failure saved before Retry replaces output and second failure on close, quiet Soft Reset header, Saved Data default4000 and integer validation, injected Show/Clear, zero disable and write-failure isolation. Hidden Saved Data host checked; no system viewer launch.",
+    "regressions": "Existing four-Git Format Patch progress, Clean progress policy and Abort Merge dialog receivers passed guarded repeated operations, captured policies/options, real Git/files and failure recovery. Format Patch/Clean include owned No/Yes cancellation and delayed completion. These regressions do not enable persistent logging.",
+    "iterations": "Initial native assertion failed after the log was written; changed comparison to the normalized repository root and source line splitting, then recompiled and passed all four Git versions. Production Sources unchanged after passed Debug/native checks. Later corrected resource attribution from TortoiseProc.rc to the actual Resources/TortoiseProcENG.rc; rebuilt Debug/Store and reran both bundle audits/NOTICE comparisons. All prior jobs terminal before each edit/build. Failed receiver nonempty private preference domain retained.",
+    "builds": "Final unsigned Debug and AppStore builds and bundle audits passed; NOTICE matches source in both bundles. Embedded Finder extension, 98 original icons, universal EditorConfig and IssueRegex helpers verified. Store bundled Git 2.55.0 eleven universal Mach-O files and local Git fixtures audited. No signed/sandbox acceptance claim.",
+    "inventory": "3277 seven-column LF source rows. LogFile.cpp/.h and SetSavedDataPage.cpp/.h changed to partial-native-replacement; ProgressDlg.cpp mapping extended. Other Saved Data groups and other progress implementations pending.",
+    "gates": "Pinned inventory checker, site builder and whitespace checks passed.",
+    "cleanup": {
+      "empty_private_preferences_removed": [
+        "TurtleGit.CleanProgressPolicy.QA.1D83B6DE-49B3-4D12-873A-BA316D5C2C4D.plist",
+        "TurtleGit.ActionLog.QA.034FC1EB-E302-400E-A946-4F33BCE8A931.plist",
+        "TurtleGit.CleanProgressPolicy.QA.9A7B54CC-6A41-4355-86CF-AEB911B1CCA9.plist",
+        "TurtleGit.ActionLog.QA.5650E197-6545-4DF4-B6B3-A0FDF7F6B656.plist",
+        "TurtleGit.ActionLog.QA.7F1E217E-D9EF-454A-A470-D0779A790F16.plist",
+        "TurtleGit.CleanProgressPolicy.QA.F6FF6307-97F0-40E5-9747-93387C356657.plist",
+        "TurtleGit.CleanProgressPolicy.QA.71F08091-3CEF-4D67-9BE1-686F56F43DAD.plist",
+        "TurtleGit.ActionLog.QA.F18BF93D-D011-4734-961F-128863EA7C41.plist",
+        "TurtleGit.FormatPatchProgress.QA.93ECAE40-BE51-41F5-9241-95C917100E5F.plist",
+        "TurtleGit.FormatPatchProgress.QA.E4F070A6-F2EA-4EE5-9A66-AA7FC54E9C5A.plist",
+        "TurtleGit.FormatPatchProgress.QA.794A16A8-BB85-4CF5-AF3E-E525D55DC3D0.plist",
+        "TurtleGit.FormatPatchProgress.QA.BA4A4040-8A76-436D-B4D6-AE6A86C2D230.plist"
+      ],
+      "nonempty_private_preferences_retained": [
+        "TurtleGit.ActionLog.QA.7B53F2CB-8322-4007-9AF7-1685C70AAE4D.plist"
+      ],
+      "app_receiver_helpers": []
+    },
+    "limitations": "No main GUI launch, synthetic input or fabricated screenshots. Physical settings/viewer/layout/accessibility, signed persistence/Finder and App Store distribution unverified. Complete application remains incomplete. GitHub authorization/CUA unavailable and not retried; full goal active."
+  },
+  "logs_sha256": {
+    "build/qa/action-log/clean-progress-policy.log": "7c28d1753c19b6169916438bf3c7010cd67a4ec19e406690212b1e62e8fb47a6",
+    "build/qa/action-log/cleanup.json": "5f3416f2ce121da83013f1b2181640f4266f2fbe2030c7f20ef083661654df30",
+    "build/qa/action-log/core.log": "37a96a06e906b347527a139ffe6cd852ed1269259668dfdc7c6e231a99f1d483",
+    "build/qa/action-log/debug-audit-final.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/action-log/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/action-log/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/action-log/debug.log": "d09fee39d187bebfaf349b1d7b0aaaeed02f0a8f6e1047e3beae9a7a7b6f49d6",
+    "build/qa/action-log/format-patch-progress.log": "adfdfd94335b7acdebaddbc3477b3823605a6ab04c069ffb11f3cc0c06d38ce5",
+    "build/qa/action-log/merge-abort-dialog.log": "04a28f4b57aa53f10ab6b9c59de2e8ae77436f244964dbe078d8f0b5bfc647e0",
+    "build/qa/action-log/native-final.log": "3a628d1aaac7e21dd03c7cc55c95bd782c56bc5be2cf5f481e5e3334682df215",
+    "build/qa/action-log/native.log": "4666c4fd7e8491f70e17485c8b08e53df43a48a3b7671f0dc8502aee5e4656b7",
+    "build/qa/action-log/store-audit-final.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/action-log/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/action-log/store-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/action-log/store.log": "3451465e01dfc67d65418c2bf6447fdfae99a27a55e31370a04c547cbe1b48c9"
+  }
+}

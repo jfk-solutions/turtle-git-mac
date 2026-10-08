@@ -102,3 +102,9 @@ review decisions while preserving unchanged mappings. This runs in the macOS
 workflow before native builds. No upstream clone, network or app launch is needed.
 Actual inventory regeneration still requires the recorded commit to be present
 in `.upstream/TortoiseGit`; see [the UI audit](UI-PARITY.md).
+
+## Saved progress action log checkpoint
+
+The [Action log guide](ACTION-LOG.md) tracks source retention and Saved Data
+Show/Clear parity, headless verification, covered progress windows and remaining
+physical/signed and wider Saved Data gaps.

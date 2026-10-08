@@ -104,7 +104,7 @@ private struct CleanDialog: View {
 }
 
 @MainActor final class CleanProgressWindowModel: ObservableObject {
-    private let repository: GitRepository
+    let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let request: CleanDialogRequest
     private var cancellation: OperationCancellation?
@@ -139,8 +139,8 @@ private struct CleanDialog: View {
         self.repository = repository; self.access = access; self.request = request; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
     func start() { guard !started, !invalidated else { return }; started = true; run(previewOnly: request.dryRun, permanently: request.permanently) }
-    func retry() { guard failed, !confirmingCancellation, !invalidated else { return }; run(previewOnly: lastPreviewOnly, permanently: lastPermanent) }
-    func remove(permanently: Bool) { guard previewSucceeded, !confirmingCancellation, !invalidated else { return }; run(previewOnly: false, permanently: permanently) }
+    func retry() { guard failed, !confirmingCancellation, !invalidated else { return }; ProgressActionLog.nextAttempt(self); run(previewOnly: lastPreviewOnly, permanently: lastPermanent) }
+    func remove(permanently: Bool) { guard previewSucceeded, !confirmingCancellation, !invalidated else { return }; ProgressActionLog.nextAttempt(self); run(previewOnly: false, permanently: permanently) }
     func perform(_ action: CleanPostAction) {
         guard !busy, !confirmingCancellation, !invalidated, postActions.contains(action) else { return }
         switch action { case .retry: retry(); case .trash: remove(permanently: false); case .permanent: remove(permanently: true) }
@@ -232,7 +232,7 @@ private struct CleanDialog: View {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingCancellation && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
 }
 
 enum CleanPostAction: String, Hashable {

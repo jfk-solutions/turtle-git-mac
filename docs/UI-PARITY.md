@@ -168,3 +168,9 @@ Fetch's ff-only Merge has its own presentation phase in the existing owned resul
 [Merge live-output QA](qa/merge-stream-2026-10-08.json) records Core and four-Git
 hidden native evidence. Complete controls, upstream modal ownership, physical
 scrolling/defaults/focus/themes, hooks and signed acceptance remain pending.
+
+## Saved progress action log checkpoint
+
+The [Action log guide](ACTION-LOG.md) tracks source retention and Saved Data
+Show/Clear parity, headless verification, covered progress windows and remaining
+physical/signed and wider Saved Data gaps.

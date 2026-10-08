@@ -564,6 +564,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     func perform(_ action: PullPostAction) {
         guard !invalidated, !dispatched, !busy, !dispatchingAction, !confirmingConflictHint, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
+            ProgressActionLog.nextAttempt(self);
             var snapshot = options; snapshot.allowUnrelatedHistories = true
             cancellation = OperationCancellation(); busy = true
             Task { await execute(snapshot) }; return
@@ -624,7 +625,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
         guard !model.dispatchingAction, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct PullProgressDialog: View {
@@ -846,7 +847,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     }
     func perform(_ action: FetchPostAction) {
         guard !invalidated, !dispatched, !busy, !dispatchingAction, postActions.contains(action) else { return }
-        if action == .retry { cancellation = OperationCancellation(); busy = true; Task { await execute() }; return }
+        if action == .retry {
+            ProgressActionLog.nextAttempt(self); cancellation = OperationCancellation(); busy = true; Task { await execute() }; return }
         guard let onPostAction else { return }
         if action == .reset {
             dispatchingAction = true
@@ -906,7 +908,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         guard !model.dispatchingAction, !model.confirmingRebaseDecision, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct FetchProgressDialog: View {

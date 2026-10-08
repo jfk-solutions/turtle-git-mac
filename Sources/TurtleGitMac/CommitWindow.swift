@@ -1477,7 +1477,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
         guard sender.attachedSheet == nil, !model.confirmingCancellation else { return false }
         model.choose(nil); return false
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct CommitProgressDialog: View {

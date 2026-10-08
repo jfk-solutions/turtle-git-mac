@@ -343,6 +343,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     func perform(_ action: MergePostAction) {
         guard !busy, !confirmingCancellation, !confirmingDeletion, !checkingDismissal, postActions.contains(action) else { return }
         if action == .mergeUnrelated {
+            ProgressActionLog.nextAttempt(self);
             var snapshot = options; snapshot.allowUnrelatedHistories = true
             busy = true; cancellation = OperationCancellation()
             Task { await execute(snapshot) }
@@ -410,7 +411,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
         guard !model.confirmingDeletion, !model.checkingDismissal, sender.attachedSheet == nil else { return false }
         model.cancelResult(); return false
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct MergeProgressDialog: View {
@@ -486,6 +487,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         operationMode = mode; showingProgress = true; onResize(true); start()
     }
     private func start() {
+        ProgressActionLog.nextAttempt(self, savePrevious: !output.isEmpty)
         autoClosePolicy = GitProgressAutoClose(preferences: preferences)
         busy = true; success = false; cancelled = false; output = ""; postActions = []; cancellation = OperationCancellation()
         Task {
@@ -510,6 +512,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     func perform(_ action: MergeAbortPostAction) {
         guard !invalidated, !busy, postActions.contains(action) else { return }
         if action == .retry {
+            saveActionLog();
             if operationMode == .merge { mode = .merge; showingProgress = false; onResize(false) }
             else { start() }
         } else if let onPostAction { close(); onPostAction(action) }
@@ -528,7 +531,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         model.onResize = { [weak window] progress in window?.setContentSize(progress ? NSSize(width: 760, height: 420) : NSSize(width: 660, height: 265)) }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 private struct MergeAbortDialog: View {

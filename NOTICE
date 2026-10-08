@@ -607,3 +607,10 @@ percentage/phase and captured display limits with complete raw diagnostics.
 Native Merge and Fetch's ff-only Merge phase adapt MergeCommand.cpp,
 CAppUtils::DoFetch and ProgressDlg.cpp live output/cancellation confirmation,
 using the shared CLI parser and captured-limit presentation.
+
+Action-log persistence ports LogFile.cpp/.h and ProgressDlg.cpp; Saved Data's
+Action log group adapts Settings/SetSavedDataPage.cpp/.h and Resources/TortoiseProcENG.rc.
+LogFile copyright (C) 2008, 2013-2014, 2016, 2024 TortoiseGit;
+(C) 2007, 2010-2011, 2014-2016, 2024 TortoiseSVN. GPL-2.0-or-later.
+Windows local-app-data/text-viewer integration becomes private macOS Application
+Support storage and the system text viewer.

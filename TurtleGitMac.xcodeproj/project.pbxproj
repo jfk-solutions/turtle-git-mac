@@ -25,6 +25,7 @@
 		1979E37CB9AAE2C56AB7BEE7 /* CommitMessageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */; };
 		199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0144901E0020C531A5D86FB /* RepositoryAccess.swift */; };
 		1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 326985003F83908822D7B91E /* MergeWindow.swift */; };
+		1C9F0C456E3788CF9D80C5FC /* ProgressActionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */; };
 		1CB7F6B1BB3F2584AD6F9547 /* DeleteConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */; };
 		1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */; };
 		1E72435F8842C227747192C5 /* ConflictPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */; };
@@ -78,6 +79,7 @@
 		70EA762F97100350401F85ED /* FileComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */; };
 		71A192AE217977ACEEDE0E0E /* Ignore.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAA057A2776BAA8F4BE538EE /* Ignore.swift */; };
 		7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8927431F95C0127D9B66489A /* TextConflict.swift */; };
+		737A5C831F62BBA90DDF08B4 /* ActionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 173811DDB174801ACF738211 /* ActionLog.swift */; };
 		73F05370C1A0B99B7BF35C5B /* CommitCompletionPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */; };
 		7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */; };
 		78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */; };
@@ -164,6 +166,7 @@
 		E41F368C58761603E031762B /* BundledTextHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15C11C6126548BD0E66453DA /* BundledTextHelper.swift */; };
 		E61342FEBDA63EF108372279 /* AddProgressTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0492C8BA1A8FA506ECB53A3A /* AddProgressTable.swift */; };
 		E74BFF39C0F1EA738EDCD80F /* TurtleGitFinder.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 79C5573349C11EE01ECA2C1E /* TurtleGitFinder.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		E870F93D67C68E0FCCDDC0F3 /* SavedDataSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */; };
 		E92971BFB0588C2287D36944 /* GitRepository.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E43773297420C7FDAE9748 /* GitRepository.swift */; };
 		EB7A90B9B17592BFD2605C3C /* WorkingFileRestore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3840500048AA0D9241AC5310 /* WorkingFileRestore.swift */; };
 		EE6537ABD84AF2FDE5BF7916 /* StatisticsGraphExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1AD98D1D708DD20E49D436E /* StatisticsGraphExport.swift */; };
@@ -257,6 +260,7 @@
 		1559DC3926805ADF57166DCE /* CommitMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessage.swift; sourceTree = "<group>"; };
 		15C11C6126548BD0E66453DA /* BundledTextHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BundledTextHelper.swift; sourceTree = "<group>"; };
 		1669C286FA69F91FFFF7C002 /* WorktreeListWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeListWindow.swift; sourceTree = "<group>"; };
+		173811DDB174801ACF738211 /* ActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionLog.swift; sourceTree = "<group>"; };
 		181B9FE19CD19EA7DAB1E824 /* Fetch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fetch.swift; sourceTree = "<group>"; };
 		1A07E7EBA5F258346A915EEF /* TurtleGitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TurtleGitMacApp.swift; sourceTree = "<group>"; };
 		1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFileTable.swift; sourceTree = "<group>"; };
@@ -306,6 +310,7 @@
 		5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationDelegate.swift; sourceTree = "<group>"; };
 		5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueRegex.swift; sourceTree = "<group>"; };
 		5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageHistory.swift; sourceTree = "<group>"; };
+		5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedDataSettings.swift; sourceTree = "<group>"; };
 		5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeCreateWindow.swift; sourceTree = "<group>"; };
 		5E600ADAA231E0E7D95C9827 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = Sources/TurtleGitCore/Resources/Icons; sourceTree = SOURCE_ROOT; };
 		62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLog.swift; sourceTree = "<group>"; };
@@ -337,6 +342,7 @@
 		8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProgressWindow.swift; sourceTree = "<group>"; };
 		9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonFileList.swift; sourceTree = "<group>"; };
 		92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWatermarkTable.swift; sourceTree = "<group>"; };
+		94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressActionLog.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
 		9A3F01EAF3038A31D989E002 /* WorkingFileExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileExport.swift; sourceTree = "<group>"; };
@@ -466,6 +472,7 @@
 				3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */,
 				07308426CB6B06DAFB9B5A89 /* PatchPrinting.swift */,
 				DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */,
+				94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */,
 				1491F4A59F19B27A3FCCF966 /* PushWindow.swift */,
 				A99F5C3AA9C0220F58B2801A /* RebaseWindow.swift */,
 				2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */,
@@ -480,6 +487,7 @@
 				1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */,
 				E1EF55D94A0594780EEB80F2 /* RevertWindow.swift */,
 				D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */,
+				5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */,
 				DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
 				CC73279697B4174BE7ED4D66 /* StashWindow.swift */,
@@ -530,6 +538,7 @@
 		9216CD741C27CC93A27DDCBF /* TurtleGitCore */ = {
 			isa = PBXGroup;
 			children = (
+				173811DDB174801ACF738211 /* ActionLog.swift */,
 				04D3808CD4999B158EA66D0B /* Add.swift */,
 				BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */,
 				1461AE9BD8BFDBA1939F33FF /* AlternativeEditorPreferences.swift */,
@@ -825,6 +834,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				737A5C831F62BBA90DDF08B4 /* ActionLog.swift in Sources */,
 				9016DF6825447C08B8190B7A /* Add.swift in Sources */,
 				A34C626DE662BD2D7FC24EC4 /* AdvancedSettings.swift in Sources */,
 				D346F92FAD1A13414F11CBB9 /* AlternativeEditorPreferences.swift in Sources */,
@@ -962,6 +972,7 @@
 				FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */,
 				591E7907CB6B5F012E1A8AEB /* PatchPrinting.swift in Sources */,
 				241DD127E807673880A95899 /* PatchWindow.swift in Sources */,
+				1C9F0C456E3788CF9D80C5FC /* ProgressActionLog.swift in Sources */,
 				8D16E38543F1BE1F18352865 /* PushWindow.swift in Sources */,
 				9244E6470414E23A05AC9C78 /* RebaseWindow.swift in Sources */,
 				8F4345E3454F4ABF3E75D4C9 /* ReferenceLogWindow.swift in Sources */,
@@ -976,6 +987,7 @@
 				885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */,
 				E0EF101FE5499CD99CF132F1 /* RevertWindow.swift in Sources */,
 				7CBA6AA078D63A8935313B51 /* RevisionComparisonWindow.swift in Sources */,
+				E870F93D67C68E0FCCDDC0F3 /* SavedDataSettings.swift in Sources */,
 				62913FA0A0A8052D1CF513A4 /* SelectionAllCheckbox.swift in Sources */,
 				20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */,
 				7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */,

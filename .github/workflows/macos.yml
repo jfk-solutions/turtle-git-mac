@@ -64,6 +64,8 @@ jobs:
         run: python3 scripts/test-stash-restore.py
       - name: Native Stash Save progress and post-actions
         run: python3 scripts/test-stash-save-progress.py
+      - name: Native progress action log and Saved Data
+        run: python3 scripts/test-action-log.py
       - name: Native Merge and Fetch fast-forward live output
         run: python3 scripts/test-merge-stream.py
       - name: Native Merge progress and recovery post-actions
