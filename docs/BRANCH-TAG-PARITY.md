@@ -13,10 +13,10 @@ Branch mode supports automatic/explicit/no remote tracking, Force, and Switch to
 new branch, plus a multiline description saved to local Git configuration. Remote
 selection suggests the remote branch name when the name is empty or still the
 previous default. Editing that name disables automatic tracking. The switch
-preference is remembered; bare repositories hide switch. Creating with switch
-checked checks out the new branch immediately. A failed checkout keeps the created
-branch and offers Retry checkout, with creation controls disabled to avoid creating
-it twice. Cancel leaves that already-created branch intact.
+preference is remembered; bare repositories hide switch. Production creation with switch checked opens the shared native Switch result.
+Its failure retains the new branch and offers Stash, Retry and Switch with merge.
+Headless callers without a Switch presenter retain the earlier inline checkout
+compatibility path and Retry checkout. Neither path recreates the branch.
 
 Tag mode uses the text area as its message: empty creates a lightweight tag;
 nonempty creates an annotated tag. Sign requires a configured signing key and a
@@ -50,9 +50,48 @@ changing index/worktree patches. The actual native captures are `site/assets/cre
 - Interactive signing/key prompts and native signing verification.
 - Native remote tracking/force/cross-name warning checks, failed-checkout retry,
   bare repositories, light appearance, keyboard, resizing and accessibility QA.
-- Progress/cancellation and recovery if description configuration fails after the
-  branch was created; tests establish Git effects, not complete recovery parity.
+- Physical shared Switch ownership/cancellation and description retry acceptance;
+  legacy callers without a Switch presenter still lack complete description recovery.
 - Full settings/size persistence and a broader supported Git-version matrix.
 
 This dialog remains partial in the upstream inventory. It is not full parity or
 an App Store-ready release.
+
+## Captured creation and Switch handoff
+
+Production branch creation now follows CAppUtils::CreateBranchTag: create the
+reference, run PerformSwitch when requested, then save a nonempty branch
+Description after that result is acknowledged, even when checkout failed. The
+native shared Switch model supplies its source-ordered success/recovery actions,
+original icons and close policy. The options remain locked behind its sheet;
+this retained ownership differs from upstream's closed options. Root refreshes
+reference views after actual creation and repository views after Switch attempts.
+
+Core createReference retains its existing default description behavior for old
+callers. Production can defer it, then calls updateBranchDescription with captured
+name/message, CR removal and trimming; a whitespace-only description removes
+the prior config value. A foreign config lock preserves the created
+reference and exposes Retry description; that retry cannot recreate or re-checkout
+the branch and uses the original message. Surfacing/retrying a description failure
+improves upstream's ignored SetConfigValue error; full partial-failure recovery for
+legacy no-presenter callers remains pending.
+
+Tag Push uses the submitted checkbox and full created tag ref, including after a
+cross-name Continue warning. Cross-name Continue keeps original options/intent;
+Abort clears the pending request. Load/create cannot replace running, warning or
+completed states. Explicit HEAD presets select the HEAD radio. Production factory
+requests receive separate options controllers so another requested base cannot
+replace an existing draft. Close/Quit guards include chooser reads, mutation and
+pending name warnings; closing invalidates late callbacks. Store creation and
+post-Switch description writes check the retained root lease. Signed acceptance
+remains unverified.
+
+[Handoff QA](qa/branch-tag-handoff-2026-10-08.json) records six focused Core tests
+and four-Git actual branch/tag creation and real Switch models: description timing,
+failed-checkout actions/ref retention, config-lock preservation/description-only
+retry, captured Push/cross-name choices, explicit HEAD/load/duplicate guards and
+native close/Quit/invalidation. Actual Root factory/new-window/nested-sheet
+interaction, UI warning defaults and Push destination remain physical acceptance
+work. The hidden controller's view is removed before inducing a warning so the
+receiver cannot display an alert; controls are hosted separately without a window.
+No actual network Push occurs. Existing screenshots predate this completion flow.

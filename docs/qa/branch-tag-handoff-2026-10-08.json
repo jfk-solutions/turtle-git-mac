@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "eaf705d980b45fa80287461b660c3ac3f96b72fa",
+  "scope": "Branch/Tag native captured creation, shared Switch handoff and deferred description recovery. Full application port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/CreateBranchTagDlg.cpp": "023120d49dfb8d93fc308a8da59db12b56eb4f5e",
+    "src/TortoiseProc/CreateBranchTagDlg.h": "624da59a30922c07313cb738a6a78b1f2915ea29",
+    "src/TortoiseProc/Commands/BranchCommand.cpp": "2c500f9877e3dbc151661bc09802e219f01c3066",
+    "src/TortoiseProc/Commands/TagCommand.cpp": "5fcdd664afc4f79128ca994b74a7cd1374b954e4",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "586172cfea9f90e8babb39fdc31060267805f7c61e6a3925bd5066ada742a8cf",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "b341d1ba0548672eae258a83cf41aa25965c0fa1696e2864f50ab43bbd5ee067",
+    "NOTICE": "0e6dfe92349a6915a6153ccd73121967dd7b41c3e5210c46a54ed9fb83831604",
+    "README.md": "36f4905b6416b860057b49439a71be2973649c8c7a52d19b265253a5ca38ba11",
+    "Sources/TurtleGitCore/ReferenceCreation.swift": "1dd609a130f49f8f285dca624f0b1c4dba17108fbe8dc2a439cc2211771717f6",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "ba4efa89fb03c6e7624166b814d363a34970c41dd3bb3e8aa1c5ecbaf17434bb",
+    "Sources/TurtleGitMac/BranchTagWindow.swift": "c796f953fa23b262cf5581a695811327e198503ae5e6fbbdd6780c9f0dfaba82",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "30c33e9074877f2ad5eb4ca79d94569d3d8e03a2e7ccb6959b738bb33852deb3",
+    "Tests/TurtleGitCoreTests/ReferenceCreationTests.swift": "ceed14c59640d6cc6f7b8afaaa85f86850428130a81145156fc9cf3ef081b3d2",
+    "docs/BRANCH-TAG-PARITY.md": "dd11b40b60f8f561077ac5a00bc37c3ae5f7c3bc4390a1b72bc3d0263f565f98",
+    "docs/UI-PARITY.md": "400d410be430ebd69cb1b1d7904d7a20c4ae5176a294cf8728c0b524d4846d03",
+    "docs/upstream-files.csv": "f71a668df39ffdabf7e8c1eaca660af09b518f7ed742097f4c1e5ba36aa0491c",
+    "docs/qa/branch-tag-handoff-native-2026-10-08.swift": "99a2c164589d801904dba1be7f757026fb889278c6c7b7d5b52e7832b1998277",
+    "scripts/test-branch-tag-handoff.py": "4119f2591337d642e61535f3ea071b445b2b014d7521c7e851732c8390fc75c1"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Six focused ReferenceCreationTests passed. Actual reference/config effects establish deferred description timing, foreign-lock preservation and description-only recovery, CR stripping/trimming, whitespace removal, absent removal, unchanged reference SHA. Other existing tests cover branches, tags, force, signing guards, tracking, cross-name and invalid refs. Not a full suite rerun.",
+    "native": "Final four-Git receiver passed real shared Switch models: branch created before checkout, description absent until acknowledgement; successful checkout then normalized description; failed checkout exposes Stash/Retry/SwitchWithMerge and retains created ref/working bytes, then description after acknowledgement. Foreign config lock inserted after checkout preserves ref/lock and retries captured description only, without recreating/checking out. Production-style presenter with Switch unchecked writes description; force plus whitespace removes old config without switching. Production-style tag path captures Push/name/message through cross-name Continue and later edits, and unchecked Push remains unchecked. Explicit HEAD/load/duplicate/late invalidation guards, hidden options hosting and hidden controller close/Quit guard checks passed. No actual Push/network or visible UI.",
+    "regression": "Final four-Git RefLog revision-handoff receiver passed immutable selected hash into real Branch/Tag, browser and Export models, no auto-create/export, chooser and missing/multi/invalid/busy/stash/parent guards; HEAD/refs/index/config/worktree invariants unchanged.",
+    "source_notes": "Pinned CAppUtils::CreateBranchTag creates the ref, performs Switch if requested, then writes raw-nonempty branch description, including after failed Switch; Tag Push uses full ref. UpdateBranchDescription strips CR/trims and unsets whitespace-empty values. Native shared Switch retains existing recovery/icons/close policy, with options owned behind sheet instead of upstream closed modal. Explicit description failure/retry improves source ignored config return. Legacy callers without presenter retain old behavior and incomplete partial-failure recovery. Creation itself has no source CProgress; shared policy applies to Switch only.",
+    "builds": "Final unsigned Debug and AppStore builds and bundle audits passed; NOTICE identical in both. Audits include Finder extension, licenses, 98 original icons, EditorConfig/IssueRegex. Store Git runtime has 11 universal Mach-O files and local Git fixtures. Earlier build/native logs retained before whitespace-removal refinement.",
+    "documentation": "README, Branch/Tag and central UI parity, NOTICE, CI native receiver step updated. 3277 seven-column LF inventory mappings verified; five affected mappings retain partial status. Site built locally with existing real screenshots; screenshots predate these handoffs.",
+    "processes": "All initial native jobs terminal before first Store. Source/receiver corrections only after Store terminal. Final Debug/Core terminal before final native compilers, both native jobs terminal before final Store. No routine main app launches. Activation prohibited; owned hidden controller closed, hosting without windows, controller view removed before warning. Eight empty owned UUID preference plists removed, standard/nonempty preferences untouched. Final owned app/receiver process audit empty.",
+    "limitations": "Headless model callbacks/hidden hosting do not prove physical nested sheet/Root factory/new-window ownership, alert defaults, focus/keyboard, themes/geometry/accessibility, actual Push destination, signing prompts or complete shared Switch parity. Signed sandbox/grants/Finder/App Store acceptance remains unverified. Full chooser/settings/dialog/file port, hosted site/CI and distribution remain incomplete. GitHub authorization and CUA unavailable; not retried."
+  },
+  "logs_sha256": {
+    "build/qa/branch-tag-handoff/core-final.log": "e042968c7a64d665b17e296e984588fd49a4c8a45767e4318f8bcd35236fbdd8",
+    "build/qa/branch-tag-handoff/core.log": "75eb1cc1cbab8aaa3b7f7c91783a232df9889a62f660a0cd4107a8ec5b357c2f",
+    "build/qa/branch-tag-handoff/debug-audit-final.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/branch-tag-handoff/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/branch-tag-handoff/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/branch-tag-handoff/debug-validated.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/branch-tag-handoff/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/branch-tag-handoff/native-final.log": "47c5359792806187e31889d590ee2fc4dc82049a7155eea184812ba4e4e7db5a",
+    "build/qa/branch-tag-handoff/native.log": "47c5359792806187e31889d590ee2fc4dc82049a7155eea184812ba4e4e7db5a",
+    "build/qa/branch-tag-handoff/pin-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/branch-tag-handoff/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/branch-tag-handoff/private-preference-cleanup.log": "a035fcbbcce513b15540727adc6736157ea5d472ee7f0cfb7f6b62bcfb49a0a1",
+    "build/qa/branch-tag-handoff/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/branch-tag-handoff/reflog-regression-final.log": "a9323c6f97f8a6002e259ff840f51fd84db89ba3e3709f0383d1656a39508279",
+    "build/qa/branch-tag-handoff/reflog-regression.log": "a9323c6f97f8a6002e259ff840f51fd84db89ba3e3709f0383d1656a39508279",
+    "build/qa/branch-tag-handoff/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/branch-tag-handoff/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/branch-tag-handoff/store-audit-final.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/branch-tag-handoff/store-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/branch-tag-handoff/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

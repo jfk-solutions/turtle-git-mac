@@ -580,3 +580,7 @@ close/cancellation policies and once-only result-to-mail acknowledgement.
 
 Export progress adapts CAppUtils::Export and ProgressDlg.cpp with owned results,
 original Explore artwork, captured close policy and cancellation confirmation.
+
+Branch/Tag handoffs adapt CAppUtils::CreateBranchTag and CreateBranchTagDlg.cpp,
+using the shared native Switch result before branch-description persistence and
+capturing cross-name/tag-push choices with guarded native ownership.

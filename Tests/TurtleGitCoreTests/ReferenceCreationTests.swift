@@ -50,4 +50,29 @@ final class ReferenceCreationTests: XCTestCase {
         do { _ = try await repo.createReference(options); XCTFail("Git must refuse force on checked out branch") } catch {}
         let after = try await repo.run(["rev-parse", "HEAD"]).text; XCTAssertEqual(before, after)
     }
+    func testDeferredDescriptionCanRecoverForeignConfigLockWithoutRecreatingReference() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var options = ReferenceCreationOptions(); options.name = "deferred"; options.message = "  first\r\nsecond  "
+        _ = try await repo.createReference(options, writeDescription: false)
+        let reference = try await repo.run(["rev-parse", "refs/heads/deferred"]).stdout
+        let before = try await repo.run(["config", "--get", "branch.deferred.description"], successfulExitCodes: 0...1); XCTAssertEqual(before.exitCode, 1)
+        let lock = root.appendingPathComponent(".git/config.lock"); try Data("foreign lock".utf8).write(to: lock)
+        do { try await repo.updateBranchDescription("deferred", message: options.message); XCTFail("Foreign lock") } catch is GitFailure {}
+        XCTAssertEqual(try Data(contentsOf: lock), Data("foreign lock".utf8))
+        try FileManager.default.removeItem(at: lock); try await repo.updateBranchDescription("deferred", message: options.message)
+        let after = try await repo.run(["rev-parse", "refs/heads/deferred"]).stdout, value = try await repo.run(["config", "--get", "branch.deferred.description"]).text
+        XCTAssertEqual(reference, after); XCTAssertEqual(value, "first\nsecond\n")
+    }
+    func testWhitespaceDescriptionRemovesExistingValueAndAcceptsAbsentValue() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var options = ReferenceCreationOptions(); options.name = "description"; options.message = "old description"
+        _ = try await repo.createReference(options)
+        let ref = try await repo.run(["rev-parse", "refs/heads/description"]).stdout
+        try await repo.updateBranchDescription("description", message: " \r\n\t ")
+        try await repo.updateBranchDescription("description", message: " \r\n ")
+        let value = try await repo.run(["config", "--get", "branch.description.description"], successfulExitCodes: 0...1)
+        let after = try await repo.run(["rev-parse", "refs/heads/description"]).stdout
+        XCTAssertEqual(value.exitCode, 1); XCTAssertEqual(after, ref)
+    }
+
 }

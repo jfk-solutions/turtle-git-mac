@@ -1414,7 +1414,7 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil) {
-        let root = repository.root, key = repository.root.path + (isTag ? ":tag" : ":branch")
+        let root = repository.root, key = repository.root.path + (isTag ? ":tag:" : ":branch:") + UUID().uuidString
         let controller = referenceWindows[key] ?? BranchTagWindowController(repository: repository, access: access, isTag: isTag)
         controller.onClosed = { [weak self] in self?.referenceWindows.removeValue(forKey: key) }
         controller.model.onCreated = { [weak self] output in
@@ -1422,14 +1422,18 @@ import TurtleGitCore
             self?.statusWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
+        controller.model.onSwitch = { [weak self, weak controller] reference, done in
+            guard let self, let parent = controller?.window, parent.attachedSheet == nil else { done(); return }
+            self.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, completion: done)
+        }
         controller.model.onPushTag = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         referenceWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow) {
+    private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow, completion: (() -> Void)? = nil) {
         let id = UUID(), root = repository.root
         let controller = SwitchProgressWindowController(repository: repository, access: access, reference: reference)
-        controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id) }
+        controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id); completion?() }
         controller.model.onFinished = { [weak self] output, _ in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
