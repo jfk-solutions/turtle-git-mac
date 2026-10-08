@@ -132,6 +132,8 @@ for baseline and update rules.
 - [Issue tracker integration audit](ISSUE-TRACKER-PARITY.md)
 - [Author pictures in Log](GRAVATAR.md)
 
+- [Import Patch engine and remaining dialog work](IMPORT-PATCH-PARITY.md)
+
 ## Inventory maintenance
 
 The upstream checkout is ignored, not vendored. To prepare the pinned baseline:

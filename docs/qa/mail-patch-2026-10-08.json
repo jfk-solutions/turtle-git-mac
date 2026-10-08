@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "14fc2700d3d52a91b1011af7090c8d4b3bd46250",
+  "scope": "Import Patch Core engine: source git am options/defaults, typed mail/rebase session distinction and Abort/Skip/Resolved recovery. Native dialog/menu still pending; full app/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9",
+    "src/TortoiseProc/ImportPatchDlg.h": "a4cdd5287f9bf37c73bdaeedff82e3654a5b3644"
+  },
+  "sources_manifest_sha256": "0d0dfd66d8187b67b6c5dac4699531e41ff74460ebd31f4c821a32612c86bb2b",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "b9f55ff91a79055164bbddaffa0c0fc7d74d957be4885f9514c86e9910492d50",
+    "NOTICE": "7a5903322f4695ef15d354d5b34e4350e24ad55bcdda6bffef5883fd3b15c5d6",
+    "Sources/TurtleGitCore/MailPatch.swift": "ed7c98f00f948c8e057718d140d249c4cf5761965c1029ffa2f4cf540563544b",
+    "Tests/TurtleGitCoreTests/MailPatchTests.swift": "df13f2d44c7806e075d17b89b4d0b4d0b3621455447e03b25759f89ebc59fef9",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "7b90c7fec9e308097cab75451bcbd563c8c66c3ff97e46dbbe66d4f99d91db90",
+    "docs/IMPORT-PATCH-PARITY.md": "e6a83ec6c305faca1d220d8a0371eb1b7502fe4337719f362caa5a9f71cae4f0",
+    "docs/README.md": "27f22e6cb5c774f86ba2707d2e8d5a4e099c04a275a0609bc68d1cff5634f695",
+    "docs/upstream-files.csv": "926459ff4325f8246e76b063c3be24658051caee3899511017085654ecbb6b2b",
+    "scripts/test-mail-patch.py": "26a6b982331bb11197d81d505bb45994920ce5a4e01daacab0aace4e4e15f8cb"
+  },
+  "logs_sha256": {
+    "build/qa/mail-patch/cleanup.json": "81cced172e6e435485f132a614331b00b9a14257ce188c03980549e7dff1203c",
+    "build/qa/mail-patch/core-apple.log": "e5def8f1fe7867412c67637bf9821f561f2eb7b9df5a5c31aecdb009874cb937",
+    "build/qa/mail-patch/core-date-assertion-failed.log": "673fbe90facc9702a8aa9582acce8a92fb3af0391b697b8da76cfcfd62f5eeed",
+    "build/qa/mail-patch/core-first-compile-failed.log": "0147b90a4c4333960e89d4a1005938336f28173291f83040d1074d231de145e9",
+    "build/qa/mail-patch/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/mail-patch/debug.log": "04eddba08107a1d6500776b69717393a065a381214b4a7c876a1989e852022b3",
+    "build/qa/mail-patch/matrix.log": "9c2fe01c92dc917389283db8d125849923eca7e8f71621032a3e16fa0f4fe628",
+    "build/qa/mail-patch/metadata-diagnostic.log": "2e33fea943b7cb85fbedabe30e33c4026a34bb71e5ef3ccbb24a160cfc7d804e",
+    "build/qa/mail-patch/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/mail-patch/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/mail-patch/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/mail-patch/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Five MailPatchTests cases pass on each of four engines (20 final matrix case executions). Real import/signoff/Unicode mailbox paths, author/date/body, conflict Abort/Skip/Resolved, active second import rejection, actual apply-backend rebase rejection preserving HEAD/index, independent linked worktree sessions, invalid files/non-file URL and pre-cancellation.",
+    "builds": "Unsigned Debug and AppStore builds pass; Sources/NOTICE frozen throughout final matrix and builds. Xcodegen adds new Core file.",
+    "bundles": "Debug/Store audits and NOTICE comparisons pass; 98 original icons, universal helpers; Store Git 11 universal Mach-O files and local fixtures.",
+    "other": "Pinned inventory, site build, inventory 3277 records/7 fields and diff whitespace gates pass."
+  },
+  "iterations": [
+    "Initial compile rejected a throwing right operand in short-circuit OR; replaced with explicit path locals.",
+    "First metadata assertion expected UTC +00:00; actual Apple Git %aI yielded equivalent Z. Diagnostic records correct author/date/body/signoff. Test now compares parsed timestamps and exact author fields.",
+    "Added linked-worktree and pre-cancellation cases; final five-case suite and four-engine matrix pass."
+  ],
+  "cleanup": {
+    "owned_app_or_receiver_processes": [],
+    "preferences": "No UserDefaults domains used in this Core-only fixture.",
+    "fixtures": "All final passing fixture repositories removed by test defer; no shared user temp storage cleared."
+  },
+  "limitations": [
+    "No native Import Patch dialog, command/menu, batch cursor/retry/list/preview/recovery prompts or physical UI acceptance yet.",
+    "Stream callback and in-process cancellation use existing GitRepository.run transport; this suite tests pre-cancellation, not live cancellation/output timing.",
+    "Source flags constructed but whitespace/CR and disabled option combinations are not exhaustively tested.",
+    "User identity preflight, hooks/signing UX, security-scope frontend/sandbox and full source workflow pending.",
+    "Unsigned audits do not prove signing/Finder runtime/App Store acceptance.",
+    "GitHub auth/CI/push and CUA unavailable from prior evidence; not retried. Full goal remains active."
+  ]
+}
