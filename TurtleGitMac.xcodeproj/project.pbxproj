@@ -146,6 +146,7 @@
 		C23CCEFA7DA0A805EFCE94C7 /* GitBlamePreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50C02E4063D7394453CC537A /* GitBlamePreferences.swift */; };
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
 		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
+		CA6AEC3FE2A7F57C339F0ABE /* LFSLocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */; };
 		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
 		CC6D27AC08555115BD75EB87 /* Clean.swift in Sources */ = {isa = PBXBuildFile; fileRef = 340673250460ADE4B0D7C99C /* Clean.swift */; };
 		CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */; };
@@ -186,6 +187,7 @@
 		F5EE3ED18BC448DB2B9E658A /* CommitWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ED10F9E629EFB06F9F5F264 /* CommitWindow.swift */; };
 		F7FD5F96619575F52FBA5F2B /* CreateChangelistSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1142010920E5275663D4EB6C /* CreateChangelistSheet.swift */; };
 		F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */; };
+		F93F7A1EFBB98F60DB0C7F4D /* LFSLocksWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5A68AB404EF711AFEFE6135 /* LFSLocksWindow.swift */; };
 		FB06077C7097755667D83917 /* CommitHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6352B22FB03878FC59F470 /* CommitHistory.swift */; };
 		FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */; };
 		FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */; };
@@ -243,6 +245,7 @@
 
 /* Begin PBXFileReference section */
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
+		018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocks.swift; sourceTree = "<group>"; };
 		022B0A05DF90D278FC860589 /* CreateRepositoryWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateRepositoryWindow.swift; sourceTree = "<group>"; };
 		0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleConflictWindow.swift; sourceTree = "<group>"; };
 		03B0C481296918B051C77841 /* LogStatisticsGraph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatisticsGraph.swift; sourceTree = "<group>"; };
@@ -399,6 +402,7 @@
 		D1D127EFCF9CEE3CA778CA79 /* CancellableGitProcess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CancellableGitProcess.swift; sourceTree = "<group>"; };
 		D1F6087799A5783306A27CEE /* RenameWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RenameWindow.swift; sourceTree = "<group>"; };
 		D33C40A99A3883800E7C6431 /* ResolveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResolveWindow.swift; sourceTree = "<group>"; };
+		D5A68AB404EF711AFEFE6135 /* LFSLocksWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocksWindow.swift; sourceTree = "<group>"; };
 		D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitModels.swift; sourceTree = "<group>"; };
 		D975B1620A435727724213D1 /* Merge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Merge.swift; sourceTree = "<group>"; };
 		DA1D2D9DD08218C53951382F /* StatusListGroups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListGroups.swift; sourceTree = "<group>"; };
@@ -481,6 +485,7 @@
 				E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */,
 				B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */,
 				2DE73255A1E5CE16B62BBCF7 /* ImportPatchWindow.swift */,
+				D5A68AB404EF711AFEFE6135 /* LFSLocksWindow.swift */,
 				58A976676E04B6BC290F5465 /* LogGravatar.swift */,
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
 				63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */,
@@ -599,6 +604,7 @@
 				9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */,
 				5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */,
 				D07F0B7B2714BF454BD5BD62 /* IssueTracker.swift */,
+				018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */,
 				0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */,
 				03B0C481296918B051C77841 /* LogStatisticsGraph.swift */,
 				571A28B129049EF346F00279 /* MailPatch.swift */,
@@ -900,6 +906,7 @@
 				36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */,
 				86578F215A688D810DC90ED6 /* IssueRegex.swift in Sources */,
 				0DDC9B58143481D73B56D530 /* IssueTracker.swift in Sources */,
+				CA6AEC3FE2A7F57C339F0ABE /* LFSLocks.swift in Sources */,
 				685C871A83BE7D21AD6E50B0 /* LogStatistics.swift in Sources */,
 				B18ABD76861A1AE220FD07B0 /* LogStatisticsGraph.swift in Sources */,
 				D31013C8AB098F7D32CD16BD /* MailPatch.swift in Sources */,
@@ -995,6 +1002,7 @@
 				CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */,
 				174E45FA66A5BAED1EAEF918 /* IgnoreWindow.swift in Sources */,
 				EB87E339AFB2D76B191B19BB /* ImportPatchWindow.swift in Sources */,
+				F93F7A1EFBB98F60DB0C7F4D /* LFSLocksWindow.swift in Sources */,
 				331C8EE4AE36F1AFA3067CD6 /* LogGravatar.swift in Sources */,
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,
 				78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */,

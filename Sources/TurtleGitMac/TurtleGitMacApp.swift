@@ -51,6 +51,7 @@ import TurtleGitCore
                 ForEach(RepositoryAction.allCases.filter { $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .diffLater && $0 != .clearComparisonMark && $0.resolveChoice == nil }) { action in
                     Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .mergeAbort && !model.mergeActive) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection) || (action.isIgnore && !model.canIgnoreSelection(action)) || (action.isResolve && !model.canResolveSelection))
                 }
+                Button { model.showLFSLocks() } label: { CommandLabel(title: "LFS Locks…", icon: .lock) }.disabled(model.root == nil || model.bare || model.busy || model.confirmingQuit)
                 Divider()
                 Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
                 Button { model.activate(.clearComparisonMark) } label: { CommandLabel(title: RepositoryAction.clearComparisonMark.title, icon: .compare) }.disabled(model.busy || model.confirmingQuit || model.workingComparisonMark == nil)

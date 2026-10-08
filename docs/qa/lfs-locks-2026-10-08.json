@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "88202ecd7d35a971346163023ee34508bc0d1e0e",
+  "scope": "Partial Git LFS command layer and native Locks list/owned unlock progress, app menu and Quit integration. Helper packaging and full LFS/app parity incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2",
+    "src/TortoiseProc/Commands/LFSCommands.cpp": "c0d781e995956102af56cc82d6622fe6a0cebb2a",
+    "src/TortoiseProc/Commands/LFSCommands.h": "a4b467e2d5d0fd395afc33d32654db77efd456d3",
+    "src/TortoiseProc/LFSLocksDlg.cpp": "f9ebe3aaa8c1089ce356f7b6f1142c5b9ceb1036",
+    "src/TortoiseProc/LFSLocksDlg.h": "1e52ea8077958b1b1c5d7c9d26ed112db7c86ae8",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.cpp": "d3124cd9a0c35c05412ac9c5285c74d114464f6f",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.h": "a7d4a0df37bed35d59d47dcab99630e1525c4025"
+  },
+  "sources_manifest_sha256": "2f361d69e9d73e6e16b46a95e89a3438f942d6a56523515a65aa2f61447ffc13",
+  "changed_files_sha256": {
+    "NOTICE": "ed8f710b868f325fdf8cd070523420930b8be33713fbff51df8f7fdff3401776",
+    "Sources/TurtleGitCore/LFSLocks.swift": "d2501a5900e126cf1dd180832354a57936985c5cca0e2601adb7c186e108e2ad",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "40d5204b475b7dd5cee0dbd81056b61bc472e16cc3ea92c65c360974a2553aec",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "fb4ceb856fba842a6302b8a9b2c5cbdf212e0e844d34e22559be635904d3ac19",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "905e7d3c06208db5a6f7fd8e06ab54edb54b54c96558fe38c830bfe22cdf5971",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "f0c0d47c1ced79e689e0b8cf6ec76f980ad137cf82778ed935f513a8f3e2fb89",
+    "Tests/TurtleGitCoreTests/LFSLocksTests.swift": "ac0c011020cc84669c5f4264d728764cb9c218e5725ab7d0a927d9fde589f4f1",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "dc4a010cbd918fd5ae7c3de3a06557c128bb97a1ce6bd22aeea42c69b57001fd",
+    "docs/LFS-PARITY.md": "3b0a12a668840ee0a8edc4c56fbe5b19b60bcadb7a1ed3a2e47af2d3741e6116",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "f4202fd945f43561a814c42df06ba8f625de7312a395225d4fbc4b52b190c7a5",
+    "docs/upstream-files.csv": "4d8b57957387f493617a11db123c339927f091ba3cf376c5e3bcc55c02dca473",
+    "scripts/test-lfs-locks.py": "40844a8b429d6d8a7ec05fbe8565929d7b901f4a4da069a901b0afd292718153"
+  },
+  "verification": {
+    "core": "4 LFSLocksTests pass: CLI array parsing/empty IDs/Unicode/malformed records; real private child-command wrapper logs exact locks/lock/unlock/force argv, literal option-like/newline/tab/Unicode paths and deduplication; mixed per-file failure continues, preflight rejects invalid/folder/admin/escaping/NUL targets before LFS requests, precancel skips LFS, cancellation after first completion retains that result and never starts next file; common-dir marker reads and HEAD/raw index/working-byte preservation. Ordinary Git operations delegate to Apple Git; LFS responses are controlled local fixtures, no real helper/server.",
+    "native": "Final receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Actual native Locks window and four-column table, checked/select-all actions, original lock/unlock resources, injected per-file mixed responses, refreshed remaining IDs, captured original force retry targets, actual attached AppKit result sheet, application Quit refusal while sheet/request active, busy/confirmation/close guards, failed refresh clears rows, live per-file callback observed while busy, cancellation retains completed results. Real private fixture HEAD/raw index/working contents unchanged. Server replies/operations injected; no real LFS helper/provider or physical input proof.",
+    "builds": "Final Debug and sequential unsigned AppStore builds and current bundle audits pass. Embedded Git runtime, all 99 original icon assets, NOTICE equality and seven-field/3277-record LF inventory/pin/diff checks pass. New Core/Mac files included in regenerated Xcode project; production sources/NOTICE/tests/receivers frozen during compiler/Core/native handles.",
+    "site": "GitHub Pages generator includes LFS parity guide and new QA link; local site result/hash recorded."
+  },
+  "iterations": [
+    "Initial three command tests passed. Adding streaming progress required marking the injected callback escaping; intermediate compiler failure retained, corrected four-case Core tests pass.",
+    "First native run timed out waiting for an attached progress sheet. Diagnostic run showed root attachedSheet nil and a separate unowned SwiftUI progress window. Replaced implicit SwiftUI presentation with a controller-owned AppKit beginSheet/endSheet child window, guarded model visibility during Close/Quit, and retained the actual sheet-ownership assertion. Final four-engine native workflow passes."
+  ],
+  "limitations": [
+    "Git LFS is explicitly excluded by the existing packaged runtime; helper source pin/licenses/universal build/bundle audit and signed sandbox execution remain required before App Store LFS delivery.",
+    "Development/external command fixture coverage does not prove real helper/server/authenticated lock ownership or provider failure semantics. No remote contacted by these tests.",
+    "Commit/Working Tree LFS columns/context menus, Finder routing, source availability gates, tri-state select-all, shared column settings and complete lock progress/post-Pull actions remain incomplete.",
+    "Physical input, fresh light/dark screenshots, accessibility, signed Finder deployment, App Store eligibility, external GitHub CI/push and whole-app parity remain unverified/incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "fixture_search_roots": [
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T",
+      "/tmp"
+    ],
+    "preferences": "No standard preference writes or private preference suites introduced; DialogGeometry store left unset in native receiver."
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-locks-2026-10-08/core-callback-final.log": "e3e6d6afd5c6d5232e128f46d427325689bf3796935f096ddf430b46e9738acb",
+    "build/qa/lfs-locks-2026-10-08/core-final.log": "05ce122b36755f83d2fbed6c8ff8f07fe6b073a584d04947332d81c2cc87a71b",
+    "build/qa/lfs-locks-2026-10-08/core-owner-final.log": "379688524a1c15105e231114a811fee8470f7db46851444153c9a7fcb1e2edfb",
+    "build/qa/lfs-locks-2026-10-08/core.log": "cca825d65d23c4a52c5628a9a8d8d2461792e34945a6eb699425cb657e2f5946",
+    "build/qa/lfs-locks-2026-10-08/debug-audit-owner-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-locks-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-locks-2026-10-08/debug-owner-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-locks-2026-10-08/debug.log": "4c725e8696cac4740e1a3c12adba6a177551ecb1e4f1e1c41bd6c58129de3cee",
+    "build/qa/lfs-locks-2026-10-08/native-diagnostic.log": "9c382a6565b06042e8b067b7afa9ed739ad8611cb6ec5644983b41dcbba7c77c",
+    "build/qa/lfs-locks-2026-10-08/native-owner-final.log": "09f3095150f51bd29f9e0390fdc0cb58d45ae479c1f5d0bd26725dd5263547fa",
+    "build/qa/lfs-locks-2026-10-08/native.log": "44ffd4f5a3f3aeb932d1d959e629b98ce4569e3ba6ac8f577e3ec6e54de990e7",
+    "build/qa/lfs-locks-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-locks-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/lfs-locks-2026-10-08/store-audit.log": "c760ff4763f156e92fefd77049a3a405cd056e1834de60679fb6b388e97ef7a9",
+    "build/qa/lfs-locks-2026-10-08/store.log": "7ab92001e3bd407d51b05c9bb9062ab26b30a906ef2b529a30e47c3a6a210b71",
+    "build/qa/lfs-locks-2026-10-08/xcodegen.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566"
+  }
+}

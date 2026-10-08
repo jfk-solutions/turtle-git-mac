@@ -1,0 +1,64 @@
+# Git LFS locking parity
+
+TurtleGit has a native **LFS Locks…** command in its app menu for the current
+working repository. It opens a resizable list with checkboxes, Path, Extension
+and LFS Lock owner columns. Select/deselect all, Force, Unlock, Cancel, Help and
+Refresh/F5 follow the upstream Locks dialog's main workflow. Highlighting and
+checked targets are separate. Sorting the list retains checked lock IDs.
+
+Unlock opens an owned AppKit progress sheet with per-file paths, results and output.
+The controller explicitly attaches and closes its child window; SwiftUI renders
+the sheet contents.
+Individual failures do not prevent subsequent files from being processed. A
+failed unlock offers Force unlock with the captured original target paths,
+matching the upstream post-action. Successful completion refreshes the lock
+list. A refresh failure clears stale rows and retains the operation results.
+Force is explicit; it is never enabled automatically after failure.
+
+Busy and Quit confirmation block target/force changes and duplicate actions.
+Closing a busy window requests cancellation and waits for completion; app Quit
+is refused while a request or result sheet is active. Cancellation retains
+completed results and does not imply that remote changes were rolled back.
+
+The repository actor uses literal argument arrays for `git lfs locks --json`,
+`git lfs lock -- <path>` and `git lfs unlock [--force] -- <path>`. Every batch
+target is checked before the first LFS request; folders, escaping paths and
+repository administration paths are rejected. Individual command errors are
+returned with the corresponding file. Query parsing expects the CLI's JSON
+array, skips empty IDs and reports malformed records rather than interpreting
+the HTTP API envelope as CLI output. The common Git administration directory
+is used for the local LFS marker, including linked worktrees.
+
+Command semantics were checked against the official
+[locks](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-locks.adoc),
+[lock](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-lock.adoc) and
+[unlock](https://github.com/git-lfs/git-lfs/blob/main/docs/man/git-lfs-unlock.adoc)
+documentation. Port mapping uses pinned TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`:
+TGitPath.cpp, LFSLocksDlg.cpp/.h, Commands/LFSCommands.cpp/.h and
+ProgressCommands/LFSSetLockedProgressCommand.cpp/.h. Original lock/unlock
+artwork is reused; native owned sheets replace Windows modal progress.
+
+## Verification and remaining work
+
+[LFS QA record](qa/lfs-locks-2026-10-08.json) records private Core command fixtures,
+native window/table/sheet checks and build results. Core fixtures launch a
+private command wrapper that logs exact arguments and delegates ordinary Git
+commands to real Git. The wrapper supplies LFS responses; no server is
+contacted. Native workflow checks inject server replies and mixed results,
+verify force retry, cancellation, owner and operation guards, and preserve real
+repository HEAD/index/working contents. They do not verify a real Git LFS
+helper, authenticated remote or physical input.
+
+The packaged Git engine currently **excludes Git LFS**. Helper packaging,
+licenses/source pins, universal binary auditing and signed sandbox execution
+must be added before the App Store build can deliver this feature. Development
+execution uses Git's normal external-command lookup; missing helpers surface a
+command error. There is no App Store fallback to an external Git engine.
+
+Commit/Working Tree LFS columns and context actions, Finder routing, source
+availability gates, tri-state select-all, full shared column settings and
+locking progress/post-Pull actions remain incomplete. The native list adds an
+explicit Refresh button alongside F5. Physical keyboard/menu/pointer behavior,
+light/dark appearance, accessibility, fresh real screenshots, signed Finder
+deployment and provider acceptance remain pending. This is partial LFS parity
+and does not establish whole-application or App Store readiness.

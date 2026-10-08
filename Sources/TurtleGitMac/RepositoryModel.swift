@@ -47,6 +47,7 @@ import TurtleGitCore
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
     private var addWindows: [String: AddWindowController] = [:]
     private var addUnifiedWindows: [String: PatchWindowController] = [:]
+    private var lfsLocksWindows: [String: LFSLocksWindowController] = [:]
     private var addProgressWindows: [UUID: AddProgressWindowController] = [:]
     private var cleanWindows: [String: CleanWindowController] = [:]
     private var cleanProgressWindows: [UUID: CleanProgressWindowController] = [:]
@@ -649,6 +650,16 @@ import TurtleGitCore
             } catch { self.error = error.localizedDescription }
         }
     }
+    func showLFSLocks() {
+        guard !busy, !confirmingQuit, !bare, let repository else { return }
+        let key = repository.root.path
+        if let existing = lfsLocksWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        let controller = LFSLocksWindowController(repository: repository, access: activeAccess)
+        controller.onClosed = { [weak self] in self?.lfsLocksWindows.removeValue(forKey: key) }
+        lfsLocksWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        Task { await controller.model.refresh() }
+    }
+
     private func showAddProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], mode: WorkingFileAddMode = .normal) {
         let id = UUID(), controller = AddProgressWindowController(repository: repository, access: access, paths: paths, mode: mode)
         controller.onClosed = { [weak self] in self?.addProgressWindows.removeValue(forKey: id) }
