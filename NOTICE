@@ -489,3 +489,7 @@ selection eligibility and the source's older-to-newer comparison direction.
 RefLog forward, reverse and symmetric-difference Log ranges follow
 GitLogListBase.cpp and GitLogListAction.cpp at the recorded pin. Native history
 range endpoints are validated as commit objects before Git walks the range.
+
+RefLog unified diffs use GitLogListBase.cpp/GitLogListAction.cpp's merge-parent
+menu choices and Git.cpp's diff-tree/stat modes at the recorded pin, preserving
+raw patch bytes through the shared native/external unified-diff viewer.

@@ -151,6 +151,7 @@
 		DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CFEE049A0098A0212AD01DA /* ResetWindow.swift */; };
 		DD16EA85352150A590AED3FB /* LICENSE in Resources */ = {isa = PBXBuildFile; fileRef = 152D20910797F40A39CBF1A8 /* LICENSE */; };
 		DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */ = {isa = PBXBuildFile; fileRef = F925723BED85497207863D60 /* SubmoduleConflict.swift */; };
+		DF224DF655B4A741AE3BDC97 /* ReferenceLogDiff.swift in Sources */ = {isa = PBXBuildFile; fileRef = 553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */; };
 		E046B347B367E63019422195 /* WorkingTree.swift in Sources */ = {isa = PBXBuildFile; fileRef = B20E461B2D9629D0293A80EB /* WorkingTree.swift */; };
 		E08926979B3B614AFB769298 /* CommitMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B4940FBDB475FC25EC9B3EC /* CommitMessageEditor.swift */; };
 		E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */; };
@@ -291,6 +292,7 @@
 		515FF59B2CF163D9481D39B5 /* CommitSelection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitSelection.swift; sourceTree = "<group>"; };
 		5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeSourceComparison.swift; sourceTree = "<group>"; };
 		548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffPrintMargins.swift; sourceTree = "<group>"; };
+		553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogDiff.swift; sourceTree = "<group>"; };
 		58A976676E04B6BC290F5465 /* LogGravatar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogGravatar.swift; sourceTree = "<group>"; };
 		58AC22A1002BEBAD67A07B33 /* AlternativeEditorSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlternativeEditorSettings.swift; sourceTree = "<group>"; };
 		593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RepositoryInitialization.swift; sourceTree = "<group>"; };
@@ -577,6 +579,7 @@
 				0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */,
 				244AD68D8412684F520E64AC /* ReferenceCreation.swift */,
 				62406E495663E4FBABB4E1A6 /* ReferenceLog.swift */,
+				553B03B8CB0E867E812A6B53 /* ReferenceLogDiff.swift */,
 				AA5AD057FE8CA1C91988DA6E /* Removal.swift */,
 				BA121F2E317F86B146016B4E /* Rename.swift */,
 				B0144901E0020C531A5D86FB /* RepositoryAccess.swift */,
@@ -869,6 +872,7 @@
 				D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */,
 				1EE5D062EF745705C82D9271 /* ReferenceCreation.swift in Sources */,
 				0963B328CDA08FFD1416E9A3 /* ReferenceLog.swift in Sources */,
+				DF224DF655B4A741AE3BDC97 /* ReferenceLogDiff.swift in Sources */,
 				A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */,
 				B5EF4E8582D92A364C726BD5 /* Rename.swift in Sources */,
 				199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */,

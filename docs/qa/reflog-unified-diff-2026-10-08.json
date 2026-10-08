@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "0524e5300c2ef398a1ae5c2181d56c8f271f6ae8",
+  "scope": "Replace RefLog plaintext inspection with shared raw-byte unified viewer, source merge-parent/all/combined/extra choices, two-revision modes and owned viewer guards. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/TortoiseProc/AppUtils.h": "fe216a6b0e61cd777fe432d18ea810891e994b44",
+    "src/Resources/TortoiseLoglistCommon.rc2": "a174ae27ca959c289076127e729f58ba37bd2fd6"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "31d2a5b21d9fde08bdf4f61c22a11c1839776ef72c766d5fbfd7a95cdd34a30d",
+    "NOTICE": "e800161ba805ba53901e9208929285e987b1f5bf3b7eea06b599ec59effd1d6c",
+    "Sources/TurtleGitCore/ReferenceLogDiff.swift": "02e39e5410ac76072c1e53367a3622ac2555018685a272cc0690071badcfafd6",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "188bffd6e41108d9fe31b5807ddccd5e69132f433254566cd4a9b9eee8f7bef0",
+    "Tests/TurtleGitCoreTests/ReferenceLogDiffTests.swift": "b6e2a20b248d8f43efaa3b6850f4c1e05041fa8196c9199257364259b738d7b7",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "84ccc8a21b8b8a3425ebe2d9476f9a64eecb14d14b6f493be1aae7d5a21f8516",
+    "docs/REFLOG-PARITY.md": "2add7909aa8b4f11c126d85b35db9aa1c53bc091e7a16b4b48bb1bd27d9edb58",
+    "docs/qa/reflog-unified-diff-native-2026-10-08.swift": "7edf607920e4dc86982aea1ee7dfb14f458741e05091bb6a5802079e6d89dcbb",
+    "docs/upstream-files.csv": "da5cd9468acbaf668d87c9b9a207dc53499ce621bc6bc75c9a756fb7a015e7ea",
+    "scripts/test-reflog-unified-diff.py": "c673ad42d3324c02bc114b92f6611ad0b6fa4f367cb974e08603224beb1b5616"
+  },
+  "all_sources_manifest_sha256": "9dc0365cfeefbd7f2c66cdf4944974a79e8c8ecbd4bd9b0ffe3d6538e8bb91a1",
+  "verification": {
+    "core": "14 ReferenceLogDiffTests, ReferenceLogTests and UnifiedDiffViewerTests passed. New actual resolved merge checks parent subjects/order and parent/all/combined/extra patch semantics, pair/equal endpoint output, root/invalid parent and option rejection, unchanged HEAD/refs/index/config/worktree. Final Core unchanged after suite; last native-only refinement preserves extra-changes default viewer under Shift.",
+    "native": "System Git, Git 2.37.1, 2.39.5 and bundled 2.55.0 passed against final Sources. All merge diff modes and original parent labels dispatch exact Core bytes including non-UTF8; actual read-only Patch model export retains original bytes. Parent Shift alternate and extra-changes default viewer exception checked. Two-entry base/destination and duplicate equal hashes preserved. Root/invalid/multi/busy/invalidation gates and metadata refresh retention verified. Clean non-overlapping merge reports No extra changes after merge with no viewer callback. HEAD/refs/index/config/worktree byte-exact unchanged by reads. Receiver intercepts viewer callback and displays no viewer/external app.",
+    "regression": "Modeless Find receiver passed all four Git versions, including hidden owning window lifecycle, close/reopen and parent cleanup, direct constructed F3/F5 inputs, searching and byte-exact preservation against final Sources. No application events sent.",
+    "iterations": "Initial Debug and Core suite passed. Source review found extra-changes StartUnifiedDiffViewer omits Shift; added that exception and rebuilt Debug before native runs. Final native matrices and Store build passed. No failed build or test iteration; initial Debug log retained.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed. Xcode project regenerated to include new Core source; four project entries added.",
+    "documentation": "RefLog parity, NOTICE and pinned source inventory updated with new Core mapping and current inspection behavior. Pin and all 3277 seven-column rows validated. Local site generated; unpublished.",
+    "ci": "Unified-diff receiver added to macOS workflow. Hosted CI and push unavailable/unverified; no authentication retry.",
+    "processes": "All build/compiler/Core/native/audit sessions terminal. No main GUI launch or visible viewer. Find regression only uses hidden owned windows and closes them. Final app/native receiver process audit empty. Unified receiver creates no windows or preference domains; Patch model only. No general clipboard or external app use.",
+    "limitations": "Actual context menu/parent label/icon rendering, visible metadata loading, viewer ownership/close blocking, external application launch/bookmark access, Save As/print gestures, light/dark layouts, bare unified invocation gates and signed sandbox access remain unverified. Broader octopus/encoding, missing objects and complete revision/ref menus remain pending. Full dialog/Finder parity, genuine updated screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-unified-diff/core.log": "2124de104858ebeb32a7cabdb5fdca71773e75d15681a6a00294b994d95fb852",
+    "build/qa/reflog-unified-diff/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-unified-diff/debug-before-extra-shift.log": "a9efa7ed11ad4dcc3f8cce45c98b68fa8ce8d5c369e6f841d69c73c92f8133ed",
+    "build/qa/reflog-unified-diff/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-unified-diff/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-unified-diff/native.log": "5891d57ed33a1e45273498e49b9c190f3d055eb31805f9b3731f3b08f40e9a59",
+    "build/qa/reflog-unified-diff/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-unified-diff/search-regression.log": "bb43be836614074d56fd52a9bd466622b61a7327764bbee4c716a37067461ad1",
+    "build/qa/reflog-unified-diff/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-unified-diff/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-unified-diff/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-unified-diff/store.log": "a8f6bc2d3ea4c416fadaacd897ed8dec7ece2d432a429e26a8f7b1c32da55293"
+  }
+}

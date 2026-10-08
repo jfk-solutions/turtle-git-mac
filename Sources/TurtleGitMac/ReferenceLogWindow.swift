@@ -18,6 +18,7 @@ import TurtleGitCore
         window.setContentSize(NSSize(width: 1000, height: 530)); window.center()
         model.close = { [weak self] in
             guard let self else { return }
+            guard !self.model.busy, !self.model.unifiedViewerBusy, self.window?.attachedSheet == nil else { return }
             if self.model.selecting { self.finishSelection(nil) } else { self.window?.close() }
         }
         model.onChoose = { [weak self] entry in self?.finishSelection(entry) }
@@ -65,16 +66,19 @@ import TurtleGitCore
         if visible { finder.showWindow(nil); finder.window?.makeKeyAndOrderFront(nil) }
     }
     private func finishSelection(_ entry: ReferenceLogEntry?) {
+        guard !model.unifiedViewerBusy else { return }
         guard let completion = selectionCompletion else { return }; selectionCompletion = nil
         if let window { window.sheetParent?.endSheet(window); window.close() }
         completion(entry)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.busy else { return false }
+        guard !model.busy, !model.unifiedViewerBusy, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
         findController?.close(); findController = nil
+        model.invalidate()
+        model.unifiedWindow?.close(); model.unifiedWindow = nil
         let completion = selectionCompletion; selectionCompletion = nil; completion?(nil); onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -91,7 +95,13 @@ import TurtleGitCore
     }
     @Published var busy = false
     @Published var error: String?
-    @Published var patch: String?
+    @Published var information: String?
+    @Published private(set) var diffParents: [String: [LogParentChoice]] = [:]
+    private var requestedDiffParents = Set<String>()
+    private var invalidated = false
+    var unifiedWindow: PatchWindowController?
+    var unifiedViewerBusy: Bool { unifiedWindow?.model.busy == true || unifiedWindow?.model.confirmingQuit == true || unifiedWindow?.window?.attachedSheet != nil }
+    var onUnifiedDiff: ((Data, Bool) async throws -> Void)?
     @Published private(set) var deletionReport: String?
     var presentDeletionFailure: (@Sendable (ReferenceLogDeleteIssue) async -> Void)?
     var openFind: () -> Void = {}
@@ -121,7 +131,9 @@ import TurtleGitCore
         self.selecting = selecting; self.repository = repository; self.access = access; self.reference = reference; names = [reference]
     }
     func reload() {
+        guard !invalidated else { return }
         generation += 1; let request = generation, reference = reference; busy = true
+        requestedDiffParents = Set(diffParents.keys)
         Task {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -140,6 +152,7 @@ import TurtleGitCore
                 currentStashHash = stashHash; currentStashIndexParent = indexParent
                 hasWorkingTree = !bare
                 names = Array(Set(refs + [reference])).sorted(); entries = result
+                let hashes = Set(result.map(\.hash)); diffParents = diffParents.filter { hashes.contains($0.key) }
                 selection.formIntersection(Set(result.map(\.id))); searchIndex = 0; searchWrapped = false; busy = false
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
         }
@@ -289,11 +302,54 @@ import TurtleGitCore
         guard let text = clipboardText(ids, format: format) else { return }
         pasteboard.clearContents(); pasteboard.setString(text, forType: .string)
     }
-    func inspect(_ ids: Set<String>) {
-        guard ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
+    func invalidate() { invalidated = true; generation += 1 }
+    func requestDiffParents(_ entry: ReferenceLogEntry) {
+        guard !invalidated, entries.contains(where: { $0.id == entry.id && $0.hash == entry.hash }), requestedDiffParents.insert(entry.hash).inserted else { return }
+        let request = generation
         Task {
-            do { patch = try await repository.run(["show", "--first-parent", "--format=fuller", "--no-ext-diff", "--no-color", entry.hash, "--"]).text }
-            catch { self.error = error.localizedDescription }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let parents = try await repository.referenceLogDiffParents(entry.hash)
+                guard !invalidated, request == generation else { return }
+                diffParents[entry.hash] = parents
+            } catch { if !invalidated, request == generation { diffParents[entry.hash] = [] } }
+        }
+    }
+    func canInspect(_ ids: Set<String>, mode: ReferenceLogDiffMode = .parent(1)) -> Bool {
+        guard !invalidated, !busy, !unifiedViewerBusy, hasWorkingTree, (1...2).contains(ids.count) else { return false }
+        let chosen = entries.filter { ids.contains($0.id) }
+        guard chosen.count == ids.count else { return false }
+        if chosen.count == 2 { return mode == .parent(1) }
+        guard let parents = diffParents[chosen[0].hash] else { return false }
+        switch mode {
+        case .parent(let number): return number > 0 && number <= parents.count
+        case .allParents, .onlyMergedFiles, .extraChanges: return parents.count > 1
+        }
+    }
+    func inspect(_ ids: Set<String>, mode: ReferenceLogDiffMode = .parent(1), alternate: Bool = false) {
+        guard canInspect(ids, mode: mode) else { return }
+        let chosen = entries.filter { ids.contains($0.id) }, request = generation
+        busy = true; information = nil
+        Task {
+            defer { if request == generation { busy = false }; withExtendedLifetime(access) {} }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let bytes: Data
+                if chosen.count == 2 { bytes = try await repository.referenceLogUnifiedDiff(from: chosen[1].hash, to: chosen[0].hash) }
+                else {
+                    let result = try await repository.referenceLogUnifiedDiff(chosen[0].hash, mode: mode)
+                    guard !invalidated, request == generation else { return }
+                    if result.noExtraChanges { information = "No extra changes after merge"; return }
+                    bytes = result.bytes
+                }
+                guard !invalidated, request == generation else { return }
+                let viewerAlternate = chosen.count == 1 && mode == .extraChanges ? false : alternate
+                if let onUnifiedDiff { try await onUnifiedDiff(bytes, viewerAlternate) }
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: viewerAlternate) {
+                    guard !invalidated, request == generation else { return }
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected RefLog changes", onClosed: { [weak self] in self?.unifiedWindow = nil })
+                }
+            } catch { if !invalidated, request == generation { self.error = error.localizedDescription } }
         }
     }
 }
@@ -333,7 +389,7 @@ private struct ReferenceLogDialog: View {
         VStack(spacing: 12) {
             HStack { Text("Ref:"); ReferenceLogPicker(names: model.names, selection: $model.reference).frame(maxWidth: .infinity).frame(height: 26) }
             Table(model.entries, selection: $model.selection) {
-                TableColumn("Hash") { entry in Text(entry.hash).font(.system(.body, design: .monospaced)).help(entry.hash) }.width(min: 90, ideal: 120)
+                TableColumn("Hash") { entry in Text(entry.hash).font(.system(.body, design: .monospaced)).help(entry.hash).onAppear { model.requestDiffParents(entry) }.onChange(of: entry.hash) { _ in model.requestDiffParents(entry) } }.width(min: 90, ideal: 120)
                 TableColumn("Ref", value: \.selector).width(min: 100, ideal: 145)
                 TableColumn("Action", value: \.action).width(min: 80, ideal: 100)
                 TableColumn("Message") { entry in Text(entry.message).help(entry.subject) }.width(min: 160, ideal: 360)
@@ -342,7 +398,20 @@ private struct ReferenceLogDialog: View {
                 TurtleGitContextMenu {
                     if ids.count == 1 {
                         Button { model.compare(.workingTree, ids: ids) } label: { CommandLabel(title: ReferenceLogComparisonCommand.workingTree.title, icon: .compare) }.disabled(!model.canCompare(.workingTree, ids: ids))
-                        Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }
+                        if let entry = model.entries.first(where: { ids.contains($0.id) }), let parents = model.diffParents[entry.hash], model.hasWorkingTree {
+                            if parents.count > 1 {
+                                Menu {
+                                    Button("All Parents") { model.inspect(ids, mode: .allParents, alternate: NSEvent.modifierFlags.contains(.shift)) }
+                                    Button("Only Merged Files") { model.inspect(ids, mode: .onlyMergedFiles, alternate: NSEvent.modifierFlags.contains(.shift)) }
+                                    Button("Show extra changes after merge") { model.inspect(ids, mode: .extraChanges, alternate: NSEvent.modifierFlags.contains(.shift)) }
+                                    ForEach(parents, id: \.number) { parent in
+                                        Button { model.inspect(ids, mode: .parent(parent.number), alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: parent.title, icon: .unifiedDiff) }
+                                    }
+                                } label: { CommandLabel(title: "Unified diff with", icon: .unifiedDiff) }.disabled(model.unifiedViewerBusy)
+                            } else if parents.count == 1 {
+                                Button { model.inspect(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(!model.canInspect(ids))
+                            }
+                        }
                         Divider()
                     }
                     Button { model.showLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.count != 1 || model.onLog == nil)
@@ -357,6 +426,9 @@ private struct ReferenceLogDialog: View {
                     Divider()
                     if ids.count >= 2 {
                         Button { model.compare(.revisions, ids: ids) } label: { CommandLabel(title: ReferenceLogComparisonCommand.revisions.title, icon: .compare) }.disabled(!model.canCompare(.revisions, ids: ids))
+                        if ids.count == 2 && model.hasWorkingTree {
+                            Button { model.inspect(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(!model.canInspect(ids))
+                        }
                         if ids.count == 2 {
                             ForEach(ReferenceLogRangeCommand.allCases, id: \.self) { command in
                                 if let range = model.logRange(command, ids: ids) {
@@ -386,10 +458,7 @@ private struct ReferenceLogDialog: View {
             }
         }.padding(12).disabled(model.busy)
         .onChange(of: model.reference) { _ in model.selection = []; model.reload() }
-        .sheet(isPresented: Binding(get: { model.patch != nil }, set: { if !$0 { model.patch = nil } })) {
-            VStack { OutputView(text: model.patch ?? ""); HStack { Spacer(); Button("Close") { model.patch = nil }.keyboardShortcut(.cancelAction) }.padding(12) }.frame(width: 900, height: 600)
-        }
-        .alert("RefLog", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+        .alert("RefLog", isPresented: Binding(get: { model.error != nil || model.information != nil }, set: { if !$0 { model.error = nil; model.information = nil } })) { Button("OK") { model.error = nil; model.information = nil } } message: { Text(model.error ?? model.information ?? "") }
     }
 }
 

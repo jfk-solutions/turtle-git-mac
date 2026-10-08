@@ -24,8 +24,8 @@ Stash context menus provide Show log, selected Apply, Delete, unified-diff
 inspection and Copy to clipboard using the original icons. Delete also applies
 to HEAD and ordinary full-reference logs. Selected Apply passes the displayed commit
 hash to the native restore controller, preventing a later stash-index change from
-redirecting that selection. Inspection uses the first-parent diff and full commit
-metadata. General reflog entries also offer Browse repository, Create Branch/Tag and
+redirecting that selection. Unified inspection now uses the shared read-only
+diff viewer and source parent/two-revision choices, as recorded below. General reflog entries also offer Browse repository, Create Branch/Tag and
 Export at the selected revision, plus the three two-entry Log ranges. These use the original command icons and the
 existing native dialogs; other revision actions remain pending.
 
@@ -277,8 +277,8 @@ larger selections, busy models and absent callbacks do not dispatch.
 
 Comparison controls precede single-revision Log/Browser commands; multi-revision
 Compare follows Delete/Apply before clipboard commands. The existing unified-diff
-inspection action now precedes Log. Full upstream context menus/order, merge-parent
-unified diffs and two-revision unified commands remain pending. Read-only
+inspection action now precedes Log. Full upstream context menus/order remain pending; merge-parent and two-revision
+unified actions are now recorded below. Read-only
 revision choosers may compare when their caller supplies a callback; current
 choosers without it leave the command disabled.
 
@@ -329,3 +329,40 @@ range precedence and rejection of invalid/option/range-expression endpoints.
 No windows are displayed. Rendered labels/icons, physical activation/reuse,
 broader merge-base topologies, range-specific follow-renames, signed sandbox
 execution and complete RefLog/dialog/application parity remain pending.
+
+## Shared unified-diff viewer and merge choices
+
+The legacy metadata/plain-text patch sheet has been replaced by the shared native
+read-only unified-diff viewer. It retains raw Git bytes for Save As, line colors,
+Find/zoom/print behavior and the existing external-viewer preference. Ordinary
+parent and two-entry actions pass Shift to the preference's alternate choice.
+The source's extra-changes action always uses its default viewer choice.
+
+One-parent entries offer Show changes as unified diff. Merge entries offer
+**Unified diff with**: All Parents, Only Merged Files, Show extra changes after
+merge, then each numbered parent with its subject/hash label. These use the
+source's `diff-tree -r -p --stat` parent, `-m`, `-c` and separate `--cc` modes.
+Extra changes with no second output line report No extra changes after merge
+without opening a viewer. Root commits have no parent action, and bare repositories
+hide the source's unified actions. Exactly two rows compare last selected to first
+selected; equal hashes yield an empty viewer. Larger or stale selections cannot
+run the action.
+
+Parent metadata loads for visible immutable revisions and remains cached across
+refreshes while those hashes stay in the list. Diff work is guarded by snapshot
+generation, current selectors, repository access, busy state and owned viewer
+activity. RefLog close is blocked during viewer work or a viewer sheet; closing
+an idle owner closes its owned Find and unified viewer. Actual viewer ownership
+and menu/key activation remain physical acceptance work.
+
+[Unified receiver](qa/reflog-unified-diff-native-2026-10-08.swift) and
+[QA record](qa/reflog-unified-diff-2026-10-08.json) cover all parent modes, source
+Shift exception, two-entry direction/equal hashes, original non-UTF-8 byte handoff
+and read-only Patch model export, clean-merge message, metadata refresh retention,
+invalid/busy/root/invalidation guards and unchanged HEAD/refs/index/config/worktree.
+The receiver intercepts viewer dispatch; it displays no viewer or external app.
+Core tests cover actual merge diffs and parent validation, and existing hidden Find
+ownership tests cover the RefLog close path. Physical light/dark viewer rendering,
+external launch, Save As/print, parent menus, owned viewer lifecycle, bare/signed
+invocation and broader octopus/encoding cases remain pending. Full RefLog/dialog/
+application parity remains incomplete.
