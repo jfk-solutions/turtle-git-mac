@@ -131,3 +131,40 @@ pending. Existing screenshots show the options, not the new progress sheet.
 
 Stash Apply/Pop now checks the retained security-scope lease before mutation in
 App Store builds. Signed invocation/permission acceptance remains pending.
+
+## Apply/Pop result model and remembered answers
+
+The native controller now owns a separate testable result model. It retains the
+selected Apply reference and repository lease, executes only once, refreshes
+repository views after either Git outcome, and releases its result before the
+Working Tree handoff. An answer callback can persist/open/close only once;
+callbacks after invalidation cannot write preferences or open another window.
+
+Default Pop success/conflict questions use independent native Bool preferences
+StashPop.ShowChanges and StashPop.ShowConflictChanges. A remembered Yes or No
+from fresh preferences skips that question after the actual operation. Apply
+always asks and never offers suppression, including when Pop answers are saved.
+Normal command errors acknowledge an error sheet without a status handoff or
+preference write. Conflict output is still verified against actual unmerged
+entries by Core; conflict Pop retains the stash.
+
+The controller/model also accept the source showChanges modes: Pop 0 is silent
+on clean success but asks on conflict; Pop >1 shows an OK notice; Apply 0 shows
+an OK notice and nonzero asks. Existing menu/follow-up callers continue to use
+default 1. Rebase automatic-stash integration is still pending; accepting its
+mode here does not establish that caller's completion workflow. System progress
+remains non-interruptible here, as the audited source's Git Run is synchronous
+and does not consult its system-progress cancellation state. AutoCloseGitProgress
+and Retry are not applied to these source result questions.
+
+The spinner window blocks normal close and application Quit while running or
+awaiting acknowledgement, including errors. Questions explicitly default to Yes.
+Missing presentation chooses No through the model. The actual native
+sheet/default focus/closure timing, missing-window ownership and end-to-end factory handoff still require
+physical acceptance.
+
+[Apply/Pop QA](qa/stash-restore-2026-10-08.json) records four-Git actual restore/drop,
+conflict retention and selected older Apply, fresh-preference remembered answers,
+a once-only callback into the real Status model, result modes, delayed/duplicate
+guards and owned hidden-controller close/Quit guards. Existing screenshots predate
+this model refactor; no new displayed window or screenshot is claimed.

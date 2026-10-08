@@ -8,6 +8,7 @@ import AppKit
         if confirmingQuit { return .terminateLater }
         if RepositoryBrowserExportFiles.activeLoads > 0 { return .terminateCancel }
         if UnifiedDiffApplication.activeRequests > 0 { return .terminateCancel }
+        if sender.windows.compactMap({ $0.delegate as? StashRestoreWindowController }).contains(where: { $0.model.busy || $0.model.prompt != nil || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? PatchWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? LogWindowController }).contains(where: { $0.model.busy }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? StatusWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }

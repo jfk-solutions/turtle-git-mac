@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "1bd037e75d58df01d359f5ebfbda3d577bca0772",
+  "scope": "Native Stash Apply/Pop retained result model, remembered answers, source showChanges modes and close/Quit/once-handoff guards. Full application port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/Utils/MiscUI/MessageBox.cpp": "9cff2f2887d83bf5dfebf1b6a90acda2048bc42b",
+    "src/Utils/MiscUI/MessageBox.h": "e8b868ab5acf0d4bd565ccdc7c016f70c60f089b",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "aefc0e954a53ff1421ca9211e1a89f8291e4fb8d6b6f6dd40726b3c872e546b1",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "bf23ca1210c48e4965f25a50c9e3fb41eba63d9960ba8df428002350b7b9eb0f",
+    "NOTICE": "e4a94feb8f1ac911e4d27039d5ba5ae6df95543b7f4da7f40ce7db6124707ba5",
+    "README.md": "7b8ba6ba75e8aafc8ecd40496f0c54ca39980a99cdb591205fdec329ab415ee6",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "8ae0df4846c30e16e9c861b4eb08ab5a0bd4982815917910321e6b35d8fb5df7",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "241a7ce6e4772616e65b95a1f50d28ef9c4093b9fb915f19a6c37b9bf320bc06",
+    "Sources/TurtleGitMac/StashRestoreWindow.swift": "bbe5179ca568312aa0562b576a5a47b320c0817b4c8481a7ac167638b3da902b",
+    "docs/STASH-PARITY.md": "4b51cbd6e37b41b9c9b96eaafac7701c841effd4904b639ded08f87890be337a",
+    "docs/upstream-files.csv": "230dd44e1ae3fe1cff4fad51cf1301c81fdc06d820e3a6e471e2b5e5785f0ecf",
+    "scripts/test-stash-restore.py": "47ceb895685d205f34b08751b62a40518e3fd99f64dd66e550e6e49a444ff278",
+    "docs/qa/stash-restore-native-2026-10-08.swift": "90b56437e80690399752790bfc3f9c40e6845ba4ecefb97ca6d5eba77d98148a"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four-Git actual Pop restore/drop, duplicate-start prevention, once result notification, remembered success No through fresh UserDefaults, conflict retention with unchanged HEAD/stash and separate remembered conflict Yes, once close-before-real-Status-model handoff observing actual conflicted entries, selected older Apply retains newer and older stash refs/restores correct bytes, Apply asks despite saved Pop answers and does not persist suppression. Pop 0 clean silent/conflict question, Pop >1 and Apply 0 notice acknowledgement without Status, actual missing-stash error/no Status, duplicate answers ignored, invalidated late answer cannot hand off. Owned hidden native controller blocks normal close and application delegate Quit during execution and error acknowledgement, closes once after injected answer.",
+    "core": "Core unchanged; existing Core tests not repeated. Actual native receiver executes existing backend with four Git versions; not a full-suite rerun.",
+    "source_notes": "AppUtils::StashApply uses bool showChanges: false notice, true question with no suppression. StashPop int mode 1 question, 0 conflict-only question/clean silent, >1 notice. Native Bool preference keys preserve existing Mac storage; Windows ShowCheck stores button-ID DWORD, so no registry migration claimed. Default menus remain mode 1; future modes included in factory identity. Rebase automatic-stash caller integration pending. System progress remains non-interruptible; audited synchronous source Run does not consult system-progress cancellation. AutoCloseGitProgress/Retry not applied.",
+    "documentation": "3277 seven-column inventory rows verified; three source mappings retain partial status including first Show/ShowCheck header review. Stash parity, NOTICE, README and native CI step updated. Existing screenshots predate model change; no new screenshot. Site remains local/unpublished.",
+    "processes": "Debug compiler terminal before native compiler/receiver; native terminal before AppStore build. No main app or displayed windows. Native activation prohibited; owned hidden controller closed. Private UUID preferences only; four empty owned UUID preference plists removed after termination; nonempty/standard preferences untouched. Final owned app/receiver process audit empty.",
+    "limitations": "Fresh UserDefaults in one receiver proves persisted reads, not physical app relaunch. Injected answers and model Status handoff do not prove displayed NSAlert/default keyboard/focus/closure timing or actual Root factory route. Missing-window ownership, live output/cancellation, Rebase auto-stash integration, signed sandbox/Finder/App Store acceptance remain pending. Full source/dialog/application port and hosted CI/site/distribution incomplete; GitHub authorization unavailable and not retried.",
+    "builds": "Unsigned Debug and AppStore builds/bundle audits passed: embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 original icons. NOTICE byte-identical in both. Bundled Git 2.55.0 includes 11 universal Mach-O files and passed local Git fixtures."
+  },
+  "logs_sha256": {
+    "build/qa/stash-restore-native/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/stash-restore-native/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/stash-restore-native/inventory-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/stash-restore-native/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/stash-restore-native/native.log": "dd5f6bc8c562e24f1ef29d0908d9b45e4df56e0115c1136439c743acf4334457",
+    "build/qa/stash-restore-native/private-preference-cleanup.log": "ef78000ce8ab37e4ce557bec8b38e373e1a5fd6bbeaba7d3e6943e8609e4db33",
+    "build/qa/stash-restore-native/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/stash-restore-native/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/stash-restore-native/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/stash-restore-native/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/stash-restore-native/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

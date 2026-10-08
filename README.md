@@ -624,3 +624,6 @@ for verified scope and remaining physical/signed acceptance.
 
 Clean results now follow source-specific close policies and cancellation, with
 ordered original-icon actions. See [Clean parity](docs/CLEAN-PARITY.md).
+
+Stash Apply/Pop now has verified result modes, remembered Pop answers and guarded
+once-only Working Tree handoffs. See [Stash parity](docs/STASH-PARITY.md).
