@@ -181,3 +181,36 @@ VoiceOver acceptance still require physical UI checks. See
 - Signed Trash acceptance.
 - Displayed light/dark layout, original icons, keyboard/VoiceOver and signed sandbox
   acceptance. The Core checks do not establish native dialog parity.
+
+## Shared progress policy and ordered result actions
+
+The native result now presents the source-order first action and a split menu:
+Retry on failure; Move to Trash / Delete permanently after a successful dry run,
+ordered by the accepted permanent-delete preference. Original Refresh, Cleanup
+and Delete artwork supplies native action icons (the source callback itself has
+no explicit icons). The request remains captured, and each removal/Retry still
+takes a fresh accepted plan. Duplicate actions, closed results and pending
+cancellation prompts cannot submit another attempt.
+
+Dry-run and permanent-delete attempts capture AutoCloseGitProgress at construction:
+manual retains results; no-options retains successful dry runs with their two
+actions and closes permanent completion; no-errors closes either successful
+result. Failures remain open. Trash follows upstream's separate CSysProgressDlg
+path and closes on successful completion regardless of this setting; completed
+output and recoverable locations are delivered before closing. Its failure stays
+open to expose partial recovery, a native improvement over upstream's unchecked
+DeleteAllFiles result. The existing Show in Trash control is available on retained
+failed results that contain recovered items.
+
+ConfirmKillProcess applies to dry-run/permanent attempts, with native Yes/No and
+Yes default. No preserves running work; Yes cancels only the owned attempt and
+helpers. Trash keeps direct cancellation, as the source system progress path does.
+Automatic close waits for an outstanding confirmation response if execution
+finishes meanwhile. Model callbacks verify that race; displayed sheet timing and
+focus are still pending.
+
+[Policy QA](qa/clean-progress-policy-2026-10-08.json) records four-Git actual cleanup,
+Trash recovery, captured close settings, failure/Retry, cancellation and deferred
+close, plus the earlier native cleanup regression. No new screenshots or displayed
+app sessions were created for this checkpoint. Physical split-menu selection,
+keyboard/default buttons, light/dark layout and signed acceptance remain pending.

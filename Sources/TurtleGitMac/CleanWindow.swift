@@ -109,9 +109,13 @@ private struct CleanDialog: View {
     private let request: CleanDialogRequest
     private var cancellation: OperationCancellation?
     private var started = false
+    private var invalidated = false
+    private let preferences: UserDefaults
+    private let autoClosePolicy: GitProgressAutoClose
     private var lastPreviewOnly = false
     private var lastPermanent = false
     @Published var busy = false
+    @Published private(set) var confirmingCancellation = false
     @Published var cancelRequested = false
     @Published var failed = false
     @Published var previewSucceeded = false
@@ -123,15 +127,44 @@ private struct CleanDialog: View {
     var close: () -> Void = {}
     var onFinished: (String, Bool) -> Void = { _, _ in }
     var permanentFirst: Bool { request.permanently }
-    init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest) {
-        self.repository = repository; self.access = access; self.request = request
+    var canCancel: Bool { busy && !cancelRequested && !confirmingCancellation && !invalidated }
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var postActions: [CleanPostAction] {
+        if failed { return [.retry] }
+        if previewSucceeded { return permanentFirst ? [.permanent, .trash] : [.trash, .permanent] }
+        return []
     }
-    func start() { guard !started else { return }; started = true; run(previewOnly: request.dryRun, permanently: request.permanently) }
-    func retry() { guard failed else { return }; run(previewOnly: lastPreviewOnly, permanently: lastPermanent) }
-    func remove(permanently: Bool) { guard previewSucceeded else { return }; run(previewOnly: false, permanently: permanently) }
-    func cancel() { guard busy else { return }; cancelRequested = true; cancellation?.cancel(); current = "Cancelling…" }
+    func invalidate() { invalidated = true }
+    init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.request = request; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+    }
+    func start() { guard !started, !invalidated else { return }; started = true; run(previewOnly: request.dryRun, permanently: request.permanently) }
+    func retry() { guard failed, !confirmingCancellation, !invalidated else { return }; run(previewOnly: lastPreviewOnly, permanently: lastPermanent) }
+    func remove(permanently: Bool) { guard previewSucceeded, !confirmingCancellation, !invalidated else { return }; run(previewOnly: false, permanently: permanently) }
+    func perform(_ action: CleanPostAction) {
+        guard !busy, !confirmingCancellation, !invalidated, postActions.contains(action) else { return }
+        switch action { case .retry: retry(); case .trash: remove(permanently: false); case .permanent: remove(permanently: true) }
+    }
+    func cancel() {
+        guard canCancel, let token = cancellation else { return }
+        if (lastPreviewOnly || lastPermanent) && preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true
+            confirmCancellation { [weak self] accepted in
+                guard let self, self.confirmingCancellation, !self.invalidated else { return }; self.confirmingCancellation = false
+                if self.busy, self.cancellation === token, accepted { self.stop(token) }
+                self.finishAutomaticClose()
+            }
+        } else { stop(token) }
+    }
+    private func stop(_ token: OperationCancellation) { cancelRequested = true; token.cancel(); current = "Cancelling…" }
+    private func finishAutomaticClose() {
+        // Trash uses CSysProgressDlg upstream and ends on successful completion.
+        // Git progress settings apply only to dry runs and permanent removal.
+        guard !busy, !confirmingCancellation, !invalidated, !failed else { return }
+        if !lastPreviewOnly && !lastPermanent || autoClosePolicy.shouldClose(success: true, postActionCount: postActions.count) { close() }
+    }
     private func run(previewOnly: Bool, permanently: Bool) {
-        guard !busy else { return }
+        guard !busy, !confirmingCancellation, !invalidated else { return }
         lastPreviewOnly = previewOnly; lastPermanent = permanently
         busy = true; failed = false; previewSucceeded = false; cancelRequested = false; output = ""; trashedFiles = []
         completed = 0; total = 0
@@ -163,14 +196,14 @@ private struct CleanDialog: View {
                     if !trashedFiles.isEmpty { output += "\nRecoverable Trash items:\n" + trashedFiles.map(\.path).joined(separator: "\n") }
                     current = "Finished"
                 }
-                busy = false; self.cancellation = nil; onFinished(output, !previewOnly)
+                busy = false; self.cancellation = nil; onFinished(output, !previewOnly); finishAutomaticClose()
             } catch {
                 if let failure = error as? CleanBatchExecutionFailure {
                     trashedFiles = failure.completed.flatMap { $0.result.trashedFiles } + (failure.partial?.trashedFiles ?? [])
                 }
                 failed = true; current = cancelRequested || error is OperationCancellationFailure ? "Cancelled" : "Clean failed"
                 output += "\n" + error.localizedDescription
-                busy = false; self.cancellation = nil; onFinished(output, !previewOnly)
+                busy = false; self.cancellation = nil; onFinished(output, !previewOnly); finishAutomaticClose()
             }
         }
     }
@@ -179,21 +212,36 @@ private struct CleanDialog: View {
 @MainActor final class CleanProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: CleanProgressWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest) {
-        model = CleanProgressWindowModel(repository: repository, access: access, request: request)
+    init(repository: GitRepository, access: RepositoryAccessLease?, request: CleanDialogRequest, preferences: UserDefaults = .standard) {
+        model = CleanProgressWindowModel(repository: repository, access: access, request: request, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 500), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Clean Progress – TurtleGit"
         window.contentMinSize = NSSize(width: 650, height: 330); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CleanProgressDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
-        model.close = { [weak self, weak window] in if self?.model.busy == true { self?.model.cancel() } else { window?.close() } }
+        model.close = { [weak self, weak window] in
+            guard let self, !self.model.confirmingCancellation, window?.attachedSheet == nil else { return }
+            if self.model.busy { self.model.cancel() } else { window?.close() }
+        }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return true }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingCancellation && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
 }
 
-private struct CleanProgressDialog: View {
+enum CleanPostAction: String, Hashable {
+    case retry, trash, permanent
+    var title: String { switch self { case .retry: return "Retry"; case .trash: return "Move to Trash"; case .permanent: return "Delete permanently" } }
+    var icon: MenuIcon { switch self { case .retry: return .refresh; case .trash: return .clean; case .permanent: return .remove } }
+}
+
+struct CleanProgressDialog: View {
     @ObservedObject var model: CleanProgressWindowModel
     var body: some View {
         VStack(spacing: 12) {
@@ -203,15 +251,13 @@ private struct CleanProgressDialog: View {
                 Text(model.current).lineLimit(1).help(model.current).foregroundStyle(model.failed ? Color.red : Color.primary)
                 Spacer()
                 if model.total > 0 { ProgressView(value: Double(model.completed), total: Double(model.total)).frame(width: 120); Text("\(model.completed)/\(model.total)").monospacedDigit() }
-                if model.failed { Button("Retry") { model.retry() }.disabled(model.busy) }
-                if model.previewSucceeded {
-                    if model.permanentFirst { permanentButton; trashButton } else { trashButton; permanentButton }
+                if let first = model.postActions.first {
+                    Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
+                    Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Clean post-actions") }.menuStyle(.borderlessButton).fixedSize()
                 }
                 if !model.trashedFiles.isEmpty { Button("Show in Trash") { NSWorkspace.shared.activateFileViewerSelecting(model.trashedFiles) } }
-                Button(model.busy ? "Cancel" : "Close") { model.close() }.keyboardShortcut(.cancelAction)
-            }
+                Button(model.busy ? model.cancelRequested ? "Cancelling…" : "Cancel" : "Close") { model.close() }.keyboardShortcut(.cancelAction).disabled(model.busy && !model.canCancel)
+            }.disabled(model.confirmingCancellation)
         }.padding(12)
     }
-    private var trashButton: some View { Button("Move to Trash") { model.remove(permanently: false) } }
-    private var permanentButton: some View { Button("Delete permanently") { model.remove(permanently: true) } }
 }

@@ -568,3 +568,6 @@ transport, preserving visible completed mutations without reporting success.
 
 Reset progress adapts CAppUtils::Reset and ProgressDlg.cpp with ordered Retry,
 Submodule/Bisect/Clean actions, retained results, cancellation and close policies.
+
+Clean progress adapts CleanupCommand.cpp and ProgressDlg.cpp with captured close
+policies, ordered native icon actions and branch-specific cancellation confirmation.

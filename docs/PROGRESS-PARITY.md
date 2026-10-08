@@ -10,7 +10,7 @@ three choices: Close manually (0), Auto-close if no further options are availabl
 Absent/invalid values use manual close; reading an invalid value does not rewrite
 it. Settings save immediately on macOS rather than waiting for Windows Apply.
 
-Native Commit, Push, Fetch, merge Pull, Merge, Reset, Abort Merge, Stash Save and express Switch
+Native Commit, Push, Fetch, merge Pull, Merge, Reset, Clean dry-run/permanent deletion, Abort Merge, Stash Save and express Switch
 progress now apply this policy after success and after building their post-actions.
 Mode 1 retains a result that offers actions. Mode 2 closes successful results even
 when they offer actions, without selecting any of them. Failures remain open in
@@ -41,3 +41,5 @@ Existing screenshots predate this setting and policy behavior.
 [Push progress QA](qa/push-progress-2026-10-08.json) records its separate result and close policies.
 
 [Reset progress QA](qa/reset-progress-2026-10-08.json) records mode/action-dependent close policies and Retry.
+
+[Clean progress QA](qa/clean-progress-policy-2026-10-08.json) records ordered actions, branch-specific cancellation and Trash completion.

@@ -56,7 +56,7 @@ import TurtleGitCore
         precondition(CleanWindowModel(repository: repo, defaults: defaults).permanently)
         try Data("ignored\n".utf8).write(to: root.appendingPathComponent("ignored"))
         let previewRequest = CleanDialogRequest(options: CleanOptions(type: .nonIgnored), paths: ["folder"], dryRun: true, submodules: false, permanently: false)
-        let progress = CleanProgressWindowController(repository: repo, access: nil, request: previewRequest)
+        let progress = CleanProgressWindowController(repository: repo, access: nil, request: previewRequest, preferences: defaults)
         defer { progress.close() }
         progress.model.start(); try await wait(progress.model)
         precondition(progress.model.previewSucceeded && !progress.model.failed && FileManager.default.fileExists(atPath: folder.appendingPathComponent("new").path))
@@ -75,7 +75,7 @@ import TurtleGitCore
         let lock = root.appendingPathComponent(".git/index.lock")
         try Data("owned by another operation".utf8).write(to: lock)
         let execute = CleanDialogRequest(options: CleanOptions(type: .nonIgnored), paths: ["folder"], dryRun: false, submodules: false, permanently: true)
-        let retry = CleanProgressWindowModel(repository: repo, access: nil, request: execute)
+        let retry = CleanProgressWindowModel(repository: repo, access: nil, request: execute, preferences: defaults)
         retry.start(); try await wait(retry)
         precondition(retry.completed == 0 && retry.total == 1)
         precondition(retry.failed && FileManager.default.fileExists(atPath: folder.appendingPathComponent("retry").path))
@@ -85,13 +85,13 @@ import TurtleGitCore
         precondition(!retry.failed && !FileManager.default.fileExists(atPath: folder.appendingPathComponent("retry").path))
         // Default action genuinely moves bytes to Trash. Remove only owned QA copies.
         try Data("trash bytes\n".utf8).write(to: folder.appendingPathComponent("trash"))
-        let trash = CleanProgressWindowModel(repository: repo, access: nil, request: CleanDialogRequest(options: CleanOptions(type: .nonIgnored), paths: ["folder"], dryRun: false, submodules: false, permanently: false))
+        let trash = CleanProgressWindowModel(repository: repo, access: nil, request: CleanDialogRequest(options: CleanOptions(type: .nonIgnored), paths: ["folder"], dryRun: false, submodules: false, permanently: false), preferences: defaults)
         trash.start(); try await wait(trash)
         precondition(trash.completed == 1 && trash.total == 1)
         precondition(!trash.failed && trash.trashedFiles.count == 1)
         for url in trash.trashedFiles { let bytes = try Data(contentsOf: url); precondition(bytes == Data("trash bytes\n".utf8)); try FileManager.default.removeItem(at: url) }
         try Data("cancel\n".utf8).write(to: folder.appendingPathComponent("cancel"))
-        let cancel = CleanProgressWindowModel(repository: repo, access: nil, request: execute)
+        let cancel = CleanProgressWindowModel(repository: repo, access: nil, request: execute, preferences: defaults)
         cancel.start(); cancel.cancel(); try await wait(cancel)
         precondition(cancel.completed == 0 && cancel.total == 0)
         precondition(cancel.failed && cancel.current == "Cancelled" && FileManager.default.fileExists(atPath: folder.appendingPathComponent("cancel").path))

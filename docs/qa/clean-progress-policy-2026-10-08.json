@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "52bb23b6cb7f085fb09bf108c01ac5d79f6a1974",
+  "scope": "Native Clean captured close policies, branch-specific cancellation and ordered split actions with original artwork. Full application port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/Commands/CleanupCommand.cpp": "e7f9c4c1bbdf36fdf08d007c177e8614ec90c122",
+    "src/TortoiseProc/CleanTypeDlg.cpp": "a5ed114985e99601501e67246c630d4168c44b85",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/ProgressDlg.h": "c21856cbed61b28586faaf5f37b9ef051e31bb52",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "9705a6f6652490bca97d60e9b41b79add438fb34833b874850866cb8699a274b",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "400840e85c3a0c34376cdd030885cc637b642b9d0eb9448f60832c1b503421a8",
+    "NOTICE": "2826b96b2c54cf9a62e91b7bafda90351d2e23eaf3465b28b87f5069984b6229",
+    "README.md": "311f3288591352f0bd6865ba36fd248691b9497dfcc968e45de2b25a660472f0",
+    "Sources/TurtleGitMac/CleanWindow.swift": "8de03a3040e0ffff41eb2ac6c5648dd1cb6fa50b33b1d88add7c9c80938ec529",
+    "docs/CLEAN-PARITY.md": "2302c69b4e1572b5029ba713f7c1b2514a23e5a71a8992aa040a93be797b68f9",
+    "docs/PROGRESS-PARITY.md": "a8ed470fc7e7d34e54ea5fbbf3738c9025555d83e6d1445731e027aee35940bb",
+    "docs/qa/clean-native-receiver-2026-10-07.swift": "ca14f3ce994cc45433288f02297189bc1d85f174796791519f6c7ad424f8f7b2",
+    "docs/upstream-files.csv": "ab07a6dba14aec08bdffe0fe30227a2a861486ab8314e25000c64102d17df5ff",
+    "scripts/test-clean-progress-policy.py": "f94fe603b9cb56e84cbbdfcca1a5d68ea1de3bb785cadd1b52b44929554e1375",
+    "docs/qa/clean-progress-policy-native-2026-10-08.swift": "6cb7d338d620578ef98f88fd4e3d990c70e5573b5cae6d0875e4bf8757d943e5"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four-Git real dry-run preservation/permanent deletion for all close policies and both post-action orders; later preference edit does not change captured policy; hidden progress host; actual recoverable Trash content and unconditional success close for all policies; foreign lock preservation/failure retained even under no-errors; fresh Retry and duplicate gate; owned slow Git preview No/Yes cancellation with both helper PIDs stopped; fresh preview Retry; execution completion while confirmation pending delays close until No answer; HEAD/index/tracked bytes unchanged.",
+    "regression": "Four-Git existing native Clean receiver passed defaults/persistence/scopes/Finder request construction, preview/permanent execution, live count/path events, real Trash recovery, foreign lock/Retry, pre-cancellation and tracked state. Receiver now injects private preferences into every progress model/controller. Core unchanged; core tests not repeated.",
+    "source_notes": "CleanupCommand uses CProgressDlg for dry-run/permanent and CSysProgressDlg for Trash. Shared policy/ConfirmKillProcess applies to the former; Trash cancels directly and closes successful completion. Native Trash failure remains open with recovery output, whereas upstream does not check DeleteAllFiles outcome. Clean callback supplies no explicit icon; original Refresh/Cleanup/Delete assets are macOS associations requested by user. Shared close policy captured once; Retry/removal retains immutable request and takes a fresh plan.",
+    "documentation": "3277 seven-column inventory rows verified; three mappings retain partial status. Clean/progress parity, NOTICE, README and CI step updated. Screenshots predate changed split menu/policy; site remains local/unpublished.",
+    "processes": "Debug compiler terminal before both independent native compilers/receivers; both terminal before AppStore build. No main app instances or displayed windows. Hidden windows closed in existing receiver, private UUID preferences only. Twenty empty owned Clean/CleanProgressPolicy UUID preference plists removed after termination; nonempty preferences untouched. Owned cancellation helpers stopped; owned Trash fixtures verified then removed. Final owned app/receiver process audit empty.",
+    "limitations": "Physical menu selection, close gestures, nested alert/default focus/keyboard, light/dark layout, VoiceOver, activated Finder handoff, signed sandbox/Trash/App Store acceptance remain pending. Full progress/file/dialog port and hosted CI/site/distribution incomplete; GitHub authorization unavailable and not retried.",
+    "builds": "Unsigned Debug and AppStore builds and bundle audits passed: embedded Finder extension, licenses, EditorConfig/IssueRegex and all 98 original icon resources. NOTICE byte-identical in both. Bundled Git 2.55.0 includes 11 universal Mach-O files and passed local Git fixture operations."
+  },
+  "logs_sha256": {
+    "build/qa/clean-progress-policy/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/clean-progress-policy/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/clean-progress-policy/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/clean-progress-policy/native.log": "7c28d1753c19b6169916438bf3c7010cd67a4ec19e406690212b1e62e8fb47a6",
+    "build/qa/clean-progress-policy/private-preference-cleanup.log": "f82d3dcea7b0610e14795967bc0d1ba0187b97a56a2b471c2e5726c59ef8c49d",
+    "build/qa/clean-progress-policy/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/clean-progress-policy/regression.log": "f514eae0887df45bcd4e81ff2140d254714b725de222b9e8e3b7814826d82cc9",
+    "build/qa/clean-progress-policy/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/clean-progress-policy/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/clean-progress-policy/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/clean-progress-policy/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

@@ -621,3 +621,6 @@ See [Push parity](docs/PUSH-PARITY.md) for captured presets, close policies and 
 Reset now retains an owned result with Retry, Submodule Update, bisect and Clean
 follow-ups, and follows the shared automatic-close setting. See [Reset parity](docs/RESET-PARITY.md)
 for verified scope and remaining physical/signed acceptance.
+
+Clean results now follow source-specific close policies and cancellation, with
+ordered original-icon actions. See [Clean parity](docs/CLEAN-PARITY.md).
