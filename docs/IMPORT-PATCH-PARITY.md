@@ -48,7 +48,18 @@ the recovery prompt offers **Abort / Skip / Resolved / Cancel**. Abort restores
 the failed row for retry; Skip/Resolved mark it only when Git finishes that
 session. Additional failures retain recovery state. For a pre-existing external
 session, recovery does not incorrectly mark the first newly added patch done.
-An active rebase is refused. Git committer identity is checked before importing.
+An active rebase is refused. Before importing, author and committer name/email
+are checked using environment overrides, role-specific configuration and user
+configuration in that order. Git validates both identities. Missing fields offer
+Configure or Cancel; Configure opens a native name/email sheet with repository
+and global scopes. Saving retries the check; Cancel applies no patch. Existing
+author/committer overrides remain in effect. This is the identity portion of the
+upstream Git settings workflow; the full Git configuration page remains pending.
+
+[Identity QA](qa/import-patch-identity-2026-10-08.json) checks cancellation and a
+name-only configuration followed by email configuration, then two real imports
+retaining the patch author and the configured committer. Configuration callbacks
+are injected: physical sheets, global writes and signed access remain unverified.
 
 **Abort** while a batch runs stops after the current Git command; it does not
 kill that command or close the window. Idle Cancel/window-close checks the Git
@@ -160,7 +171,7 @@ sandbox access outside the repository remain unverified.
 ## Remaining parity work
 
 Patch review/application context command,
-identity configuration prompts and idle-session
+the full Git configuration settings page and idle-session
 application-quit prompts remain pending. Preview whitespace markers and the source's exact context-menu/keyboard behavior also remain pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,
 deployed Finder integration and App Store acceptance are unverified. No screenshot

@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "3e0d0d2b7253220feb86267c0a3c78a40367ae14",
+  "scope": "Import Patch missing-identity configuration/recheck workflow; full Git settings and full port/distribution remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803"
+  },
+  "sources_manifest_sha256": "33e6d8a660de91772015d1e7e96f8a74755ea1b4809032f19a365f8a181c9276",
+  "changed_files_sha256": {
+    "NOTICE": "b4c703b245079497a558dfca51e1fb8c7cecaa958a0467eece5cb8f198fac90a",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "d24499aa78420d7eb1b944762bfd61854be14c86f169d0868da6b458ea78ca8e",
+    "docs/IMPORT-PATCH-PARITY.md": "e428916c19577a49c23d9f905451b9b58cbb80a00ee7266d02c60aab6ea5ce45",
+    "docs/qa/import-patch-native-2026-10-08.swift": "0f6a737a27cc53bb87cd25d9ff45f79e0c0793c6e347ab9a6af6d2388f67d896",
+    "docs/upstream-files.csv": "22e023fe41f7d2ca4274299b09b9fa031f4093e953498f196efc608084af3e6c"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four complete receiver runs pass. Private real Git fixture with explicit empty identity fields and useConfigOnly: Configure callback Cancel preserves HEAD and pending rows; name-only setting retries; email setting then imports two patches with original author and configured Unicode committer. Busy configuration blocks row mutation/reentry. Existing real Git recovery/close/stop and provider/layout/preview/injected viewer-mail checks pass.",
+    "core": "No Core production change; no additional Core test run.",
+    "builds": "Unsigned Debug/Store builds pass. Sources/receiver/NOTICE frozen during compiler/native sessions. NOTICE attribution amended after terminal native tests and repackaged in two Debug resource builds, then Store sequentially.",
+    "bundles": "Debug/Store validators and NOTICE comparisons, inventory pin, 3277-record/7-field CSV shape, documentation site and whitespace checks pass."
+  },
+  "iterations": [
+    "Initial Debug and single four-engine native run pass. NOTICE TortoiseSVN copyright added after first terminal resource build; final Debug repackaging before Store. No source edits after native tests."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.31DE318A-FA5A-454B-8CA1-A27748803869.plist",
+      "TurtleGit.ImportPatch.QA.FA97384A-F6B7-4571-9223-C4B08450F62E.plist",
+      "TurtleGit.ImportPatch.QA.557FD11A-86F8-43FE-8457-DD4E1FD0CDBC.plist",
+      "TurtleGit.ImportPatch.QA.65E0B90B-9167-4853-9DEB-CCBE0ABDBFDA.plist"
+    ],
+    "retained_nonempty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "app_or_receiver_processes": [],
+    "fixtures": "TemporaryDirectory fixtures removed; owned hidden windows closed. Standard application preferences untouched."
+  },
+  "limitations": [
+    "Configure/Save sheet choices are not physically exercised. Native tests inject repository-local writes; global writes and actual sandbox config permissions are unverified.",
+    "Full upstream Git configuration settings page remains pending; this sheet exposes user.name/user.email and local/global scopes only. Existing role-specific and local overrides can still require correcting their configuration.",
+    "Preflight follows environment/role-config/user fallback and validates with Git. GIT_COMMITTER_EMAIL is used correctly rather than the upstream GetCommitterEmail lookup of GIT_AUTHOR_EMAIL. Override precedence branches are reviewed but not separately runtime-tested here.",
+    "Saving name and email uses separate Git config commands; a write failure may leave the first saved value. It reports the failure and imports no patch.",
+    "Identity invalid input/role overrides can report a Git error rather than reopening settings automatically; physical keyboard/accessibility/visual acceptance remains unverified.",
+    "Unsigned builds do not establish signed sandbox/Finder/App Store. GitHub auth/CI/push and CUA remain unavailable from previous evidence, not retried. Full objective active."
+  ],
+  "logs_sha256": {
+    "build/qa/import-patch-identity/cleanup.json": "fc00243ed813c1aa39033f1e45c2d819ac919e265a6a49a8735fc37904c064e4",
+    "build/qa/import-patch-identity/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-identity/debug-notice-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-identity/debug-notice.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-identity/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-identity/native.log": "e3069f62af27e3c012130e2abbecd38c8468cb2420f826733056fcb22d46f220",
+    "build/qa/import-patch-identity/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/import-patch-identity/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/import-patch-identity/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-identity/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

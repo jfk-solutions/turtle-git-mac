@@ -49,6 +49,31 @@ import TurtleGitCore
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host
         defer { window.contentView = nil; window.close() }
+        let (identityRepo, identityFiles) = try await fixture(root.appendingPathComponent("identity"), git)
+        for key in ["user.name", "user.email", "author.name", "author.email", "committer.name", "committer.email"] { _ = try await identityRepo.run(["config", "--local", key, ""]) }
+        _ = try await identityRepo.run(["config", "user.useConfigOnly", "true"])
+        let identity = ImportPatchWindowModel(repository: identityRepo, access: nil, preferences: prefs)
+        identity.add(identityFiles)
+        let identityHead = try await identityRepo.run(["rev-parse", "HEAD"]).stdout
+        var identityPrompts = 0
+        identity.configureIdentity = { identityPrompts += 1; return false }
+        identity.apply(); try await settle(identity)
+        let cancelledHead = try await identityRepo.run(["rev-parse", "HEAD"]).stdout
+        precondition(identityPrompts == 1 && cancelledHead == identityHead && identity.items.allSatisfy { $0.state == .pending } && identity.error == nil)
+        identity.configureIdentity = {
+            identityPrompts += 1
+            precondition(identity.busy && !identity.editable)
+            identity.add([identityFiles[0]]); identity.remove(); identity.apply()
+            if identityPrompts == 2 { _ = try await identityRepo.run(["config", "--local", "user.name", "Native Importer 雪"]) }
+            else { _ = try await identityRepo.run(["config", "--local", "user.email", "native@example.invalid"]) }
+            return true
+        }
+        identity.apply(); try await settle(identity)
+        precondition(identityPrompts == 3 && identity.finished && identity.items.count == 2)
+        let identities = try await identityRepo.run(["log", "-2", "--format=%an <%ae>|%cn <%ce>"]).text
+        precondition(identities.components(separatedBy: "Native Importer 雪 <native@example.invalid>").count == 3 && identities.contains("Author 雪 <author@example.invalid>"))
+        identity.invalidate()
+        print("PASS: missing identity Cancel preserves HEAD/pending rows; configuration callback retries after name-only change, locks mutations, then imports two real patches with original author and configured committer; no global settings changed or physical sheets invoked.")
         let dropped = ImportPatchWindowModel(repository: repo, access: nil, preferences: prefs)
         func provider(_ url: URL) -> NSItemProvider {
             let item = NSItemProvider()

@@ -35,6 +35,11 @@ import TurtleGitCore
             self.mail = service; self.mailCompletion = completion
             service.delegate = self; service.subject = "Patch series"; service.perform(withItems: files)
         }
+        model.configureIdentity = { [weak self] in
+            guard let self else { return false }
+            guard await self.prompt("Git identity is incomplete", "A user name and email are required before importing commits. Configure them now?", buttons: ["Configure…", "Cancel"]) == 0 else { return false }
+            return try await self.configureIdentity()
+        }
         model.chooseRecovery = { [weak self] in
             guard let self else { return nil }
             let response = await self.prompt("A patch import is active", "Resolve conflicts and stage the result before choosing Resolved.", buttons: ["Abort", "Skip", "Resolved", "Cancel"])
@@ -62,6 +67,26 @@ import TurtleGitCore
         return await withCheckedContinuation { continuation in
             alert.beginSheetModal(for: window) { continuation.resume(returning: $0.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue) }
         }
+    }
+    private func configureIdentity() async throws -> Bool {
+        guard let window, window.attachedSheet == nil else { return false }
+        let name = NSTextField(string: try await model.repository.run(["config", "--get", "user.name"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines))
+        let email = NSTextField(string: try await model.repository.run(["config", "--get", "user.email"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines))
+        let scope = NSPopUpButton(); scope.addItems(withTitles: ["This repository", "Global"])
+        let form = NSGridView(views: [[NSTextField(labelWithString: "Name:"), name], [NSTextField(labelWithString: "Email:"), email], [NSTextField(labelWithString: "Save in:"), scope]])
+        form.frame = NSRect(x: 0, y: 0, width: 360, height: 92); form.column(at: 1).width = 270
+        name.setAccessibilityLabel("Git user name"); email.setAccessibilityLabel("Git user email"); scope.setAccessibilityLabel("Git configuration scope")
+        let alert = NSAlert(); alert.messageText = "Git identity"; alert.informativeText = "Set user.name and user.email. Existing author/committer overrides remain in effect."
+        alert.accessoryView = form; alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Cancel")
+        alert.buttons[0].keyEquivalent = ""; alert.buttons[1].keyEquivalent = "\r"; alert.window.defaultButtonCell = alert.buttons[1].cell as? NSButtonCell
+        let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
+        guard response == .alertFirstButtonReturn else { return false }
+        let userName = name.stringValue.trimmingCharacters(in: .whitespacesAndNewlines), userEmail = email.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !userName.isEmpty, !userEmail.isEmpty, !userName.contains("\0"), !userEmail.contains("\0"), !userName.contains("\n"), !userEmail.contains("\n") else { throw NSError(domain: "TurtleGit.GitIdentity", code: 1, userInfo: [NSLocalizedDescriptionKey: "Enter a nonempty Git name and email without line breaks."]) }
+        let option = scope.indexOfSelectedItem == 0 ? "--local" : "--global"
+        _ = try await model.repository.run(["config", option, "user.name", userName])
+        _ = try await model.repository.run(["config", option, "user.email", userEmail])
+        return true
     }
     private func chooseFiles() {
         guard !activeOperation, let window else { return }
@@ -117,6 +142,7 @@ import TurtleGitCore
     var chooseFiles: () -> Void = {}
     var showPatch: (Data, String, Bool) async throws -> Void = { _, _, _ in }
     var composeMail: ([URL], @escaping (String?) -> Void) -> Void = { _, done in done("No mail composition service is available.") }
+    var configureIdentity: () async throws -> Bool = { false }
     var chooseRecovery: () async -> MailPatchRecovery? = { nil }
     var chooseClose: () async -> CloseChoice = { .cancel }
     var chooseUnavailableClose: (String) async -> Bool = { _ in false }
@@ -250,7 +276,7 @@ import TurtleGitCore
             defer { busy = false; onChanged(output) }
             do {
                 try checkAccess()
-                _ = try await repository.run(["var", "GIT_COMMITTER_IDENT"])
+                guard try await ensureIdentity() else { output += "\nImport cancelled before applying patches.\n"; return }
                 try await recoverSession()
                 for item in batch {
                     guard !stopRequested else { output += "\nBatch stopped after the current Git command.\n"; break }
@@ -268,6 +294,28 @@ import TurtleGitCore
             } catch {
                 output += "\n" + error.localizedDescription + "\n"; self.error = error.localizedDescription
             }
+        }
+    }
+    private func ensureIdentity() async throws -> Bool {
+        while true {
+            let environment = ProcessInfo.processInfo.environment
+            func configured(_ key: String) async throws -> String {
+                try await repository.run(["config", "--get", key], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
+            }
+            let name = try await configured("user.name"), email = try await configured("user.email")
+            let authorName = try await configured("author.name"), authorEmail = try await configured("author.email")
+            let committerName = try await configured("committer.name"), committerEmail = try await configured("committer.email")
+            func value(_ environmentKey: String, _ override: String, _ fallback: String) -> String {
+                let env = environment[environmentKey] ?? ""
+                return !env.isEmpty ? env : !override.isEmpty ? override : fallback
+            }
+            let fields = [value("GIT_AUTHOR_NAME", authorName, name), value("GIT_AUTHOR_EMAIL", authorEmail, email), value("GIT_COMMITTER_NAME", committerName, name), value("GIT_COMMITTER_EMAIL", committerEmail, email)]
+            if fields.allSatisfy({ !$0.isEmpty }) {
+                _ = try await repository.run(["var", "GIT_AUTHOR_IDENT"])
+                _ = try await repository.run(["var", "GIT_COMMITTER_IDENT"])
+                return !stopRequested
+            }
+            guard !stopRequested, try await configureIdentity() else { return false }
         }
     }
     private func recoverSession() async throws {
