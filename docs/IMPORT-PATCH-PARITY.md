@@ -72,9 +72,35 @@ The [native QA record](qa/import-patch-native-2026-10-08.json) records four Git 
 Finder checks cover menu order, conditions, icons and routing metadata; they do
 not prove a deployed Finder extension.
 
+## Patch-list commands
+
+For one selected row, **View Patch** opens the read-only unified diff viewer.
+Double-click has the same action. The file is read as original bytes, independent
+of the text preview; Save As preserves those bytes. The existing Unified Diff
+Viewer setting and Shift inversion choose the configured external viewer or the
+built-in viewer. External handoff uses an app-owned byte snapshot.
+
+**Send Mail…** is available for one or more selected rows and passes attachments
+in patch-list order to macOS email composition. The user composes and sends the
+message in their mail app. No mail service produces a visible error. File access
+leases stay retained through the service callback, and viewer handoff/composition
+block concurrent import, row mutation and window close. Failures re-enable the
+controls. Context icons follow the application context-menu icon setting.
+
+The source's **Review Patch with TortoiseGitMerge** command needs a patch review
+and application workflow and remains pending. The source suppresses the generic
+Apply context command in Import Patch; this native list does too.
+
+The headless receiver checks source selection conditions, exact UTF-16 bytes and
+read-only export, filename/Shift handoff, attachment order, operation guards and
+failure recovery through injected callbacks. It does not launch an external app,
+compose or send mail, or simulate native mouse/menu events. Real context-menu,
+double-click, external application and mail-service acceptance remain unverified.
+See [patch-list command QA](qa/import-patch-context-2026-10-08.json).
+
 ## Remaining parity work
 
-Patch-list context commands, drag/drop, the source's splitter persistence,
+Patch review/application context command, drag/drop, the source's splitter persistence,
 unified-diff preview highlighting, identity configuration prompts and idle-session
 application-quit prompts remain pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,

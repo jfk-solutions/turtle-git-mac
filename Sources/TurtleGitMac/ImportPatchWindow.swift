@@ -3,11 +3,14 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-@MainActor final class ImportPatchWindowController: NSWindowController, NSWindowDelegate {
+@MainActor final class ImportPatchWindowController: NSWindowController, NSWindowDelegate, NSSharingServiceDelegate {
     let model: ImportPatchWindowModel
     var onClosed: () -> Void = {}
     private var approvedClose = false
-    var activeOperation: Bool { model.busy || model.closing || window?.attachedSheet != nil }
+    private var patch: PatchWindowController?
+    private var mail: NSSharingService?
+    private var mailCompletion: ((String?) -> Void)?
+    var activeOperation: Bool { model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = ImportPatchWindowModel(repository: repository, access: access)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -17,6 +20,19 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self
         window.contentMinSize = .init(width: 660, height: 460); window.center()
         model.chooseFiles = { [weak self] in self?.chooseFiles() }
+        model.showPatch = { [weak self] bytes, title, alternate in
+            guard let self else { return }
+            if try await UnifiedDiffApplication.openExternal(bytes, alternate: alternate) { return }
+            self.patch = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: self.patch, title: title, onClosed: { [weak self] in self?.patch = nil })
+        }
+        model.composeMail = { [weak self] files, completion in
+            guard let self else { completion("The patch window was closed."); return }
+            guard let service = NSSharingService(named: .composeEmail), service.canPerform(withItems: files) else {
+                completion("No mail composition service is available."); return
+            }
+            self.mail = service; self.mailCompletion = completion
+            service.delegate = self; service.subject = "Patch series"; service.perform(withItems: files)
+        }
         model.chooseRecovery = { [weak self] in
             guard let self else { return nil }
             let response = await self.prompt("A patch import is active", "Resolve conflicts and stage the result before choosing Resolved.", buttons: ["Abort", "Skip", "Resolved", "Cancel"])
@@ -51,16 +67,20 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if approvedClose { return true }
-        guard sender.attachedSheet == nil else { return false }
+        guard sender.attachedSheet == nil, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
         model.requestClose(); return false
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); onClosed() }
+    func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) { finishMail(nil) }
+    func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) { finishMail(error.localizedDescription) }
+    private func finishMail(_ error: String?) { let completion = mailCompletion; mailCompletion = nil; mail = nil; completion?(error) }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class ImportPatchWindowModel: ObservableObject {
     enum State: String { case pending = "", applying = "Applying", success = "Success", failed = "Failed", skipped = "Skipped" }
     enum CloseChoice { case abort, keep, cancel }
+    enum ContextAction: String { case viewPatch = "View Patch", sendMail = "Send Mail…" }
     struct Item: Identifiable {
         let id = UUID()
         let file: URL
@@ -79,19 +99,52 @@ import TurtleGitCore
     @Published private(set) var busy = false
     @Published private(set) var stopRequested = false
     @Published private(set) var closing = false
+    @Published private(set) var openingViewer = false
+    @Published private(set) var composingMail = false
     @Published var error: String?
     private var failedRow: UUID?
     private var invalidated = false
     private var previewGeneration = UUID()
     var chooseFiles: () -> Void = {}
+    var showPatch: (Data, String, Bool) async throws -> Void = { _, _, _ in }
+    var composeMail: ([URL], @escaping (String?) -> Void) -> Void = { _, done in done("No mail composition service is available.") }
     var chooseRecovery: () async -> MailPatchRecovery? = { nil }
     var chooseClose: () async -> CloseChoice = { .cancel }
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
-    var editable: Bool { !busy && !closing && !invalidated }
+    var editable: Bool { !busy && !closing && !openingViewer && !composingMail && !invalidated }
     init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
-    func invalidate() { guard !busy else { return }; invalidated = true; previewGeneration = UUID(); items = []; selection = [] }
+    func invalidate() { guard !busy, !openingViewer, !composingMail else { return }; invalidated = true; previewGeneration = UUID(); items = []; selection = [] }
+    func contextActions(_ ids: Set<UUID>) -> [ContextAction] {
+        guard editable else { return [] }
+        let count = items.filter { ids.contains($0.id) }.count
+        return count == 1 ? [.viewPatch, .sendMail] : count > 1 ? [.sendMail] : []
+    }
+    func viewPatch(_ ids: Set<UUID>, alternate: Bool) {
+        guard editable, contextActions(ids).contains(.viewPatch), let item = items.first(where: { ids.contains($0.id) }) else { return }
+        openingViewer = true
+        Task {
+            defer { openingViewer = false }
+            do {
+                // Retain the selected item and its lease through the viewer handoff.
+                // The external viewer receives an exact app-owned byte snapshot.
+                let bytes = try await Task.detached { try Data(contentsOf: item.file) }.value
+                try await showPatch(bytes, item.file.lastPathComponent, alternate)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    func sendMail(_ ids: Set<UUID>) {
+        guard editable, contextActions(ids).contains(.sendMail) else { return }
+        let selected = items.filter { ids.contains($0.id) }
+        composingMail = true
+        composeMail(selected.map(\.file)) { [weak self] error in
+            // Capture the leases until macOS finishes composing or reports failure.
+            _ = selected
+            self?.composingMail = false
+            if let error { self?.error = error }
+        }
+    }
     func add(_ urls: [URL]) {
         guard editable else { return }
         for url in urls {
@@ -214,6 +267,7 @@ import TurtleGitCore
 
 struct ImportPatchDialog: View {
     @ObservedObject var model: ImportPatchWindowModel
+    @AppStorage("ShowAppContextMenuIcons") private var contextIcons = true
     private func tool(_ title: String, _ icon: MenuIcon, _ action: @escaping () -> Void) -> some View {
         Button(action: action) { HStack { Image(nsImage: icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(title) } }
     }
@@ -229,7 +283,22 @@ struct ImportPatchDialog: View {
                 TableColumn("") { item in Toggle("Import \(item.file.lastPathComponent)", isOn: Binding(get: { item.checked }, set: { model.check(item.id, $0) })).labelsHidden().disabled(!model.editable || item.state == .success) }.width(28)
                 TableColumn("Path") { item in Text(item.file.path).help(item.file.path) }
                 TableColumn("Status") { item in Text(item.state.rawValue).foregroundStyle(item.state == .failed ? Color.red : item.state == .success ? .green : item.state == .applying ? .blue : .secondary) }.width(85)
-            }.frame(minHeight: 120)
+            }.contextMenu(forSelectionType: UUID.self) { ids in
+                ForEach(model.contextActions(ids), id: \.self) { action in
+                    Button {
+                        switch action {
+                        case .viewPatch: model.viewPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift))
+                        case .sendMail: model.sendMail(ids)
+                        }
+                    } label: {
+                        HStack {
+                            if contextIcons { Image(nsImage: (action == .viewPatch ? MenuIcon.patch : .sendMail).image() ?? NSImage()) }
+                            Text(action.rawValue)
+                        }
+                    }
+                }
+            } primaryAction: { ids in model.viewPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift)) }
+            .frame(minHeight: 120)
             HStack {
                 Toggle("3-way", isOn: $model.options.threeWay)
                 Toggle("Ignore space change", isOn: $model.options.ignoreSpaceChange)

@@ -5,7 +5,7 @@ import TurtleGitCore
 @main struct ImportPatchVerification {
     @MainActor static func settle(_ model: ImportPatchWindowModel) async throws {
         for _ in 0..<1000 {
-            if !model.busy && !model.closing { return }
+            if !model.busy && !model.closing && !model.openingViewer && !model.composingMail { return }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         fatalError("Import did not finish")
@@ -110,6 +110,38 @@ import TurtleGitCore
         precondition(stopping.items.map(\.state) == [.success, .pending] && !stoppedClose)
         let stoppedMessage = try await slow.run(["show", "-s", "--format=%B", "HEAD"]).text
         precondition(!stoppedMessage.contains("Signed-off-by"))
+        let context = ImportPatchWindowModel(repository: repo, access: nil); defer { context.invalidate() }
+        let utf16 = root.appendingPathComponent("UTF16 雪.patch")
+        let bytes = Data([0xff, 0xfe]) + "diff --git a/雪 b/雪\n+Unicode\n".data(using: .utf16LittleEndian)!
+        try bytes.write(to: utf16)
+        context.add(patches + [utf16]); let contextIDs = context.items.map(\.id)
+        precondition(context.contextActions([]).isEmpty && context.contextActions([UUID()]).isEmpty)
+        precondition(context.contextActions([contextIDs[0]]) == [.viewPatch, .sendMail])
+        precondition(context.contextActions([contextIDs[0], contextIDs[1]]) == [.sendMail])
+        var viewed: Data?, viewedTitle = "", usedAlternate = false
+        context.showPatch = { data, title, alternate in
+            viewed = data; viewedTitle = title; usedAlternate = alternate
+            let readOnly = PatchWindowModel(repository: repo, access: nil); readOnly.setReadOnlyDiff(data)
+            precondition(readOnly.readOnly && readOnly.exportDocument.bytes == bytes && !readOnly.canApplyHunks && !readOnly.canApplyLines)
+        }
+        context.viewPatch([contextIDs[2]], alternate: true)
+        precondition(context.openingViewer && !context.editable && context.contextActions([contextIDs[0]]).isEmpty)
+        context.selection = [contextIDs[0]]; context.remove(); context.add(patches)
+        precondition(context.items.count == 3)
+        try await settle(context); precondition(viewed == bytes && viewedTitle == utf16.lastPathComponent && usedAlternate)
+        var attachments: [URL] = [], completeMail: ((String?) -> Void)?
+        context.composeMail = { files, completion in attachments = files; completeMail = completion }
+        context.sendMail([contextIDs[2], contextIDs[0]])
+        precondition(context.composingMail && attachments == [patches[0], utf16] && !context.editable)
+        context.requestClose(); context.apply(); context.remove(); precondition(!context.busy && !context.closing && context.items.count == 3)
+        completeMail?("Mail fixture failed"); completeMail = nil
+        precondition(!context.composingMail && context.error == "Mail fixture failed")
+        context.error = nil
+        context.showPatch = { _, _, _ in throw MailPatchFailure.file }
+        context.viewPatch([contextIDs[0]], alternate: false); try await settle(context)
+        precondition(!context.openingViewer && context.error != nil && context.editable)
+        context.viewPatch([contextIDs[0], contextIDs[1]], alternate: false); precondition(!context.openingViewer)
+        print("PASS: source context selection policy; exact UTF-16 viewer bytes/title/Shift handoff and read-only export; viewer/mail mutation guards; ordered composition attachments; failure recovery. Injected handoffs, no external app or mail service invoked; native menu gestures remain unverified.")
         precondition(RepositoryAction.importPatch.icon == .patch && RepositoryAction.importPatch.requiresWorkingTree)
         print("PASS: hidden native patch table/preview; order, check, fixed batch options and mutation guards; two real mail commits/signoff; retained conflict cursor Abort/Skip/Resolved; close Cancel/Keep/Abort; real hook stop finishes current command without closing; original patch icon; no main app")
     }

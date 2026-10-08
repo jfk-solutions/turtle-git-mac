@@ -664,3 +664,8 @@ batch stop, close prompts and recovery adapt ImportPatchDlg.cpp's git am
 commands, copyright (C) 2008-2020, 2023-2024, 2026 TortoiseGit, under GPL version
 2 or later. Native worktree-specific session detection distinguishes mail
 application from rebase so am recovery cannot abort a rebase.
+
+Import Patch's View Patch/double-click and Send Mail selection rules adapt
+CPatchListCtrl.cpp/.h, copyright (C) 2009-2013, 2015-2016, 2018-2023, 2025
+TortoiseGit, under GPL version 2 or later. Native file leases, exact byte viewer
+snapshots and the macOS sharing service replace the Windows process handoffs.

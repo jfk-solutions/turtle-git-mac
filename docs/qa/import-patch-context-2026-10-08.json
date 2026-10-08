@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "37f28010b98bf5923e1d02ca561350dbc2f062ca",
+  "scope": "Import Patch View Patch/double-click and Send Mail selection rules, read-only viewer byte/Shift handoff, macOS composition attachment order and operation guards. Partial source port; full objective remains active.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/PatchListCtrl.cpp": "dea42bf97d4a1b265d31712e9b60ce7dd87dda8d",
+    "src/TortoiseProc/PatchListCtrl.h": "e8ea1a22743da0b38e9db25dda92048ca9f65751",
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9"
+  },
+  "sources_manifest_sha256": "b6d77665bf8556be7d7a9b98e92258434b45903d1cadfbcc2a10af0a4b12c717",
+  "changed_files_sha256": {
+    "NOTICE": "1843271b394a1966d18823799502ece3086cc653c8e6dfb3e89de6517baf959f",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "1a4d2a96ca4a2768acfc3083becd55a7f90da537cdfeca5965bfbf563be88333",
+    "docs/IMPORT-PATCH-PARITY.md": "58ff26bafcde1a149665592563ed7f4e0202ecea7bfce6017fb6a64379ff2c58",
+    "docs/qa/import-patch-native-2026-10-08.swift": "15eff103f7045c68dfac8d2b82789d42f1b38a33f59bacff7b2d41f2e1f8cb1c",
+    "docs/upstream-files.csv": "6221ac4b6169a65f8cfd25a512857c3f933c2847b6664304c0096da61ce9ed7e"
+  },
+  "logs_sha256": {
+    "build/qa/import-patch-context/cleanup.json": "a9ea95969866d5aa1941d784be2263ccef34c0213d3393fc6c437333580f26c2",
+    "build/qa/import-patch-context/debug-audit-final.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-context/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-context/debug-notice.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-context/native.log": "f79399386263b5ccee16aae074a050d32c50a9e854e47ab829651df89e14a051",
+    "build/qa/import-patch-context/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/import-patch-context/store-audit-final.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-context/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-context/store-notice.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-context/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/import-patch-context/viewer-core.log": "3f1136ffc55337a2cca3c86ac7148600e9854a0e77a53400e88be06835954eeb",
+    "build/qa/import-patch-context-debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-context/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four headless receiver runs pass (one per Git engine). Existing actual hidden table/preview, two real imports/signoff, conflict recovery/close and slow-hook stop regression retained. New selection policy, exact UTF-16 file bytes/title/alternate handoff, actual PatchWindowModel read-only/export bytes, viewer/composition mutation guards, ordered attachments and failure recovery checked through injected callbacks. No production external viewer or sharing service invocation; native context-menu and double-click events not simulated.",
+    "core": "Five existing UnifiedDiffViewerTests pass using --skip-build and unchanged Core: raw-byte save/snapshots, staged/unstaged non-UTF8 patches without HEAD/index mutation, configured viewer/Shift selection, private preferences/bookmarks and private preview files. Core production code unchanged.",
+    "builds": "Unsigned Debug and Store pass. Sources/NOTICE/receiver frozen during native/compiler sessions. After source tests, NOTICE aggregate copyright corrected to include header year 2020; Debug/Store then rebuilt sequentially for resource packaging only. No production Sources edits after native checks.",
+    "bundles": "Final Debug and Store audits and NOTICE comparisons pass: 98 original icons and universal EditorConfig/IssueRegex. Store Git 11 universal Mach-O files plus local fixtures. Earlier pre-NOTICE-refresh audit logs retained for ordering.",
+    "other": "Pinned inventory and whitespace checks pass; CSV 3277 records/7 fields. Documentation site build passes."
+  },
+  "iterations": [
+    "No compile or assertion failures in this scope.",
+    "Source header inspection showed its 2020 copyright absent from the initial CPP-only attribution. Updated aggregate cpp/h years before final package refresh; code and test Sources unchanged."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGitUnifiedDiffViewerTests-E4B0BD1F-07F8-434C-A4B4-D4AA85A87201.plist",
+      "TurtleGitUnifiedDiffViewerTests-F987004E-43B3-4A1B-904F-7AE0351C03DD.plist",
+      "TurtleGitUnifiedDiffViewerTests-A4CE00E7-1A58-48D7-9790-D03D9649144D.plist",
+      "TurtleGitUnifiedDiffViewerTests-3A6184A6-FE8F-4751-8B15-F2DCFCFF0E73.plist",
+      "TurtleGitUnifiedDiffViewerTests-8AE566D8-A3DA-4DFB-B5BF-8F418AF51368.plist",
+      "TurtleGitUnifiedDiffViewerTests-73F67B0C-1A71-4816-913D-34D7400A803B.plist",
+      "TurtleGitUnifiedDiffViewerTests-25672CF8-3277-4302-A952-71E828995B64.plist",
+      "TurtleGitUnifiedDiffViewerTests-5CCEA0E4-4C83-40A4-95C2-C55F23555C84.plist",
+      "TurtleGitUnifiedDiffViewerTests-2B8CEEBB-54AF-4E56-BFFF-7C6318E243EA.plist",
+      "TurtleGitUnifiedDiffViewerTests-073C9E23-F3DA-4766-8E37-AE8675A34892.plist",
+      "TurtleGitUnifiedDiffViewerTests-690FD36E-A366-4B69-B738-0F57A0601548.plist",
+      "TurtleGitUnifiedDiffViewerTests-7A534C03-E0F3-449D-81D2-B04B328CA967.plist",
+      "TurtleGitUnifiedDiffViewerTests-239E83AB-3B69-422F-9DBC-C9B10994D2D2.plist",
+      "TurtleGitUnifiedDiffViewerTests-5D6EFF0B-2979-40A9-89B7-1EA5A150C7DC.plist",
+      "TurtleGitUnifiedDiffViewerTests-2DFFE455-DC9F-4666-BC06-4C2A29E5AAD1.plist",
+      "TurtleGitUnifiedDiffViewerTests-F140F8F4-409F-45C4-89E6-A7DFE2BC4177.plist",
+      "TurtleGitUnifiedDiffViewerTests-D0203CF0-7BFC-44B7-B3B1-01336C7777C3.plist",
+      "TurtleGitUnifiedDiffViewerTests-86E2E9C5-57D7-40BF-BF29-B5650DCE120E.plist",
+      "TurtleGitUnifiedDiffViewerTests-A10E2BA9-735F-41C3-833B-2A0881E788F5.plist",
+      "TurtleGitUnifiedDiffViewerTests-6681B73B-7F85-44E8-BA3E-134213903141.plist",
+      "TurtleGitUnifiedDiffViewerTests-78A65B2D-4B1E-4B4B-BB6E-ED7DA19F0355.plist",
+      "TurtleGitUnifiedDiffViewerTests-04E743E6-24F8-4427-99C9-CBA9A9E30F91.plist",
+      "TurtleGitUnifiedDiffViewerTests-C6570EC1-3DFD-471A-BF7C-456774AA6695.plist",
+      "TurtleGitUnifiedDiffViewerTests-D7DDC2BE-2752-4DCE-9AED-81B5FCBE5CAC.plist",
+      "TurtleGitUnifiedDiffViewerTests-EABCB76A-8AFE-41E9-9116-634D8C4749AC.plist",
+      "TurtleGitUnifiedDiffViewerTests-2D479BFC-B889-4A9A-93CF-A73FBE4BA320.plist",
+      "TurtleGitUnifiedDiffViewerTests-94722B86-FFEA-4461-A679-F82C81482717.plist",
+      "TurtleGitUnifiedDiffViewerTests-739FDFF3-CEEE-43A6-A942-6F919060A307.plist",
+      "TurtleGitUnifiedDiffViewerTests-C24C7DBE-0ACE-4DB9-A606-DCA33B76A032.plist"
+    ],
+    "retained_nonempty_private_preferences": [],
+    "app_or_receiver_processes": [],
+    "fixture_cleanup": "Native TemporaryDirectory fixtures and owned hidden windows cleaned up; no main app, external viewer or mail service launched."
+  },
+  "limitations": [
+    "Review Patch with TortoiseGitMerge requires patch review/application workflow and is not mapped to the read-only viewer. Generic PatchListCtrl Apply and other consumers remain pending.",
+    "Native table context-menu/primary action rendering and gestures, context icon preference appearance, external app launch and actual macOS mail composition unverified.",
+    "View Patch is checked for original UTF-16 bytes/read-only export; this does not prove correct UTF-16 visual decoding.",
+    "Send Mail uses native composition; complete upstream SendMail dialog/SMTP/settings parity remains separate pending work.",
+    "Signed external-file security scope, deployed Finder, signing, physical light/dark and App Store acceptance unverified.",
+    "GitHub auth/CI/push and CUA unavailable from prior evidence; not retried. No screenshots generated or app instances left running."
+  ]
+}
