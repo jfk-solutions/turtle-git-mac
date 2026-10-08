@@ -129,7 +129,7 @@ public enum FileComparisonEditing {
         guard annotations.marked.union(annotations.edited).allSatisfy({ alignment.rows.indices.contains($0) }) else { throw FileComparisonEditFailure.range }
         func target(_ row: FileComparisonRow) -> MergeSourceCell { targetBase ? row.base : row.destination }
         let original = alignment.rows.map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
-        let style: MergeLineEnding = original.contains("\r\n") ? .crlf : .lf
+        let style: MergeLineEnding = MergeLineEndings.predominantStyle(in: original)
         let lines = alignment.rows.enumerated().map { index, row in
             let keep: Bool
             switch choice {
@@ -142,7 +142,7 @@ public enum FileComparisonEditing {
             return source.lineNumber == nil ? "" : MergeLineEndings.converting(source.text, to: style)
         }.filter { !$0.isEmpty }
         return lines.enumerated().map { index, line in
-            if index < lines.count - 1, line.utf16.last != 10, line.utf16.last != 13 { return line + (style == .crlf ? "\r\n" : "\n") }
+            if index < lines.count - 1, !MergeLineEndings.hasFinalEnding(line) { return line + style.rawValue }
             return line
         }.joined()
     }
@@ -158,13 +158,13 @@ public enum FileComparisonEditing {
         let original = alignment.rows.map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
         let start = alignment.rows.prefix(range.lowerBound).map(target).filter { $0.lineNumber != nil }.reduce(0) { $0 + ($1.text as NSString).length }
         let length = alignment.rows[range].map(target).filter { $0.lineNumber != nil }.reduce(0) { $0 + ($1.text as NSString).length }
-        let style: MergeLineEnding = original.contains("\r\n") ? .crlf : .lf
+        let style: MergeLineEnding = MergeLineEndings.predominantStyle(in: original)
         // UseViewBlock normalizes incoming ended lines to the target style,
         // while preserving a source line that has no ending.
         let otherText = MergeLineEndings.converting(alignment.rows[range].map(other).filter { $0.lineNumber != nil }.map(\.text).joined(), to: style)
         let currentText = alignment.rows[range].map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
         func both(_ first: String, _ second: String) -> String {
-            let separator = !first.isEmpty && !second.isEmpty && first.utf16.last != 10 && first.utf16.last != 13 ? (original.contains("\r\n") ? "\r\n" : "\n") : ""
+            let separator = !first.isEmpty && !second.isEmpty && !MergeLineEndings.hasFinalEnding(first) ? style.rawValue : ""
             return first + separator + second
         }
         let replacement: String
@@ -177,7 +177,7 @@ public enum FileComparisonEditing {
     public static func applying(_ replacement: String, range: NSRange, cells: [MergeSourceCell]) throws -> (text: String, caret: Int) {
         let source = try sourceRange(range, cells: cells)
         let original = cells.filter { $0.lineNumber != nil }.map(\.text).joined()
-        let style: MergeLineEnding = original.contains("\r\n") ? .crlf : .lf
+        let style: MergeLineEnding = MergeLineEndings.predominantStyle(in: original)
         let inserted = MergeLineEndings.converting(replacement, to: style)
         return ((original as NSString).replacingCharacters(in: source, with: inserted), source.location + (inserted as NSString).length)
     }

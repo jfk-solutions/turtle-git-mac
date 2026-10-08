@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "895dec904fe8e31f3f25312500e8657085b837cb",
+  "scope": "Two-pane comparison alignment/display, typed insertion, block transfer and marked-policy ending handling across all nine source styles. Full port and distribution remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/FileTextLines.cpp": "e9ac66ef889687750921f09d4ccafce7f843e996",
+    "src/TortoiseMerge/EOL.h": "6c0cb1571cbf1a79d8eafba0f31e944824c90ac0",
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5"
+  },
+  "sources_manifest_sha256": "1f5a9f86adeba4ff6fd768ec374f0fa5759278c3f182d57a64a8c72fa7790512",
+  "changed_files_sha256": {
+    "NOTICE": "8871e9a06e484bc8ee62a03384bc15c4e1f66161557942b80736672f153c8b5a",
+    "Sources/TurtleGitCore/FileComparison.swift": "145b98dd623c7dc5c9115d6f8910892f5eaf39d57831e35ced17db398ddd890c",
+    "Sources/TurtleGitCore/FileComparisonEditing.swift": "eb6ae7ec3333cd261d520aa496e81cc1d43c70e2dad9fdc961c8408970f03f60",
+    "Sources/TurtleGitCore/MergeLineEndings.swift": "8858a0ffe14d28d88c887983ae49077c56003743c301c582f891098b16ad290f",
+    "Sources/TurtleGitCore/MergeSourceComparison.swift": "288b7e29988ab54969491c1cc531432c4de22ac62cc522364cb3d8ebe18d2648",
+    "Tests/TurtleGitCoreTests/FileComparisonEditingTests.swift": "c2136f7cc21b9e0a7ae5129a337dad34673d5744f4e8ac474e4cdf6f9a1ac37b",
+    "Tests/TurtleGitCoreTests/MergeLineEndingsTests.swift": "81c5eb4759d9ed005596741d5f3180a3e77a5b0a85f29f79ce17d1553c675f0d",
+    "docs/COMPARISON-MARK-PARITY.md": "fd9283cbc207b8e274e868b750a67a6633084629bc423a824eec0ccfdecebd09",
+    "docs/qa/import-patch-native-2026-10-08.swift": "3e13e2ae7753d73542e8a9ce6c33a8eb2b328d28d562224af8352db5ea59c8fb",
+    "docs/upstream-files.csv": "5756031028e95d1627655735966fc485bbb38ba4658aff1e921518d3aada6cc7"
+  },
+  "verification": {
+    "core": "39 cases pass once on default Apple Git: 19 FileComparisonEditing, 10 FileComparison, 5 MergeLineEndings, 5 MergeSourceComparison. New predominant-count/tie/fallback/final-boundary tests; nine-style aligned insertion, block combination and marked-policy matrix; existing editing/file/encoding/source regressions. Not four-engine Core runs.",
+    "native": "Full receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. New nine-style cases through actual aligned NSTextView display, insertText, private Undo/Redo, ordinary Save and other-block transfer; exact ending bytes and absent EOF newline, unchanged Base. All prior Import Patch/Review/marked-save checks still pass. Choices/handoffs injected, no physical input or screenshot acceptance.",
+    "builds": "Unsigned Debug then stationary-Debug four-engine receiver then AppStore. Both packaging audits and bundled NOTICE byte equality pass. Pin audit and diff check pass. Sources/NOTICE/tests/receiver frozen during live compiler/native sessions.",
+    "site": "Static GitHub Pages generator passes with new parity section and QA link."
+  },
+  "iterations": [
+    "First focused Core run had eight failures: it exposed LF-only alignment parsing after adding nine-style edit tests. Reused shared boundary parser in FileComparisonAlignment and final-ending stripping in MergeSourceCell; broadened final 39-case suite passes. Both logs retained. Native/build checks pass first run."
+  ],
+  "adaptations": [
+    "No-ending buffer default remains LF on macOS, whereas Windows AutoLine falls back to CRLF. Recognized endings and count/tie ordering follow pinned FileTextLines/EOL source."
+  ],
+  "limitations": [
+    "Explicit pane ending state is currently derived from current text; persistent loaded/selected style after changing or deleting the dominant ending remains pending.",
+    "Three-pane alignment still has separate line splitting; this does not claim full three-pane/exotic source rendering parity.",
+    "Physical format menus, layout/accessibility, exhaustive mixed-ending/selection and signed sandbox acceptance remain pending.",
+    "Full app parity, rejected-hunk/conflict engine, Finder deployment, real screenshots, App Store eligibility and external CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_native_fixtures": [],
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.DA66345D-0D6B-408C-8FE2-2BEB45E21592.plist",
+      "TurtleGit.ImportPatch.QA.3E117520-5283-4EE9-806C-CB92E8A69A94.plist",
+      "TurtleGit.ImportPatch.QA.A78D02FF-1911-4C88-B1E1-CB5ABE3159EA.plist",
+      "TurtleGit.ImportPatch.QA.A911668B-2DF7-4C70-92D0-F0570B7B5D57.plist"
+    ],
+    "retained_nonempty_prior_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "TurtleGit.ImportPatch.QA.77E263CF-C337-44E7-8E7E-D1E02A2F1C8E.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ]
+  },
+  "logs_sha256": {
+    "build/qa/editor-endings/cleanup.json": "44f4da7d288c9cc05f881e312c0c84e36fb95a0318497ab26c48715c80d83e36",
+    "build/qa/editor-endings/core-final.log": "9913b1e1689f800f9aefb5f88d0ee1fe5fe065988f4fe72e97ad887e832e2193",
+    "build/qa/editor-endings/core.log": "7acd4bfae2f16d0da409de3c4e2c5002b72cd1b03023db62089ac597c399b198",
+    "build/qa/editor-endings/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/editor-endings/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/editor-endings/native.log": "d9232a8da35c7a38a06c6bcefc064be830364159c731e7832a904cb66c8d8dd3",
+    "build/qa/editor-endings/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/editor-endings/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/editor-endings/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/editor-endings/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

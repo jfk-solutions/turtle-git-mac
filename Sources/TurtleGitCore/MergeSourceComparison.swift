@@ -9,9 +9,7 @@ public struct MergeSourceCell: Sendable {
     public let lineNumber: Int?
     public let state: MergeSourceState
     public var displayText: String {
-        let value = text as NSString
-        let ending = text.hasSuffix("\r\n") ? 2 : text.hasSuffix("\n") ? 1 : 0
-        return value.substring(to: value.length - ending)
+        MergeLineEndings.droppingFinalEnding(text)
     }
 }
 

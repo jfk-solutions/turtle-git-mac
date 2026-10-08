@@ -252,6 +252,41 @@ import TurtleGitCore
             if let text = view as? NSTextView { return text }
             return view.subviews.compactMap { markedTextView($0) }.first
         }
+        for ending in MergeLineEnding.allCases {
+            let eol = ending.rawValue
+            try Data("base\ntail".utf8).write(to: markBase)
+            try Data(("mine" + eol + "tail").utf8).write(to: markMine)
+            let endingModel = FileComparisonWindowModel(comparison: try WorkingFileComparison(base: markBase, destination: markMine), permissions: [])
+            endingModel.editorPreferences = .load(from: prefs); endingModel.load()
+            for _ in 0..<1000 { if !endingModel.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(endingModel.error == nil && endingModel.alignment!.rows.count == 2)
+            let endingHost = NSHostingView(rootView: FileComparisonEditor(model: endingModel, cells: endingModel.alignment!.rows.map(\.destination), base: false))
+            endingHost.frame = NSRect(x: 0, y: 0, width: 500, height: 300); endingHost.layoutSubtreeIfNeeded()
+            let endingView = markedTextView(endingHost)!
+            for _ in 0..<1000 { if endingView.isEditable { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(endingView.string == "mine\ntail\n")
+            let endingHistory = endingView.undoManager!; endingHistory.groupsByEvent = false
+            endingHistory.beginUndoGrouping(); endingView.insertText("typed\n", replacementRange: NSRange(location: 0, length: 0)); endingHistory.endUndoGrouping()
+            precondition(endingModel.draftText(base: false) == "typed" + eol + "mine" + eol + "tail")
+            endingModel.undo(); precondition(endingModel.draftText(base: false) == "mine" + eol + "tail")
+            endingModel.redo(); precondition(endingModel.draftText(base: false) == "typed" + eol + "mine" + eol + "tail")
+            var endingSaved: Bool?
+            endingModel.save { endingSaved = $0 }
+            for _ in 0..<1000 { if endingSaved != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            let endingBytes = try Data(contentsOf: markMine)
+            precondition(endingSaved == true && endingBytes == Data(("typed" + eol + "mine" + eol + "tail").utf8))
+            endingModel.selectedRows = 0..<1
+            endingHistory.beginUndoGrouping(); endingModel.useOtherBlock(targetBase: false); endingHistory.endUndoGrouping()
+            precondition(endingModel.draftText(base: false) == "base" + eol + "mine" + eol + "tail")
+            endingSaved = nil; endingModel.save { endingSaved = $0 }
+            for _ in 0..<1000 { if endingSaved != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            let transferredBytes = try Data(contentsOf: markMine), unchangedBase = try Data(contentsOf: markBase)
+            precondition(endingSaved == true && transferredBytes == Data(("base" + eol + "mine" + eol + "tail").utf8))
+            precondition(unchangedBase == Data("base\ntail".utf8))
+            endingModel.resetHistory(); withExtendedLifetime(endingHost) {}
+        }
+        try Data(baseText.utf8).write(to: markBase)
+        print("PASS: all nine line endings through actual native aligned display, insertText, private Undo/Redo, ordinary Save and other-block transfer; exact bytes and unterminated EOF, Base retained. No synthetic input or physical format-menu acceptance.")
         let markCases: [(FileComparisonEditing.MarkedSaveChoice?, Bool)] = [(nil, false), (.include, false), (.exclude, false), (.manualEditsOnly, false), (.include, true)]
         for (choice, stale) in markCases {
             try Data(mineText.utf8).write(to: markMine)

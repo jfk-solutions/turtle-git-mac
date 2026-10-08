@@ -711,3 +711,11 @@ MainFrm.cpp attribution above applies. BaseView.cpp copyright (C) 2003-2021
 TortoiseSVN and (C) 2011-2012, 2017-2025 TortoiseGit, under GPL version 2 or later.
 Native AppKit sheets replace Windows command links; automatic PatchSave and
 writable Base saves retain their separate source behavior.
+
+Comparison line boundary recognition and dominant-style selection adapt
+FileTextLines.cpp Load countEOLs and EOL.h ordering. FileTextLines copyright
+(C) 2016, 2019, 2021, 2023, 2025 TortoiseGit and (C) 2007-2016, 2019 TortoiseSVN;
+EOL.h copyright (C) 2023 TortoiseGit and (C) 2007, 2013 TortoiseSVN, GPL 2 or later.
+Native comparison editing retains LF for a buffer without endings; recognized
+styles and tie ordering follow the pinned source. This extends typing, block
+transfer, marked-block resolution and display without claiming full editor parity.

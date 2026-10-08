@@ -407,7 +407,7 @@ blocks remain. **Save and Include** keeps marked rows and manual edits, taking
 other rows from Base. **Save and Exclude** restores marked rows from Base while
 retaining unmarked rows and manual edits. **Save Only Manual Edits** keeps edited
 rows and takes the rest from Base. Cancel retains text and marks without writing.
-The transformation uses the pane's LF/CRLF line-ending style and preserves absent EOF
+The transformation uses the pane's dominant line-ending style and preserves absent EOF
 newlines, alignment gaps and manual edits even when also marked. It clears marks
 through the existing native Undo history; Undo/Redo can restore the decision.
 Save locks other edits/reload/save calls while the sheet is pending. Existing
@@ -426,3 +426,22 @@ aligned editor coordinators, exact CRLF/no-final-newline writes, Base preservati
 Undo/Redo, stale external writes and reentry guards. Choices are injected; physical
 sheets, accessibility/layout, full three-pane merge decisions and signed sandbox
 acceptance remain unverified. See [marked-save QA](qa/marked-save-2026-10-08.json).
+
+## Nine-style line-ending editing
+
+Two-pane alignment now uses the shared source-mapped boundary parser for CRLF,
+LF, CR, LFCR, VT, FF, NEL, LS and PS. Original cell text retains each ending;
+display cells strip that ending and render a display-only LF. Typing and incoming
+block/marked-policy rows use the target's dominant ending. Mixed-style ties use
+EOL.h order (CRLF, LF, CR, LFCR, VT, FF, NEL, LS, PS), matching FileTextLines.cpp
+countEOLs selection. Files without any endings retain the macOS LF default.
+Manual/retained rows keep their original endings, and missing final endings remain
+absent. Combining blocks now recognizes all nine existing endings, preventing an
+extra separator after an exotic ending.
+
+[Editor endings QA](qa/editor-endings-2026-10-08.json) records focused Core and
+headless native checks. The native receiver exercises every style through actual
+aligned display, insertText, private Undo/Redo, ordinary Save and block transfer,
+checking exact output bytes and unchanged Base. Physical format-menu interaction,
+three-pane alignment, explicit pane-style persistence after deleting/changing the
+dominant ending, and exhaustive mixed-ending/selection combinations remain pending.

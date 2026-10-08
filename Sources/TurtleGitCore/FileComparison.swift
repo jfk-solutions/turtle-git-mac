@@ -55,9 +55,8 @@ public struct FileComparisonAlignment: Sendable {
     public let differences: [Range<Int>]
     public init(base: String, destination: String) {
         func lines(_ text: String) -> [String] {
-            guard !text.isEmpty else { return [] }
-            let pieces = text.components(separatedBy: "\n")
-            return pieces.dropLast().map { $0 + "\n" } + (pieces.last!.isEmpty ? [] : [pieces.last!])
+            let source = text as NSString
+            return MergeLineEndings.lineRanges(in: text).map { source.substring(with: $0) }
         }
         let a = lines(base), b = lines(destination)
         var removed = Set<Int>(), inserted = Set<Int>()

@@ -205,6 +205,22 @@ final class FileComparisonEditingTests: XCTestCase {
             XCTAssertThrowsError(try FileComparisonEditing.resolvingMarkedBlocks(gap, targetBase: false, annotations: .init(edited: [-1]), choice: choice))
         }
     }
+    func testEditingTransfersAndMarkedPoliciesRespectEveryEnding() throws {
+        for ending in MergeLineEnding.allCases {
+            let eol = ending.rawValue
+            let current = "mine" + eol + "tail"
+            let alignment = FileComparisonAlignment(base: "base\nother\ntail", destination: current)
+            let cells = alignment.rows.map(\.destination)
+            let edit = try FileComparisonEditing.applying("typed\nnext", range: NSRange(location: 0, length: 0), cells: cells)
+            XCTAssertEqual(edit.text, "typed" + eol + "next" + current)
+            let flags = FileComparisonEditing.Annotations(marked: [0])
+            XCTAssertEqual(try FileComparisonEditing.resolvingMarkedBlocks(alignment, targetBase: false, annotations: flags, choice: .exclude), "base" + eol + "tail")
+            XCTAssertEqual(try FileComparisonEditing.resolvingMarkedBlocks(alignment, targetBase: false, annotations: .init(), choice: .manualEditsOnly), "base" + eol + "other" + eol + "tail")
+            XCTAssertEqual(try FileComparisonEditing.takingOtherRows(alignment, rows: 0..<1, targetBase: false, choice: .otherThenCurrent).text, "base" + eol + "mine" + eol + "tail")
+            let ended = FileComparisonAlignment(base: "base\n", destination: "mine" + eol)
+            XCTAssertEqual(try FileComparisonEditing.takingOtherRows(ended, rows: 0..<1, targetBase: false, choice: .currentThenOther).text, "mine" + eol + "base" + eol)
+        }
+    }
     func testAnnotationsFollowInsertedReplacedDeletedAndRealignedLines() throws {
         let source = "a\nb\nc\nend"
         let old = FileComparisonAlignment(base: source, destination: "a\nlocal\nc\nend")

@@ -2,6 +2,21 @@ import XCTest
 @testable import TurtleGitCore
 
 final class MergeLineEndingsTests: XCTestCase {
+    func testPredominantStylesTieOrderAndFinalEndingRecognition() {
+        for style in MergeLineEnding.allCases {
+            let text = "雪" + style.rawValue + "🦎" + style.rawValue + "EOF"
+            XCTAssertEqual(MergeLineEndings.predominantStyle(in: text), style)
+            XCTAssertFalse(MergeLineEndings.hasFinalEnding(text))
+            XCTAssertTrue(MergeLineEndings.hasFinalEnding(text + style.rawValue))
+        }
+        XCTAssertEqual(MergeLineEndings.predominantStyle(in: "a\r\nb\nc\nd"), .lf)
+        XCTAssertEqual(MergeLineEndings.predominantStyle(in: "a\nb\r\nc"), .crlf)
+        XCTAssertEqual(MergeLineEndings.predominantStyle(in: "a\rb\n\rc"), .cr)
+        XCTAssertEqual(MergeLineEndings.predominantStyle(in: ""), .lf)
+        XCTAssertEqual(MergeLineEndings.predominantStyle(in: "EOF", fallback: .crlf), .crlf)
+        XCTAssertFalse(MergeLineEndings.hasFinalEnding(""))
+        XCTAssertFalse(MergeLineEndings.hasFinalEnding("\u{2028}EOF"))
+    }
     func testCaretLineNumbersUseUtf16AndEveryEndingIncludingPairs() {
         for ending in MergeLineEnding.allCases {
             let prefix = "🦎" + ending.rawValue, text = prefix + "tail" + ending.rawValue

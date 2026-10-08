@@ -51,6 +51,26 @@ public enum MergeLineEndings {
         return ranges
     }
     public static func styles(in text: String) -> Set<MergeLineEnding> { Set(endings(in: text).map(\.style)) }
+    /// FileTextLines chooses the most frequent style; ties follow EOL.h order.
+    /// An unended macOS buffer uses LF unless its caller supplies another default.
+    public static func predominantStyle(in text: String, fallback: MergeLineEnding = .lf) -> MergeLineEnding {
+        var counts: [MergeLineEnding: Int] = [:]
+        for ending in endings(in: text) { counts[ending.style, default: 0] += 1 }
+        var result = fallback, maximum = 0
+        for style in MergeLineEnding.allCases where counts[style, default: 0] > maximum {
+            result = style; maximum = counts[style, default: 0]
+        }
+        return result
+    }
+    public static func hasFinalEnding(_ text: String) -> Bool {
+        guard let last = endings(in: text).last else { return false }
+        return NSMaxRange(last.range) == (text as NSString).length
+    }
+
+    static func droppingFinalEnding(_ text: String) -> String {
+        guard let last = endings(in: text).last, NSMaxRange(last.range) == (text as NSString).length else { return text }
+        return (text as NSString).substring(to: last.range.location)
+    }
     static func mappingLineContents(_ text: String, transform: (String) -> String) -> String {
         let source = text as NSString
         var output = "", start = 0
