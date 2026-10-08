@@ -4,6 +4,7 @@ import SwiftUI
 struct SelectionAllCheckbox: NSViewRepresentable {
     let checked: Int
     let total: Int
+    var checkedCount: (() -> Int)? = nil
     let change: (Bool) -> Void
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator(change: change) }
@@ -14,12 +15,17 @@ struct SelectionAllCheckbox: NSViewRepresentable {
     func updateNSView(_ button: NSButton, context: Context) {
         button.state = checked == 0 ? .off : checked == total ? .on : .mixed; button.isEnabled = enabled && total > 0
         context.coordinator.change = change; context.coordinator.selectOnClick = checked == 0
+        context.coordinator.checkedCount = checkedCount
     }
     final class Coordinator: NSObject {
         var change: (Bool) -> Void
         var selectOnClick = true
+        var checkedCount: (() -> Int)?
         init(change: @escaping (Bool) -> Void) { self.change = change }
-        @objc func clicked(_ sender: NSButton) { change(selectOnClick) }
+        @objc func clicked(_ sender: NSButton) {
+            guard sender.isEnabled else { return }
+            change(checkedCount.map { $0() == 0 } ?? selectOnClick)
+        }
     }
 }
 

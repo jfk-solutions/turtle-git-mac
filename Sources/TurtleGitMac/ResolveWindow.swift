@@ -162,7 +162,7 @@ private struct ResolveDialog: View {
                         }
                     } primaryAction: { ids in model.editOrCompare(ids) }
                     HStack {
-                        ResolveAllCheckbox(checked: model.checked.count, total: model.entries.count) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.fixedSize()
+                        SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.fixedSize()
                         Spacer()
                         Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
                     }
@@ -195,26 +195,5 @@ struct ResolveSelectionMenu: View {
         Button { action(.resolveCurrent, paths) } label: { CommandLabel(title: "Resolved", icon: .resolve) }.disabled(paths.isEmpty)
         Button { action(.resolveTheirs, paths) } label: { CommandLabel(title: rebase ? "Resolve using commit being replayed" : "Resolve conflict using ‘theirs’", icon: .resolve) }.disabled(paths.isEmpty)
         Button { action(.resolveMine, paths) } label: { CommandLabel(title: rebase ? "Resolve using branch being rebased onto" : "Resolve conflict using ‘mine’", icon: .resolve) }.disabled(paths.isEmpty)
-    }
-}
-private struct ResolveAllCheckbox: NSViewRepresentable {
-    let checked: Int
-    let total: Int
-    let change: (Bool) -> Void
-    func makeCoordinator() -> Coordinator { Coordinator(change: change) }
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSButton(checkboxWithTitle: "Select/deselect all", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
-        button.allowsMixedState = true; return button
-    }
-    func updateNSView(_ button: NSButton, context: Context) {
-        button.state = checked == 0 ? .off : checked == total ? .on : .mixed
-        button.isEnabled = total > 0; context.coordinator.change = change
-        context.coordinator.selectOnClick = checked == 0
-    }
-    final class Coordinator: NSObject {
-        var change: (Bool) -> Void
-        var selectOnClick = true
-        init(change: @escaping (Bool) -> Void) { self.change = change }
-        @objc func clicked(_ sender: NSButton) { change(selectOnClick) }
     }
 }

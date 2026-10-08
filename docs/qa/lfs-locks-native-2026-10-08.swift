@@ -35,6 +35,25 @@ import TurtleGitCore
         let table = descendants(window.contentView!).compactMap { $0 as? NSTableView }.first!
         precondition(table.numberOfRows == 2 && table.tableColumns.count == 4)
         precondition(MenuIcon.lock.image() != nil && MenuIcon.unlock.image() != nil)
+        func allCheckbox() -> NSButton {
+            descendants(window.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "Select/deselect all" }!
+        }
+        try await settle { descendants(window.contentView!).contains { ($0 as? NSButton)?.title == "Select/deselect all" } }
+        let all = allCheckbox()
+        try await settle { all.state == .on && all.isEnabled }
+        model.selection = ["2"]
+        all.performClick(nil); try await settle { model.checked.isEmpty && all.state == .off }
+        precondition(model.selection == ["2"] && !model.canUnlock)
+        all.performClick(nil); try await settle { model.checked == ["1","2"] && all.state == .on }
+        model.setChecked("1", false); try await settle { all.state == .mixed }
+        // Source's automatically-created indeterminate state clears on click;
+        // users never manually create a third selection state.
+        all.performClick(nil); try await settle { model.checked.isEmpty && all.state == .off }
+        precondition(model.selection == ["2"])
+        model.selectAll(true); try await settle { all.state == .on }
+        model.confirmingQuit = true; try await settle { !all.isEnabled }
+        all.performClick(nil); precondition(model.checked == ["1","2"])
+        model.confirmingQuit = false; try await settle { all.isEnabled }
         model.selectAll(false); precondition(!model.canUnlock); model.setChecked("1", true); precondition(model.canUnlock)
         model.selectAll(true); await model.unlock()
         precondition(model.results.map(\.success) == [true, false] && model.locks == [server[0]] && model.checked == ["2"])
@@ -51,6 +70,7 @@ import TurtleGitCore
         model.confirmingQuit = false
         model.query = { _ in throw LFSLocksFailure.selection }; await model.refresh()
         precondition(model.error != nil && model.locks.isEmpty && model.checked.isEmpty)
+        try await settle { all.state == .off && !all.isEnabled }
         model.query = { _ in [LFSLock(id: "3", path: "tracked", owner: "QA")] }; await model.refresh()
         model.change = { paths, _, token, report in
             let file = LFSFileResult(path: paths[0], success: true, output: "Completed before cancellation"); report(file)
@@ -58,6 +78,7 @@ import TurtleGitCore
             token.cancel(); return LFSBatchResult(files: [file], cancelled: true)
         }
         let task = Task { await model.unlock() }; try await settle { model.busy && model.results.count == 1 }
+        try await settle { !all.isEnabled }
         precondition(!controller.windowShouldClose(window))
         precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
         model.setChecked("3", false); model.setForce(true); model.finishProgress()
@@ -265,6 +286,43 @@ import TurtleGitCore
         status.model.reload(); try await settle { !status.model.busy && !status.model.hasLFS }
         try await settle { statusTable.headerView?.menu?.item(withTitle: "LFS Lock") == nil }
         commit.window?.close(); status.window?.close()
+        // Resolve shares the same three-state helper; use a separate real
+        // conflicted repository and activate only selection controls.
+        let resolveRoot = root.deletingLastPathComponent().appendingPathComponent("resolve-" + root.lastPathComponent)
+        try FileManager.default.createDirectory(at: resolveRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: resolveRoot) }
+        let resolveRepo = GitRepository(root: resolveRoot, executable: repository.executable)
+        _ = try await resolveRepo.run(["init","-b","main"])
+        _ = try await resolveRepo.run(["config","user.name","Resolve checkbox QA"])
+        _ = try await resolveRepo.run(["config","user.email","qa@example.invalid"])
+        _ = try await resolveRepo.run(["config","commit.gpgsign","false"])
+        _ = try await resolveRepo.run(["config","core.hooksPath","/dev/null"])
+        for path in ["a","b"] { try Data("base\n".utf8).write(to: resolveRoot.appendingPathComponent(path)) }
+        try await resolveRepo.stage(["a","b"]); _ = try await resolveRepo.commit(message: "base")
+        _ = try await resolveRepo.run(["checkout","-b","other"])
+        for path in ["a","b"] { try Data("other\n".utf8).write(to: resolveRoot.appendingPathComponent(path)) }
+        try await resolveRepo.stage(["a","b"]); _ = try await resolveRepo.commit(message: "other")
+        _ = try await resolveRepo.run(["checkout","main"])
+        for path in ["a","b"] { try Data("main\n".utf8).write(to: resolveRoot.appendingPathComponent(path)) }
+        try await resolveRepo.stage(["a","b"]); _ = try await resolveRepo.commit(message: "main")
+        _ = try await resolveRepo.run(["merge","-m","conflict","other"], successfulExitCodes: 0...1)
+        let resolveIndex = try Data(contentsOf: resolveRoot.appendingPathComponent(".git/index"))
+        let resolve = ResolveWindowController(repository: resolveRepo, access: nil, paths: [])
+        defer { resolve.window?.close() }
+        resolve.model.load(); try await settle { !resolve.model.busy && resolve.model.entries.count == 2 }
+        resolve.window!.contentView!.layoutSubtreeIfNeeded()
+        try await settle { descendants(resolve.window!.contentView!).contains { ($0 as? NSButton)?.title == "Select/deselect all" } }
+        let resolveAll = descendants(resolve.window!.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "Select/deselect all" }!
+        try await settle { resolveAll.state == .on && resolveAll.isEnabled && !resolve.model.busy }
+        resolveAll.performClick(nil); try await settle { resolve.model.checked.isEmpty && resolveAll.state == .off }
+        resolveAll.performClick(nil); try await settle { resolve.model.checked == ["a","b"] && resolveAll.state == .on }
+        resolve.model.checked = ["a"]; try await settle { resolveAll.state == .mixed }
+        resolveAll.performClick(nil); try await settle { resolve.model.checked.isEmpty && resolveAll.state == .off }
+        resolve.model.busy = true; try await settle { !resolveAll.isEnabled }
+        resolveAll.performClick(nil); precondition(resolve.model.checked.isEmpty)
+        resolve.model.busy = false; resolve.window?.close()
+        let resolveAfterIndex = try Data(contentsOf: resolveRoot.appendingPathComponent(".git/index"))
+        precondition(resolveAfterIndex == resolveIndex)
         let afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let afterFile = try Data(contentsOf: root.appendingPathComponent("tracked"))

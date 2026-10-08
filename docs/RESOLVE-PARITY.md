@@ -74,3 +74,11 @@ workflow records remain partial; no complete dialog or App Store parity is claim
 Submodule deletion now offers native Delete/Abort after failed Git removal.
 Delete uses recoverable macOS Trash; Abort and stale-confirmation preservation
 are tested. The latest full suite passed 167 tests.
+
+The shared native select-all control now reads the live checked count at activation
+and respects the disabled busy state. The hidden native receiver checks checked,
+off and mixed activations against two real conflicts with both Apple and bundled
+Git, including consecutive activations and disabled activation.
+Selection-only checks preserve the raw index; they do not establish additional
+resolution operation or physical input coverage. See
+[shared checkbox QA](qa/lfs-tristate-2026-10-08.json).

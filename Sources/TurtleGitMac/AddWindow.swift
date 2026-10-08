@@ -418,7 +418,7 @@ struct AddDialogView: View {
         VStack(spacing: 10) {
             AddFileTable(model: model).frame(minHeight: 220)
             HStack {
-                SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.frame(width: 180, height: 22)
+                SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.frame(width: 180, height: 22)
                 Toggle("Include ignored files", isOn: $model.includeIgnored).toggleStyle(.checkbox).onChange(of: model.includeIgnored) { _ in model.reload() }
                 Spacer()
             }.disabled(model.busy)

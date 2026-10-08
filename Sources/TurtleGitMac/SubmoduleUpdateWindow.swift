@@ -115,7 +115,7 @@ private struct SubmoduleUpdateDialog: View {
             if !model.output.isEmpty { ScrollView { Text(model.output).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 100) }
             HStack {
                 VStack(alignment: .leading, spacing: 7) {
-                    SelectionAllCheckbox(checked: model.selection.count, total: model.paths.count) { _ in model.selectAll() }.frame(width: 190, height: 22)
+                    SelectionAllCheckbox(checked: model.selection.count, total: model.paths.count, checkedCount: { model.selection.count }) { _ in model.selectAll() }.frame(width: 190, height: 22)
                     Toggle("Whole Project", isOn: $model.wholeProject).disabled(!model.canChooseScope).onChange(of: model.wholeProject) { _ in model.scopeChanged() }
                 }
                 Spacer()

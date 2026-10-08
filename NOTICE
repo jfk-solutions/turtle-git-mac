@@ -830,3 +830,13 @@ shared case-insensitive owner sorting, known uniform selection actions and
 unknown-state guards. Closing during an owner query cancels it without
 publishing a late response. Full shared column settings/clipboard, physical
 input, authenticated provider and signed sandbox acceptance remain pending.
+
+LFS Locks select-all now uses the shared native three-state checkbox. Its
+partial-selection display and click-to-clear behavior adapt LFSLocksDlg.cpp
+OnBnClickedSelectall; only checked IDs count, and busy/Quit/empty states disable
+the control. Original source attribution and GPL version 2 or later apply.
+The shared native checkbox can read the current selection count on activation,
+avoiding a stale snapshot between rapid activations; Add, Revert and Submodule
+Update also supply this live count. Disabled native targets refuse activation.
+Resolve now reuses this shared control instead of a duplicate implementation,
+following ResolveDlg.cpp OnBnClickedSelectall's identical mixed-state rule.

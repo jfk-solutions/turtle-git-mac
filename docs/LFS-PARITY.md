@@ -101,9 +101,20 @@ LFS batches capture paths in the displayed sort order. See
 [Working Tree owner QA](qa/working-tree-lfs-owner-2026-10-08.json).
 
 Working Tree full shared column layout/clipboard, Finder routing, source
-availability gates, tri-state select-all, full shared column settings and
+availability gates, full shared column settings and
 locking progress/post-Pull actions remain incomplete. The native list adds an
 explicit Refresh button alongside F5. Physical keyboard/menu/pointer behavior,
 light/dark appearance, accessibility, fresh real screenshots, signed Finder
 deployment and provider acceptance remain pending. This is partial LFS parity
 and does not establish whole-application or App Store readiness.
+
+The Locks dialog now uses a native three-state Select/deselect all checkbox:
+none, all and partial selection are visible as off, checked and mixed. Clicking
+an off checkbox selects all; clicking checked or mixed clears all, following
+upstream OnBnClickedSelectall. The target reads the current valid checked-ID
+count, preserving correctness between rapid activations before SwiftUI redraw.
+Busy, Quit-confirmation and empty-list states disable the control; highlighting
+remains independent. Add, Revert and Submodule Update supply live counts to the
+same shared native helper. Resolve now reuses it too, including the disabled
+busy state. Its native checkbox is checked against a private repository with
+two real merge conflicts; checkbox changes leave the index untouched. See [three-state QA](qa/lfs-tristate-2026-10-08.json).

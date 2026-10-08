@@ -138,7 +138,7 @@ private struct RevertDialog: View {
                 }
             } primaryAction: { model.diff($0) }
             HStack {
-                SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.frame(width: 190, height: 22)
+                SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? Set(model.entries.map(\.path)) : [] }.frame(width: 190, height: 22)
                 Spacer()
                 if model.hasUnversionedItems && UserDefaults.standard.bool(forKey: "Status.UnversionedAsModified") { Text("Note: the folder contains unversioned items").font(.caption).foregroundStyle(.secondary) }
             }

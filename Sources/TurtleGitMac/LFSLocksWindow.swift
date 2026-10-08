@@ -154,7 +154,7 @@ struct LFSLocksDialog: View {
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.information).font(.caption); Spacer(); Button("Refresh") { Task { await model.refresh() } }.disabled(model.busy || model.confirmingQuit).keyboardShortcut(KeyEquivalent(Character(UnicodeScalar(NSF5FunctionKey)!)), modifiers: []) }
             HStack {
-                Toggle("Select/deselect all", isOn: Binding(get: { !model.locks.isEmpty && model.checked.count == model.locks.count }, set: { model.selectAll($0) })).toggleStyle(.checkbox).disabled(model.busy || model.confirmingQuit)
+                SelectionAllCheckbox(checked: model.locks.filter { model.checked.contains($0.id) }.count, total: model.locks.count, checkedCount: { model.locks.filter { model.checked.contains($0.id) }.count }) { model.selectAll($0) }.frame(width: 190, height: 22).disabled(model.busy || model.confirmingQuit)
                 Toggle("Force", isOn: Binding(get: { model.force }, set: { model.setForce($0) })).toggleStyle(.checkbox).disabled(model.busy || model.confirmingQuit)
                 Spacer()
                 Button { Task { await model.unlock() } } label: { CommandLabel(title: "Unlock", icon: .unlock) }.disabled(!model.canUnlock).keyboardShortcut(.defaultAction)

@@ -1,0 +1,68 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "fb6b28139178dbb3afab9f6a635e84da2e0437d5",
+  "scope": "Native Locks tri-state selection and live-count activation across shared consumers; Resolve consolidation and disabled busy state. Full port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/LFSLocksDlg.cpp": "f9ebe3aaa8c1089ce356f7b6f1142c5b9ceb1036",
+    "src/TortoiseProc/ResolveDlg.cpp": "c6a3a357abc01caac3827ee20a38343933c560f5"
+  },
+  "sources_manifest_sha256": "10cab35fef8d6f6fc0116ba4dafa1966972bf71274b65a8ee4633c9d71e196b4",
+  "changed_files_sha256": {
+    "NOTICE": "d1d3690a8e45d020e9900b592e23f05cd66aa037760e586e16d5a80d124b232d",
+    "Sources/TurtleGitMac/AddWindow.swift": "266bdda6e42e0b414ec69bc692aff2d167f074d8a2debae8063ae48e5baa8e70",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "cde6dd37ecdcb4c9d35bf501d945a3ec419b113d6b5ea6d57be89bee7ab4c17f",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "1a837498eee12d7f546f64e7329e4c78e5b8f1b2bf29df87e1a7a926580c9b85",
+    "Sources/TurtleGitMac/RevertWindow.swift": "a8956ed3ea22ce919fd6d215c2cbbe01776817e3c5431a6c4f57dde7673f0c3c",
+    "Sources/TurtleGitMac/SelectionAllCheckbox.swift": "ba787abb6b7c584192b25954ef328f504829ae510e2518c3f276997eae3a533b",
+    "Sources/TurtleGitMac/SubmoduleUpdateWindow.swift": "d9778256f843b47d0a2beb76dcb55531a66c1244fba1ec3133fc0f1c07f2d68a",
+    "docs/LFS-PARITY.md": "c0c43469b6a7bb048189c981c69d576cffafc70c741da12da36f79ca2f5bc5b9",
+    "docs/RESOLVE-PARITY.md": "b24961deba15fb0772ff2cf15a4117ec38855bb2af2b3bac279e800bff3d9979",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "a209aeca27878ab0e47a0d207c90d0322d649d3c549a48f244afbc8c553b1a7e",
+    "docs/upstream-files.csv": "0abe959fbb6b7125010fb3dbddfc7ae64c5f75c0cadbd92a2d281166eb3a3dd6"
+  },
+  "verification": {
+    "native": "Final hidden AppKit receiver passes with Apple Git and bundled Git. Actual Locks NSButton performClick checks all-to-none, none-to-all, mixed-to-none, independent highlighted selection, disabled Quit/busy and empty list. Existing Locks/Commit/Working Tree sheet ownership, captured Force retry, owner columns, sorting, cancellation and selection routing checks execute. All LFS responses injected. Resolve uses a separate real two-file merge-conflict repository per engine: actual NSButton checked/off/mixed activations and disabled busy activation; raw index unchanged. Main fixture HEAD/raw index/tracked bytes unchanged. Owned windows/sheets close; receiver exits.",
+    "shared_consumers": "Add, Revert and Submodule Update supply current model counts to the shared native helper; current builds compile their routing. No new complete workflow or physical input coverage claimed for these dialogs.",
+    "builds": "Current Debug and sequential unsigned AppStore builds and bundle audits pass; Store audit requires bundled Git/Git LFS. Both packaged NOTICE files equal current source. Sources/NOTICE/receiver frozen while compiler/native handles live.",
+    "core": "Core sources unchanged; prior focused command/menu/comparator evidence retained. No additional Core suite run for this native-only change.",
+    "inventory": "3277 seven-field LF records; pinned upstream inventory and diff checks pass. Four mappings extended and remain partial.",
+    "site": "Local Pages generator includes current guides and QA; no deployment or fresh screenshot claim."
+  },
+  "iterations": [
+    "Initial receiver failed bounded selection assertion after second activation: the coordinator used an outdated SwiftUI checked-count snapshot. Failed log retained.",
+    "The shared helper now reads the model count at activation; all shared consumers supply it and disabled targets refuse activation. Final Locks receiver passes both engines.",
+    "Resolve duplicate helper replaced with shared control; real-conflict native receiver passes both engines, preserving index."
+  ],
+  "limitations": [
+    "Shared list layout/clipboard and full progress/post-Pull/Finder LFS behavior remain incomplete.",
+    "Physical pointer/keyboard/menu input, appearance/accessibility/fresh screenshots and authenticated provider acceptance unverified.",
+    "Unsigned Store build does not establish signed sandbox/Finder/helper deployment or App Store eligibility. GitHub CI/push not accessible; whole application parity incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": [],
+    "main_app_launches": 0,
+    "preferences": "Receiver uses private UUID suites; post-exit defaults deletion and verified empty plist removal for four remaining owned suites. Main app preferences untouched.",
+    "preference_cleanup_record": "build/qa/lfs-tristate-2026-10-08/preference-cleanup.json",
+    "preference_cleanup_sha256": "bb3fdec7d3e640c26fafc98755d151c23dd4a90924a07e444ce84aaba1d10d28",
+    "windows": "Owned windows and sheets closed on successful exit. Initial failed receiver terminated with SIGTRAP; wrapper removed private fixtures."
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-tristate-2026-10-08/debug-audit-current.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-tristate-2026-10-08/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-tristate-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-tristate-2026-10-08/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-tristate-2026-10-08/debug-live-count.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-tristate-2026-10-08/debug-resolve-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-tristate-2026-10-08/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-tristate-2026-10-08/native-final.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/lfs-tristate-2026-10-08/native-resolve-final.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/lfs-tristate-2026-10-08/native.log": "9a9d8c7f55d3da011cc5f376de26059b451ef1145e23c90b6a9d8d03fb915f70",
+    "build/qa/lfs-tristate-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-tristate-2026-10-08/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/lfs-tristate-2026-10-08/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/lfs-tristate-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
