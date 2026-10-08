@@ -81,8 +81,8 @@ timed out. Cancel, picker interaction and further native checks remain unverifie
 - Native Cancel/close preservation, URL/key history relaunch, manual-directory
   changes, SSH protocol enablement, browse panels, bare/no-checkout/recursive UI
   execution, Show in Finder, minimum-width and dark appearance QA.
-- Streaming output/detailed transfer rows, physical progress/cancellation and
-  full upstream libgit2 progress; command output is collected after execution.
+- Detailed libgit2 transfer rows, physical progress/cancellation and
+  full upstream progress/interactive authentication acceptance.
 - Authentication, encrypted-key/agent UI, key use after restart, signed multi-folder
   sandbox grants, out-of-scope submodules and independent helper permissions.
 - Git-SVN runtime/dependencies and real SVN cloning, LFS capability/runtime handling,
@@ -128,3 +128,31 @@ file preservation, not cancellation of a live remote transfer. Physical nested
 sheet/Root adoption/Log/Finder routing, source/key grants, authentication, encrypted
 keys, recursive UI and real SVN/libgit2 execution remain partial. Existing Clone
 screenshots predate this result and are not new acceptance evidence.
+
+## Live command output
+
+Clone now consumes stdout/stderr updates while the owned command is running.
+Disk-backed capture remains in place and raw final streams remain byte-for-byte
+available to callers. Polling supplies new bytes from each stream and drains both
+at completion, including cancellation; cross-stream observation order is sampled,
+not a guarantee of the original ordering between independent descriptors.
+
+The byte-oriented GitCliOutputParser port preserves upstream local CR overlay,
+remote CR replacement/empty-line rules, NUL-to-newline presentation and 8 KiB line
+truncation. Input is guarded at 150 MiB; the presentation uses captured
+GitOutputLimitinKiB (default 2048, bounded 16–102400), source soft truncation and
+notice/drop mode. Parsed UTF-8 bytes survive arbitrary input splits. macOS also
+flushes final unterminated diagnostics. ANSI display sequences are stripped while
+raw results remain unchanged. A green determinate bar and phase label use positive
+percentage lines; output scrolls to the end as it arrives. Retry creates fresh
+parser/stream state. Post-clone metadata errors retain their full diagnostic.
+
+[Live-output QA](qa/clone-stream-2026-10-08.json) records the exact upstream clone
+captures replayed whole, one byte at a time and in uneven chunks; local/remote,
+Unicode, long-line, drop/reset/tail and output-limit cases; live binary stream
+fidelity before exit and final drains; and four-Git native Clone streaming/recovery
+checks. The native helper splits a Unicode character and emits representative
+remote percentages before a wait boundary; this proves live delivery and parsing,
+not remote-server transfer timing. Physical auto-scroll/percentage/theme/accessibility
+and signed acceptance remain unverified. Other dialogs have not yet adopted the
+streaming callback. This is not full progress or application parity.

@@ -7,7 +7,7 @@ public actor GitRepository {
     public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git")) {
         self.root = root.standardizedFileURL; self.executable = executable
     }
-    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil) throws -> GitResult {
+    public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         try cancellation?.check()
         let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
@@ -31,8 +31,19 @@ public actor GitRepository {
         process.standardOutput = output; process.standardError = error
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
-        if let cancellation {
-            status = try CancellableGitProcess.run(executable: executable, arguments: process.arguments ?? [], environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, cancellation: cancellation)
+        if cancellation != nil || onOutput != nil {
+            let outputReader = try FileHandle(forReadingFrom: out), errorReader = try FileHandle(forReadingFrom: err)
+            defer { try? outputReader.close(); try? errorReader.close() }
+            func read(_ reader: FileHandle, stream: GitOutputChunk.Stream, drain: Bool = false) {
+                guard let onOutput else { return }
+                repeat {
+                    guard let bytes = try? reader.read(upToCount: 64 * 1024), !bytes.isEmpty else { return }
+                    onOutput(GitOutputChunk(stream: stream, data: bytes))
+                    if !drain { return }
+                } while true
+            }
+            status = try CancellableGitProcess.run(executable: executable, arguments: process.arguments ?? [], environment: environment, output: output.fileDescriptor, error: error.fileDescriptor, cancellation: cancellation ?? OperationCancellation(), pollOutput: { read(outputReader, stream: .stdout); read(errorReader, stream: .stderr) })
+            read(outputReader, stream: .stdout, drain: true); read(errorReader, stream: .stderr, drain: true)
         } else {
             try process.run(); process.waitUntilExit(); status = process.terminationStatus
         }

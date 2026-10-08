@@ -592,3 +592,7 @@ and ProgressDlg cancellation confirmation.
 Clone results adapt CloneCommand.cpp post-operation actions and ProgressDlg.cpp
 with captured native progress, preserved failure destinations, retry and process
 cancellation confirmation. OpenSSH replaces the Windows Putty-key integration.
+
+Live Clone output ports GitCliOutputParser.cpp/.h byte-oriented CR/LF and remote
+line rules, line/display safeguards and ProgressDlg percentage presentation.
+Upstream clone-output test fixtures are retained with their GPL attribution.

@@ -327,6 +327,11 @@ enum ClonePostAction: String, Hashable {
     @Published private(set) var cancelled = false
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
+    @Published private(set) var percentage: Int?
+    @Published private(set) var currentWork = ""
+    private let outputLimit: Int
+    private var displayedBytes = Data()
+    private var displayTruncated = false
     @Published private(set) var output = ""
     @Published private(set) var postActions: [ClonePostAction] = []
     var close: () -> Void = {}
@@ -335,7 +340,7 @@ enum ClonePostAction: String, Hashable {
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { busy && !cancelling && !confirmingCancellation }
     init(options: CloneOptions, destination: URL, executable: URL, destinationAccess: RepositoryAccessLease, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
-        self.options = options; self.destination = destination; self.executable = executable; self.destinationAccess = destinationAccess; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+        self.options = options; self.destination = destination; self.executable = executable; self.destinationAccess = destinationAccess; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputLimit = max(16, min(preferences.object(forKey: "GitOutputLimitinKiB") as? Int ?? 2048, 100 * 1024)) * 1024
     }
     func invalidate() { invalidated = true }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
@@ -353,16 +358,47 @@ enum ClonePostAction: String, Hashable {
             }
             let runner = GitRepository(root: cwd, executable: executable)
             if options.svn { _ = try await runner.run(["svn", "--version"], cancellation: cancellation) }
-            output = try await runner.clone(options, to: destination, cancellation: cancellation)
+            let parser = GitCliOutputParser(limit: outputLimit)
+            let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+            let operation = Task {
+                defer { continuation.finish() }
+                return try await runner.clone(options, to: destination, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+            }
+            for await _ in updates { if !invalidated { consume(parser.processPending(), parser: parser) } }
+            consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
+            let resultOutput = try await operation.value
             let candidate = GitRepository(root: destination, executable: executable)
             let repo = options.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(), executable: executable)
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             if GitRuntime.isAppStoreBuild && !destinationAccess.contains(repo.root) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path) }
             repository = repo; success = true; postActions = [.log, .explore]
-            if !invalidated { onCloned(repo, output) }
-        } catch { output += (output.isEmpty ? "" : "\n") + error.localizedDescription; postActions = [.retry] }
+            if !invalidated { onCloned(repo, resultOutput) }
+        } catch {
+            let message: String
+            if let failure = error as? GitFailure, !displayedBytes.isEmpty, (failure.arguments.first == "clone" || failure.arguments.starts(with: ["svn", "clone"])) { message = "Git command failed (\(failure.code))." }
+            else { message = error.localizedDescription }
+            output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message; postActions = [.retry]
+        }
         cancelled = cancellation.isCancelled; busy = false; cancelling = false
         finishAutomaticClose()
+    }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        guard !invalidated, !displayTruncated else { return }
+        if emission.erasePreviousLineBytes > 0 { displayedBytes.removeLast(min(displayedBytes.count, emission.erasePreviousLineBytes)) }
+        displayedBytes.append(emission.data)
+        output = String(decoding: displayedBytes, as: UTF8.self).replacingOccurrences(of: "\u{1b}\\[[0-9;]*m|\u{1b}\\[K", with: "", options: .regularExpression)
+        let emitted = String(decoding: emission.data, as: UTF8.self)
+        for line in emitted.split(separator: "\n") {
+            guard let colon = line.lastIndex(of: ":"), let percent = line.firstIndex(of: "%") else { continue }
+            currentWork = String(line[..<colon])
+            let digits = line[..<percent].reversed().prefix { $0.isASCII && $0.isNumber }.reversed()
+            if let value = Int(String(digits)), value > 0 { percentage = min(value, 100) }
+        }
+        if emission.limited || displayedBytes.count >= outputLimit {
+            displayTruncated = true; parser.activateDropMode()
+            currentWork = "[Output truncated at about \(displayedBytes.count / 1024) KiB]"; percentage = nil
+            output += "\n\n...\n" + currentWork
+        }
     }
     private func finishAutomaticClose() { if !busy, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
     func cancel() {
@@ -379,7 +415,7 @@ enum ClonePostAction: String, Hashable {
     func perform(_ action: ClonePostAction) {
         guard !busy, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .retry {
-            busy = true; success = false; cancelled = false; cancelling = false; output = ""; postActions = []; repository = nil; cancellation = OperationCancellation()
+            busy = true; success = false; cancelled = false; cancelling = false; output = ""; displayedBytes.removeAll(); displayTruncated = false; percentage = nil; currentWork = ""; postActions = []; repository = nil; cancellation = OperationCancellation()
             Task { await execute() }; return
         }
         guard let repository, let onPostAction else { return }; dispatched = true; close(); onPostAction(action, repository)
@@ -409,8 +445,13 @@ struct CloneProgressDialog: View {
     var body: some View {
         VStack(alignment:.leading,spacing:12) {
             Text("Clone to \(model.destination.path)").font(.headline).textSelection(.enabled)
-            ScrollView { Text(model.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Cloning…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Clone failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            ScrollViewReader { reader in
+                ScrollView { VStack(alignment: .leading, spacing: 0) { Text(model.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading); Color.clear.frame(height: 1).id("clone-output-end") } }
+                    .onChange(of: model.output) { _ in reader.scrollTo("clone-output-end", anchor: .bottom) }
+            }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
+            if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
+            if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
+            HStack { if model.busy && model.percentage == nil { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Cloning…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Clone failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack { if let first = model.postActions.first { Button { model.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }; Menu { ForEach(model.postActions,id:\.self) { action in Button { model.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) } } } label: { Image(systemName:"chevron.down").accessibilityLabel("Clone post-actions") }.menuStyle(.borderlessButton).fixedSize() }; Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }

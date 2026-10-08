@@ -28,7 +28,7 @@ does not prove displayed picker interaction.
 
 ## Remaining parity
 
-Streaming command output, complete progress-window controls/layout, physical
+Streaming adoption outside Clone, complete progress-window controls/layout, physical
 Close/Escape/titlebar/nested-sheet/default/accessibility/theme behavior,
 remaining progress replacements for other command dialogs,
 command-line closeonend override and libgit2 progress variants remain pending.
@@ -55,3 +55,8 @@ ConfirmKillProcess and deferred completion while confirmation is pending. See
 Clone now owns a captured result with ordered Log/Explorer actions, captured Retry
 and ConfirmKillProcess. See [Clone parity](CLONE-PARITY.md) and
 [native QA](qa/clone-progress-2026-10-08.json).
+
+Clone now streams byte-oriented CLI output through a port of GitCliOutputParser,
+with percentage/phase presentation, output limits and automatic end scrolling.
+See [live-output QA](qa/clone-stream-2026-10-08.json); physical and signed acceptance
+and streaming in other dialogs remain pending.

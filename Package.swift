@@ -7,7 +7,7 @@ let package = Package(
     targets: [
         .target(name: "TurtleGitCore", resources: [.copy("Resources/Icons"), .copy("Resources/Completion")]),
         .executableTarget(name: "TurtleGitMac", dependencies: ["TurtleGitCore"]),
-        .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"])
+        .testTarget(name: "TurtleGitCoreTests", dependencies: ["TurtleGitCore"], resources: [.copy("Fixtures/GitOutput")])
     ],
     swiftLanguageModes: [.v5]
 )

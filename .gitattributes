@@ -1,2 +1,5 @@
 # Keep the upstream icon license byte-for-byte, including its original CRLF.
 Sources/TurtleGitCore/Resources/Icons/UPSTREAM-ICON-LICENSE.txt -text -whitespace
+
+# Raw upstream progress captures intentionally contain CR and trailing spaces.
+Tests/TurtleGitCoreTests/Fixtures/GitOutput/*.txt -text -whitespace

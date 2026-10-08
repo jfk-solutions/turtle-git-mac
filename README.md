@@ -642,3 +642,6 @@ confirmation with express Switch and branch creation; see [Switch parity](docs/S
 
 Clone now owns a native result with captured Retry, Log/Finder actions and process
 cancellation confirmation; see [Clone parity](docs/CLONE-PARITY.md).
+
+Clone displays live command output and transfer percentages using upstream-style
+CR/remote-line handling and output limits; see [Clone parity](docs/CLONE-PARITY.md).
