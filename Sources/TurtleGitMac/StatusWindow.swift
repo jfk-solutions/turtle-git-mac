@@ -289,7 +289,7 @@ struct StatusRow: Identifiable {
         case .pathsAndStatus: columns = [.path,.status]
         default: columns = []
         }
-        let heading = columns.count > 1 ? columns.map(\.rawValue).joined(separator: "\t") + "\n" : ""
+        let heading = StatusListClipboard.heading(copy: copy, columns: columns)
         return heading + rows.map { row in
             switch copy {
             case .fullPaths: return repository.root.appendingPathComponent(row.path).path

@@ -862,3 +862,12 @@ The LFS progress model stops accepting queued per-file callbacks once the final
 batch snapshot arrives. This prevents duplicate result rows while subsequent
 lock/metadata refreshes yield to the main actor; generation and cancellation
 guards remain in place.
+
+Standalone Locks context menus now follow GitStatusListCtrl.cpp
+AppendLocksMenuItems and LFS command dispatch: HasLFS/directory/selection gates,
+Lock/Unlock when ownership is hidden, captured highlighted targets and no
+implicit Force. Checked-button Force is captured separately; explicit Force
+retry applies only to failed Unlock. Native progress titles reflect Lock/Unlock.
+Copy all headings now preserve the source multi-column mask behavior even with
+one visible column across shared Core, Working Tree and Locks formatting.
+Original source attribution and GPL version 2 or later apply.

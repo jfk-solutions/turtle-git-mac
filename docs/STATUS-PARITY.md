@@ -99,3 +99,7 @@ the displayed Path column. Literal names retain tabs/newlines.
 See [column QA](qa/working-tree-columns-2026-10-09.json) for current evidence and
 limits. Physical pointer/keyboard/context menu input, full status-list menus and
 signed sandbox/Finder acceptance remain pending. This is partial dialog parity.
+
+Copy all now retains its heading when Path is the only visible column, using
+the shared source command-mask rule. Explicit column/path copies omit headings.
+See [menu/copy QA](qa/lfs-menu-copy-2026-10-09.json).

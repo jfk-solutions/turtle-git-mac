@@ -101,6 +101,11 @@ import TurtleGitCore
         let locksYesReset = locksProbe().columnMenu().item(withTitle: "Reset columns")!
         _ = NSApplication.shared.sendAction(locksYesReset.action!, to: locksYesReset.target, from: locksYesReset)
         try await settle { !model.busy && locksProbe().enabled && model.fileColumns == LFSLocksWindowModel.defaultColumns && locksProbe().columnDefinition(atNativeIndex: 1) == .path && table.tableColumns.filter { !$0.isHidden }.count == 4 }
+        model.setColumn(.fileExtension, visible: false); model.setColumn(.lfsOwner, visible: false)
+        try await settle { table.tableColumns.filter { !$0.isHidden }.count == 2 }
+        precondition(model.clipboardText(["1"], copy: .all) == "Path\nfile2.bin\n")
+        precondition(model.clipboardText(["1"], copy: .column(.path)) == "file2.bin\n")
+        model.setColumn(.fileExtension, visible: true); model.setColumn(.lfsOwner, visible: true)
         model.setSortOrder([LFSFileSort(column: .path),LFSFileSort(column: .fileSize)]); precondition(model.sortOrder.count == 1)
         model.toggleChecks(["1","2"], mark: "1"); precondition(model.checked.isEmpty && model.selection == ["2"])
         model.toggleChecks(["1","2"], mark: "1"); precondition(model.checked == ["1","2"])
@@ -162,6 +167,63 @@ import TurtleGitCore
         await task.value
         precondition(model.results.count == 1 && model.information.contains("Completed server changes remain"))
         model.finishProgress(); try await settle { window.attachedSheet == nil }; window.close()
+        // Context actions use highlighted IDs, ignore the dialog Force checkbox,
+        // and expose both operations only with the owner column hidden.
+        precondition(!model.hasLFS && model.lfsActions(["3"]).isEmpty)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(".git/lfs"), withIntermediateDirectories: true)
+        let contextController = LFSLocksWindowController(repository: repository, access: nil, defaults: defaults)
+        let contextModel = contextController.model
+        let contextReply = [LFSLock(id: "c1", path: "file2.bin", owner: "QA"),LFSLock(id: "c2", path: "雪\t🦎.bin", owner: "Other")]
+        contextModel.query = { _ in contextReply }; await contextModel.refresh()
+        precondition(contextModel.hasLFS && contextModel.lfsActions(["c2"]) == [.unlock])
+        contextModel.setColumn(.lfsOwner, visible: false)
+        precondition(contextModel.lfsActions(["c2"]) == [.lock,.unlock] && contextModel.lfsActions(["c2","missing"]).isEmpty)
+        contextModel.setForce(true); contextModel.checked = ["c1"]; contextModel.selection = ["c2"]
+        var contextLockRequests: [[String]] = [], contextUnlockRequests: [([String],Bool)] = []
+        contextModel.lockChange = { paths, _, report in
+            precondition(contextModel.checked == ["c1"] && contextModel.selection == ["c2"])
+            contextLockRequests.append(paths)
+            let files = paths.map { LFSFileResult(path: $0, success: false, output: "Already locked") }
+            for file in files { report(file) }; return LFSBatchResult(files: files)
+        }
+        contextModel.change = { paths, force, _, report in
+            contextUnlockRequests.append((paths,force))
+            let files = paths.map { LFSFileResult(path: $0, success: force, output: force ? "Unlocked" : "Owned by another user") }
+            for file in files { report(file) }; return LFSBatchResult(files: files)
+        }
+        await contextModel.setSelectionLocked(["c2"], locked: true)
+        try await settle { contextController.window?.attachedSheet?.title == "LFS Lock – TurtleGit" }
+        precondition(contextLockRequests == [["雪\t🦎.bin"]] && contextModel.operationLocked && contextModel.results.count == 1 && !contextModel.results[0].success)
+        await contextModel.unlock(forceRetry: true)
+        await contextModel.setSelectionLocked(["c2"], locked: false)
+        precondition(contextLockRequests.count == 1 && contextUnlockRequests.isEmpty)
+        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil }
+        contextModel.checked = ["c1"]; contextModel.selection = ["c2"]
+        await contextModel.setSelectionLocked(["c2"], locked: false)
+        try await settle { contextController.window?.attachedSheet?.title == "LFS Unlock – TurtleGit" }
+        precondition(contextUnlockRequests.count == 1 && contextUnlockRequests[0].0 == ["雪\t🦎.bin"] && !contextUnlockRequests[0].1 && contextModel.force)
+        await contextModel.unlock(forceRetry: true)
+        precondition(contextUnlockRequests.count == 2 && contextUnlockRequests[1].0 == contextUnlockRequests[0].0 && contextUnlockRequests[1].1 && contextModel.results[0].success)
+        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil }
+        contextModel.checked = ["c1"]; contextModel.selection = ["c2"]
+        await contextModel.unlock()
+        precondition(contextUnlockRequests.count == 3 && contextUnlockRequests[2].0 == ["file2.bin"] && contextUnlockRequests[2].1)
+        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil }
+        contextModel.checked = ["c1"]; contextModel.selection = ["c1","c2"]
+        contextModel.setSortOrder([LFSFileSort(column: .lfsOwner)])
+        await contextModel.setSelectionLocked(["c1","c2"], locked: false)
+        precondition(contextUnlockRequests.count == 4 && contextUnlockRequests[3].0 == ["雪\t🦎.bin","file2.bin"] && !contextUnlockRequests[3].1)
+        precondition(contextModel.results.count == 2 && contextModel.results.allSatisfy { !$0.success })
+        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil }
+        contextModel.confirmingQuit = true
+        await contextModel.setSelectionLocked(["c2"], locked: true)
+        precondition(contextLockRequests.count == 1)
+        contextModel.confirmingQuit = false; contextController.window?.close()
+        let directoryMenuModel = LFSLocksWindowModel(repository: repository, access: nil, defaults: defaults)
+        directoryMenuModel.hasLFS = true; directoryMenuModel.locks = [LFSLock(id: "dir", path: "folder", owner: "QA")]
+        directoryMenuModel.fileMetadata = ["folder": StatusListMetadata(modificationDate: nil, size: nil, isDirectory: true)]
+        precondition(directoryMenuModel.lfsActions(["dir"]).isEmpty)
+        try FileManager.default.removeItem(at: root.appendingPathComponent(".git/lfs"))
         for name in ["file2.bin","雪\t🦎.bin"] { try FileManager.default.removeItem(at: root.appendingPathComponent(name)) }
         // Exercise both actual status-list owners and their production routing.
         try FileManager.default.createDirectory(at: root.appendingPathComponent(".git/lfs"), withIntermediateDirectories: true)
@@ -431,6 +493,10 @@ import TurtleGitCore
         _ = NSApplication.shared.sendAction(yesReset.action!, to: yesReset.target, from: yesReset)
         try await settle { !status.model.busy && status.model.fileColumns == StatusWindowModel.defaultColumns && statusProbe().columnDefinition(atNativeIndex: 0) == .path && statusTable.tableColumns.filter { !$0.isHidden }.count == 6 }
         precondition(StatusWindowModel(repository: repository, access: nil, defaults: defaults).fileColumns == StatusWindowModel.defaultColumns)
+        for column in StatusWindowModel.defaultColumns.visible where column != .path { status.model.setColumn(column, visible: false) }
+        precondition(status.model.clipboardText(["unlocked.bin"], copy: .all) == "Path\nunlocked.bin\n")
+        precondition(status.model.clipboardText(["unlocked.bin"], copy: .column(.path)) == "unlocked.bin\n")
+        for column in StatusWindowModel.defaultColumns.visible where column != .path { status.model.setColumn(column, visible: true) }
         commit.window?.close(); status.window?.close()
         // Resolve shares the same three-state helper; use a separate real
         // conflicted repository and activate only selection controls.

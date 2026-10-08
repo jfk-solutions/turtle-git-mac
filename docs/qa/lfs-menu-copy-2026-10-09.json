@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "6c4a5f7b6c7584eb034253417e60694dbd916469",
+  "scope": "Source standalone LFS context actions, highlighted/check target distinction, captured Force policy and shared single-visible-column Copy all headings. Full port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/LFSLocksDlg.cpp": "f9ebe3aaa8c1089ce356f7b6f1142c5b9ceb1036"
+  },
+  "sources_manifest_sha256": "f04b08a7f9f4e9c07b9bfd294832f64baee803f5326d93d9b2bc31b6ed3ca742",
+  "changed_files_sha256": {
+    "NOTICE": "9ec9eb5e0004f074ab4e15831702e9a53a98d998922bb84c230849fb81f87250",
+    "Sources/TurtleGitCore/StatusListClipboard.swift": "c6afdcedbf4fe64bbb5f828270011802363415102f9fff48c8bd3927c509d949",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "b7debcb92bd3f915ac2f631dc2c3b5658c2dffde2c245946f98c5995f294003d",
+    "Sources/TurtleGitMac/StatusWindow.swift": "f35e3a0dc699800c555b421c3cee694c932c7403abf9fae4b7b025f5d94581f8",
+    "Tests/TurtleGitCoreTests/StatusListClipboardTests.swift": "d44cabd8824579bd1d02c918a23855b66802ac6849f547fc2dbf76a147e585bf",
+    "docs/LFS-PARITY.md": "cd0f1b5806ed57d96ef389c03a79ecb4a1055cb07b3951f2c700d40120d286f0",
+    "docs/STATUS-PARITY.md": "d47934dfdabff8862087f396a7e326c741bb0868278d950db471c224279e017f",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "0eb6d007c614463db9455f220c9ccf73f90d84917613679fc91952b90e535a70",
+    "docs/upstream-files.csv": "8918b1bb6cced1e4fa41bfaf39998b262f5a58094f7204357b3c71bc387c4d7a"
+  },
+  "verification": {
+    "core": "Seven focused StatusListClipboardTests pass, including entry and historical-file Copy all with one visible column retaining headings; explicit column/path copies omit headings; raw Unicode/tab/newline names, rename display, order and empty selection/columns retained. The only later Core edit clarifies the documentation comment; heading implementation/test assertions unchanged.",
+    "native": "Final activation-prohibited AppKit receiver passes Apple Git and bundled Git 2.55.0. Actual standalone controllers, owned Lock/Unlock sheets and titles, source marker gating, visible-owner Unlock and hidden-owner both operations, invalid-ID gate, pure model directory gate, highlighted target c2 independent of checked c1 inside Lock callback, failed Lock with no Force retry, no duplicate action during review, context Unlock force=false despite checkbox=true, explicit same-target Force retry=true, main checked-button path c1/force=true, and two-file highlighted context Unlock in displayed Other/QA owner order force=false. Quit guards retained. Actual Locks table reduced to only Path verifies Copy all heading versus explicit column; Working Tree model verifies same rule. Existing column/sorting/sheet/Force/cancel/ownership/Commit/Working Tree/real-conflict Resolve checks execute. HEAD/raw index/tracked bytes retained; LFS replies injected, no authenticated provider or physical context activation claim.",
+    "builds": "Current Debug and sequential unsigned AppStore builds and bundle audits pass; Store audit requires bundled Git/Git LFS. Both packages contain current NOTICE. Sources/NOTICE/tests/receivers frozen during compiler/native handles. No signed sandbox or App Store acceptance claim.",
+    "inventory": "3277 seven-field LF rows, pinned inventory and diff checks pass. Three source mappings extended and remain partial.",
+    "site": "Local Pages generator includes updated LFS/Status guides and current QA; no deployment or fresh screenshot claim."
+  },
+  "iterations": [
+    "Initial native receiver passed both engines. Added explicit two-file highlighted display-order batch assertion and reran the complete receiver; both engines pass. No production assertions removed."
+  ],
+  "limitations": [
+    "Physical context menu/pointer/keyboard, actual reset alert buttons, appearance/accessibility/fresh screenshots remain unverified. Native action methods and actual sheet attachment are checked with injected LFS replies.",
+    "Directory selection gate is a pure model metadata check in this receiver; prior Core per-batch filesystem preflight evidence remains separate.",
+    "Other source menus/enablement, progress/post-Pull behavior, authenticated providers, signed Finder/sandbox/helper deployment, App Store eligibility, GitHub CI/push and whole application parity remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": [],
+    "main_app_launches": 0,
+    "preferences": "Private UUID LFS.StatusQA suite for standalone/Commit/Working Tree; post-exit exact defaults deletion and verified empty file removal for four owned suites. Main app preferences untouched.",
+    "preference_cleanup_record": "build/qa/lfs-menu-copy-2026-10-09/preference-cleanup.json",
+    "preference_cleanup_sha256": "74a13bd5ab250bbdc11298c03f7a8539fea6a58a6362187a5908ada8ad306961",
+    "windows": "All successful receivers close owned windows and sheets, then exit; wrappers remove private fixture directories."
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-menu-copy-2026-10-09/core.log": "e72d7548157e9246e6b4356100d9736f19fe277240330b4c119172ee7ecae91f",
+    "build/qa/lfs-menu-copy-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-menu-copy-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-menu-copy-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-menu-copy-2026-10-09/native-order-final.log": "4ba8a32cf1e6b06b41674416dd966100a8910d02c34aee325a8a6e5f620075c4",
+    "build/qa/lfs-menu-copy-2026-10-09/native.log": "4ba8a32cf1e6b06b41674416dd966100a8910d02c34aee325a8a6e5f620075c4",
+    "build/qa/lfs-menu-copy-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-menu-copy-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/lfs-menu-copy-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/lfs-menu-copy-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

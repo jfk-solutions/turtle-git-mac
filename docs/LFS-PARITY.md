@@ -154,13 +154,34 @@ appearance, accessibility, fresh screenshots, authenticated providers and signed
 Finder/sandbox deployment remain unverified. Full Locks workflow parity remains
 partial.
 
-Known remaining source differences include offering Lock alongside Unlock when
-the standalone owner column is hidden, and Copy all retaining its heading when
-only Path is visible. Other shared-list context commands and source enablement
-also remain pending; the new column checks do not establish full menu parity.
+Other shared-list context commands and source enablement remain pending; the
+column checks do not establish full menu parity.
 
 A completed LFS batch now stops accepting queued per-file progress callbacks
 before publishing its final results. Previously a refresh yielding to another
 actor could append delayed callbacks to those results a second time. The native
 receiver preserves the exact per-file result count/order and cancellation checks;
 the failed diagnostic log records the duplicate rows before the fix.
+
+## Source context targets and copy masks
+
+The standalone Locks context menu now uses the shared ownership policy: Lock and
+Unlock are both offered when the owner column is hidden; visible locked rows
+offer Unlock. The common-directory LFS marker, nonempty valid selection and
+non-directory gates match AppendLocksMenuItems. Context batches capture
+highlighted server IDs in displayed order, independently of checked targets.
+They start without Force, even when the dialog’s Force checkbox is checked.
+The main Unlock button captures checked paths and its Force setting instead.
+Explicit Force retry keeps the captured Unlock targets; failed Lock cannot be
+retried as Force Unlock. Owned progress titles and original artwork reflect the
+chosen operation. A completed standalone batch refreshes the lock list.
+
+The shared clipboard formatter now retains Copy all headings when only one
+column is visible, following the source’s multi-column command mask. Explicit
+single-column and full/relative/name copies still omit headings. Commit/Log
+Core formatting, Working Tree and Locks use the same heading rule.
+
+[Menu/copy QA](qa/lfs-menu-copy-2026-10-09.json) records focused Core assertions
+and native operation/sheet/selection/Force checks with injected responses.
+Physical context-menu activation, full source command coverage, real providers
+and signed deployment remain pending.

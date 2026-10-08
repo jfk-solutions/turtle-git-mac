@@ -11,6 +11,14 @@ final class StatusListClipboardTests: XCTestCase {
         XCTAssertEqual(output, "Filename\tLast modified\tFile size\nnew.txt\t" + metadata.dateText + "\t" + metadata.sizeText + "\nraw.bin\t–\t–\n")
         XCTAssertEqual(StatusListColumn.nativeColumn(2, columns: StatusListColumn.allCases), .fileName)
     }
+    func testCopyAllKeepsHeadingWithOneVisibleColumnButExplicitColumnOmitsIt() {
+        XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: [:], copy: .all, visibleColumns: [.path]), "Path\n雪/new.txt (from old.txt)\nraw.bin\n")
+        XCTAssertEqual(text(.column(.path)), "雪/new.txt (from old.txt)\nraw.bin\n")
+        let file = CommitFile(path: "dir/雪\tname\n.txt", oldPath: nil, action: "M", added: 1, removed: 0, hasStatistics: true, isSubmodule: false)
+        XCTAssertEqual(StatusListClipboard.text([file], root: root, statuses: [:], copy: .all, visibleColumns: [.path]), "Path\n" + file.path + "\n")
+        XCTAssertEqual(StatusListClipboard.text([file], root: root, statuses: [:], copy: .column(.path)), file.path + "\n")
+        XCTAssertEqual(StatusListClipboard.text([file], root: root, statuses: [:], copy: .all, visibleColumns: [.added]), "Lines added\n1\n")
+    }
     func testPathCommandsKeepRawPathsAndSelectedOrder() {
         XCTAssertEqual(text(.relativePaths), "雪/new.txt\nraw.bin\n")
         XCTAssertEqual(text(.fullPaths), "/tmp/repository/雪/new.txt\n/tmp/repository/raw.bin\n")

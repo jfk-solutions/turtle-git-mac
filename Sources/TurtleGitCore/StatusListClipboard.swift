@@ -52,8 +52,8 @@ public enum StatusListClipboard {
         return format(files, root: root, copy: copy, visibleColumns: visibleColumns, path: { $0.path }, cell: cell)
     }
 
-    /// Copy the displayed row order. Single-column output has no heading;
-    /// multi-column output uses headings and tabs, with macOS LF line endings.
+    /// Copy the displayed row order. Explicit single-column output has no
+    /// heading; Copy all retains headings, with tabs and macOS LF endings.
     public static func text(_ entries: [StatusEntry], root: URL, statistics: [String: CommitFile], copy: StatusListCopy, metadata: [String: StatusListMetadata] = [:], lfsOwners: [String: String] = [:], visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
         func cell(_ entry: StatusEntry, _ column: StatusListColumn) -> String {
             let stats = statistics[entry.path]
@@ -72,6 +72,15 @@ public enum StatusListClipboard {
         return format(entries, root: root, copy: copy, visibleColumns: visibleColumns, path: { $0.path }, cell: cell)
     }
 
+    /// Copy all requests the source's multi-column mask even when only one
+    /// column is visible; explicit single-column/path copies omit headings.
+    public static func heading(copy: StatusListCopy, columns: [StatusListColumn]) -> String {
+        guard !columns.isEmpty else { return "" }
+        let include: Bool
+        if case .all = copy { include = true } else { include = columns.count > 1 }
+        return include ? columns.map(\.rawValue).joined(separator: "\t") + "\n" : ""
+    }
+
     private static func format<Row>(_ rows: [Row], root: URL, copy: StatusListCopy, visibleColumns: [StatusListColumn], path: (Row) -> String, cell: (Row, StatusListColumn) -> String) -> String {
         guard !rows.isEmpty else { return "" }
         var columns: [StatusListColumn] = []
@@ -83,7 +92,7 @@ public enum StatusListClipboard {
         case .pathsAndStatus: columns = [.path, .status]
         default: break
         }
-        let heading = columns.count > 1 ? columns.map(\.rawValue).joined(separator: "\t") + "\n" : ""
+        let heading = Self.heading(copy: copy, columns: columns)
         return heading + rows.map { entry in
             switch copy {
             case .fullPaths: return root.appendingPathComponent(path(entry)).path
