@@ -35,6 +35,7 @@ import TurtleGitCore
     private var worktreeListWindows: [String: WorktreeListWindowController] = [:]
     private var worktreeCreateWindows: [String: WorktreeCreateWindowController] = [:]
     private var requestPullWindows: [String: RequestPullWindowController] = [:]
+    private var importPatchWindows: [String: ImportPatchWindowController] = [:]
     private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
     private var blameWindows: [String: BlameWindowController] = [:]
     private var rebaseWindows: [String: RebaseWindowController] = [:]
@@ -328,6 +329,9 @@ import TurtleGitCore
         case .requestPull:
             guard let repository else { return }
             showRequestPull(repository: repository, access: activeAccess)
+        case .importPatch:
+            guard let repository else { return }
+            showImportPatch(repository: repository, access: activeAccess, paths: paths)
         case .formatPatch:
             guard let repository else { return }
             showFormatPatch(repository: repository, access: activeAccess)
@@ -948,6 +952,18 @@ import TurtleGitCore
         let controller = RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: repositoryURL)
         controller.onClosed = { [weak self] in self?.requestPullWindows.removeValue(forKey: key) }
         requestPullWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showImportPatch(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
+        let key = repository.root.path
+        let controller = importPatchWindows[key] ?? ImportPatchWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.importPatchWindows.removeValue(forKey: key) }
+        controller.model.onChanged = { [weak self] output in
+            self?.statusWindows[key]?.model.reload()
+            if self?.root?.path == key { self?.output = output; Task { await self?.refresh() } }
+        }
+        controller.model.add(paths.map { repository.root.appendingPathComponent($0) }.filter { ["patch", "diff"].contains($0.pathExtension.lowercased()) })
+        importPatchWindows[key] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false) {
         let rootKey = repository.root.path

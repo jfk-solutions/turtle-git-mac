@@ -107,6 +107,7 @@ extension RepositoryAction {
         case .bisectReset: return .bisectReset
         case .export: return .export
         case .formatPatch, .requestPull: return .unifiedDiff
+        case .importPatch: return .patch
         case .diff, .diffLater, .clearComparisonMark: return .compare
         case .pull: return .pull
         case .push: return .push

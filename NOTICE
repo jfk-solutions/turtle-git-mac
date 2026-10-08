@@ -659,7 +659,8 @@ GitLogListBase.cpp::InsertGitColumn's optional log font and HEAD bold font,
 copyright (C) 2008-2026 TortoiseGit and (C) 2005-2007 Marco Costalba,
 under the upstream GPL version 2 or later. Native row heights follow AppKit metrics.
 
-Mail-patch import options and recovery adapt ImportPatchDlg.cpp's git am
+Mail-patch import options, native checked/ordered file list, Patch/Log tabs,
+batch stop, close prompts and recovery adapt ImportPatchDlg.cpp's git am
 commands, copyright (C) 2008-2020, 2023-2024, 2026 TortoiseGit, under GPL version
 2 or later. Native worktree-specific session detection distinguishes mail
 application from rebase so am recovery cannot abort a rebase.

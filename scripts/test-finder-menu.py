@@ -29,7 +29,7 @@ import TurtleGitCore
             .remove: "Remove", .removeKeep: "RemoveKeep", .revert: "Revert", .clean: "Cleanup", .switchBranch: "Switch",
             .merge: "Merge", .branch: "Branch", .tag: "Tag", .export: "Export", .initialize: "CreateRepo",
             .ignore: "IgnoreSub", .ignoreDelete: "DeleteIgnoreSub", .worktreeList: "Worktree",
-            .submoduleUpdate: "SubmoduleUpdate", .formatPatch: "FormatPatch"
+            .submoduleUpdate: "SubmoduleUpdate", .formatPatch: "FormatPatch", .importPatch: "ImportPatch"
         ]
         let nativeBySource = Dictionary(uniqueKeysWithValues: mapping.map { ($0.value, $0.key) })
         let projected = sourceOrder.groups.map { $0.compactMap { nativeBySource[$0] } }.filter { !$0.isEmpty }

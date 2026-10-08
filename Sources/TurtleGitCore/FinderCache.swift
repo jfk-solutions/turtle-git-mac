@@ -231,7 +231,7 @@ public struct FinderSnapshot: Codable, Sendable {
 }
 
 public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
-    case status, commit, add, revert, clean, submoduleUpdate, log, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
+    case status, commit, add, revert, clean, submoduleUpdate, log, repositoryBrowser, export, bisect, bisectStart, bisectGood, bisectBad, bisectSkip, bisectReset, formatPatch, importPatch, requestPull, worktreeCreate, worktreeList, diff, diffLater, clearComparisonMark, pull, push, fetch, branch, tag, switchBranch, merge, mergeAbort, rebase, stash, stashApply, stashPop, stashList, reflog, clone, initialize, rename, remove, removeKeep, ignore, ignoreMask, ignoreDelete, ignoreDeleteMask, resolve, resolveCurrent, resolveMine, resolveTheirs, reset, editConflict
     public var id: String { rawValue }
     public var title: String {
         switch self {
@@ -251,6 +251,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
         case .bisectReset: return "Bisect reset"
         case .export: return "Export…"
         case .formatPatch: return "Create Patch Serial…"
+        case .importPatch: return "Apply Patch Serial…"
         case .requestPull: return "Create pull request…"
         case .worktreeCreate: return "New Worktree…"
         case .worktreeList: return "Worktrees"
@@ -299,7 +300,7 @@ public enum RepositoryAction: String, CaseIterable, Identifiable, Sendable {
     public var ignoresByExtension: Bool { self == .ignoreMask || self == .ignoreDeleteMask }
     public var removesWhenIgnoring: Bool { self == .ignoreDelete || self == .ignoreDeleteMask }
     public var requiresValue: Bool { [.branch, .tag, .switchBranch, .merge, .rebase, .stash, .clone].contains(self) }
-    public var requiresWorkingTree: Bool { [.status, .commit, .add, .revert, .clean, .submoduleUpdate, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
+    public var requiresWorkingTree: Bool { [.status, .commit, .importPatch, .add, .revert, .clean, .submoduleUpdate, .diff, .bisect, .bisectStart, .bisectGood, .bisectBad, .bisectSkip, .bisectReset, .pull, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .rename, .remove, .removeKeep, .ignore, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolve, .resolveCurrent, .resolveMine, .resolveTheirs, .editConflict].contains(self) }
     public var prompt: String {
         switch self {
         case .clone: return "Repository URL"
@@ -373,6 +374,7 @@ public struct FinderShellFlags: OptionSet, Sendable {
     public static let stash = Self(rawValue: 1 << 17)
     public static let submoduleContainer = Self(rawValue: 1 << 18)
     public static let deleted = Self(rawValue: 1 << 19)
+    public static let patchFile = Self(rawValue: 1 << 20)
 }
 public struct FinderShellCondition: Sendable {
     public let required: FinderShellFlags
@@ -423,6 +425,7 @@ public enum FinderShellRules {
         .ignoreDelete: [.init([.inVersionedFolder, .inGit], [.ignored, .workingTreeRoot]), .init([], []), .init([], []), .init([], [])],
         .worktreeList: [.init([.folderInGit, .onlyOne], []), .init([.bare], []), .init([], []), .init([], [])],
         .submoduleUpdate: [.init([.folderInGit, .submoduleContainer], []), .init([], []), .init([], []), .init([], [])],
+        .importPatch: [.init([.patchFile], []), .init([.folderInGit, .onlyOne], []), .init([], []), .init([], [])],
         .formatPatch: [.init([.folderInGit, .onlyOne], []), .init([], []), .init([], []), .init([], [])],
     ]
     public static func allows(_ action: RepositoryAction, flags: FinderShellFlags) -> Bool {
@@ -436,6 +439,7 @@ public enum FinderShellRules {
         for path in paths {
             let directory = (try? path.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? path.hasDirectoryPath
             if directory { flags.insert(.folder) }
+            else if ["patch", "diff"].contains(path.pathExtension.lowercased()) { flags.insert(.patchFile) }
             let root = snapshot?.roots.sorted { $0.count > $1.count }.first { root in
                 path.path == root || path.path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
             }

@@ -1,0 +1,253 @@
+// Adapts TortoiseGit's ImportPatchDlg controls and git-am workflow (see NOTICE).
+import AppKit
+import SwiftUI
+import TurtleGitCore
+
+@MainActor final class ImportPatchWindowController: NSWindowController, NSWindowDelegate {
+    let model: ImportPatchWindowModel
+    var onClosed: () -> Void = {}
+    private var approvedClose = false
+    var activeOperation: Bool { model.busy || model.closing || window?.attachedSheet != nil }
+    init(repository: GitRepository, access: RepositoryAccessLease?) {
+        model = ImportPatchWindowModel(repository: repository, access: access)
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "\(repository.root.lastPathComponent) – Apply Patch Serial – TurtleGit"
+        window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: ImportPatchDialog(model: model))
+        super.init(window: window); window.delegate = self
+        window.contentMinSize = .init(width: 660, height: 460); window.center()
+        model.chooseFiles = { [weak self] in self?.chooseFiles() }
+        model.chooseRecovery = { [weak self] in
+            guard let self else { return nil }
+            let response = await self.prompt("A patch import is active", "Resolve conflicts and stage the result before choosing Resolved.", buttons: ["Abort", "Skip", "Resolved", "Cancel"])
+            return (0..<3).contains(response) ? [MailPatchRecovery.abort, .skip, .resolved][response] : nil
+        }
+        model.chooseClose = { [weak self] in
+            guard let self else { return .cancel }
+            let response = await self.prompt("A patch import is active", "Abort the import, or keep its state to continue later?", buttons: ["Abort", "Keep session", "Cancel"])
+            return response == 0 ? .abort : response == 1 ? .keep : .cancel
+        }
+        model.close = { [weak self] in self?.approvedClose = true; self?.window?.performClose(nil) }
+        DialogGeometry.attach(window, identifier: "ImportDlg", legacyName: "ImportDlg")
+    }
+    private func prompt(_ title: String, _ message: String, buttons: [String]) async -> Int {
+        guard let window, window.attachedSheet == nil else { return -1 }
+        let alert = NSAlert(); alert.messageText = title; alert.informativeText = message
+        for title in buttons { alert.addButton(withTitle: title) }
+        // Cancel is the safe keyboard default; recovery remains an explicit choice.
+        alert.buttons.first?.keyEquivalent = ""; alert.buttons.last?.keyEquivalent = "\r"
+        alert.window.defaultButtonCell = alert.buttons.last?.cell as? NSButtonCell
+        return await withCheckedContinuation { continuation in
+            alert.beginSheetModal(for: window) { continuation.resume(returning: $0.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue) }
+        }
+    }
+    private func chooseFiles() {
+        guard !activeOperation, let window else { return }
+        let panel = NSOpenPanel(); panel.allowsMultipleSelection = true; panel.canChooseDirectories = false
+        panel.title = "Add patches"; panel.directoryURL = model.repository.root
+        panel.beginSheetModal(for: window) { [weak self] response in
+            if response == .OK { self?.model.add(panel.urls) }
+        }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if approvedClose { return true }
+        guard sender.attachedSheet == nil else { return false }
+        model.requestClose(); return false
+    }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+@MainActor final class ImportPatchWindowModel: ObservableObject {
+    enum State: String { case pending = "", applying = "Applying", success = "Success", failed = "Failed", skipped = "Skipped" }
+    enum CloseChoice { case abort, keep, cancel }
+    struct Item: Identifiable {
+        let id = UUID()
+        let file: URL
+        let access: RepositoryAccessLease
+        var checked = true
+        var state = State.pending
+    }
+    let repository: GitRepository
+    let access: RepositoryAccessLease?
+    @Published private(set) var items: [Item] = []
+    @Published var selection: Set<UUID> = [] { didSet { loadPreview() } }
+    @Published var options = MailPatchOptions()
+    @Published var tab = 0
+    @Published private(set) var preview = ""
+    @Published private(set) var output = ""
+    @Published private(set) var busy = false
+    @Published private(set) var stopRequested = false
+    @Published private(set) var closing = false
+    @Published var error: String?
+    private var failedRow: UUID?
+    private var invalidated = false
+    private var previewGeneration = UUID()
+    var chooseFiles: () -> Void = {}
+    var chooseRecovery: () async -> MailPatchRecovery? = { nil }
+    var chooseClose: () async -> CloseChoice = { .cancel }
+    var close: () -> Void = {}
+    var onChanged: (String) -> Void = { _ in }
+    var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
+    var editable: Bool { !busy && !closing && !invalidated }
+    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    func invalidate() { guard !busy else { return }; invalidated = true; previewGeneration = UUID(); items = []; selection = [] }
+    func add(_ urls: [URL]) {
+        guard editable else { return }
+        for url in urls {
+            guard url.isFileURL else { error = MailPatchFailure.file.localizedDescription; continue }
+            let lease = RepositoryAccessLease(url: url)
+            guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope || (access?.hasSecurityScope == true && access?.contains(url) == true) else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; continue }
+            items.append(Item(file: url, access: lease))
+        }
+    }
+    func check(_ id: UUID, _ checked: Bool) {
+        guard editable, let index = items.firstIndex(where: { $0.id == id }), items[index].state != .success else { return }
+        items[index].checked = checked
+        if items[index].state == .skipped { items[index].state = .pending }
+    }
+    func remove() {
+        guard editable else { return }
+        items.removeAll { selection.contains($0.id) }; selection = []
+        // Retain failedRow's identity even if its row was removed: Git's active
+        // session must still be recovered, without marking a different row done.
+    }
+    func move(_ direction: Int) {
+        guard editable, direction == -1 || direction == 1 else { return }
+        let indexes = items.indices.filter { selection.contains(items[$0].id) }
+        guard let first = indexes.first, let last = indexes.last,
+              direction < 0 ? first > 0 : last < items.count - 1 else { return }
+        for index in direction < 0 ? indexes : indexes.reversed() { items.swapAt(index, index + direction) }
+    }
+    private func state(_ id: UUID, _ value: State) {
+        if let index = items.firstIndex(where: { $0.id == id }) { items[index].state = value }
+    }
+    private func checkAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    private func loadPreview() {
+        let generation = UUID(); previewGeneration = generation; preview = ""
+        guard !invalidated, selection.count == 1, let item = items.first(where: { selection.contains($0.id) }) else { return }
+        Task {
+            let text = await Task.detached {
+                let size = (try? item.file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
+                guard size <= 32 * 1024 * 1024 else { return "This patch is too large to preview. It can still be imported." }
+                guard let data = try? Data(contentsOf: item.file) else { return "The patch could not be read." }
+                return String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? "The patch could not be decoded."
+            }.value
+            guard !invalidated, previewGeneration == generation else { return }; preview = text
+        }
+    }
+    func apply() {
+        guard editable else { return }
+        if finished { requestClose(); return }
+        guard !items.isEmpty else { return }
+        let batch = items, flags = options
+        busy = true; stopRequested = false; error = nil; tab = 1
+        Task {
+            defer { busy = false; onChanged(output) }
+            do {
+                try checkAccess()
+                _ = try await repository.run(["var", "GIT_COMMITTER_IDENT"])
+                try await recoverSession()
+                for item in batch {
+                    guard !stopRequested else { output += "\nBatch stopped after the current Git command.\n"; break }
+                    guard let current = items.first(where: { $0.id == item.id }), current.state != .success, current.state != .skipped else { continue }
+                    guard current.checked else { state(item.id, .skipped); output += "\nSkipped: \(item.file.path)\n"; continue }
+                    state(item.id, .applying); output += "\nApplying: \(item.file.path)\n"
+                    do {
+                        let result = try await repository.importMailPatch(item.file, options: flags)
+                        output += result + "\nSuccess\n"; state(item.id, .success)
+                    } catch {
+                        state(item.id, .failed); failedRow = item.id; throw error
+                    }
+                    onChanged(output)
+                }
+            } catch {
+                output += "\n" + error.localizedDescription + "\n"; self.error = error.localizedDescription
+            }
+        }
+    }
+    private func recoverSession() async throws {
+        var session = try await repository.mailPatchSession()
+        while session == .applying {
+            guard !stopRequested, let action = await chooseRecovery() else { stopRequested = true; return }
+            output += "\ngit am --\(action.rawValue)\n"
+            output += try await repository.recoverMailPatch(action)
+            session = try await repository.mailPatchSession()
+            if session == .none {
+                if let failedRow {
+                    switch action {
+                    case .abort: state(failedRow, .pending)
+                    case .skip: state(failedRow, .skipped)
+                    case .resolved: state(failedRow, .success)
+                    }
+                }
+                failedRow = nil
+            }
+            onChanged(output)
+        }
+        if session == .rebase { throw MailPatchFailure.rebase }
+        // An externally aborted session permits retry of the retained failed row.
+        if session == .none { failedRow = nil }
+    }
+    func requestStop() { if busy { stopRequested = true } }
+    func requestClose() {
+        if busy { requestStop(); return }
+        guard editable else { return }; closing = true
+        Task {
+            defer { closing = false }
+            do {
+                try checkAccess()
+                if try await repository.mailPatchSession() == .applying {
+                    switch await chooseClose() {
+                    case .cancel: return
+                    case .keep: break
+                    case .abort: output += try await repository.recoverMailPatch(.abort); onChanged(output)
+                    }
+                }
+                close()
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+}
+
+struct ImportPatchDialog: View {
+    @ObservedObject var model: ImportPatchWindowModel
+    private func tool(_ title: String, _ icon: MenuIcon, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) { HStack { Image(nsImage: icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16); Text(title) } }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack { Text("Patch files:"); Spacer()
+                tool("Up", .jumpUp) { model.move(-1) }.disabled(model.selection.isEmpty)
+                tool("Down", .jumpDown) { model.move(1) }.disabled(model.selection.isEmpty)
+                tool("Remove", .remove) { model.remove() }.disabled(model.selection.isEmpty)
+                tool("Add…", .add) { model.chooseFiles() }
+            }.disabled(!model.editable)
+            Table(model.items, selection: $model.selection) {
+                TableColumn("") { item in Toggle("Import \(item.file.lastPathComponent)", isOn: Binding(get: { item.checked }, set: { model.check(item.id, $0) })).labelsHidden().disabled(!model.editable || item.state == .success) }.width(28)
+                TableColumn("Path") { item in Text(item.file.path).help(item.file.path) }
+                TableColumn("Status") { item in Text(item.state.rawValue).foregroundStyle(item.state == .failed ? Color.red : item.state == .success ? .green : item.state == .applying ? .blue : .secondary) }.width(85)
+            }.frame(minHeight: 120)
+            HStack {
+                Toggle("3-way", isOn: $model.options.threeWay)
+                Toggle("Ignore space change", isOn: $model.options.ignoreSpaceChange)
+                Toggle("Sign-off", isOn: $model.options.signOff)
+                Toggle("Keep CR", isOn: $model.options.keepCR)
+            }.disabled(!model.editable)
+            TabView(selection: $model.tab) {
+                OutputView(text: model.preview).tabItem { Text("Patch") }.tag(0)
+                OutputView(text: model.output, usesLogFont: true).tabItem { Text("Log") }.tag(1)
+            }.frame(minHeight: 150)
+            HStack {
+                if model.busy { ProgressView().controlSize(.small); Text(model.stopRequested ? "Stopping after current command…" : "Applying patches…") }
+                Spacer()
+                Button(model.finished ? "OK" : "Apply") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.editable || model.items.isEmpty)
+                Button(model.busy ? "Abort" : "Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.closing || model.stopRequested && model.busy)
+                Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
+            }
+        }.padding(16)
+        .alert("Apply Patch Serial", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+    }
+}

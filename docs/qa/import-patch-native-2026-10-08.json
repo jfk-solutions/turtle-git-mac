@@ -1,0 +1,78 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "5d75385e4e5adfb496071b21699f512ca72622c7",
+  "scope": "Partial native Import Patch dialog, batch/recovery/close workflow, app and Finder command. Full TortoiseGit port remains incomplete. Wrong-chat protected-block Compare option excluded.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9",
+    "src/TortoiseProc/ImportPatchDlg.h": "a4cdd5287f9bf37c73bdaeedff82e3654a5b3644",
+    "src/TortoiseShell/MenuInfo.cpp": "aee7f91ad1111fe03ab85b390855885ca940a27f"
+  },
+  "sources_manifest_sha256": "e66df1fd28a71129440de3202c00ff50a08b9eb85d2c5ae8444e2888f1d65f92",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "cafd74c4cb6c512b52e0fa4857ae75cb1e888df5a1d413fd0eb9973279b45a9e",
+    "FinderSync/FinderSync.swift": "b304e4e791e98519aaf61fe02a779d8d5b4c750524f2a6fe6719079c781b4b2a",
+    "NOTICE": "ea88400cd2160cd2ab69797f7b57a6953b04dcfb74ce66d5aa2a6d3258e503c6",
+    "Sources/TurtleGitCore/FinderCache.swift": "2ad05209275b93b961031a7a197f707904406aeb899f2ae256fa7dc02d54a8a3",
+    "Sources/TurtleGitCore/MenuIcons.swift": "156a6a3b2bf660bac6baa7eef0b5540dd74b4e87e076e6b99585cf8f47a08aad",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "f77a85757d5bbdb9a8b4783105dbe0438de166ba4e9cced139267adaa5afcf7b",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "733824b9586902d10552f027a3aa885a0d9e07e82e48e71be3fdd4c67f801622",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "5a237f7bba31c53e840531d2719280abe4e3a027b5c9fa2af3b41d2418613235",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "ffe1313f6a982c08bdd067dfea1320628b5b82cc0ddc231fc9ccb8b84fbd8f98",
+    "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift": "911c1ab4ce62c6e26879efca9182da9231192668aa62f541fd36672198ec9b82",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "2a43d35a170c4291982cdc13e3b5c551ec9a92f5c29564b6bc375eea74247d08",
+    "docs/IMPORT-PATCH-PARITY.md": "4ab0c358ad37466dc1e69391aee721bd1dcc2f8deeaa7167e930181a13a93522",
+    "docs/README.md": "110075bae895b9f6fcde61954139b58098225986e9ab56dd55f6882b8f083f34",
+    "docs/qa/import-patch-native-2026-10-08.swift": "b58ea809ee09aec5db1dd68042dfc179a65b6a507173be748cc7f7b7ffce2341",
+    "docs/upstream-files.csv": "91f9f3cea0e264a345db3cb1a90a90b3494defa96dfc2077198bab58ad2e7137",
+    "docs/upstream-shell-menu-conditions.json": "6a3d0223d5b527d954210d22ac980e0791f8408b39ed5918e197772a7f99806a",
+    "scripts/test-finder-menu.py": "8db577aacb80f14fa9c70332a013727cbd7bd84b88745922f384044ec28b904a",
+    "scripts/test-import-patch.py": "de37885326b4ece4594f2a1af925ee27193c0b242d8f638431ee085bee897688"
+  },
+  "logs_sha256": {
+    "build/qa/import-patch-native/cleanup.json": "33bf98517f1fb11d86964fef64499d10e5e815654915aeb3e7c17ef8bfcc0838",
+    "build/qa/import-patch-native/core.log": "a603c9dfc6945855008e4c2a30fb0d85fac973f461da22a0206956b70565d35f",
+    "build/qa/import-patch-native/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-native/finder-core.log": "1ca8df3bf415c6afca180b9ffd6eb0a40afb3b4d728af317a34d5a8cc5c8ec1d",
+    "build/qa/import-patch-native/finder-menu.log": "0f4b5d2323352bc27343f88f570e5f262518fd74912cc7a0ca7e7819b1eedf51",
+    "build/qa/import-patch-native/native.log": "f7e3bfe0ca4f1a2c362e3bab5b5764a617f3eaf32f032a2c8f96ae3fd5b4e0e9",
+    "build/qa/import-patch-native/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/import-patch-native/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-native/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/import-patch-native-debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-native-debug.log": "6bb8c74b971e747594884ab207ca4dc9023c42a021d056e4ab79807486c0b2c4",
+    "build/qa/import-patch-native/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "One headless native receiver run per Git engine (four passed). Actual hidden table/preview, ordered checked rows, batch mutation guards, fixed option snapshot, two mail commits/sign-off, retained failure cursor and Abort/Skip/Resolved, Cancel/Keep/Abort close choices, real applypatch-msg hook batch stop completes current Git command. No main app displayed.",
+    "core": "9 FinderShellRules/MailPatch cases plus 7 FinderCreationMenu/FinderRepositoryMetadata cases passed on Apple Git. Earlier engine checkpoint covers four-engine Core suite; not rerun on all engines in this UI checkpoint.",
+    "finder": "Actual Finder menu builder source-order projection, icons/preference, conditions and URL routing checks pass; no Finder extension activated. New command covered by folder selection, source mapping and Core patch-file condition checks; main-app factory prefill inspected, not GUI-launched.",
+    "builds": "Unsigned Debug final and Store builds pass. First Debug iteration failed inference for recovery enum array; fixed before final. Sources/NOTICE/receivers frozen during final compiler/native sessions. Native receivers compiled after Debug with no production source edits afterward. Store began after native/compiler sessions terminal.",
+    "bundles": "Debug and Store bundle audits/NOTICE cmp pass. 98 original icons, universal EditorConfig/IssueRegex; Store Git 11 universal Mach-O files plus local fixtures.",
+    "other": "Inventory pin checks and whitespace gate pass; 3277 CSV records with seven fields. Documentation site build passes."
+  },
+  "iterations": [
+    "First Debug compile failed because recovery array enum literals lacked contextual type. Replaced range check with 0..<3; final compile and tests passed.",
+    "Added source ITEMIS_PATCHFILE condition, original ImportPatch shell-order projection and known-repository Finder prefill before final Debug.",
+    "No source edits after final Debug; documentation updated after native checks."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [],
+    "retained_nonempty_private_preferences": [],
+    "app_or_receiver_processes": [],
+    "fixtures": "All four native fixture directories removed by TemporaryDirectory; receivers close their owned hidden windows. No main app launched."
+  },
+  "limitations": [
+    "Context commands, drag/drop, splitter persistence, unified diff preview colors, identity configuration prompt, outside-known-repository Finder chooser and idle active-session app-quit prompts pending.",
+    "Recovery prompts are injected in headless tests; production NSAlert sheet interaction, physical keyboard/accessibility and light/dark screenshot comparison unverified.",
+    "Patch-file security leases retained; signed sandbox helper access to files outside repository, installed Finder, signing and App Store acceptance unverified.",
+    "Git output buffered per command. Flags defaults/signoff tested; whitespace/CR option combinations not exhaustive.",
+    "GitHub authentication/CI/push and CUA unavailable from prior evidence; not retried. No remote CI claim."
+  ]
+}

@@ -132,7 +132,7 @@ for baseline and update rules.
 - [Issue tracker integration audit](ISSUE-TRACKER-PARITY.md)
 - [Author pictures in Log](GRAVATAR.md)
 
-- [Import Patch engine and remaining dialog work](IMPORT-PATCH-PARITY.md)
+- [Import Patch native workflow and remaining parity](IMPORT-PATCH-PARITY.md)
 
 ## Inventory maintenance
 
