@@ -34,3 +34,7 @@ merge-parent workflow. Displayed screenshots and remaining workflows are pending
 
 The [Cherry Pick guide](CHERRY-PICK.md) documents selected commit plans, merge-parent
 prompts, attribution and recovery. Displayed macOS screenshots remain pending.
+
+The [Getting started chapter](GETTING-STARTED.md) now covers opening/cloning,
+checked-file commits, staging and inspecting history. It links existing native
+captures with their checkpoint limits; it does not complete the remaining chapters.

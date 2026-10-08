@@ -16,6 +16,7 @@ configuration requires a prepared pinned runtime and refuses external fallback.
 
 ```sh
 python3 scripts/build-editorconfig-runtime.py
+python3 scripts/build-issue-regex-runtime.py
 python3 scripts/build-git-runtime.py
 xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitAppStore \
   -configuration AppStore -destination 'platform=macOS' \
@@ -50,7 +51,7 @@ The AppStore configuration uses these capabilities:
 - `com.apple.security.network.client`
 - The shared application group
 
-The future bundled Git executables use `Configuration/GitHelper.entitlements`,
+The bundled Git executables use `Configuration/GitHelper.entitlements`,
 which contains sandbox and sandbox-inheritance keys. Parent file permissions must
 be active when the helper starts. Any helper code, dependent library, credential
 component and additional executable must be bundled and signed appropriately.
