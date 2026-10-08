@@ -330,3 +330,28 @@ the full Git configuration settings page remain pending. The source's exact cont
 light/dark visual comparison, signed sandbox access for files outside the repository,
 deployed Finder integration and App Store acceptance are unverified. No screenshot
 or release-readiness claim covers these hidden native checks.
+
+## Prepared result Save As copy
+
+Prepared before/after editors now retain their Review Patch owner window, so the
+shared **Save As…** context action can open its native save panel. The chooser
+uses the selected pane's filename and repository directory and exports its
+current draft bytes/encoding as an atomic copy. It does not mark the patch
+applied, clean the draft, or change Git HEAD/index/worktree when exporting to a
+separate path. The original draft remains available for Save patched result.
+
+A pending export blocks editing, Save, refresh, file/options changes, reentry,
+Close and application Quit. Cancel and file-write errors unlock controls and
+retain the draft; errors remain visible. Owner-window and pending-state wiring
+is restored whenever the prepared editor is recreated. The shared two-pane
+export path also locks its own operations while the chooser is open.
+
+[Patch Save As QA](qa/patch-save-as-2026-10-08.json) runs the full native receiver
+against four Git versions. Injected choices exercise Cancel, success and write
+failure, with exact manually edited UTF-16 BOM output and absent final newline,
+retained dirty state and unchanged HEAD/raw index/worktree/applied paths. It
+checks actual owner-window identity, pending refresh/options/reentry/Close/Quit
+refusal, then Undo restores the initial proposal for existing regressions.
+Physical save panels, overwrite/symlink/permission variants, signed panel grants
+and source FileSaveAs target-retargeting remain pending. This implements copy
+export through the shared path, not full TortoiseGitMerge Save As equivalence.

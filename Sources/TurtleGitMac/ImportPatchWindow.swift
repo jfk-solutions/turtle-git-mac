@@ -560,14 +560,14 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     let model: WorkingTreePatchWindowModel
     var onClosed: () -> Void = {}
     private var approvedClose = false
-    var activeOperation: Bool { model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || window?.attachedSheet != nil }
+    var activeOperation: Bool { model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || model.editor?.exporting == true || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard) {
         model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences)
         let window = WorkingTreePatchNativeWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(title) – Review Patch – TurtleGitMerge"; window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model)); host.sizingOptions = []
         window.contentViewController = host
-        super.init(window: window); window.delegate = self; window.model = model
+        super.init(window: window); window.delegate = self; window.model = model; model.window = window
         window.setContentSize(.init(width: 1100, height: 720)); window.contentMinSize = .init(width: 800, height: 460); window.center()
         DialogGeometry.attach(window, identifier: "TurtleGit.PatchReview")
         model.close = { [weak self] in self?.approvedClose = true; self?.window?.performClose(nil) }
@@ -612,6 +612,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     private var editorChanges: AnyCancellable?
     @Published private(set) var draftDecisionPending = false { didSet { updateParentState(); onBusyChanged() } }
     var chooseDraft: () async -> DraftChoice = { .cancel }
+    weak var window: NSWindow? { didSet { editor?.window = window } }
     var alignment: FileComparisonAlignment? { editor?.alignment }
     var dirty: Bool { editor?.dirty == true }
     var editingEnabled: Bool { editor?.patchEditingEnabled == true }
@@ -633,7 +634,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onChanged: (String) -> Void = { _ in }
     var onBusyChanged: () -> Void = {}
     var parentActive: () -> Bool = { false }
-    var editable: Bool { !busy && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
+    var editable: Bool { !busy && editor?.exporting != true && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
     var canApply: Bool { canReplaceComparison && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes; self.preferences = preferences
@@ -689,6 +690,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id)
             comparison = value
             let nextEditor = FileComparisonWindowModel(patchComparison: value, access: access, preferences: preferences)
+            nextEditor.window = window
+            nextEditor.onExportStateChanged = { [weak self] in self?.updateParentState(); self?.onBusyChanged() }
             nextEditor.onRegisterScroll = { [weak self] scroll, base in if base { self?.beforeScroll = scroll } else { self?.afterScroll = scroll } }
             editorChanges = nextEditor.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
             editor = nextEditor; updateParentState()
@@ -721,7 +724,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         view.performTextFinderAction(sender)
     }
     func updateParentState() {
-        editor?.busy = busy
+        editor?.busy = busy || editor?.exporting == true
         editor?.confirmingQuit = confirmingQuit || draftDecisionPending || parentActive()
         objectWillChange.send()
     }
@@ -737,6 +740,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         guard let comparison else { return }
         editor?.resetHistory(); beforeScroll = nil; afterScroll = nil
         let next = FileComparisonWindowModel(patchComparison: comparison, access: access, preferences: preferences)
+        next.window = window
+        next.onExportStateChanged = { [weak self] in self?.updateParentState(); self?.onBusyChanged() }
         next.onRegisterScroll = { [weak self] scroll, base in if base { self?.beforeScroll = scroll } else { self?.afterScroll = scroll } }
         editorChanges = next.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
         editor = next; updateParentState(); onBusyChanged()

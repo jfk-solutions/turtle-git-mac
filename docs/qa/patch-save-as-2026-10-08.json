@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "ad745b6b364f6b2353f0095c7e32abce942312b1",
+  "scope": "Prepared patch Save As copy owner-window wiring, asynchronous chooser and export operation locks. Full port/distribution and source retargeting incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/MainFrm.cpp": "0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138",
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5"
+  },
+  "sources_manifest_sha256": "e57cf3163203d68c486aff631b57e40e55a8c595af18404920297b8480308ac3",
+  "changed_files_sha256": {
+    "NOTICE": "f04baec2e2682f52bc4c23e8f2ad533d2b106aeb04c25c4e4c591455d1ef1f84",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "45f494e0006b34d62468d50fd9ea55ffd5345343773ed9b4d29c6e9eb7c08d99",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "912bd2c0f2089c78695fd5c6dae377e6ff9d84e98dbb11a27909922adf488958",
+    "docs/IMPORT-PATCH-PARITY.md": "6ac1655280dd7450b8ac0ec94b7c42ad371d16b8d6180a8bd0bb7c45a843cf30",
+    "docs/qa/import-patch-native-2026-10-08.swift": "20c0b53ae979be1f45b8236a74dc12e4073c0961bd757ad151857cc0c267340c",
+    "docs/upstream-files.csv": "f119d0c83b7c078d002bbd0db5f43dc2fedf70cae121d9bdc1a59c1186fa1f70"
+  },
+  "verification": {
+    "native": "Final edited-draft full receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Actual aligned editor receives manual export text without final newline, explicit UTF16LE BOM encoding, owner-window identity, injected chooser Cancel/success/write failure; exact exported bytes, retained dirty draft and original HEAD/raw index/worktree/applied paths. Pending chooser blocks refresh/file/options/bulk apply/export/encoding reentry, window delegate Close and actual application delegate Quit. Controls unlock, error retained, Undo restores initial proposal; existing Import Patch/edit/save/menu/marked-policy/ending regressions pass. No physical panel or application termination.",
+    "builds": "Unsigned Debug/final Debug, initial stationary-Debug four-engine receiver, sequential AppStore, then strengthened edited-text four-engine receiver against unchanged Debug after Store terminal. Both bundle audits, bundled NOTICE equality, pin and diff checks pass. Sources/NOTICE/receiver frozen during live compiler/native sessions; receiver-only strengthening after Store terminal.",
+    "core": "No Core code/assets changed; no new Core run claimed.",
+    "site": "Static GitHub Pages generator passes with prepared Save As copy parity and QA links."
+  },
+  "iterations": [
+    "All builds/native runs pass first run. Initial receiver tested proposal text plus dirty encoding; strengthened final receiver also inserts manual text with no final newline and verifies exact exported draft bytes. Both native logs retained."
+  ],
+  "limitations": [
+    "Copy export retains patch target/draft; full source FileSaveAs retargeting/mark-clean semantics remain pending.",
+    "Physical save panels, overwrite/symlink/permission variants, signed panel grants and standalone normal-window export runtime acceptance remain pending.",
+    "Export owner wiring after each recreation is implemented; new runtime export choices cover the initial prepared editor.",
+    "Full app parity, Finder deployment, real screenshots, App Store eligibility and external CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_native_fixtures": [],
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.2CB05A85-D5A6-48D4-A9EC-F60BF2DEE1D9.plist",
+      "TurtleGit.ImportPatch.QA.E23BB8F1-DA6B-4938-B03C-1DD386D779C3.plist",
+      "TurtleGit.ImportPatch.QA.64AFB994-9A1C-4A1C-9656-5E86F1568B64.plist",
+      "TurtleGit.ImportPatch.QA.2FDBC8E6-DEB4-4F30-961D-E0981EBCAF30.plist",
+      "TurtleGit.ImportPatch.QA.EBF206D3-5F24-4744-AAC3-ED9CC5CC56E9.plist",
+      "TurtleGit.ImportPatch.QA.9A375091-5BF8-4AFB-B097-2B4D8040EADA.plist",
+      "TurtleGit.ImportPatch.QA.0B377F54-8107-4648-8A0D-0578605F186E.plist",
+      "TurtleGit.ImportPatch.QA.9A1B7262-E7E5-4F29-99F8-C8F2772F44A3.plist"
+    ],
+    "retained_nonempty_prior_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "TurtleGit.ImportPatch.QA.77E263CF-C337-44E7-8E7E-D1E02A2F1C8E.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "main_app_launched": false,
+    "save_panels": "Injected chooser with continuation; no physical panel or signed access."
+  },
+  "logs_sha256": {
+    "build/qa/patch-save-as/cleanup.json": "9f9da59c03be94ffb18f136fe43dccb056a0a5e0e4f9a39e5bafcff49a26c7cb",
+    "build/qa/patch-save-as/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/patch-save-as/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-save-as/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-save-as/native-edited.log": "69c43ce2b33d55da535ac2c7c8a1bdef198ce696404b7e56b77cf6dae990b152",
+    "build/qa/patch-save-as/native.log": "69c43ce2b33d55da535ac2c7c8a1bdef198ce696404b7e56b77cf6dae990b152",
+    "build/qa/patch-save-as/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/patch-save-as/store-audit.log": "c760ff4763f156e92fefd77049a3a405cd056e1834de60679fb6b388e97ef7a9",
+    "build/qa/patch-save-as/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/patch-save-as/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

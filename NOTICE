@@ -741,3 +741,9 @@ Two-pane comparison clipboard context entries also use app-owned Copy/Paste
 selectors, the original Paste artwork and busy/Quit guards. The BaseView and
 resource GPL attribution above applies. Existing aligned selection/editing paths
 remain in use; physical menu and clipboard dispatch parity remain pending.
+
+Prepared Review Patch editors now retain their owner window for native Save As
+copy export. The shared FileSaveAs/export attribution above applies. Native save
+panels replace Windows file dialogs; pending export locks editing/Close/Quit and
+retains the original patch draft and repository state. Full source save-target
+retargeting and signed native panel access remain pending.

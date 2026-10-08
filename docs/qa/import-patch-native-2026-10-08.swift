@@ -214,6 +214,47 @@ import TurtleGitCore
         precondition(!beforeMenu.item(withTitle: "Cut")!.isEnabled && !beforeMenu.item(withTitle: "Paste")!.isEnabled)
         beforeView.setSelectedRange(NSRange(location: 0, length: 0)); editedView.setSelectedRange(NSRange(location: 0, length: 0)); edit.editor!.selectedRows = nil
         print("PASS: actual aligned comparison menu clipboard targets/artwork, icon-off policy without standard-selector glyph fallback, private Paste availability, read-only and busy/Quit editing metadata. No synthetic context events or general clipboard writes.")
+        precondition(edit.editor!.window === editController.window)
+        let exportEditor = edit.editor!
+        let exportDraft = "exported edit\nno final newline"
+        editedView.undoManager!.groupsByEvent = false; editedView.undoManager!.beginUndoGrouping()
+        editedView.insertText(exportDraft, replacementRange: NSRange(location: 0, length: (editedView.string as NSString).length))
+        editedView.undoManager!.endUndoGrouping()
+        precondition(exportEditor.draftText(base: false) == exportDraft)
+        exportEditor.changeEncoding(.utf16LEBOM, base: false); precondition(edit.dirty)
+        var exportPending: CheckedContinuation<URL?, Never>?, exportChoices = 0
+        exportEditor.chooseExportLocation = { window, name, directory in
+            exportChoices += 1
+            precondition(window === editController.window && name == "file" && directory == editRepo.root)
+            precondition(exportEditor.exporting && exportEditor.busy && editController.activeOperation && !edit.editable)
+            let focus = edit.focusedFile, reverse = edit.reversed, strip = edit.stripCount
+            edit.refresh(); edit.focusFile(nil); edit.setReversed(!reverse); edit.setStripCount(strip + 1); edit.apply()
+            exportEditor.export(base: true); exportEditor.changeEncoding(.utf8, base: false)
+            precondition(edit.focusedFile == focus && edit.reversed == reverse && edit.stripCount == strip && exportEditor.encoding(base: false) == .utf16LEBOM)
+            precondition(!editController.windowShouldClose(editController.window!))
+            precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(.shared) == .terminateCancel)
+            return await withCheckedContinuation { exportPending = $0 }
+        }
+        let exportedResult = root.appendingPathComponent("saved-result 雪.txt")
+        for target in [URL?.none, exportedResult, root.appendingPathComponent("missing-export-directory/result")] {
+            exportEditor.export(base: false); precondition(exportEditor.exporting && exportEditor.busy)
+            try await waitEdit { exportPending != nil }
+            let pending = exportPending!; exportPending = nil; pending.resume(returning: target)
+            try await waitEdit { !exportEditor.exporting && !exportEditor.busy }
+            precondition(edit.dirty && exportEditor.encoding(base: false) == .utf16LEBOM)
+        }
+        let exportedBytes = try Data(contentsOf: exportedResult)
+        let expectedExportBytes = try ComparisonTextEncoding.utf16LEBOM.encode(exportDraft)
+        precondition(exportChoices == 3 && exportedBytes == expectedExportBytes)
+        precondition(exportEditor.error != nil && edit.appliedPaths.isEmpty)
+        let unchangedExportIndex = try Data(contentsOf: editRepo.root.appendingPathComponent(".git/index"))
+        let unchangedExportHead = try await editRepo.run(["rev-parse", "HEAD"]).stdout
+        let unchangedExportWork = try Data(contentsOf: editRepo.root.appendingPathComponent("file"))
+        precondition(unchangedExportIndex == editIndex && unchangedExportHead == editHead && unchangedExportWork == Data("base\n".utf8))
+        exportEditor.error = nil; exportEditor.changeEncoding(.utf8, base: false)
+        exportEditor.undo(); precondition(!edit.dirty && exportEditor.draftText(base: false) == "feature\n"); exportEditor.resetHistory()
+        try await waitEdit { editedView.isEditable }
+        print("PASS: prepared editor Save As owns review window; injected Cancel/success/write-failure unlocks controls, exact UTF16 BOM export retains dirty draft and repository HEAD/index/worktree/applied paths, pending export blocks refresh/options/reentry/Close/Quit. No physical save panel or signed access.")
         editedView.undoManager!.groupsByEvent = false
         editedView.undoManager!.beginUndoGrouping()
         editedView.insertText("custom\nno final newline", replacementRange: NSRange(location: 0, length: (editedView.string as NSString).length))

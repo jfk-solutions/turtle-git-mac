@@ -232,17 +232,28 @@ import TurtleGitCore
         let index = alignment.differences.firstIndex { $0.contains(row) } ?? -1
         if difference != index { difference = index }
     }
+    @Published private(set) var exporting = false { didSet { onExportStateChanged() } }
+    var onExportStateChanged: () -> Void = {}
+    var chooseExportLocation: (NSWindow, String, URL) async -> URL? = { window, name, directory in
+        let panel = NSSavePanel(); panel.nameFieldStringValue = name
+        panel.canCreateDirectories = true; panel.directoryURL = directory
+        let response = await withCheckedContinuation { continuation in
+            panel.beginSheetModal(for: window) { continuation.resume(returning: $0) }
+        }
+        return response == .OK ? panel.url : nil
+    }
     func export(base: Bool) {
-        guard !busy, !confirmingQuit, let window, window.attachedSheet == nil, let document else { return }
+        guard !busy, !exporting, !confirmingQuit, let window, window.attachedSheet == nil, let document else { return }
         let content = base ? document.base : document.destination
         do {
             let bytes = try drafts?.exported(base: base) ?? content.bytes
-            let panel = NSSavePanel(); panel.nameFieldStringValue = (content.path as NSString).lastPathComponent; panel.canCreateDirectories = true; panel.directoryURL = snapshot.root
-            panel.beginSheetModal(for: window) { [weak self] response in
-                guard response == .OK, let url = panel.url else { return }
+            exporting = true; busy = true
+            Task {
+                defer { busy = false; exporting = false }
+                guard let url = await chooseExportLocation(window, (content.path as NSString).lastPathComponent, snapshot.root) else { return }
                 let scoped = url.startAccessingSecurityScopedResource()
                 defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                do { try bytes.write(to: url, options: .atomic) } catch { self?.error = error.localizedDescription }
+                do { try bytes.write(to: url, options: .atomic) } catch { self.error = error.localizedDescription }
             }
         } catch { self.error = error.localizedDescription }
     }
