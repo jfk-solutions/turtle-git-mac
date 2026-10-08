@@ -33,6 +33,7 @@ import TurtleGitCore
         guard !started else { return }; started = true
         Task {
             do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.restoreStash(pop: pop, reference: reference)
                 onChanged(result.output); present(result)
             } catch {

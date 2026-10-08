@@ -374,7 +374,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   Tag Push opens native Push options scoped to the new tag.
   [Branch/tag parity](docs/BRANCH-TAG-PARITY.md) tracks remaining options.
 - Separate native Pull dialog with remote/branch selectors, squash, no commit,
-  fast-forward controls, Tags/Prune and shallow depth.
+  fast-forward controls, Tags/Prune and shallow depth. Owned progress retains the result
+  with old/new Compare and Log, conditional Stash Pop/Push, and conflict/recovery actions.
   [Pull parity](docs/PULL-PARITY.md) records pending rebase and recovery workflows.
 - Separate native Fetch dialog with named remote/all remotes or URL, remote branch
   browsing, three-state Tags/Prune overrides and shallow depth.

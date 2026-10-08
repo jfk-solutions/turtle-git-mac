@@ -530,3 +530,7 @@ mode-specific reset post-actions follow AppUtils.cpp and ProgressDlg.cpp.
 Abort Merge shell command visibility and order adapt MenuInfo.cpp and
 ContextMenu.cpp. The original menumergeabort.ico is bundled unchanged with
 its resource-license notice and provenance hash.
+
+Pull progress/recovery, old/new HEAD comparison/log and conditional Stash Pop/Push
+follow-ups adapt AppUtils.cpp::DoPull/Pull. The Stash Save Pull return preserves
+source follow-up flags; native owned sheets replace the Windows modal progress.

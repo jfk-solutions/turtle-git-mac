@@ -81,4 +81,20 @@ final class PullTests: XCTestCase {
         o.noFastForward = false; o.fetch.branch = "main:refs/heads/injected"
         do { _ = try await consumer.pull(o); XCTFail("Invalid branch") } catch FetchFailure.branch {}
     }
+    func testExplicitUnrelatedHistoryPullCreatesBothParents() async throws {
+        let (root, publisher, _, consumer, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let old = try await consumer.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await publisher.run(["switch", "--orphan", "unrelated"])
+        try Data("independent\n".utf8).write(to: root.appendingPathComponent("independent.txt")); try await publisher.stage(["independent.txt"])
+        _ = try await publisher.commit(message: "independent root"); _ = try await publisher.run(["push", "--force", "origin", "HEAD:main"])
+        let remote = try await publisher.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        var selected = options()
+        do { _ = try await consumer.pull(selected); XCTFail("Unrelated histories must be explicitly accepted") } catch is GitFailure {}
+        let unchanged = try await consumer.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines); XCTAssertEqual(unchanged, old)
+        selected.allowUnrelatedHistories = true; _ = try await consumer.pull(selected)
+        let parents = try await consumer.run(["rev-list", "--parents", "-n", "1", "HEAD"]).text.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+        XCTAssertEqual(Array(parents.dropFirst()), [old, remote])
+        XCTAssertEqual(try Data(contentsOf: consumer.root.appendingPathComponent("independent.txt")), Data("independent\n".utf8))
+    }
+
 }

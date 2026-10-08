@@ -165,10 +165,12 @@ physical history deletion and signed sandbox checks remain pending. Full port in
 
 Cancel and the window close gesture request cancellation during Fetch, merge Pull
 and Fetch-before-Rebase. Controls remain locked until the operation finishes;
-Cancel shows Cancelling… while the owned process group stops. The window stays
-open with its selected inputs and a cancellation result. Idle Cancel closes it.
+Cancel shows Cancelling… while the owned process group stops. Fetch and Fetch-before-Rebase windows stay
+open with selected inputs and a cancellation result. Merge-based Pull closes its
+owned progress/options after accepted cancellation finishes. Idle Cancel closes it.
 A cancelled fetch does not trigger success or open Rebase. A fresh cancellation
-token is created for every invocation. Cancellation does not roll back changes
+token is created for every invocation. Merge-based Pull now retains the result in
+its own progress sheet; see PULL-PARITY.md for its actions and owning-window lifecycle. Cancellation does not roll back changes
 Git has already made.
 
 The Dialogs settings page now exposes the source **Confirm to kill running git

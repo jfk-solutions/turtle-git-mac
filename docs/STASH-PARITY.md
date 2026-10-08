@@ -124,7 +124,10 @@ The [headless receiver](qa/stash-save-progress-native-2026-10-08.swift) and
 not displayed acceptance. Captured Pull/Merge intent is passed to the post-action
 callback, but native Pull/Merge destinations use their native workflows:
 Merge now requests Stash Pop after success (see MERGE-PARITY.md); Pull's
-subsequent Pop/Push flags still need implementation. Live streaming,
+subsequent Pop/Push flags now propagate through its owned progress (see PULL-PARITY.md). Live streaming,
 active-process interruption, physical sheet/window/close/factory routing, warning
 suppression persistence, signed invocation and broader application parity remain
 pending. Existing screenshots show the options, not the new progress sheet.
+
+Stash Apply/Pop now checks the retained security-scope lease before mutation in
+App Store builds. Signed invocation/permission acceptance remains pending.

@@ -18,8 +18,8 @@ Git merge message editing is suppressed with `--no-edit`; Git supplies its defau
 message. For the configured tracked remote/branch, the default refspec is retained
 rather than forcing a branch argument. Other selections send the explicit branch.
 Squash stages the result without creating MERGE_HEAD or advancing HEAD; No Commit
-can leave a merge ready for completion. Git errors preserve controls and offer
-Open Working Tree to inspect the captured repository. Merge conflicts retain Git's
+can leave a merge ready for completion. Pull errors are retained in an owned progress sheet with source recovery
+actions; the selected options remain locked behind it. Merge conflicts retain Git's
 normal unmerged index and MERGE_HEAD; resolution/abort parity remains incomplete.
 
 Configured `branch.<name>.rebase` takes precedence over `pull.rebase`. Named-remote
@@ -52,8 +52,8 @@ A missing URL produced an error; Open Working Tree opened the correct status win
 - Full fast-forward choices, post-operation actions and continue/abort recovery.
   Fetch → Rebase routing and configured auto-start are implemented; native
   preserve-merges/configured-mode combinations still need broader QA.
-- Streaming progress/separate progress-window layout and full post-operation actions: compare old/new revisions,
-  filtered Log, Push, submodule update, stash, reset and unrelated-history retry.
+- Live streaming and physical owned-progress/menu/close acceptance, source conflict
+  result See changes question, full submodule and signed post-action handoff acceptance.
 - Native squash/No Commit/divergence/conflict completion and abort QA; the tests
   prove Git effects but not those full native workflows.
 - Full remote reference chooser and settings,
@@ -86,6 +86,57 @@ and remaining physical pasteboard acceptance.
 
 
 Transport Cancel now stops the operation's owned process group, optionally asks
-the shared ConfirmKillProcess question and retains the dialog inputs. Cancelled
-configured-rebase Fetch does not open Rebase. See FETCH-PARITY.md for source
+the shared ConfirmKillProcess question. Fetch-before-Rebase retains its inputs;
+merge-based Pull now closes its owned progress/options after accepted cancellation
+finishes. Cancelled configured-rebase Fetch does not open Rebase. See FETCH-PARITY.md for source
 mapping, native evidence and remaining cancellation/progress acceptance.
+
+## Owned Pull progress and follow-up actions
+
+Merge-based Pull now retains its output/result in an owned resizable native
+progress sheet. Options remain locked until that result closes; repeated OK
+cannot execute again. Every command owns a fresh options window, preserving other
+drafts and caller follow-up flags. Closing completed progress closes its options
+owner. Busy Cancel uses the same optional ConfirmKillProcess Yes/No question and
+owned process-group cancellation; accepting Cancel closes Pull progress and its
+options owner after the operation finishes. Fetch and Fetch-before-Rebase keep their existing
+workflows; upstream does not carry Pull's Stash Pop/Push flags into DoFetch/Rebase.
+
+Successful Pull offers requested Stash Pop, Pulled Diff, Pulled Log, requested Push,
+then applicable Submodule Update, in source order. Compare receives the immutable
+old/new HEAD hashes; Log receives `old..new`. An unchanged or No Commit result still
+offers those hash-based views, matching source. Pull does not add a Commit button
+for No Commit/Squash; finishing those merges remains the existing Commit workflow.
+
+Failed Pull with actual conflicts awaits the shared merge information/suppression
+sheet, then offers only Resolve and Commit. Other failures offer explicit Merge
+unrelated history when a named remote's common ancestor hash stays empty, followed
+by Pull, Stash Save and Reset. This includes a missing remote ref as upstream does;
+URL failures do not get the unrelated action. That retry preserves captured flags
+and adds `--allow-unrelated-histories`, without automatically accepting unrelated
+history. Pull opens fresh options; Stash Save requests a return Pull. Reset reads
+the current tracked upstream and opens native Reset with Hard selected, without
+resetting before confirmation. Source's optional post-result See changes question
+still needs its native implementation.
+
+Stash Save's Pull action now uses a shared follow-up conversion: Push follows the
+saved `pullShowPush` flag and Stash Pop is requested, as upstream does even when
+saving created no new stash. Source recovery actions, Compare/Log, Push, Pop and
+Submodule Update route to the existing native destination dialogs with the retained
+repository access. Result callbacks refresh repository Log/RefLog/Commit/Status
+views. Store builds check security scope before Pull transport, Reset-default reads
+and native Stash Apply/Pop mutation. These are preparation gates, not signed runtime
+acceptance.
+
+[Native model QA](qa/pull-progress-native-2026-10-08.swift) and
+[the record](qa/pull-progress-2026-10-08.json) cover option/follow-up snapshots,
+retained result/close and duplicate guards, old/new HEAD, unchanged/No Commit,
+conflict-hint blocking and shared suppression, exact recovery action lists, fresh
+Reset defaults without mutation, unrelated retry producing both parents, missing
+ref versus URL behavior, and real Stash Save → Pull → Pop restoration through the
+shared callback conversion. Core adds an unrelated-history integration case.
+Existing cancellation/history receivers also passed. The chain uses actual models
+and Git, with the final Pop backend called after its callback; no destination
+controller or installed app is activated. Physical sheets/buttons/keyboard/close,
+source result questions, submodules, streaming, screenshot updates, signing and
+full application parity remain incomplete.

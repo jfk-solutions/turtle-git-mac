@@ -6,6 +6,7 @@ public struct PullOptions: Sendable {
     public var noCommit = false
     public var noFastForward = false
     public var fastForwardOnly = false
+    public var allowUnrelatedHistories = false
     public init() {}
 }
 public struct PullDefaults: Sendable {
@@ -49,6 +50,7 @@ extension GitRepository {
             guard (try? run(["check-ref-format", full])) != nil else { throw FetchFailure.branch }
         }
         var args = ["pull", "--progress", "--verbose", "--no-rebase", "--no-edit"]
+        if options.allowUnrelatedHistories { args.append("--allow-unrelated-histories") }
         if options.noFastForward { args.append("--no-ff") }
         if options.fastForwardOnly { args.append("--ff-only") }
         if options.squash { args.append("--squash") }

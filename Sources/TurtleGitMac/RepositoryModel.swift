@@ -505,13 +505,14 @@ import TurtleGitCore
         controller.model.onLog = { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
         deleteConflictWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, completion: (() -> Void)? = nil) {
+    private func showReset(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, mode: ResetMode? = nil, completion: (() -> Void)? = nil) {
         let root = repository.root, key = root.path + "\0" + (revision.map { $0 + "\0" + UUID().uuidString } ?? "")
         if revision == nil, let existing = resetWindows[key] {
             if let completion { let previous = existing.model.onReset; existing.model.onReset = { output in previous(output); completion() } }
             existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return
         }
         let controller = ResetWindowController(repository: repository, access: access, revision: revision)
+        if let mode { controller.model.mode = mode }
         controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
         controller.model.onStatus = { [weak self] in self?.showStatus(repository: repository, access: access, paths: []) }
         controller.model.onReset = { [weak self] output in
@@ -1207,7 +1208,7 @@ import TurtleGitCore
         controller.model.followUp = followUp
         controller.model.onPostAction = { [weak self] action, request in
             switch action {
-            case .pull: self?.showFetch(repository: repository, access: access, isPull: true)
+            case .pull: self?.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(stashSave: request))
             case .merge: if let revision = request.mergeRevision { self?.showMerge(repository: repository, access: access, revision: revision, showStashPop: true) }
             case .pop, .apply: self?.showStashRestore(repository: repository, access: access, pop: action == .pop)
             }
@@ -1300,19 +1301,42 @@ import TurtleGitCore
         if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false) {
-        let root = repository.root, key = repository.root.path + (isPull ? ":pull" : ":fetch")
-        let controller = fetchWindows[key] ?? FetchWindowController(repository: repository, access: access, isPull: isPull)
+    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, followUp: PullFollowUp = PullFollowUp()) {
+        let root = repository.root, key = repository.root.path + (isPull ? ":pull:" : ":fetch:") + UUID().uuidString
+        let controller = FetchWindowController(repository: repository, access: access, isPull: isPull)
         controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
         controller.model.onShowStatus = { [weak self] in
             guard let self else { return }
             if self.root == root { self.activate(.status) }
             else if let access { self.openSession(access, action: .status) }
         }
-        controller.model.onFetched = { [weak self] output in
+        controller.model.onFetched = { [weak self, weak controller] output in
+            guard controller?.model.progress == nil else { return }
             self?.refreshRepositoryLogs(root)
             self?.statusWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        controller.model.followUp = followUp
+        controller.model.onChanged = { [weak self] output in
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        controller.model.onPullPostAction = { [weak self] action, result in
+            switch action {
+            case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil)
+            case .commit: self?.showCommitDialog(repository: repository, access: access, paths: [])
+            case .pull: self?.showFetch(repository: repository, access: access, isPull: true)
+            case .stash:
+                var request = StashSaveFollowUp(); request.showPull = true
+                self?.showStash(repository: repository, access: access, followUp: request)
+            case .reset: self?.showReset(repository: repository, access: access, revision: result.resetRevision.isEmpty ? "HEAD" : result.resetRevision, mode: .hard)
+            case .stashPop: self?.showStashRestore(repository: repository, access: access, pop: true)
+            case .diff: self?.showRevisionComparison(repository: repository, access: access, from: .revision(result.oldHead), to: .revision(result.newHead))
+            case .log: self?.showLog(repository: repository, access: access, paths: [], revisionRange: HistoryRevisionRange(from: result.oldHead, to: result.newHead))
+            case .push: self?.showPush(repository: repository, access: access)
+            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [])
+            case .mergeUnrelated: break
+            }
         }
         controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in
             self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true)
