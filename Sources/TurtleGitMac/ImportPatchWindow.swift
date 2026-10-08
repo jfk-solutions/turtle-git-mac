@@ -18,6 +18,7 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ImportPatchDialog(model: model))
         super.init(window: window); window.delegate = self
+        window.setContentSize(.init(width: 800, height: 620))
         window.contentMinSize = .init(width: 660, height: 460); window.center()
         model.chooseFiles = { [weak self] in self?.chooseFiles() }
         model.showPatch = { [weak self] bytes, title, alternate in
@@ -281,6 +282,7 @@ struct ImportPatchDialog: View {
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            ImportPatchSplit(upper: AnyView(VStack(alignment: .leading, spacing: 10) {
             HStack { Text("Patch files:"); Spacer()
                 tool("Up", .jumpUp) { model.move(-1) }.disabled(model.selection.isEmpty)
                 tool("Down", .jumpDown) { model.move(1) }.disabled(model.selection.isEmpty)
@@ -313,13 +315,13 @@ struct ImportPatchDialog: View {
                 Toggle("Sign-off", isOn: $model.options.signOff)
                 Toggle("Keep CR", isOn: $model.options.keepCR)
             }.disabled(!model.editable)
-            TabView(selection: $model.tab) {
+            }), lower: AnyView(TabView(selection: $model.tab) {
                 Group {
                     if let notice = model.previewNotice { ScrollView { Text(notice).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(12) } }
                     else { PatchTextView(model: model.previewDocument) }
                 }.tabItem { Text("Patch") }.tag(0)
                 OutputView(text: model.output, usesLogFont: true).tabItem { Text("Log") }.tag(1)
-            }.frame(minHeight: 150)
+            }), preferences: model.previewDocument.appearancePreferences)
             HStack {
                 if model.busy { ProgressView().controlSize(.small); Text(model.stopRequested ? "Stopping after current command…" : "Applying patches…") }
                 Spacer()
@@ -329,5 +331,68 @@ struct ImportPatchDialog: View {
             }
         }.padding(16)
         .alert("Apply Patch Serial", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
+    }
+}
+
+/// Native divider; the source persists AMDlgSizer in ResizableState.
+struct ImportPatchSplit: NSViewControllerRepresentable {
+    let upper: AnyView
+    let lower: AnyView
+    let preferences: UserDefaults
+    private func hosted(_ view: AnyView, environment: EnvironmentValues) -> AnyView {
+        AnyView(view.environment(\.self, environment).defaultAppStorage(preferences))
+    }
+    func makeNSViewController(context: Context) -> ImportPatchSplitController {
+        ImportPatchSplitController(upper: hosted(upper, environment: context.environment), lower: hosted(lower, environment: context.environment), preferences: preferences)
+    }
+    func updateNSViewController(_ controller: ImportPatchSplitController, context: Context) {
+        controller.upper.rootView = hosted(upper, environment: context.environment); controller.lower.rootView = hosted(lower, environment: context.environment)
+    }
+}
+
+@MainActor final class ImportPatchSplitController: NSViewController, NSSplitViewDelegate {
+    static let positionKey = WindowGeometryStore.prefix + "AMDlgSizer"
+    let splitView = NSSplitView()
+    let upper: NSHostingController<AnyView>
+    let lower: NSHostingController<AnyView>
+    private let preferences: UserDefaults
+    private var initialized = false
+    init(upper: AnyView, lower: AnyView, preferences: UserDefaults) {
+        self.upper = NSHostingController(rootView: upper); self.lower = NSHostingController(rootView: lower)
+        self.preferences = preferences
+        super.init(nibName: nil, bundle: nil)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    override func loadView() { view = splitView }
+    override func viewDidLoad() {
+        super.viewDidLoad(); splitView.isVertical = false; splitView.dividerStyle = .thin
+        splitView.setAccessibilityLabel("Patch list and preview divider")
+        upper.sizingOptions = []; lower.sizingOptions = []
+        addChild(upper); addChild(lower)
+        splitView.addArrangedSubview(upper.view); splitView.addArrangedSubview(lower.view)
+        splitView.delegate = self; splitView.adjustSubviews()
+    }
+    private func fitted(_ value: CGFloat) -> CGFloat {
+        let available = max(0, splitView.bounds.height - splitView.dividerThickness)
+        let topMinimum = min(220, available / 2), bottomMinimum = min(160, available / 2)
+        return min(max(value, topMinimum), available - bottomMinimum)
+    }
+    func splitView(_ splitView: NSSplitView, resizeSubviewsWithOldSize oldSize: NSSize) {
+        guard splitView.bounds.height > 0 else { return }
+        let stored = preferences.double(forKey: Self.positionKey)
+        let wanted = initialized ? upper.view.frame.height : stored.isFinite && stored > 0 ? CGFloat(stored) : splitView.bounds.height / 2
+        let height = fitted(wanted), divider = splitView.dividerThickness
+        upper.view.frame = NSRect(x: 0, y: 0, width: splitView.bounds.width, height: height)
+        lower.view.frame = NSRect(x: 0, y: height + divider, width: splitView.bounds.width, height: max(0, splitView.bounds.height - height - divider))
+        initialized = true
+    }
+    func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat { fitted(0) }
+    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat { fitted(.greatestFiniteMagnitude) }
+    func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool { false }
+    func splitViewDidResizeSubviews(_ notification: Notification) {
+        guard initialized else { return }
+        let position = Double(upper.view.frame.height)
+        guard position.isFinite, position > 0 else { return }
+        if preferences.double(forKey: Self.positionKey) != position { preferences.set(position, forKey: Self.positionKey) }
     }
 }

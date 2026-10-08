@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 import TurtleGitCore
 
@@ -67,6 +68,31 @@ import TurtleGitCore
             let c = color.usingColorSpace(.sRGB)!
             return UInt32((c.redComponent * 255).rounded()) << 16 | UInt32((c.greenComponent * 255).rounded()) << 8 | UInt32((c.blueComponent * 255).rounded())
         }
+        func split(_ view: NSView) -> NSSplitView? {
+            if let divider = view as? NSSplitView, divider.accessibilityLabel() == "Patch list and preview divider" { return divider }
+            return view.subviews.compactMap { split($0) }.first
+        }
+        let nativeSplit = split(host)!
+        let splitOwner = nativeSplit.delegate as! ImportPatchSplitController
+        precondition(!nativeSplit.isVertical && splitOwner.upper.view.superview === nativeSplit && splitOwner.lower.view.superview === nativeSplit)
+        nativeSplit.setPosition(270, ofDividerAt: 0); try await settleLayout()
+        let savedHeight = splitOwner.upper.view.frame.height
+        print("DIVIDER DIAGNOSTIC", nativeSplit.bounds, savedHeight, prefs.object(forKey: ImportPatchSplitController.positionKey) as Any); fflush(stdout)
+        precondition(abs(savedHeight - 270) < 2 && abs(prefs.double(forKey: ImportPatchSplitController.positionKey) - savedHeight) < 1)
+        let restored = ImportPatchSplitController(upper: AnyView(Text("List")), lower: AnyView(Text("Preview")), preferences: prefs)
+        let restoredWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 440), styleMask: [.titled], backing: .buffered, defer: false)
+        restoredWindow.isReleasedWhenClosed = false; restoredWindow.contentViewController = restored
+        restoredWindow.setContentSize(.init(width: 800, height: 440))
+        defer { restoredWindow.contentViewController = nil; restoredWindow.close() }
+        for _ in 0..<20 { restored.view.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(abs(restored.upper.view.frame.height - savedHeight) < 2)
+        restoredWindow.setContentSize(.init(width: 800, height: 400))
+        for _ in 0..<20 { restored.view.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(restored.upper.view.frame.height >= 219 && restored.lower.view.frame.height >= 159)
+        SavedDataStore(preferences: prefs).clear(.dialogGeometry)
+        precondition(prefs.object(forKey: ImportPatchSplitController.positionKey) == nil)
+        precondition(!SavedDataStore(preferences: prefs).summary(.dialogGeometry).available)
+        print("PASS: actual hidden horizontal NSSplitView, divider move persistence, new-controller restoration, smaller-window pane constraints and Saved Data geometry clearing; no pointer drag simulation.")
         let editor = patchText(host)!, added = (editor.string as NSString).range(of: "\n+feature\n").location + 1
         precondition(added > 0 && added < editor.string.utf16.count && !editor.isEditable && (editor.textStorage!.attribute(.font, at: added, effectiveRange: nil) as? NSFont)?.pointSize == 10)
         precondition(model.previewDocument.readOnly && !model.previewDocument.refreshAvailable)

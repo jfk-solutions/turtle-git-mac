@@ -2,6 +2,17 @@ import XCTest
 @testable import TurtleGitCore
 
 final class SavedDataTests: XCTestCase {
+    func testImportDividerIsGeometryAndAppearanceIsPreserved() throws {
+        try fixture { defaults, store in
+            let key = WindowGeometryStore.prefix + "AMDlgSizer"
+            defaults.set(270.0, forKey: key)
+            defaults.set(Data([1, 2]), forKey: "TurtleGit.UnifiedDiffAppearance")
+            XCTAssertEqual(store.summary(.dialogGeometry), .init(entries: 1, histories: 1))
+            store.clear(.dialogGeometry)
+            XCTAssertNil(defaults.object(forKey: key))
+            XCTAssertEqual(defaults.data(forKey: "TurtleGit.UnifiedDiffAppearance"), Data([1, 2]))
+        }
+    }
     func fixture(_ body: (UserDefaults, SavedDataStore) throws -> Void) throws {
         let suite = "TurtleGit.SavedData.Tests." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }

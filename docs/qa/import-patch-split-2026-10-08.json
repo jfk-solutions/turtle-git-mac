@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "c10fb989dfe8f2ff3761e0d708bf4ffdfbb1b811",
+  "scope": "Native Import Patch horizontal split view, saved AMDlgSizer pane height, resize constraints, Saved Data geometry clearing and hosted SwiftUI environment propagation. Full port/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9"
+  },
+  "sources_manifest_sha256": "1feab19876b2134819298a8291e043c892755d85b7750e40597aa40a14f5bbc8",
+  "changed_files_sha256": {
+    "NOTICE": "4bc0dd2404c4522a3bf0ec3631d176ff47963db6b5e63b2f216c5344082fa6e2",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "4adcc81ff4e16fe7fd5bc5dcc941811b760c20341145d37c3c59399ad1e77f00",
+    "Tests/TurtleGitCoreTests/SavedDataTests.swift": "b5e8287f6df335a2f3b9edfa2fb79df2b47d76a36ec46e0756bbffafa6921dc9",
+    "docs/IMPORT-PATCH-PARITY.md": "dfcbb01769dec26c28d839059b6e07f8fb6e6a5d3ff95b12782e2ed5e64e4502",
+    "docs/qa/import-patch-native-2026-10-08.swift": "18da6b88fc202031eb998bf613ae4c673b3fa7dbc191d217f6950b3ce7cf0015",
+    "docs/upstream-files.csv": "eceec9d348a57f98e93c9bab82c0fe004ce07114e40e974c6206b750c82cebe5"
+  },
+  "logs_sha256": {
+    "build/qa/import-patch-split/cleanup.json": "b40d8a9a5817bcb5a3329b3e6a4c9166a19420d95ad5086c161364f6eb22cde0",
+    "build/qa/import-patch-split/core.log": "85c148568cf8c6cb502e3bb15ef96e663054a85debd79698106c4610cb8e4736",
+    "build/qa/import-patch-split/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-split/debug-content-size.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-split/debug-environment.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-split/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-split/debug-initial-layout.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-split/debug-pane-api.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-split/debug-resize-delegate.log": "7f0c8a1ffada52e69162aefab6dbaffb41d5c0d6384907359476dafe3cc2d912",
+    "build/qa/import-patch-split/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-split/diagnostic.log": "12a2b20a20a6d1bef37d10ba93918fcb3294f272c541797e3987aaf7943ce54d",
+    "build/qa/import-patch-split/native-first-discovery.log": "f9f37616cb75cb17d6f067122a4c8a7a07c7473d26e691ff2518eaa29d0da45c",
+    "build/qa/import-patch-split/native-initial-restore-failed.log": "e51191e713a8c625829608c0eb415fab8677de49462ac357b4659af187d9a57b",
+    "build/qa/import-patch-split/native-managed-divider-view.log": "39f20b98a02ef906660125c8d1876679c65ecb9d3dda62a45d5598d3cf44fecf",
+    "build/qa/import-patch-split/native-position-failed.log": "e94569e7744e426bf06bae5c06fbff1b3ad8144ecf58ec096b1c7cf694e2900c",
+    "build/qa/import-patch-split/native-zero-fixture-frame.log": "b9ad5ccf57774dccc819d877f068b49e8cb7447455ab8392caff619b20067d24",
+    "build/qa/import-patch-split/native.log": "f168b2a2d6109e0e103be9089da5083d049a5320e6af0b5808c7b2b1ca4a33e7",
+    "build/qa/import-patch-split/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/import-patch-split/restore-probe.log": "4118cbb958a3f56bc353a5f6ba34333168f47241e836d4b0ba5ffd4c414c7fdf",
+    "build/qa/import-patch-split/split-sdk-probe.log": "b7cfa7512f1a9e7de3a2537e14b109248348e6b591b12cbec45c5846c40535de",
+    "build/qa/import-patch-split/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-split/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/import-patch-split/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four final receiver runs pass. Actual hidden NSSplitView identified by accessibility label; public setPosition moves upper pane to 270 points and saves it. A new controller at explicit 440-point content size restores 270; resize to 400 maintains usable pane dimensions; Saved Data removes saved geometry. Existing default light/dark/custom styled preview, original bytes/BOM/size guard, real Git imports/recovery/close/slow-hook stop and injected viewer/mail handoffs pass on all engines. No synthetic pointer input or main app launch.",
+    "core": "Five SavedDataTests pass, including new numeric AMDlgSizer scoped geometry ownership/clear with appearance bytes preserved. Core production code unchanged.",
+    "builds": "Final unsigned Debug and Store builds pass. Sources/NOTICE/receiver frozen through final compiler/native sessions; Store after all native/compiler handles terminal. No production edits after final native run.",
+    "bundles": "Debug and Store audits and NOTICE cmp pass: 98 original icons, universal EditorConfig/IssueRegex; Store Git 11 universal Mach-O files and local fixtures.",
+    "other": "Inventory pin and whitespace checks pass; CSV 3277 records/7 fields. Documentation site build passes."
+  },
+  "iterations": [
+    "Initial receiver discovered an internal SwiftUI table split view; test now selects the intended accessibility label.",
+    "Runtime NSSplitView includes a managed divider subview; SDK probe confirms three subviews for two panes. Tests and product use public owned pane views, not private class ordering.",
+    "NSSplitViewController sizing reset the requested pane size after layout. Replaced with native NSSplitView and a public resize delegate preserving current upper height and clamping available space.",
+    "Direct colorSchemeContrast environment assignment is read-only and failed compilation. Hosted panes now inherit the complete representable environment and the model preferences.",
+    "Restore test initially had zero bounds after assigning the window content controller. Isolated exact-controller probe demonstrated restoration after explicit setContentSize. Production default window and fixture now set content size after controller assignment.",
+    "Final four-engine native runs pass; all failed/diagnostic build and runtime logs retained."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.97102FF0-085C-49AF-96A5-EB8347C3FB17.plist",
+      "TurtleGit.ImportPatch.QA.AB8AB65C-BC71-4CFC-83E3-BA57A92B7C41.plist",
+      "TurtleGit.ImportPatch.QA.65E5FF00-F884-4A1E-8089-1A20BD6C2415.plist",
+      "TurtleGit.ImportPatch.QA.8C5B7167-A863-4A6E-BFE5-7B6DC9EA9C37.plist",
+      "TurtleGit.SavedData.Tests.65BD95F0-E604-4FF4-9A81-7CF4D130AE9A.plist",
+      "TurtleGit.SavedData.Tests.8A4092EE-13CB-4528-81B0-706B7EC668AA.plist",
+      "TurtleGit.SavedData.Tests.BB5ECC22-8F4F-4873-AC9F-E100C1CBA1B4.plist",
+      "TurtleGit.SavedData.Tests.5F344350-EBF1-4921-9954-7476705B2050.plist",
+      "TurtleGit.Split.Probe.7BFFD9BD-8C4A-48B0-B3C6-CFB62D6EFA03.plist"
+    ],
+    "retained_nonempty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "app_or_receiver_processes": [],
+    "fixtures": "Passing and failed native TemporaryDirectory fixtures removed; owned hidden windows closed on passing runs, crashed processes terminal. Probe directory removed; nonempty failed private preferences retained."
+  },
+  "limitations": [
+    "Public API positioning/layout checks do not prove physical mouse drag, keyboard/VoiceOver divider behavior or screenshot appearance.",
+    "Only the tested normal/400-point window sizes are native acceptance evidence; extreme sizing or user accessibility fonts are not covered.",
+    "Frame-based native pane sizing uses macOS points, rather than Windows client coordinates/DPI scaling. Open windows can write new saved geometry after Saved Data clearing.",
+    "Source patch review/application, drag/drop, whitespace markers, exact context/key behavior and idle-session quit prompts remain pending.",
+    "Signed sandbox/Finder/App Store, physical screenshots and real external viewer/mail service acceptance unverified.",
+    "GitHub auth/CI/push and CUA unavailable from prior evidence; not retried. Full objective remains active."
+  ]
+}

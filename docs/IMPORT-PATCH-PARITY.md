@@ -119,9 +119,25 @@ font/color. It also checks BOM display and original-byte export, a sparse 250 Mi
 fixture and multi-selection clearing. These checks do not establish screenshot
 or physical accessibility acceptance.
 
+## Divider layout
+
+A native horizontal `NSSplitView` separates the patch list/options from the
+Patch/Log tabs. The upper pane keeps its height when the window grows, and both
+panes have minimum heights so the file controls and preview remain usable.
+The divider position is stored in macOS points under the source `AMDlgSizer`
+identity in TurtleGit's dialog-geometry namespace. Reopening restores the height
+and clamps it to the available window space. Settings → Saved Data → Dialog sizes
+and positions clears it together with window geometry, preserving appearance.
+Existing open windows can save new geometry again when moved/resized.
+
+[Divider QA](qa/import-patch-split-2026-10-08.json) checks the actual hidden native
+split view through its public positioning API, save/reopen restoration, smaller
+window constraints and Saved Data clearing. It does not simulate mouse dragging
+or establish physical divider/accessibility acceptance.
+
 ## Remaining parity work
 
-Patch review/application context command, drag/drop, the source's splitter persistence,
+Patch review/application context command, drag/drop,
 identity configuration prompts and idle-session
 application-quit prompts remain pending. Preview whitespace markers and the source's exact context-menu/keyboard behavior also remain pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,
