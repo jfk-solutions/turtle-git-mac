@@ -48,6 +48,8 @@ jobs:
         run: python3 scripts/test-reflog-remote-defaults.py
       - name: Native RefLog express branch switching
         run: python3 scripts/test-reflog-express-switch.py
+      - name: Native Stash Save progress and post-actions
+        run: python3 scripts/test-stash-save-progress.py
       - name: Native RefLog partial failures and continued deletion
         run: python3 scripts/test-reflog-partial-failure.py
       - name: Native general RefLog deletion and stale snapshot guards

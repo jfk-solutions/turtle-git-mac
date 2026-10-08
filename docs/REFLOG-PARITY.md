@@ -482,7 +482,8 @@ The [headless receiver](qa/reflog-express-switch-native-2026-10-08.swift) and
 [QA record](qa/reflog-express-switch-2026-10-08.json) cover actual models and Git
 operations. They do not display windows. Physical menu/sheet/close/cancel behavior,
 post-action factory routing, signed access and streaming output still need
-acceptance. The Stash Save handoff currently uses the existing dialog; upstream's
-extra follow-up Pull flag, complete progress presentation/persistence and broader
-Switch options progress integration remain pending. Full application parity is
+acceptance. The Stash Save handoff now requests its conditional Pull choice in the owned
+Stash Save progress sheet; see STASH-PARITY.md. Subsequent Pull/Merge Pop/Push
+flags, complete progress presentation/persistence and broader Switch options
+progress integration remain pending. Full application parity is
 not established by these checks.

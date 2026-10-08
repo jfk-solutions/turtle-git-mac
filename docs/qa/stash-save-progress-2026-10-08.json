@@ -1,0 +1,47 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "324ffa668280122d8ae9deaa88d4d1f6f982239d",
+  "scope": "Stash Save owned progress and conditional Pull/Merge/created-only Pop/Apply, express Switch failure Pull intent, captured options and warning lifetime/duplicate guards. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/StashSave.cpp": "567dc24d633c4c717814c548329307f34c929fee",
+    "src/TortoiseProc/StashSave.h": "45b1616311f4932f870b3b08de6ce8e31013d871"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "0fb6111451effc1fd7ba893a68e735ed5393d2f8a4fb39ee8c91f7a7667e12ab",
+    "NOTICE": "4634f9d8a35d89e03f68663894f646dd9f4829462c8c5c61f9871214fd5e9bcb",
+    "Sources/TurtleGitCore/Stash.swift": "4482edc0c38b96a74c83ed51216351ff5a65b5b4492d1316288f932f3b7d9e64",
+    "Sources/TurtleGitMac/StashWindow.swift": "26f82f0ee34281b3aab936b41dfc286936cd95119eb2366c212547ec1a77f116",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6c522665452f6dcfafca776e3674dfbd2ca39be0c179b9df2ea38e3794cae289",
+    "docs/REFLOG-PARITY.md": "bb61078a8f0c93c72e1ea351a44c192c7b56040db34776d4f720870a1752939e",
+    "docs/STASH-PARITY.md": "8625f4574d631f671db4b94d2f4430bd52961b1a48d535ba61d5e4fc4f92d78f",
+    "docs/upstream-files.csv": "4cdabc2a6479ded827460084b18ede3eebd4c511d3ccf2463ed26192fccd70e1",
+    "docs/qa/stash-save-progress-native-2026-10-08.swift": "e8e955863e4e710477fffe1248c5ee1537efaf0a9ac0558e13b770c263be5c49",
+    "scripts/test-stash-save-progress.py": "8595dabc4ba8af508970da31da31e89bebff9eaa8d68234aa0edda1d0c429cef"
+  },
+  "all_sources_manifest_sha256": "0b2f2ee4ed5b2414e4c50727b8ebef017dbb1d192940b7584a31c5a24f9d4618",
+  "verification": {
+    "core": "StashTests and StashRestoreTests: 8 passed. Stash Save adds optional cancellation checked before preparation and passed to final command. Existing save/restore semantics and callers preserved.",
+    "native": "Stash Save progress receiver passed system Git, 2.37.1, 2.39.5 and bundled 2.55.0. Actual options model dispatch creates progress immediately and captures options/follow-up intent; edited message does not replace dispatched message. Actual stash preserves HEAD, separate index/worktree contents, created-only Pop/Apply and source Pull/Merge ordering. No-change success keeps requested Pull/Merge but omits Pop/Apply for existing older stash. Invalid message fails with no actions; pre-cancel preserves stash and working file. Busy duplicate dispatch, retained result until close, captured follow-up callback flags, warning duplicate/Abort/delayed-after-invalidation and original icon mapping checked. Private UUID preferences read for warning guard; no preferences/windows/clipboard written.",
+    "regression": "RefLog express-switch receiver passed all four Git versions against final Sources: direct switch, previous branch, dirty failure preservation, Git-zero merge-conflict classification, retries, detached/submodule/unborn/bare cases. It does not execute factory Stash handoff or displayed windows.",
+    "iterations": "Initial Debug, Core and both native matrices passed. No failed compile/test iteration. CSV source mapping corrected from assumed StashSaveDlg file names to actual StashSave.cpp/.h during documentation review; no source change.",
+    "limitations": "Physical sheet/window ownership/close/cancel/warning and post-action factory/refresh routing unverified. Cancellation only tested before command; active-process interruption/partial outcomes and live output streaming require further acceptance. Native Pull/Merge destinations currently lack subsequent source Pop/Push follow-through flags, although request data reaches progress post-action callback; factory destinations use current workflow. Merge-follow-up source entry points, pre-dialog user-data guard, warning suppression persistence, bare/unborn/signed Stash invocation, current-ref races, full progress persistence remain pending. Existing screenshots depict options, not this progress sheet. Full dialogs/Finder parity, updated real screenshots/manual, hosted CI/publication and signed App Store distribution incomplete. GitHub auth unavailable; not retried.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git 2.55.0 Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "documentation": "Stash/RefLog parity, NOTICE, three upstream source mappings and native workflow step updated. Pin checker and all 3277 seven-column source rows passed. Local site generated; unpublished.",
+    "processes": "All compiler/native/build/audit sessions terminal. Main GUI never launched; receivers create models only, no windows. Final app/native receiver process audit empty. No preference or clipboard writes."
+  },
+  "logs": {
+    "build/qa/stash-save-progress/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/stash-save-progress/core.log": "994f61b4b61db6b67e0382bf5b26bb9b6b2bb9cf9a51fe249b4e6103de1e7e5e",
+    "build/qa/stash-save-progress/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/stash-save-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/stash-save-progress/express-regression.log": "d17ebbac66a48a4e8a17f1d2997e55aa166778ff4ccfa5d756d2776880ad4e80",
+    "build/qa/stash-save-progress/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/stash-save-progress/native.log": "e209dcc9c5020b77dd4b38204daa3bf827ebf86275f6a2f6578aa38132849684",
+    "build/qa/stash-save-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/stash-save-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/stash-save-progress/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/stash-save-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

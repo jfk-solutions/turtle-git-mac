@@ -510,3 +510,7 @@ remote branch name for a new local branch. Source pin is recorded in upstream.js
 RefLog express local branch menus adapt GitLogListBase.cpp and GitLogListAction.cpp.
 Native immediate Switch progress adapts AppUtils.cpp PerformSwitch's success,
 failure, merge-conflict and retry post-actions at the recorded upstream pin.
+
+Stash Save native progress and conditional Pull/Merge/Pop/Apply post-actions adapt
+AppUtils.cpp StashSave at the recorded upstream pin. The options dialog retains
+its captured save request while the owned progress sheet runs.

@@ -83,7 +83,7 @@ were verified; no conflict prompt image is published.
 
 ## Remaining
 
-- Full progress/cancellation and upstream conditional Pull/Merge/Pop/Apply post-actions.
+- Physical progress/sheet/cancellation acceptance, live output streaming, and downstream Pull/Merge follow-through flags (subsequent Pop/Push choices).
 - RefLog now provides native list, selected Apply, inspection and guarded Drop/Clear.
   Selected Pop, branch-from-stash and broader deletion/recovery QA remain pending.
   See REFLOG-PARITY.md.
@@ -94,3 +94,36 @@ were verified; no conflict prompt image is published.
 
 Native Pop remembered-answer relaunch/automatic handoff, error-sheet dismissal,
 full cancellation/progress behavior and multi-repository handoffs need broader QA.
+
+## Save progress and conditional post-actions
+
+Stash Save now keeps command output and its result in an owned native progress
+sheet. The options remain fixed behind that sheet until it closes. Success offers
+Pull and/or Merge when requested by the calling workflow, followed by Pop and
+Apply only when the stash ref changed. A successful no-change save still offers
+requested Pull/Merge, but does not offer Pop/Apply for an existing older stash.
+Failure/cancellation offers no post-action. The original Pull/Merge/unshelve icons
+are used. Pop/Apply retain their existing latest-stash semantics, matching source.
+
+RefLog express Switch's failure-to-Stash handoff requests Pull, as upstream
+`PerformSwitch` does. Generic Stash Save does not request it. Each save command
+opens its own options window so a caller cannot replace another window's draft or
+follow-up intent. Closing the progress sheet closes its owning options window;
+post-actions close both before opening the destination dialog. Success/failure
+callbacks refresh RefLog, Commit, Status and repository Log views.
+
+The untracked warning has explicit pending state. Duplicate saves cannot open
+another warning. Abort clears that state; Continue dispatches the captured options
+once. A delayed warning response after the window closes cannot save. Closing
+is blocked while warning/progress is attached or active. App Store progress
+validates the retained repository security-scope lease. Core forwards an optional
+cancellation token to the stash command; existing callers retain default behavior.
+
+The [headless receiver](qa/stash-save-progress-native-2026-10-08.swift) and
+[QA record](qa/stash-save-progress-2026-10-08.json) cover actual models/Git behavior,
+not displayed acceptance. Captured Pull/Merge intent is passed to the post-action
+callback, but native Pull/Merge destinations still use their current workflows:
+upstream's subsequent Pop/Push flags need implementation there. Live streaming,
+active-process interruption, physical sheet/window/close/factory routing, warning
+suppression persistence, signed invocation and broader application parity remain
+pending. Existing screenshots show the options, not the new progress sheet.

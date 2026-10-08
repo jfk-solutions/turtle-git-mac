@@ -53,7 +53,8 @@ extension GitRepository {
             throw failure
         }
     }
-    public func saveStash(_ options: StashSaveOptions) throws -> StashSaveResult {
+    public func saveStash(_ options: StashSaveOptions, cancellation: OperationCancellation? = nil) throws -> StashSaveResult {
+        try cancellation?.check()
         guard !(options.includeUntracked && options.all) else { throw StashFailure.combination }
         guard !options.message.contains("\0") else { throw StashFailure.message }
         let previous = (try? run(["rev-parse", "--verify", "refs/stash"]).text.trimmingCharacters(in: .newlines))
@@ -64,7 +65,7 @@ extension GitRepository {
         // Stash uses the magic pathspec :/ in its internal clean subprocess.
         // Whole-repository save accepts no user paths, so preserve Git's own
         // pathspec semantics here; literal mode would silently skip cleanup.
-        let output = try run(args, literalPathspecs: false).text
+        let output = try run(args, literalPathspecs: false, cancellation: cancellation).text
         let current = (try? run(["rev-parse", "--verify", "refs/stash"]).text.trimmingCharacters(in: .newlines))
         return StashSaveResult(output: output, previous: previous, current: current)
     }
