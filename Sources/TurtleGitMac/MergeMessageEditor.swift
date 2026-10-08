@@ -5,6 +5,8 @@ import TurtleGitCore
 
 struct MergeMessageEditor: NSViewRepresentable {
     @ObservedObject var model: MergeWindowModel
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     @Environment(\.isEnabled) private var enabled
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true
@@ -21,6 +23,7 @@ struct MergeMessageEditor: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         guard let editor = scroll.documentView as? MergeMessageTextView else { return }
         editor.model = model; editor.isEditable = enabled
+        editor.applyFont(MessageEditorFont.resolve(name: fontName, size: fontSize))
         if editor.string != model.message {
             let selection = editor.selectedRange()
             editor.string = model.message
@@ -39,6 +42,14 @@ struct MergeMessageEditor: NSViewRepresentable {
 
 final class MergeMessageTextView: NSTextView {
     weak var model: MergeWindowModel?
+    func applyFont(_ value: NSFont) {
+        guard font != value else { return }
+        let ranges = selectedRanges
+        let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
+        if undoEnabled { undoManager?.disableUndoRegistration() }
+        font = value; typingAttributes[.font] = value; selectedRanges = ranges
+        if undoEnabled { undoManager?.enableUndoRegistration() }
+    }
     override func menu(for event: NSEvent) -> NSMenu? {
         let menu = super.menu(for: event) ?? NSMenu()
         appendHistoryItems(to: menu)

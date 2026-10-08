@@ -4,6 +4,8 @@ import TurtleGitCore
 
 struct CommitMessageEditor: NSViewRepresentable {
     @ObservedObject var model: CommitWindowModel
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     @Environment(\.isEnabled) private var enabled
     func makeNSView(context: Context) -> NSScrollView {
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.borderType = .noBorder
@@ -30,7 +32,7 @@ struct CommitMessageEditor: NSViewRepresentable {
             editor.string = model.message
             editor.setSelectedRange(NSRange(location: min(range.location, (model.message as NSString).length), length: 0))
         }
-        editor.applyIssueStyles(model.issueMessageStyles)
+        editor.applyIssueStyles(model.issueMessageStyles, base: MessageEditorFont.resolve(name: fontName, size: fontSize))
     }
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     final class Coordinator: NSObject, NSTextViewDelegate {
@@ -102,10 +104,10 @@ private final class MessageTextView: NSTextView {
     override func resignFirstResponder() -> Bool { completionPopup.close(); return super.resignFirstResponder() }
     private var appliedStyles: [IssueMessageStyle] = []
     private var styledText = ""
-    func applyIssueStyles(_ styles: [IssueMessageStyle]) {
-        guard styles != appliedStyles || string != styledText, let storage = textStorage else { return }
-        appliedStyles = styles; styledText = string
-        let base = NSFont.monospacedSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+    private var styledBaseFont: NSFont?
+    func applyIssueStyles(_ styles: [IssueMessageStyle], base: NSFont) {
+        guard styles != appliedStyles || string != styledText || styledBaseFont != base, let storage = textStorage else { return }
+        appliedStyles = styles; styledText = string; styledBaseFont = base
         let selection = selectedRanges
         let undoEnabled = undoManager?.isUndoRegistrationEnabled == true
         if undoEnabled { undoManager?.disableUndoRegistration() }

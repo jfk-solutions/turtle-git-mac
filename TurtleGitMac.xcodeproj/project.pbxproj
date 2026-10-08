@@ -137,6 +137,7 @@
 		B94CDDFE0367B09E5E08A8C5 /* DialogGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61A970E8A247DF0EE306AB7F /* DialogGeometry.swift */; };
 		B96A74776BF83BB313347BBB /* MessageCodeSymbols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */; };
 		B9AFF3F19CAB2A9F7313754D /* TurtleGitCore.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		B9C46EA0242416CA6D538C73 /* MessageEditorFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87335D6A9D18FB71DB2EC3C5 /* MessageEditorFont.swift */; };
 		BA385183E9E7CF4B38B22FDD /* StatisticsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */; };
 		BBF557294334CDAEE1937ADD /* NativeWatermarkTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */; };
 		BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */; };
@@ -347,6 +348,7 @@
 		83395323FFA0860A52795F9F /* Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stash.swift; sourceTree = "<group>"; };
 		85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleDiffWindow.swift; sourceTree = "<group>"; };
 		870D95A7EC384863F1C04342 /* RevisionComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevisionComparison.swift; sourceTree = "<group>"; };
+		87335D6A9D18FB71DB2EC3C5 /* MessageEditorFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageEditorFont.swift; sourceTree = "<group>"; };
 		876D19E7421E1EB603F7DAD0 /* MessageFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageFormatting.swift; sourceTree = "<group>"; };
 		8927431F95C0127D9B66489A /* TextConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflict.swift; sourceTree = "<group>"; };
 		8BB0FD3A5C49E748AA9A42AC /* AddWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddWindow.swift; sourceTree = "<group>"; };
@@ -479,6 +481,7 @@
 				63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */,
 				5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */,
 				326985003F83908822D7B91E /* MergeWindow.swift */,
+				87335D6A9D18FB71DB2EC3C5 /* MessageEditorFont.swift */,
 				9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */,
 				65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */,
 				92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */,
@@ -989,6 +992,7 @@
 				78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */,
 				FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */,
 				1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */,
+				B9C46EA0242416CA6D538C73 /* MessageEditorFont.swift in Sources */,
 				E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */,
 				8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */,
 				BBF557294334CDAEE1937ADD /* NativeWatermarkTable.swift in Sources */,

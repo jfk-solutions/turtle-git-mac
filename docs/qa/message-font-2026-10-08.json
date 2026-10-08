@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "3e215eff951873aacfb82b39ae33aff1722b4aa3",
+  "scope": "Commit/Merge configurable native message font with source preference names/default size, live styling updates and preservation of draft/selection/undo; native control in Dialogs settings. Full app/App Store goal remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Utils/CommonAppUtils.cpp": "e238480c30808908b318d1f419c246ab0c116895",
+    "src/TortoiseProc/Settings/SetDialogs.cpp": "14912ad2447b6a5e2828d0f0f1bfa035fcaf0298"
+  },
+  "sources_manifest_sha256": "8818167d6ee78110eacc75160cbdccc2b26b0c7dbe49d21e30b4b6e3023e8f8c",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "cab61656262f98267d9ad6ef11be1d360ac8845c92837abeb23cbb183e1fd551",
+    "NOTICE": "311b53b9f8a1b14e2ef46f7ca760b691ccc23d96039b1a171b1621fde98c96df",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "fbd302e020bdd6e2652d1661dcde2135aa5181f7545ab42b90ce36a0df7b044d",
+    "Sources/TurtleGitMac/LogWindow.swift": "5674a5f833ed17afc02f27e96535058740bccf2c33259ad56029a98f264430be",
+    "Sources/TurtleGitMac/MergeMessageEditor.swift": "9807d5fcf4a01f58774b8a67e9bafc5991e4b0a8c55bd5feb3b4dc5fd7a98237",
+    "Sources/TurtleGitMac/MessageEditorFont.swift": "178c8b7ce963f429a1f938be7283416546a071a0e437d5cbcb4ae2d293ece204",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "7b44ce0a5f10958b7493834b49a44fceeac508a7d0337c3e115c39888091a596",
+    "docs/COMMIT-PARITY.md": "45849a8956ffb3cc935acaae7d5f1b6f6ee9515b65cce2168309c6753bd34de5",
+    "docs/MERGE-PARITY.md": "4ad699a925ae3ea1cc96262671c3ab29e165273f409239977c21647d308d2f62",
+    "docs/qa/message-font-native-2026-10-08.swift": "71254d5904621e9880f7ce58bf6ff9d0b71c19b3d630ee72a50bd2d108b60d50",
+    "docs/upstream-files.csv": "758b9961fbd3fdd322b7641973052e3535011045dbf41e6ef1d1721bf25c95e9",
+    "scripts/test-message-font.py": "332593c30d5ca0f126f508a90b9e81ae7edb90a23567961d675d5b482ab2dfaa"
+  },
+  "logs_sha256": {
+    "build/qa/message-font/cleanup.json": "b8892b053d5cb321b35f9bf7f2f2df7ca765c8231eaf945c162a914e828b618f",
+    "build/qa/message-font/core.log": "3ea70c6bd1dcef1c7127e6c985795fef9b33d1fe5ab0ce20e6fdd4c99cee9e0b",
+    "build/qa/message-font/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/message-font/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/message-font/debug.log": "303ae7d8ec892f3fce5e3e6b00954af2c40c46f61e9998b0524d5df49f233e4e",
+    "build/qa/message-font/native-first-failed.log": "2b7afc05f05b8ebd94883c4ca6afd2e216dd9ed34a4ddc135bacb8280daf2402",
+    "build/qa/message-font/native-monaco-assertion-failed.log": "a78019dce72b1447a9b359e6f2acba157e6555c63de4e75935eada1dbb4981dc",
+    "build/qa/message-font/native.log": "9fc07e34cb49e7ddf4e8dd82f1211ad140f4e69fb2c5099699ecd9dfbf680bb4",
+    "build/qa/message-font/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/message-font/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/message-font/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/message-font/store.log": "52fea30572077652efda7f6dfd611692e10cfa654369dab32abbf2606c3c89ca"
+  },
+  "verification": {
+    "core": "8 MessageFormattingTests/IssueMessageStyleTests pass.",
+    "native": "One final successful receiver run with actual hidden NSHostingView Commit/Merge editors using private AppStorage. Default 9-point size, live family/size changes, Unicode drafts and ranges preserved, seeded undo callbacks retained/executed, Menlo bold styling and typing font, invalid/missing-font fallback and hidden settings layout. Git init uses Apple /usr/bin/git; no four-version Git mutation claim.",
+    "builds": "Initial Debug, final Debug after Dialogs placement/attribution and unsigned AppStore builds pass. Source unchanged across final native run and Store build.",
+    "bundles": "Final Debug/Store audits and NOTICE comparisons pass; 98 icons, universal helpers; Store Git 11 universal Mach-O files and local fixture audit.",
+    "other": "Pinned inventory verifier, site generation, 3277 rows/7 fields and diff whitespace check pass."
+  },
+  "iterations": [
+    "First native receiver compilation rejected nonexistent CommitWindowModel.invalidate cleanup call; removed before second attempt.",
+    "Second native receiver passed live font/draft/selection/undo checks but asserted an unavailable Monaco bold face; process exited with SIGTRAP. Independent AppKit probe returned Monaco -> Monaco, size 17, traits raw 1024; no bold conversion.",
+    "Final receiver checks live Monaco updates, then Menlo bold availability. No production font code changed for this assertion; source settings control was moved to Dialogs before final Debug and native checks."
+  ],
+  "cleanup": {
+    "empty_owned_preferences_removed": [
+      "TurtleGit.MessageFont.QA.0B9BCA33-5AA4-4AF1-9C07-D06A9026A709.plist"
+    ],
+    "nonempty_failed_test_preferences_preserved": [
+      "TurtleGit.MessageFont.QA.A8A4954B-AF08-43FC-90A0-04F304411D62.plist"
+    ],
+    "owned_app_or_receiver_processes": []
+  },
+  "native_adaptations": [
+    "Menlo replaces Windows Consolas default; source 9-point size and preference keys retained.",
+    "Font selector offers macOS fixed-pitch families; invalid sizes fall back to 9 and native input accepts 1-1000."
+  ],
+  "limitations": [
+    "Other source global-font consumers (Log/Rebase/etc.) pending.",
+    "Missing requested faces retain native font; synthetic Windows font styling pending.",
+    "Physical settings interaction, light/dark composed appearance and screenshots of this change not verified.",
+    "Failed fixture preferences retained; standard user preferences untouched.",
+    "Unsigned audits do not prove signed sandbox, Finder runtime or App Store acceptance.",
+    "Full app port incomplete; unavailable GitHub auth/CI/push and CUA not retried."
+  ]
+}

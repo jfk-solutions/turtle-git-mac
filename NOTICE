@@ -638,3 +638,12 @@ The shared native history picker adapts src/TortoiseProc/HistoryDlg.cpp's
 row-index selection, ordered message joining, single-row deletion, initial focus
 and shared saved geometry, copyright (C) 2021, 2023-2025 TortoiseGit and
 (C) 2003-2008, 2011 TortoiseSVN, under GPL version 2 or later.
+
+Commit and Merge editor font preferences adapt Utils/CommonAppUtils.cpp's
+GetLogFontName/GetLogFontSize and Settings/SetDialogs.cpp's source preference
+names/default point size under the upstream GPL version 2 or later. Native
+AppKit font resolution and the available macOS fixed-pitch font menu replace
+Windows font creation; Menlo replaces the source default Consolas on macOS.
+Those font helpers retain copyright (C) 2008-2020, 2023-2025 TortoiseGit and
+(C) 2003-2008, 2010, 2020 TortoiseSVN. SetDialogs.cpp retains copyright
+(C) 2008-2020, 2025 TortoiseGit and (C) 2003-2008 TortoiseSVN.

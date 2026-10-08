@@ -2097,6 +2097,7 @@ struct LogDialogSettings: View {
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     var body: some View {
         Form {
+            MessageEditorFontSettings()
             Picker("Autoclose Git progress dialog:", selection: Binding(get: { GitProgressAutoClose(rawValue: autoCloseGitProgress) ?? .manual }, set: { autoCloseGitProgress = $0.rawValue })) {
                 ForEach(GitProgressAutoClose.allCases, id: \.self) { policy in Text(policy.title).tag(policy) }
             }.help("Successful operations close according to this policy. Failed operations stay open.")

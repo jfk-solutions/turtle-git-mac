@@ -1560,3 +1560,10 @@ It also checks a hidden shared-identifier geometry close/reopen/reset fixture.
 This does not establish physical keyboard/double-click/button/sheet interactions,
 visible light/dark appearance or signed acceptance. The record is
 [history picker QA](qa/history-picker-2026-10-08.json).
+
+## Message editor font
+
+Commit and Merge now share configurable native font family and size, with live
+updates that preserve text, selection and undo history. Bold/italic styling uses
+the selected base font. See [Merge message font notes](MERGE-PARITY.md#message-editor-font)
+for source defaults, native differences and pending consumers.

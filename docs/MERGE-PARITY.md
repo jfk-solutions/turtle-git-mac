@@ -58,7 +58,7 @@ Escape and Cancel. HEAD/index/worktree remained unchanged.
 
 ## Still partial
 
-- Issue tracking, spelling/completion and editor font preferences. Native window
+- Issue tracking and spelling/completion. Native editor font preferences and window
   geometry is implemented; physical geometry acceptance remains pending.
 - Full reference chooser controls, persisted revision history and native chooser
   acceptance with a different branch/commit, tag merge and detached/unborn cases.
@@ -280,3 +280,24 @@ The shared picker now identifies selections by row index, so canonically
 equivalent Unicode spellings in Merge history remain independently selectable.
 The Commit and Merge sheets share the upstream `HistoryDlg` geometry identifier
 and focus their native table initially. See [history picker verification](qa/history-picker-2026-10-08.json).
+
+
+## Message editor font
+
+Settings → Dialogs → Message editor font selects a native fixed-pitch family and
+point size for both Commit and Merge. The `LogFontName` and `LogFontSize`
+preference names and default size of 9 follow TortoiseGit's CommonAppUtils and
+SetDialogs. Menlo replaces Windows' default Consolas; unavailable names fall
+back to Menlo or the system monospaced font. Invalid stored sizes fall back to 9;
+the native size field accepts 1–1000 points. Changes apply to open editors without
+altering draft text, selection or adding an undo entry. Commit styling derives
+bold/italic faces from the chosen base font when AppKit provides those faces.
+Fonts without a requested face, such as the measured Monaco bold conversion,
+retain the native font; synthetic Windows-style font traits remain pending.
+
+This checkpoint covers the Commit and Merge editors. Other upstream consumers
+of the same global font, including Log, Rebase and other text dialogs, still need
+integration. The native font control lives under Dialogs as in upstream.
+No complete typography or visible appearance
+parity is claimed. Headless checks are recorded in
+[message font QA](qa/message-font-2026-10-08.json).
