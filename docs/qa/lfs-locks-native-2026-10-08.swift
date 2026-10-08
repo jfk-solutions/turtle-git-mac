@@ -167,6 +167,69 @@ import TurtleGitCore
         await task.value
         precondition(model.results.count == 1 && model.information.contains("Completed server changes remain"))
         model.finishProgress(); try await settle { window.attachedSheet == nil }; window.close()
+        // Source check memory is by path, not remote ID, survives disappearance
+        // and failed refresh, and context operations reset only their targets.
+        let memoryModel = LFSLocksWindowModel(repository: repository, access: nil, defaults: defaults)
+        var memoryReply = [LFSLock(id: "a", path: "file2.bin", owner: "QA"),LFSLock(id: "b", path: "雪\t🦎.bin", owner: "Other")]
+        memoryModel.query = { _ in memoryReply }; await memoryModel.refresh()
+        memoryModel.setChecked("a", false)
+        memoryReply[0] = LFSLock(id: "a2", path: "file2.bin", owner: "QA"); await memoryModel.refresh()
+        precondition(memoryModel.checked == ["b"])
+        memoryReply.removeFirst(); await memoryModel.refresh()
+        memoryReply.insert(LFSLock(id: "a3", path: "file2.bin", owner: "QA"), at: 0)
+        memoryReply.append(LFSLock(id: "new", path: "new.bin", owner: "QA")); await memoryModel.refresh()
+        precondition(memoryModel.checked == ["b","new"])
+        memoryModel.selectAll(false)
+        memoryReply.append(LFSLock(id: "later", path: "later.bin", owner: "QA")); await memoryModel.refresh()
+        precondition(memoryModel.checked == ["later"])
+        memoryModel.query = { _ in throw LFSLocksFailure.selection }; await memoryModel.refresh()
+        precondition(memoryModel.checked.isEmpty && memoryModel.locks.isEmpty)
+        memoryModel.query = { _ in memoryReply }; await memoryModel.refresh()
+        precondition(memoryModel.checked == ["later"])
+        memoryModel.change = { paths, _, _, report in
+            let files = paths.map { LFSFileResult(path: $0, success: false, output: "Retained lock") }
+            for file in files { report(file) }; return LFSBatchResult(files: files)
+        }
+        await memoryModel.perform(paths: ["file2.bin"], locked: false)
+        precondition(memoryModel.checked == ["a3","later"])
+        memoryModel.finishProgress(); memoryModel.setChecked("a3", false)
+        await memoryModel.unlock()
+        precondition(memoryModel.checked == ["later"])
+        memoryModel.finishProgress()
+        // Real AppKit viewport and row-index/focus-mark restoration across a
+        // cleared/repopulated list; the setting disables position restoration.
+        let positionController = LFSLocksWindowController(repository: repository, access: nil, defaults: defaults)
+        let positionModel = positionController.model
+        var positionReply = (0..<160).map { LFSLock(id: "before-\($0)", path: String(format: "position-%03d.bin",$0), owner: "QA") }
+        positionModel.query = { _ in positionReply }; await positionModel.refresh()
+        positionController.window!.contentView!.layoutSubtreeIfNeeded()
+        try await settle { descendants(positionController.window!.contentView!).contains { $0 is CommitFileInteraction.Probe } }
+        let positionTable = descendants(positionController.window!.contentView!).compactMap { $0 as? NSTableView }.first!
+        let positionProbe = descendants(positionController.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!
+        try await settle { positionTable.numberOfRows == 160 && positionProbe.itemIDs?.count == 160 && positionTable.headerView?.menu != nil }
+        precondition(positionModel.saveColumnLayout(order: positionModel.fileColumns.order, widths: [.path:1200]))
+        try await settle { abs(positionTable.tableColumns[1].width - 1200) < 0.5 }
+        let positionScroll = positionTable.enclosingScrollView!
+        positionScroll.layoutSubtreeIfNeeded(); positionTable.layoutSubtreeIfNeeded()
+        positionTable.selectRowIndexes(IndexSet([20,22]), byExtendingSelection: false)
+        try await settle { positionModel.selection == ["before-20","before-22"] }
+        positionProbe.focusedPath?.wrappedValue = "before-22"
+        positionScroll.contentView.scroll(to: NSPoint(x:150,y:500)); positionScroll.reflectScrolledClipView(positionScroll.contentView)
+        let savedOrigin = positionScroll.contentView.bounds.origin
+        precondition(savedOrigin.x > 0 && savedOrigin.y > 0)
+        positionModel.setChecked("before-20", false)
+        positionReply = (0..<160).map { LFSLock(id: "after-\($0)", path: String(format: "position-%03d.bin",$0), owner: "QA") }
+        await positionModel.refresh()
+        try await settle { positionModel.selection == ["after-20"] && positionProbe.focusedPath?.wrappedValue == "after-22" && abs(positionScroll.contentView.bounds.origin.x - savedOrigin.x) < 0.5 && abs(positionScroll.contentView.bounds.origin.y - savedOrigin.y) < 0.5 }
+        precondition(!positionModel.checked.contains("after-20") && positionModel.checked.count == 159)
+        defaults.set(false, forKey: "RememberFileListPosition")
+        positionTable.selectRowIndexes(IndexSet(integer:30), byExtendingSelection: false)
+        positionProbe.focusedPath?.wrappedValue = "after-30"
+        positionScroll.contentView.scroll(to: NSPoint(x:150,y:700)); positionScroll.reflectScrolledClipView(positionScroll.contentView)
+        await positionModel.refresh()
+        try await settle { positionModel.selection.isEmpty && positionProbe.focusedPath?.wrappedValue == nil && positionScroll.contentView.bounds.origin == .zero }
+        precondition(!positionModel.checked.contains("after-20") && positionModel.checked.count == 159)
+        defaults.removeObject(forKey: "RememberFileListPosition"); positionController.window?.close()
         // Context actions use highlighted IDs, ignore the dialog Force checkbox,
         // and expose both operations only with the owner column hidden.
         precondition(!model.hasLFS && model.lfsActions(["3"]).isEmpty)

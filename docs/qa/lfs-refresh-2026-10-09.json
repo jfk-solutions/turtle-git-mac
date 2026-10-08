@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "ed93a34909706deb4dcd805a7ed6f5df2b6252ca",
+  "scope": "LFS checked-path refresh memory and native table position restoration; whole port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sources_manifest_sha256": "395a2a242e6ddbb143061c33d54a65bab719eb96c9ba51e5409d7c8c2b9e8ea3",
+  "changed_files_sha256": {
+    "NOTICE": "57f67ac7df88ec5a37352033a3ec54fe3ce0a588bf6448bdfb8da1d405c3ef01",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "53fd28eeef3e0f2c862b227f53094a4998400265cd4df706523da1e6648ba990",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "bbd1c5ff4bf634c2d2f92f26263607db169fe187627c334cbf16b983fe6b56a2",
+    "docs/LFS-PARITY.md": "e3f2c774e927243312b6adb2e57f2fd7e1ad14df9b53867404f44b88d3d7b615",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "a3fdd69ebdafbe9ee2c76cd30df0f9c39f2fc54902b721540c8c368e71eadad5",
+    "docs/upstream-files.csv": "1e6248aaad9dfe8d3aea847a1a0a7c79b1a0593147c8ce1b4adb6e729aa33468"
+  },
+  "verification": {
+    "native": "Activation-prohibited receiver passed Apple Git and bundled Git. Unchecked paths retain choices across changed IDs, disappearance/reappearance, new paths and query failure/recovery; select-all memory and context-target-only reset verified. Actual 160-row AppKit table restores horizontal/vertical scroll origin, first highlight index and focus mark after all server IDs change; RememberFileListPosition=false clears highlight/focus and resets origin while preserving checks. Existing LFS/Commit/Working Tree/Resolve assertions pass with injected replies.",
+    "commit_regression": "Separate native Commit column receiver passed Apple Git.",
+    "debug": "Debug compile and bundle audit passed. Original compiler session handle was absent after context compaction; authoritative process inspection showed it had exited and its log contained no errors, followed by successful receiver compilation and bundle audit.",
+    "store": "Sequential unsigned AppStore build and required bundled Git/Git LFS audit pass; both packages contain current NOTICE. No signed acceptance claim.",
+    "inventory": "Pinned inventory and git diff --check pass."
+  },
+  "limitations": [
+    "No physical input, appearance/accessibility or fresh screenshot acceptance.",
+    "Row-zero restoration is a documented native adaptation; this receiver exercises nonzero indices.",
+    "No authenticated provider, signed deployment, App Store acceptance, GitHub CI or full dialog/menu parity claim."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "owned_windows": "Receivers closed owned windows/sheets and exited; temporary fixtures removed by wrappers.",
+    "preferences": "Three private LFS.StatusQA/CommitSorting.QA plist files removed after receiver exit; main preferences untouched.",
+    "record_sha256": "d3c4ade6f9a37b719cd0c7ee9a99148487c17c11703ba23c803afd5408a3d153",
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": []
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-refresh-2026-10-09/commit-native.log": "2cd7ed2a7a013e42dddaeb853b8e1b73ea6d290db313b947228176d2d5aa87fd",
+    "build/qa/lfs-refresh-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-refresh-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-refresh-2026-10-09/native.log": "4ba8a32cf1e6b06b41674416dd966100a8910d02c34aee325a8a6e5f620075c4",
+    "build/qa/lfs-refresh-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-refresh-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/lfs-refresh-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/lfs-refresh-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

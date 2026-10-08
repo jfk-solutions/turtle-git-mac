@@ -14,6 +14,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     var copyIDs: (([String], Bool) -> Void)? = nil
     var copyColumnIDs: (([String], StatusListColumn) -> Void)? = nil
     var toggleCheckIDs: (([String], String) -> Void)? = nil
+    var configureRefresh: ((Probe) -> Void)? = nil
     let visibleColumns: Set<StatusListColumn>
     var availableColumns: Set<StatusListColumn> = Set(StatusListColumn.allCases)
     let columnText: (StatusEntry, StatusListColumn) -> String
@@ -42,6 +43,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         view.availableColumns = availableColumns; view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
         view.rows = rows; view.focusedPath = $focusedPath
         view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn; view.toggleCheck = toggleCheck
+        configureRefresh?(view)
         DispatchQueue.main.async { [weak view] in view?.configureColumns() }
     }
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
@@ -79,6 +81,42 @@ struct CommitFileInteraction: NSViewRepresentable {
         private var desiredColumns: [NSTableColumn] = []
         private var desiredWidths: [ObjectIdentifier: CGFloat] = [:]
         private var layoutObservers: [NSObjectProtocol] = []
+        private struct ListPosition {
+            let origin: NSPoint
+            let selectedIndex: Int?
+            let focusedIndex: Int?
+        }
+        private var listPosition: ListPosition?
+        private var positionGeneration = UUID()
+        func storeListPosition() {
+            positionGeneration = UUID()
+            guard let table = configuredTable, let scroll = table.enclosingScrollView else { listPosition = nil; return }
+            let mark = focusedPath?.wrappedValue.flatMap { id in itemIDs?.firstIndex(of: id) }
+            listPosition = ListPosition(origin: scroll.contentView.bounds.origin, selectedIndex: table.selectedRowIndexes.first, focusedIndex: mark)
+        }
+        func restoreListPosition(ids: [String], enabled: Bool) {
+            let position = listPosition; listPosition = nil
+            let generation = positionGeneration
+            DispatchQueue.main.async { [weak self] in self?.applyListPosition(position, ids: ids, enabled: enabled, generation: generation, remaining: 1000) }
+        }
+        private func applyListPosition(_ position: ListPosition?, ids: [String], enabled: Bool, generation: UUID, remaining: Int) {
+            guard positionGeneration == generation, let table = configuredTable, let scroll = table.enclosingScrollView else { return }
+            guard table.numberOfRows == ids.count && itemIDs == ids else {
+                if remaining > 0 { DispatchQueue.main.asyncAfter(deadline: .now() + 0.005) { [weak self] in
+                    self?.applyListPosition(position, ids: ids, enabled: enabled, generation: generation, remaining: remaining - 1)
+                } }
+                return
+            }
+            scroll.layoutSubtreeIfNeeded(); table.layoutSubtreeIfNeeded()
+            if enabled, let position {
+                if let row = position.selectedIndex, ids.indices.contains(row) { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+                if let row = position.focusedIndex, ids.indices.contains(row) { focusedPath?.wrappedValue = ids[row] }
+                scroll.contentView.scroll(to: scroll.contentView.constrainBoundsRect(NSRect(origin: position.origin, size: scroll.contentView.bounds.size)).origin)
+            } else {
+                table.deselectAll(nil); focusedPath?.wrappedValue = nil; scroll.contentView.scroll(to: .zero)
+            }
+            scroll.reflectScrolledClipView(scroll.contentView)
+        }
         private var trackingHeader = false
         private var draggingHeader = false
         private var adjustingLayout = false
@@ -231,6 +269,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
         }
         func stopObserving() {
+            positionGeneration = UUID(); listPosition = nil
             if let monitor { NSEvent.removeMonitor(monitor) }
             monitor = nil
             if let menuObserver { NotificationCenter.default.removeObserver(menuObserver) }

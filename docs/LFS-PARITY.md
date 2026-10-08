@@ -185,3 +185,22 @@ Core formatting, Working Tree and Locks use the same heading rule.
 and native operation/sheet/selection/Force checks with injected responses.
 Physical context-menu activation, full source command coverage, real providers
 and signed deployment remain pending.
+
+## Refresh choices and list position
+
+Locks remembers checkbox choices by repository path across refreshes, including
+removed paths that later return with a different server lock ID. New paths are
+checked by default. Select all updates each current path's remembered choice.
+Context Lock/Unlock clears the remembered choices only for its captured targets;
+the checked Unlock button retains them. This follows the pinned status list's
+checked-path map and LFS context handlers.
+
+With RememberFileListPosition enabled (the source default), refresh restores the
+scroll origin, first highlighted row index and focus mark index after the native
+table has adopted the new rows. Additional highlighted rows are not restored.
+The native implementation also restores row zero; the source's integer truth
+check skips that row. Disabling the preference resets scrolling and highlighting
+without changing checked targets. Pending restoration is invalidated by a newer
+refresh or table teardown.
+
+[Refresh QA](qa/lfs-refresh-2026-10-09.json) records the checks and their limits.

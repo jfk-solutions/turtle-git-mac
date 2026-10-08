@@ -43,7 +43,10 @@ import TurtleGitCore
     private let access: RepositoryAccessLease?
     @Published var locks: [LFSLock] = []
     @Published var hasLFS = false
-    @Published var checked = Set<String>()
+    @Published var checked = Set<String>() {
+        didSet { for lock in locks { checkedPaths[lock.path] = checked.contains(lock.id) } }
+    }
+    private var checkedPaths: [String: Bool] = [:]
     @Published var selection = Set<String>()
     @Published var sortOrder = [LFSFileSort(column: .path)]
     @Published var fileColumns: StatusListColumnSettings
@@ -66,7 +69,15 @@ import TurtleGitCore
     private var acceptingBatchResults = false
     private var operationPaths: [String] = []
     private var operationForce = false
+    private var resetTargetChecks = false
     var onProgressVisibility: (Bool) -> Void = { _ in }
+    var captureListPosition: () -> Void = {}
+    var restoreListPosition: ([String], Bool) -> Void = { _,_ in }
+    private var rememberListPosition: Bool { (defaults.object(forKey: "RememberFileListPosition") as? NSNumber)?.boolValue ?? true }
+    private func restoreChecks() {
+        checked = Set(locks.filter { checkedPaths[$0.path] ?? true }.map(\.id))
+        restoreListPosition(rows.map(\.id), rememberListPosition)
+    }
     var refreshLocksAfterOperation = true
     var close: () -> Void = {}
     var query: (OperationCancellation) async throws -> [LFSLock]
@@ -161,23 +172,28 @@ import TurtleGitCore
     func cancel() { guard busy else { return }; cancellation.cancel(); information = "Cancelling…" }
     func refresh() async {
         guard !busy, !confirmingQuit, !showingProgress else { return }
+        captureListPosition()
         busy = true; error = nil; locks = []; fileMetadata = [:]; checked = []; selection = []; cancellation = OperationCancellation(); information = "Getting LFS locks…"
         defer { busy = false }
         do {
             try validateAccess()
-            locks = try await query(cancellation); fileMetadata = await repository.statusListMetadata(paths: locks.map(\.path)); hasLFS = try await repository.hasLFS(); checked = Set(locks.map(\.id)); selection.formIntersection(checked)
+            locks = try await query(cancellation); fileMetadata = await repository.statusListMetadata(paths: locks.map(\.path)); hasLFS = try await repository.hasLFS(); restoreChecks()
             information = "\(locks.count) locked file(s)."
-        } catch { self.error = error.localizedDescription; information = cancellation.isCancelled ? "Cancelled." : "Could not get LFS locks." }
+        } catch {
+            locks = []; fileMetadata = [:]; checked = []; selection = []; hasLFS = false
+            restoreListPosition([], rememberListPosition)
+            self.error = error.localizedDescription; information = cancellation.isCancelled ? "Cancelled." : "Could not get LFS locks."
+        }
     }
     func unlock(forceRetry: Bool = false) async {
         guard !busy, !confirmingQuit, !forceRetry || !operationLocked else { return }
         guard forceRetry || !showingProgress else { return }
-        if !forceRetry { operationLocked = false; operationForce = force; operationPaths = rows.filter { checked.contains($0.id) }.map(\.path) }
+        if !forceRetry { operationLocked = false; operationForce = force; resetTargetChecks = false; operationPaths = rows.filter { checked.contains($0.id) }.map(\.path) }
         await runOperation(forceRetry: forceRetry)
     }
     func perform(paths: [String], locked: Bool) async {
         guard !busy, !confirmingQuit, !showingProgress, !paths.isEmpty else { return }
-        operationPaths = paths; operationLocked = locked; operationForce = false
+        operationPaths = paths; operationLocked = locked; operationForce = false; resetTargetChecks = true
         await runOperation(forceRetry: false)
     }
     private func runOperation(forceRetry: Bool) async {
@@ -200,10 +216,12 @@ import TurtleGitCore
             else { batch = try await change(operationPaths, useForce, cancellation, report) }
             acceptingBatchResults = false
             results = batch.files
+            if resetTargetChecks { for path in operationPaths { checkedPaths.removeValue(forKey: path) } }
             information = batch.cancelled ? "Cancelled. Completed server changes remain; refresh to verify lock state." : "\(results.filter(\.success).count) of \(operationPaths.count) file(s) \(operationLocked ? "locked" : "unlocked")."
             if !batch.cancelled && refreshLocksAfterOperation {
+                captureListPosition()
                 locks = []; fileMetadata = [:]; checked = []; selection = []
-                do { locks = try await query(cancellation); fileMetadata = await repository.statusListMetadata(paths: locks.map(\.path)); hasLFS = try await repository.hasLFS(); checked = Set(locks.map(\.id)); selection.formIntersection(checked) }
+                do { locks = try await query(cancellation); fileMetadata = await repository.statusListMetadata(paths: locks.map(\.path)); hasLFS = try await repository.hasLFS(); restoreChecks() }
                 catch { self.error = "Operation results are retained. Refresh failed: " + error.localizedDescription }
             }
         } catch { self.error = error.localizedDescription; information = "Could not \(operationLocked ? "lock" : "unlock") files." }
@@ -228,7 +246,10 @@ struct LFSLocksDialog: View {
             }.background(CommitFileInteraction(rows: [], keyboardDeleteEnabled: false, nativeColumns: LFSLocksWindowModel.columns,
                 rowTexts: rows.map { row in Dictionary(uniqueKeysWithValues: LFSLocksWindowModel.columns.map { ($0,row.text($0)) }) }, itemIDs: rows.map(\.id),
                 copyIDs: { model.copy(Set($0), information: $1 ? .pathsAndStatus : .relativePaths) }, copyColumnIDs: { model.copy(Set($0), information: .column($1)) },
-                toggleCheckIDs: { model.toggleChecks($0, mark: $1) }, visibleColumns: Set(model.visibleColumns), availableColumns: Set(LFSLocksWindowModel.columns),
+                toggleCheckIDs: { model.toggleChecks($0, mark: $1) }, configureRefresh: { view in
+                    model.captureListPosition = { [weak view] in view?.storeListPosition() }
+                    model.restoreListPosition = { [weak view] ids, enabled in view?.restoreListPosition(ids: ids, enabled: enabled) }
+                }, visibleColumns: Set(model.visibleColumns), availableColumns: Set(LFSLocksWindowModel.columns),
                 columnText: { _,_ in "" }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths,
                 saveLayout: { model.saveColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setColumn($0, visible: $1) },
                 resetColumns: { choose, accepted in model.requestResetColumns(choose: choose, onAccepted: accepted) }, focusedPath: $focusedID,

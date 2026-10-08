@@ -871,3 +871,11 @@ retry applies only to failed Unlock. Native progress titles reflect Lock/Unlock.
 Copy all headings now preserve the source multi-column mask behavior even with
 one visible column across shared Core, Working Tree and Locks formatting.
 Original source attribution and GPL version 2 or later apply.
+
+LFS list refresh now adapts GitStatusListCtrl.cpp stored checkbox choices by
+path, retained across refresh/disappearance and reset for context-action
+targets. Native list-position callbacks adapt StoreScrollPos/RestoreScrollPos
+and RememberFileListPosition with AppKit clip origins, the first highlighted
+row index and focus mark. Restoration waits for the new native dataset and is
+invalidated by a newer refresh. The native optional index also restores row
+zero. Original source attribution and GPL version 2 or later apply.
