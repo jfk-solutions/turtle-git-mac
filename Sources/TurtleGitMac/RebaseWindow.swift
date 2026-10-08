@@ -67,6 +67,8 @@ import TurtleGitCore
             let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
             return choices.indices.contains(index) ? choices[index].number : nil
         }
+
+        DialogGeometry.attach(window, identifier: "RebaseWindowController")
     }
     private func showSplitSelection(_ split: RebaseSplitState, message: String) {
         guard let window, window.attachedSheet == nil, splitCommitPicker == nil else { model.splitSelectionClosed(committed: false); return }

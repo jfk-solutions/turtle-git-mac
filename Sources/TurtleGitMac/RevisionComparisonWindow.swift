@@ -24,9 +24,11 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         window.contentMinSize = NSSize(width: 900, height: 530)
         window.contentViewController = NSHostingController(rootView: RevisionComparisonDialog(model: model))
         super.init(window: window); window.delegate = self
-        window.setContentSize(size); window.setFrameAutosaveName("FileDiffDialog"); window.center()
+        window.setContentSize(size); window.center()
         model.pickHistory = { [weak self] side, reflog in self?.showHistoryPicker(side: side, reflog: reflog) }
         model.window = window; window.refresh = { [weak model] in model?.load() }
+
+        DialogGeometry.attach(window, identifier: "FileDiffDialog", legacyName: "FileDiffDialog")
     }
     private func showHistoryPicker(side: ComparisonSide, reflog: Bool) {
         guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }

@@ -20,9 +20,11 @@ private final class RevertProgressNativeWindow: NSWindow {
         window.contentMinSize = NSSize(width: 800, height: 410); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RevertProgressDialog(model: model))
         super.init(window: window); window.delegate = self
-        window.setContentSize(NSSize(width: 1000, height: 550)); window.setFrameAutosaveName("RevertProgressDialog"); window.center()
+        window.setContentSize(NSSize(width: 1000, height: 550)); window.center()
         model.close = { [weak window] in window?.close() }
         window.escape = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }
+
+        DialogGeometry.attach(window, identifier: "RevertProgressDialog", legacyName: "RevertProgressDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return true }
     func windowWillClose(_ notification: Notification) { onClosed() }

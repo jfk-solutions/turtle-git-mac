@@ -25,6 +25,8 @@ import TurtleGitCore
             NSLayoutConstraint.activate([stack.centerYAnchor.constraint(equalTo: content.centerYAnchor), stack.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24), stack.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor, constant: -24)])
         }
         super.init(window: window); window.delegate = self; window.center()
+
+        DialogGeometry.attach(window, identifier: "RemoveWindowController")
     }
     func start() {
         guard !started, let window else { return }; started = true

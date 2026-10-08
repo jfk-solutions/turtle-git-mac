@@ -96,9 +96,11 @@ private final class StatisticsNativeWindow: NSWindow {
         let window = StatisticsNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 620), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Statistics – TurtleGit"; window.contentMinSize = NSSize(width: 720, height: 530); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: StatisticsDialog(model: model))
-        super.init(window: window); window.delegate = self; window.setFrameAutosaveName("StatisticsDialog"); window.center()
+        super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self, weak window] in if self?.model.busy == true { self?.model.cancel() } else { window?.performClose(nil) } }
         window.escape = { [weak model] in model?.close() }
+
+        DialogGeometry.attach(window, identifier: "StatisticsDialog", legacyName: "StatisticsDialog")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func saveGraphAs() {

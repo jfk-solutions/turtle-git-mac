@@ -36,6 +36,8 @@ import TurtleGitCore
             return false
         }
         model.reload()
+
+        DialogGeometry.attach(window, identifier: "ReferenceLogWindowController")
     }
     private func showDeletionFailure(_ issue: ReferenceLogDeleteIssue) async {
         guard let window, window.attachedSheet == nil else { return }

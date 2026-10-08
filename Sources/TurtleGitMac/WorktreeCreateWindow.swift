@@ -13,10 +13,12 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: WorktreeCreateDialog(model: model, chooser: model.chooser))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 660, height: 420)); window.contentMinSize = NSSize(width: 640, height: 420)
-        window.setFrameAutosaveName("CreateWorktreeDialog"); window.center()
+        window.center()
         model.close = { [weak self] in self?.window?.performClose(nil) }
         model.chooseDirectory = { [weak self] in self?.chooseDirectory() }
         model.load()
+
+        DialogGeometry.attach(window, identifier: "CreateWorktreeDialog", legacyName: "CreateWorktreeDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { onClosed() }

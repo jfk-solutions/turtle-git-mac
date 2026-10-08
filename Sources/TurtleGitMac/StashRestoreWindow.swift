@@ -114,6 +114,8 @@ struct StashRestorePrompt {
             if value.rememberKey != nil { alert.showsSuppressionButton = true; alert.suppressionButton?.title = "Remember my answer" }
             alert.beginSheetModal(for: window) { response in choose(value.kind == .question && response == .alertFirstButtonReturn, alert.suppressionButton?.state == .on) }
         }
+
+        DialogGeometry.attach(window, identifier: "StashRestoreWindowController")
     }
     func start() { model.start() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.prompt == nil && sender.attachedSheet == nil }

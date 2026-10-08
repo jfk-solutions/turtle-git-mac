@@ -29,6 +29,8 @@ import TurtleGitCore
             return await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertSecondButtonReturn) } }
         }
         model.load(good: good, bad: bad, operation: operation, revisions: revisions, requireStart: requireStart)
+
+        DialogGeometry.attach(window, identifier: "BisectWindowController")
     }
     private func chooseRevision(good: Bool) {
         guard !model.busy, let window, window.attachedSheet == nil else { return }

@@ -24,10 +24,12 @@ private final class RevertNativeWindow: NSWindow {
         window.contentViewController = NSHostingController(rootView: RevertDialog(model: model))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 1000, height: 520))
-        window.setFrameAutosaveName("RevertDialog"); window.center()
+        window.center()
         model.close = { [weak window] in window?.close() }
         window.refresh = { [weak model] in model?.reload() }
         window.accept = { [weak model] in model?.apply() }
+
+        DialogGeometry.attach(window, identifier: "RevertDialog", legacyName: "RevertDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) { onClosed() }

@@ -34,6 +34,8 @@ struct StatusRow: Identifiable {
         window.setContentSize(NSSize(width: 1100, height: 630)); window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.savePatch = { [weak self] text in self?.savePatch(text) }
+
+        DialogGeometry.attach(window, identifier: "StatusWindowController")
     }
     private func savePatch(_ bytes: Data) {
         guard let window else { return }

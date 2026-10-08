@@ -13,8 +13,9 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: SubmoduleConflictDialog(model: model))
         window.minSize = NSSize(width: 690, height: 570)
         super.init(window: window); window.delegate = self
-        window.setContentSize(size); window.center(); window.setFrameAutosaveName("TurtleGit.SubmoduleConflict")
-        model.close = { [weak window] in window?.close() }
+        window.setContentSize(size); window.center(); model.close = { [weak window] in window?.close() }
+
+        DialogGeometry.attach(window, identifier: "TurtleGit.SubmoduleConflict", legacyName: "TurtleGit.SubmoduleConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
     func windowWillClose(_ notification: Notification) { onClosed() }

@@ -16,12 +16,14 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ResolveDialog(model: model))
         super.init(window: window); window.delegate = self
-        if quick == nil { window.setFrameAutosaveName("ResolveDialog") }
+
         window.setContentSize(size); window.center()
         model.close = { [weak window] in window?.close() }
         model.confirm = { [weak self] choice, entries in self?.confirm(choice, entries: entries) }
         model.onChanged = { [weak self] output in self?.onChanged(output) }
         model.onFinished = { [weak self] count in self?.finished(count) }
+
+        DialogGeometry.attach(window, identifier: quick == nil ? "ResolveDialog" : "QuickResolveDialog", legacyName: "ResolveDialog")
     }
     private func confirm(_ choice: ResolveChoice, entries: [ConflictEntry]) {
         guard let window else { return }

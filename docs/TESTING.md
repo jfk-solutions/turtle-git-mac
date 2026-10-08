@@ -122,3 +122,9 @@ The [temporary-file guide](TEMPORARY-FILES.md) maps shared private temporary
 storage and Saved Data's confirmed cleanup to the pinned source.
 [Checkpoint evidence](qa/temporary-files-2026-10-08.json) distinguishes Core/native
 checks from remaining physical, live-operation and signed acceptance.
+
+## Dialog geometry checkpoint
+
+[Dialog sizes and positions](DIALOG-GEOMETRY.md) maps native frame persistence
+and Saved Data reset to the source, with Core/headless verification and physical,
+mode-specific and signed gaps. Evidence: [checkpoint](qa/dialog-geometry-2026-10-08.json).

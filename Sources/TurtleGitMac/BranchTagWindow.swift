@@ -15,6 +15,8 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 660, height: 470)); window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.chooser.busy, !self.model.hasPendingNameConflict, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+
+        DialogGeometry.attach(window, identifier: "BranchTagWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && !model.hasPendingNameConflict && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }

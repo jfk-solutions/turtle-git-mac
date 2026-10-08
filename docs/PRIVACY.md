@@ -63,3 +63,7 @@ images. [Saved Data temporary-file cleanup](TEMPORARY-FILES.md) clears that fold
 after confirmation. It preserves repository/bookmark/history/action-log storage.
 Already displayed author images and HTTP-cache responses can remain; old builds'
 temporary files outside the new folder are not scanned or deleted.
+
+Saved native window sizes and positions live in app preferences.
+[Saved Data's geometry Clear](DIALOG-GEOMETRY.md) deletes those records and known
+legacy frame-autosave entries; it preserves histories, bookmarks and repositories.

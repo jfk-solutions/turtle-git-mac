@@ -24,6 +24,8 @@ import TurtleGitCore
             if let child = controller.window { window.beginSheet(child) { [weak self, weak result] _ in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) } }
             else { self.progressController = nil; result.abandonPresentation() }
         }
+
+        DialogGeometry.attach(window, identifier: "CloneWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.activeOperation && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
@@ -436,6 +438,8 @@ enum ClonePostAction: String, Hashable {
             let yes = alert.addButton(withTitle:"Yes"); alert.addButton(withTitle:"No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for:window) { choose($0 == .alertFirstButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
     func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate() }

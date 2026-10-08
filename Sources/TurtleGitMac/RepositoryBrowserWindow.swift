@@ -28,7 +28,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         window.contentViewController = NSHostingController(rootView: RepositoryBrowserDialog(model: model))
         super.init(window: window); window.delegate = self; window.model = model
         window.setContentSize(NSSize(width: 1000, height: 650))
-        window.setFrameAutosaveName("TurtleGit.RepositoryBrowser"); window.center()
+        window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.chooseRevision = { [weak self] in self?.chooseRevision() }
         model.presentFile = { [weak self] content, action in
@@ -49,6 +49,8 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
             alert.addButton(withTitle: "OK"); alert.beginSheetModal(for: window)
         }
         model.refresh()
+
+        DialogGeometry.attach(window, identifier: "TurtleGit.RepositoryBrowser", legacyName: "TurtleGit.RepositoryBrowser")
     }
     private func chooseRevision() {
         guard let window, window.attachedSheet == nil else { return }

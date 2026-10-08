@@ -39,7 +39,9 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: FileComparisonDialog(model: model))
         super.init(window: window); window.model = model; window.delegate = self; model.window = window
         window.setContentSize(NSSize(width: 1120, height: 720))
-        window.setFrameAutosaveName("TurtleGit.TwoFileDiff"); window.center()
+        window.center()
+
+        DialogGeometry.attach(window, identifier: "TurtleGit.TwoFileDiff", legacyName: "TurtleGit.TwoFileDiff")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard sender.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return false }

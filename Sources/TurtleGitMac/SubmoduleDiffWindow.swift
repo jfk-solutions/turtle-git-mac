@@ -20,8 +20,10 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
         window.contentMinSize = NSSize(width: 800, height: 320)
         window.contentViewController = NSHostingController(rootView: SubmoduleDiffDialog(model: model))
         super.init(window: window); window.delegate = self
-        window.setContentSize(size); window.setFrameAutosaveName("SubmoduleDiffDialog"); window.center()
+        window.setContentSize(size); window.center()
         window.refresh = { [weak model] in model?.load() }
+
+        DialogGeometry.attach(window, identifier: "SubmoduleDiffDialog", legacyName: "SubmoduleDiffDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
     func windowWillClose(_ notification: Notification) { onClosed() }

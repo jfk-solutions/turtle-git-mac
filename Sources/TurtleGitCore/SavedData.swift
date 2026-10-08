@@ -2,9 +2,9 @@
 import Foundation
 
 public enum SavedDataCategory: CaseIterable, Sendable {
-    case urlHistory, messageHistory, storedDecisions
+    case urlHistory, messageHistory, dialogGeometry, storedDecisions
     public var title: String {
-        switch self { case .urlHistory: return "URL history"; case .messageHistory: return "Log messages (Input dialog)"; case .storedDecisions: return "Stored decisions" }
+        switch self { case .urlHistory: return "URL history"; case .messageHistory: return "Log messages (Input dialog)"; case .dialogGeometry: return "Dialog sizes and positions"; case .storedDecisions: return "Stored decisions" }
     }
 }
 public struct SavedDataSummary: Equatable, Sendable {
@@ -34,6 +34,7 @@ public struct SavedDataStore {
             return ["Clone.URLHistory", "FormatPatchDirectories", "History.PullURLS", "History.RequestPull.url"].contains(key)
                 || key.hasPrefix("History.PushURLS.")
         case .messageHistory: return key.hasPrefix("Commit.MessageHistory.")
+        case .dialogGeometry: return WindowGeometryStore.owns(key)
         case .storedDecisions: return Self.sourceDecisionKeys.contains(key) || Self.nativeDecisionKeys.contains(key)
         }
     }

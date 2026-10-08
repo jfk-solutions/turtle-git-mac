@@ -49,6 +49,8 @@ import TurtleGitCore
             yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: window) { [weak self] response in choose(response == .alertFirstButtonReturn); self?.model.progress?.tryAutomaticClose() }
         }
+
+        DialogGeometry.attach(window, identifier: "PushWindowController")
     }
     static func submissionAlert(message: String, allBranches: Bool, deletion: Bool) -> NSAlert {
         let alert = NSAlert(); alert.alertStyle = deletion ? .warning : .informational
@@ -602,6 +604,8 @@ enum PushPostAction: String, Hashable {
         window.contentViewController = NSHostingController(rootView:PushProgressDialog(owner:owner,result:result))
         super.init(window:window); window.delegate = self
         result.close = { [weak self] in guard let self, !self.result.busy, !self.pushModel.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if result.busy { pushModel.cancel(); return false }; guard !pushModel.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
     func windowWillClose(_ notification: Notification) { ProgressActionLog.record(owner: result, repository: pushModel.repository.root, output: result.output, cancelled: result.cancelled); result.invalidate(); onClosed() }

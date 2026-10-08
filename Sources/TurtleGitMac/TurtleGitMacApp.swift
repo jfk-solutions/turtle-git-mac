@@ -11,6 +11,7 @@ import TurtleGitCore
     init() {
         if let status = RebaseEditor.handle(arguments: CommandLine.arguments, environment: ProcessInfo.processInfo.environment) { exit(status) }
         ProgressActionLog.install()
+        DialogGeometry.install()
     }
     var body: some Scene {
         WindowGroup("TurtleGit for Mac") {

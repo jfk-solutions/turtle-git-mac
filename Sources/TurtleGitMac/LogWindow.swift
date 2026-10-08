@@ -172,6 +172,8 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
             }
         }
         model.reload()
+
+        DialogGeometry.attach(window, identifier: "LogWindowController")
     }
     private func chooseHistoricalExport(revision: String, files: [CommitFile]) {
         guard let window, window.attachedSheet == nil else { return }

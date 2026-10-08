@@ -23,7 +23,7 @@ private final class AddNativeWindow: NSWindow {
         window.title = "\(repository.root.lastPathComponent) – Add – TurtleGit"
         window.contentMinSize = NSSize(width: 580, height: 320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: AddDialogView(model: model))
-        super.init(window: window); window.delegate = self; window.setFrameAutosaveName("AddDialog"); window.center()
+        super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }
         model.onOpen = { [weak self] path, action in self?.openFile(path, action: action) }
         model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
@@ -34,6 +34,8 @@ private final class AddNativeWindow: NSWindow {
         model.onSave = { [weak self] path in self?.saveFile(path) }
         model.onExport = { [weak self] paths in self?.exportFiles(paths) }
         window.refresh = { [weak model] in model?.reload() }; window.accept = { [weak model] in model?.apply() }
+
+        DialogGeometry.attach(window, identifier: "AddDialog", legacyName: "AddDialog")
     }
     private func saveFile(_ path: String) {
         guard let window, window.attachedSheet == nil, !model.busy, !model.confirmingQuit else { return }

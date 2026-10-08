@@ -20,7 +20,7 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 680, height: 365))
         window.contentMinSize = NSSize(width: 650, height: 365); window.contentMaxSize = NSSize(width: 4000, height: 365)
-        window.setFrameAutosaveName("FormatPatchDialog"); window.center()
+        window.center()
         model.close = { [weak self] in guard let self, !self.activeOperation else { return }; self.window?.performClose(nil) }
         model.chooseDirectory = { [weak self] in self?.chooseDirectory() }
         model.chooseRevision = { [weak self] target in self?.chooseRevision(target) }
@@ -35,6 +35,8 @@ import TurtleGitCore
             alert.beginSheetModal(for: parent) { choose($0 == .alertFirstButtonReturn) }
         }
         model.load()
+
+        DialogGeometry.attach(window, identifier: "FormatPatchDialog", legacyName: "FormatPatchDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); patch?.close(); onClosed() }

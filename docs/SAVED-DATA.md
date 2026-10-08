@@ -8,6 +8,8 @@ questions appear again. The controls follow TortoiseGit's Saved Data page.
 - **Log messages (Input dialog) → Clear** removes saved Commit message histories
   across repositories. The history backend reloads storage on each access, so an
   existing history object sees the cleared entries and can save new messages.
+- **Dialog sizes and positions → Clear** forgets saved native window frames;
+  see [dialog geometry](DIALOG-GEOMETRY.md).
 - **Temp files (including Gravatar images) → Clear** removes app-owned temporary
   files after an Abort/Proceed confirmation. See [temporary files](TEMPORARY-FILES.md).
 - **Stored decisions → Clear** forgets remembered answers and suppressed warnings.
@@ -43,7 +45,7 @@ macOS preference names. Windows registry histories become native preferences.
 URL histories include Request Pull's existing native list; its other per-repository
 input defaults are preserved.
 
-Remaining Saved Data groups include authentication data, dialog sizes/positions,
+Remaining Saved Data groups include authentication data and
 Show Log cache and future approved-hook decisions.
 Merge input-message history is not implemented yet. The merge-editor reset key is
 included for future use, but its corresponding prompt is not implemented. No

@@ -16,7 +16,7 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ExportDialog(model: model))
         super.init(window: window); window.delegate = self
-        window.contentMinSize = NSSize(width: 600, height: 360); window.setFrameAutosaveName("ExportDialog"); window.center()
+        window.contentMinSize = NSSize(width: 600, height: 360); window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.performClose(nil) }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
@@ -42,6 +42,8 @@ import TurtleGitCore
             return await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertSecondButtonReturn) } }
         }
         model.load(revision: revision)
+
+        DialogGeometry.attach(window, identifier: "ExportDialog", legacyName: "ExportDialog")
     }
     private func chooseDestination() {
         guard let window, window.attachedSheet == nil, !model.busy else { return }
@@ -259,6 +261,8 @@ struct ExportDialog: View {
             let yes = alert.addButton(withTitle:"Yes"); alert.addButton(withTitle:"No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for:window) { choose($0 == .alertFirstButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender:NSWindow) -> Bool { if model.busy { model.cancel(); return false }; guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
     func windowWillClose(_ notification:Notification) { model.saveActionLog(); model.invalidate(); onClosed() }

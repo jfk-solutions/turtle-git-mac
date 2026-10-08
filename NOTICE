@@ -622,3 +622,7 @@ TortoiseGit; (C) 2003-2008, 2014 TortoiseSVN. GPL-2.0-or-later.
 Native temporary storage and Saved Data Temp files clearing adapt
 SetSavedDataPage.cpp and GetTortoiseGitTempPath, with private macOS temporary
 folders replacing the Windows app-specific temporary directory. GPL-2.0-or-later.
+
+Dialog frame persistence is a native AppKit implementation of TortoiseProc's
+EnableSaveRestore call-site behavior and Saved Data geometry clearing. Windows
+registry/window placement is replaced with scoped native frame preferences.

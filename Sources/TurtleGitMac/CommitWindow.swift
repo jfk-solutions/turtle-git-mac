@@ -145,6 +145,8 @@ import UniformTypeIdentifiers
             alert.addButton(withTitle: "Commit"); alert.addButton(withTitle: "Ignore"); alert.addButton(withTitle: "Cancel")
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn ? .commit : $0 == .alertSecondButtonReturn ? .ignore : .cancel) }
         }
+
+        DialogGeometry.attach(window, identifier: "CommitWindowController")
     }
     func setQuitConfirmation(_ pending: Bool) { model.confirmingQuit = pending; partial?.model.confirmingQuit = pending }
     func windowWillClose(_ notification: Notification) { closingCommit = true; logPicker?.close(); logPicker = nil; partial?.close(); partial = nil; model.unifiedWindow?.close(); onClosed() }
@@ -1471,6 +1473,8 @@ enum CommitPostAction: String, CaseIterable, Hashable {
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }

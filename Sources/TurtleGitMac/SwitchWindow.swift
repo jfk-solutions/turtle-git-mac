@@ -24,6 +24,8 @@ import TurtleGitCore
                 window.beginSheet(child) { [weak self, weak result] _ in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) }
             } else { self.progressController = nil; result.abandonPresentation() }
         }
+
+        DialogGeometry.attach(window, identifier: "SwitchWindowController")
     }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.progress == nil && model.browser == nil && !model.hasPendingTagConflict && sender.attachedSheet == nil }
@@ -350,6 +352,8 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }

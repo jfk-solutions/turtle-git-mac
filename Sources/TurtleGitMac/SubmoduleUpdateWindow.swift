@@ -21,8 +21,10 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
         window.contentMinSize = NSSize(width: 700, height: 460); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SubmoduleUpdateDialog(model: model))
         super.init(window: window); window.delegate = self
-        window.setContentSize(size); window.setFrameAutosaveName("SubmoduleUpdateDialog"); window.center()
+        window.setContentSize(size); window.center()
         model.close = { [weak window] in window?.close() }; window.refresh = { [weak model] in model?.load() }
+
+        DialogGeometry.attach(window, identifier: "SubmoduleUpdateDialog", legacyName: "SubmoduleUpdateDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
     func windowWillClose(_ notification: Notification) { onClosed() }

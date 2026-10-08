@@ -15,14 +15,15 @@ import TurtleGitCore
         window.title = "Ignore – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 550, height: 300)
         window.contentViewController = NSHostingController(rootView: IgnoreDialog(model: model))
-        super.init(window: window); window.delegate = self; window.setFrameAutosaveName("IgnoreDialog")
-        window.setContentSize(NSSize(width: 550, height: 300)); window.center()
+        super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 550, height: 300)); window.center()
         model.close = { [weak window] in window?.close() }
         model.onRulesWritten = { [weak self] files in
             guard let self else { return }
             self.onChanged(files.isEmpty ? "Ignore rules already present." : "Updated ignore rules in " + files.map(\.path).joined(separator: ", "))
             if self.delete { self.askKeepLocal() } else { self.close() }
         }
+
+        DialogGeometry.attach(window, identifier: "IgnoreDialog", legacyName: "IgnoreDialog")
     }
     private func askKeepLocal() {
         guard let window else { return }

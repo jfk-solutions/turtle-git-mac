@@ -43,6 +43,8 @@ import TurtleGitCore
                 choose(true)
             }
         }
+
+        DialogGeometry.attach(window, identifier: "StashWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingUntracked && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
@@ -185,6 +187,8 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
             guard let self, !self.model.busy, self.window?.attachedSheet == nil else { return }
             if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }

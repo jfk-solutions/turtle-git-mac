@@ -20,6 +20,7 @@ for baseline and update rules.
 - [Getting started with TurtleGit for Mac](GETTING-STARTED.md)
 - [Saved progress action log](ACTION-LOG.md)
 - [Saved Data settings](SAVED-DATA.md)
+- [Dialog sizes and positions](DIALOG-GEOMETRY.md)
 - [Temporary files and Saved Data cleanup](TEMPORARY-FILES.md)
 - [Editing Git notes](GIT-NOTES.md)
 - [Reverting a commit from Log](REVERT-COMMIT.md)

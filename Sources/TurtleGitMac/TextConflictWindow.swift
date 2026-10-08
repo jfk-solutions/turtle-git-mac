@@ -165,9 +165,10 @@ private enum MergeSourceSide {
         hosting.sizingOptions = [.minSize]
         window.contentViewController = hosting
         window.setContentSize(NSSize(width: 1120, height: 780))
-        super.init(window: window); window.delegate = self; window.center(); window.setFrameAutosaveName("TurtleGit.TextConflict")
-        model.close = { [weak window] in window?.close() }
+        super.init(window: window); window.delegate = self; window.center(); model.close = { [weak window] in window?.close() }
 
+
+        DialogGeometry.attach(window, identifier: "TurtleGit.TextConflict", legacyName: "TurtleGit.TextConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !model.busy, !model.confirmingQuit else { return false }

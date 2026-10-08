@@ -14,11 +14,13 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: RequestPullDialog(model: model))
         super.init(window: window); window.delegate = self
         window.contentMinSize = NSSize(width: 600, height: 210); window.contentMaxSize = NSSize(width: 4000, height: 210)
-        window.setFrameAutosaveName("RequestPullDialog"); window.center()
+        window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.composingMail, self.window?.attachedSheet == nil else { return }; self.window?.performClose(nil) }
         model.chooseStart = { [weak self] in self?.chooseStart() }
         model.presentDocument = { [weak self] file, sendMail in self?.present(file, sendMail: sendMail) }
         model.load()
+
+        DialogGeometry.attach(window, identifier: "RequestPullDialog", legacyName: "RequestPullDialog")
     }
     private func chooseStart() {
         guard let window, window.attachedSheet == nil, picker == nil, !model.busy else { return }

@@ -14,9 +14,10 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: RenameDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
-        window.setFrameAutosaveName("RenameDialog")
         model.close = { [weak window] in window?.close() }
         model.browse = { [weak self] in self?.browse() }
+
+        DialogGeometry.attach(window, identifier: "RenameDialog", legacyName: "RenameDialog")
     }
     private func browse() {
         guard let window else { return }

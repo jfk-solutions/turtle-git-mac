@@ -57,6 +57,8 @@ import UniformTypeIdentifiers
         window.setContentSize(NSSize(width: width, height: 760))
         model.saveAs = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.savePatch(nil) }
         model.printDiff = { [weak window] in (window?.patchText as? PatchTextView.PatchText)?.printPatch(nil) }
+
+        DialogGeometry.attach(window, identifier: "PatchWindowController")
     }
     func windowWillClose(_ notification: Notification) {
         if let window { UserDefaults.standard.set(window.frame.width, forKey: "PartialPatchWindowWidth") }

@@ -11,8 +11,10 @@ import TurtleGitCore
         window.title = "\(repository.root.lastPathComponent) – Add – TurtleGit"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 580, height: 330)
         window.contentViewController = NSHostingController(rootView: AddProgressView(model: model))
-        super.init(window: window); window.delegate = self; window.setFrameAutosaveName("AddProgress"); window.center()
+        super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }
+
+        DialogGeometry.attach(window, identifier: "AddProgress", legacyName: "AddProgress")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) { onClosed() }

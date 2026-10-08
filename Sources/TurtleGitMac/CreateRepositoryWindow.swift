@@ -35,6 +35,8 @@ import TurtleGitCore
             alert.addButton(withTitle: "OK")
             alert.beginSheetModal(for: window) { _ in window.close() }
         }
+
+        DialogGeometry.attach(window, identifier: "CreateRepositoryWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
     func windowWillClose(_ notification: Notification) { onClosed() }

@@ -14,7 +14,7 @@ import TurtleGitCore
         window.contentMinSize = size; window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ResetDialog(model: model, chooser: model.chooser))
         super.init(window: window); window.delegate = self
-        window.setFrameAutosaveName("ResetDialog"); window.setContentSize(size); window.center()
+        window.setContentSize(size); window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
@@ -30,6 +30,8 @@ import TurtleGitCore
             alert.addButton(withTitle: "Cancel"); alert.addButton(withTitle: "Reset")
             alert.beginSheetModal(for: window) { response in choose(response == .alertSecondButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "ResetDialog", legacyName: "ResetDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { onClosed() }
@@ -233,6 +235,8 @@ enum ResetPostAction: String, Hashable {
             let yes = alert.addButton(withTitle:"Yes"); alert.addButton(withTitle:"No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for:window) { choose($0 == .alertFirstButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender:NSWindow) -> Bool { if model.busy { model.cancel(); return false }; guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
     func windowWillClose(_ notification:Notification) { model.saveActionLog(); model.invalidate(); onClosed() }

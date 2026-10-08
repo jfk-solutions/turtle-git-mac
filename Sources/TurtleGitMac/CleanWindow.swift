@@ -70,6 +70,8 @@ struct CleanDialogRequest {
         window.contentViewController = NSHostingController(rootView: CleanDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.close() }
+
+        DialogGeometry.attach(window, identifier: "CleanWindowController")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowWillClose(_ notification: Notification) { onClosed() }
@@ -229,6 +231,8 @@ private struct CleanDialog: View {
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.confirmingCancellation && sender.attachedSheet == nil }

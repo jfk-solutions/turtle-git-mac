@@ -56,12 +56,13 @@ struct SavedDataSettingsPage: View {
         switch category {
         case .urlHistory: return "\(count?.entries ?? 0) saved URLs or directories in \(count?.histories ?? 0) histories."
         case .messageHistory: return "\(count?.entries ?? 0) saved messages in \(count?.histories ?? 0) repository histories."
+        case .dialogGeometry: return "\(count?.histories ?? 0) saved dialog sizes and positions."
         case .storedDecisions: return "Show previously suppressed questions again and forget their remembered answers."
         }
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            ForEach([SavedDataCategory.urlHistory, .messageHistory], id: \.self) { category in
+            ForEach([SavedDataCategory.urlHistory, .messageHistory, .dialogGeometry], id: \.self) { category in
                 HStack {
                     Text(category.title)
                     Spacer()

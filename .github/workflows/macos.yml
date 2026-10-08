@@ -64,6 +64,8 @@ jobs:
         run: python3 scripts/test-stash-restore.py
       - name: Native Stash Save progress and post-actions
         run: python3 scripts/test-stash-save-progress.py
+      - name: Native dialog geometry and Saved Data reset
+        run: python3 scripts/test-dialog-geometry.py
       - name: Native temporary storage and Saved Data clearing
         run: python3 scripts/test-temporary-files.py
       - name: Native Saved Data history and decision clearing

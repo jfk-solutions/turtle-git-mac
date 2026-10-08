@@ -15,7 +15,7 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: WorktreeListDialog(model: model))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 1000, height: 410)); window.contentMinSize = NSSize(width: 720, height: 280)
-        window.setFrameAutosaveName("WorktreeList"); window.center()
+        window.center()
         model.close = { [weak self] in self?.window?.performClose(nil) }
         model.add = { [weak self] in self?.addWorktree() }
         model.explore = { path in NSWorkspace.shared.activateFileViewerSelecting([path]) }
@@ -33,6 +33,8 @@ import TurtleGitCore
             return try await self.authorizeWorktrees(paths, purpose: purpose)
         }
         model.reload()
+
+        DialogGeometry.attach(window, identifier: "WorktreeList", legacyName: "WorktreeList")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil && createWindow == nil }
     func windowWillClose(_ notification: Notification) { onClosed() }

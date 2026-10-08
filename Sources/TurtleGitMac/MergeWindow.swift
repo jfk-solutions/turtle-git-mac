@@ -38,6 +38,8 @@ import TurtleGitCore
             self.model.configureLogPicker(picker.model)
             if let child = picker.window { window.beginSheet(child) }
         }
+
+        DialogGeometry.attach(window, identifier: "MergeWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.invalidate(); picker?.close(); picker = nil; onClosed() }
@@ -404,6 +406,8 @@ enum MergePostAction: String, CaseIterable, Hashable {
             alert.addButton(withTitle: "Delete"); alert.addButton(withTitle: "Abort")
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.confirmingConflictHint || model.confirmingCancellation { return false }
@@ -529,6 +533,8 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onResize = { [weak window] progress in window?.setContentSize(progress ? NSSize(width: 760, height: 420) : NSSize(width: 660, height: 265)) }
+
+        DialogGeometry.attach(window, identifier: "MergeAbortWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }

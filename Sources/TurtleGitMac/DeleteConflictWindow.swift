@@ -14,6 +14,8 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.center()
         model.close = { [weak window] in window?.close() }
+
+        DialogGeometry.attach(window, identifier: "DeleteConflictWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
     func windowWillClose(_ notification: Notification) { onClosed() }

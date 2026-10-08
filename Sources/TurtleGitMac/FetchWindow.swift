@@ -37,6 +37,8 @@ import TurtleGitCore
             yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
+
+        DialogGeometry.attach(window, identifier: "FetchWindowController")
     }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -619,6 +621,8 @@ enum PullPostAction: String, CaseIterable, Hashable {
                 alert.beginSheetModal(for: window) { _ in continuation.resume(returning: alert.suppressionButton?.state == .on) }
             }
         }
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }
@@ -902,6 +906,8 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             }
         }
 
+
+        DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }

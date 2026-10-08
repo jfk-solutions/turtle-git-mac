@@ -20,6 +20,8 @@ private struct BlameParentMenuTarget {
         window.acceptsMouseMovedEvents = true
         window.contentViewController = NSHostingController(rootView: BlameDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onFind = { [weak self] in self?.showFind() }; model.reload()
+
+        DialogGeometry.attach(window, identifier: "BlameWindowController")
     }
     private func showFind() {
         if let findWindow, findWindow.window?.isVisible == true { findWindow.showWindow(nil); findWindow.window?.makeKeyAndOrderFront(nil); return }
@@ -381,6 +383,8 @@ private struct BlameDialog: View {
         panel.isFloatingPanel = true; panel.hidesOnDeactivate = true
         super.init(window: panel)
         panel.contentViewController = NSHostingController(rootView: BlameFindDialog(model: model, close: { [weak self] in self?.close() }))
+
+        DialogGeometry.attach(panel, identifier: "BlameFindWindowController")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
