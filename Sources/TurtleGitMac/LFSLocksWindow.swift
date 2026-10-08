@@ -70,6 +70,7 @@ import TurtleGitCore
     private var operationPaths: [String] = []
     private var operationForce = false
     private var resetTargetChecks = false
+    private var refreshAfterReview = false
     var onProgressVisibility: (Bool) -> Void = { _ in }
     var captureListPosition: () -> Void = {}
     var restoreListPosition: ([String], Bool) -> Void = { _,_ in }
@@ -83,7 +84,7 @@ import TurtleGitCore
     var query: (OperationCancellation) async throws -> [LFSLock]
     var change: ([String], Bool, OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult
     var lockChange: ([String], OperationCancellation, @escaping @Sendable (LFSFileResult) -> Void) async throws -> LFSBatchResult
-    var canUnlock: Bool { !busy && !confirmingQuit && locks.contains { checked.contains($0.id) } }
+    var canUnlock: Bool { !busy && !confirmingQuit && !showingProgress && locks.contains { checked.contains($0.id) } }
     var rows: [LFSListRow] { locks.map { LFSListRow(lock: $0, metadata: fileMetadata[$0.path]) }.sorted(using: sortOrder) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.defaults = defaults
@@ -150,13 +151,13 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func setChecked(_ id: String, _ value: Bool) {
-        guard !busy, !confirmingQuit, locks.contains(where: { $0.id == id }) else { return }
+        guard !busy, !confirmingQuit, !showingProgress, locks.contains(where: { $0.id == id }) else { return }
         if value { checked.insert(id) } else { checked.remove(id) }
     }
     func selectAll(_ value: Bool) {
-        guard !busy, !confirmingQuit else { return }; checked = value ? Set(locks.map(\.id)) : []
+        guard !busy, !confirmingQuit, !showingProgress else { return }; checked = value ? Set(locks.map(\.id)) : []
     }
-    func setForce(_ value: Bool) { guard !busy, !confirmingQuit else { return }; force = value }
+    func setForce(_ value: Bool) { guard !busy, !confirmingQuit, !showingProgress else { return }; force = value }
     func lfsActions(_ ids: Set<String>) -> [LFSLockMenuAction] {
         let selected = rows.filter { ids.contains($0.id) }
         guard hasLFS, !ids.isEmpty, selected.count == ids.count,
@@ -172,17 +173,22 @@ import TurtleGitCore
     func cancel() { guard busy else { return }; cancellation.cancel(); information = "Cancelling…" }
     func refresh() async {
         guard !busy, !confirmingQuit, !showingProgress else { return }
+        await reloadLocks(afterOperation: false)
+    }
+    private func reloadLocks(afterOperation: Bool) async {
         captureListPosition()
-        busy = true; error = nil; locks = []; fileMetadata = [:]; checked = []; selection = []; cancellation = OperationCancellation(); information = "Getting LFS locks…"
+        busy = true; error = nil; locks = []; fileMetadata = [:]; checked = []; selection = []; cancellation = OperationCancellation()
+        if !afterOperation { information = "Getting LFS locks…" }
         defer { busy = false }
         do {
             try validateAccess()
             locks = try await query(cancellation); fileMetadata = await repository.statusListMetadata(paths: locks.map(\.path)); hasLFS = try await repository.hasLFS(); restoreChecks()
-            information = "\(locks.count) locked file(s)."
+            if !afterOperation { information = "\(locks.count) locked file(s)." }
         } catch {
             locks = []; fileMetadata = [:]; checked = []; selection = []; hasLFS = false
             restoreListPosition([], rememberListPosition)
-            self.error = error.localizedDescription; information = cancellation.isCancelled ? "Cancelled." : "Could not get LFS locks."
+            self.error = afterOperation ? "Operation results are retained. Refresh failed: " + error.localizedDescription : error.localizedDescription
+            if !afterOperation { information = cancellation.isCancelled ? "Cancelled." : "Could not get LFS locks." }
         }
     }
     func unlock(forceRetry: Bool = false) async {
@@ -199,6 +205,7 @@ import TurtleGitCore
     private func runOperation(forceRetry: Bool) async {
         guard !operationPaths.isEmpty, !forceRetry || showingProgress && results.contains(where: { !$0.success }) else { return }
         let useForce = !operationLocked && (forceRetry || operationForce)
+        refreshAfterReview = refreshLocksAfterOperation
         busy = true; showingProgress = true; results = []; error = nil
         cancellation = OperationCancellation(); batchID = UUID(); acceptingBatchResults = true; let generation = batchID
         information = "\(operationLocked ? "Locking" : "Unlocking") \(operationPaths.count) file(s)…"
@@ -216,17 +223,19 @@ import TurtleGitCore
             else { batch = try await change(operationPaths, useForce, cancellation, report) }
             acceptingBatchResults = false
             results = batch.files
-            if resetTargetChecks { for path in operationPaths { checkedPaths.removeValue(forKey: path) } }
             information = batch.cancelled ? "Cancelled. Completed server changes remain; refresh to verify lock state." : "\(results.filter(\.success).count) of \(operationPaths.count) file(s) \(operationLocked ? "locked" : "unlocked")."
-            if !batch.cancelled && refreshLocksAfterOperation {
-                captureListPosition()
-                locks = []; fileMetadata = [:]; checked = []; selection = []
-                do { locks = try await query(cancellation); fileMetadata = await repository.statusListMetadata(paths: locks.map(\.path)); hasLFS = try await repository.hasLFS(); restoreChecks() }
-                catch { self.error = "Operation results are retained. Refresh failed: " + error.localizedDescription }
-            }
         } catch { self.error = error.localizedDescription; information = "Could not \(operationLocked ? "lock" : "unlock") files." }
     }
-    func finishProgress() { guard !busy, !confirmingQuit else { return }; showingProgress = false }
+    func finishProgress() {
+        guard !busy, !confirmingQuit, showingProgress else { return }
+        if resetTargetChecks { for path in operationPaths { checkedPaths.removeValue(forKey: path) } }
+        let reload = refreshAfterReview; refreshAfterReview = false
+        // Block a new batch before detaching the results sheet. Each dismissal
+        // refreshes once, even after cancellation or a failed operation.
+        if reload { busy = true }
+        showingProgress = false
+        if reload { Task { await reloadLocks(afterOperation: true) } }
+    }
 }
 
 struct LFSLocksDialog: View {

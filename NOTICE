@@ -879,3 +879,9 @@ and RememberFileListPosition with AppKit clip origins, the first highlighted
 row index and focus mark. Restoration waits for the new native dataset and is
 invalidated by a newer refresh. The native optional index also restores row
 zero. Original source attribution and GPL version 2 or later apply.
+
+LFS progress result-review dismissal and subsequent Locks refresh follow
+CLFSLocksDlg::OnBnClickedUnLock and CGitStatusListCtrl LFS context handlers at
+the pinned TortoiseGit revision. Native AppKit closes the owned sheet before
+asynchronously refreshing; completed results survive refresh errors and
+cancellation. This adaptation is licensed under GPL-2.0-or-later.

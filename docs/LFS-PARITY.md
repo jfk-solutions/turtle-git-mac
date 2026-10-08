@@ -11,8 +11,8 @@ The controller explicitly attaches and closes its child window; SwiftUI renders
 the sheet contents.
 Individual failures do not prevent subsequent files from being processed. A
 failed unlock offers Force unlock with the captured original target paths,
-matching the upstream post-action. Successful completion refreshes the lock
-list. A refresh failure clears stale rows and retains the operation results.
+matching the upstream post-action. Closing the result dialog refreshes the lock
+list, including after cancellation or a failed operation. A refresh failure clears stale rows and retains the operation results.
 Force is explicit; it is never enabled automatically after failure.
 
 Busy and Quit confirmation block target/force changes and duplicate actions.
@@ -174,7 +174,7 @@ They start without Force, even when the dialog’s Force checkbox is checked.
 The main Unlock button captures checked paths and its Force setting instead.
 Explicit Force retry keeps the captured Unlock targets; failed Lock cannot be
 retried as Force Unlock. Owned progress titles and original artwork reflect the
-chosen operation. A completed standalone batch refreshes the lock list.
+chosen operation. Closing standalone batch results refreshes the lock list.
 
 The shared clipboard formatter now retains Copy all headings when only one
 column is visible, following the source’s multi-column command mask. Explicit
@@ -204,3 +204,24 @@ without changing checked targets. Pending restoration is invalidated by a newer
 refresh or table teardown.
 
 [Refresh QA](qa/lfs-refresh-2026-10-09.json) records the checks and their limits.
+
+## Progress review and refresh order
+
+The standalone Locks window now follows OnBnClickedUnLock and the status-list
+LFS context handlers: the server operation completes, the user reviews results
+(and may retry Force Unlock), then Close dismisses the owned sheet and refreshes
+the lock list. No query runs during review or between Force retries. Checked
+choices, highlighting and the existing lock rows remain intact until dismissal;
+context-target checkbox memory resets when the results close.
+
+Close reserves the model's busy state before detaching the sheet, so a new batch,
+Refresh or duplicate Close cannot overlap the single follow-up query. That query
+uses a fresh cancellation token, including after a cancelled operation. Failed
+refresh clears the list and preserves exact per-file results and the operation
+summary. Commit and Working Tree continue to refresh their owner on closing
+results; their shared operation model does not query remote locks independently.
+
+[Review/refresh QA](qa/lfs-review-refresh-2026-10-09.json) records query counts,
+actual sheet detachment, blocked overlapping commands, Force target retention,
+cancellation and failed-refresh result preservation. Physical input, full
+progress-dialog fidelity and authenticated provider acceptance remain pending.

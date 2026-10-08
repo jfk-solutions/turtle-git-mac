@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "f82aa53c1c9c764c67493bd2f7ff8c7061035cef",
+  "scope": "Source LFS result-review/Close-before-refresh ordering, cancellation and failed-refresh preservation. Full port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/LFSLocksDlg.cpp": "f9ebe3aaa8c1089ce356f7b6f1142c5b9ceb1036",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.cpp": "d3124cd9a0c35c05412ac9c5285c74d114464f6f"
+  },
+  "sources_manifest_sha256": "93384d198a504e56bd41a608548d0d47cc5122e913a59a8381517439178f2fe9",
+  "changed_files_sha256": {
+    "NOTICE": "da8d769ebe81f36764cbe30e2694230c8879c431780a0dd02425aeb1afb8b810",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "5348771824e9c1b94b136ed47984ab590e66a5e90c3f2503d79388267a79dd9b",
+    "docs/LFS-PARITY.md": "d8e2045a7f98a297b76f6a2484e510688a9a04fd70cf8adb439b016ab66ce1be",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "c02afbd362b791f7fe667f226f052545f3abed179a4730538192b9ddd1ad5c2f",
+    "docs/upstream-files.csv": "1272ce45794fe7eeec57b7465d030a3da49f9a25e2bb2df7aa60282346f58be7"
+  },
+  "verification": {
+    "native": "Complete activation-prohibited receiver passed Apple Git and bundled Git. Actual standalone owned sheet remains attached through mixed results and Force retry; lock rows/checks remain unchanged and query counts do not advance. Checked/select-all/Force/manual refresh are refused during review. Close detaches sheet, refreshes once, duplicate Close does not query again. Cancelled batch refreshes after Close and retains completed results. Injected suspended query asserts detached sheet and fresh uncancelled token, blocks overlapping Close/Unlock/Refresh, then fails; exact result path/success/output and summary retained, stale rows/checks cleared. Path-memory context reset now checked after Close. Existing native column/scroll/copy/selection/Force/Commit/Working Tree/Resolve/HEAD/index/byte preservation assertions retained and pass.",
+    "debug": "Final Debug build and bundle audit pass.",
+    "store": "Sequential unsigned AppStore build and required Git/Git LFS bundle audit pass. Both Debug/Store packages contain current NOTICE. Sources/NOTICE/receivers frozen while compiler/native handles live.",
+    "inventory": "Pinned inventory and diff checks pass; mappings remain partial.",
+    "site": "Local Pages generation passes with updated guide and QA; no deployment or fresh screenshot claim."
+  },
+  "limitations": [
+    "Physical input, appearance, accessibility and fresh screenshot checks remain unverified. Server replies injected; no authenticated provider claim.",
+    "Full progress dialog parity, successful Lock post-Pull behavior and other source workflows remain pending.",
+    "Signed Finder/sandbox deployment, App Store acceptance, GitHub CI/push and full application port remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "preferences": "Two private LFS.StatusQA suites deleted after receiver exit, remaining plist verified empty then removed. Main preferences untouched.",
+    "preference_cleanup_sha256": "fd957fe93e666037243ff299af9ff978bf66fde5d87e89afb2b48297c4fe635c",
+    "owned_windows": "Receivers close owned windows/sheets and exit; wrappers remove fixtures.",
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": []
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-review-refresh-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-review-refresh-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-review-refresh-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-review-refresh-2026-10-09/native.log": "f0d5a2ec6b020dc89274e22033954f9533864df73534f1560bfb6701ea9c6eca",
+    "build/qa/lfs-review-refresh-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-review-refresh-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/lfs-review-refresh-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/lfs-review-refresh-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

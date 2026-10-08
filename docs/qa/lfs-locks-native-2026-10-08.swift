@@ -24,7 +24,8 @@ import TurtleGitCore
         defer { window.close() }
         var server = [LFSLock(id: "1", path: "file2.bin", owner: "QA"), LFSLock(id: "2", path: "雪\t🦎.bin", owner: "Other")]
         var requests: [([String], Bool)] = []
-        model.query = { _ in server }
+        var standaloneQueries = 0
+        model.query = { _ in standaloneQueries += 1; return server }
         model.change = { paths, force, _, report in
             requests.append((paths, force))
             let files = paths.map { path in LFSFileResult(path: path, success: force || path == "file2.bin", output: force || path == "file2.bin" ? "Unlocked" : "owned by another user") }
@@ -135,24 +136,32 @@ import TurtleGitCore
         model.selectAll(false); precondition(!model.canUnlock); model.setChecked("1", true); precondition(model.canUnlock)
         model.selectAll(true)
         print("LOCKS SORT/RESULT DIAGNOSTIC before", model.sortOrder.map { ($0.column.rawValue,$0.order) }, model.rows.map(\.id)); fflush(stdout)
+        let queriesBeforeReview = standaloneQueries
+        let locksBeforeReview = model.locks
         await model.unlock()
         print("LOCKS SORT/RESULT DIAGNOSTIC after", model.results.map { ($0.path,$0.success) }, model.locks.map(\.id), model.checked); fflush(stdout)
-        precondition(model.results.map(\.success) == [true, false] && model.locks == [server[0]] && model.checked == ["2"])
+        precondition(model.results.map(\.success) == [true, false] && model.locks == locksBeforeReview && model.checked == ["1","2"] && standaloneQueries == queriesBeforeReview)
         precondition(requests.count == 1 && !requests[0].1 && Set(requests[0].0) == ["file2.bin", "雪\t🦎.bin"])
         try await settle { window.attachedSheet != nil }
+        model.setChecked("1", false); model.selectAll(false); model.setForce(true)
+        await model.refresh()
+        precondition(!model.canUnlock && model.checked == ["1","2"] && !model.force && standaloneQueries == queriesBeforeReview)
         let delegate = TurtleGitApplicationDelegate()
         precondition(delegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
         await model.unlock(forceRetry: true)
         precondition(requests.count == 2 && requests[1].1 && requests[1].0 == requests[0].0)
-        precondition(model.results.allSatisfy(\.success) && model.locks.isEmpty)
-        model.finishProgress(); try await settle { window.attachedSheet == nil }
+        precondition(model.results.allSatisfy(\.success) && model.locks == locksBeforeReview && standaloneQueries == queriesBeforeReview)
+        model.finishProgress(); try await settle { window.attachedSheet == nil && !model.busy }
+        precondition(model.locks.isEmpty && standaloneQueries == queriesBeforeReview + 1)
+        model.finishProgress(); precondition(standaloneQueries == queriesBeforeReview + 1)
         model.confirmingQuit = true; model.selectAll(true); model.setForce(true); await model.unlock(); await model.refresh()
         precondition(requests.count == 2 && !model.force && !controller.windowShouldClose(window))
         model.confirmingQuit = false
         model.query = { _ in throw LFSLocksFailure.selection }; await model.refresh()
         precondition(model.error != nil && model.locks.isEmpty && model.checked.isEmpty)
         try await settle { all.state == .off && !all.isEnabled }
-        model.query = { _ in [LFSLock(id: "3", path: "tracked", owner: "QA")] }; await model.refresh()
+        var cancelledQueries = 0
+        model.query = { _ in cancelledQueries += 1; return [LFSLock(id: "3", path: "tracked", owner: "QA")] }; await model.refresh()
         model.change = { paths, _, token, report in
             let file = LFSFileResult(path: paths[0], success: true, output: "Completed before cancellation"); report(file)
             try await Task.sleep(nanoseconds: 100_000_000)
@@ -166,7 +175,31 @@ import TurtleGitCore
         precondition(model.checked == ["3"] && !model.force && model.showingProgress)
         await task.value
         precondition(model.results.count == 1 && model.information.contains("Completed server changes remain"))
-        model.finishProgress(); try await settle { window.attachedSheet == nil }; window.close()
+        precondition(cancelledQueries == 1)
+        model.finishProgress(); try await settle { window.attachedSheet == nil && !model.busy }
+        precondition(cancelledQueries == 2 && model.results.count == 1)
+        window.close()
+        let reviewController = LFSLocksWindowController(repository: repository, access: nil, defaults: defaults)
+        let reviewModel = reviewController.model
+        reviewModel.query = { _ in [LFSLock(id: "review", path: "tracked", owner: "QA")] }; await reviewModel.refresh()
+        reviewModel.change = { paths, _, _, _ in LFSBatchResult(files: paths.map { LFSFileResult(path: $0, success: true, output: "Done") }) }
+        await reviewModel.unlock()
+        let retainedResults = reviewModel.results
+        var refreshEntered = false, allowRefresh = false, refreshCount = 0
+        reviewModel.query = { token in
+            refreshCount += 1; refreshEntered = true
+            precondition(!token.isCancelled && reviewController.window?.attachedSheet == nil)
+            while !allowRefresh { try await Task.sleep(nanoseconds: 5_000_000) }
+            throw LFSLocksFailure.selection
+        }
+        reviewModel.finishProgress()
+        precondition(reviewModel.busy && !reviewModel.showingProgress)
+        try await settle { refreshEntered }
+        reviewModel.finishProgress(); await reviewModel.unlock(); await reviewModel.refresh()
+        precondition(refreshCount == 1 && reviewModel.results.map(\.path) == retainedResults.map(\.path) && reviewModel.results.map(\.success) == retainedResults.map(\.success) && reviewModel.results.map(\.output) == retainedResults.map(\.output) && reviewModel.locks.isEmpty)
+        allowRefresh = true; try await settle { !reviewModel.busy }
+        precondition(reviewModel.results.map(\.path) == retainedResults.map(\.path) && reviewModel.results.map(\.success) == retainedResults.map(\.success) && reviewModel.results.map(\.output) == retainedResults.map(\.output) && reviewModel.error?.contains("Operation results are retained. Refresh failed:") == true && reviewModel.checked.isEmpty)
+        reviewController.window?.close()
         // Source check memory is by path, not remote ID, survives disappearance
         // and failed refresh, and context operations reset only their targets.
         let memoryModel = LFSLocksWindowModel(repository: repository, access: nil, defaults: defaults)
@@ -191,8 +224,10 @@ import TurtleGitCore
             for file in files { report(file) }; return LFSBatchResult(files: files)
         }
         await memoryModel.perform(paths: ["file2.bin"], locked: false)
+        precondition(memoryModel.checked == ["later"])
+        memoryModel.finishProgress(); try await settle { !memoryModel.busy }
         precondition(memoryModel.checked == ["a3","later"])
-        memoryModel.finishProgress(); memoryModel.setChecked("a3", false)
+        memoryModel.setChecked("a3", false)
         await memoryModel.unlock()
         precondition(memoryModel.checked == ["later"])
         memoryModel.finishProgress()
@@ -260,24 +295,24 @@ import TurtleGitCore
         await contextModel.unlock(forceRetry: true)
         await contextModel.setSelectionLocked(["c2"], locked: false)
         precondition(contextLockRequests.count == 1 && contextUnlockRequests.isEmpty)
-        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil }
+        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil && !contextModel.busy }
         contextModel.checked = ["c1"]; contextModel.selection = ["c2"]
         await contextModel.setSelectionLocked(["c2"], locked: false)
         try await settle { contextController.window?.attachedSheet?.title == "LFS Unlock – TurtleGit" }
         precondition(contextUnlockRequests.count == 1 && contextUnlockRequests[0].0 == ["雪\t🦎.bin"] && !contextUnlockRequests[0].1 && contextModel.force)
         await contextModel.unlock(forceRetry: true)
         precondition(contextUnlockRequests.count == 2 && contextUnlockRequests[1].0 == contextUnlockRequests[0].0 && contextUnlockRequests[1].1 && contextModel.results[0].success)
-        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil }
+        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil && !contextModel.busy }
         contextModel.checked = ["c1"]; contextModel.selection = ["c2"]
         await contextModel.unlock()
         precondition(contextUnlockRequests.count == 3 && contextUnlockRequests[2].0 == ["file2.bin"] && contextUnlockRequests[2].1)
-        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil }
+        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil && !contextModel.busy }
         contextModel.checked = ["c1"]; contextModel.selection = ["c1","c2"]
         contextModel.setSortOrder([LFSFileSort(column: .lfsOwner)])
         await contextModel.setSelectionLocked(["c1","c2"], locked: false)
         precondition(contextUnlockRequests.count == 4 && contextUnlockRequests[3].0 == ["雪\t🦎.bin","file2.bin"] && !contextUnlockRequests[3].1)
         precondition(contextModel.results.count == 2 && contextModel.results.allSatisfy { !$0.success })
-        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil }
+        contextModel.finishProgress(); try await settle { contextController.window?.attachedSheet == nil && !contextModel.busy }
         contextModel.confirmingQuit = true
         await contextModel.setSelectionLocked(["c2"], locked: true)
         precondition(contextLockRequests.count == 1)
