@@ -1540,3 +1540,23 @@ Settings → Dialogs now exposes AutoCloseGitProgress. Its three source policies
 apply to ordinary Commit results after their post-actions are assembled; failures
 remain open. Footer/Rebase overrides are preserved. See
 [progress close policies](PROGRESS-PARITY.md) for scope and remaining acceptance.
+
+
+## Shared history picker row identity
+
+Commit and Merge use the same native history table. Selection is stored as row
+indexes, matching `HistoryDlg.cpp` rather than treating message text as identity.
+This prevents two Merge messages with canonically equivalent Unicode spellings
+from selecting each other. OK joins selected messages in table order with two
+newlines. Delete removes one row immediately from persisted history and selects
+the next available row; deleting the final row leaves an empty selection. The
+list receives initial keyboard focus, and both sheets attach to the shared source
+`HistoryDlg` geometry setting after establishing their default/minimum size.
+
+After a Debug build, `python3 scripts/test-history-picker.py` verifies actual
+hidden native tables, binding synchronization, exact selected UTF-16 text,
+multiple selection, deletion through empty and initial focus for both backends.
+It also checks a hidden shared-identifier geometry close/reopen/reset fixture.
+This does not establish physical keyboard/double-click/button/sheet interactions,
+visible light/dark appearance or signed acceptance. The record is
+[history picker QA](qa/history-picker-2026-10-08.json).

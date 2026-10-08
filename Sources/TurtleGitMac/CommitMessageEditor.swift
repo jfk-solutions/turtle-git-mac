@@ -200,22 +200,35 @@ struct CommitEditorSettings: View {
     }
 }
 
+@MainActor final class MessageHistoryPickerModel: ObservableObject {
+    private let history: any MessageHistory
+    @Published private(set) var entries: [String]
+    @Published var selection = IndexSet()
+    init(history: any MessageHistory) { self.history = history; entries = history.entries }
+    var selectedMessage: String {
+        entries.indices.filter { selection.contains($0) }.map { entries[$0] }.joined(separator: "\n\n")
+    }
+    func deleteRow(_ index: Int) {
+        guard entries.indices.contains(index) else { return }
+        history.remove([entries[index]]); entries = history.entries
+        selection = entries.isEmpty ? [] : [min(index, entries.count - 1)]
+    }
+}
+
 struct CommitMessageHistoryDialog: View {
-    let history: any MessageHistory
+    @StateObject private var model: MessageHistoryPickerModel
     let finish: (String?) -> Void
-    @State private var entries: [String]
-    @State private var selection = Set<String>()
     init(history: any MessageHistory, finish: @escaping (String?) -> Void) {
-        self.history = history; self.finish = finish; _entries = State(initialValue: history.entries)
+        self.init(model: MessageHistoryPickerModel(history: history), finish: finish)
+    }
+    init(model: MessageHistoryPickerModel, finish: @escaping (String?) -> Void) {
+        _model = StateObject(wrappedValue: model); self.finish = finish
     }
     var body: some View {
         VStack {
-            CommitHistoryList(entries: entries, selection: $selection, accept: finish) { index in
-                history.remove([entries[index]]); entries = history.entries
-                selection = entries.isEmpty ? [] : [entries[min(index, entries.count - 1)]]
-            }
+            CommitHistoryList(entries: model.entries, selection: $model.selection, accept: finish, delete: model.deleteRow)
             HStack { Spacer()
-                Button("OK") { finish(entries.filter { selection.contains($0) }.joined(separator: "\n\n")) }.keyboardShortcut(.defaultAction)
+                Button("OK") { finish(model.selectedMessage) }.keyboardShortcut(.defaultAction)
                 Button("Cancel") { finish(nil) }.keyboardShortcut(.cancelAction)
             }
         }.padding(12).frame(minWidth: 400, minHeight: 230)
@@ -224,7 +237,7 @@ struct CommitMessageHistoryDialog: View {
 
 private struct CommitHistoryList: NSViewRepresentable {
     let entries: [String]
-    @Binding var selection: Set<String>
+    @Binding var selection: IndexSet
     let accept: (String?) -> Void
     let delete: (Int) -> Void
     func makeNSView(context: Context) -> NSScrollView {
@@ -241,7 +254,7 @@ private struct CommitHistoryList: NSViewRepresentable {
         guard let table = scroll.documentView as? HistoryTable else { return }
         let coordinator = context.coordinator
         coordinator.parent = self; coordinator.updating = true
-        if coordinator.entries != entries { coordinator.entries = entries; table.reloadData() }
+        if coordinator.entries.count != entries.count || !zip(coordinator.entries, entries).allSatisfy({ Array($0.0.utf16).elementsEqual($0.1.utf16) }) { coordinator.entries = entries; table.reloadData() }
         let width = entries.map { ($0.replacingOccurrences(of: "\r", with: "").replacingOccurrences(of: "\n", with: " ") as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: NSFont.systemFontSize)]).width }.max() ?? 0
         let columnWidth = max(380, width + 15)
         table.tableColumns.first?.maxWidth = CGFloat.greatestFiniteMagnitude
@@ -249,7 +262,7 @@ private struct CommitHistoryList: NSViewRepresentable {
         // sizeToFit() fits columns to the table's initial zero-width frame and collapses
         // the message column. Keep the document width large enough for the full text.
         table.setFrameSize(NSSize(width: columnWidth, height: max(22, CGFloat(entries.count) * table.rowHeight)))
-        table.selectRowIndexes(IndexSet(entries.indices.filter { selection.contains(entries[$0]) }), byExtendingSelection: false)
+        table.selectRowIndexes(selection.intersection(IndexSet(entries.indices)), byExtendingSelection: false)
         table.deleteRow = delete; coordinator.updating = false
     }
     func makeCoordinator() -> Coordinator { Coordinator(self) }
@@ -266,7 +279,7 @@ private struct CommitHistoryList: NSViewRepresentable {
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !updating, let table = notification.object as? NSTableView else { return }
-            parent.selection = Set(table.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0] : nil })
+            parent.selection = table.selectedRowIndexes.intersection(IndexSet(entries.indices))
         }
         @objc func acceptRow(_ table: NSTableView) {
             if entries.indices.contains(table.clickedRow) { parent.accept(entries[table.clickedRow]) }
@@ -274,6 +287,10 @@ private struct CommitHistoryList: NSViewRepresentable {
     }
     private final class HistoryTable: NSTableView {
         var deleteRow: (Int) -> Void = { _ in }
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.makeFirstResponder(self)
+        }
         override func keyDown(with event: NSEvent) {
             if (event.keyCode == 51 || event.keyCode == 117), selectedRow >= 0 { deleteRow(selectedRow) }
             else { super.keyDown(with: event) }

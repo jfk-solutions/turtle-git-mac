@@ -162,6 +162,7 @@ import UniformTypeIdentifiers
             guard let child else { return }; window?.endSheet(child); child.orderOut(nil); self?.historyWindow = nil
             if let text { insert(text) }
         })
+        DialogGeometry.attach(child, identifier: "HistoryDlg")
         historyWindow = child; window.beginSheet(child)
     }
     private func showRevisionPicker(message: Bool, insert: @escaping (String) -> Void) {

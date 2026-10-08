@@ -19,6 +19,8 @@ layout. This includes Commit, Log, Clone, transport/replay/working-file dialogs,
 comparison editors, browser, Blame/find, statistics and owned progress results.
 CLI progress results share the source `ProgressDlg` frame identifier. Other native
 kinds have stable individual identifiers, and quick Resolve has a separate one.
+Commit and Merge recent-message sheets also share the source `HistoryDlg`
+identifier after their initial size and minimums.
 Older macOS frame-autosave names are read as fallback and included in Clear's
 explicit legacy whitelist. New records use private app preferences under
 `TurtleGit.DialogGeometry.`; sandboxed builds use their preferences container.

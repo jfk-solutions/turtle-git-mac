@@ -276,6 +276,7 @@ ordering, invalid count rejection, history-picker layout and Saved Data clear.
 No main app is launched. Physical menu/sheet interactions, keyboard/undo,
 light/dark appearance and signed/sandbox acceptance remain unverified.
 
-The shared picker currently identifies selections by Swift strings. Canonically
-equivalent Unicode spellings can therefore share selection state even though
-Merge storage keeps them distinct; separate row identities remain pending.
+The shared picker now identifies selections by row index, so canonically
+equivalent Unicode spellings in Merge history remain independently selectable.
+The Commit and Merge sheets share the upstream `HistoryDlg` geometry identifier
+and focus their native table initially. See [history picker verification](qa/history-picker-2026-10-08.json).

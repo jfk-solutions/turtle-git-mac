@@ -53,6 +53,7 @@ import TurtleGitCore
             guard let child else { return }; window?.endSheet(child); child.orderOut(nil); self?.historyWindow = nil
             if let text { insert(text) }
         })
+        DialogGeometry.attach(child, identifier: "HistoryDlg")
         historyWindow = child; window.beginSheet(child)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }

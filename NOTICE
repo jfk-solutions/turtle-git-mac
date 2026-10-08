@@ -633,3 +633,8 @@ TortoiseGit, and src/Utils/RegHistory.cpp, copyright (C) 2019 TortoiseGit and
 (C) 2007 TortoiseSVN, under GPL version 2 or later. The native editor follows
 src/Utils/MiscUI/SciEdit.cpp::InsertText under the same license; its copyright
 attribution is retained above. Windows registry storage becomes UserDefaults.
+
+The shared native history picker adapts src/TortoiseProc/HistoryDlg.cpp's
+row-index selection, ordered message joining, single-row deletion, initial focus
+and shared saved geometry, copyright (C) 2021, 2023-2025 TortoiseGit and
+(C) 2003-2008, 2011 TortoiseSVN, under GPL version 2 or later.
