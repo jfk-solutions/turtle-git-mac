@@ -399,3 +399,30 @@ Base editing, native preference Apply/reset variants, full Undo selection state,
 blank/end-boundary variants, arbitrary widths, EditorConfig, dark/narrow layouts,
 refactored three-pane menu acceptance, insertion ending metadata and signed
 sandbox acceptance remain pending. This is partial tab/view behavior parity.
+
+## Marked-block File Save decisions
+
+The writable Mine pane now offers the source FileSave warning when marked
+blocks remain. **Save and Include** keeps marked rows and manual edits, taking
+other rows from Base. **Save and Exclude** restores marked rows from Base while
+retaining unmarked rows and manual edits. **Save Only Manual Edits** keeps edited
+rows and takes the rest from Base. Cancel retains text and marks without writing.
+The transformation uses the pane's LF/CRLF line-ending style and preserves absent EOF
+newlines, alignment gaps and manual edits even when also marked. It clears marks
+through the existing native Undo history; Undo/Redo can restore the decision.
+Save locks other edits/reload/save calls while the sheet is pending. Existing
+stale-file and sandbox authorization checks still run before writing; a failed
+save retains the transformed draft and its Undo history.
+
+Mapped source: MainFrm.cpp FileSave (1656–1684) and BaseView.cpp
+LeaveOnlyMarkedBlocks/UseViewFileOfMarked/UseViewFileExceptEdited (6243–6260),
+pinned at `7338078f8ddd924b8cddee35f512f2286072136d`. The warning applies to
+Mine File Save. Source writable Base saves and automatic PatchSave bypass it;
+Review Patch's automatic patched-result Save retains that distinction. Exact
+source toolbar/close routing for every patch-edit state remains pending.
+
+The headless native receiver checks all three decisions and Cancel using actual
+aligned editor coordinators, exact CRLF/no-final-newline writes, Base preservation,
+Undo/Redo, stale external writes and reentry guards. Choices are injected; physical
+sheets, accessibility/layout, full three-pane merge decisions and signed sandbox
+acceptance remain unverified. See [marked-save QA](qa/marked-save-2026-10-08.json).

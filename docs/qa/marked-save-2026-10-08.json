@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "df6e0c0c9335833f4bea15a6ff712cb923e83eef",
+  "scope": "Ordinary Mine FileSave marked-block choices. Automatic PatchSave and writable Base save remain separate; full port and distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/MainFrm.cpp": "0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138",
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5",
+    "src/Resources/TortoiseMergeENG.rc": "b0c19b52528f5dc6a7adb62095e5cd7260abe5dd"
+  },
+  "sources_manifest_sha256": "a8d8cf5a31d6b7ead6f3634ad870830b37f42e6deb36f2403dff9fc198fe7eda",
+  "changed_files_sha256": {
+    "NOTICE": "5709bad36032aa0fe332b9d4d9dd3971124ec31fe716d4bc0ee103d8a60a54c3",
+    "Sources/TurtleGitCore/FileComparisonEditing.swift": "9078533f461240e87e7dc5a17c2f29a548c2b56de414194196fd2612ebe13309",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "cbafde28acffe83310e54b129d724e18bff2ef22cb8a7389e94d187cbb98d56e",
+    "Tests/TurtleGitCoreTests/FileComparisonEditingTests.swift": "ff53395cef46febf3f08e73a6c4b6ba7442b17da63441ff1ddd1f0ff212635b8",
+    "docs/COMPARISON-MARK-PARITY.md": "563168ce5b3d4f614a54312f6e1fea9fca0c41cbb33627255fc247e586bbade5",
+    "docs/qa/import-patch-native-2026-10-08.swift": "d0ed4760ab6e1dd88cfd15104879c2a4503d35b22ef23eb63623964d88a559fe",
+    "docs/upstream-files.csv": "1f25f2b40cdf6ec6058625ba9323a5775220a84014308542428f5bb782926f4e"
+  },
+  "verification": {
+    "core": "18 FileComparisonEditingTests pass on default Apple Git. Includes three-policy predicate, manual-edit retention, reverse panes, invalid annotations, LF/CRLF/gaps/absent final newline. Existing working-file, encoding and editing regressions pass. Not four-engine Core execution.",
+    "native": "Full existing Import Patch receiver passes four Git engines with added ordinary FileSave cases: Include/Exclude/Manual-only/Cancel, exact CRLF/no-final-newline bytes, Base retention, prompt reentry locks, private native Undo/Redo restoration of policy text and marks, changed external file refusal with transformed draft and Undo retained. Choices injected; actual aligned editor coordinators used.",
+    "builds": "Final unsigned Debug and AppStore builds pass sequentially around stationary Debug native receiver. Both bundle audits, NOTICE byte equality, pin audit and diff check pass. No source/NOTICE/test/receiver edits during live compiler/native sessions.",
+    "engines": [
+      "Apple Git 2.50.1",
+      "Git 2.37.1",
+      "Git 2.39.5",
+      "bundled Git 2.55.0"
+    ],
+    "site": "Static GitHub Pages generator passes with new parity document and QA link."
+  },
+  "limitations": [
+    "Physical warning sheets, accessibility/layout, multi-pane/three-way conflict save decisions and signed sandbox acceptance remain unverified.",
+    "Automatic review PatchSave bypasses this ordinary FileSave warning; exact source toolbar/close routing for every patch edit state remains pending.",
+    "Pure CR, mixed endings and exhaustive edited/marked realignment combinations remain pending.",
+    "Full app parity, rejected-hunk/conflict engine, Finder deployment, real screenshots, App Store eligibility and external CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_native_fixtures": [],
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.6503243F-9323-45D6-BF4E-2F11312006AB.plist",
+      "TurtleGit.ImportPatch.QA.BE81B69A-6FA9-42F7-81B4-57B57D2C5E90.plist",
+      "TurtleGit.ImportPatch.QA.F87B7E93-60DB-44F6-9287-1E02459DA884.plist",
+      "TurtleGit.ImportPatch.QA.2710BA76-12A1-4901-91A4-2E87B9645483.plist",
+      "TurtleGit.ImportPatch.QA.53FDA4A8-D06E-4F9E-8D16-E987D077ED05.plist",
+      "TurtleGit.ImportPatch.QA.EE760D9C-0885-4098-8B32-98E90399E4C5.plist",
+      "TurtleGit.ImportPatch.QA.8975F1D8-4DDE-4E51-B4D5-7D8014A57520.plist",
+      "TurtleGit.ImportPatch.QA.7A5A80A1-DC98-4131-94AB-74F47A761E96.plist"
+    ],
+    "retained_nonempty_prior_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "TurtleGit.ImportPatch.QA.77E263CF-C337-44E7-8E7E-D1E02A2F1C8E.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ]
+  },
+  "logs_sha256": {
+    "build/qa/marked-save/cleanup.json": "cd25b3b7481dd5b6a64ae7a6ee66a1cfdc0846228e3d01eb809bcba1d359fbc3",
+    "build/qa/marked-save/core.log": "0bd55977bfaf8b382351c0dffeccd5c451f14d48a606c36e28faa1822164ff6a",
+    "build/qa/marked-save/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/marked-save/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/marked-save/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/marked-save/native-final.log": "f6cb7f0bb2b1fee63430844cfa7d80e835eec7c8120bffe9d23116c04960163b",
+    "build/qa/marked-save/native.log": "da1f2198c065109a60efbb25273ec42e75a3420d65c79ed3581b780e206eb7fd",
+    "build/qa/marked-save/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/marked-save/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/marked-save/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/marked-save/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

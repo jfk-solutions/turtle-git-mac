@@ -121,13 +121,23 @@ public enum FileComparisonEditing {
             return result
         }
     }
+    public enum MarkedSaveChoice: Sendable { case include, exclude, manualEditsOnly }
     public static func leavingOnlyMarked(_ alignment: FileComparisonAlignment, targetBase: Bool, annotations: Annotations) throws -> String {
+        try resolvingMarkedBlocks(alignment, targetBase: targetBase, annotations: annotations, choice: .include)
+    }
+    public static func resolvingMarkedBlocks(_ alignment: FileComparisonAlignment, targetBase: Bool, annotations: Annotations, choice: MarkedSaveChoice) throws -> String {
         guard annotations.marked.union(annotations.edited).allSatisfy({ alignment.rows.indices.contains($0) }) else { throw FileComparisonEditFailure.range }
         func target(_ row: FileComparisonRow) -> MergeSourceCell { targetBase ? row.base : row.destination }
         let original = alignment.rows.map(target).filter { $0.lineNumber != nil }.map(\.text).joined()
         let style: MergeLineEnding = original.contains("\r\n") ? .crlf : .lf
         let lines = alignment.rows.enumerated().map { index, row in
-            if annotations.marked.contains(index) || annotations.edited.contains(index) { return target(row).lineNumber == nil ? "" : target(row).text }
+            let keep: Bool
+            switch choice {
+            case .include: keep = annotations.marked.contains(index) || annotations.edited.contains(index)
+            case .exclude: keep = !annotations.marked.contains(index) || annotations.edited.contains(index)
+            case .manualEditsOnly: keep = annotations.edited.contains(index)
+            }
+            if keep { return target(row).lineNumber == nil ? "" : target(row).text }
             let source = targetBase ? row.destination : row.base
             return source.lineNumber == nil ? "" : MergeLineEndings.converting(source.text, to: style)
         }.filter { !$0.isEmpty }

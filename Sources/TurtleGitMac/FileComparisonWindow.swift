@@ -37,7 +37,7 @@ import TurtleGitCore
         window.title = "\(path) – TurtleGitMerge"; window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 800, height: 440)
         window.contentViewController = NSHostingController(rootView: FileComparisonDialog(model: model))
-        super.init(window: window); window.model = model; window.delegate = self; model.window = window
+        super.init(window: window); window.model = model; window.delegate = self; model.window = window; model.installMarkedSavePrompt()
         window.setContentSize(NSSize(width: 1120, height: 720))
         window.center()
 
@@ -261,6 +261,7 @@ import TurtleGitCore
         var type: (String, Int) -> Void
         var annotate: (FileComparisonEditing.Annotations) -> Void
         var keep: (String) -> Void
+        var resolveForSave: (String) -> Void
     }
     private var editorActions: [Bool: EditorActions] = [:]
     func registerEditor(base: Bool, actions: EditorActions) {
@@ -375,6 +376,28 @@ import TurtleGitCore
         save(sides: [base], completion: completion)
     }
     func saveAll(completion: ((Bool) -> Void)? = nil) { save(sides: drafts?.dirtySides ?? [], completion: completion) }
+    var chooseMarkedSave: () async -> FileComparisonEditing.MarkedSaveChoice? = { nil }
+    func installMarkedSavePrompt() {
+        chooseMarkedSave = { [weak self] in
+            guard let window = self?.window, window.attachedSheet == nil else { return nil }
+            let alert = NSAlert(); alert.alertStyle = .warning
+            alert.messageText = "Marked Blocks"
+            alert.informativeText = "You have marked changed blocks. How should those blocks be saved? Manual edits are retained with every choice."
+            alert.addButton(withTitle: "Save and Include")
+            alert.addButton(withTitle: "Save and Exclude")
+            alert.addButton(withTitle: "Save Only Manual Edits")
+            alert.addButton(withTitle: "Cancel")
+            let response = await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
+            }
+            switch response {
+            case .alertFirstButtonReturn: return .include
+            case .alertSecondButtonReturn: return .exclude
+            case .alertThirdButtonReturn: return .manualEditsOnly
+            default: return nil
+            }
+        }
+    }
     private func save(sides: [Bool], completion: ((Bool) -> Void)?) {
         guard !busy, document != nil else { completion?(false); return }
         busy = true
@@ -383,6 +406,14 @@ import TurtleGitCore
             defer { busy = false; completion?(saved) }
             do {
                 for base in sides where drafts?.isDirty(base: base) == true {
+                    // Upstream FileSave resolves marks in Mine; the writable Base save
+                    // and automatic PatchSave use separate paths without this prompt.
+                    if !base, !annotations(base: false).marked.isEmpty {
+                        guard let choice = await chooseMarkedSave() else { return }
+                        guard let alignment, let actions = editorActions[false] else { throw FileComparisonEditFailure.unsupported }
+                        let text = try FileComparisonEditing.resolvingMarkedBlocks(alignment, targetBase: false, annotations: annotations(base: false), choice: choice)
+                        actions.resolveForSave(text)
+                    }
                     guard let document, let text = drafts?.text(base: base) else { throw FileComparisonEditFailure.unsupported }
                     let result: FileComparisonDocument
                     if let historicalWorkingComparison {
@@ -530,7 +561,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             replace: { [weak coordinator = context.coordinator] text, caret, cleared in coordinator?.replace(text, caret: caret, cleared: cleared) },
             type: { [weak coordinator = context.coordinator] text, caret in coordinator?.replace(text, caret: caret, typing: true) },
             annotate: { [weak coordinator = context.coordinator] value in guard let coordinator else { return }; coordinator.replace(coordinator.model.draftText(base: coordinator.base), caret: 0, restored: value) },
-            keep: { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true) }
+            keep: { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true) },
+            resolveForSave: { [weak coordinator = context.coordinator] text in coordinator?.replace(text, caret: 0, clearMarks: true, resolvingSave: true) }
         ))
         view.history = context.coordinator.history
         NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.scrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
@@ -606,8 +638,8 @@ struct FileComparisonEditor: NSViewRepresentable {
             DispatchQueue.main.async { if self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
         func updateUndoState() { guard model.activeBase == base else { return }; model.canUndo = history.canUndo; model.canRedo = history.canRedo }
-        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false) {
-            guard model.canEdit(base: base), !model.busy, !model.confirmingQuit else { return }
+        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false) {
+            guard model.canEdit(base: base), resolvingSave || (!model.busy && !model.confirmingQuit) else { return }
             let old = model.draftText(base: base), previous = model.annotations(base: base), oldAlignment = model.alignment
             var next = previous
             if clearMarks { next.marked = [] }

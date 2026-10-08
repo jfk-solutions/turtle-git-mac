@@ -703,3 +703,11 @@ Merge Auto Add preferences adapt TortoiseMerge/SetMainPage.cpp, copyright
 2018, 2020 TortoiseSVN, under GPL version 2 or later. Native edited patch saves use
 private raw-blob Git trees, byte/permission checks and checked working-tree
 application; the existing native aligned editor provides Undo/Redo and format controls.
+
+The two-pane Mine File Save marked-block warning and Include/Exclude/Manual-edit
+policies adapt CMainFrame::FileSave and CBaseView::LeaveOnlyMarkedBlocks,
+UseViewFileOfMarked and UseViewFileExceptEdited at the pinned upstream revision.
+MainFrm.cpp attribution above applies. BaseView.cpp copyright (C) 2003-2021
+TortoiseSVN and (C) 2011-2012, 2017-2025 TortoiseGit, under GPL version 2 or later.
+Native AppKit sheets replace Windows command links; automatic PatchSave and
+writable Base saves retain their separate source behavior.

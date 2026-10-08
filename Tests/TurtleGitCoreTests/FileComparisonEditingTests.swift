@@ -192,6 +192,19 @@ final class FileComparisonEditingTests: XCTestCase {
         let eof = FileComparisonAlignment(base: "base\nextra", destination: "typed")
         XCTAssertEqual(try FileComparisonEditing.leavingOnlyMarked(eof, targetBase: false, annotations: .init(edited: [0])), "typed\nextra")
     }
+    func testMarkedSaveChoicesRetainManualEditsAndResolveGapsAndEndings() throws {
+        let alignment = FileComparisonAlignment(base: "base one\ncommon\nbase two\nremoved\nend", destination: "local one\r\ncommon\r\nlocal two\r\nend")
+        let flags = FileComparisonEditing.Annotations(marked: [0], edited: [2, 3])
+        XCTAssertEqual(try FileComparisonEditing.resolvingMarkedBlocks(alignment, targetBase: false, annotations: flags, choice: .include), "local one\r\ncommon\r\nlocal two\r\nend")
+        XCTAssertEqual(try FileComparisonEditing.resolvingMarkedBlocks(alignment, targetBase: false, annotations: flags, choice: .exclude), "base one\r\ncommon\r\nlocal two\r\nend")
+        XCTAssertEqual(try FileComparisonEditing.resolvingMarkedBlocks(alignment, targetBase: false, annotations: flags, choice: .manualEditsOnly), "base one\r\ncommon\r\nlocal two\r\nend")
+        let gap = FileComparisonAlignment(base: "a\nremoved\nz", destination: "a\nadded\nz")
+        XCTAssertEqual(try FileComparisonEditing.resolvingMarkedBlocks(gap, targetBase: false, annotations: .init(marked: [1]), choice: .exclude), "a\nremoved\nz")
+        XCTAssertEqual(try FileComparisonEditing.resolvingMarkedBlocks(gap, targetBase: true, annotations: .init(marked: [1]), choice: .exclude), "a\nadded\nz")
+        for choice in [FileComparisonEditing.MarkedSaveChoice.include, .exclude, .manualEditsOnly] {
+            XCTAssertThrowsError(try FileComparisonEditing.resolvingMarkedBlocks(gap, targetBase: false, annotations: .init(edited: [-1]), choice: choice))
+        }
+    }
     func testAnnotationsFollowInsertedReplacedDeletedAndRealignedLines() throws {
         let source = "a\nb\nc\nend"
         let old = FileComparisonAlignment(base: source, destination: "a\nlocal\nc\nend")

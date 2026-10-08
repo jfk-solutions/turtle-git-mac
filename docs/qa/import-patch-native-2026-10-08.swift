@@ -242,6 +242,68 @@ import TurtleGitCore
         precondition(editReply == true && edit.dirty) // Don’t Save retains draft if another document cancels Quit.
         edit.discardDraft(); precondition(!edit.dirty && !edit.editingEnabled)
         print("PASS: real aligned native editing/Undo/Redo, draft transition locks and Close/Quit Cancel/Save/Don’t Save; edited bytes/no-final-newline saved, existing index/HEAD retained, default Auto Add stages only new result; stale save keeps draft and cancels Quit. Captured replies/injected choices, no physical sheets or app termination.")
+        // Exercise ordinary FileSave separately from automatic PatchSave.
+        let markRoot = root.appendingPathComponent("marked-save")
+        try FileManager.default.createDirectory(at: markRoot, withIntermediateDirectories: true)
+        let markBase = markRoot.appendingPathComponent("base"), markMine = markRoot.appendingPathComponent("mine")
+        let baseText = "base one\ncommon\nbase two\nend", mineText = "local one\r\ncommon\r\nlocal two\r\nend"
+        try Data(baseText.utf8).write(to: markBase)
+        func markedTextView(_ view: NSView) -> NSTextView? {
+            if let text = view as? NSTextView { return text }
+            return view.subviews.compactMap { markedTextView($0) }.first
+        }
+        let markCases: [(FileComparisonEditing.MarkedSaveChoice?, Bool)] = [(nil, false), (.include, false), (.exclude, false), (.manualEditsOnly, false), (.include, true)]
+        for (choice, stale) in markCases {
+            try Data(mineText.utf8).write(to: markMine)
+            let comparison = try WorkingFileComparison(base: markBase, destination: markMine)
+            let markedModel = FileComparisonWindowModel(comparison: comparison, permissions: [])
+            markedModel.editorPreferences = .load(from: prefs)
+            markedModel.load()
+            for _ in 0..<1000 { if !markedModel.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(markedModel.error == nil && markedModel.alignment != nil)
+            let markedHost = NSHostingView(rootView: FileComparisonEditor(model: markedModel, cells: markedModel.alignment!.rows.map(\.destination), base: false))
+            markedHost.frame = NSRect(x: 0, y: 0, width: 500, height: 300); markedHost.layoutSubtreeIfNeeded()
+            markedModel.updateAnnotations(.init(marked: [0]), base: false)
+            var prompts = 0, savedReply: Bool?
+            markedModel.chooseMarkedSave = {
+                prompts += 1; precondition(markedModel.busy)
+                markedModel.load(); markedModel.save(); precondition(prompts == 1)
+                if stale { try! Data("external writer".utf8).write(to: markMine) }
+                return choice
+            }
+            let markHistory = markedTextView(markedHost)!.undoManager!
+            markHistory.groupsByEvent = false; markHistory.beginUndoGrouping()
+            markedModel.save { savedReply = $0 }
+            for _ in 0..<1000 { if savedReply != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            markHistory.endUndoGrouping()
+            precondition(prompts == 1 && !markedModel.busy)
+            let expected: String
+            switch choice {
+            case .include: expected = "local one\r\ncommon\r\nbase two\r\nend"
+            case .exclude: expected = "base one\r\ncommon\r\nlocal two\r\nend"
+            case .manualEditsOnly: expected = "base one\r\ncommon\r\nbase two\r\nend"
+            case nil: expected = mineText
+            }
+            let savedMine = try Data(contentsOf: markMine), retainedBase = try Data(contentsOf: markBase)
+            precondition(savedMine == Data((stale ? "external writer" : expected).utf8))
+            precondition(retainedBase == Data(baseText.utf8))
+            precondition(savedReply == (choice != nil && !stale))
+            if stale {
+                precondition(markedModel.error != nil && markedModel.dirty)
+                markedModel.undo()
+                precondition(markedModel.draftText(base: false) == mineText && markedModel.annotations(base: false).marked == [0])
+                let external = try Data(contentsOf: markMine); precondition(external == Data("external writer".utf8))
+            } else if choice == nil { precondition(markedModel.dirty && markedModel.annotations(base: false).marked == [0]) }
+            else {
+                precondition(!markedModel.dirty && markedModel.annotations(base: false).marked.isEmpty)
+                markedModel.undo()
+                precondition(markedModel.dirty && markedModel.draftText(base: false) == mineText && markedModel.annotations(base: false).marked == [0])
+                markedModel.redo(); precondition(!markedModel.dirty && markedModel.draftText(base: false) == expected)
+            }
+            markedModel.resetHistory()
+            withExtendedLifetime(markedHost) {}
+        }
+        print("PASS: ordinary native FileSave marked-block Include/Exclude/Manual-only/Cancel; exact CRLF/no-final-newline bytes, Base retained, Cancel retains marks/draft, Undo/Redo restores policy text and marks, stale writes refused with draft/Undo retained, prompt locks prevent reentry. Injected sheet choices; physical sheets pending.")
         let dropped = ImportPatchWindowModel(repository: repo, access: nil, preferences: prefs)
         func provider(_ url: URL) -> NSItemProvider {
             let item = NSItemProvider()
