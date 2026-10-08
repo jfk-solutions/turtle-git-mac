@@ -21,6 +21,7 @@ import UniformTypeIdentifiers
     private var historyWindow: NSWindow?
     private var logPicker: LogWindowController?
     private var progressController: CommitProgressWindowController?
+    var onPullAfterLFSLock: () -> Void = {}
     private var lfsOperation: LFSFileOperationController?
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
@@ -45,6 +46,7 @@ import UniformTypeIdentifiers
         model.onLFSOperation = { [weak self, weak window] paths, locked in
             guard let self, let window, window.attachedSheet == nil, self.lfsOperation == nil else { return false }
             let progress = self.makeLFSOperation(repository, access)
+            progress.model.onPullAfterLock = { [weak self] in self?.onPullAfterLFSLock() }
             progress.onClosed = { [weak self] in
                 guard let self else { return }
                 self.lfsOperation = nil; self.model.busy = false; self.model.reload(); self.model.refreshPartial()

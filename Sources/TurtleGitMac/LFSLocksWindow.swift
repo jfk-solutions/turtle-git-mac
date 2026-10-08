@@ -5,6 +5,7 @@ import TurtleGitCore
 @MainActor final class LFSLocksWindowController: NSWindowController, NSWindowDelegate {
     let model: LFSLocksWindowModel
     var onClosed: () -> Void = {}
+    var onPullAfterLock: () -> Void = {}
     private var progressWindow: NSWindow?
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
         model = LFSLocksWindowModel(repository: repository, access: access, defaults: defaults)
@@ -15,6 +16,7 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak window] in window?.performClose(nil) }
         model.onProgressVisibility = { [weak self] visible in self?.setProgressPresented(visible) }
+        model.onPullAfterLock = { [weak self] in self?.onPullAfterLock() }
         DialogGeometry.attach(window, identifier: "LFSLocksDlg", legacyName: "LFSLocksDlg")
     }
     private func setProgressPresented(_ visible: Bool) {
@@ -72,6 +74,7 @@ import TurtleGitCore
     private var resetTargetChecks = false
     private var refreshAfterReview = false
     var onProgressVisibility: (Bool) -> Void = { _ in }
+    var onPullAfterLock: () -> Void = {}
     var captureListPosition: () -> Void = {}
     var restoreListPosition: ([String], Bool) -> Void = { _,_ in }
     private var rememberListPosition: Bool { (defaults.object(forKey: "RememberFileListPosition") as? NSNumber)?.boolValue ?? true }
@@ -209,7 +212,11 @@ import TurtleGitCore
         busy = true; showingProgress = true; results = []; error = nil
         cancellation = OperationCancellation(); batchID = UUID(); acceptingBatchResults = true; let generation = batchID
         information = "\(operationLocked ? "Locking" : "Unlocking") \(operationPaths.count) file(s)…"
-        defer { busy = false; acceptingBatchResults = false }
+        var openPull = false
+        defer {
+            busy = false; acceptingBatchResults = false
+            if openPull { onPullAfterLock() }
+        }
         do {
             try validateAccess()
             let report: @Sendable (LFSFileResult) -> Void = { [weak self] file in
@@ -223,6 +230,8 @@ import TurtleGitCore
             else { batch = try await change(operationPaths, useForce, cancellation, report) }
             acceptingBatchResults = false
             results = batch.files
+            openPull = operationLocked && !batch.cancelled && !cancellation.isCancelled &&
+                batch.files.count == operationPaths.count && batch.files.allSatisfy(\.success)
             information = batch.cancelled ? "Cancelled. Completed server changes remain; refresh to verify lock state." : "\(results.filter(\.success).count) of \(operationPaths.count) file(s) \(operationLocked ? "locked" : "unlocked")."
         } catch { self.error = error.localizedDescription; information = "Could not \(operationLocked ? "lock" : "unlock") files." }
     }

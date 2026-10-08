@@ -597,6 +597,7 @@ import TurtleGitCore
     private func showCommitDialog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let root = repository.root
         let controller = commitWindows[root.path] ?? CommitWindowController(repository: repository, access: access)
+        controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.commitWindows.removeValue(forKey: root.path) }
         controller.model.onCommitted = { [weak self] output in
             self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
@@ -654,7 +655,9 @@ import TurtleGitCore
         guard !busy, !confirmingQuit, !bare, let repository else { return }
         let key = repository.root.path
         if let existing = lfsLocksWindows[key] { existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
-        let controller = LFSLocksWindowController(repository: repository, access: activeAccess)
+        let access = activeAccess
+        let controller = LFSLocksWindowController(repository: repository, access: access)
+        controller.onPullAfterLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.lfsLocksWindows.removeValue(forKey: key) }
         lfsLocksWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         Task { await controller.model.refresh() }
@@ -881,6 +884,7 @@ import TurtleGitCore
         let root = repository.root
         section = .status
         let controller = statusWindows[root.path] ?? StatusWindowController(repository: repository, access: access)
+        controller.onPullAfterLFSLock = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = { [weak self] in self?.statusWindows.removeValue(forKey: root.path) }
         controller.model.onAction = { [weak self] action, paths in
             guard let self else { return }

@@ -100,7 +100,7 @@ Closing during an owner query cancels it and does not publish a late response.
 LFS batches capture paths in the displayed sort order. See
 [Working Tree owner QA](qa/working-tree-lfs-owner-2026-10-08.json).
 
-Finder routing, source availability gates, locking progress/post-Pull actions remain incomplete. The native list adds an
+Finder routing, remaining source availability gates and full locking progress fidelity remain incomplete. The native list adds an
 explicit Refresh button alongside F5. Physical keyboard/menu/pointer behavior,
 light/dark appearance, accessibility, fresh real screenshots, signed Finder
 deployment and provider acceptance remain pending. This is partial LFS parity
@@ -225,3 +225,23 @@ results; their shared operation model does not query remote locks independently.
 actual sheet detachment, blocked overlapping commands, Force target retention,
 cancellation and failed-refresh result preservation. Physical input, full
 progress-dialog fidelity and authenticated provider acceptance remain pending.
+
+## Successful Lock opens Pull
+
+After every target is locked successfully, TurtleGit opens the existing native
+Pull options dialog for the same repository and access lease. This follows
+LFSSetLockedProgressCommand's post-command callback and GitProgressDlg::OnCmdEnd:
+Pull opens when the batch ends, while Lock results are still available for
+review. Closing the results later retains the normal owner/list refresh.
+
+The follow-up is wired from standalone Locks, Commit and Working Tree. Partial
+failure, thrown errors, cancellation and Unlock do not open Pull. Opening the
+options dialog does not execute Pull; the user chooses options and starts the
+existing Pull workflow.
+
+[Follow-up QA](qa/lfs-pull-follow-up-2026-10-09.json) records actual native Pull
+controller construction/local options loading, controller callback routing,
+success/failure/cancellation gates and repository preservation. Server replies
+are injected, and native windows stay hidden. Visible activation, physical
+interaction, authenticated LFS/Pull transport and signed sandbox access remain
+unverified.

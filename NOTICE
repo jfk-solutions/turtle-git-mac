@@ -885,3 +885,9 @@ CLFSLocksDlg::OnBnClickedUnLock and CGitStatusListCtrl LFS context handlers at
 the pinned TortoiseGit revision. Native AppKit closes the owned sheet before
 asynchronously refreshing; completed results survive refresh errors and
 cancellation. This adaptation is licensed under GPL-2.0-or-later.
+
+The successful LFS Lock follow-up opening native Pull uses the behavior of
+LFSSetLockedProgressCommand::m_PostCmdCallback and CGitProgressDlg::OnCmdEnd
+at the pinned TortoiseGit revision. Failure, cancellation and Unlock do not
+open Pull. The native callback retains the selected repository access lease
+and opens the existing Pull options workflow. GPL-2.0-or-later applies.

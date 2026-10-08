@@ -7,8 +7,8 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var progressController: PullProgressWindowController?
     private var fetchProgressController: FetchProgressWindowController?
-    init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false) {
-        model = FetchWindowModel(repository: repository, access: access, isPull: isPull)
+    init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, preferences: UserDefaults = .standard) {
+        model = FetchWindowModel(repository: repository, access: access, isPull: isPull, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – \(isPull ? "Pull" : "Fetch") – TurtleGit"; window.minSize = NSSize(width: 660, height: 450); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: FetchDialog(model: model))

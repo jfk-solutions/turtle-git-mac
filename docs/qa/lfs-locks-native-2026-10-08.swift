@@ -317,6 +317,49 @@ import TurtleGitCore
         await contextModel.setSelectionLocked(["c2"], locked: true)
         precondition(contextLockRequests.count == 1)
         contextModel.confirmingQuit = false; contextController.window?.close()
+        // Source OnCmdEnd opens Pull after successful Lock, before result
+        // dismissal. Instantiate the actual native options controller; never
+        // submit it or run a network transport.
+        var pullWindows: [FetchWindowController] = []
+        func openNativePull() {
+            let pull = FetchWindowController(repository: repository, access: nil, isPull: true, preferences: defaults)
+            precondition(pull.model.isPull && pull.model.repository.root == root && pull.model.repository.executable == repository.executable)
+            precondition(pull.window!.title.contains(" – Pull – TurtleGit"))
+            pull.window!.contentView!.layoutSubtreeIfNeeded()
+            precondition(!descendants(pull.window!.contentView!).compactMap { $0 as? NSButton }.isEmpty)
+            pullWindows.append(pull); pull.model.load()
+        }
+        func closeNativePulls() async throws {
+            for pull in pullWindows {
+                try await settle { !pull.model.busy }
+                precondition(pull.model.progress == nil && pull.model.fetchProgress == nil)
+                pull.window?.close()
+            }
+            pullWindows.removeAll()
+        }
+        let followUpController = LFSLocksWindowController(repository: repository, access: nil, defaults: defaults)
+        let followUpModel = followUpController.model
+        followUpModel.query = { _ in contextReply }; await followUpModel.refresh()
+        var successfulPulls = 0
+        followUpController.onPullAfterLock = { [weak followUpController] in
+            precondition(!followUpModel.busy && followUpModel.showingProgress && followUpController?.window?.attachedSheet != nil)
+            successfulPulls += 1; openNativePull()
+        }
+        for mode in ["success", "mixed", "cancelled", "tokenCancelled", "throws", "unlock"] {
+            followUpModel.lockChange = { paths, token, _ in
+                if mode == "throws" { throw LFSLocksFailure.selection }
+                if mode == "tokenCancelled" { token.cancel() }
+                return LFSBatchResult(files: paths.enumerated().map { offset,path in
+                    LFSFileResult(path: path, success: mode != "mixed" || offset == 0, output: mode)
+                }, cancelled: mode == "cancelled")
+            }
+            followUpModel.change = { paths, _, _, _ in LFSBatchResult(files: paths.map { LFSFileResult(path: $0, success: true, output: "Unlocked") }) }
+            await followUpModel.perform(paths: ["file2.bin","雪\t🦎.bin"], locked: mode != "unlock")
+            precondition(successfulPulls == 1 && pullWindows.count == 1)
+            followUpModel.finishProgress(); try await settle { !followUpModel.busy && followUpController.window?.attachedSheet == nil }
+            precondition(successfulPulls == 1)
+        }
+        try await closeNativePulls(); followUpController.window?.close()
         let directoryMenuModel = LFSLocksWindowModel(repository: repository, access: nil, defaults: defaults)
         directoryMenuModel.hasLFS = true; directoryMenuModel.locks = [LFSLock(id: "dir", path: "folder", owner: "QA")]
         directoryMenuModel.fileMetadata = ["folder": StatusListMetadata(modificationDate: nil, size: nil, isDirectory: true)]
@@ -369,6 +412,15 @@ import TurtleGitCore
             captured = controller; return controller
         }
         commit.makeLFSOperation = factory; status.makeLFSOperation = factory
+        var commitPulls = 0, statusPulls = 0
+        commit.onPullAfterLFSLock = {
+            precondition(commit.model.busy && commit.window?.attachedSheet === captured?.window && captured?.model.busy == false)
+            commitPulls += 1; openNativePull()
+        }
+        status.onPullAfterLFSLock = {
+            precondition(status.model.busy && status.window?.attachedSheet === captured?.window && captured?.model.busy == false)
+            statusPulls += 1; openNativePull()
+        }
         for locked in [true, false] {
             commit.model.setLFSLocked([unusual], locked: locked)
             try await settle { captured?.model.showingProgress == true && captured?.model.busy == false }
@@ -402,6 +454,9 @@ import TurtleGitCore
         operation.model.finishProgress()
         try await settle { status.window?.attachedSheet == nil && !status.model.busy }
         captured = nil
+        precondition(commitPulls == 1 && statusPulls == 1 && pullWindows.count == 2)
+        try await closeNativePulls()
+        commit.onPullAfterLFSLock = {}; status.onPullAfterLFSLock = {}
         // Original header action controls the optional ninth text column.
         func ownerProbe() -> CommitFileInteraction.Probe {
             descendants(commit.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!

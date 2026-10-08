@@ -1,0 +1,55 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "2a828c6d99d56a98d0f8997c388ae685962dd12e",
+  "scope": "Successful Lock opens the native Pull options workflow at batch completion for standalone Locks, Commit and Working Tree. Full port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/LFSLocksDlg.cpp": "f9ebe3aaa8c1089ce356f7b6f1142c5b9ceb1036",
+    "src/TortoiseProc/GitProgressDlg.cpp": "562cc2c58da5f18144494895b95c4662459273e5",
+    "src/TortoiseProc/ProgressCommands/LFSSetLockedProgressCommand.cpp": "d3124cd9a0c35c05412ac9c5285c74d114464f6f"
+  },
+  "sources_manifest_sha256": "206ed1790b0fd6ec76f317f964264585d5b1468b8f11c4c4346dcebf255dea7f",
+  "changed_files_sha256": {
+    "NOTICE": "4a9779854f48c05bf60c483781fc395b4469e500960f363f3e3334062a9c6a04",
+    "Sources/TurtleGitMac/CommitWindow.swift": "30c41b2fc87af294f98e127f00b489e04cbe772cf9095d4d312023eb25aae982",
+    "Sources/TurtleGitMac/FetchWindow.swift": "90ebaf853d38f251ee210fea5309a1f155a5f677b7b41839518c0620517ebb34",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "3055e8862f58ada8d1fab48c2f1d2ddbe40c6dd4fcf8316d7dd17a795cffc799",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "800447211eabeff4af7a733469a2b4dc48137ac1eb94e496671ac5d1be1c14ca",
+    "Sources/TurtleGitMac/StatusWindow.swift": "a9a6e07140ffd19f43a5ce2c6260e0bd81230a77ebec28e559d88afd0dcb7cc7",
+    "docs/LFS-PARITY.md": "fd8bf63ae9f2981d599e85338f4fe0b604a76815f7ecbba0e86c01694dcfcf52",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "c6ff33def6b1f17cabfd8e7de5f25a3fa3241d75686e8f247cc057c9af7d2f7e",
+    "docs/upstream-files.csv": "710a2d26446fa54a86a254589c93ec791c1ef0203b81ff2807532808975f36bb"
+  },
+  "verification": {
+    "native": "Complete activation-prohibited receiver passed Apple Git and bundled Git. Standalone actual controller callback verifies nonbusy completed batch and still-attached results sheet, creates actual native Pull controller with same repository/executable, private preferences, Pull title and native controls, loads local options, verifies no Pull/Fetch progress started and closes it. Two-file successful Lock produces exactly one callback; mixed per-file failure, cancelled batch, cancelled token despite noncancelled injected batch, thrown error and successful Unlock produce none. Close does not repeat the callback. Production Commit/Working Tree owner handlers dispatch successful Lock while their owned LFS progress remains attached and parent stays busy; both open actual Pull options controllers, while failed Unlock and Force Unlock do not. Existing Locks path-memory/scroll/layout/clipboard/Force/Close-refresh/cancellation, Commit/Working Tree owner-column and Resolve/HEAD/raw-index/tracked-byte checks retained and pass. LFS replies injected; no network transport submitted.",
+    "routing": "RepositoryModel wires all three owner callbacks to existing showFetch(isPull:true) with captured repository and access, preserving established Pull progress and post-action handling. This wiring is inspected/compiled; native receiver instantiates real owner and Pull controllers with private callbacks, not the complete visible RepositoryModel route.",
+    "debug": "Debug build and bundle audit pass.",
+    "store": "Sequential unsigned AppStore build and required Git/Git LFS bundle audit pass. Both Debug/Store packages contain current NOTICE. Sources/NOTICE/receivers frozen while compiler/native handles live.",
+    "inventory": "Pinned inventory and diff checks pass; six mappings remain partial.",
+    "site": "Local Pages generation passes with updated guide and QA; no deployment or fresh screenshot claim."
+  },
+  "limitations": [
+    "Visible activation, physical interaction, appearance/accessibility/fresh screenshots and authenticated LFS/Pull transport remain unverified.",
+    "Native private callbacks validate controller routing; complete visible RepositoryModel dispatch and signed security-scope handoff remain unverified.",
+    "Full progress/dialog/menu parity, signed Finder/sandbox deployment, App Store acceptance, GitHub CI/push and full application port remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "preferences": "Two private LFS.StatusQA suites deleted after receiver exit; remaining plist checked empty before removal. Pull tests use private injected preferences.",
+    "preference_cleanup_sha256": "09e5fbed920d0e4671e95679f528eada698ec1bbdeabf5539b0add186523ffa1",
+    "owned_windows": "Receivers close owned result/Pull windows/sheets and exit; wrappers remove fixtures.",
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": []
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-pull-follow-up-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-pull-follow-up-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-pull-follow-up-2026-10-09/native.log": "f0d5a2ec6b020dc89274e22033954f9533864df73534f1560bfb6701ea9c6eca",
+    "build/qa/lfs-pull-follow-up-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-pull-follow-up-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/lfs-pull-follow-up-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/lfs-pull-follow-up-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}
