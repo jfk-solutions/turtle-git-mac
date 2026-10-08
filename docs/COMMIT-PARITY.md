@@ -1567,3 +1567,34 @@ Commit and Merge now share configurable native font family and size, with live
 updates that preserve text, selection and undo history. Bold/italic styling uses
 the selected base font. See [Merge message font notes](MERGE-PARITY.md#message-editor-font)
 for source defaults, native differences and pending consumers.
+
+## File-list column sorting
+
+Commit now exposes native sort headers for **Path**, **Extension**, **Status**,
+**Lines added** and **Lines removed**. The source `OnHdnItemclick`/`CSorter`
+behavior is retained: changing the column starts ascending, reversing it reverses
+the full comparison including the path tie, and only one column is retained.
+Paths/extensions use numeric, case-insensitive Foundation comparison in place of
+Windows `StrCmpLogicalW`. Status uses the displayed action label; line counts
+use integers rather than their formatted strings, with absent statistics before
+binary statistics before ordinary counts. Native collation is not asserted to
+match every Windows locale/policy edge case. Byte-distinct canonical/case ties
+have a deterministic Core order; full path-identity acceptance remains pending.
+
+Sorting occurs before files enter their existing groups, so Modified, Not
+Versioned and changelist header order and membership stay fixed. The file IDs,
+checked paths, highlighted selection and focus anchor stay attached to their
+paths. The same column/direction stays selected across refresh and checkbox/
+staging modes; staging uses the current staged or unstaged statistics. Busy and
+Quit confirmation refuse sort changes. No preference is written for the order.
+The original status colors, icons and file commands remain on the sorted rows.
+
+[Column sorting QA](qa/commit-column-sorting-2026-10-08.json) records Core
+comparison/group/clipboard regressions and actual hidden Commit tables. The
+receiver uses each native header's sort descriptor prototype and the table data
+source callback to exercise its SwiftUI binding, then verifies rendered
+interaction-probe row order, groups, checked/highlighted/focus identity and
+repository bytes. No mouse/key events are synthesized. Physical header arrows/
+click modifiers, light/dark screenshots, accessibility, optional source columns,
+completion catalog order and other status-list consumers remain pending. This
+is a Commit sorting increment, not full Commit or application parity.

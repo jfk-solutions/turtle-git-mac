@@ -753,3 +753,10 @@ Merge Go to Line adapts CBaseView::OnEditGotoline and CGotoLineDlg (copyright
 or later. BaseView attribution above also applies. The native AppKit sheet
 validates one-based source numbers and skips unnumbered alignment rows;
 Control-G preserves macOS Command-G Find Next. Its number glyph is native.
+
+Commit file-list column sorting adapts CSorter from
+src/TortoiseProc/GitStatusListCtrlHelpers.cpp, copyright (C) 2008, 2014
+TortoiseSVN; (C) 2008-2017, 2019, 2026 TortoiseGit, GPL version 2 or later,
+and CGitStatusListCtrl::OnHdnItemclick (existing GitStatusListCtrl attribution
+above). Native table headers and Foundation numeric/case-insensitive collation
+replace Windows headers/StrCmpLogicalW. Group and Git path identities remain.

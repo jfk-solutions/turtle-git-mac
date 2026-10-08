@@ -79,3 +79,39 @@ public enum StatusListGroups {
         return result
     }
 }
+
+/// Port of CSorter for the five columns currently exposed in Commit. Foundation
+/// numeric/case-insensitive collation replaces Windows StrCmpLogicalW.
+public enum StatusListSorting {
+    public static func compare(_ lhs: StatusEntry, _ rhs: StatusEntry, column: StatusListColumn,
+                               lhsStatistics: CommitFile? = nil, rhsStatistics: CommitFile? = nil,
+                               lhsDirectory: Bool = false, rhsDirectory: Bool = false) -> ComparisonResult {
+        func text(_ a: String, _ b: String, numeric: Bool = true) -> ComparisonResult {
+            a.compare(b, options: numeric ? [.caseInsensitive, .numeric] : [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+        }
+        func status(_ entry: StatusEntry, _ statistics: CommitFile?) -> String {
+            entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics?.status ?? entry.state.rawValue.capitalized
+        }
+        func count(_ statistics: CommitFile?, added: Bool) -> Int {
+            guard let statistics, statistics.hasStatistics else { return -2 }
+            return (added ? statistics.added : statistics.removed) ?? -1
+        }
+        var result: ComparisonResult
+        switch column {
+        case .path: result = text(lhs.path, rhs.path)
+        case .fileExtension:
+            result = text(StatusListClipboard.fileExtension(lhs.path, isDirectory: lhsDirectory), StatusListClipboard.fileExtension(rhs.path, isDirectory: rhsDirectory))
+        case .status: result = text(status(lhs, lhsStatistics), status(rhs, rhsStatistics), numeric: false)
+        case .added, .removed:
+            let a = count(lhsStatistics, added: column == .added), b = count(rhsStatistics, added: column == .added)
+            result = a < b ? .orderedAscending : a > b ? .orderedDescending : .orderedSame
+        }
+        if result == .orderedSame { result = text(lhs.path, rhs.path) }
+        // Git names retain byte identity on macOS; canonically equivalent and
+        // case-only names need a deterministic tie without merging their rows.
+        if result == .orderedSame, !lhs.path.utf8.elementsEqual(rhs.path.utf8) {
+            result = lhs.path.utf8.lexicographicallyPrecedes(rhs.path.utf8) ? .orderedAscending : .orderedDescending
+        }
+        return result
+    }
+}

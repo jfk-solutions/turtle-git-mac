@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "5426e36abc551bead2df2fa5ab42d0308672ad0e",
+  "scope": "Commit native five-column header sorting, source single-column/direction/path-tie semantics, fixed groups and selection identity. Full application/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/GitStatusListCtrlHelpers.cpp": "96130c1e179a071f66f962fab17fd3ab71af9cd3"
+  },
+  "sources_manifest_sha256": "db35668affba84c580916ab90e820f721cf4ec1cf4d8f7d0d8f504cb6f6b9172",
+  "changed_files_sha256": {
+    "NOTICE": "b35bfce8c0da65b568087094b2d0dcb9c67ba446a9043ac9eceb00792d9a22c7",
+    "Sources/TurtleGitCore/StatusListGroups.swift": "31523632275c0063480b5c00c2faa9a9f5131c6c69a69f95853dbe68e988bf87",
+    "Sources/TurtleGitMac/CommitWindow.swift": "d0bda11b01cfe05cbfd23fa775208c4cd3ee18a5852e36f43e6671f957adff09",
+    "docs/COMMIT-PARITY.md": "43c336f0cf225007936d5deadfc555134b4a616b41c9311351bf306930efc278",
+    "docs/upstream-files.csv": "88a562f145fb777071dfe76639603c64cd65f69942cbaa26b5594e4645cae729",
+    "Tests/TurtleGitCoreTests/StatusListSortingTests.swift": "a16dd556da5bc5d8eb7fe31d5be2743b2dd38633d933fa969511ba3b8f549f86",
+    "docs/qa/commit-column-sorting-native-2026-10-08.swift": "5004d368c91e9bd89a5ba9e949087420252c5d0afdc9762b5d2f653c2e09790a",
+    "scripts/test-commit-column-sorting.py": "5f2f33cf6616ff9b84ea79b7e91e7f030a4c8b7bf3a020f7c709ebb6a08a86ce"
+  },
+  "verification": {
+    "core": "14 StatusListSortingTests/StatusListGroupTests/StatusListClipboardTests executions pass. Five new sorting tests verify natural path/extension, path ties, numeric added/removed and missing/binary sentinels, displayed statuses including rename, byte-distinct Unicode/case tie determinism and group/header order.",
+    "native": "Final receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Actual production SwiftUI Commit table exposes five native sort descriptor prototypes and an unsortable checkbox header. Actual table data-source callback updates binding for each column both directions. Rendered interaction probe row IDs/order, fixed groups, model checked/highlighted/focus identity and native row count verified; natural path and numeric counts independently ordered. Busy/Quit refuses setter; one-column policy, staged/unstaged statistics and refresh retention verified. HEAD/raw index/worktree/changelist bytes retained. Owned hidden window closes; no synthetic events.",
+    "builds": "Unsigned Debug and sequential AppStore builds pass; final native receiver runs against stationary Debug before Store starts. Both bundle audits, bundled NOTICE equality, inventory pin and diff checks pass. Sources/NOTICE/tests/receiver frozen while builds/Core/native handles live.",
+    "site": "Static GitHub Pages generator includes updated Commit parity and QA link; final result logged in local site.log."
+  },
+  "iterations": [
+    "Core tests and production Debug build pass first run. Initial receiver compile failed on missing actor await and sort callback incorrectly addressed to delegate; corrected to awaited repository call and NSTableViewDataSource callback per SDK. Next receiver failed before fixture setup because NSApp was not initialized; corrected to NSApplication.shared. Final receiver passes all four engines. Failed logs retained; no production source fixes were required."
+  ],
+  "limitations": [
+    "Physical header clicks/arrows/modifier interaction, keyboard, light/dark screenshots and accessibility acceptance remain pending.",
+    "Foundation numeric/case-insensitive POSIX collation adapts StrCmpLogicalW; exact Windows locale/policy collation and full path-identity acceptance are not claimed.",
+    "Only five currently exposed Commit columns ported; optional source columns, completion-catalog display-order coupling and other status-list consumers remain pending.",
+    "Native checks preserve repository state without issuing a post-sort commit; existing commit backend tests/earlier QA cover commit behavior separately.",
+    "Full application parity, signed Finder deployment, real new screenshots, App Store eligibility and external CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "removed_empty_preferences": [
+      "TurtleGit.CommitSorting.QA.6BEFB0D4-7D40-45A5-ADDA-4AE387EFA763.plist",
+      "TurtleGit.CommitSorting.QA.63ACFBAF-6505-4A21-8772-8EFE7B5E6E0B.plist",
+      "TurtleGit.CommitSorting.QA.EAE3C614-2D80-47B7-83A4-FB4D0D93FD09.plist",
+      "TurtleGit.CommitSorting.QA.D72A4BB7-3287-45EF-9D1E-9B34CB756F6F.plist"
+    ],
+    "retained_nonempty_preferences": [],
+    "private_fixture_directories": [],
+    "processes": []
+  },
+  "local_log_sha256": {
+    "build/qa/commit-column-sorting-2026-10-08/core.log": "46cf7e472af51d735c8c1f5e6b839e4185e2c26be93b496f93abdc4d8c390c0f",
+    "build/qa/commit-column-sorting-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-column-sorting-2026-10-08/debug.log": "323e81860f030bbdfcd2111f1dd95ce5693b68720b3fbc20add2ea489daa63ef",
+    "build/qa/commit-column-sorting-2026-10-08/native-final.log": "68b166d0e20a07db4b3c1b10947a62b220fb3eb1c4886354d312598f887ad125",
+    "build/qa/commit-column-sorting-2026-10-08/native-initialized.log": "4a94944589498dcc763f98e45bb2616ce017f0eccc81fb6f0c1e1326baf24d83",
+    "build/qa/commit-column-sorting-2026-10-08/native.log": "d8da0582c0abf61e791b5a4cbd5997a7c324d57bec4f568f4403b277c60bca9e",
+    "build/qa/commit-column-sorting-2026-10-08/pin-initial.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-column-sorting-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-column-sorting-2026-10-08/store-audit.log": "c760ff4763f156e92fefd77049a3a405cd056e1834de60679fb6b388e97ef7a9",
+    "build/qa/commit-column-sorting-2026-10-08/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/commit-column-sorting-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

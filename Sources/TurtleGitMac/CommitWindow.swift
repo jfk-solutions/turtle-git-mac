@@ -248,6 +248,7 @@ import UniformTypeIdentifiers
     @Published var statistics: [String: CommitFile] = [:]
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
+    @Published var fileSortOrder = [CommitFileSort(column: .path)]
     @Published var focusedFiles: [String: String] = [:]
     @Published var changelists = GitChangelists()
     @Published var changelistsLoaded = false
@@ -424,6 +425,17 @@ import UniformTypeIdentifiers
             entry.state != .ignored && (showUnversioned || entry.state != .untracked) &&
                 (entry.staged || showWholeProject || scopePaths.contains { $0 == entry.path || entry.path.hasPrefix($0 + "/") })
         }
+    }
+    func sortedFiles(_ files: [StatusEntry], statistics: [String: CommitFile]) -> [StatusEntry] {
+        guard let comparator = fileSortOrder.first else { return files }
+        return files.map { CommitSortableRow(row: .file($0), statistics: statistics[$0.path], isDirectory: submodules.contains($0.path)) }
+            .sorted(using: comparator).compactMap(\.entry)
+    }
+    func setFileSortOrder(_ order: [CommitFileSort]) {
+        guard !busy, !confirmingQuit else { return }
+        // The source retains one column, with its path tie-break, rather than
+        // accumulating old columns as additional sorting priorities.
+        fileSortOrder = Array(order.prefix(1))
     }
     var stagedEntries: [StatusEntry] { visibleEntries.filter(\.staged) }
     var unstagedEntries: [StatusEntry] { visibleEntries.filter { $0.worktree != " " && $0.worktree != "!" } }
@@ -984,6 +996,25 @@ import UniformTypeIdentifiers
     }
 }
 
+struct CommitSortableRow: Identifiable {
+    let row: StatusListRow
+    let statistics: CommitFile?
+    let isDirectory: Bool
+    var id: String { row.id }
+    var entry: StatusEntry? { row.entry }
+    var group: StatusListGroup? { row.group }
+}
+struct CommitFileSort: SortComparator {
+    var column: StatusListColumn
+    var order: SortOrder = .forward
+    func compare(_ lhs: CommitSortableRow, _ rhs: CommitSortableRow) -> ComparisonResult {
+        guard let a = lhs.entry, let b = rhs.entry else { return .orderedSame }
+        let comparison = StatusListSorting.compare(a, b, column: column, lhsStatistics: lhs.statistics, rhsStatistics: rhs.statistics, lhsDirectory: lhs.isDirectory, rhsDirectory: rhs.isDirectory)
+        if order == .forward { return comparison }
+        return comparison == .orderedAscending ? .orderedDescending : comparison == .orderedDescending ? .orderedAscending : .orderedSame
+    }
+}
+
 struct CommitDialog: View {
     @ObservedObject var model: CommitWindowModel
     @AppStorage("Commit.MessagePaneHeight") private var messagePaneHeight = 300.0
@@ -1143,12 +1174,15 @@ GroupBox("Changes made (double-click on file for diff):") {
     }
     func fileTable(_ entries: [StatusEntry], selection: Binding<Set<String>>, staged: Bool?) -> some View {
         let statistics = staged.map { $0 ? model.stagedStatistics : model.unstagedStatistics } ?? model.statistics
+        let entries = model.sortedFiles(entries, statistics: statistics)
         let focusKey = staged.map { $0 ? "staged" : "unstaged" } ?? "checkbox"
         let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
         let ignored = Set(model.indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
         let rows = StatusListGroups.rows(entries: entries, changelists: model.changelists, locallyIgnored: ignored)
-        return Table(rows, selection: selection) {
-            TableColumn("") { (row: StatusListRow) in
+        let tableRows = rows.map { CommitSortableRow(row: $0, statistics: $0.entry.flatMap { statistics[$0.path] }, isDirectory: $0.entry.map { model.submodules.contains($0.path) } ?? false) }
+        let sort = Binding(get: { model.fileSortOrder }, set: { model.setFileSortOrder($0) })
+        return Table(tableRows, selection: selection, sortOrder: sort) {
+            TableColumn("") { (row: CommitSortableRow) in
                 if let entry = row.entry {
                     if staged != nil {
                         StagingCheckbox(entry: entry, enabled: !model.busy && !model.confirmingQuit) { model.setFileChecked(entry, files: entries, highlighted: selection.wrappedValue, checked: $0) }.frame(width: 20, height: 20)
@@ -1158,7 +1192,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                     }
                 }
             }.width(24)
-            TableColumn("Path") { (row: StatusListRow) in
+            TableColumn("Path", sortUsing: CommitFileSort(column: .path)) { (row: CommitSortableRow) in
                 if let entry = row.entry {
                     HStack {
                         Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
@@ -1173,19 +1207,19 @@ GroupBox("Changes made (double-click on file for diff):") {
                     }.accessibilityLabel(group.title)
                 }
             }.width(min: 260, ideal: 420)
-            TableColumn("Extension") { (row: StatusListRow) in
+            TableColumn("Extension", sortUsing: CommitFileSort(column: .fileExtension)) { (row: CommitSortableRow) in
                 if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path))) }
                 else { groupRule }
             }.width(75)
-            TableColumn("Status") { (row: StatusListRow) in
+            TableColumn("Status", sortUsing: CommitFileSort(column: .status)) { (row: CommitSortableRow) in
                 if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }
                 else { groupRule }
             }.width(90)
-            TableColumn("Lines added") { (row: StatusListRow) in
-                lineCount(row, statistics: statistics, selected: selection.wrappedValue, added: true)
+            TableColumn("Lines added", sortUsing: CommitFileSort(column: .added)) { (row: CommitSortableRow) in
+                lineCount(row.row, statistics: statistics, selected: selection.wrappedValue, added: true)
             }.width(80)
-            TableColumn("Lines removed") { (row: StatusListRow) in
-                lineCount(row, statistics: statistics, selected: selection.wrappedValue, added: false)
+            TableColumn("Lines removed", sortUsing: CommitFileSort(column: .removed)) { (row: CommitSortableRow) in
+                lineCount(row.row, statistics: statistics, selected: selection.wrappedValue, added: false)
             }.width(95)
         }.contextMenu(forSelectionType: String.self) { requested in
             TurtleGitContextMenu {
