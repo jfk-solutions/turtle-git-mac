@@ -1668,3 +1668,28 @@ headings, Reset and repository preservation across four Git engines. Pointer
 notification capture, physical dragging/resize, autosizing, changed fonts,
 multiple displays/DPI, themes and signed acceptance remain pending. Full
 ColumnManager, Commit and application parity are still incomplete.
+
+## Commit column fitting
+
+Unadjusted visible columns now fit their headers and displayed file values,
+including rows outside the viewport. A divider double-click fits file contents
+and saves an adjusted width. Shift-double-click clears that column's adjustment
+and restores automatic header/content fitting. Refresh and visibility changes
+recalculate unadjusted widths while preserving adjusted widths. Group headings
+do not affect individual file-column measurements. The Path column includes
+padding for its original status icon. Native fonts, points and minimum/maximum
+constraints replace Windows list-view metrics. The formerly fixed Extension,
+Status, Lines added/removed and File size columns now allow width adjustment.
+
+The existing native input observer routes divider gestures without replacing
+SwiftUI's table delegate or header. Checkbox/hidden columns, busy operations and
+Quit confirmation reject fitting. Reset still restores order and source default
+visibility, with visible unadjusted columns automatically fitted; hidden columns
+retain native startup widths until shown.
+
+[Column fitting QA](qa/commit-column-fitting-2026-10-08.json) records direct
+production fitting, actual native widths and divider hit geometry, content-only
+versus header/content sizing, saved adjustment removal, offscreen rows, refresh
+retention and operation locks. These checks do not prove physical pointer
+tracking, platform font/display variants or visual acceptance. LFS Lock, other
+shared-control consumers and full Commit/application parity remain incomplete.

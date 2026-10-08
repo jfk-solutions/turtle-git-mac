@@ -139,12 +139,48 @@ import TurtleGitCore
                 if column == .added { precondition((files.firstIndex { $0.path == "file2.swift" }! < files.firstIndex { $0.path == "file10.swift" }!) == ascending) }
             }
         }
+        // Real native widths and divider geometry; call production fitting directly,
+        // without manufacturing a mouse event or replacing SwiftUI's delegate.
+        let extensionColumn = table.tableColumns[3]
+        let defaultExtensionWidth = probe().fittedWidth(extensionColumn, definition: .fileExtension, includeHeader: true)
+        try await settle { abs(extensionColumn.width - defaultExtensionWidth) < 0.5 }
+        let rect = table.headerView!.headerRect(ofColumn: 3)
+        precondition(probe().dividerColumn(atHeaderPoint: NSPoint(x: rect.maxX, y: rect.midY)) == 3)
+        precondition(probe().dividerColumn(atHeaderPoint: NSPoint(x: rect.midX, y: rect.midY)) == nil)
+        precondition(!probe().fitColumn(atNativeIndex: 0, useDefault: false))
+        precondition(!probe().fitColumn(atNativeIndex: 2, useDefault: false)) // Hidden Filename.
+        let contentWidth = probe().fittedWidth(extensionColumn, definition: .fileExtension, includeHeader: false)
+        precondition(probe().fitColumn(atNativeIndex: 3, useDefault: false))
+        try await settle { model.fileColumns.widths[.fileExtension] == Double(contentWidth) && abs(extensionColumn.width - contentWidth) < 0.5 }
+        precondition(defaultExtensionWidth > contentWidth)
+        let originalEntries = model.entries
+        model.setFileSortOrder([CommitFileSort(column: .path)])
+        var more: [StatusEntry] = []
+        for number in 0..<60 {
+            let suffix = number == 59 ? String(repeating: "x", count: 80) : "txt"
+            let record = " M offscreen\(number)." + suffix + "\0"
+            more += StatusEntry.parse(Data(record.utf8))
+        }
+        model.entries += more
+        try await settle { probe().rows.compactMap(\.entry).count == originalEntries.count + more.count }
+        let widestRow = probe().rows.firstIndex { $0.entry?.path == more.last!.path }!
+        precondition(widestRow >= NSMaxRange(table.rows(in: table.visibleRect))) // Sole widest row really outside viewport.
+        precondition(abs(extensionColumn.width - contentWidth) < 0.5) // Manual fitting remains adjusted.
+        let autoWidth = probe().fittedWidth(extensionColumn, definition: .fileExtension, includeHeader: true)
+        precondition(autoWidth > defaultExtensionWidth && autoWidth > contentWidth)
+        precondition(probe().fitColumn(atNativeIndex: 3, useDefault: true))
+        try await settle { model.fileColumns.widths[.fileExtension] == nil && abs(extensionColumn.width - autoWidth) < 0.5 }
+        precondition(StatusListColumnSettings.load(from: defaults).widths[.fileExtension] == nil)
+        model.entries = originalEntries
+        try await settle { probe().rows.compactMap(\.entry).count == originalEntries.count && abs(extensionColumn.width - defaultExtensionWidth) < 0.5 }
+        precondition(model.checked == checked && model.selection == selection)
         let retained = model.fileSortOrder
         for quit in [false, true] {
             model.busy = !quit; model.confirmingQuit = quit
             model.setFileSortOrder([CommitFileSort(column: .path)])
             let columns = model.fileColumns
             model.setFileColumn(.fileName, visible: true)
+            precondition(!probe().fitColumn(atNativeIndex: 3, useDefault: false))
             precondition(!model.saveFileColumnLayout(order: [.status], widths: [.path: 999]) && !model.resetFileColumns() && model.fileColumns == columns)
             precondition(model.fileSortOrder == retained)
         }
@@ -164,7 +200,7 @@ import TurtleGitCore
         let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(finalIndex == index)
         let after = try protected.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
         window.close()
-        print("PASS: native Commit eight sortable header prototypes, default optional hiding, header visibility dispatch, saved choices/reopen, injected reset No/Yes and owner operation locks, native moved-column identity, saved adjusted width/order, actual table reopening and visible clipboard order, width retention/reset, visible-only metadata clipboard and actual data source binding dispatch; numeric/path ascending+descending, source path tie, fixed group order, checked/highlighted/focus identity; busy/Quit refusal, one-column policy, staged/unstaged statistics and reload retention; repository HEAD/raw index/worktree/changelists retained. Owned hidden window closed; no synthetic events or physical header acceptance.")
+        print("PASS: native Commit eight sortable header prototypes, default optional hiding, header visibility dispatch, saved choices/reopen, injected reset No/Yes and owner operation locks, native moved-column identity, saved adjusted width/order, actual table reopening and visible clipboard order, width retention/reset, automatic header/content fitting, content-only adjusted fitting and default restoration, offscreen content width changes/manual retention, divider geometry and fit locks, visible-only metadata clipboard and actual data source binding dispatch; numeric/path ascending+descending, source path tie, fixed group order, checked/highlighted/focus identity; busy/Quit refusal, one-column policy, staged/unstaged statistics and reload retention; repository HEAD/raw index/worktree/changelists retained. Owned hidden window closed; no synthetic events or physical header acceptance.")
     }
 }
 struct CommitSortingHost: View {

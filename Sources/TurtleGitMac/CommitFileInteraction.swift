@@ -7,6 +7,7 @@ import TurtleGitCore
 struct CommitFileInteraction: NSViewRepresentable {
     let rows: [StatusListRow]
     let visibleColumns: Set<StatusListColumn>
+    let columnText: (StatusEntry, StatusListColumn) -> String
     let savedOrder: [StatusListColumn]
     let savedWidths: [StatusListColumn: Double]
     let saveLayout: ([StatusListColumn], [StatusListColumn: Double]) -> Bool
@@ -24,6 +25,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
     }
     func updateNSView(_ view: Probe, context: Context) {
+        view.columnText = columnText
         view.savedOrder = savedOrder; view.savedWidths = savedWidths; view.saveLayout = saveLayout
         view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
         view.rows = rows; view.focusedPath = $focusedPath
@@ -35,6 +37,7 @@ struct CommitFileInteraction: NSViewRepresentable {
     final class Probe: NSView {
         var rows: [StatusListRow] = []
         var visibleColumns = Set(StatusListColumn.defaultColumns)
+        var columnText: (StatusEntry, StatusListColumn) -> String = { _, _ in "" }
         var savedOrder = StatusListColumn.allCases
         var savedWidths: [StatusListColumn: Double] = [:]
         var saveLayout: ([StatusListColumn], [StatusListColumn: Double]) -> Bool = { _, _ in false }
@@ -69,6 +72,34 @@ struct CommitFileInteraction: NSViewRepresentable {
             savedOrder = order; savedWidths = widths
             desiredColumns = [originalColumns[0]] + table.tableColumns.filter { columnDefinitions[ObjectIdentifier($0)] != nil }
             desiredWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
+        }
+        func fittedWidth(_ column: NSTableColumn, definition: StatusListColumn, includeHeader: Bool) -> CGFloat {
+            let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+            let padding: CGFloat = definition == .path ? 38 : 14
+            let content = rows.compactMap(\.entry).map {
+                (columnText($0, definition) as NSString).size(withAttributes: [.font: font]).width + padding
+            }.max() ?? column.minWidth
+            let header = includeHeader ? (column.title as NSString).size(withAttributes: [.font: font]).width + 20 : 0
+            return max(column.minWidth, min(column.maxWidth, ceil(max(content, header))))
+        }
+        @discardableResult func fitColumn(atNativeIndex index: Int, useDefault: Bool) -> Bool {
+            guard enabled, let table = configuredTable, table.tableColumns.indices.contains(index),
+                  let definition = columnDefinition(atNativeIndex: index), !table.tableColumns[index].isHidden else { return false }
+            let column = table.tableColumns[index]
+            var widths = savedWidths
+            if useDefault { widths.removeValue(forKey: definition) }
+            else { widths[definition] = Double(fittedWidth(column, definition: definition, includeHeader: false)) }
+            guard saveLayout(savedOrder, widths) else { return false }
+            savedWidths = widths
+            configureColumns()
+            return true
+        }
+        func dividerColumn(atHeaderPoint point: NSPoint) -> Int? {
+            guard let table = configuredTable, let header = table.headerView, header.bounds.contains(point) else { return nil }
+            return table.tableColumns.indices.first { index in
+                !table.tableColumns[index].isHidden && columnDefinition(atNativeIndex: index) != nil &&
+                abs(point.x - header.headerRect(ofColumn: index).maxX) <= 4
+            }
         }
         private func applyNativeColumnLayout() {
             guard let table = configuredTable, !trackingHeader else { return }
@@ -107,6 +138,9 @@ struct CommitFileInteraction: NSViewRepresentable {
             })
             desiredColumns = [originalColumns[0]] + savedOrder.compactMap { byDefinition[$0] }
             desiredWidths = originalWidths
+            for (definition, column) in byDefinition where visibleColumns.contains(definition) && savedWidths[definition] == nil {
+                desiredWidths[ObjectIdentifier(column)] = fittedWidth(column, definition: definition, includeHeader: true)
+            }
             for (definition, width) in savedWidths {
                 if let column = byDefinition[definition] { desiredWidths[ObjectIdentifier(column)] = max(column.minWidth, min(column.maxWidth, CGFloat(width))) }
             }
@@ -216,7 +250,12 @@ struct CommitFileInteraction: NSViewRepresentable {
             if event.type == .leftMouseDown {
                 draggingHeader = false
                 if let table = configuredTable, let header = table.headerView {
-                    trackingHeader = header.bounds.contains(header.convert(event.locationInWindow, from: nil))
+                    let point = header.convert(event.locationInWindow, from: nil)
+                    trackingHeader = header.bounds.contains(point)
+                    if event.clickCount == 2, let index = dividerColumn(atHeaderPoint: point) {
+                        trackingHeader = false
+                        if fitColumn(atNativeIndex: index, useDefault: event.modifierFlags.contains(.shift)) { return nil }
+                    }
                 }
             }
             if event.type == .leftMouseDragged { if trackingHeader { draggingHeader = true }; return event }

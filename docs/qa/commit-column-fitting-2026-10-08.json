@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "d7d373f02e66e80e34d7602b68e198c85d615f58",
+  "scope": "Commit automatic column fitting and divider content/default fitting. Full application and distribution remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/ColumnManager.cpp": "6776d4d47a80a9af042223ebd5f8589cd48b57f3",
+    "src/TortoiseProc/ColumnManager.h": "bd12076609badaecb865f168ebefd1e235a7315b",
+    "src/TortoiseProc/ResizableColumnsListCtrl.h": "84350420f3d5dfd6eb685f21415559487dd59611"
+  },
+  "sources_manifest_sha256": "789bed0dbe754829d4e99cc7bf4ae0014d8f0250e07e77e9b64f5847f894311a",
+  "changed_files_sha256": {
+    "NOTICE": "15763f8419888196b05dc9a91d519e6e17ba8e79771dde25e4180fb5550998aa",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "80e2d782c5674d6299c779ef824dba80e8319361e9a3e49f4a31a396813a3e22",
+    "Sources/TurtleGitMac/CommitWindow.swift": "2db842271aca14d62d0d70c1a6224dc0f4668fc7d9159ef2f5a2d2f068c5b483",
+    "docs/COMMIT-PARITY.md": "c55f445b68e5ba0709efa1c0bc13e819882b809d7963ae60e6c3c117aba869d1",
+    "docs/qa/commit-column-sorting-native-2026-10-08.swift": "dc407ba566d93d3f078dfcb0c3191b458f23955a1e2313b2975168abe9cc4b3c",
+    "docs/upstream-files.csv": "af0c36d908faace7af3bf0c7e36abe14a10d0be58d106c241f5f2e6cabeeb56f"
+  },
+  "verification": {
+    "native": "Final strengthened receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Actual native header/content automatic widths, content-only fit saved as adjustment, Shift/default fit clears only that adjustment, and native divider hit geometry. Sixty added model-only rows have a sole widest extension at the last row; its actual row index is asserted outside the native viewport. Adjusted width stays fixed when data grows; clearing adjustment grows to that offscreen value and removing rows shrinks to default. Checkbox/hidden and busy/Quit fitting refused. Existing all-eight sorting, groups/checks/selection/focus, clipboard visible order, saved width/order and actual second-table reopening, injected Reset No/Yes, staged/unstaged/reload, HEAD/raw index/worktree/changelist preservation pass. No synthetic input.",
+    "builds": "Debug and sequential unsigned AppStore builds and both bundle audits pass; packaged Git runtime, all 99 original icons and NOTICE equality verified. Production sources/NOTICE/receiver frozen while compile/native handles live.",
+    "core": "No Core or Core-test source changed. Prior checkpoint recorded 19 passing focused Core tests; no additional Core execution claimed for this Mac-only change.",
+    "inventory": "3277 source records, seven CSV fields, LF preserved; inventory pin check and diff checks pass.",
+    "site": "Static GitHub Pages generation includes updated Commit parity and new QA link; result and log hash recorded locally."
+  },
+  "iterations": [
+    "Initial four-engine native fitting checks passed. Strengthened sole-offscreen-widest fixture initially failed receiver compilation because a compound Swift expression exceeded type-checking limits. Split fixture construction into explicit typed steps; final strengthened checks passed all four engines. Production code unchanged by this test-only correction."
+  ],
+  "limitations": [
+    "Physical double-click/Shift/resize notification dispatch and real confirmation sheet behavior remain unverified; direct production fitting and injected choices are exercised.",
+    "Native system font/points/minimum/maximum widths and icon padding adapt Windows list metrics. Font/display/DPI variants, light/dark screenshots, accessibility and visual acceptance remain pending.",
+    "LFS Lock and remaining shared-control consumers/full ColumnManager behavior, all dialog parity, signed Finder/sandbox deployment, App Store eligibility, fresh real screenshots and external GitHub CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "removed_empty_preferences": [
+      "TurtleGit.CommitSorting.QA.1BD5E774-DCF5-448B-A173-4F7C65979065.plist",
+      "TurtleGit.CommitSorting.QA.30E9562B-8EB5-4C37-9DD3-3E81BBE362BE.plist",
+      "TurtleGit.CommitSorting.QA.4BA93553-32F1-4FE6-9961-B12C17E5539A.plist",
+      "TurtleGit.CommitSorting.QA.618CD26B-EFC7-4D3B-8FD6-350B05A357F5.plist",
+      "TurtleGit.CommitSorting.QA.9183D3B4-FAE4-4003-8AFC-D3FB0FC77473.plist",
+      "TurtleGit.CommitSorting.QA.A8E9F7CC-0FA8-4DCE-A587-2681524F73F0.plist",
+      "TurtleGit.CommitSorting.QA.BB0E802D-52A7-421C-969A-670315B93FF9.plist",
+      "TurtleGit.CommitSorting.QA.F25DAB35-0ABC-4D62-A577-6998FFCED71D.plist"
+    ],
+    "retained_nonempty_failed_preferences": [
+      "TurtleGit.CommitSorting.QA.406525AC-A287-4456-94D8-46210E46E1A5.plist",
+      "TurtleGit.CommitSorting.QA.43F598B1-3867-4993-BCA4-E85BE13EC646.plist",
+      "TurtleGit.CommitSorting.QA.B0A2175C-5C99-4ECE-8824-ED6CE2CDAB7C.plist",
+      "TurtleGit.CommitSorting.QA.C78D2417-C4D7-48BD-AD88-592D5CEA86FD.plist",
+      "TurtleGit.CommitSorting.QA.F0A46B5A-D9D5-4AFF-ABC9-08A9C914F333.plist"
+    ],
+    "processes": [],
+    "private_fixture_directories": [],
+    "fixture_search_roots": [
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T",
+      "/tmp"
+    ]
+  },
+  "local_log_sha256": {
+    "build/qa/commit-column-fitting-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-column-fitting-2026-10-08/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-column-fitting-2026-10-08/native-offscreen-compile-final.log": "e199cae7fc98027e45ee0ebd21b6f9dfde4b049c86c4425beff708fe30c57387",
+    "build/qa/commit-column-fitting-2026-10-08/native-offscreen-final.log": "0c58d0669262a4de5a63016c6d53532d97148dc8f05e6c5de66f8deef26492b0",
+    "build/qa/commit-column-fitting-2026-10-08/native.log": "e199cae7fc98027e45ee0ebd21b6f9dfde4b049c86c4425beff708fe30c57387",
+    "build/qa/commit-column-fitting-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-column-fitting-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-column-fitting-2026-10-08/store-audit.log": "c760ff4763f156e92fefd77049a3a405cd056e1834de60679fb6b388e97ef7a9",
+    "build/qa/commit-column-fitting-2026-10-08/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

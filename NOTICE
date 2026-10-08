@@ -777,3 +777,11 @@ WriteSettings/ParseWidths/ParseColumnOrder behavior. ColumnManager copyright
 and GPL attribution above applies. Native widths use points and clamp to the
 current column constraints; unadjusted columns retain native defaults. Reset
 clears adjusted widths/order; Copy All follows the displayed visible order.
+
+Commit automatic column fitting and divider double-click/Shift behavior adapt
+ColumnManager GetWidth/ColumnResized/OnHeaderDblClick and
+ResizableColumnsListCtrl AdjustColumnWidths. Their GPL version 2 or later and
+copyright attribution above applies. Native fonts, points, column constraints
+and icon padding replace Windows list metrics. Only explicit content fitting
+or resizing saves an adjustment; Shift fitting restores automatic header and
+content sizing, including rows outside the viewport. Physical input pending.
