@@ -669,3 +669,9 @@ Import Patch's View Patch/double-click and Send Mail selection rules adapt
 CPatchListCtrl.cpp/.h, copyright (C) 2009-2013, 2015-2016, 2018-2023, 2025
 TortoiseGit, under GPL version 2 or later. Native file leases, exact byte viewer
 snapshots and the macOS sharing service replace the Windows process handoffs.
+
+Import Patch's styled preview and 250 MiB preview threshold follow
+CSciEdit::SetUDiffStyle/LoadFromFile, copyright (C) 2009-2026 TortoiseGit and
+(C) 2003-2008, 2012-2020, 2025 TortoiseSVN, under GPL version 2 or later. Native
+read-only diff rendering uses the shared appearance settings; BOM-aware display
+decoding is a native adaptation that keeps original export/import bytes intact.

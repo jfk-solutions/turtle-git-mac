@@ -37,13 +37,13 @@ import TurtleGitCore
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
         let (repo, patches) = try await fixture(root.appendingPathComponent("batch"), git)
-        let controller = ImportPatchWindowController(repository: repo, access: nil), model = controller.model
+        let suite = "TurtleGit.ImportPatch.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
+        let controller = ImportPatchWindowController(repository: repo, access: nil, preferences: prefs), model = controller.model
         // Prevent production error sheets. The layout host remains hidden and
         // uses its own preferences; no main app or user preference store runs.
         controller.window?.contentViewController = nil
-        let suite = "TurtleGit.ImportPatch.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize(); model.invalidate(); controller.close() }
-        let host = NSHostingView(rootView: ImportPatchDialog(model: model).defaultAppStorage(prefs))
+        let host = NSHostingView(rootView: AnyView(ImportPatchDialog(model: model).defaultAppStorage(prefs).environment(\.colorScheme, .light)))
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host
         defer { window.contentView = nil; window.close() }
@@ -56,6 +56,33 @@ import TurtleGitCore
         model.selection = [ids[0]]
         for _ in 0..<30 { host.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(nativeTable(host)?.numberOfRows == 3 && model.preview.contains("Feature 0"))
+        func patchText(_ view: NSView) -> NSTextView? {
+            if let text = view as? PatchTextView.PatchText { return text }
+            return view.subviews.compactMap { patchText($0) }.first
+        }
+        func settleLayout() async throws {
+            for _ in 0..<20 { host.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        }
+        func rgb(_ color: NSColor) -> UInt32 {
+            let c = color.usingColorSpace(.sRGB)!
+            return UInt32((c.redComponent * 255).rounded()) << 16 | UInt32((c.greenComponent * 255).rounded()) << 8 | UInt32((c.blueComponent * 255).rounded())
+        }
+        let editor = patchText(host)!, added = (editor.string as NSString).range(of: "\n+feature\n").location + 1
+        precondition(added > 0 && added < editor.string.utf16.count && !editor.isEditable && (editor.textStorage!.attribute(.font, at: added, effectiveRange: nil) as? NSFont)?.pointSize == 10)
+        precondition(model.previewDocument.readOnly && !model.previewDocument.refreshAvailable)
+        let originalPreview = try Data(contentsOf: patches[0]); precondition(model.previewDocument.exportDocument.bytes == originalPreview)
+        let palette = UnifiedDiffAppearance()
+        precondition(rgb(editor.textStorage!.attribute(.backgroundColor, at: added, effectiveRange: nil) as! NSColor) == palette.colors(.added, dark: false).background)
+        host.rootView = AnyView(ImportPatchDialog(model: model).defaultAppStorage(prefs).environment(\.colorScheme, .dark))
+        try await settleLayout()
+        let darkEditor = patchText(host)!, darkAdded = (darkEditor.string as NSString).range(of: "\n+feature\n").location + 1
+        precondition(rgb(darkEditor.textStorage!.attribute(.backgroundColor, at: darkAdded, effectiveRange: nil) as! NSColor) == palette.colors(.added, dark: true).background)
+        var custom = palette; custom.fontSize = 17; custom.light[.added] = .init(0x123456, 0xabcdef); custom.save(to: prefs)
+        host.rootView = AnyView(ImportPatchDialog(model: model).defaultAppStorage(prefs).environment(\.colorScheme, .light))
+        try await settleLayout()
+        let customEditor = patchText(host)!, customAdded = (customEditor.string as NSString).range(of: "\n+feature\n").location + 1
+        precondition((customEditor.textStorage!.attribute(.font, at: customAdded, effectiveRange: nil) as? NSFont)?.pointSize == 17 && rgb(customEditor.textStorage!.attribute(.backgroundColor, at: customAdded, effectiveRange: nil) as! NSColor) == 0xabcdef)
+        print("PASS: actual hidden Import Patch styled preview, source default font, light/dark added-line palettes, custom shared color/font and original export bytes; no physical screenshot acceptance.")
         precondition(model.options.threeWay && model.options.ignoreSpaceChange && model.options.keepCR && !model.options.signOff)
         model.options.signOff = true; var refreshes = 0; model.onChanged = { _ in refreshes += 1 }
         model.apply(); precondition(model.busy)
@@ -142,6 +169,17 @@ import TurtleGitCore
         precondition(!context.openingViewer && context.error != nil && context.editable)
         context.viewPatch([contextIDs[0], contextIDs[1]], alternate: false); precondition(!context.openingViewer)
         print("PASS: source context selection policy; exact UTF-16 viewer bytes/title/Shift handoff and read-only export; viewer/mail mutation guards; ordered composition attachments; failure recovery. Injected handoffs, no external app or mail service invoked; native menu gestures remain unverified.")
+        let large = root.appendingPathComponent("large.patch")
+        FileManager.default.createFile(atPath: large.path, contents: Data())
+        let handle = try FileHandle(forWritingTo: large); try handle.truncate(atOffset: 250 * 1024 * 1024); try handle.close()
+        context.add([large]); context.selection = [context.items.last!.id]
+        for _ in 0..<100 { if context.preview.contains("too large") { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(context.preview.contains("too large") && context.previewNotice != nil && context.previewDocument.exportDocument.bytes.isEmpty && context.items.last!.checked)
+        context.selection = [contextIDs[2]]
+        for _ in 0..<100 { if context.preview.contains("Unicode") { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(context.preview.contains("Unicode") && !context.preview.contains("�") && context.previewDocument.exportDocument.bytes == bytes)
+        context.selection = [contextIDs[0], contextIDs[2]]; precondition(context.preview.isEmpty && context.previewDocument.exportDocument.bytes.isEmpty)
+        print("PASS: source 250 MiB preview guard using sparse file; UTF-16 BOM preview decoded with original bytes retained; multiple-selection clear.")
         precondition(RepositoryAction.importPatch.icon == .patch && RepositoryAction.importPatch.requiresWorkingTree)
         print("PASS: hidden native patch table/preview; order, check, fixed batch options and mutation guards; two real mail commits/signoff; retained conflict cursor Abort/Skip/Resolved; close Cancel/Keep/Abort; real hook stop finishes current command without closing; original patch icon; no main app")
     }

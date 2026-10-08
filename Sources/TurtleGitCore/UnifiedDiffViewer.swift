@@ -5,7 +5,20 @@ import Foundation
 public struct UnifiedDiffDocument: Sendable {
     public let bytes: Data
     public init(bytes: Data) { self.bytes = bytes }
-    public var displayText: String { String(decoding: bytes, as: UTF8.self) }
+    public var displayText: String {
+        // Decode display text without changing the original bytes used by Save As
+        // or external viewers. BOMs take precedence over the legacy fallback.
+        let signatures: [([UInt8], String.Encoding, Int)] = [
+            ([0xff, 0xfe, 0, 0], .utf32LittleEndian, 4), ([0, 0, 0xfe, 0xff], .utf32BigEndian, 4),
+            ([0xff, 0xfe], .utf16LittleEndian, 2), ([0xfe, 0xff], .utf16BigEndian, 2),
+            ([0xef, 0xbb, 0xbf], .utf8, 1)
+        ]
+        for (signature, encoding, width) in signatures where bytes.starts(with: signature) {
+            if (bytes.count - signature.count) % width == 0, let text = String(data: bytes.dropFirst(signature.count), encoding: encoding) { return text }
+            return String(decoding: bytes, as: UTF8.self)
+        }
+        return String(data: bytes, encoding: .utf8) ?? String(data: bytes, encoding: .windowsCP1252) ?? String(decoding: bytes, as: UTF8.self)
+    }
     public func write(to url: URL) throws { try bytes.write(to: url, options: .atomic) }
 }
 

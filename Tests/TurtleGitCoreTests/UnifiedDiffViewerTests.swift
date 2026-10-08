@@ -2,6 +2,24 @@ import XCTest
 @testable import TurtleGitCore
 
 final class UnifiedDiffViewerTests: XCTestCase {
+    func testBOMAndLegacyDisplayDecodingPreservesOriginalBytes() throws {
+        let text = "diff --git a/雪 b/雪\n@@ -1 +1 @@\n-old\n+€ new\n"
+        for (bom, encoding) in [(Data([0xef, 0xbb, 0xbf]), String.Encoding.utf8),
+                                (Data([0xff, 0xfe]), .utf16LittleEndian), (Data([0xfe, 0xff]), .utf16BigEndian),
+                                (Data([0xff, 0xfe, 0, 0]), .utf32LittleEndian), (Data([0, 0, 0xfe, 0xff]), .utf32BigEndian)] {
+            let bytes = bom + text.data(using: encoding)!
+            let document = UnifiedDiffDocument(bytes: bytes)
+            XCTAssertEqual(document.displayText, text); XCTAssertEqual(document.bytes, bytes)
+        }
+        let legacy = Data([43, 128, 32, 233, 10])
+        XCTAssertEqual(UnifiedDiffDocument(bytes: legacy).displayText, "+€ é\n")
+        XCTAssertEqual(UnifiedDiffDocument(bytes: legacy).bytes, legacy)
+        XCTAssertEqual(UnifiedDiffDocument(bytes: Data()).displayText, "")
+        // A malformed BOM payload must not silently discard its bytes.
+        let malformed = Data([0xff, 0xfe, 65])
+        XCTAssertFalse(UnifiedDiffDocument(bytes: malformed).displayText.isEmpty)
+        XCTAssertEqual(UnifiedDiffDocument(bytes: malformed).bytes, malformed)
+    }
     func testReadOnlyDocumentSavePreservesBytesAndCapturedSnapshot() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)

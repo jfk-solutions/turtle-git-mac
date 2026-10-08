@@ -61,7 +61,7 @@ ordering and the pinned folder/patch-file conditions are mapped; selected `.patc
 and `.diff` files in a known working tree prefill the dialog. Finder's existing
 repository authorization still applies. File selections outside known working
 trees and the source's repository chooser remain pending. Geometry uses the
-source `ImportDlg` identity. Log text uses the shared log font; Git output is
+source `ImportDlg` identity. Patch preview uses the shared unified-diff font, tab size and light/dark line palettes, including added/removed backgrounds and header/hunk colors. Log text uses the shared log font; Git output is
 buffered until each command returns, matching this source dialog's workflow.
 
 `python3 scripts/test-import-patch.py` checks the real native table and preview,
@@ -98,11 +98,32 @@ compose or send mail, or simulate native mouse/menu events. Real context-menu,
 double-click, external application and mail-service acceptance remain unverified.
 See [patch-list command QA](qa/import-patch-context-2026-10-08.json).
 
+## Preview text and appearance
+
+The embedded preview now uses the same read-only diff control as View Patch.
+Shared Unified Diff appearance settings control the font, tabs and line colors.
+Selection updates keep the original file bytes for export; import still passes
+the original file path to Git. The display decoder recognizes UTF-8/16/32 BOMs,
+checks UTF-16/32 byte alignment, and otherwise uses UTF-8 with a Windows-1252
+fallback. Other locale-specific legacy encodings remain unsupported.
+
+The source's **250 MiB** preview threshold is preserved. A file at or above that
+size shows an inline notice and remains importable; the notice does not become
+an exportable patch. Failed reads also show an inline notice. Multiple selection
+clears the preview, and generation guards prevent old reads replacing the
+current selection.
+
+[Preview QA](qa/import-patch-preview-2026-10-08.json) checks actual hidden AppKit
+text attributes for default light/dark added-line colors and a custom shared
+font/color. It also checks BOM display and original-byte export, a sparse 250 MiB
+fixture and multi-selection clearing. These checks do not establish screenshot
+or physical accessibility acceptance.
+
 ## Remaining parity work
 
 Patch review/application context command, drag/drop, the source's splitter persistence,
-unified-diff preview highlighting, identity configuration prompts and idle-session
-application-quit prompts remain pending. Physical keyboard/accessibility,
+identity configuration prompts and idle-session
+application-quit prompts remain pending. Preview whitespace markers and the source's exact context-menu/keyboard behavior also remain pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,
 deployed Finder integration and App Store acceptance are unverified. No screenshot
 or release-readiness claim covers these hidden native checks.

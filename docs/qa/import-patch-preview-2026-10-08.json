@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "571129b9607519c64df07ca6235f462e2917bc42",
+  "scope": "Import Patch styled read-only preview with shared unified-diff appearance, original-byte export, source 250 MiB threshold and separate preview notices. Shared viewer BOM-aware UTF-8/16/32 and Windows-1252 display decoding. Full port/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9",
+    "src/Utils/MiscUI/SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e"
+  },
+  "sources_manifest_sha256": "bb27bf8175cd4d15be4d6123c2e6d46427ced5915b0a31885815b0ce0e3fc6fb",
+  "changed_files_sha256": {
+    "NOTICE": "41e3052a773bc95c7d9169093638fa3e1952820478b2c08618cf9436f5644d94",
+    "Sources/TurtleGitCore/UnifiedDiffViewer.swift": "144c9a06e63c68e83b0e574d4dc10fe62bc43d3bd1e16d098feb7b0d7bdbda2c",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "ef28511c08ca205dba5d54d0492576a6947c793ee6b47383111c07ab2210c0a1",
+    "Sources/TurtleGitMac/PatchWindow.swift": "22af2c48b295c582dfbfaa2f376aa84b6a24244444789418b01c824cedd5f7c3",
+    "Tests/TurtleGitCoreTests/UnifiedDiffViewerTests.swift": "266513b6c746d800ca4cee6af9a73dbb60e00ef325b1abed5f3292fd0a8e0031",
+    "docs/IMPORT-PATCH-PARITY.md": "0784d47295606ac4129e9d09c96070b2e34d0298b217a6ff9ec71650a31ea31f",
+    "docs/qa/import-patch-native-2026-10-08.swift": "6033e54e98faab01a58f287c5198b930369a05c77c07bb1f56f9448a38521d20",
+    "docs/upstream-files.csv": "acd174a7d71862de4474c9e62fe7111812d9d465f89c9b192a0091af1fc78b90"
+  },
+  "logs_sha256": {
+    "build/qa/import-patch-preview/cleanup.json": "a14e93073893236496e6df175a9ebc40947be00f983c27063a6307d4536c76c4",
+    "build/qa/import-patch-preview/core-first-malformed.log": "a3bc5749999d18eff62458c369d1136615730f4c18d0d85f160b67e2e37d5145",
+    "build/qa/import-patch-preview/core.log": "bc4789005473759b77f4a633d733eec1583803331e85f7a23ff8965b5c1e9cbe",
+    "build/qa/import-patch-preview/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-preview/debug-final-decoding.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-preview/debug-final-notices.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-preview/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-preview/native.log": "8de45d847af4c241ef209a12da6402ee33d4a9c690775abaed6eac74fc126205",
+    "build/qa/import-patch-preview/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/import-patch-preview/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-preview/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/import-patch-preview-debug.log": "01496684a8093d8f255b3f51ffba1a32a18bc1cd7b7304ac12072198bc852f47",
+    "build/qa/import-patch-preview/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four headless native receiver runs pass. Actual hidden Import Patch PatchTextView attributes verify source default 10-point font, light/dark added-line backgrounds, custom private shared font/color, original-byte export, sparse file at 250 MiB gives notice with empty export document, UTF-16 BOM display/original bytes and multi-selection clear. Existing real table, batch, metadata/signoff, all recovery/close choices, slow-hook stop and injected context handoff regression checks pass on all four Git engines.",
+    "core": "Nine UnifiedDiffViewer/UnifiedDiffAppearance tests pass. New case covers UTF-8/16 LE/BE/32 LE/BE BOM text and retained bytes, Windows-1252 Euro/accented text, empty and malformed UTF-16 payload. Existing byte save/snapshot, real non-UTF8 staged/unstaged diffs without HEAD/index mutation, viewer/Shift settings, preview lifetimes, source lexer styles and palettes remain covered.",
+    "builds": "Unsigned Debug and Store pass. After malformed-BOM fix Core tests passed; later UI-only change separated notices from exportable patch data. Final Debug then four-engine native run then Store with Sources/NOTICE/receiver frozen during each compiler/native session. No production edits after final native run.",
+    "bundles": "Debug and Store bundle audits and NOTICE comparisons pass; 98 original icons, universal EditorConfig/IssueRegex; Store Git 11 universal Mach-O files plus local fixtures.",
+    "other": "Pinned inventory and whitespace checks pass; CSV 3277 records with seven fields. Documentation site build passes."
+  },
+  "iterations": [
+    "Initial Core run: Foundation decoded a truncated UTF-16 payload as an empty string; one assertion failed. Added payload alignment checks before BOM decoding. Final nine tests passed.",
+    "Separated oversized/read-error notices from the read-only export document before native checks, so UI notices cannot be saved as synthetic patches.",
+    "Debug compiled at each source stage; no native compile or runtime assertion failures. Final Sources tested by actual headless receivers."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.71C9A9B1-CF7C-4596-A92A-46A358C38331.plist",
+      "TurtleGit.ImportPatch.QA.6D7FE1D6-1441-4017-92AB-4DB7930C68F5.plist",
+      "TurtleGit.ImportPatch.QA.67420DC2-780F-41D9-9849-FA3AF3A3EA4C.plist",
+      "TurtleGit.ImportPatch.QA.C69345D6-5DCB-41C2-8E91-4E9CC669C29F.plist",
+      "TurtleGitUnifiedDiffViewerTests-D6A1A47E-77B7-453E-B4ED-F11866132384.plist",
+      "TurtleGitUnifiedDiffViewerTests-CA526378-D2AD-487B-B406-D0521EFF02B9.plist"
+    ],
+    "retained_nonempty_private_preferences": [],
+    "app_or_receiver_processes": [],
+    "fixtures": "Temporary native fixture repositories, sparse 250 MiB files and owned hidden windows cleaned up; no main app or external viewer/mail service launched."
+  },
+  "limitations": [
+    "Actual text attributes prove component styling, not physical light/dark screenshots or accessibility. Only added-line default/custom palette checked natively; other styles have Core tests/code evidence.",
+    "Private custom appearance was verified after view/environment update, not instantaneous preference notification timing.",
+    "Preview whitespace markers, splitter persistence, source exact context/key behavior, patch review/application and idle-session quit prompts remain pending.",
+    "Legacy fallback is explicitly Windows-1252; other locale-specific encodings and automatic BOM-less UTF-16 detection unsupported.",
+    "250 MiB sparse guard tested; styling performance near the threshold and concurrent file growth not benchmarked.",
+    "Signed sandbox access, deployed Finder, signing/App Store acceptance, real external viewer/mail service gestures and physical screenshots remain unverified.",
+    "GitHub auth/CI/push and CUA unavailable from prior evidence; not retried. No complete-goal claim."
+  ]
+}

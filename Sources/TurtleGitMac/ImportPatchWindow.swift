@@ -11,8 +11,8 @@ import TurtleGitCore
     private var mail: NSSharingService?
     private var mailCompletion: ((String?) -> Void)?
     var activeOperation: Bool { model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil }
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = ImportPatchWindowModel(repository: repository, access: access)
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Apply Patch Serial – TurtleGit"
         window.isReleasedWhenClosed = false
@@ -90,11 +90,13 @@ import TurtleGitCore
     }
     let repository: GitRepository
     let access: RepositoryAccessLease?
+    let previewDocument: PatchWindowModel
     @Published private(set) var items: [Item] = []
     @Published var selection: Set<UUID> = [] { didSet { loadPreview() } }
     @Published var options = MailPatchOptions()
     @Published var tab = 0
     @Published private(set) var preview = ""
+    @Published private(set) var previewNotice: String?
     @Published private(set) var output = ""
     @Published private(set) var busy = false
     @Published private(set) var stopRequested = false
@@ -114,7 +116,11 @@ import TurtleGitCore
     var onChanged: (String) -> Void = { _ in }
     var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
     var editable: Bool { !busy && !closing && !openingViewer && !composingMail && !invalidated }
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access
+        previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
+        previewDocument.setReadOnlyDiff(Data()); previewDocument.refreshAvailable = false
+    }
     func invalidate() { guard !busy, !openingViewer, !composingMail else { return }; invalidated = true; previewGeneration = UUID(); items = []; selection = [] }
     func contextActions(_ ids: Set<UUID>) -> [ContextAction] {
         guard editable else { return [] }
@@ -179,16 +185,18 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func loadPreview() {
-        let generation = UUID(); previewGeneration = generation; preview = ""
+        let generation = UUID(); previewGeneration = generation; preview = ""; previewNotice = nil; previewDocument.setReadOnlyDiff(Data())
         guard !invalidated, selection.count == 1, let item = items.first(where: { selection.contains($0.id) }) else { return }
         Task {
-            let text = await Task.detached {
+            let result = await Task.detached { () -> (Data?, String?) in
                 let size = (try? item.file.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0
-                guard size <= 32 * 1024 * 1024 else { return "This patch is too large to preview. It can still be imported." }
-                guard let data = try? Data(contentsOf: item.file) else { return "The patch could not be read." }
-                return String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) ?? "The patch could not be decoded."
+                guard size < 250 * 1024 * 1024 else { return (nil, "This patch is too large to preview. It can still be imported.") }
+                guard let data = try? Data(contentsOf: item.file) else { return (nil, "The patch could not be read.") }
+                return (data, nil)
             }.value
-            guard !invalidated, previewGeneration == generation else { return }; preview = text
+            guard !invalidated, previewGeneration == generation else { return }
+            if let bytes = result.0 { previewDocument.setReadOnlyDiff(bytes); preview = previewDocument.document.text }
+            else { previewNotice = result.1; preview = result.1 ?? "" }
         }
     }
     func apply() {
@@ -306,7 +314,10 @@ struct ImportPatchDialog: View {
                 Toggle("Keep CR", isOn: $model.options.keepCR)
             }.disabled(!model.editable)
             TabView(selection: $model.tab) {
-                OutputView(text: model.preview).tabItem { Text("Patch") }.tag(0)
+                Group {
+                    if let notice = model.previewNotice { ScrollView { Text(notice).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(12) } }
+                    else { PatchTextView(model: model.previewDocument) }
+                }.tabItem { Text("Patch") }.tag(0)
                 OutputView(text: model.output, usesLogFont: true).tabItem { Text("Log") }.tag(1)
             }.frame(minHeight: 150)
             HStack {

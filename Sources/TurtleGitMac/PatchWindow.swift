@@ -71,6 +71,7 @@ import UniformTypeIdentifiers
 @MainActor final class PatchWindowModel: ObservableObject {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
+    let appearancePreferences: UserDefaults
     @Published var document = GitPatch(text: "") { didSet { originalDiff = nil } }
     private var originalDiff: UnifiedDiffDocument?
     @Published var selectedLines = Set<Int>()
@@ -95,7 +96,7 @@ import UniformTypeIdentifiers
     private var generation = 0
     var onApplying: (Bool) -> Void = { _ in }
     var onApplied: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, appearancePreferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.appearancePreferences = appearancePreferences }
     var exportDocument: UnifiedDiffDocument { readOnly ? originalDiff ?? UnifiedDiffDocument(bytes: Data(document.text.utf8)) : UnifiedDiffDocument(bytes: Data(document.text.utf8)) }
     func setReadOnlyDiff(_ bytes: Data) {
         let source = UnifiedDiffDocument(bytes: bytes)
@@ -192,7 +193,7 @@ struct PatchTextView: NSViewRepresentable {
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.model = model
         guard let text = scroll.documentView as? NSTextView else { return }
-        let settings = UnifiedDiffAppearance.load(), dark = scheme == .dark, highContrast = contrast == .increased
+        let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = scheme == .dark, highContrast = contrast == .increased
         let cache = context.coordinator
         guard cache.lastText != model.document.text || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
         let contentChanged = cache.lastText != model.document.text, selection = text.selectedRange()
