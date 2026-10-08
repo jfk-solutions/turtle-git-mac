@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "190a845bd084ce0958bd576f6895ccc8cb2b188a",
+  "scope": "Three-pane Mine/Theirs plain source clipboard selection follows included removed/conflict and skipped Empty rows, with macOS LF normalization. Full port/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5"
+  },
+  "source_methods": [
+    "CBaseView::GetSelectedText (5788\u20135842)",
+    "CBaseView::OnEditCopy (3441\u20133448)"
+  ],
+  "sources_manifest_sha256": "536322d826580f4aedb11d9d528ee8c84101fc435f20cbb9644ca5ea502207d8",
+  "changed_files_sha256": {
+    "NOTICE": "590b7a4266e1963aeb2bdd5eeaaf9daf154c96db8350f78a85b1fad81ec52d5e",
+    "Sources/TurtleGitCore/MergeSourceComparison.swift": "e1c0bddca9284828cec037bfb029c1c39db374ad18dc720d9f8435428f29eabe",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "ea4146a7ffd082dded9b3c3e19ca7e7bde0fea30735794738a703286d5945394",
+    "Tests/TurtleGitCoreTests/MergeSourceComparisonTests.swift": "2ec14e7e57a7c663cef3fd85287b171f2dc6e4f2325548b11625cef10441ab50",
+    "docs/TEXT-MERGE-PARITY.md": "90325459f4dfb5db437a80ab3f99aabd5417fe219ebc937517af6065146f93d6",
+    "docs/qa/three-pane-endings-native-2026-10-08.swift": "61bac2ef03f94767024d407f0a57a2aec5ab988788f8576937e93bdfbae176f3",
+    "docs/upstream-files.csv": "ff95bc30745feead4b5f93e2688f551145f4da9030db0e5455fdcfffbafece48"
+  },
+  "verification": {
+    "core": "32 focused tests pass once on default Apple Git: 8 MergeSourceComparison, 5 MergeLineEndings, 19 FileComparisonEditing. New clipboard case checks every ending, included removed/conflict rows, skipped Empty, partial Unicode text, invalid/empty ranges and terminal display newline removal. Prior alignment/729 ending-combination/editing tests pass. Not four-engine Core runs.",
+    "native": "Production three-pane receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Nine real conflict pairs per run include an independent source edit (Empty alignment gap) and unequal conflict (conflict blank gap). Actual NSTextView writeSelection writes exact normalized plain text to private pasteboards, includes removed rows, retains conflict blank rows and emoji selections, returns false without changing pasteboard for Empty/empty selection and unsupported rich format. Existing exact stage text, rulers, scrolling and HEAD/raw index/conflicted worktree preservation pass; owned hidden windows close.",
+    "builds": "Unsigned Debug then stationary-Debug native receiver then AppStore. Both packaging audits, NOTICE byte equality, upstream pin and diff check pass. Sources/NOTICE/tests/receiver frozen during live compiler/native sessions.",
+    "site": "Static GitHub Pages generator passes with new clipboard parity and QA links."
+  },
+  "iterations": [
+    "Focused Core, Debug, native four-engine and Store checks pass first run. Source review corrected initial assumption: GetSelectedText includes removed rows and ConflictEmpty, skipping only Empty. Implemented that distinction rather than copying reconstructed revision contents."
+  ],
+  "adaptations": [
+    "LF clipboard separators replace Windows CRLF. The terminal synthetic display newline is excluded. Exact final-empty-row/whole-block endpoint parity remains pending."
+  ],
+  "limitations": [
+    "Physical keyboard/menu/service/drag Copy, Base-pane copy, block selection without text selection, terminal empty rows and all rich-type negotiation variants remain pending.",
+    "Only the plain source selection writer is verified; full clipboard/merge editor/source engine and signed sandbox parity remain incomplete.",
+    "Full app parity, Finder deployment, real screenshots, App Store eligibility and external CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_native_fixtures": [],
+    "clipboard": "Unique private pasteboards released after each case; general clipboard not seeded or written.",
+    "main_app_launched": false
+  },
+  "logs_sha256": {
+    "build/qa/merge-source-copy/cleanup.json": "68a4def25248b57b848b38fff319a9819a8a3c2367440bd2dfbebf80257769fd",
+    "build/qa/merge-source-copy/core.log": "a7e345f6aad8d25b82517823a6876e80c5475e24ce102fea72769698b420ccb0",
+    "build/qa/merge-source-copy/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/merge-source-copy/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-source-copy/native.log": "987390ba5220e7325e3df9cd2fc6833abb959b50049e28c1b1ba5867b0c0109b",
+    "build/qa/merge-source-copy/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-source-copy/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/merge-source-copy/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/merge-source-copy/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

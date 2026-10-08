@@ -528,6 +528,7 @@ private struct MergeEditor: NSViewRepresentable {
                 offset += length
             }
         }
+        view.sourceCells = sourceCells
         (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = sourceCells?.map(\.lineNumber)
         scroll.verticalRulerView?.needsDisplay = true
     }
@@ -566,6 +567,12 @@ private final class MergeTextView: NSTextView {
     weak var model: TextConflictWindowModel?
     var mergeEditable = false
     var sourceSide: MergeSourceSide?
+    var sourceCells: [MergeSourceCell]?
+    override func writeSelection(to pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+        guard let sourceCells else { return super.writeSelection(to: pboard, type: type) }
+        guard type == .string, let text = try? MergeSourceComparison.clipboardText(selectedRange(), cells: sourceCells), !text.isEmpty else { return false }
+        return pboard.setString(text, forType: .string)
+    }
     private var mergeTabWidth = 4
     var mergeUseSpaces = false
     var mergeSmartTab = false

@@ -101,6 +101,27 @@ public struct MergeSourceComparison: Sendable {
         common(until: baseLines.count)
         rows = output
     }
+    /// Source GetSelectedText includes removed/conflict rows, skips Empty rows,
+    /// and normalizes clipboard endings (LF on macOS). The terminal display-only
+    /// LF is outside the selectable payload, matching a block ending at its text.
+    public static func clipboardText(_ range: NSRange, cells: [MergeSourceCell]) throws -> String {
+        let length = cells.reduce(0) { $0 + ($1.displayText as NSString).length + 1 }
+        guard range.location >= 0, range.length >= 0, range.location <= length,
+              range.length <= length - range.location else { throw FileComparisonEditFailure.range }
+        let end = min(NSMaxRange(range), max(0, length - 1))
+        guard end > range.location else { return "" }
+        let selected = NSRange(location: range.location, length: end - range.location)
+        var cursor = 0, result = ""
+        for cell in cells {
+            let text = (cell.displayText + "\n") as NSString
+            let overlap = NSIntersectionRange(selected, NSRange(location: cursor, length: text.length))
+            if cell.state != .empty, overlap.length > 0 {
+                result += text.substring(with: NSRange(location: overlap.location - cursor, length: overlap.length))
+            }
+            cursor += text.length
+        }
+        return result
+    }
     private struct Hunk { let base: Range<Int>; let side: Range<Int>; let mine: Bool }
     private struct Region { var base: Range<Int>; var hunks: [Hunk] }
     private static func lines(_ text: String) -> [String] {

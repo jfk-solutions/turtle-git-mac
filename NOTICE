@@ -724,3 +724,8 @@ Three-pane read-only source alignment also uses the shared FileTextLines.cpp
 boundary recognition for all nine EOL.h styles. The line-ending attribution
 above applies. Native Mine/Theirs gap rows and source numbering remain separate
 from result bytes; full source merge-engine and physical UI parity remain pending.
+
+Three-pane source clipboard selection adapts CBaseView::GetSelectedText and
+OnEditCopy: removed/conflict rows are included and Empty rows skipped. BaseView
+copyright/GPL attribution above applies. AppKit writes plain text with native LF
+clipboard separators through its selection API; source bytes remain unchanged.

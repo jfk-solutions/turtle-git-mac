@@ -540,3 +540,28 @@ This verifies source alignment and display. Physical keyboard/menu interaction,
 full source merge-engine equivalence, exhaustive mixed-ending/selection cases,
 final-empty-row behavior, and signed sandbox acceptance remain pending. The
 existing result conflict parser and save paths are separate from this change.
+
+## Source clipboard selection
+
+Mine/Theirs Copy now routes plain text through the native selection writer and
+source-alignment cells. It follows CBaseView::GetSelectedText/OnEditCopy: removed
+and conflict rows are included, Empty rows are skipped, and clipboard line
+endings are normalized. Conflict gap rows remain blank lines, matching the
+source's ConflictEmpty handling. macOS clipboard separators are LF instead of
+Windows CRLF. The terminal display-only newline is excluded; source text and
+Git state are unchanged. Empty/gap-only selections do not replace the clipboard.
+Rich text formats are not exported from these plain source panes.
+
+[Source-copy QA](qa/merge-source-copy-2026-10-08.json) records Core selection
+checks for all nine endings, removed/conflict/Empty rows, partial Unicode text,
+invalid ranges and empty selections. The four-engine native receiver now creates
+an independent edit as well as an unequal conflict, providing both Empty and
+conflict gaps. It checks production NSTextView selection writes against private
+pasteboards, including exact normalized text, removed rows, blank conflict gaps,
+emoji selections and unchanged pasteboard text after empty selections. Existing
+source rulers, linked scrolling and repository preservation checks also pass.
+
+Physical Copy key/menu/service/drag interactions, Base-pane clipboard parity,
+block selection without a text selection, final-empty-row boundaries and all
+rich-text negotiation variants remain pending. These checks establish the plain
+selection-writer path, not complete clipboard or merge-editor parity.

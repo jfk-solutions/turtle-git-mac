@@ -40,6 +40,26 @@ final class MergeSourceComparisonTests: XCTestCase {
             }
         } } }
     }
+    func testClipboardIncludesRemovedAndConflictRowsSkipsEmptyAndNormalizesEveryEnding() throws {
+        for ending in MergeLineEnding.allCases {
+            let cells: [MergeSourceCell] = [
+                .init(text: "first 雪" + ending.rawValue, lineNumber: 1, state: .normal),
+                .init(text: "old" + ending.rawValue, lineNumber: nil, state: .removed),
+                .init(text: "", lineNumber: nil, state: .empty),
+                .init(text: "", lineNumber: nil, state: .conflicted),
+                .init(text: "🦎 tail", lineNumber: 2, state: .conflicted)]
+            let display = cells.map(\.displayText).joined(separator: "\n") + "\n"
+            XCTAssertEqual(try MergeSourceComparison.clipboardText(NSRange(location: 0, length: (display as NSString).length), cells: cells), "first 雪\nold\n\n🦎 tail")
+            let old = (display as NSString).range(of: "old")
+            XCTAssertEqual(try MergeSourceComparison.clipboardText(old, cells: cells), "old")
+            XCTAssertEqual(try MergeSourceComparison.clipboardText(NSRange(location: NSMaxRange(old) + 1, length: 1), cells: cells), "")
+            let tail = (display as NSString).range(of: "tail")
+            XCTAssertEqual(try MergeSourceComparison.clipboardText(tail, cells: cells), "tail")
+            XCTAssertEqual(try MergeSourceComparison.clipboardText(NSRange(location: 0, length: 0), cells: cells), "")
+            XCTAssertThrowsError(try MergeSourceComparison.clipboardText(NSRange(location: NSNotFound, length: 1), cells: cells))
+        }
+        XCTAssertEqual(try MergeSourceComparison.clipboardText(NSRange(location: 0, length: 0), cells: []), "")
+    }
     func testIndependentChangesAndIdenticalAdditions() {
         let view = MergeSourceComparison(base: "first\nsecond\n", mine: "mine\nsecond\nend\n", theirs: "first\ntheirs\nend\n")
         XCTAssertEqual(view.rows.map(\.mine.state), [.removed, .added, .normal, .empty, .added])
