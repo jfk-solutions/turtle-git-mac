@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "5faab2352dbe73ecf43b9220ca2ab0bf2de8f641",
+  "scope": "Core selected complete-file working-tree patch review and application. Native review and full port/distribution remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/PatchListCtrl.cpp": "dea42bf97d4a1b265d31712e9b60ce7dd87dda8d"
+  },
+  "reference": "https://git-scm.com/docs/git-apply",
+  "sources_manifest_sha256": "54ce982fd503d1a7a6ffe8edfeded0d756b8f4c351cac9cbd383d474dd8a4494",
+  "changed_files_sha256": {
+    "Sources/TurtleGitCore/GitPatch.swift": "df0ebfe52fdc7ad7e0c113d2dcc91097a4241d353053b5009ddb9b45664f3ce8",
+    "Tests/TurtleGitCoreTests/WorkingTreePatchReviewTests.swift": "23af0b242deecdc96d756e28714a917e339efb739a9b91ab4d74b92ed99bcaca",
+    "docs/IMPORT-PATCH-PARITY.md": "ea92e2f46f2655c22ab707604a39949af228384e466fa77515eae8b2bf8d27d9",
+    "docs/upstream-files.csv": "4eff2631a47c38623bf309647c23fd93d4fab496324d37c19f85493c276c44c1"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Nine cases x four engines = 36 final passing executions, eight real-Git cases plus one parser case per engine. Selected rename changes only rename, then selected binary and remaining add/delete can apply sequentially from same original snapshot; reverse rename preserves other applied changes; raw index bytes unchanged. Literal * ? brackets backslash nested/Unicode/tab/newline paths do not match unselected neighbors. Whole patch conflict on unselected path does not prevent valid selected subset; conflicting local file remains unchanged. Empty/unknown IDs and partial repeated-path records rejected. Existing whole-patch review/reversal/stale/unsafe/metadata regressions pass.",
+    "native": "No UI changes or native receiver. Native checkboxes/review window/context command remain pending.",
+    "builds": "Unsigned Debug and Store pass. Sources/tests frozen during compiler sessions; final Core runs sequential across engines before sequential Debug/Store.",
+    "bundles": "Debug/Store validators and NOTICE comparisons, inventory pin, CSV 3277 records/7 fields, site and whitespace checks pass."
+  },
+  "iterations": [
+    "Initial eight-case Apple run passed. Added a real duplicate-record guard test to verify no unchecked repeated entry is silently included. Final nine-case Apple and three other engine runs pass. No repair iteration."
+  ],
+  "cleanup": {
+    "app_or_receiver_processes": [],
+    "remaining_fixture_roots": [],
+    "fixtures": "XCTest roots removed via defer; temporary patch snapshots removed after checks and applications. No GUI, preferences or pasteboards used."
+  },
+  "limitations": [
+    "Complete-path selection is not hunk/line selection or editable before/after merge review. Native workflow and full source patch engine remain pending.",
+    "All records for a repeated path must be selected; selecting a single repeated entry independently is refused.",
+    "Per-file filtering requires UTF-8 argv paths; raw non-UTF-8 selection rejection branch reviewed but not separately runtime-tested. Whole patch preserves raw path bytes.",
+    "Fresh checking uses immutable original bytes plus escaped include filters. External writers are not globally locked. Metadata exact path set and total selected-record count are verified.",
+    "Repository mismatch, strip-count and raw-byte metadata constraints are inherited from existing backend tests; selected cross-repository filtering not a separate case here.",
+    "Unsigned builds do not establish signed sandbox/Finder/App Store or screenshot/accessibility acceptance. GitHub auth/CI/push and CUA remain unavailable from previous evidence, not retried. Full objective active."
+  ],
+  "logs_sha256": {
+    "build/qa/patch-file-apply/cleanup.json": "daf7c9b7469602a0ec5db6020d034bd478860994af822faad33ab7ee4846e264",
+    "build/qa/patch-file-apply/core-2.37.1.log": "c5ee3bf75bcd4a309fa53300661deebdaeeb484600d5911074158fe81e7a9b5b",
+    "build/qa/patch-file-apply/core-2.39.5.log": "0589488c46cb0d5c392c50bffd4bb341ad6415ada81bf5d6f5dd961d044926a0",
+    "build/qa/patch-file-apply/core-2.55.0.log": "03d751ad67e958ac92643834545b01b9ef96697f3e5ac07f6616acf9fe4ce5e1",
+    "build/qa/patch-file-apply/core-apple-final.log": "c56cde35890f5e1363e3878426abed27fe65b068d542ec8094f51965b9aa9bfc",
+    "build/qa/patch-file-apply/core-apple.log": "c9e591e5dcd65770c88dfb98454b05c683ee1b93cf04e72671c455f5f151498c",
+    "build/qa/patch-file-apply/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/patch-file-apply/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-file-apply/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/patch-file-apply/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/patch-file-apply/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/patch-file-apply/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

@@ -161,37 +161,60 @@ public struct WorkingTreePatchReview: Sendable {
     fileprivate let repositoryRoot: URL
     fileprivate let reversed: Bool
     fileprivate let stripCount: Int
+    fileprivate let includePatterns: [String]
 }
 
 public enum WorkingTreePatchFailure: LocalizedError {
-    case stripCount, review, metadata
+    case stripCount, review, metadata, selection, pathEncoding
     public var errorDescription: String? {
         switch self {
         case .stripCount: return "The patch path strip count must be nonnegative."
         case .review: return "Review an applicable patch in this repository before applying it."
         case .metadata: return "Git returned incomplete patch file statistics."
+        case .selection: return "Select complete files from this patch review before applying them."
+        case .pathEncoding: return "Per-file application requires UTF-8 paths. The original patch can still be applied as a whole."
         }
     }
 }
 
 extension GitRepository {
     public func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool = false, stripCount: Int = 1) throws -> WorkingTreePatchReview {
+        try reviewWorkingTreePatch(bytes, reversed: reversed, stripCount: stripCount, includePatterns: [])
+    }
+    /// A failed whole-patch check does not prevent reviewing an applicable subset.
+    public func reviewWorkingTreePatchFiles(_ review: WorkingTreePatchReview, fileIDs: Set<Int>) throws -> WorkingTreePatchReview {
+        guard review.repositoryRoot == root else { throw WorkingTreePatchFailure.review }
+        let selected = review.files.filter { fileIDs.contains($0.id) }
+        guard !selected.isEmpty, selected.count == fileIDs.count else { throw WorkingTreePatchFailure.selection }
+        let paths = Set(selected.map(\.pathBytes))
+        // --include chooses a complete path, so every repeated record for that
+        // path must be selected rather than silently applying unchecked records.
+        guard review.files.filter({ paths.contains($0.pathBytes) }).count == selected.count else { throw WorkingTreePatchFailure.selection }
+        let patterns = try selected.map { file -> String in
+            guard let path = String(data: file.pathBytes, encoding: .utf8) else { throw WorkingTreePatchFailure.pathEncoding }
+            return path.map { "*?[]\\".contains($0) ? "\\" + String($0) : String($0) }.joined()
+        }
+        let filtered = try reviewWorkingTreePatch(review.document.bytes, reversed: review.reversed, stripCount: review.stripCount, includePatterns: patterns)
+        guard filtered.files.count == selected.count, Set(filtered.files.map(\.pathBytes)) == paths else { throw WorkingTreePatchFailure.selection }
+        return filtered
+    }
+    private func reviewWorkingTreePatch(_ bytes: Data, reversed: Bool, stripCount: Int, includePatterns: [String]) throws -> WorkingTreePatchReview {
         guard stripCount >= 0 else { throw WorkingTreePatchFailure.stripCount }
         return try withWorkingTreePatch(bytes) { file in
-            let arguments = ["apply", "-p\(stripCount)"] + (reversed ? ["--reverse"] : [])
+            let arguments = ["apply", "-p\(stripCount)"] + (reversed ? ["--reverse"] : []) + includePatterns.map { "--include=" + $0 }
             let statistics = try run(arguments + ["--stat", "--", file.path]).text
             let summary = try run(arguments + ["--summary", "--", file.path]).text
             let files = try WorkingTreePatchReview.parseFiles(run(arguments + ["--numstat", "-z", "--", file.path]).stdout)
             var failure: String?
             do { _ = try run(arguments + ["--check", "--", file.path]) }
             catch let error as GitFailure { failure = error.localizedDescription }
-            return WorkingTreePatchReview(files: files, document: UnifiedDiffDocument(bytes: bytes), statistics: statistics, summary: summary, validationError: failure, repositoryRoot: root, reversed: reversed, stripCount: stripCount)
+            return WorkingTreePatchReview(files: files, document: UnifiedDiffDocument(bytes: bytes), statistics: statistics, summary: summary, validationError: failure, repositoryRoot: root, reversed: reversed, stripCount: stripCount, includePatterns: includePatterns)
         }
     }
     public func applyWorkingTreePatch(_ review: WorkingTreePatchReview) throws -> String {
         guard review.repositoryRoot == root, review.canApply else { throw WorkingTreePatchFailure.review }
         return try withWorkingTreePatch(review.document.bytes) { file in
-            let arguments = ["apply", "-p\(review.stripCount)"] + (review.reversed ? ["--reverse"] : [])
+            let arguments = ["apply", "-p\(review.stripCount)"] + (review.reversed ? ["--reverse"] : []) + review.includePatterns.map { "--include=" + $0 }
             // Revalidate against current files, then let Git validate again when
             // applying. No --index/--cached/--reject or unsafe-path override.
             _ = try run(arguments + ["--check", "--", file.path])

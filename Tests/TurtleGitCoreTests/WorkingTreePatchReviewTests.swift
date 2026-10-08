@@ -124,4 +124,64 @@ final class WorkingTreePatchReviewTests: XCTestCase {
         }
     }
 
+    func testSelectedRenameBinaryAndRemainingFilesPreserveIndex() async throws {
+        let (root, repo, bytes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let review = try await repo.reviewWorkingTreePatch(bytes)
+        let rename = try await repo.reviewWorkingTreePatchFiles(review, fileIDs: [review.files.first { $0.path == "--new 雪" }!.id])
+        XCTAssertTrue(rename.canApply); XCTAssertEqual(rename.files.count, 1); XCTAssertEqual(rename.document.bytes, bytes)
+        _ = try await repo.applyWorkingTreePatch(rename)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("--new 雪").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("delete").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("added").path))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("binary")), Data([0, 1, 2, 3, 4]))
+        let binary = try await repo.reviewWorkingTreePatchFiles(review, fileIDs: [review.files.first { $0.isBinary }!.id])
+        XCTAssertTrue(binary.canApply); _ = try await repo.applyWorkingTreePatch(binary)
+        let remaining = Set(review.files.filter { ["added", "delete"].contains($0.path) }.map(\.id))
+        let rest = try await repo.reviewWorkingTreePatchFiles(review, fileIDs: remaining)
+        XCTAssertTrue(rest.canApply); _ = try await repo.applyWorkingTreePatch(rest)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let reversed = try await repo.reviewWorkingTreePatch(bytes, reversed: true)
+        let reverseRename = try await repo.reviewWorkingTreePatchFiles(reversed, fileIDs: [reversed.files.first { $0.path == "--old 雪" }!.id])
+        _ = try await repo.applyWorkingTreePatch(reverseRename)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("--old 雪").path))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("binary")), Data([0, 4, 3, 2, 1, 255]))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+    func testLiteralSelectionDoesNotMatchGlobNeighborsOrConflictingFiles() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let selectedNames = ["wild*.txt", "question?.txt", "[ab].txt", "slash\\name.txt", "dir/file?.txt", "stars*\t雪\nfile"]
+        let neighbors = ["wild1.txt", "question1.txt", "a.txt", "slashname.txt", "dir/file1.txt"]
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("dir"), withIntermediateDirectories: true)
+        for name in selectedNames + neighbors { try Data("base\n".utf8).write(to: root.appendingPathComponent(name)) }
+        try await repo.stage(selectedNames + neighbors); _ = try await repo.commit(message: "glob paths")
+        for name in selectedNames + neighbors { try Data("changed\n".utf8).write(to: root.appendingPathComponent(name)) }
+        let bytes = try await repo.run(["diff", "--no-ext-diff", "--no-color", "--"] + selectedNames + neighbors).stdout
+        _ = try await repo.run(["restore", "--"] + selectedNames + neighbors)
+        try Data("conflicting local change\n".utf8).write(to: root.appendingPathComponent("wild1.txt"))
+        let review = try await repo.reviewWorkingTreePatch(bytes); XCTAssertFalse(review.canApply)
+        let ids = Set(review.files.filter { selectedNames.contains($0.path) }.map(\.id))
+        let selected = try await repo.reviewWorkingTreePatchFiles(review, fileIDs: ids)
+        XCTAssertTrue(selected.canApply); XCTAssertEqual(Set(selected.files.map(\.path)), Set(selectedNames))
+        _ = try await repo.applyWorkingTreePatch(selected)
+        for name in selectedNames { XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(name)), Data("changed\n".utf8)) }
+        for name in neighbors {
+            XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(name)), Data((name == "wild1.txt" ? "conflicting local change\n" : "base\n").utf8))
+        }
+        for invalid in [Set<Int>(), Set([99999])] {
+            do { _ = try await repo.reviewWorkingTreePatchFiles(review, fileIDs: invalid); XCTFail("Invalid selection accepted") } catch WorkingTreePatchFailure.selection {}
+        }
+    }
+
+    func testDuplicateFileRecordsCannotBePartiallySelected() async throws {
+        let (root, repo, bytes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let review = try await repo.reviewWorkingTreePatch(bytes + bytes)
+        XCTAssertEqual(review.files.count, 8)
+        let first = review.files[0]
+        XCTAssertEqual(review.files.filter { $0.pathBytes == first.pathBytes }.count, 2)
+        do { _ = try await repo.reviewWorkingTreePatchFiles(review, fileIDs: [first.id]); XCTFail("Unchecked repeated record selected") } catch WorkingTreePatchFailure.selection {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("added").path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("--old 雪").path))
+    }
+
 }

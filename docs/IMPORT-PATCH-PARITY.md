@@ -137,7 +137,20 @@ metadata rejection.
 [Working-tree patch QA](qa/working-tree-patch-2026-10-08.json) verifies real files,
 unchanged HEAD/index, stale-review rejection and unrelated local changes. This
 backend does not establish per-file before/after review, editable merge panes,
-partial application or complete TortoiseGitMerge patch-engine parity. The source suppresses the generic
+hunk/line application or complete TortoiseGitMerge patch-engine parity.
+
+The Core backend can now recheck and apply selected complete files, even if the
+whole patch cannot apply because an unselected file conflicts. It uses escaped
+literal path patterns with [Git's include filtering](https://git-scm.com/docs/git-apply),
+then checks that Git returns exactly the selected paths/record counts. Applying
+retains those filters and checks current files again. Binary files and renames
+remain complete operations; the original patch byte snapshot is preserved.
+All repeated records for a selected path must be selected. Empty/unknown IDs are
+rejected. Per-file selection requires UTF-8 paths; whole-patch application keeps
+raw path bytes through Git. [Selected-file QA](qa/patch-file-apply-2026-10-08.json)
+checks literal wildcard/backslash names, an unselected conflict, sequential
+rename/binary/remaining-file application and reverse rename without changing the
+index. Native checkboxes and per-file comparison remain pending. The source suppresses the generic
 Apply context command in Import Patch; this native list does too.
 
 The headless receiver checks source selection conditions, exact UTF-16 bytes and
