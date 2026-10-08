@@ -104,7 +104,9 @@
 		96858E5400FE448CEE799A09 /* Fetch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181B9FE19CD19EA7DAB1E824 /* Fetch.swift */; };
 		98048D0E5A3F46AB730E8DB2 /* TextConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 396DA0B43F5B2A897481DC7E /* TextConflictWindow.swift */; };
 		9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */; };
+		9B2EC959297C2E28D596ACCE /* RequestPull.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A118CF3A03416CA1144F4DE /* RequestPull.swift */; };
 		A0416F3B295FEB5114DF93C1 /* Clone.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08425BF4A91945D52E0F6D99 /* Clone.swift */; };
+		A21C930FBA350B87BA3B16BB /* RequestPullWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3036BB1B040A593A364B721E /* RequestPullWindow.swift */; };
 		A34C626DE662BD2D7FC24EC4 /* AdvancedSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEA9844D056250E1264A3B15 /* AdvancedSettings.swift */; };
 		A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FF59B2CF163D9481D39B5 /* CommitSelection.swift */; };
 		A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5AD057FE8CA1C91988DA6E /* Removal.swift */; };
@@ -266,6 +268,7 @@
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
 		2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeLineEndings.swift; sourceTree = "<group>"; };
 		2FD299C13A57D2632BB2467B /* Pull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pull.swift; sourceTree = "<group>"; };
+		3036BB1B040A593A364B721E /* RequestPullWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestPullWindow.swift; sourceTree = "<group>"; };
 		3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationCancellation.swift; sourceTree = "<group>"; };
 		326985003F83908822D7B91E /* MergeWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeWindow.swift; sourceTree = "<group>"; };
 		331C56945429ED08DD2BF9C0 /* WorkingFileRevert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingFileRevert.swift; sourceTree = "<group>"; };
@@ -317,6 +320,7 @@
 		7428B46131B5378475891E94 /* FileComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparison.swift; sourceTree = "<group>"; };
 		798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentationCapture.swift; sourceTree = "<group>"; };
 		79C5573349C11EE01ECA2C1E /* TurtleGitFinder.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = TurtleGitFinder.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		7A118CF3A03416CA1144F4DE /* RequestPull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestPull.swift; sourceTree = "<group>"; };
 		7A48D22D1E6D22153CBA3744 /* Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Push.swift; sourceTree = "<group>"; };
 		7A4B370EB64932B2909A8228 /* CloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneWindow.swift; sourceTree = "<group>"; };
 		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
@@ -465,6 +469,7 @@
 				377A8410F24CB6A92830EB11 /* RepositoryBrowserDrag.swift */,
 				0585EA944461944F8F4436F0 /* RepositoryBrowserWindow.swift */,
 				6E739051B0ED0ECCB43FDF35 /* RepositoryModel.swift */,
+				3036BB1B040A593A364B721E /* RequestPullWindow.swift */,
 				6CFEE049A0098A0212AD01DA /* ResetWindow.swift */,
 				D33C40A99A3883800E7C6431 /* ResolveWindow.swift */,
 				1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */,
@@ -585,6 +590,7 @@
 				B0144901E0020C531A5D86FB /* RepositoryAccess.swift */,
 				C9B39BEE643082FED0868FD9 /* RepositoryBrowser.swift */,
 				593C3138AD1ABEC07EC9AC6C /* RepositoryInitialization.swift */,
+				7A118CF3A03416CA1144F4DE /* RequestPull.swift */,
 				DE3C7BF5278D5807BDDF4B21 /* Reset.swift */,
 				4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */,
 				366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */,
@@ -878,6 +884,7 @@
 				199556A177703BA9869154D4 /* RepositoryAccess.swift in Sources */,
 				4DADF6934B5B91754BD61031 /* RepositoryBrowser.swift in Sources */,
 				5AE1A8F789C776583FB32A26 /* RepositoryInitialization.swift in Sources */,
+				9B2EC959297C2E28D596ACCE /* RequestPull.swift in Sources */,
 				94D627C3502D8ACE734DD470 /* Reset.swift in Sources */,
 				F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */,
 				413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */,
@@ -955,6 +962,7 @@
 				AF368FB1112CF5C62DEC55A2 /* RepositoryBrowserDrag.swift in Sources */,
 				3D0C04463435436A275FC33A /* RepositoryBrowserWindow.swift in Sources */,
 				37AE33E6153BACB26C736C02 /* RepositoryModel.swift in Sources */,
+				A21C930FBA350B87BA3B16BB /* RequestPullWindow.swift in Sources */,
 				DC324EE987ED199805D3DF0B /* ResetWindow.swift in Sources */,
 				53038E31B82C54BE1E17C10A /* ResolveWindow.swift in Sources */,
 				885DFCA3F39F7130AADDB93E /* RevertProgressWindow.swift in Sources */,

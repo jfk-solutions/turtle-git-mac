@@ -555,3 +555,7 @@ retaining AutoCloseGitProgress values, source labels and success-only decisions.
 
 Branch revision number display adapts LogDlg.cpp, AppUtils.cpp and SetDialogs.cpp,
 retaining ShowBranchRevisionNumber, the source labels and first-parent Git counter.
+
+Request Pull adapts RequestPullDlg.cpp/.h, RequestPullCommand.cpp, AppUtils.cpp
+and IDD_REQUESTPULL with native fields, histories, Log selection, Git text generation
+and macOS editor/mail composition handoff. No message is sent by the Git command.

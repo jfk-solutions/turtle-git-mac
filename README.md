@@ -608,3 +608,8 @@ See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.
 Dialogs settings also includes TortoiseGit's **Display branch revision number**:
 first-parent counts appear in Log's first graph lane and after single-source Push.
 See [Push parity](docs/PUSH-PARITY.md) for verified scope and remaining work.
+
+**Create pull request…** now opens a native Request Pull dialog with upstream's
+Start/URL/End fields, saved histories and Log selection. Git generates pull-request
+text for the macOS editor or mail composer. See [Request Pull parity](docs/REQUEST-PULL-PARITY.md)
+for verification and remaining acceptance.

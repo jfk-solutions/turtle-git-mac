@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "21a166ffbc5d98ce2461897a479a67612b74f0f7",
+  "scope": "Partial native Request Pull fields, histories, Log selection, raw request generation and macOS editor/mail composition handoff. Full application/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/RequestPullDlg.cpp": "02d288f1a6e7cf4fdb15eccab2d2bce41a2a3d4e",
+    "src/TortoiseProc/RequestPullDlg.h": "c51eff667dd9dd8375f1858a86e484021d5514ea",
+    "src/TortoiseProc/Commands/RequestPullCommand.cpp": "1bb21319d50bd398234359b5f74cd0f0479e4b09",
+    "src/TortoiseProc/Commands/RequestPullCommand.h": "0e776515bcb3663cfa71449da3748ce9733ffdd6",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "libgit2_validation_source": {
+    "pin": "f7164261c9bc0a7e0ebf767c584e5192810a8b24",
+    "url": "https://raw.githubusercontent.com/libgit2/libgit2/f7164261c9bc0a7e0ebf767c584e5192810a8b24/src/libgit2/branch.c",
+    "sha256": "e615d2eb9a2853bf496204aacf1fe8d89f1dea31d328a5a0342a9e0aacbc2a8d",
+    "note": "Exact source helper rejects HEAD and leading dash. Core CLI plus explicit source exclusions approximates remaining libgit2 validation; exhaustive equivalence unproven."
+  },
+  "sources_manifest_sha256": "4a4b3ffd6b81b965d1f00b489ab16519d55a319601c883e8d951f2faef798ca5",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "a788c0931bf4eba35289ef42ab90e50ed1df6c3a9bc312416aef5255972caf23",
+    "NOTICE": "e440ac9545a7407054b597a6fc3e90b72dead90757f6424d01170ca2729fd232",
+    "README.md": "80b3b64a77ede6b1ba95a4d9cf554c287612594f8ef12dc04a47fc2ed704a583",
+    "Sources/TurtleGitCore/FinderCache.swift": "a6e65984cdcd6e159ff3b781dfb004f51ec74674ad9d0f0a313ed51ac91d9934",
+    "Sources/TurtleGitCore/MenuIcons.swift": "b107f59454d3fa936db7172be773d74a50940a014870eda74d626c0ab6e8d305",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "d31aa94f8943de84ff1397f516a39055872e65b2d02c3d1df495a7c72982046e",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "ddea15b36fc54da8aadadb7c2ac7d9b9906de74bf6dc174f1b0b5c02176cbc0f",
+    "Tests/TurtleGitCoreTests/MenuIconTests.swift": "21441d590ae2c00c99b44007d40ac22a340358d67f154e74c7f1a435030dd294",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "fc8ad0bd1f8cf1d8e72dd4df9bf1d7c498a01f13f563516aba17585dad72ec2c",
+    "docs/upstream-files.csv": "f24b145a8bcd34ce4b38f2907bcf2f7b721fdd11ae3cf0a70e1fac131c8ad4d4",
+    "Sources/TurtleGitCore/RequestPull.swift": "a90a8039b7a8bacca5131649e92319a86abb043a666d6dfcd581b67231b1e8f8",
+    "Sources/TurtleGitMac/RequestPullWindow.swift": "4bd2d96e6ec422a05dc8cb932c818b3ce2cda47ec38497cc89f9509ea303ae7c",
+    "Tests/TurtleGitCoreTests/RequestPullTests.swift": "0c2c2bfc0a0a5dc6fd97ab3589ab0d97d3409257fb8a5974041c56bb8d70251d",
+    "docs/REQUEST-PULL-PARITY.md": "79dd23e6543a730b636b38a8017cf1527b6d5bb0f47e0eaecd2309c6160b56ac",
+    "docs/qa/request-pull-native-2026-10-08.swift": "9d41b3c5ec55912ba2ff0b47fd0a48c99fbb18c1ec8f5ae8480e01351c138d77",
+    "scripts/test-request-pull.py": "d68d6be19a8837ea297688371e4e965f6b6c41f60b3d177e186a8987d3cacb58"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "11 focused tests passed: three new RequestPull tests plus MenuIcon, Finder creation and metadata checks. Real published UTF-8 request matches direct Git stdout, Start remotes/ normalization, mixed staged/unstaged and remote refs preserved, End/argument gates, unpublished failure, pre-cancellation, tag and bare-repository generation. RequestPull is routed in the app, has no pinned Finder menu condition, and shares original unified-diff icon.",
+    "native": "Four-Git real receiver passed absent defaults, branch/remote list, repository-scoped fields/global URL history, End-invalid pre-validation history/last-field saves with no Send Mail save, explicit End/URL overrides, actual source-scoped Log with hidden working rows and select/Cancel callback, captured text/mail and duplicate-submission gates, exact pullrequest.txt bytes, reopened fields/global Send Mail, URL deletion, generation failure, existing document Open fallback callback, real owned wrapper/helper cancellation and fresh-token retry. Local HEAD/index/working bytes and remote refs unchanged. Hidden native RequestPullDialog hosting layout only; no displayed acceptance.",
+    "builds": "Unsigned final Debug and AppStore builds and bundle audits passed: Finder extension, licenses, EditorConfig/IssueRegex and 98 upstream icons. NOTICE byte-identical in both. Store Git 2.55.0: 11 universal Mach-O files plus local Git fixture operations passed. Source project regenerated to include the two new files.",
+    "documentation": "Source pin checker and 3277 seven-column inventory rows passed. Six mappings retain partial-native-replacement status. README, Request Pull parity, NOTICE and native CI step updated. Help corrected to verified upstream patch/pull-request manual. Local site build logs recorded separately; unpublished. Screenshots predate new dialog.",
+    "processes": "Core compiler terminal before Debug, final Debug terminal before native compiler/receiver, receiver terminal before Store. No main GUI, displayed windows, editor or mail launches. Native prohibited activation/private UUID preferences; handoff callbacks inspect documents instead of opening them. Owned documents removed by receivers; wrapper/helper stopped before retry. Four empty owned UUID preference plists removed after termination; zero nonempty changed. Owned app/receiver audit empty.",
+    "iterations": "First SwiftPM compile failed because the app called internal OperationCancellation.check. Replaced with public isCancelled guard; successful retry and final Debug/native/Store use that fix. Help initially referenced a nonexistent requestpull page; corrected after source/manual inspection, then rebuilt Debug before native testing.",
+    "limitations": "Physical fields/dropdowns/Shift+Delete/Log sheets/Cancel/Escape/close/default/resize/themes/accessibility, actual editor/mail composer and long-lived file lifecycle, mail To/CC/subject/attachment/combine/SMTP controls, network credential access, CLI endrev/url presets, Push result routing, signed sandbox/Finder/App Store acceptance pending. Native cancellation stops owned process rather than source post-command cancellation check. Validation uses CLI plus source exclusions, not complete libgit2 parity. Full file/dialog/application port and hosted CI/site/distribution incomplete; GitHub authorization unavailable and not retried."
+  },
+  "logs_sha256": {
+    "build/qa/request-pull/core-retry.log": "f72f467c62e470d40e1bd5c5f93a9a9ccafa41c4b0c7c7c68149dda10a4fd09a",
+    "build/qa/request-pull/core.log": "cb8a548b2476da61efa9bbdcab6f807f58605d209f01fd1261f23c8e6dff157a",
+    "build/qa/request-pull/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/request-pull/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/request-pull/debug.log": "4baab81032e1ab609bc49ccf4e82f5adc0ef54e905fbb7a3cc516926207d37c7",
+    "build/qa/request-pull/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/request-pull/libgit2-validation.log": "f56d63402aefe0c8446c10d5fba9ecbca9f6e097378a10fdceefe386bbb327f1",
+    "build/qa/request-pull/native.log": "9fdc768ae201722309d819313d89c328f56525968e343d3dcc82e1b79044dd4a",
+    "build/qa/request-pull/private-preference-cleanup.log": "e718e1850c0aa7a9f785170c504dcfbe8fb0b5b15c64b0d39d680ac0f2065e4b",
+    "build/qa/request-pull/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/request-pull/project.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/request-pull/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/request-pull/store.log": "a8f6bc2d3ea4c416fadaacd897ed8dec7ece2d432a429e26a8f7b1c32da55293",
+    "build/qa/request-pull/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/request-pull/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

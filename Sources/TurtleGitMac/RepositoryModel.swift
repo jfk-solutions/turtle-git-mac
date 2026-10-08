@@ -34,6 +34,7 @@ import TurtleGitCore
     private var browserWindows: [String: RepositoryBrowserWindowController] = [:]
     private var worktreeListWindows: [String: WorktreeListWindowController] = [:]
     private var worktreeCreateWindows: [String: WorktreeCreateWindowController] = [:]
+    private var requestPullWindows: [String: RequestPullWindowController] = [:]
     private var formatPatchWindows: [String: FormatPatchWindowController] = [:]
     private var blameWindows: [String: BlameWindowController] = [:]
     private var rebaseWindows: [String: RebaseWindowController] = [:]
@@ -324,6 +325,9 @@ import TurtleGitCore
         case .export:
             guard let repository else { return }
             showExport(repository: repository, access: activeAccess, revision: "HEAD", paths: paths)
+        case .requestPull:
+            guard let repository else { return }
+            showRequestPull(repository: repository, access: activeAccess)
         case .formatPatch:
             guard let repository else { return }
             showFormatPatch(repository: repository, access: activeAccess)
@@ -927,6 +931,12 @@ import TurtleGitCore
         }
         worktreeCreateWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showRequestPull(repository: GitRepository, access: RepositoryAccessLease?, end: String? = nil, repositoryURL: String? = nil) {
+        let key = repository.root.path + ":requestPull:" + UUID().uuidString
+        let controller = RequestPullWindowController(repository: repository, access: access, end: end, repositoryURL: repositoryURL)
+        controller.onClosed = { [weak self] in self?.requestPullWindows.removeValue(forKey: key) }
+        requestPullWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showFormatPatch(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false) {
         let rootKey = repository.root.path
