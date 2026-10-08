@@ -35,7 +35,8 @@ extension GitRepository {
     /// TortoiseGit's default checkbox mode commits the current whole-file contents
     /// of checked paths. HEAD-based commits use --only; parent-based amendments
     /// use a separate index so unrelated staged changes remain intact.
-    public func commitSelected(message: String, paths: Set<String>, options: CommitOptions = CommitOptions()) throws -> String {
+    public func commitSelected(message: String, paths: Set<String>, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
         let operation = try commitOperation()
@@ -55,20 +56,20 @@ extension GitRepository {
             // A normal commit against a selected temporary index preserves the
             // operation's parents/author/state. --only is forbidden by Git for
             // merges and cherry-picks. The real index retains unchecked entries.
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked))
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked), cancellation: cancellation)
         }
         if options.amend { _ = try run(["rev-parse", "--verify", "HEAD"]) }
-        if parentMode { return try commitParentSelection(message: message, checked: checked, options: options) }
+        if parentMode { return try commitParentSelection(message: message, checked: checked, options: options, cancellation: cancellation) }
         let modes = try selectedStagedFileModes(checked)
         if !modes.isEmpty {
             let base = try (try? run(["rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines))
                 ?? (try run(["mktree"]).text.trimmingCharacters(in: .newlines))
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: modes)
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: modes, cancellation: cancellation)
         }
         if checked.contains(where: { $0.index == "D" && $0.hasUnversionedCopy }) {
             // --only would read the retained working copy and silently re-add it.
             // Build the selected tree separately while leaving that copy on disk.
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD")
+            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", cancellation: cancellation)
         }
         let tracked = Set(try trackedPaths())
         var stagePaths = checked.filter { $0.state != .deleted || tracked.contains($0.path) }.map(\.path)
@@ -80,8 +81,8 @@ extension GitRepository {
             }
         }
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
-        try prepareCommitBranch(options.newBranch)
-        try stage(stagePaths)
+        try prepareCommitBranch(options.newBranch, cancellation: cancellation)
+        try stage(stagePaths, cancellation: cancellation)
         var args = ["commit", "--only", "-F", messageFile.url.path]
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
@@ -89,7 +90,7 @@ extension GitRepository {
         else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
-        if commitPaths.isEmpty { return try run(args).text }
+        if commitPaths.isEmpty { return try run(args, cancellation: cancellation).text }
         let file = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-commit-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: file) }
         let data = Data(Set(commitPaths).sorted().flatMap { Array($0.utf8) + [0] })
@@ -97,7 +98,7 @@ extension GitRepository {
             throw failure("Could not prepare the checked file list.")
         }
         args += ["--pathspec-from-file=" + file.path, "--pathspec-file-nul"]
-        return try run(args).text
+        return try run(args, cancellation: cancellation).text
     }
 
     /// Preserve staged modes that differ from disk. Ordinary matching entries
@@ -127,7 +128,8 @@ extension GitRepository {
         }
         return result
     }
-    func applySelectedFileModes(_ modes: [String: String], environment: [String: String] = [:]) throws {
+    func applySelectedFileModes(_ modes: [String: String], environment: [String: String] = [:], cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
         for path in modes.keys.sorted() {
             let records = try run(["ls-files", "--stage", "-z", "--", path], environmentOverrides: environment).stdout.split(separator: 0)
             guard records.count == 1, let record = records.first, let tab = record.firstIndex(of: 9) else {
@@ -135,12 +137,13 @@ extension GitRepository {
             }
             let fields = String(decoding: record[..<tab], as: UTF8.self).split(separator: " ")
             guard fields.count == 3, fields[2] == "0" else { throw GitFailure(arguments: ["commit"], code: 1, message: "The selected file has unresolved index entries: " + path) }
-            _ = try run(["update-index", "--cacheinfo", modes[path]!, String(fields[1]), path], environmentOverrides: environment)
+            _ = try run(["update-index", "--cacheinfo", modes[path]!, String(fields[1]), path], environmentOverrides: environment, cancellation: cancellation)
         }
     }
 
     /// Staging mode commits the index exactly as it is, including partial files.
-    public func commitIndex(message: String, options: CommitOptions = CommitOptions()) throws -> String {
+    public func commitIndex(message: String, options: CommitOptions = CommitOptions(), cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Enter a commit message.")
         }
@@ -148,7 +151,7 @@ extension GitRepository {
             throw GitFailure(arguments: ["commit"], code: 1, message: "Finish the pending operation before amending or creating a new branch.")
         }
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
-        try prepareCommitBranch(options.newBranch)
+        try prepareCommitBranch(options.newBranch, cancellation: cancellation)
         var args = ["commit", "-F", messageFile.url.path]
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
@@ -156,13 +159,14 @@ extension GitRepository {
         else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
-        return try run(args).text
+        return try run(args, cancellation: cancellation).text
     }
-    func prepareCommitBranch(_ name: String?) throws {
+    func prepareCommitBranch(_ name: String?, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
         guard let name else { return }
         guard !name.isEmpty, !name.contains("\0"), !name.hasPrefix("-") else { throw GitFailure(arguments: ["branch"], code: 1, message: "Enter a valid new branch name.") }
-        _ = try run(["check-ref-format", "refs/heads/" + name])
-        _ = try run(["checkout", "-b", name])
+        _ = try run(["check-ref-format", "refs/heads/" + name], cancellation: cancellation)
+        _ = try run(["checkout", "-b", name], cancellation: cancellation)
     }
     public func submodulePaths(cancellation: OperationCancellation? = nil) throws -> Set<String> {
         Set(try run(["ls-files", "--stage", "-z"], cancellation: cancellation).stdout.split(separator: 0).compactMap { record in

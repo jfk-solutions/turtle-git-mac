@@ -77,7 +77,7 @@ public actor GitRepository {
         args += paths
         return try run(args).text
     }
-    public func stage(_ paths: [String]) throws { if !paths.isEmpty { _ = try run(["add", "--"] + paths) } }
+    public func stage(_ paths: [String], cancellation: OperationCancellation? = nil) throws { try cancellation?.check(); if !paths.isEmpty { _ = try run(["add", "--"] + paths, cancellation: cancellation) } }
     public func unstage(_ paths: [String]) throws {
         guard !paths.isEmpty else { return }
         if (try? run(["rev-parse", "--verify", "HEAD"])) != nil {

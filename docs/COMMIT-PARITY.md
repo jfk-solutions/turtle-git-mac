@@ -40,8 +40,9 @@ bypasses checked-file index preparation. These are distinct commit modes.
 - Amend last commit, optional author override, Add Signed-off-by using configured
   Git identity. Empty checked selection plus amend supports message-only amend.
 - Show unversioned files, scoped Finder requests, Show Whole Project, refresh,
-  double-click diff, cancel and help. Successful commits close the dialog and
-  refresh the main window; errors preserve the message and checked paths.
+  double-click diff, cancel and help. Successful commands refresh views and retain
+  owned progress; finishing the result closes the dialog or starts ReCommit.
+  Errors preserve the message and checked paths.
 
 ## Verification
 
@@ -98,8 +99,8 @@ checkbox semantics. Staged files remain visible outside Finder-requested scope.
   file counts for untracked paths, staged/unstaged rename interactions.
 - Remaining file context command audit, including broader grouped-list and clipboard verification, plus broader Delete selection verification. File Blame/log/open/reveal
   are implemented, with external launch and Log handoff native QA pending.
-- Progress window with cancellation, interactive hooks/editors/signing and
-  authentication prompts; remaining persistent dialog preferences.
+- Physical progress-window/cancellation acceptance, interactive hooks/editors/signing
+  and authentication prompts; remaining persistent dialog preferences.
 - Broader operation completion: native cherry-pick/revert, octopus/linked-worktree
   merges, empty merge selection UI, hooks/signing and multi-step sequencer workflows.
   Resolved-operation checkbox completion is implemented; staging mode uses normal
@@ -1464,3 +1465,46 @@ exemptions and unchanged repository/draft/history on Abort across four Git
 versions. These are programmatic native-model/Git checks. Displayed sheet,
 keyboard/VoiceOver, all preflight combinations and signed sandbox acceptance
 remain pending; the full Commit and application port remain incomplete.
+
+## Owned Commit progress and post-actions
+
+After preflight and message preparation, Commit now opens an owned resizable
+native progress sheet. The captured checked paths, staging mode, message/options
+and completion action execute once; the Commit owner remains locked until the
+result closes. Ordinary successful Commit offers Push, Pull, ReCommit and Create
+Tag in source order, with original artwork. Close finishes without a follow-up.
+Push and Tag open their native dialogs; Pull requests its source post-commit Push
+follow-up. ReCommit resets the draft/options and refreshes automatic selection.
+The footer ReCommit and Commit & Push automatically close successful progress
+and preserve their original behavior. A failed command has no success actions;
+closing progress retains the Commit draft for correction and retry. If branch
+creation succeeded before a hook failure, the new-branch controls reset and retry
+uses that selected branch, as upstream does. An invalid uncreated branch retains
+its input for correction.
+
+Cancellation stops the owned Git process group, including hook children. The
+source ConfirmKillProcess preference offers Yes/No with Yes as default. No leaves
+the command running. Accepted cancellation closes progress after cleanup and
+retains the Commit owner/draft. It does not undo branch/index changes already made
+before cancellation. Optional cancellation reaches ordinary checked-file,
+full-index, parent/separate-index commits, branch creation, staging and staged
+mode restoration. Existing callers retain their nil-token behavior.
+
+Rebase split Commit suppresses post-actions and closes successful progress, but
+its cancellation is temporarily disabled until sequencer metadata can be audited
+after an interrupted commit. Ordinary progress does not show the message-file
+command, as upstream disables command display. Streaming output remains pending.
+A Git error is presented in progress; the owner does not repeat that error after
+Close. Saved-copy restoration and changelist cleanup still run after result
+acknowledgement, and their separate failures retain their existing owner warning.
+
+[Progress QA](qa/commit-progress-2026-10-08.json) records relevant Core regression
+checks and native models with real repository effects. Native window controllers
+always supply the progress presenter. Headless callers without a presenter
+acknowledge results immediately, preserving earlier programmatic tests; the new
+receiver supplies the presenter hook and explicitly checks retained production
+result semantics. Physical progress/sheet/buttons/default/Escape/resize/theme/
+accessibility, native destination factories, signing/credentials, git-svn DCommit,
+app hooks, split cancellation and signed sandbox/Finder/App Store acceptance
+remain pending. Existing screenshots predate this progress sheet. Full Commit,
+application and distribution parity remain incomplete.

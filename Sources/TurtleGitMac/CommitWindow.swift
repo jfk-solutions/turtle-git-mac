@@ -20,6 +20,7 @@ import UniformTypeIdentifiers
     private var closingCommit = false
     private var historyWindow: NSWindow?
     private var logPicker: LogWindowController?
+    private var progressController: CommitProgressWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
         model = CommitWindowModel(repository: repository, access: access)
         let window = CommitNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 760),
@@ -31,6 +32,13 @@ import UniformTypeIdentifiers
         model.close = { [weak self, weak window] in
             guard let self, self.partial?.model.busy != true, self.partial?.window?.attachedSheet == nil, !self.model.unifiedViewerBusy else { return }
             window?.close()
+        }
+        model.onCommitProgress = { [weak self, weak window] progress in
+            guard let self, let window, window.attachedSheet == nil else { progress.dismissWithoutWindow = true; if progress.cancellable { progress.cancellation.cancel() }; return }
+            let controller = CommitProgressWindowController(model: progress)
+            controller.onClosed = { [weak self] in self?.progressController = nil }
+            self.progressController = controller
+            if let child = controller.window { window.beginSheet(child) }
         }
         model.showPartial = { [weak self] staged in self?.showPartial(staged: staged) }
         model.showViewPatch = { [weak self] in self?.showPartial(staged: false, readOnly: true) }
@@ -379,6 +387,10 @@ import UniformTypeIdentifiers
     var close: () -> Void = {}
     var onCommitted: (String) -> Void = { _ in }
     var onPush: () -> Void = {}
+    var onPull: () -> Void = {}
+    var onCreateTag: () -> Void = {}
+    var onCommitProgress: ((CommitProgressWindowModel) -> Void)?
+    @Published private(set) var commitProgress: CommitProgressWindowModel?
     enum CompletionAction: String, CaseIterable { case commit = "Commit", recommit = "ReCommit", push = "Commit & Push" }
     init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard, dialogDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
@@ -805,7 +817,10 @@ import UniformTypeIdentifiers
         busy = true
         Task {
             var commitAttempted = false
+            var progress: CommitProgressWindowModel?
+            var selectedPostAction: CommitPostAction?
             do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let validation = try await repository.prepareIssueCommit(properties: properties, message: rawMessage, issueID: rawIssueID)
                 if validation.requiresIssueWarning {
                     let proceed = await withCheckedContinuation { continuation in confirmMissingIssue { continuation.resume(returning: $0) } }
@@ -847,14 +862,22 @@ import UniformTypeIdentifiers
                 }
                 let written = try await repository.prepareCommitMessageFile(text, stripComments: dialogDefaults.bool(forKey: "StripCommentedLines"), sanitize: dialogDefaults.object(forKey: "SanitizeCommitMsg") as? Bool ?? true)
                 text = written.contents; message = written.draft
+                let result = CommitProgressWindowModel(repository: repository, action: action, staging: staging, paths: paths, options: options, preferences: dialogDefaults, cancellable: replaySplit == nil)
+                progress = result; commitProgress = result
+                onCommitProgress?(result)
+                let presented = onCommitProgress != nil && !result.dismissWithoutWindow
                 let output: String
                 commitAttempted = true
                 if let replaySplit { output = try await repository.commitRebaseSplit(message: text, paths: paths, staging: staging, options: options, expected: replaySplit) }
-                else if staging { output = try await repository.commitIndex(message: text, options: options) }
-                else { output = try await repository.commitSelected(message: text, paths: paths, options: options) }
+                else if staging { output = try await repository.commitIndex(message: text, options: options, cancellation: result.cancellation) }
+                else { output = try await repository.commitSelected(message: text, paths: paths, options: options, cancellation: result.cancellation) }
                 messageHistory?.add(written.draft)
                 if options.amend && !nonAmendMessage.isEmpty && nonAmendMessage != messageTemplate { messageHistory?.add(nonAmendMessage) }
                 onCommitted(output)
+                result.complete(output: output, success: true, cancelled: false, postActions: replaySplit == nil ? [.push, .pull, .recommit, .createTag] : [])
+                if action != .commit || replaySplit != nil || !presented { result.choose(nil) }
+                selectedPostAction = await result.waitForChoice()
+                commitProgress = nil
                 do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
                 catch {
                     self.error = "The commit succeeded, but restoring saved working copies failed. The remaining copies are retained in this dialog.\n\n" + error.localizedDescription
@@ -867,7 +890,7 @@ import UniformTypeIdentifiers
                         busy = false; reload(); return
                     }
                 }
-                if action == .recommit {
+                if action == .recommit || selectedPostAction == .recommit {
                     do {
                         let seed = try await repository.commitMessageSeed(includeOperationMessages: false)
                         messageTemplate = seed.template
@@ -880,15 +903,29 @@ import UniformTypeIdentifiers
                     checked = []; selection = []; hasLoaded = false
                     busy = false
                     reload(paths: scopePaths.isEmpty ? ["."] : scopePaths)
-                } else { busy = false; close(); if action == .push { onPush() } }
+                } else {
+                    busy = false; close()
+                    if action == .push || selectedPostAction == .push { onPush() }
+                    else if selectedPostAction == .pull { onPull() }
+                    else if selectedPostAction == .createTag { onCreateTag() }
+                }
             } catch {
                 let commitError = error.localizedDescription
-                var failureMessage = commitError
+                let shownInProgress = progress != nil && onCommitProgress != nil && progress?.dismissWithoutWindow != true
+                if let progress {
+                    progress.complete(output: commitError, success: false, cancelled: progress.cancellation.isCancelled, postActions: [])
+                    if !shownInProgress || progress.cancelled { progress.choose(nil) }
+                    _ = await progress.waitForChoice(); commitProgress = nil
+                }
+                var failureMessage = shownInProgress ? "" : commitError
                 if commitAttempted && !restoreCopies.isEmpty, await chooseSavedCopies(allowCancel: false) == .restore {
                     do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
                     catch { failureMessage = commitError + "\n\nRestoring saved working copies failed: " + error.localizedDescription }
                 }
-                self.error = failureMessage
+                if commitAttempted, let created = options.newBranch, (try? await repository.branch()) == created {
+                    createBranch = false; newBranch = ""
+                }
+                self.error = failureMessage.isEmpty ? nil : failureMessage
                 busy = false; reload()
             }
         }
@@ -900,6 +937,7 @@ import UniformTypeIdentifiers
         }.joined()
     }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
+        if let commitProgress { commitProgress.cancel(); completion?(false); return }
         guard !busy, !confirmingQuit || !closeWindow else { completion?(false); return }
         let changed = !message.isEmpty && message != (amend ? originalAmendMessage : messageTemplate)
         let finish = { [weak self] in
@@ -1337,5 +1375,110 @@ private struct StagingCheckbox: NSViewRepresentable {
     }
     private final class StageButton: NSButton {
         override func setNextState() { state = state == .on ? .off : .on }
+    }
+}
+
+enum CommitPostAction: String, CaseIterable, Hashable {
+    case push, pull, recommit, createTag
+    var title: String { switch self { case .push: return "Push…"; case .pull: return "Pull…"; case .recommit: return "ReCommit"; case .createTag: return "Create Tag…" } }
+    var icon: MenuIcon { switch self { case .push: return .push; case .pull: return .pull; case .recommit: return .commit; case .createTag: return .tag } }
+}
+@MainActor final class CommitProgressWindowModel: ObservableObject {
+    let repository: GitRepository
+    let action: CommitWindowModel.CompletionAction
+    let staging: Bool
+    let paths: Set<String>
+    let options: CommitOptions
+    let cancellation = OperationCancellation()
+    let cancellable: Bool
+    private let preferences: UserDefaults
+    @Published private(set) var busy = true
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var output = ""
+    @Published private(set) var postActions: [CommitPostAction] = []
+    private var resolved = false
+    private var selected: CommitPostAction?
+    private var waiter: CheckedContinuation<CommitPostAction?, Never>?
+    private var autoCloseRequested = false
+    var dismissWithoutWindow = false
+    var onClose: () -> Void = {}
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var canCancel: Bool { busy && cancellable && !cancelling && !confirmingCancellation }
+    init(repository: GitRepository, action: CommitWindowModel.CompletionAction, staging: Bool, paths: Set<String>, options: CommitOptions, preferences: UserDefaults, cancellable: Bool) {
+        self.repository = repository; self.action = action; self.staging = staging; self.paths = paths; self.options = options; self.preferences = preferences; self.cancellable = cancellable
+    }
+    func complete(output: String, success: Bool, cancelled: Bool, postActions: [CommitPostAction]) {
+        guard busy else { return }
+        self.output = output; self.success = success; self.cancelled = cancelled
+        self.postActions = postActions; busy = false; cancelling = false
+    }
+    func waitForChoice() async -> CommitPostAction? {
+        if resolved { return selected }
+        return await withCheckedContinuation { waiter = $0 }
+    }
+    func choose(_ action: CommitPostAction?) {
+        guard !busy, !resolved else { return }
+        if confirmingCancellation { if action == nil { autoCloseRequested = true }; return }
+        guard action == nil || postActions.contains(action!) else { return }
+        resolved = true; selected = action; onClose()
+        waiter?.resume(returning: action); waiter = nil
+    }
+    func cancel() {
+        guard canCancel else { return }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true
+            confirmCancellation { [weak self] accepted in
+                guard let self, self.confirmingCancellation else { return }
+                self.confirmingCancellation = false
+                if self.busy && accepted { self.cancelling = true; self.cancellation.cancel() }
+                else if !self.busy && self.autoCloseRequested { self.choose(nil) }
+            }
+        } else { cancelling = true; cancellation.cancel() }
+    }
+}
+@MainActor final class CommitProgressWindowController: NSWindowController, NSWindowDelegate {
+    let model: CommitProgressWindowModel
+    var onClosed: () -> Void = {}
+    init(model: CommitProgressWindowModel) {
+        self.model = model
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
+        window.title = "\(model.repository.root.lastPathComponent) – Commit progress – TurtleGit"; window.minSize = NSSize(width: 620,height: 340); window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: CommitProgressDialog(model: model))
+        super.init(window: window); window.delegate = self
+        model.onClose = { [weak window] in guard let window else { return }; window.sheetParent?.endSheet(window); window.close() }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.busy { model.cancel(); return false }
+        guard sender.attachedSheet == nil, !model.confirmingCancellation else { return false }
+        model.choose(nil); return false
+    }
+    func windowWillClose(_ notification: Notification) { onClosed() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+private struct CommitProgressDialog: View {
+    @ObservedObject var model: CommitProgressWindowModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ScrollView { Text(model.output).font(.system(.body,design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity,alignment: .leading) }.frame(maxWidth: .infinity,maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Committing…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Commit failed").foregroundStyle(model.busy ? Color.primary : model.success ? .green : .red); Spacer() }
+            HStack {
+                if let first = model.postActions.first {
+                    Button { model.choose(first) } label: { CommandLabel(title: first.title,icon: first.icon) }
+                    Menu { ForEach(model.postActions,id: \.self) { action in Button { model.choose(action) } label: { CommandLabel(title: action.title,icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Commit post-actions") }.menuStyle(.borderlessButton).fixedSize()
+                }
+                Spacer()
+                if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
+                else { Button("Close") { model.choose(nil) }.keyboardShortcut(.defaultAction).disabled(model.confirmingCancellation) }
+            }
+        }.padding(12)
     }
 }

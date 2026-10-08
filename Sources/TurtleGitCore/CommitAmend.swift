@@ -49,11 +49,13 @@ extension GitRepository {
         _ = try run(["restore", "--source=" + base, "--staged", "--"] + paths)
     }
 
-    func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions) throws -> String {
+    func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         let base = try commitComparisonBase(amendToParent: true)
-        return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked))
+        return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked), cancellation: cancellation)
     }
-    private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: [String: String], environment: [String: String]) throws -> [String] {
+    private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: [String: String], environment: [String: String], cancellation: OperationCancellation? = nil) throws -> [String] {
+        try cancellation?.check()
         let tracked = Set(try trackedPaths())
         let retainedDeletes = Set(checked.filter { $0.index == "D" && $0.hasUnversionedCopy }.map(\.path))
         var paths = checked.filter { !retainedDeletes.contains($0.path) }.map(\.path)
@@ -64,14 +66,14 @@ extension GitRepository {
                 if tracked.contains(old) { realStage.append(old) }
             }
         }
-        _ = try run(["read-tree", base], environmentOverrides: environment)
+        _ = try run(["read-tree", base], environmentOverrides: environment, cancellation: cancellation)
         if !paths.isEmpty {
-            _ = try run(["add", "--all", "--"] + Array(Set(paths)).sorted(), environmentOverrides: environment)
+            _ = try run(["add", "--all", "--"] + Array(Set(paths)).sorted(), environmentOverrides: environment, cancellation: cancellation)
         }
         if !retainedDeletes.isEmpty {
-            _ = try run(["update-index", "--force-remove", "--"] + retainedDeletes.sorted(), environmentOverrides: environment)
+            _ = try run(["update-index", "--force-remove", "--"] + retainedDeletes.sorted(), environmentOverrides: environment, cancellation: cancellation)
         }
-        try applySelectedFileModes(fileModes, environment: environment)
+        try applySelectedFileModes(fileModes, environment: environment, cancellation: cancellation)
         return realStage
     }
     func commitSelectionIsEmpty(checked: [StatusEntry], base: String, fileModes: [String: String]) throws -> Bool {
@@ -83,17 +85,18 @@ extension GitRepository {
         let tree = try run(["write-tree"], environmentOverrides: environment).text
         return tree == (try run(["rev-parse", base + "^{tree}"]).text)
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil) throws -> String {
+    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
         var environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
         if let preservedAuthorDate { environment["GIT_AUTHOR_DATE"] = preservedAuthorDate }
-        let realStage = try populateCommitSelectionIndex(checked: checked, base: base, fileModes: fileModes, environment: environment)
-        try prepareCommitBranch(options.newBranch)
-        try stage(realStage)
-        try applySelectedFileModes(fileModes)
+        let realStage = try populateCommitSelectionIndex(checked: checked, base: base, fileModes: fileModes, environment: environment, cancellation: cancellation)
+        try prepareCommitBranch(options.newBranch, cancellation: cancellation)
+        try stage(realStage, cancellation: cancellation)
+        try applySelectedFileModes(fileModes, cancellation: cancellation)
         var args = ["commit", "-F", messageFile.url.path]
         if options.amend { args.append("--amend") }
         if options.messageOnly { args.append("--allow-empty") }
@@ -101,6 +104,6 @@ extension GitRepository {
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         if options.resetAuthorDate { args.append("--date=now") }
         else if let date = options.authorDate { args.append("--date=" + ISO8601DateFormatter().string(from: date)) }
-        return try run(args, environmentOverrides: environment).text
+        return try run(args, environmentOverrides: environment, cancellation: cancellation).text
     }
 }

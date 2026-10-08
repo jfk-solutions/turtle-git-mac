@@ -377,6 +377,9 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   fast-forward controls, Tags/Prune and shallow depth. Owned progress retains the result
   with old/new Compare and Log, conditional Stash Pop/Push, and conflict/recovery actions.
   [Pull parity](docs/PULL-PARITY.md) records pending rebase and recovery workflows.
+- Native Commit progress retains ordinary results with Push, Pull, ReCommit and
+  Create Tag; cancellation covers owned Git and hook processes. Physical and
+  signed acceptance remain pending; see [Commit parity](docs/COMMIT-PARITY.md).
 - Separate native Fetch dialog with named remote/all remotes or URL, remote branch
   browsing, three-state Tags/Prune overrides and shallow depth.
   Owned ordinary Fetch progress retains results with Log, Reset, Fetch, Rebase,

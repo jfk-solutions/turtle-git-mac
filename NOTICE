@@ -542,3 +542,7 @@ Native progress Cancel closes its owner after the owned transport ends.
 Fetch/Rebase post-execution choices adapt AppUtils.cpp::DoFetch and
 MessageBox.cpp::ShowCheck answer suppression, with native owned sheets and
 a fast-forward merge phase. Source messages and answer keys are retained.
+
+Commit owned progress adapts CommitDlg.cpp post-command actions, successful
+footer auto-close and failure/new-branch recovery. POSIX process groups replace
+the Windows cancellation implementation for ordinary commit and hook processes.

@@ -586,6 +586,8 @@ import TurtleGitCore
         }
         let access = controller.model.access
         controller.model.onPush = { [weak self] in self?.showPush(repository: repository, access: access) }
+        controller.model.onPull = { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true)) }
+        controller.model.onCreateTag = { [weak self] in self?.showReference(repository: repository, access: access, isTag: true) }
         configureCommitInteractions(controller.model, repository: repository, access: access)
         commitWindows[root.path] = controller
         controller.model.reload(paths: paths)

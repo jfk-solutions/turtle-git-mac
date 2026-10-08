@@ -1,0 +1,59 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "4f1b2778b9acd8547f66a667d539d127bd4a81d2",
+  "scope": "Owned ordinary Commit progress, source post-actions, footer auto-close, draft/new-branch failure recovery and optional cancellation through ordinary/index/separate-index commit and hook processes. Full Commit/application/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "9d6ff563e4383f66f3673a7c53c8837864210b0311f3289010bf3012c90bf1ab",
+  "files_sha256": {
+    "NOTICE": "61ec9d844cccaf5dc6d0afb7075c99e1084a2c65b2f4a7ac4bcaebc25643fcd7",
+    "README.md": "d05082429b199eb0535f4ea1ccd0565e75ca86763ce79cf32794c7844b497bfc",
+    ".github/workflows/macos.yml": "74995e851b4335c2f60e11afee781f9c8edda9b949b29aa23f4e7321b48d3c90",
+    "docs/COMMIT-PARITY.md": "ba411b403c9b4884fc783e512b93532ae64accf68bd2271848eeb96ab1c09f64",
+    "docs/upstream-files.csv": "bf34e5e40eb84e58c5f7643717e63412966d9658e573ce9f495460b990f6e286",
+    "Sources/TurtleGitCore/CommitSelection.swift": "4c577f64d49d1b88b54f7b1a51051ed4ac4ab33a8859657c49ed7a31fa91ba9b",
+    "Sources/TurtleGitCore/CommitAmend.swift": "b572d36a610d6c0cf55a01af7e3b5539f4e081bc23cc94120e4a7e5e3d53985a",
+    "Sources/TurtleGitCore/GitRepository.swift": "41becdda5d33b2d96d63b2d3a3a380e0229c0deacce73dff71548bba5c2ad224",
+    "Sources/TurtleGitMac/CommitWindow.swift": "f28769b8942f7760ddfb621a183ef858ba7a30699ade4af989cf0e884e3eb891",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "ab9304a535c596a6b5e24f6502826c40c0f05ec888e82b58581380373d9f072b",
+    "docs/qa/commit-progress-native-2026-10-08.swift": "532b9279f34fbe769da74572c57c296a4875819ef68d245c49ca49e6448ae318",
+    "scripts/test-commit-progress.py": "c553da0c241b807bc8c57af983e739e9c76b0ba8d1ff0f9be2ebb9ed69e208f6"
+  },
+  "git_matrix": [
+    "2.50.1 (Apple Git-155)",
+    "2.37.1",
+    "2.39.5",
+    "2.55.0 (bundled)"
+  ],
+  "verification": {
+    "core": "21 CommitSelectionTests/CommitAmendTests/CommitFileModeTests passed. Actual checked-file, full-index, root/parent/merge amendment, pending operations, unchecked index preservation, staged executable/symlink/delete modes and failures remain covered. Optional token mutations use existing owned process runner; no nil-token behavior changed.",
+    "native": "Final four-Git receiver passed retained production-presenter owner; real checked and full-index commits; exact Push/Pull/ReCommit/Create Tag list; captured draft/options and duplicate gates; single callbacks, ReCommit reset and footer automatic close. Hook rejection after creating after-failure branch preserves HEAD/draft, selects that branch and clears new-branch inputs; fixing the hook permits retry. Pre-cancelled selected/index APIs preserve HEAD/index and do not create branch. Real pre-commit hook/helper No/Yes cancellation passes ordinary/index/parent-amend modes: both owned children dead, unrelated decoy alive, no success callback, draft and unchecked index/working bytes retained, subsequent commit succeeds. No windows or user preference/pasteboard writes.",
+    "selection_regression": "Existing native visible-selection receiver passed four Gits with hidden unversioned/scoped/ignored/stale checks excluded from real commit/button/count/clipboard, reveal/Whole Project checks and full-index staging. These headless callers lack a presenter and acknowledge progress immediately; new receiver supplies a presenter and explicitly tests production result retention.",
+    "builds": "Unsigned final Debug and AppStore builds passed. Both bundle audits passed with embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 upstream icons; NOTICE byte-identical in both bundles. Store bundled Git 2.55.0: 11 universal arm64/x86_64 Mach-O files and actual local Git fixture operations passed. No signed distribution claim.",
+    "documentation": "README, Commit parity, NOTICE, native CI step and four partial source mappings updated. Pin checker passed; full CommitDlg/ProgressDlg/resource files remain partial. Local site generated successfully, unpublished.",
+    "processes": "All Debug/Core/native receiver sessions terminal before Store build. Main GUI never launched. Prohibited activation and owned fixture hooks/decoys; actual cancellation checks clean up owned hook/helper and decoy. Final app/receiver/sleep process audit empty. Private UUID domains removed via defer; only empty owned preference plists removed afterward, nonempty files untouched; details in cleanup log. No user pasteboard or standard preferences written. Removed 16 empty owned CommitProgress/CommitVisible UUID preference plists; none nonempty for these suites.",
+    "limitations": "Displayed sheet/buttons/default/Escape/theme/resize/accessibility, destination factory and saved-copy nested-sheet acceptance, true streamed output, interactive signing/authentication, git-svn DCommit, app hooks, persistent action/auto-close settings, cancellation after Git has committed/mutated, comprehensive split/continued sequencer cancellation and signed sandbox/Finder/AppStore execution pending. Rebase split suppresses actions and auto-closes success but cancellation stays disabled to protect durable split bookkeeping until audited. New backend mutation cancellation does not roll back completed branch/staging changes. Actual native controllers always present; headless no-presenter callers acknowledge immediately. Full file/dialog/application port, hosted CI/site and signed distribution remain incomplete; GitHub authorization unavailable, not retried."
+  },
+  "logs_sha256": {
+    "build/qa/commit-progress/core.log": "a4a7ca7f831822a453846f9c6de45db05bcb72fc0fdbecdfcdec36c7ac918b87",
+    "build/qa/commit-progress/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/commit-progress/debug-before-branch-recovery.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-progress/debug-before-presentation-guard.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-progress/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-progress/native-before-branch-recovery.log": "d1fda81bfcc41f63e9a1cf57b3229c03feaf9ed78d8ccc6d0c953a1e1f7232cf",
+    "build/qa/commit-progress/native.log": "d1fda81bfcc41f63e9a1cf57b3229c03feaf9ed78d8ccc6d0c953a1e1f7232cf",
+    "build/qa/commit-progress/private-preference-cleanup.log": "5a23713d494c04941a14974616ee28bb2f33032a6038daca19ffbc168049b8b6",
+    "build/qa/commit-progress/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/commit-progress/selection-regression.log": "99588c69ea70b45a868992af575b09d5db4f9ee17e61d5f722dae76d169df07b",
+    "build/qa/commit-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-progress/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/commit-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
