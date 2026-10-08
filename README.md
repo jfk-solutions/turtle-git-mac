@@ -630,3 +630,6 @@ once-only Working Tree handoffs. See [Stash parity](docs/STASH-PARITY.md).
 
 Format Patch now follows shared progress close/cancellation settings and guards
 result-to-mail acknowledgement. See [Format Patch parity](docs/FORMAT-PATCH-PARITY.md).
+
+Export now retains a native result with the original Explore icon, shared close
+settings and cancellation confirmation. See [Export parity](docs/EXPORT-PARITY.md).

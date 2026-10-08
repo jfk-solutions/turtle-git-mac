@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "6a4d3961ddde804c802fd6935c4bec46fed49e2d",
+  "scope": "Native Export owned progress/Explore result, native radio controls, source directory validation order and cancellation/close policies. Full application port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/Commands/ExportCommand.cpp": "4043fbc5e2fca46dd13c86cfff062dbc94064539",
+    "src/TortoiseProc/ExportDlg.cpp": "e700b242c5386ee87fa779ce9c5727fdfcc237ef",
+    "src/TortoiseProc/ExportDlg.h": "44f8719287e6f32a856a8b91d2e1bb41ce07c21a",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/ProgressDlg.h": "c21856cbed61b28586faaf5f37b9ef051e31bb52",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "4190932f9bcc37e723ec861ab2b4a555593934f94f5dc9a8a02d27ae9137173e",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "be980a1d724bf54272d257bfa51262be7f0cb2f108f17c8bc0bf8fe6d71fb830",
+    "NOTICE": "0575132862d21731b0f3cab331e7b667d4b01123a3b68488a0cd4fd8fff54c92",
+    "README.md": "c7c2d845b2d940c6f0b4bd324b1159cefd1d47abfb31db7ff222d8d65b565970",
+    "Sources/TurtleGitMac/ExportWindow.swift": "99c4eb847531d78008cb6377b5e237e4751875337f6b5c3b18905d16d51c1323",
+    "docs/PROGRESS-PARITY.md": "a6ffb0daafb36578396afd3e25a013dee584f36d8c58d4683fcaff365a5f04e6",
+    "docs/UI-PARITY.md": "88ff5079d47eb6dce232c0890494e3f2515ee0cc35b107ed43f328cfdde89a9e",
+    "docs/upstream-files.csv": "0855507c00c7c3f226a9587aede7db106b6968ca097cfd08515b1d5dfb8d6a11",
+    "docs/EXPORT-PARITY.md": "735b46169c6200ed8f03fe82c1143081e556a118ffdf379fd3ed23492cc71e1f",
+    "scripts/test-export-progress.py": "39a41d0a4b2510b05a28c832ab2b7218b8afa41e44a9bcebb16f79494bebaa85",
+    "docs/qa/export-progress-native-2026-10-08.swift": "3433c55d9ca90e6234829fc60f0f0e450d3fe786bdbc56957cfce04d71f0d6c5"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Final four-Git receiver passed actual whole/scoped ZIP contents across three captured close policies, source no-options retains success Explore while no-errors closes without invoking action; hidden native radio/options/result hosting; submitted destination extension/scope remain captured despite field edits; owner stays busy until acknowledgement then once close-before-captured Explore callback. Existing directory rejected with source message before overwrite or result presentation. Existing ZIP overwrite No preserves bytes; cancellation while overwrite continuation pending prevents fresh-token presentation. Invalid revision result has no Explore/Retry, Close returns options and reviewed HEAD export succeeds. Owned slow archive writes partial temporary ZIP; No keeps leader/helper running, Yes stops both PIDs, preserves old ZIP and removes temporary siblings; fresh export succeeds. Success while question pending delays auto-close until late Yes and duplicate answer does not repeat. HEAD/index unchanged; original Explorer image resolves. Actual Finder reveal not invoked.",
+    "regression": "Final four-Git RefLog revision-handoff receiver passed immutable selected hash into real Export/browser/Branch/Tag models without auto-export/create, chooser/missing/multi/invalid/busy/current/older-stash guards and read-only HEAD/refs/index/config/worktree invariants.",
+    "core": "Core unchanged; existing Core tests not repeated. Real archive backend/ZIP extraction exercised by native receiver on four Git versions. Not a full-suite rerun.",
+    "source_notes": "CAppUtils::Export CProgress callback adds only Explore on success, nothing on failure. Native Show in Finder uses original IDI_EXPLORER equivalent and captured URL, with split menu; no automatic reveal. Options remain behind result and failed Close restores them, existing Mac ownership adaptation; no-presenter model keeps legacy inline API. Core existing atomic temporary/rename behavior preserves prior archive unlike direct upstream archive write. Result retains/revalidates repository and exact destination leases on Store path. Directory validation follows ExportDlg::OnOK before default-Cancel overwrite.",
+    "documentation": "3277 seven-column inventory rows verified; six mappings retain partial status. New Export parity, central UI/progress parity, NOTICE, README and native CI step updated. Existing screenshots predate result/radio replacement; no new screenshot. Site remains local/unpublished.",
+    "processes": "Each Debug compiler terminal before native compilers/receivers. Both native jobs terminal before Store; directory guard correction occurred after first Store terminal, then final Debug/four-Git native and regression repeated before final Store. No main app/displayed windows/Finder reveal. Activation prohibited; standalone native options/result hosts only. Eight empty owned UUID preference plists removed across two completed receiver runs; standard/nonempty preferences untouched. Final owned app/receiver process audit empty.",
+    "limitations": "Model callbacks/hidden hosting do not establish physical nested sheets/default buttons/keyboard/focus/window close/Quit, actual Root factory ownership, Finder reveal, themes/accessibility/geometry/filesystem completion, full chooser/progress/streaming or missing-window ownership. Signed sandbox/grants/Finder/App Store acceptance pending. Full file/dialog/application port and hosted CI/site/distribution incomplete; GitHub authorization unavailable and not retried.",
+    "builds": "Final unsigned Debug and AppStore builds/bundle audits passed: embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 original icons. NOTICE byte-identical in both. Bundled Git 2.55.0 includes 11 universal Mach-O files and passed local Git fixtures. Earlier builds retained in logs before native radio/directory validation refinements."
+  },
+  "logs_sha256": {
+    "build/qa/export-progress/debug-audit-final.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/export-progress/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/export-progress/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/export-progress/debug-validated.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/export-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/export-progress/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/export-progress/native-final.log": "7bd784b7bd36a97af665a1d502fe4ce7952ac1845898a7875af2fb07dbf3bb66",
+    "build/qa/export-progress/native.log": "7bd784b7bd36a97af665a1d502fe4ce7952ac1845898a7875af2fb07dbf3bb66",
+    "build/qa/export-progress/private-preference-cleanup-final.log": "2f2091d4053f59cd8458fdb5a39078c4b9e1ea8cbb329bd3a4ee566885e5fe75",
+    "build/qa/export-progress/private-preference-cleanup.log": "61c192940d06b796d6d711c21a74d064fcd0da564e755cc373374f39b2e9c198",
+    "build/qa/export-progress/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/export-progress/regression-final.log": "a9323c6f97f8a6002e259ff840f51fd84db89ba3e3709f0383d1656a39508279",
+    "build/qa/export-progress/regression.log": "a9323c6f97f8a6002e259ff840f51fd84db89ba3e3709f0383d1656a39508279",
+    "build/qa/export-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/export-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/export-progress/store-audit-final.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/export-progress/store-final.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/export-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
