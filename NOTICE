@@ -848,3 +848,17 @@ saved visibility/order/adjusted widths, fitting and confirmed reset. Copy
 commands follow displayed row and visible-column order with native LF endings.
 Original source attribution and GPL version 2 or later apply. Physical
 interaction and complete source menu/workflow parity remain pending.
+
+The standalone LFS Locks list now reuses native status-list header layout and
+clipboard interaction for the six columns allowed by LFSLocksDlg.cpp Init.
+Saved visibility/order/adjusted widths, fitting, confirmed reset, metadata,
+source-style sorting and original-icon copy commands retain server lock IDs
+independently of paths/highlighting. The shared adapter accepts native item IDs
+and displayed texts without manufacturing Git status records. Original source
+attribution and GPL version 2 or later apply; complete physical/provider/signed
+acceptance remains pending.
+
+The LFS progress model stops accepting queued per-file callbacks once the final
+batch snapshot arrives. This prevents duplicate result rows while subsequent
+lock/metadata refreshes yield to the main actor; generation and cancellation
+guards remain in place.

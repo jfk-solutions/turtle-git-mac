@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "e8b7d1a53bb580001063bfb9c4f7e39b71e398ff",
+  "scope": "Standalone Locks native saved columns/metadata/sorting/clipboard and shared ID-based interaction. LFS final-batch callback guard. Full port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/LFSLocksDlg.cpp": "f9ebe3aaa8c1089ce356f7b6f1142c5b9ceb1036",
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2",
+    "src/TortoiseProc/ResizableColumnsListCtrl.h": "84350420f3d5dfd6eb685f21415559487dd59611"
+  },
+  "sources_manifest_sha256": "b18b2b95e0318a93302fb375ae48f221184e76f93c75173669107deeb68b60ab",
+  "changed_files_sha256": {
+    "NOTICE": "8f136faf2c3710482df2edd1984e08765459836a2b1c87973fe667e8551f11a9",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "1d0ba1650bd332d85ea2ae06d2b4c7ebf44585320b110bd12335cc8e7ec6f604",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "9dc026acfb749eb16beb62b4b471d60d6868c787b3d046d7fe4ce089262d4d69",
+    "docs/LFS-PARITY.md": "e0bae1d1dafd4357a6f126f00b008209edd0ba817f06581de5c35da3ddf2f7a3",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "c3e0027bf54e5f7b3f332b5c7702fa8b83391937e96ca170261b456de7aef593",
+    "docs/upstream-files.csv": "2d1e4c4a349875f5faf382dea85d47cbb37d63381a838ab048a8809ff09eeaad"
+  },
+  "verification": {
+    "native": "Final activation-prohibited AppKit receiver passes Apple Git and bundled Git 2.55.0. Actual seven-column Locks table (checkbox plus six text columns), default four visible including checkbox, allowed header menu, all six ascending/reverse sort prototypes/data-source bindings, size order from real local 8/16-byte files, checked/highlight identity retained; real header visibility dispatch, owner column move to first text position and width 217 restored in a second actual native table; content fitting/default restoration; reset injected No/Yes with owner/busy guards; six-column availability gate; one sort column and Quit refusal. Clipboard full/relative/name/owner/path-status text and visible ordered headings checked with Unicode/tab names without changing user clipboard. Existing tri-state, progress sheet, Force retry, failed refresh, cancellation, Commit/Working Tree actions/owner columns/layout and real-conflict Resolve checks execute. HEAD/raw index/tracked bytes retained. LFS replies injected.",
+    "progress": "Diagnostic reproduces duplicate queued results after final batch assignment while metadata refresh yields. Current callback guard closes reporting before final snapshot: exact two per-file results/order retained on both engines; cancellation retains completed results. Existing status-owner Lock/Unlock progress also executes with current guard.",
+    "commit_regression": "Separate Commit native column receiver passes Apple Git after shared header/ID adapter changes. Checkbox/native layout fitting/reopen/reset/sorting/group/selection identity unchanged. This run preceded the LFS batch guard; shared header source remained unchanged afterward, and the final LFS receiver exercises current Commit LFS progress.",
+    "core": "Core sources unchanged. Existing metadata/settings/helpers reused; previous Core tests retained. No additional Core suite run for native-only changes.",
+    "inventory": "3277 seven-field LF rows; pinned inventory check and diff checks pass. Four mappings extended and remain partial.",
+    "site": "Local Pages generator includes updated LFS guide/current QA; no deployment or fresh screenshot claim.",
+    "builds": "Current Debug and sequential unsigned AppStore builds and bundle audits pass; Store audit requires bundled Git/Git LFS. Both packages contain current NOTICE. Sources/NOTICE/receivers frozen during compiler/native handles. No signed sandbox or App Store acceptance claim."
+  },
+  "iterations": [
+    "Initial native receiver compilation failed from local variable name collisions with later fixture sections; corrected names. App Debug build and Commit receiver passed.",
+    "Next run failed existing mixed-result assertion. A diagnostic run proved correct Path forward order and checked IDs, but four result rows duplicated the two final batch files. Original failure and diagnostic logs retained.",
+    "Added acceptingBatchResults phase guard: queued per-file callbacks are ignored after authoritative batch completion, before refresh awaits. Rebuilt current Debug/NOTICE and reran complete receiver; both engines pass exact original result count/order and cancellation assertions."
+  ],
+  "limitations": [
+    "Physical gestures/keyboard/context menu input, reset alert buttons, appearance/accessibility/fresh screenshots remain unverified. Reset answers are injected at owned confirmation closure; clipboard text tested without altering user clipboard.",
+    "Hidden-owner standalone Lock action, single-visible-column Copy all heading, other source menus/enablement and progress/post-Pull behavior remain pending.",
+    "Authenticated provider, signed sandbox/Finder/helper deployment, App Store eligibility, GitHub CI/push and complete application parity remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": [],
+    "main_app_launches": 0,
+    "preferences": "Private UUID LFS.StatusQA and CommitSorting.QA suites; post-exit exact defaults deletion and verified empty file removal for five remaining owned suites. Main app preferences untouched.",
+    "preference_cleanup_record": "build/qa/lfs-columns-2026-10-09/preference-cleanup.json",
+    "preference_cleanup_sha256": "9557d69414a8d015ecb333c24d318d5c95f8ddf75bf7305925e71dd1c52ddf42",
+    "windows": "Successful receivers close owned windows/sheets and exit. Failed receiver processes exited with SIGTRAP; wrappers removed private fixtures."
+  },
+  "local_log_sha256": {
+    "build/qa/lfs-columns-2026-10-09/commit-native.log": "2cd7ed2a7a013e42dddaeb853b8e1b73ea6d290db313b947228176d2d5aa87fd",
+    "build/qa/lfs-columns-2026-10-09/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-columns-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/lfs-columns-2026-10-09/debug-batch-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-columns-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-columns-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/lfs-columns-2026-10-09/native-batch-final.log": "4ba8a32cf1e6b06b41674416dd966100a8910d02c34aee325a8a6e5f620075c4",
+    "build/qa/lfs-columns-2026-10-09/native-diagnostic.log": "96c1cf4815e1fff330d4bdcc459e13888a6b7b6b0ea14a6a08fa0eec62c4f64b",
+    "build/qa/lfs-columns-2026-10-09/native-final.log": "309a4c470d95e5903038d9e2c7a6cfdbf706e53081f3410f8b3f831359c617c4",
+    "build/qa/lfs-columns-2026-10-09/native.log": "5e994284460747964498454f39338a9c6e5ce120f935b672e5d4c63815cd9e21",
+    "build/qa/lfs-columns-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/lfs-columns-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/lfs-columns-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/lfs-columns-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

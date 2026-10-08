@@ -11,13 +11,16 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        let defaultsName = "TurtleGit.LFS.StatusQA." + UUID().uuidString
+        let defaults = UserDefaults(suiteName: defaultsName)!
+        defer { defaults.removePersistentDomain(forName: defaultsName) }
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), repository = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
         _ = try await repository.run(["init", "-b", "main"])
         _ = try await repository.run(["config", "user.name", "LFS native QA"]); _ = try await repository.run(["config", "user.email", "qa@example.invalid"])
         _ = try await repository.run(["config", "commit.gpgsign", "false"]); _ = try await repository.run(["config", "core.hooksPath", "/dev/null"])
         try Data("retained\n".utf8).write(to: root.appendingPathComponent("tracked")); try await repository.stage(["tracked"]); _ = try await repository.commit(message: "base")
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repository.run(["rev-parse", "HEAD"]).stdout
-        let controller = LFSLocksWindowController(repository: repository, access: nil), model = controller.model, window = controller.window!
+        let controller = LFSLocksWindowController(repository: repository, access: nil, defaults: defaults), model = controller.model, window = controller.window!
         defer { window.close() }
         var server = [LFSLock(id: "1", path: "file2.bin", owner: "QA"), LFSLock(id: "2", path: "雪\t🦎.bin", owner: "Other")]
         var requests: [([String], Bool)] = []
@@ -29,12 +32,79 @@ import TurtleGitCore
             server.removeAll { lock in files.contains { $0.path == lock.path && $0.success } }
             return LFSBatchResult(files: files)
         }
+        for (name, count) in [("file2.bin",8),("雪\t🦎.bin",16)] {
+            try Data(repeating: 120, count: count).write(to: root.appendingPathComponent(name))
+        }
         await model.refresh(); precondition(model.error == nil && model.checked == ["1", "2"])
         window.contentView!.layoutSubtreeIfNeeded()
         try await settle { descendants(window.contentView!).contains { $0 is NSTableView } }
         let table = descendants(window.contentView!).compactMap { $0 as? NSTableView }.first!
-        precondition(table.numberOfRows == 2 && table.tableColumns.count == 4)
+        precondition(table.numberOfRows == 2 && table.tableColumns.count == 7)
         precondition(MenuIcon.lock.image() != nil && MenuIcon.unlock.image() != nil)
+        try await settle { table.headerView?.menu?.item(withTitle: "Filename") != nil && table.tableColumns.filter { !$0.isHidden }.count == 4 }
+        func locksProbe() -> CommitFileInteraction.Probe { descendants(window.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first! }
+        precondition(locksProbe().nativeColumns == LFSLocksWindowModel.columns && locksProbe().itemIDs?.count == 2)
+        precondition(table.tableColumns[2].isHidden && table.tableColumns[4].isHidden && table.tableColumns[5].isHidden)
+        precondition(locksProbe().columnMenu().item(withTitle: "Status") == nil)
+        model.selection = ["2"]
+        for (index,column) in LFSLocksWindowModel.columns.enumerated() {
+            for ascending in [true,false] {
+                let old = table.sortDescriptors, prototype = table.tableColumns[index + 1].sortDescriptorPrototype!
+                table.sortDescriptors = [prototype.ascending == ascending ? prototype : prototype.reversedSortDescriptor as! NSSortDescriptor]
+                table.dataSource!.tableView?(table, sortDescriptorsDidChange: old)
+                try await settle { model.sortOrder.first?.column == column && model.sortOrder.first?.order == (ascending ? .forward : .reverse) }
+                precondition(model.checked == ["1","2"] && model.selection == ["2"])
+                if column == .fileSize { precondition(model.rows.first!.id == (ascending ? "1" : "2")) }
+            }
+        }
+        let locksFilenameChoice = locksProbe().columnMenu().item(withTitle: "Filename")!
+        _ = NSApplication.shared.sendAction(locksFilenameChoice.action!, to: locksFilenameChoice.target, from: locksFilenameChoice)
+        try await settle { !table.tableColumns[2].isHidden }
+        let locksOwnerColumn = table.tableColumns[6]
+        table.moveColumn(6, toColumn: 1); locksOwnerColumn.width = 217
+        locksProbe().rememberNativeColumnLayout(adjustedColumn: .lfsOwner)
+        let savedLocksColumns = model.fileColumns
+        precondition(savedLocksColumns.order.first == .lfsOwner && savedLocksColumns.widths[.lfsOwner] == 217)
+        model.setSortOrder([LFSFileSort(column: .lfsOwner)])
+        precondition(model.clipboardText(["1","2"], copy: .column(.lfsOwner)) == "Other\nQA\n")
+        precondition(model.clipboardText(["1","2"], copy: .relativePaths) == "雪\t🦎.bin\nfile2.bin\n")
+        precondition(model.clipboardText(["1"], copy: .pathsAndStatus) == "Path\tStatus\nfile2.bin\tUnknown\n")
+        precondition(model.clipboardText(["1"], copy: .fullPaths) == root.appendingPathComponent("file2.bin").path + "\n")
+        precondition(model.clipboardText(["2"], copy: .names) == "雪\t🦎.bin\n")
+        precondition(model.clipboardText(["1","2"], copy: .all).components(separatedBy: "\n")[0] == model.visibleColumns.map(\.rawValue).joined(separator: "\t"))
+        let reopen = LFSLocksWindowController(repository: repository, access: nil, defaults: defaults)
+        reopen.model.query = { _ in server }; await reopen.model.refresh()
+        reopen.window!.contentView!.layoutSubtreeIfNeeded()
+        try await settle {
+            let views = descendants(reopen.window!.contentView!)
+            guard let table = views.compactMap({ $0 as? NSTableView }).first,
+                  let probe = views.compactMap({ $0 as? CommitFileInteraction.Probe }).first else { return false }
+            return probe.columnDefinition(atNativeIndex: 1) == .lfsOwner && abs(table.tableColumns[1].width - 217) < 0.5
+        }
+        precondition(reopen.model.fileColumns == savedLocksColumns); reopen.window?.close()
+        try await settle { locksProbe().enabled && locksProbe().columnDefinition(atNativeIndex: 1) == .lfsOwner }
+        precondition(locksProbe().fitColumn(atNativeIndex: 1, useDefault: false))
+        precondition(model.fileColumns.widths[.lfsOwner] != nil)
+        precondition(locksProbe().fitColumn(atNativeIndex: 1, useDefault: true))
+        precondition(model.fileColumns.widths[.lfsOwner] == nil)
+        let customizedLocksColumns = model.fileColumns
+        locksProbe().confirmResetColumns = { owner in precondition(owner === window && model.busy); return false }
+        let locksNoReset = locksProbe().columnMenu().item(withTitle: "Reset columns")!
+        _ = NSApplication.shared.sendAction(locksNoReset.action!, to: locksNoReset.target, from: locksNoReset)
+        try await settle { !model.busy && locksProbe().enabled }
+        precondition(model.fileColumns == customizedLocksColumns)
+        locksProbe().confirmResetColumns = { owner in
+            precondition(owner === window && model.busy)
+            model.setColumn(.fileSize, visible: true); precondition(model.fileColumns == customizedLocksColumns)
+            return true
+        }
+        let locksYesReset = locksProbe().columnMenu().item(withTitle: "Reset columns")!
+        _ = NSApplication.shared.sendAction(locksYesReset.action!, to: locksYesReset.target, from: locksYesReset)
+        try await settle { !model.busy && locksProbe().enabled && model.fileColumns == LFSLocksWindowModel.defaultColumns && locksProbe().columnDefinition(atNativeIndex: 1) == .path && table.tableColumns.filter { !$0.isHidden }.count == 4 }
+        model.setSortOrder([LFSFileSort(column: .path),LFSFileSort(column: .fileSize)]); precondition(model.sortOrder.count == 1)
+        model.toggleChecks(["1","2"], mark: "1"); precondition(model.checked.isEmpty && model.selection == ["2"])
+        model.toggleChecks(["1","2"], mark: "1"); precondition(model.checked == ["1","2"])
+
         func allCheckbox() -> NSButton {
             descendants(window.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "Select/deselect all" }!
         }
@@ -51,11 +121,17 @@ import TurtleGitCore
         all.performClick(nil); try await settle { model.checked.isEmpty && all.state == .off }
         precondition(model.selection == ["2"])
         model.selectAll(true); try await settle { all.state == .on }
-        model.confirmingQuit = true; try await settle { !all.isEnabled }
+        model.confirmingQuit = true; try await settle { !all.isEnabled && !locksProbe().enabled }
+        let guardedColumns = model.fileColumns
+        model.setColumn(.fileSize, visible: true); model.setSortOrder([LFSFileSort(column: .fileSize)])
+        precondition(model.fileColumns == guardedColumns && model.sortOrder.first!.column == .path)
         all.performClick(nil); precondition(model.checked == ["1","2"])
         model.confirmingQuit = false; try await settle { all.isEnabled }
         model.selectAll(false); precondition(!model.canUnlock); model.setChecked("1", true); precondition(model.canUnlock)
-        model.selectAll(true); await model.unlock()
+        model.selectAll(true)
+        print("LOCKS SORT/RESULT DIAGNOSTIC before", model.sortOrder.map { ($0.column.rawValue,$0.order) }, model.rows.map(\.id)); fflush(stdout)
+        await model.unlock()
+        print("LOCKS SORT/RESULT DIAGNOSTIC after", model.results.map { ($0.path,$0.success) }, model.locks.map(\.id), model.checked); fflush(stdout)
         precondition(model.results.map(\.success) == [true, false] && model.locks == [server[0]] && model.checked == ["2"])
         precondition(requests.count == 1 && !requests[0].1 && Set(requests[0].0) == ["file2.bin", "雪\t🦎.bin"])
         try await settle { window.attachedSheet != nil }
@@ -86,13 +162,12 @@ import TurtleGitCore
         await task.value
         precondition(model.results.count == 1 && model.information.contains("Completed server changes remain"))
         model.finishProgress(); try await settle { window.attachedSheet == nil }; window.close()
+        for name in ["file2.bin","雪\t🦎.bin"] { try FileManager.default.removeItem(at: root.appendingPathComponent(name)) }
         // Exercise both actual status-list owners and their production routing.
         try FileManager.default.createDirectory(at: root.appendingPathComponent(".git/lfs"), withIntermediateDirectories: true)
         let unusual = "-雪\t\n🦎.bin"
         try Data("untracked LFS candidate\n".utf8).write(to: root.appendingPathComponent(unusual))
         try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
-        let defaultsName = "TurtleGit.LFS.StatusQA." + UUID().uuidString
-        let defaults = UserDefaults(suiteName: defaultsName)!
         // Existing visibility preferences migrate without writing on read.
         defaults.set(true, forKey: "WorkingTree.LFSOwnerVisible")
         let migratedStatus = StatusWindowModel(repository: repository, access: nil, defaults: defaults)

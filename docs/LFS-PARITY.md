@@ -100,8 +100,7 @@ Closing during an owner query cancels it and does not publish a late response.
 LFS batches capture paths in the displayed sort order. See
 [Working Tree owner QA](qa/working-tree-lfs-owner-2026-10-08.json).
 
-Finder routing, source availability gates, shared Locks-list column settings and
-locking progress/post-Pull actions remain incomplete. The native list adds an
+Finder routing, source availability gates, locking progress/post-Pull actions remain incomplete. The native list adds an
 explicit Refresh button alongside F5. Physical keyboard/menu/pointer behavior,
 light/dark appearance, accessibility, fresh real screenshots, signed Finder
 deployment and provider acceptance remain pending. This is partial LFS parity
@@ -122,5 +121,46 @@ Working Tree’s owner column now participates in the shared native saved layout
 adjusted widths, fitting, confirmed reset and visible-column clipboard output.
 Filename and File size are optional too; the six default visible columns and
 LFS availability gate remain. Existing owner visibility migrates additively. See
-[Working Tree column QA](qa/working-tree-columns-2026-10-09.json). Full standalone
-Locks-list column settings and physical/signed/provider acceptance remain pending.
+[Working Tree column QA](qa/working-tree-columns-2026-10-09.json). Physical/signed/provider acceptance remains pending for both lists.
+
+## Standalone Locks columns and clipboard
+
+The native Locks table now shares saved column visibility, order, adjusted widths,
+automatic/content fitting and confirmed reset with Commit and Working Tree.
+Its available columns match LFSLocksDlg Init: Path, Filename, Extension, Last
+modified, File size and LFS Lock. Path, Extension and LFS owner are visible by
+default, alongside the independent checkbox column. Path stays visible; the
+checkbox stays first. Preferences use LFSLocks.FileColumns independently of the
+other dialogs. Reset No keeps the layout; Yes restores the source default.
+
+All six text headers support ascending/reverse sorting with path ties. Owner
+uses case-insensitive text comparison; paths/names use numeric comparison and
+byte ties. Size/date come from local filesystem metadata once per lock refresh;
+remote files missing locally remain listed with unavailable metadata. Sorting
+retains server lock IDs, checked targets and highlighted rows independently.
+Busy, Quit confirmation and progress review block layout/sort changes.
+
+Original-icon Copy to Clipboard offers full/relative paths, names and all visible
+information. Output uses displayed row and visible-column order with headings
+for multiple columns and native LF. The shared native interaction also routes
+keyboard copy, checkbox Space and clicked-column copy using server IDs, without
+manufacturing Git status records. Shift-copy includes source-style Unknown
+status because remote lock records contain no Git working-tree action.
+
+See [Locks column QA](qa/lfs-columns-2026-10-09.json) for native table/header,
+layout reopening, fitting/reset, sorting, copy text and operation checks.
+Physical gestures/keyboard/context menus, actual reset alert buttons, light/dark
+appearance, accessibility, fresh screenshots, authenticated providers and signed
+Finder/sandbox deployment remain unverified. Full Locks workflow parity remains
+partial.
+
+Known remaining source differences include offering Lock alongside Unlock when
+the standalone owner column is hidden, and Copy all retaining its heading when
+only Path is visible. Other shared-list context commands and source enablement
+also remain pending; the new column checks do not establish full menu parity.
+
+A completed LFS batch now stops accepting queued per-file progress callbacks
+before publishing its final results. Previously a refresh yielding to another
+actor could append delayed callbacks to those results a second time. The native
+receiver preserves the exact per-file result count/order and cancellation checks;
+the failed diagnostic log records the duplicate rows before the fix.

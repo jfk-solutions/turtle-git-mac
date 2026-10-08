@@ -8,6 +8,12 @@ struct CommitFileInteraction: NSViewRepresentable {
     let rows: [StatusListRow]
     var leadingColumnCount = 1
     var keyboardDeleteEnabled = true
+    var nativeColumns = StatusListColumn.allCases
+    var rowTexts: [[StatusListColumn: String]]? = nil
+    var itemIDs: [String]? = nil
+    var copyIDs: (([String], Bool) -> Void)? = nil
+    var copyColumnIDs: (([String], StatusListColumn) -> Void)? = nil
+    var toggleCheckIDs: (([String], String) -> Void)? = nil
     let visibleColumns: Set<StatusListColumn>
     var availableColumns: Set<StatusListColumn> = Set(StatusListColumn.allCases)
     let columnText: (StatusEntry, StatusListColumn) -> String
@@ -29,6 +35,8 @@ struct CommitFileInteraction: NSViewRepresentable {
     }
     func updateNSView(_ view: Probe, context: Context) {
         view.leadingColumnCount = leadingColumnCount; view.keyboardDeleteEnabled = keyboardDeleteEnabled
+        view.nativeColumns = nativeColumns; view.rowTexts = rowTexts; view.itemIDs = itemIDs
+        view.copyIDs = copyIDs; view.copyColumnIDs = copyColumnIDs; view.toggleCheckIDs = toggleCheckIDs
         view.columnText = columnText
         view.savedOrder = savedOrder; view.savedWidths = savedWidths; view.saveLayout = saveLayout
         view.availableColumns = availableColumns; view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
@@ -42,6 +50,12 @@ struct CommitFileInteraction: NSViewRepresentable {
         var rows: [StatusListRow] = []
         var leadingColumnCount = 1
         var keyboardDeleteEnabled = true
+        var nativeColumns = StatusListColumn.allCases
+        var rowTexts: [[StatusListColumn: String]]? = nil
+        var itemIDs: [String]? = nil
+        var copyIDs: (([String], Bool) -> Void)? = nil
+        var copyColumnIDs: (([String], StatusListColumn) -> Void)? = nil
+        var toggleCheckIDs: (([String], String) -> Void)? = nil
         var visibleColumns = Set(StatusListColumn.defaultColumns)
         var availableColumns = Set(StatusListColumn.allCases)
         var columnText: (StatusEntry, StatusListColumn) -> String = { _, _ in "" }
@@ -83,9 +97,8 @@ struct CommitFileInteraction: NSViewRepresentable {
         func fittedWidth(_ column: NSTableColumn, definition: StatusListColumn, includeHeader: Bool) -> CGFloat {
             let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
             let padding: CGFloat = definition == .path ? 38 : 14
-            let content = rows.compactMap(\.entry).map {
-                (columnText($0, definition) as NSString).size(withAttributes: [.font: font]).width + padding
-            }.max() ?? column.minWidth
+            let texts = rowTexts?.map { $0[definition] ?? "" } ?? rows.compactMap(\.entry).map { columnText($0, definition) }
+            let content = texts.map { ($0 as NSString).size(withAttributes: [.font: font]).width + padding }.max() ?? column.minWidth
             let header = includeHeader ? (column.title as NSString).size(withAttributes: [.font: font]).width + 20 : 0
             return max(column.minWidth, min(column.maxWidth, ceil(max(content, header))))
         }
@@ -122,10 +135,10 @@ struct CommitFileInteraction: NSViewRepresentable {
                 if let table = view as? NSTableView, contains(table) { return table }
                 return view.subviews.compactMap(find).first
             }
-            guard let table = find(content), table.tableColumns.count == StatusListColumn.allCases.count + leadingColumnCount else { return }
+            guard let table = find(content), table.tableColumns.count == nativeColumns.count + leadingColumnCount else { return }
             if configuredTable !== table {
                 configuredTable = table; originalColumns = table.tableColumns
-                columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), StatusListColumn.allCases).map { (ObjectIdentifier($0.0), $0.1) })
+                columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), nativeColumns).map { (ObjectIdentifier($0.0), $0.1) })
                 originalWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
                 desiredColumns = originalColumns; desiredWidths = originalWidths
                 for observer in layoutObservers { NotificationCenter.default.removeObserver(observer) }
@@ -167,7 +180,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             let menu = NSMenu(); menu.autoenablesItems = false
             let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumnLayout(_:)), keyEquivalent: "")
             reset.target = self; reset.isEnabled = enabled; menu.addItem(reset); menu.addItem(.separator())
-            for (index, column) in StatusListColumn.allCases.enumerated() where column != .path && availableColumns.contains(column) {
+            for (index, column) in StatusListColumn.allCases.enumerated() where column != .path && nativeColumns.contains(column) && availableColumns.contains(column) {
                 let item = NSMenuItem(title: column.rawValue, action: #selector(toggleColumn(_:)), keyEquivalent: "")
                 item.target = self; item.tag = index; item.state = visibleColumns.contains(column) ? .on : .off
                 item.isEnabled = enabled && column != .path; menu.addItem(item)
@@ -196,6 +209,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         var focusedPath: Binding<String?>?
         private var contextColumn: StatusListColumn?
         private var contextEntries: [StatusEntry] = []
+        private var contextIDs: [String] = []
         var enabled = false
         var delete: ([StatusEntry], StatusEntry, Bool) -> Void = { _, _, _ in }
         var copy: ([StatusEntry], Bool) -> Void = { _, _ in }
@@ -226,7 +240,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         }
         deinit { stopObserving() }
         private func prepareClipboardMenu(_ menu: NSMenu) {
-            guard window?.isKeyWindow == true, let column = contextColumn, !contextEntries.isEmpty,
+            guard window?.isKeyWindow == true, let column = contextColumn, (!contextEntries.isEmpty || !contextIDs.isEmpty),
                   let submenu = menu.items.first(where: { $0.title == "Copy to Clipboard" })?.submenu else { return }
             let identifier = NSUserInterfaceItemIdentifier("TurtleGit.CopyColumn")
             if let previous = submenu.items.first(where: { $0.identifier == identifier }) { submenu.removeItem(previous) }
@@ -236,8 +250,9 @@ struct CommitFileInteraction: NSViewRepresentable {
             submenu.addItem(item)
         }
         @objc private func copyCurrentColumn(_ sender: NSMenuItem) {
-            guard let column = contextColumn, !contextEntries.isEmpty else { return }
-            copyColumn(contextEntries, column)
+            guard let column = contextColumn else { return }
+            if !contextIDs.isEmpty { copyColumnIDs?(contextIDs, column) }
+            else if !contextEntries.isEmpty { copyColumn(contextEntries, column) }
         }
         private func table(at point: NSPoint, in view: NSView) -> NSTableView? {
             if let table = view as? NSTableView, contains(table),
@@ -275,10 +290,20 @@ struct CommitFileInteraction: NSViewRepresentable {
                 return event
             }
             if event.type != .keyDown {
-                contextColumn = nil; contextEntries = []
+                contextColumn = nil; contextEntries = []; contextIDs = []
                 guard let content = window.contentView,
                       let table = table(at: event.locationInWindow, in: content) else { return event }
                 let row = table.row(at: table.convert(event.locationInWindow, from: nil))
+                if let itemIDs, itemIDs.indices.contains(row) {
+                    if event.type == .rightMouseDown {
+                        contextColumn = columnDefinition(atNativeIndex: table.column(at: table.convert(event.locationInWindow, from: nil)))
+                        let indexes = table.selectedRowIndexes.contains(row) ? table.selectedRowIndexes : IndexSet(integer: row)
+                        contextIDs = indexes.compactMap { itemIDs.indices.contains($0) ? itemIDs[$0] : nil }
+                    }
+                    let preserve = event.type == .rightMouseDown || event.modifierFlags.contains(.shift)
+                    if !preserve || focusedPath?.wrappedValue == nil { focusedPath?.wrappedValue = itemIDs[row] }
+                    return event
+                }
                 if event.type == .rightMouseDown && rows.indices.contains(row), rows[row].entry != nil {
                     let column = table.column(at: table.convert(event.locationInWindow, from: nil))
                     contextColumn = columnDefinition(atNativeIndex: column)
@@ -296,7 +321,24 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
             guard let table = window.firstResponder as? NSTableView, contains(table) else { return event }
             let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
-            contextColumn = nil; contextEntries = []
+            contextColumn = nil; contextEntries = []; contextIDs = []
+            if let itemIDs {
+                let selected = table.selectedRowIndexes.compactMap { itemIDs.indices.contains($0) ? itemIDs[$0] : nil }
+                if event.keyCode == 49, flags.isEmpty, enabled, leadingColumnCount > 0,
+                   let mark = selected.first(where: { $0 == focusedPath?.wrappedValue }) ?? selected.first {
+                    toggleCheckIDs?(selected, mark); return nil
+                }
+                let commandCopy = event.keyCode == 8 && flags.contains(.command) && !flags.contains(.control) && !flags.contains(.option)
+                let controlInsert = event.keyCode == 114 && flags.contains(.control)
+                if (commandCopy || controlInsert), !selected.isEmpty { copyIDs?(selected, flags.contains(.shift)); return nil }
+                if [123,124,125,126,115,119].contains(event.keyCode), !flags.contains(.shift) {
+                    DispatchQueue.main.async { [weak self, weak table] in
+                        guard let self, let table, table.selectedRowIndexes.count == 1, itemIDs.indices.contains(table.selectedRow) else { return }
+                        self.focusedPath?.wrappedValue = itemIDs[table.selectedRow]
+                    }
+                }
+                return event
+            }
             if event.keyCode == 49, flags.isEmpty, enabled, leadingColumnCount > 0 {
                 let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
                 let mark = selected.first { $0.path == focusedPath?.wrappedValue } ?? selected.first
