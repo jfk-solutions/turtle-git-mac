@@ -584,3 +584,7 @@ original Explore artwork, captured close policy and cancellation confirmation.
 Branch/Tag handoffs adapt CAppUtils::CreateBranchTag and CreateBranchTagDlg.cpp,
 using the shared native Switch result before branch-description persistence and
 capturing cross-name/tag-push choices with guarded native ownership.
+
+Switch options/progress adapt GitSwitchDlg.cpp and CAppUtils::PerformSwitch with
+captured full checkout options, ordered recovery, source submodule-file gating
+and ProgressDlg cancellation confirmation.

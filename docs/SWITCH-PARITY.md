@@ -23,8 +23,9 @@ The backend verifies the revision as a commit and validates new branch names bef
 mutation. Existing branches require Override; a tag sharing the new branch's name
 produces Continue/Abort. Local branch checkout attaches HEAD. Tag, commit and remote
 checkout without a new branch detach HEAD. Force and Merge are passed to Git.
-Errors keep the controls and entered name available. Successful operations close
-the dialog and refresh any open status/log windows for that repository.
+Options errors keep the controls and entered name available. Production checkout
+hands captured options to shared native progress. Every attempt refreshes open
+status/log views; a successful result closes the options after acknowledgement.
 
 App and Finder Switch commands, the status branch link, and the log revision
 checkout action share this native dialog. A log checkout preselects its exact
@@ -39,8 +40,8 @@ Seven real Git integration tests cover attaching a local branch while retaining
 mixed index/worktree edits, annotated tags, detached commits, branch creation,
 automatic/explicit/no remote tracking, hierarchical remote names, existing branch
 and tag conflicts, invalid names/revisions, dirty checkout rejection, explicit
-force, and merge checkout leaving conflict stages and markers. The complete suite
-has 53 passing tests.
+force, and merge checkout leaving conflict stages and markers. The historical suite at that checkpoint
+had 53 passing tests; this is not a current full-suite claim.
 
 Native QA created `native-switch-qa` on a disposable repository, chose `main` in
 the reference browse sheet, and switched back. Index and worktree patches matched
@@ -56,8 +57,46 @@ of the actual native dialog; no mockup or synthetic image was used.
   merge conflict recovery and the log/Finder entry points; backend tests cover their
   checkout effects, but do not establish native UI parity.
 - Resize/minimum-size, light appearance, keyboard navigation and accessibility QA.
-- Progress/cancellation, submodule checkout options, hooks and interactive prompts.
+- Physical shared progress/cancellation, submodule checkout options, hooks and
+  interactive prompts.
 - Broader preference/state persistence and detached/unborn repository scenarios.
 
 The dialog and its source files remain partial in the inventory. This is not full
 upstream parity or App Store readiness.
+
+## Shared options and recovery result
+
+Regular Switch/Checkout now owns the same native result as express RefLog Switch
+and Branch creation. Read-only validation catches dialog errors before presenting;
+Core repeats validation when executing. Captured target/revision, Create New
+Branch/name, force, merge, tracking, override and accepted cross-name intent survive
+later edits and Retry. The name-conflict Continue uses the submitted draft; Abort
+clears it. A fresh options controller prevents another entry point replacing a
+pending draft. A presenter that cannot own its sheet cancels before Git mutation.
+AppKit sheet-dismissal completion releases the options owner and resumes a
+Branch creation handoff after detachment. Legacy no-presenter model callers retain
+their inline behavior.
+
+Success actions follow PerformSwitch order: Submodule Update when the working
+`.gitmodules` exists (even without a gitlink), Merge previous branch when attached,
+Pull when the new HEAD is attached, then Commit. A gitlink without `.gitmodules`
+does not add Submodule Update. Failure offers Resolve after merge conflicts,
+Stash Save when not merging, Retry, and Switch with merge when not merging.
+Retry retains original options with the effective merge setting; it uses a fresh
+cancellation token. Existing original icons and split action button remain.
+A follow-up dispatch closes the result first and cannot repeat.
+
+The result captures AutoCloseGitProgress at submission. Manual/no-options retain
+success actions; no-errors closes successful results. Errors/cancellation remain
+reviewable. ConfirmKillProcess asks the source Yes/No question, with Yes default;
+No leaves the owned process running and Yes cancels its process group. Completion
+while a question is pending defers automatic close; a late answer cannot cancel
+completed work or repeat its close. Native close/Quit guards include the result,
+chooser and warning states; closing invalidates late callbacks.
+
+[Progress QA](qa/switch-progress-2026-10-08.json) records focused Core validation,
+four-Git actual full-option execution and retry/cancellation effects, and regression
+receivers for express Switch and Branch/Tag. Hidden hosting/controller checks do
+not prove physical nested sheets, default buttons, Root factory routing, signing,
+Finder activation or signed sandbox acceptance. The existing Switch screenshot
+predates shared result ownership. Full Switch/application parity remains partial.

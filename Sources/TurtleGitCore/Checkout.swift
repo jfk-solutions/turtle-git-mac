@@ -62,6 +62,11 @@ extension GitRepository {
     }
     public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
+        return try run(checkoutArguments(options), cancellation: cancellation).text
+    }
+    /// Read-only validation before a native options dialog hands off to progress.
+    public func validateCheckout(_ options: CheckoutOptions) throws { _ = try checkoutArguments(options) }
+    private func checkoutArguments(_ options: CheckoutOptions) throws -> [String] {
         let revision = options.revision
         guard !revision.isEmpty else { throw CheckoutFailure.invalidRevision }
         let references = try checkoutReferences()
@@ -97,6 +102,6 @@ extension GitRepository {
         } else if options.target == .branch, let reference, !reference.remote {
             args += ["--", reference.label]
         } else { args += ["--detach", "--", resolved] }
-        return try run(args, cancellation: cancellation).text
+        return args
     }
 }

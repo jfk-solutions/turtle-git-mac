@@ -10,7 +10,7 @@ three choices: Close manually (0), Auto-close if no further options are availabl
 Absent/invalid values use manual close; reading an invalid value does not rewrite
 it. Settings save immediately on macOS rather than waiting for Windows Apply.
 
-Native Commit, Push, Fetch, merge Pull, Merge, Reset, Clean dry-run/permanent deletion, Format Patch, Export, Abort Merge, Stash Save and express Switch
+Native Commit, Push, Fetch, merge Pull, Merge, Reset, Clean dry-run/permanent deletion, Format Patch, Export, Abort Merge, Stash Save and Switch/Checkout (regular options and express)
 progress now apply this policy after success and after building their post-actions.
 Mode 1 retains a result that offers actions. Mode 2 closes successful results even
 when they offer actions, without selecting any of them. Failures remain open in
@@ -47,3 +47,7 @@ Existing screenshots predate this setting and policy behavior.
 [Format Patch progress QA](qa/format-patch-progress-2026-10-08.json) records submission-time policy capture and once-only mail acknowledgement.
 
 [Export progress QA](qa/export-progress-2026-10-08.json) records retained Explore results and atomic cancellation.
+
+Switch/Checkout now owns captured full-option progress with source-ordered recovery,
+ConfirmKillProcess and deferred completion while confirmation is pending. See
+[Switch parity](SWITCH-PARITY.md) and [native QA](qa/switch-progress-2026-10-08.json).

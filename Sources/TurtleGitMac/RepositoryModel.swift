@@ -1433,32 +1433,33 @@ import TurtleGitCore
     private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow, completion: (() -> Void)? = nil) {
         let id = UUID(), root = repository.root
         let controller = SwitchProgressWindowController(repository: repository, access: access, reference: reference)
-        controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id); completion?() }
+        controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id) }
         controller.model.onFinished = { [weak self] output, _ in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onPostAction = { [weak self] action, previousBranch in
-            switch action {
-            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [])
-            case .mergePreviousBranch: self?.showMerge(repository: repository, access: access, revision: "refs/heads/" + previousBranch)
-            case .pull: self?.showFetch(repository: repository, access: access, isPull: true)
-            case .commit, .resolve: self?.showCommitDialog(repository: repository, access: access, paths: [])
-            case .stash:
-                var followUp = StashSaveFollowUp(); followUp.showPull = true
-                self?.showStash(repository: repository, access: access, followUp: followUp)
-            case .retry, .switchWithMerge: break
-            }
-        }
+        controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
         switchProgressWindows[id] = controller
-        if let window = controller.window { parent.beginSheet(window) }
+        if let window = controller.window { parent.beginSheet(window) { _ in completion?() } }
         controller.model.start()
+    }
+    private func performSwitchPostAction(_ action: SwitchPostAction, previousBranch: String, repository: GitRepository, access: RepositoryAccessLease?) {
+        switch action {
+        case .submoduleUpdate: showSubmoduleUpdate(repository: repository, access: access, scope: [])
+        case .mergePreviousBranch: showMerge(repository: repository, access: access, revision: "refs/heads/" + previousBranch)
+        case .pull: showFetch(repository: repository, access: access, isPull: true)
+        case .commit, .resolve: showCommitDialog(repository: repository, access: access, paths: [])
+        case .stash:
+            var followUp = StashSaveFollowUp(); followUp.showPull = true
+            showStash(repository: repository, access: access, followUp: followUp)
+        case .retry, .switchWithMerge: break
+        }
     }
     private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
         let root = repository.root
-        let key = root.path + (revision.map { "\0" + $0 + "\0" + UUID().uuidString } ?? "")
+        let key = root.path + ":switch:" + UUID().uuidString
         let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision)
         controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: key) }
         controller.model.onSwitched = { [weak self] output in
@@ -1469,6 +1470,11 @@ import TurtleGitCore
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
+        controller.model.onChanged = { [weak self] output in
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
         switchWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

@@ -636,3 +636,6 @@ settings and cancellation confirmation. See [Export parity](docs/EXPORT-PARITY.m
 
 Branch creation now uses native Switch recovery before saving its description;
 tag Push keeps captured intent. See [Branch/Tag parity](docs/BRANCH-TAG-PARITY.md).
+
+Switch/Checkout now shares captured native progress, recovery actions and cancellation
+confirmation with express Switch and branch creation; see [Switch parity](docs/SWITCH-PARITY.md).

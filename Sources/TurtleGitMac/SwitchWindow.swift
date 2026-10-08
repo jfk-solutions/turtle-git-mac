@@ -5,8 +5,9 @@ import TurtleGitCore
 @MainActor final class SwitchWindowController: NSWindowController, NSWindowDelegate {
     let model: SwitchWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
-        model = SwitchWindowModel(repository: repository, access: access, revision: revision)
+    private var progressController: SwitchProgressWindowController?
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
+        model = SwitchWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Switch/Checkout – TurtleGit"
@@ -14,10 +15,18 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: SwitchDialog(model: model))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 620, height: 370)); window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, !self.model.hasPendingTagConflict, self.model.browser == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.onProgress = { [weak self] result in
+            guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
+            let controller = SwitchProgressWindowController(model: result)
+            self.progressController = controller
+            if let child = controller.window {
+                window.beginSheet(child) { [weak self, weak result] _ in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) }
+            } else { self.progressController = nil; result.abandonPresentation() }
+        }
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.browser == nil && !model.tagConflict && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.progress == nil && model.browser == nil && !model.hasPendingTagConflict && sender.attachedSheet == nil }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -25,6 +34,22 @@ import TurtleGitCore
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let initialRevision: String?
+    private let preferences: UserDefaults
+    private var invalidated = false, finished = false
+    private var conflictSnapshot: CheckoutOptions?
+    var hasPendingTagConflict: Bool { tagConflict || conflictSnapshot != nil }
+    @Published private(set) var progress: SwitchProgressWindowModel?
+    var onProgress: ((SwitchProgressWindowModel) -> Void)?
+    var onChanged: (String) -> Void = { _ in }
+    var onPostAction: ((SwitchPostAction, String) -> Void)?
+    func invalidate() { invalidated = true; conflictSnapshot = nil; progress?.invalidate() }
+    func abortTagConflict() { tagConflict = false; conflictSnapshot = nil }
+    func finish(_ result: SwitchProgressWindowModel) {
+        guard progress === result, !result.busy, !result.confirmingCancellation else { return }
+        progress = nil; result.invalidate(); busy = false
+        guard !invalidated else { return }
+        if result.success { finished = true; close(); onSwitched(result.output) }
+    }
     @Published var references: [CheckoutReference] = []
     @Published var options = CheckoutOptions()
     @Published var branchRevision = ""
@@ -41,9 +66,9 @@ import TurtleGitCore
     var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
     var revision: String { switch options.target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
     var remote: Bool { options.target == .branch && references.first { $0.name == branchRevision }?.remote == true }
-    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) { self.repository = repository; self.access = access; initialRevision = revision }
+    init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; initialRevision = revision; self.preferences = preferences }
     func load(revision preset: String? = nil) {
-        guard !busy else { return }; busy = true
+        guard !busy, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; busy = true
         let revision = preset ?? initialRevision
         Task {
             defer { busy = false }
@@ -68,8 +93,8 @@ import TurtleGitCore
         options.branchName = reference?.suggestedBranch ?? "Branch_" + String(commitRevision.prefix(7))
         switch options.target {
         case .branch: options.createBranch = remote
-        case .tag: options.createBranch = UserDefaults.standard.object(forKey: "SwitchToTagNewBranch") as? Bool ?? true
-        case .commit: options.createBranch = UserDefaults.standard.object(forKey: "SwitchToCommitNewBranch") as? Bool ?? true
+        case .tag: options.createBranch = preferences.object(forKey: "SwitchToTagNewBranch") as? Bool ?? true
+        case .commit: options.createBranch = preferences.object(forKey: "SwitchToCommitNewBranch") as? Bool ?? true
         }
     }
     func browse(_ target: CheckoutTarget) {
@@ -84,21 +109,38 @@ import TurtleGitCore
         }
     }
     func checkout(allowTagConflict: Bool = false) {
-        guard !busy else { return }
+        guard !busy, progress == nil, browser == nil, !invalidated, !finished else { return }
         var snapshot = options; snapshot.revision = revision; snapshot.allowTagNameConflict = allowTagConflict
-        if options.target == .tag { UserDefaults.standard.set(options.createBranch, forKey: "SwitchToTagNewBranch") }
-        if options.target == .commit { UserDefaults.standard.set(options.createBranch, forKey: "SwitchToCommitNewBranch") }
-        busy = true
+        if allowTagConflict, let captured = conflictSnapshot { snapshot = captured; snapshot.allowTagNameConflict = true }
+        else if hasPendingTagConflict { return }
+        conflictSnapshot = nil; tagConflict = false
+        if snapshot.target == .tag { preferences.set(snapshot.createBranch, forKey: "SwitchToTagNewBranch") }
+        if snapshot.target == .commit { preferences.set(snapshot.createBranch, forKey: "SwitchToCommitNewBranch") }
+        busy = true; error = nil
         Task {
-            defer { busy = false }
-            do { let output = try await repository.checkout(snapshot); onSwitched(output); close() }
-            catch CheckoutFailure.tagNameConflict { tagConflict = true }
+            defer { if progress == nil { busy = false } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                if let onProgress {
+                    try await repository.validateCheckout(snapshot)
+                    guard !invalidated else { return }
+                    let result = SwitchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences)
+                    result.onFinished = { [weak self] output, _ in self?.onChanged(output) }
+                    result.onPostAction = { [weak self] action, branch in self?.onPostAction?(action, branch) }
+                    result.close = { [weak self, weak result] in guard let self, let result else { return }; self.finish(result) }
+                    progress = result; onProgress(result); result.start()
+                } else {
+                    let output = try await repository.checkout(snapshot)
+                    guard !invalidated else { return }; busy = false; finished = true; onSwitched(output); close()
+                }
+            } catch CheckoutFailure.tagNameConflict { conflictSnapshot = snapshot; tagConflict = true }
             catch { self.error = error.localizedDescription }
         }
     }
+
 }
 
-private struct SwitchDialog: View {
+struct SwitchDialog: View {
     @ObservedObject var model: SwitchWindowModel
     var body: some View {
         VStack(spacing: 16) {
@@ -159,7 +201,7 @@ private struct SwitchDialog: View {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
         .alert("Branch and tag share a name", isPresented: $model.tagConflict) {
-            Button("Continue") { model.checkout(allowTagConflict: true) }; Button("Abort", role: .cancel) {}
+            Button("Continue") { model.checkout(allowTagConflict: true) }; Button("Abort", role: .cancel) { model.abortTagConflict() }
         } message: { Text(CheckoutFailure.tagNameConflict.localizedDescription) }
         .sheet(item: $model.browser) { target in SwitchReferenceChooser(model: model, target: target) }
     }
@@ -287,24 +329,34 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
 @MainActor final class SwitchProgressWindowController: NSWindowController, NSWindowDelegate {
     let model: SwitchProgressWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
-        model = SwitchProgressWindowModel(repository: repository, access: access, reference: reference)
+    convenience init(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
+        self.init(model: SwitchProgressWindowModel(repository: repository, access: access, reference: reference))
+    }
+    init(model: SwitchProgressWindowModel) {
+        self.model = model
+        let repository = model.repository
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Switch Progress – TurtleGit"
         window.contentMinSize = NSSize(width: 560, height: 300); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SwitchProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in
-            guard let self, !self.model.busy, self.window?.attachedSheet == nil else { return }
+            guard let self, !self.model.busy, !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return }
             if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
+        }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }
-        guard sender.attachedSheet == nil else { return false }
+        guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SwitchProgressWindowModel: ObservableObject {
@@ -312,8 +364,16 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     let reference: String
     private let access: RepositoryAccessLease?
     private var cancellation = OperationCancellation()
-    private var started = false
+    private var started = false, invalidated = false, dispatched = false, abandoned = false
     private var merging = false
+    let options: CheckoutOptions
+    private let preferences: UserDefaults
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var canCancel: Bool { busy && !cancelling && !confirmingCancellation }
+    func invalidate() { invalidated = true }
+    func abandonPresentation() { abandoned = true; cancellation.cancel() }
     @Published private(set) var busy = true
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
@@ -324,30 +384,51 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     var onPostAction: ((SwitchPostAction, String) -> Void)?
     private let autoClosePolicy: GitProgressAutoClose
     var close: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.reference = reference; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    convenience init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, preferences: UserDefaults = .standard) {
+        var options = CheckoutOptions(); options.revision = reference
+        self.init(repository: repository, access: access, options: options, preferences: preferences)
+    }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: CheckoutOptions, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.options = options; self.reference = options.revision; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+    }
     func start() { Task { await run() } }
-    func run() async { guard !started else { return }; started = true; await execute(merge: false) }
-    func cancel() { guard busy else { return }; cancellation.cancel() }
+    func run() async { guard !started, !invalidated else { return }; started = true; await execute(merge: options.merge) }
+    private func finishAutomaticClose() {
+        if !busy, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+    }
+    func cancel() {
+        guard canCancel, !invalidated else { return }
+        let token = cancellation
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true
+            var answered = false
+            confirmCancellation { [weak self] accepted in
+                guard !answered, let self, self.cancellation === token, !self.invalidated else { return }; answered = true; self.confirmingCancellation = false
+                if self.busy && accepted { self.cancelling = true; token.cancel() }
+                self.finishAutomaticClose()
+            }
+        } else { cancelling = true; token.cancel() }
+    }
     func perform(_ action: SwitchPostAction) {
-        guard !busy, postActions.contains(action) else { return }
+        guard !busy, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
         if action == .retry || action == .switchWithMerge {
             let merge = action == .switchWithMerge || merging
             busy = true; cancellation = OperationCancellation()
             Task { await execute(merge: merge) }
-        } else if let onPostAction { let branch = previousBranch; close(); onPostAction(action, branch) }
+        } else if let onPostAction { dispatched = true; let branch = previousBranch; close(); onPostAction(action, branch) }
     }
     private func execute(merge: Bool) async {
-        busy = true; success = false; cancelled = false; postActions = []; output = ""; merging = merge
+        busy = true; success = false; cancelled = false; cancelling = false; postActions = []; output = ""; merging = merge
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            guard reference.hasPrefix("refs/heads/"), try await !repository.isBare() else { throw CheckoutFailure.invalidRevision }
+            guard try await !repository.isBare() else { throw CheckoutFailure.invalidRevision }
             previousBranch = try await repository.branch()
-            var options = CheckoutOptions(); options.revision = reference; options.merge = merge
+            var options = self.options; options.merge = merge
             output = try await repository.checkout(options, cancellation: cancellation)
             let conflicts = try await repository.status(refreshIndex: false).contains { $0.state == .conflicted }
             if merge && conflicts { output += "\nHas merge conflict" }
             else {
-                if (try? await repository.submoduleUpdatePaths().isEmpty) == false { postActions.append(.submoduleUpdate) }
+                if FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { postActions.append(.submoduleUpdate) }
                 if !previousBranch.isEmpty { postActions.append(.mergePreviousBranch) }
                 if try await !repository.branch().isEmpty { postActions.append(.pull) }
                 postActions.append(.commit)
@@ -364,17 +445,17 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             if !merge { postActions.append(.switchWithMerge) }
         }
         busy = false; onFinished(output, success)
-        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+        finishAutomaticClose()
     }
 }
-private struct SwitchProgressDialog: View {
+struct SwitchProgressDialog: View {
     @ObservedObject var model: SwitchProgressWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Switch to \(model.reference.dropFirst("refs/heads/".count))").font(.headline)
+            Text("Switch to \(model.reference)").font(.headline)
             ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
             HStack {
-                if model.busy { ProgressView().controlSize(.small); Text("Switching…") }
+                if model.busy { ProgressView().controlSize(.small); Text(model.cancelling ? "Cancelling…" : "Switching…") }
                 else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Switch failed").foregroundStyle(model.success ? Color.green : Color.red) }
                 Spacer()
             }
@@ -386,9 +467,9 @@ private struct SwitchProgressDialog: View {
                     }.disabled(model.busy)
                 }
                 Spacer()
-                if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
+                if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
-            }
+            }.disabled(model.confirmingCancellation)
         }.padding(12)
     }
 }

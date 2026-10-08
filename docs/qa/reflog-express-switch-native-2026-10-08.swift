@@ -10,6 +10,8 @@ import TurtleGitCore
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), repo = GitRepository(root: root, executable: git)
+        let suite = "TurtleGit.ExpressSwitch.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
+        defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize() }; prefs.set(0, forKey: "AutoCloseGitProgress")
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Switch QA"]); _ = try await repo.run(["config", "user.email", "qa@example.invalid"])
         _ = try await repo.run(["config", "commit.gpgsign", "false"]); _ = try await repo.run(["config", "core.hooksPath", "/dev/null"])
@@ -32,7 +34,7 @@ import TurtleGitCore
         model.busy = true; model.switchBranch("refs/heads/topic", ids: [older.id]); model.busy = false; precondition(dispatches.count == 1)
         let chooser = ReferenceLogWindowModel(repository: repo, access: nil, reference: "HEAD", selecting: true)
         chooser.reload(); try await wait { chooser.busy }; precondition(chooser.switchBranches([older.id]).isEmpty)
-        let progress = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/same")
+        let progress = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/same", preferences: prefs)
         var completed: [Bool] = [], post: [SwitchPostAction] = [], mergeBranch = "", closes = 0
         progress.onFinished = { _, success in completed.append(success) }
         progress.onPostAction = { action, branch in post.append(action); mergeBranch = branch }
@@ -46,7 +48,7 @@ import TurtleGitCore
         _ = try await repo.run(["switch", "main"])
         try Data("dirty local\n".utf8).write(to: root.appendingPathComponent("file"))
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent("file"))
-        let failure = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/topic")
+        let failure = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/topic", preferences: prefs)
         var results: [Bool] = []; failure.onFinished = { _, success in results.append(success) }
         await failure.run(); precondition(!failure.success && failure.postActions == [.stash, .retry, .switchWithMerge])
         let failedHead = try await repo.run(["rev-parse", "HEAD"]).stdout, failedIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), failedFile = try Data(contentsOf: root.appendingPathComponent("file"))
@@ -56,20 +58,23 @@ import TurtleGitCore
         let conflicts = try await repo.status(refreshIndex: false); precondition(conflicts.contains { $0.state == .conflicted })
         _ = try await repo.run(["reset", "--hard"])
         failure.perform(.retry); try await wait { failure.busy }; precondition(failure.success && results == [false, false, true])
-        let cancelled = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/main")
+        let cancelled = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/main", preferences: prefs)
         let cancelHead = try await repo.run(["rev-parse", "HEAD"]).stdout
         cancelled.cancel(); await cancelled.run(); precondition(cancelled.cancelled && !cancelled.success && !cancelled.busy)
         let afterCancel = try await repo.run(["rev-parse", "HEAD"]).stdout; precondition(cancelHead == afterCancel)
-        let missing = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/deleted")
+        let missing = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/deleted", preferences: prefs)
         await missing.run(); precondition(!missing.success && missing.postActions == [.stash, .retry, .switchWithMerge])
         _ = try await repo.run(["switch", "--detach", "HEAD"])
-        let detached = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/same")
+        let detached = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/same", preferences: prefs)
         await detached.run(); precondition(detached.success && detached.previousBranch.isEmpty && detached.postActions == [.pull, .commit])
         _ = try await repo.run(["update-index", "--add", "--cacheinfo", "160000," + current.hash + ",child"])
         _ = try await repo.commit(message: "gitlink fixture")
         _ = try await repo.run(["branch", "with-modules", "HEAD"])
-        let modules = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/with-modules")
-        await modules.run(); precondition(modules.success && modules.postActions == [.submoduleUpdate, .mergePreviousBranch, .pull, .commit])
+        let modules = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/with-modules", preferences: prefs)
+        await modules.run(); precondition(modules.success && modules.postActions == [.mergePreviousBranch, .pull, .commit])
+        try Data("[submodule \"child\"]\n path = child\n url = local\n".utf8).write(to: root.appendingPathComponent(".gitmodules"))
+        let configured = SwitchProgressWindowModel(repository: repo, access: nil, reference: "refs/heads/with-modules", preferences: prefs)
+        await configured.run(); precondition(configured.success && configured.postActions == [.submoduleUpdate, .mergePreviousBranch, .pull, .commit])
         let bareRoot = root.appendingPathComponent("bare.git")
         _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
         let bare = GitRepository(root: bareRoot, executable: git)
@@ -77,7 +82,7 @@ import TurtleGitCore
         _ = try await bare.run(["update-ref", "--create-reflog", "refs/heads/qa", older.hash])
         let bareModel = ReferenceLogWindowModel(repository: bare, access: nil, reference: "refs/heads/qa")
         bareModel.reload(); try await wait { bareModel.busy }; precondition(bareModel.error == nil && bareModel.switchBranches([bareModel.entries[0].id]).isEmpty)
-        let bareProgress = SwitchProgressWindowModel(repository: bare, access: nil, reference: "refs/heads/qa")
+        let bareProgress = SwitchProgressWindowModel(repository: bare, access: nil, reference: "refs/heads/qa", preferences: prefs)
         await bareProgress.run(); precondition(!bareProgress.success)
         let unbornRoot = root.appendingPathComponent("unborn")
         _ = try await repo.run(["clone", "--no-checkout", root.path, unbornRoot.path])
@@ -87,11 +92,11 @@ import TurtleGitCore
         _ = try await unbornRepo.run(["update-ref", "--create-reflog", "refs/heads/topic", older.hash])
         let unborn = ReferenceLogWindowModel(repository: unbornRepo, access: nil, reference: "refs/heads/topic")
         unborn.reload(); try await wait { unborn.busy }; precondition(unborn.error == nil && unborn.currentHeadHash == nil && unborn.switchBranches([unborn.entries[0].id]) == ["refs/heads/topic"])
-        let fromUnborn = SwitchProgressWindowModel(repository: unbornRepo, access: nil, reference: "refs/heads/topic")
+        let fromUnborn = SwitchProgressWindowModel(repository: unbornRepo, access: nil, reference: "refs/heads/topic", preferences: prefs)
         await fromUnborn.run(); precondition(fromUnborn.success && fromUnborn.previousBranch == "unborn")
         let attached = try await unbornRepo.branch(); precondition(attached == "topic")
         model.invalidate(); precondition(model.switchBranches([older.id]).isEmpty)
         precondition(SwitchPostAction.allCases.map(\.icon) == [.fetch, .merge, .pull, .commit, .resolve, .stash, .mergeReload, .checkout])
-        print("RefLog express Switch: sorted single/multiple local refs, current branch exclusion, other branch at HEAD, remote/tag exclusion, selection/busy/chooser/invalidation guards; direct native model switch with prior-branch post-action, dirty failure preserves HEAD/index/file, merge reports conflicts despite Git exit zero, Resolve/Retry and successful retry, missing branch, pre-cancellation, detached-source/submodule post-actions, bare guards and unborn-to-existing branch switch passed; no windows/preferences/clipboard")
+        print("RefLog express Switch: sorted single/multiple local refs, current branch exclusion, other branch at HEAD, remote/tag exclusion, selection/busy/chooser/invalidation guards; direct native model switch with prior-branch post-action, dirty failure preserves HEAD/index/file, merge reports conflicts despite Git exit zero, Resolve/Retry and successful retry, missing branch, pre-cancellation, detached-source/submodule post-actions, bare guards and unborn-to-existing branch switch passed; no windows/standard preferences/clipboard")
     }
 }

@@ -107,4 +107,16 @@ final class CheckoutTests: XCTestCase {
         }
         let branch = try await repo.branch(); XCTAssertEqual(branch, "main")
     }
+    func testCheckoutValidationDoesNotCreateOrSwitchBranch() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        try Data("working\n".utf8).write(to: root.appendingPathComponent(path))
+        let before = try await repo.run(["rev-parse", "HEAD"]).stdout
+        var options = CheckoutOptions(); options.target = .commit; options.revision = "HEAD"; options.createBranch = true; options.branchName = "validated"
+        try await repo.validateCheckout(options)
+        let ref = try await repo.run(["show-ref", "--verify", "--quiet", "refs/heads/validated"], successfulExitCodes: 0...1)
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout, branch = try await repo.branch()
+        XCTAssertEqual(ref.exitCode, 1); XCTAssertEqual(before, after); XCTAssertEqual(branch, "main")
+        XCTAssertEqual(try String(contentsOf: root.appendingPathComponent(path)), "working\n")
+    }
+
 }

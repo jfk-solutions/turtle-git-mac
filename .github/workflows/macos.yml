@@ -48,6 +48,8 @@ jobs:
         run: python3 scripts/test-reflog-remote-defaults.py
       - name: Native RefLog express branch switching
         run: python3 scripts/test-reflog-express-switch.py
+      - name: Native Switch options and progress recovery
+        run: python3 scripts/test-switch-progress.py
       - name: Native Branch and Tag creation handoffs
         run: python3 scripts/test-branch-tag-handoff.py
       - name: Native Export progress and ZIP cancellation

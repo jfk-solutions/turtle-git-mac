@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "ee5930548bf56a4997ff536db8ed268ccb555ca7",
+  "scope": "Regular Switch options share captured native progress and recovery with RefLog and Branch creation; source submodule gating and cancellation confirmation. Full port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/GitSwitchDlg.cpp": "db94cbe8bc1c8d4b0e240b327581c5d97339a4ee",
+    "src/TortoiseProc/GitSwitchDlg.h": "a0f3d62963d50ba2f1c714dbfdcf1f5d0d9b079b",
+    "src/TortoiseProc/Commands/SwitchCommand.cpp": "e8b327a2425268fc2df72da47bcf9ebc0eea56e8",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/ProgressDlg.h": "c21856cbed61b28586faaf5f37b9ef051e31bb52",
+    "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "29796f1854ba435cbaf1fb2a4f8c05e4b5c2e28bdc8a0a9e8ec129d100d24bd5",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "56d96066f8b006584ec036e94ae3687218279dda629d13ffca4bf7a661e6d24f",
+    "NOTICE": "241891daad14185f755a6b1f326626529de581c7aa05dc7e6bdb6e765be5442d",
+    "README.md": "ba3d524e71c3453f09a7ec87c4050ce0a6ff51d8b5530062422a12f9ecb05546",
+    "Sources/TurtleGitCore/Checkout.swift": "e5e472b4c946e616c8f3d968ab2f30eb99ec6a71544150a36676b57cc9cf7c92",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "abac228c5f7693c8e90b2f2583c0115fdfcb022b3fcf4be3ed282248d779561d",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "681a37d92d15b9b30624482b45b37d6ed578caa65189bfb0a489c62bc874b2db",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "cca907ac47d6dd8de08f6d488cebc630225fa2db50387699e7a9ba1821b464cb",
+    "Tests/TurtleGitCoreTests/CheckoutTests.swift": "d7575a6b677d0e4e19e7539ad6d7c145b43cc047f3f073225612600832519f7b",
+    "docs/PROGRESS-PARITY.md": "184e667355709b8365b833af07cc7a152a9c8d59172bfd5f90677405f59f89c0",
+    "docs/SWITCH-PARITY.md": "a431e21a405046a846bf242f258047ecc137b63447719877ecd875cb81f9adb1",
+    "docs/UI-PARITY.md": "0f79a0813857a70973583c7b0cad204a5ef7f2682239f63cb1e37fed55e086c1",
+    "docs/qa/reflog-express-switch-native-2026-10-08.swift": "72d8a9fe7afcc00122caeba75ee8f2a5a67026967672e863916372fd31e1f92a",
+    "docs/upstream-files.csv": "2c7cab31d09b3f787ff662ef927af19d463f388ae351a287c176a9d206c2be20",
+    "scripts/test-switch-progress.py": "ddab411c3bbcf26372a63f060a5456025c0c86991a16f56079b18f2863bd9f58",
+    "docs/qa/switch-progress-native-2026-10-08.swift": "5604d5c4934be4a864ba8f3ffd6569552f3b76913e7f50ebae9707926cf1a983"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Eight focused CheckoutTests passed. New validation test proves no new ref, unchanged HEAD/branch/working bytes. Existing tests exercise attached checkout preserving mixed edits, annotated tag/detach/new branches, remote tracking, names/conflicts, force, merge and cancellation. Initial Core attempt failed on a missing newline in the new test; corrected final run passed. Not a full-suite rerun.",
+    "native": "Final four-Git receiver passed regular options owner plus real shared result: tag-based new branch uses captured name despite later edit/load, every attempt refresh callback and once success acknowledgement under all three close policies; remote hierarchical branch tracking; detached commit excludes Pull; captured cross-name Continue; dirty checkout failure then Retry retains submitted target despite draft edit; force+override discards tracked edit and moves the branch. Working .gitmodules with no gitlink adds source-first Submodule Update, once close-before-follow-up dispatch. Hidden result hosting and hidden controller close/Quit guards. Owned slow switch plus sleep helper: No leaves both PIDs running, Yes cancels/stops both, fresh Retry succeeds. Completion under pending question defers close, duplicate late Yes does not cancel completed work or repeat close. Missing presenter cancels before switch. No displayed UI/network or standard preference writes.",
+    "regressions": "Final four-Git express RefLog Switch and Branch/Tag handoff receivers passed. Express fixture now distinguishes gitlink without .gitmodules (no action) and working file configuration (action), using a private preference domain. Existing dirty/merge conflict Resolve/Retry, cancelled/missing/bare/unborn/detached cases retained. Branch creation retains deferred description timing, failed checkout actions/ref retention, foreign config-lock description-only retry and captured tag intent.",
+    "source_notes": "Pinned PerformSwitch uses the same full force/new-branch/override/tracking/merge arguments for Retry; native result stores all CheckoutOptions and effective merge state, creates fresh cancellation tokens. Core validation is shared and repeated before mutation. Source CTGitPath::HasSubmodules checks worktree .gitmodules existence, not gitlink presence. Ordered success/failure actions retain original images. ProgressDlg ConfirmKillProcess uses Yes/No with Yes default. Native options remain owned behind result, unlike upstream closed modal; failure Close returns reviewable options. Legacy no-presenter callers retain inline behavior. AppKit sheet-dismissal completion resumes options/Branch owner after detachment; physical acceptance remains pending.",
+    "builds": "Final unsigned Debug and AppStore builds and bundle audits passed. NOTICE identical in both, embedded Finder extension/licenses/98 original icons/EditorConfig/IssueRegex present. Store bundled Git has 11 universal Mach-O files and passed local Git fixtures. Final native regressions recompiled after sheet-dismissal ownership correction; Store began only after all native jobs terminal.",
+    "documentation": "Switch and shared progress/UI parity, README, NOTICE, native CI step and six upstream mappings updated. 3277 seven-column LF data rows; affected mappings retain partial statuses. Static site built locally using existing real screenshots; screenshots predate this ownership change. Hosted site and GitHub CI not verified.",
+    "processes": "No routine main GUI launches or synthetic events. NSApp activation prohibited. Owned hidden controller closed; result hosted without a window. Sources/NOTICE/receivers stationary during compiler/receiver sessions; final Debug terminal before final native jobs; all terminal before Store. Twenty-four empty owned UUID domains removed across two four-Git runs each of Switch/Express/BranchTag receivers; nonempty/standard domains untouched. Final owned app/receiver audit empty.",
+    "limitations": "Model callbacks/hidden hosting do not prove physical AppKit nested sheets/dismissal/close/default buttons, actual Root factory/follow-up routing, focus/keyboard/theme/accessibility/geometry, full Browse References/selection Log, hooks/interactive prompts, submodule checkout options or full Switch parity. Signed sandbox/grants/Finder/App Store acceptance and full application port/distribution remain incomplete. GitHub authorization and CUA unavailable; not retried."
+  },
+  "logs_sha256": {
+    "build/qa/switch-progress/branch-tag-regression-final.log": "47c5359792806187e31889d590ee2fc4dc82049a7155eea184812ba4e4e7db5a",
+    "build/qa/switch-progress/branch-tag-regression.log": "47c5359792806187e31889d590ee2fc4dc82049a7155eea184812ba4e4e7db5a",
+    "build/qa/switch-progress/core-final.log": "6c88841a9f2ed00051cafc8f466d00ef726aa5ec7f3da142a3cf4faae07f19f8",
+    "build/qa/switch-progress/core.log": "a44386c49789be761a27bc756bbe7dca2daad0f0d6d1c79dfd1a10e440b97ba7",
+    "build/qa/switch-progress/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/switch-progress/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/switch-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/switch-progress/express-regression-final.log": "f7c2a1cc55b76a2d708c2310d7ba474b7ef105947c5d7405e54952cb25c8f520",
+    "build/qa/switch-progress/express-regression.log": "f7c2a1cc55b76a2d708c2310d7ba474b7ef105947c5d7405e54952cb25c8f520",
+    "build/qa/switch-progress/native-final.log": "1d6e336fabfaa3d6954521108678b3c651709525978d97f9e8c2f8905b6b0bbf",
+    "build/qa/switch-progress/native.log": "1d6e336fabfaa3d6954521108678b3c651709525978d97f9e8c2f8905b6b0bbf",
+    "build/qa/switch-progress/pin-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/switch-progress/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/switch-progress/private-preference-cleanup.log": "7dc420ae1d60d97950acd8323eea72ab6c367c1fa53e85ac5b30af2c208c4253",
+    "build/qa/switch-progress/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/switch-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/switch-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/switch-progress/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/switch-progress/store.log": "c6b15ded77af7ec7402dc88d58d90ea2c6f5d12d00f06b8ebc9ee7ec80f316ea"
+  }
+}
