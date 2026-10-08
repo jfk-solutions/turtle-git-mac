@@ -144,3 +144,40 @@ browsing, source command startrev/endrev presets and Log export entry points;
 verify Shift viewer selection and native progress cancellation. Complete the
 source Send Mail dialog/options rather than treating native composition alone as
 full parity. Signed Finder and App Store testing and screenshots remain pending.
+
+## Captured progress policy and acknowledgement
+
+Format Patch captures AutoCloseGitProgress when export is submitted (upstream
+constructs CProgressDlg after options acceptance). Both success auto-close modes
+acknowledge automatically because this command supplies no post-actions. Manual
+keeps the result. Failure/cancellation stays open; Close returns the native
+options, where a new export can be submitted. There is no progress Retry action
+in the audited FormatPatchCommand.cpp. Keeping the options behind a failed result
+is the existing Mac ownership adaptation; upstream closes its options on OK.
+
+ConfirmKillProcess now presents native Yes/No, default Yes, on the owned progress
+sheet. No keeps Git running. Yes stops the existing owned process group and
+retains partial patches/diagnostics. While a confirmation is pending, Close and
+further Cancel are blocked. A success that finishes during the question waits
+for its answer before applying auto-close; a late Yes does not reinterpret that
+completed success as cancellation.
+
+Result acknowledgement schedules one close or mail callback with the submitted
+Send Mail choice and generated file URLs. Duplicate acknowledgement and new
+exports in the scheduled handoff interval are rejected. Presets, exports and
+unified-diff requests cannot replace open results. Normal close/Quit includes the
+result and scheduled handoff; controller invalidation cancels any owned export
+and suppresses delayed mail/close. Directory/revision histories and mail/no-prefix
+preferences now accept an injected private defaults domain for native QA while
+production retains standard preferences. Mail remains the existing native
+composition service; the source Send Mail options are still unported.
+
+[Progress QA](qa/format-patch-progress-2026-10-08.json) records four-Git actual
+Since/Number/Range exports across all policies, captured choices, duplicate
+acknowledgement, generated attachment URLs in a newline directory, real git am
+application/tree equality, private history reads, failure/new export, owned
+No/Yes cancellation with partial output and deferred completion. Hidden options
+hosting does not display a result sheet or prove UI acceptance; no actual mail
+service or external editor was invoked. Physical nested alerts, default focus,
+keyboard/layout, output grants, service callbacks and signed acceptance remain
+pending. Existing screenshots predate these progress changes.

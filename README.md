@@ -627,3 +627,6 @@ ordered original-icon actions. See [Clean parity](docs/CLEAN-PARITY.md).
 
 Stash Apply/Pop now has verified result modes, remembered Pop answers and guarded
 once-only Working Tree handoffs. See [Stash parity](docs/STASH-PARITY.md).
+
+Format Patch now follows shared progress close/cancellation settings and guards
+result-to-mail acknowledgement. See [Format Patch parity](docs/FORMAT-PATCH-PARITY.md).

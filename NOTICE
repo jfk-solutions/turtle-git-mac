@@ -574,3 +574,6 @@ policies, ordered native icon actions and branch-specific cancellation confirmat
 
 Stash Apply/Pop result models adapt AppUtils.cpp and MessageBox.cpp with separate
 remembered success/conflict answers, source notice modes and once-only native handoffs.
+
+Format Patch progress adapts FormatPatchCommand.cpp and ProgressDlg.cpp with shared
+close/cancellation policies and once-only result-to-mail acknowledgement.

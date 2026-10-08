@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "ff1ac5c745e0dee83072f6f79583afa370ea892f",
+  "scope": "Format Patch shared close/cancellation policies, captured mail acknowledgement and private native test preferences. Full application port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/Commands/FormatPatchCommand.cpp": "0e05626d7c64c484276c45d5a004d2d9f3d668d3",
+    "src/TortoiseProc/FormatPatchDlg.cpp": "b8ad0c02bb27397700a6aee773d87ce7656d62c8",
+    "src/TortoiseProc/FormatPatchDlg.h": "0c6f835c35d32fab5a97c0fc94700edfac71fcb2",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/ProgressDlg.h": "c21856cbed61b28586faaf5f37b9ef051e31bb52",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "4b449e0e5f8c75bfbb47e2a1a219d094684f51aa69f07cc85fcbf264f4972e25",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "3c018216960c31196707aae9355b7d948dcce9023c0bad87c05df1fecbd6a672",
+    "NOTICE": "1c9f9874813b562e9dad3ebf2952712369604cd805e60375365387aec08b13fb",
+    "README.md": "3c356cf9db46660657eef17e4912d8d0b3db39e05e0a252192c86ff91f4585ac",
+    "Sources/TurtleGitMac/FormatPatchWindow.swift": "324c964fa9bbccdb2d836deffa5319316a007196ad792cd0a91c565e83bfec2b",
+    "docs/FORMAT-PATCH-PARITY.md": "85141de8a300273cc97f05bb4af85bc5be9a087615c3c9584560011e64f1559d",
+    "docs/PROGRESS-PARITY.md": "56d595fd7c976322b91fc9abb9650dd1dc53ef3c77719145dcc8497201c2c9f8",
+    "docs/upstream-files.csv": "da5b5cc7639159dd023d534088f50d7e52b8cd17cf49669fe2c9c97f976f388a",
+    "scripts/test-format-patch-progress.py": "5b398a1dd5fbf0c43340ba31565c3bb9ce11269aa02eec1418dd15e7f4f549ba",
+    "docs/qa/format-patch-progress-native-2026-10-08.swift": "930a0f0bbe9aae3fef6b1610d091a6e375643e37c81bbb2f9255f9e58ef3c830"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four-Git actual Since/Number/Range (two files each) across all three policies; preference edited after options construction applies at submission and later edits do not change captured policy; captured unselected mail remains unselected despite in-flight edit; manual result acknowledgement and duplicate Finish do not repeat close; captured selected mail supplies two actual attachment URLs in literal newline output folder exactly once, without opening mail service; git am in owned clone produces expected original HEAD tree; fresh private preferences read saved histories/mail choice. Invalid revision failure stays open under no-errors, Close returns options and fresh Number export succeeds. Owned slow format-patch writes partial bytes/diagnostic, No preserves running process, Yes stops leader/helper and retains failure without mail, fresh export succeeds. Completed success while prompt pending stays open until late Yes, then acknowledges once without becoming cancelled. HEAD/index preserved. Hidden options hosting only after result acknowledged, no result sheet displayed.",
+    "core": "Core unchanged; existing Core tests not repeated. Native receiver executes real backend with four Git versions; not a full-suite rerun.",
+    "source_notes": "FormatPatchCommand constructs CProgressDlg after options OK and supplies no post-actions/Retry. Both success close modes apply with action count zero. Upstream shell refresh follows modal acknowledgement; the existing native output callback refreshes after command completion, exposing partial output sooner. Selected mail follows acknowledgement. Mac keeps options behind progress and returns there after failed Close, its existing ownership adaptation. Shared confirmation stops existing owned POSIX process group; source uses Windows process cancellation. Invalidation suppresses scheduled callbacks. Full source Send Mail dialog remains pending.",
+    "documentation": "3277 seven-column inventory rows verified; five mappings retain partial status. Format Patch/progress parity, NOTICE, README and native CI step updated. Existing screenshots predate these policies; no new screenshots. Site remains local/unpublished.",
+    "processes": "Debug compiler terminal before native compiler/receiver; native terminal before AppStore build. No main app/normal displayed windows/email service/external editor invoked. Native activation prohibited; options hosted without a window only after result cleared. Private UUID preferences only; four empty owned UUID preference plists removed after termination; nonempty/standard preferences untouched. Cancellation leader/helper disappearance verified; deferred helper completes/reaps through owned runner. Final owned app/receiver process audit empty.",
+    "limitations": "Physical SwiftUI progress sheet/nested NSAlert/default focus/keyboard/close/Quit timing, actual mail service callback success/failure, scheduled invalidation and missing-window ownership, output grant panels, live streaming, full source Send Mail options and signed sandbox/Finder/App Store acceptance pending. Model callbacks do not establish physical controller handoff. Full file/dialog/application port and hosted CI/site/distribution incomplete; GitHub authorization unavailable and not retried.",
+    "builds": "Unsigned Debug and AppStore builds/bundle audits passed: embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 original icons. NOTICE byte-identical in both. Bundled Git 2.55.0 includes 11 universal Mach-O files and passed local Git fixtures."
+  },
+  "logs_sha256": {
+    "build/qa/format-patch-progress/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/format-patch-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/format-patch-progress/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/format-patch-progress/native.log": "adfdfd94335b7acdebaddbc3477b3823605a6ab04c069ffb11f3cc0c06d38ce5",
+    "build/qa/format-patch-progress/private-preference-cleanup.log": "763e6966491e68d2eabcc78745ce496eaf53cb1243539c4620eef278ccd88b8c",
+    "build/qa/format-patch-progress/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/format-patch-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/format-patch-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/format-patch-progress/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/format-patch-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

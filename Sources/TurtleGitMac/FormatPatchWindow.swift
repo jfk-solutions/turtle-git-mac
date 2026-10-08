@@ -8,9 +8,9 @@ import TurtleGitCore
     private var picker: LogWindowController?
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
-    var activeOperation: Bool { model.busy || model.composingMail || model.openingViewer }
-    init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false) {
-        model = FormatPatchWindowModel(repository: repository, access: access)
+    var activeOperation: Bool { model.busy || model.progress || model.confirmingCancellation || model.finishScheduled || model.composingMail || model.openingViewer }
+    init(repository: GitRepository, access: RepositoryAccessLease?, preset: FormatPatchPreset? = nil, sendMail: Bool = false, preferences: UserDefaults = .standard) {
+        model = FormatPatchWindowModel(repository: repository, access: access, preferences: preferences)
         model.apply(preset)
         if sendMail { model.sendMail = true }
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 365), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -26,10 +26,18 @@ import TurtleGitCore
         model.chooseRevision = { [weak self] target in self?.chooseRevision(target) }
         model.showPatch = { [weak self] bytes, alternate in self?.showPatch(bytes, alternate: alternate) }
         model.composeMail = { [weak self] files in self?.composeMail(files) }
+        model.confirmCancellation = { [weak self] choose in
+            guard let self, let window = self.window else { choose(false); return }
+            let parent = window.attachedSheet ?? window
+            guard parent.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: parent) { choose($0 == .alertFirstButtonReturn) }
+        }
         model.load()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation && sender.attachedSheet == nil && patch?.model.busy != true && patch?.window?.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { patch?.close(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); onClosed() }
     private func chooseDirectory() {
         guard let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
@@ -114,6 +122,11 @@ import TurtleGitCore
     @Published var success = false
     @Published var cancelRequested = false
     @Published var cancelled = false
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var finishScheduled = false
+    private let preferences: UserDefaults
+    private var invalidated = false
+    private var progressClosePolicy = GitProgressAutoClose.manual
     private var cancellation: OperationCancellation?
     private var files: [URL] = []
     private var exportSendMail = false
@@ -123,8 +136,10 @@ import TurtleGitCore
     var showPatch: (Data, Bool) -> Void = { _, _ in }
     var composeMail: ([URL]) -> Void = { _ in }
     var onOutputChanged: (String) -> Void = { _ in }
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    func invalidate() { invalidated = true; cancellation?.cancel() }
     func apply(_ preset: FormatPatchPreset?) {
-        guard let preset, !busy, !progress, !composingMail, !openingViewer else { return }
+        guard let preset, !busy, !progress, !finishScheduled, !invalidated, !composingMail, !openingViewer else { return }
         from = preset.from; to = preset.to
         switch preset.selection {
         case .since(let value): since = value; mode = .since
@@ -132,13 +147,13 @@ import TurtleGitCore
         case .number(let value): count = value; mode = .number
         }
     }
-    var dirs: [String] { UserDefaults.standard.stringArray(forKey: "FormatPatchDirectories") ?? [] }
-    var fromHistory: [String] { UserDefaults.standard.stringArray(forKey: "FormatPatchFrom") ?? [] }
-    var toHistory: [String] { UserDefaults.standard.stringArray(forKey: "FormatPatchTo") ?? [] }
+    var dirs: [String] { preferences.stringArray(forKey: "FormatPatchDirectories") ?? [] }
+    var fromHistory: [String] { preferences.stringArray(forKey: "FormatPatchFrom") ?? [] }
+    var toHistory: [String] { preferences.stringArray(forKey: "FormatPatchTo") ?? [] }
     private var sinceKey: String { "FormatPatchSince:" + repository.root.path }
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        self.repository = repository; self.access = access; directory = repository.root.path
-        let defaults = UserDefaults.standard
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.preferences = preferences; directory = repository.root.path
+        let defaults = preferences
         since = defaults.string(forKey: "FormatPatchSince:" + repository.root.path) ?? ""
         from = defaults.stringArray(forKey: "FormatPatchFrom")?.first ?? ""
         to = defaults.stringArray(forKey: "FormatPatchTo")?.first ?? ""
@@ -148,7 +163,7 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func load() {
-        busy = true
+        guard !busy, !progress, !finishScheduled, !composingMail, !openingViewer, !invalidated else { return }; busy = true
         Task {
             defer { busy = false }
             do {
@@ -161,8 +176,8 @@ import TurtleGitCore
     }
     private func remember(_ value: String, key: String) {
         guard !value.isEmpty else { return }
-        let old = UserDefaults.standard.stringArray(forKey: key) ?? []
-        UserDefaults.standard.set(Array(([value] + old.filter { $0 != value }).prefix(25)), forKey: key)
+        let old = preferences.stringArray(forKey: key) ?? []
+        preferences.set(Array(([value] + old.filter { $0 != value }).prefix(25)), forKey: key)
     }
     var valid: Bool { hasHead && !directory.isEmpty && (mode == .number || (mode == .since ? !since.isEmpty : !from.isEmpty && !to.isEmpty)) }
     var progressStatus: String {
@@ -171,19 +186,20 @@ import TurtleGitCore
         return success ? "Finished" : "Failed"
     }
     func export() {
-        guard !busy, !composingMail, !openingViewer, valid else { return }
+        guard !busy, !progress, !finishScheduled, !confirmingCancellation, !invalidated, !composingMail, !openingViewer, valid else { return }
         let folder = URL(fileURLWithPath: directory).standardizedFileURL
         if GitRuntime.isAppStoreBuild && !((access?.hasSecurityScope == true && access?.contains(folder) == true) || (outputAccess?.hasSecurityScope == true && outputAccess?.contains(folder) == true)) { chooseDirectory(); return }
         let selection: FormatPatchSelection = mode == .since ? .since(since) : mode == .number ? .number(count) : .range(from: from, to: to)
         let prefix = noPrefix; exportSendMail = sendMail
         remember(directory, key: "FormatPatchDirectories"); remember(from, key: "FormatPatchFrom"); remember(to, key: "FormatPatchTo")
-        if mode == .since { UserDefaults.standard.set(since, forKey: sinceKey) }
-        UserDefaults.standard.set(sendMail, forKey: "FormatPatchSendMail"); UserDefaults.standard.set(prefix, forKey: "FormatPatchNoPrefix")
+        if mode == .since { preferences.set(since, forKey: sinceKey) }
+        preferences.set(sendMail, forKey: "FormatPatchSendMail"); preferences.set(prefix, forKey: "FormatPatchNoPrefix")
+        progressClosePolicy = GitProgressAutoClose(preferences: preferences)
         busy = true; progress = true; success = false; output = "Creating patch series…"; files = []
         cancelRequested = false; cancelled = false
         let token = OperationCancellation(); cancellation = token
         Task {
-            defer { busy = false; cancellation = nil; onOutputChanged(output) }
+            defer { busy = false; cancellation = nil; onOutputChanged(output); finishAutomatically() }
             do {
                 try checkAccess()
                 let result = try await repository.formatPatch(selection: selection, to: folder, noPrefix: prefix, cancellation: token)
@@ -210,22 +226,35 @@ import TurtleGitCore
             } catch { output = error.localizedDescription }
         }
     }
+    private func finishAutomatically() {
+        if !busy, !confirmingCancellation, !invalidated,
+           progressClosePolicy.shouldClose(success: success, postActionCount: 0) { finish() }
+    }
     func cancelExport() {
-        guard busy, let cancellation, !cancelRequested else { return }
-        cancelRequested = true; cancellation.cancel()
+        guard busy, let token = cancellation, !cancelRequested, !confirmingCancellation, !invalidated else { return }
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true
+            confirmCancellation { [weak self] accepted in
+                guard let self, self.confirmingCancellation, !self.invalidated else { return }; self.confirmingCancellation = false
+                if self.busy, self.cancellation === token, accepted { self.cancelRequested = true; token.cancel() }
+                self.finishAutomatically()
+            }
+        } else { cancelRequested = true; token.cancel() }
     }
     func finish() {
-        guard !busy else { return }; progress = false
+        guard !busy, progress, !confirmingCancellation, !finishScheduled, !invalidated else { return }; progress = false
         guard success else { return }
+        finishScheduled = true
         DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
+            guard let self else { return }; self.finishScheduled = false
+            guard !self.invalidated else { return }
             if self.exportSendMail { self.composeMail(self.files) } else { self.close() }
         }
     }
     func unifiedDiff(alternate: Bool = false, onResult: ((Data) -> Void)? = nil) {
-        guard !busy, !composingMail, !openingViewer, hasHead, !bare else { return }
+        guard !busy, !progress, !finishScheduled, !invalidated, !composingMail, !openingViewer, hasHead, !bare else { return }
         let prefix = noPrefix
-        UserDefaults.standard.set(prefix, forKey: "FormatPatchNoPrefix"); busy = true
+        preferences.set(prefix, forKey: "FormatPatchNoPrefix"); busy = true
         Task {
             defer { busy = false }
             do {
@@ -237,7 +266,7 @@ import TurtleGitCore
     }
 }
 
-private struct FormatPatchDialog: View {
+struct FormatPatchDialog: View {
     @ObservedObject var model: FormatPatchWindowModel
     @State private var browseSince = false
     @State private var reference: String?
@@ -279,7 +308,7 @@ private struct FormatPatchDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
             }
-        }.padding(16).disabled(model.busy || model.composingMail || model.openingViewer)
+        }.padding(16).disabled(model.busy || model.finishScheduled || model.composingMail || model.openingViewer)
         .alert("Format Patch", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $browseSince) {
             VStack(alignment: .leading, spacing: 12) {
@@ -295,9 +324,9 @@ private struct FormatPatchDialog: View {
                 HStack { Text("Format Patch").font(.headline); Spacer(); if model.busy { ProgressView().controlSize(.small) } }
                 ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(minHeight: 220)
                 HStack { Text(model.progressStatus).foregroundStyle(model.success ? Color.green : model.cancelled ? .orange : .secondary); Spacer()
-                    if model.busy { Button("Cancel") { model.cancelExport() }.keyboardShortcut(.cancelAction).disabled(model.cancelRequested) }
-                    Button("Close") { model.finish() }.keyboardShortcut(.defaultAction).disabled(model.busy) }
-            }.padding(16).frame(width: 620).disabled(false)
+                    if model.busy { Button("Cancel") { model.cancelExport() }.keyboardShortcut(.cancelAction).disabled(model.cancelRequested || model.confirmingCancellation) }
+                    Button("Close") { model.finish() }.keyboardShortcut(.defaultAction).disabled(model.busy || model.confirmingCancellation) }
+            }.padding(16).frame(width: 620).disabled(model.confirmingCancellation)
                 .interactiveDismissDisabled()
                 .onExitCommand { if model.busy { model.cancelExport() } else { model.finish() } }
         }
