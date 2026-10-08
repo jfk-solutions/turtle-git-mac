@@ -1508,3 +1508,30 @@ accessibility, native destination factories, signing/credentials, git-svn DCommi
 app hooks, split cancellation and signed sandbox/Finder/App Store acceptance
 remain pending. Existing screenshots predate this progress sheet. Full Commit,
 application and distribution parity remain incomplete.
+
+## Remembered Commit split-button action
+
+The main button now displays the last selected Commit, ReCommit or Commit & Push
+action and repeats it on click or Command-Return. The menu changes that current
+action when starting an allowed attempt. The source application-wide
+CommitLastAction values are retained: 0 = Commit, 1 = ReCommit, 2 = Commit & Push.
+Missing and out-of-range values display Commit without rewriting the preference
+during load. Newly opened dialogs read the saved action; existing windows retain
+their own selection.
+
+Persistence occurs when progress finishes and is acknowledged, including a failed
+command. Aborted preflight questions do not save the changed action. Choosing
+ReCommit from ordinary Commit's progress does not change its footer action.
+Rebase split Commit forces the plain Commit button, blocks footer post-actions
+and leaves the saved action untouched, matching PrepareOkButton's no-post-actions
+branch. Explicit programmatic commit(action) retains its existing meaning; the
+native button calls commitCurrentAction.
+
+[Action QA](qa/commit-last-action-2026-10-08.json) records native model and actual
+Git checks for fallback, reopening across repositories, existing-window snapshots,
+repeated Push/ReCommit, result-acknowledgement timing, hook failure, preflight Abort
+and an actual paused Rebase split commit. These checks do not establish physical
+split-button/menu/default or keyboard acceptance. The upstream m_bAutoClose field
+is a caller flag, not a new user-facing setting. Full Commit/dialog persistence,
+progress settings, physical/signed acceptance and full application parity remain
+incomplete; existing screenshots predate the changed dynamic button label.

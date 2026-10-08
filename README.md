@@ -377,6 +377,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   fast-forward controls, Tags/Prune and shallow depth. Owned progress retains the result
   with old/new Compare and Log, conditional Stash Pop/Push, and conflict/recovery actions.
   [Pull parity](docs/PULL-PARITY.md) records pending rebase and recovery workflows.
+- Commit’s split button restores and repeats the last selected action; Rebase
+  split commits force Commit and preserve that preference.
 - Native Commit progress retains ordinary results with Push, Pull, ReCommit and
   Create Tag; cancellation covers owned Git and hook processes. Physical and
   signed acceptance remain pending; see [Commit parity](docs/COMMIT-PARITY.md).

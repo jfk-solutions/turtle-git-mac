@@ -391,10 +391,22 @@ import UniformTypeIdentifiers
     var onCreateTag: () -> Void = {}
     var onCommitProgress: ((CommitProgressWindowModel) -> Void)?
     @Published private(set) var commitProgress: CommitProgressWindowModel?
-    enum CompletionAction: String, CaseIterable { case commit = "Commit", recommit = "ReCommit", push = "Commit & Push" }
+    enum CompletionAction: String, CaseIterable {
+        case commit = "Commit", recommit = "ReCommit", push = "Commit & Push"
+        var sourceIndex: Int { switch self { case .commit: return 0; case .recommit: return 1; case .push: return 2 } }
+        init(sourceIndex: Int) { self = Self.allCases.first { $0.sourceIndex == sourceIndex } ?? .commit }
+    }
+    @Published private(set) var completionAction: CompletionAction = .commit
+    var currentCompletionAction: CompletionAction { replaySplit == nil ? completionAction : .commit }
+    func commitCurrentAction() { commit(currentCompletionAction) }
+    private func rememberCompletionAction(_ action: CompletionAction) {
+        guard replaySplit == nil else { return }
+        dialogDefaults.set(action.sourceIndex, forKey: "CommitLastAction")
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard, dialogDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
         self.dialogDefaults = dialogDefaults
+        completionAction = CompletionAction(sourceIndex: dialogDefaults.integer(forKey: "CommitLastAction"))
         selectFilesAutomatically = dialogDefaults.object(forKey: "SelectFilesForCommit") as? Bool ?? true
         doNotAutoselectMissing = dialogDefaults.bool(forKey: "AutoselectMissingFiles")
         showUnversioned = unversionedDefaults.object(forKey: "AddBeforeCommit") == nil || unversionedDefaults.bool(forKey: "AddBeforeCommit")
@@ -807,6 +819,7 @@ import UniformTypeIdentifiers
     }
     func commit(_ action: CompletionAction = .commit) {
         guard canCommit, replaySplit == nil || action == .commit else { return }
+        if replaySplit == nil { completionAction = action }
         let rawMessage = message, rawIssueID = issueID, properties = issueProperties, paths = checkedPathsForCommit, staging = stagingEnabled
         let committedPaths = staging ? Set(entries.filter(\.staged).map(\.path)) : messageOnly ? Set<String>() : paths
         let retainedChangelists = Set(visibleEntries.filter { !committedPaths.contains($0.path) }.map(\.path)).union(restoreCopies.keys)
@@ -877,6 +890,7 @@ import UniformTypeIdentifiers
                 result.complete(output: output, success: true, cancelled: false, postActions: replaySplit == nil ? [.push, .pull, .recommit, .createTag] : [])
                 if action != .commit || replaySplit != nil || !presented { result.choose(nil) }
                 selectedPostAction = await result.waitForChoice()
+                rememberCompletionAction(action)
                 commitProgress = nil
                 do { try await restoreSavedCopies(Set(restoreCopies.keys)) }
                 catch {
@@ -915,7 +929,7 @@ import UniformTypeIdentifiers
                 if let progress {
                     progress.complete(output: commitError, success: false, cancelled: progress.cancellation.isCancelled, postActions: [])
                     if !shownInProgress || progress.cancelled { progress.choose(nil) }
-                    _ = await progress.waitForChoice(); commitProgress = nil
+                    _ = await progress.waitForChoice(); rememberCompletionAction(action); commitProgress = nil
                 }
                 var failureMessage = shownInProgress ? "" : commitError
                 if commitAttempted && !restoreCopies.isEmpty, await chooseSavedCopies(allowCancel: false) == .restore {
@@ -1026,7 +1040,7 @@ struct CommitDialog: View {
                 Button("Refresh") { model.reload() }
                 Spacer()
                 HStack(spacing: 0) {
-                    Button("Commit") { model.commit() }.keyboardShortcut(.return, modifiers: [.command])
+                    Button(model.currentCompletionAction.rawValue) { model.commitCurrentAction() }.keyboardShortcut(.return, modifiers: [.command])
                     if model.replaySplit == nil { Menu {
                         ForEach(CommitWindowModel.CompletionAction.allCases, id: \.self) { action in
                             Button { model.commit(action) } label: { CommandLabel(title: action.rawValue, icon: action == .push ? .push : .commit) }

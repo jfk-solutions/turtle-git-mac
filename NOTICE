@@ -546,3 +546,6 @@ a fast-forward merge phase. Source messages and answer keys are retained.
 Commit owned progress adapts CommitDlg.cpp post-command actions, successful
 footer auto-close and failure/new-branch recovery. POSIX process groups replace
 the Windows cancellation implementation for ordinary commit and hook processes.
+
+Commit action persistence adapts CommitDlg.cpp::PrepareOkButton and
+MenuButton.cpp::SetCurrentEntry, retaining the CommitLastAction indices.

@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "6f2de8982e33a976db1d18266978076ccc4e10ad",
+  "scope": "Remembered native Commit split-button action and source acknowledgement-time persistence. Full application/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/TortoiseProc/CommitDlg.h": "74c2f3700d7667480bfdf7221ac643e5efaab437",
+    "src/Utils/MiscUI/MenuButton.cpp": "f9d8bdbf6c96be5e9880855be9c42fa38242a9b8",
+    "src/Utils/MiscUI/MenuButton.h": "54bfd257bcbae35ccdd27e9625316f7cad101a97"
+  },
+  "sources_manifest_sha256": "8ca6081e435c57f80cce28133068f90957fa199bd13839c9467187323b474027",
+  "files_sha256": {
+    "NOTICE": "6c1f215e5e873b48553dcf190e5ec88817cd0c1f08072f8d8c1552c5efcdaef1",
+    "README.md": "3879235b7a73c07dad38b66760b3ebb9b3e392af8a80abf0d46a7df50e456b63",
+    ".github/workflows/macos.yml": "fdce4d267c89a32a971d88d2bdd14de39913c1d13cd9acf642d2e9ac7fa94d43",
+    "docs/COMMIT-PARITY.md": "b09858a359e2f41f7bff1c2e884cfb19a7d1c88c9aa39051bda44c21f490cc18",
+    "docs/upstream-files.csv": "83ca9ded966fb8db3edb46dcf18a6128fd5d13057b65c1e275cffd5e590bf98c",
+    "Sources/TurtleGitMac/CommitWindow.swift": "0942581cbf6216cbd3996116641de3c3ea815a4103f772c148fc77cfd275c3bf",
+    "docs/qa/commit-last-action-native-2026-10-08.swift": "d95b1bb98bc58bd9da335894bd17b4ca8f80ef133c565e92bb0a166a04cc8beb",
+    "scripts/test-commit-last-action.py": "0a3fb64a13ace8ab73dad7d967363b468bf325a35a612c456eabbc85bee2b857",
+    ".build/debug/TurtleGitMac": "2c478b6b8280624aae4b10c2de84714e3a7650d3f9d5f1d66006877d77aa257c"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four-Git model/real-repository receiver passed absent/invalid fallback without load writes; exact 0/1/2 mappings; shared reopen across repos and existing-window snapshots; actual repeated Push and ReCommit through commitCurrentAction; ordinary Commit saves only after result acknowledgement; success-progress ReCommit leaves footer Commit; hook failure saves selected Push after Close, retains draft and retries with remembered Push; conflict-hint preflight Abort does not save and leaves HEAD unchanged. Actual forced interactive Edit pause and split Commit proves saved Push ignored for split, blocked explicit Push, successful first split part and unchanged stored action. Native controllers/views are compiled, no physical button/keyboard claim.",
+    "progress_regression": "Existing Commit progress receiver passed all four Gits: real checked/staged paths, retained output and exact post-actions, capture/duplicate gates, footer auto-close, hook rejection with new-branch recovery/retry, pre-cancelled APIs and real hook/helper No/Yes cancellation ordinary/index/parent-amend modes. No backend change this turn; prior Core suite not repeated.",
+    "editor": "SwiftPM TurtleGitMac product rebuilt before native tests. It is used only as owned headless Rebase editor helper; final process audit empty. Binary SHA included.",
+    "builds": "Unsigned Debug and AppStore builds and bundle audits passed; embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 upstream icons verified. NOTICE byte-identical in both. Store Git 2.55.0: 11 universal arm64/x86_64 Mach-O files and actual local Git fixture operations passed. No signed distribution claim.",
+    "documentation": "README, Commit parity, NOTICE, native CI step and three partial source mappings updated. 3277 seven-column source rows and pin checker passed. Local site generated successfully, unpublished.",
+    "processes": "All Debug/SwiftPM/native sessions terminal before AppStore build. No main GUI or displayed windows. Receivers use prohibited activation and private UUID domains; no standard preferences or user pasteboard writes. Model/real-Git callback checks do not prove physical controls. Private empty-domain cleanup after termination; final app/receiver/editor/sleep process audit empty. Eight empty owned UUID preference plists removed; none nonempty in these suites.",
+    "limitations": "Physical dynamic caption/menu selection/Command-Return/default/accelerators, appearance/accessibility, caller auto-close variants, remaining progress/dialog persistence, split cancellation and signed sandbox/Finder/AppStore acceptance pending. m_bAutoClose is a caller flag rather than a new user setting. Explicit programmatic commit(action) retains its old meaning; native button invokes commitCurrentAction. Existing screenshots predate dynamic label. Full file/dialog/application port and hosted CI/site/signed distribution remain incomplete; GitHub authorization unavailable and not retried."
+  },
+  "logs_sha256": {
+    "build/qa/commit-last-action/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/commit-last-action/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-last-action/editor-build.log": "5a21ce4200c7c7a10e4d1add351ce24861c667cb5fff10c7af15e079f4b98bb1",
+    "build/qa/commit-last-action/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-last-action/native.log": "167194f0bbecdfced7490b0e3547cd8a1e7b7b3553b94ec3d3e56c10f28a4d7b",
+    "build/qa/commit-last-action/private-preference-cleanup.log": "7ce6d1a95c2f6e2fa4af7fc9290c6ebcbe774b3ca25b5d4f3b82fd966dcb2e93",
+    "build/qa/commit-last-action/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/commit-last-action/progress-regression.log": "d1fda81bfcc41f63e9a1cf57b3229c03feaf9ed78d8ccc6d0c953a1e1f7232cf",
+    "build/qa/commit-last-action/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-last-action/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-last-action/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/commit-last-action/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
