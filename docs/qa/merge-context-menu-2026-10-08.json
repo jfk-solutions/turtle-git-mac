@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "fbae4ca34aaf89a101743c2124b5196f7f5caf43",
+  "scope": "Explicit merge source/result context entries with original Copy/Paste/Find/block icons, native Cut symbol, application icon preference and consistent busy/Quit editing guards. Full port/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5",
+    "src/Resources/ribbon/Paste.bmp": "7e9c6b85a3affdad9dcf9fb9824113628331e655"
+  },
+  "sources_manifest_sha256": "75b7524e10743d39264c489bee0f0dcd43ce0aa9d8b5e01f2a81eb05f1757250",
+  "changed_files_sha256": {
+    "NOTICE": "998b3aaadbc344cc6ac8f84496700ebd58e0d6a5f44372d6f41ca23d836b4115",
+    "Sources/TurtleGitCore/MenuIcons.swift": "45806f67f2c424c8231c2b71c7a6d13d2037a7d8363c84aa096d174a5ec02147",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "c2ad1a945836a4f0fa624a5e176c4d83d63bd27b6f32762934f3a93acbfa412d",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "b57d7e2076b99f8acbcc872d8731590175a28efa3515b45b28e6f5f696513b4e",
+    "Tests/TurtleGitCoreTests/MenuIconTests.swift": "5a7d3cfa4807b3a9e7e07ca89ddbce7cdf5a7b2c4f36c624ef3ff3ddbfcec885",
+    "docs/TEXT-MERGE-PARITY.md": "7a1bc57d19c36843d8725d2ccd2157f2db922c94f3c83c02e94089cee06bbe0e",
+    "docs/qa/three-pane-endings-native-2026-10-08.swift": "c9ca6c09e2979f952f7b6901303e154b353da7e3915fff8694b397e57f966000",
+    "docs/upstream-files.csv": "733725d14b1921af3fdb7bfdc16dd4287708fd57c533a25b9c1419009be6d513",
+    "Sources/TurtleGitCore/Resources/Icons/Paste.bmp": "edb85e6a7f3d095d7e47640a7607efd4c7d97946cfbad1ed7d49ae02d8421781"
+  },
+  "verification": {
+    "core": "16 focused cases pass on default Apple Git: 1 MenuIcon (all 99 catalog entries decode; Paste and prior ribbon alpha/transparency checks), 2 MenuPresentation, 8 MergeSourceComparison and 5 MergeLineEndings. Not four-engine Core runs.",
+    "native": "Final validated receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Nine real source pairs per engine verify production NSMenu entries/targets, original icon presence, icons off, Cut/Paste source omission, private plain-string Paste availability, source whole-file and merged editing metadata during busy/Quit, format/block validation and stale direct action refusal, enabled CR format action with native Undo/Redo. Existing source clipboard/ruler/scroll and exact HEAD/raw index/worktree preservation retained. No popup/menu gestures, synthetic events, screenshots or general clipboard writes.",
+    "builds": "Final validated unsigned Debug then stationary-Debug final native receiver then AppStore. Both bundle audits (99 original assets), original Paste byte equality, bundled NOTICE equality, pin and diff checks pass. Source/NOTICE/tests/receiver frozen during live compiler/native sessions.",
+    "site": "Static GitHub Pages generator passes with new merge menu parity and QA links."
+  },
+  "iterations": [
+    "Initial native run failed icon-off check. Diagnostic repeat showed only standard Copy/Cut/Paste actions retained AppKit-supplied images despite nil explicit images. App-owned selectors forwarding to NSTextView remove that fallback; icon-off check then passes.",
+    "Next four-engine attempt stopped on first engine at Quit format validation: menu metadata and handlers refused edits, but ending validation lacked confirmingQuit. Aligned validation and clipboard wrappers with flags; final four-engine run passes. All failed/diagnostic logs and nonempty failed private preferences retained."
+  ],
+  "limitations": [
+    "Physical popup tracking/keyboard clipboard dispatch and actual Cut/Paste operations remain pending; selection writer and menu metadata/direct format dispatch are verified separately.",
+    "Exact source menu grouping/ordering beyond clipboard entries, all format/whitespace branches, signed sandbox and full editor parity remain pending.",
+    "Cut uses macOS scissors; original Paste/Copy/Find/block artwork retained. App-owned context selectors affect this merge menu only; other app menus may still need standard-selector fallback audit.",
+    "Full app parity, Finder deployment, real screenshots, App Store eligibility and external CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_native_fixtures": [],
+    "removed_empty_private_preferences": [
+      "TurtleGit.MergeMenu.QA.30427709-629B-4367-BBC6-E4F7D3A79AAD.plist",
+      "TurtleGit.MergeMenu.QA.6C5CDFE8-FDFA-492A-A1F5-CB0F67ED65D4.plist",
+      "TurtleGit.MergeMenu.QA.C3FE82CA-8487-4470-A4BC-E3D5D01719D6.plist",
+      "TurtleGit.MergeMenu.QA.5AF2C3C4-AEC1-4340-905B-1E9D10D79935.plist"
+    ],
+    "retained_failed_nonempty_private_preferences": [
+      "TurtleGit.MergeMenu.QA.08DC04E1-320A-4F44-BC87-017AD372B48F.plist",
+      "TurtleGit.MergeMenu.QA.33645076-C244-4915-BE35-EA57A82D24AE.plist",
+      "TurtleGit.MergeMenu.QA.E460D412-7C66-4E4D-B336-B7FA4A249B76.plist"
+    ],
+    "main_app_launched": false,
+    "clipboard": "Private pasteboards for source selection/availability; clipboard menu actions were not dispatched. General clipboard not seeded or written."
+  },
+  "logs_sha256": {
+    "build/qa/merge-context-menu/cleanup.json": "5a6be7a2b2a8442a1107266fd20215ec456b0616067d4429291aadc93ca60baa",
+    "build/qa/merge-context-menu/core.log": "062fab9f9f103e1730ecf30a5a864cdfd82c184a03ac96a79f35f02288fc696c",
+    "build/qa/merge-context-menu/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/merge-context-menu/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-context-menu/debug-initial.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-context-menu/debug-reviewed.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-context-menu/debug-validated.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-context-menu/native-diagnostic.log": "d7a3bb20bac0ffcd2c17db779fb3201d10282e88201854254b1ab25bcf931ef7",
+    "build/qa/merge-context-menu/native-final.log": "5b49dbec7b45789b73f43015830a2b5983305cb020b0d64cff3754b153e1cb78",
+    "build/qa/merge-context-menu/native-validated.log": "4184ff759e41c14e759c1b9ab0475f1046c3f420b07310235e2e1c7cd3efc80e",
+    "build/qa/merge-context-menu/native.log": "610e2aec9c1cd858fcc9b6cf8c8de8e3ebcd2d6511a56eae918c9d8119959f85",
+    "build/qa/merge-context-menu/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-context-menu/store-audit.log": "c760ff4763f156e92fefd77049a3a405cd056e1834de60679fb6b388e97ef7a9",
+    "build/qa/merge-context-menu/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/merge-context-menu/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

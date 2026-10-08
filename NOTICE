@@ -729,3 +729,10 @@ Three-pane source clipboard selection adapts CBaseView::GetSelectedText and
 OnEditCopy: removed/conflict rows are included and Empty rows skipped. BaseView
 copyright/GPL attribution above applies. AppKit writes plain text with native LF
 clipboard separators through its selection API; source bytes remain unchanged.
+
+Merge editor clipboard context entries adapt CBaseView::AddCutCopyAndPaste.
+BaseView copyright/GPL attribution above applies. Paste uses the original pinned
+src/Resources/ribbon/Paste.bmp (resource GPL alternative); Copy/Find/block artwork
+uses the existing original assets. Cut uses the native macOS scissors symbol.
+Explicit AppKit menu targets replace inherited context entries; physical menu
+tracking, clipboard services and complete source ordering remain pending.

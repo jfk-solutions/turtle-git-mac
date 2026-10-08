@@ -565,3 +565,29 @@ Physical Copy key/menu/service/drag interactions, Base-pane clipboard parity,
 block selection without a text selection, final-empty-row boundaries and all
 rich-text negotiation variants remain pending. These checks establish the plain
 selection-writer path, not complete clipboard or merge-editor parity.
+
+## Explicit merge context entries and icons
+
+Source panes now have explicit Copy, Find and Use this whole file entries.
+Merged adds Cut/Paste and the existing block/whitespace/ending/encoding actions.
+Copy uses the original icon; Paste uses the unchanged pinned ribbon Paste.bmp.
+Find and block entries retain their original artwork. Cut uses the native macOS
+scissors symbol. The application context-icon setting controls these entries;
+app-owned clipboard menu selectors avoid AppKit's automatically supplied images
+for standard Copy/Cut/Paste selectors when icons are disabled. Actual clipboard
+operations still route through NSTextView.
+
+Menu snapshots, action validation and mutating handlers now agree during busy
+operations and Quit confirmation. Copy/Find remain available, while Cut/Paste,
+whole-file replacement, block, whitespace and format actions are disabled and
+refuse stale dispatch. Plain-text Paste availability is checked before enabling
+its entry. [Merge context QA](qa/merge-context-menu-2026-10-08.json) checks production
+menu construction without synthetic pointer/key events, target/icon policy,
+private-pasteboard availability, busy/Quit validation and direct format/block
+refusal. An enabled CR format action and native Undo/Redo also run.
+
+Original Paste decoding/transparency and the complete icon catalog pass focused
+Core tests; unsigned bundles retain the original asset and provenance. Physical
+menu tracking, keyboard clipboard dispatch, actual Cut/Paste operations, source
+menu order/grouping beyond these entries, all whitespace/format state variants,
+and signed sandbox acceptance remain pending. This is partial context-menu parity.

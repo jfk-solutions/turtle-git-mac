@@ -492,6 +492,11 @@
       "asset": "refresh.ico",
       "source": "src/Resources/refresh.ico",
       "sha256": "2a3c88473a11ae60e90b35b51039827794478ac0ed0eb6a60c73a9afffcb1bd3"
+    },
+    {
+      "asset": "Paste.bmp",
+      "source": "src/Resources/ribbon/Paste.bmp",
+      "sha256": "edb85e6a7f3d095d7e47640a7607efd4c7d97946cfbad1ed7d49ae02d8421781"
     }
   ]
 }

@@ -9,6 +9,9 @@ import TurtleGitCore
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
+        let menuSuite = "TurtleGit.MergeMenu.QA." + UUID().uuidString
+        let menuDefaults = UserDefaults(suiteName: menuSuite)!
+        defer { menuDefaults.removePersistentDomain(forName: menuSuite); menuDefaults.synchronize() }
         let repo = GitRepository(root: root, executable: git)
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Alignment QA"])
@@ -86,6 +89,52 @@ import TurtleGitCore
             mine.setSelectedRange(NSRange(location: 0, length: 0))
             precondition(!mine.writeSelection(to: clipboard, type: .string))
             precondition(!mine.writeSelection(to: clipboard, type: .rtf))
+            mine.setSelectedRange(NSRange(location: 0, length: (mine.string as NSString).length))
+            let sourceMenu = (mine as! MergeContextMenuProviding).mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
+            precondition(sourceMenu.items.filter { !$0.isSeparatorItem }.map(\.title) == ["Copy", "Find…", "Use this whole file"])
+            precondition(sourceMenu.items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image != nil })
+            let merged = textViews.first { $0.accessibilityLabel()?.hasPrefix("Merged ·") == true }!
+            let firstBlock = model.blocks.first!
+            merged.setSelectedRange(firstBlock.range)
+            let provider = merged as! MergeContextMenuProviding
+            let resultMenu = provider.mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
+            precondition(resultMenu.items.prefix(3).map(\.title) == ["Copy", "Cut", "Paste"])
+            precondition(resultMenu.items.prefix(3).allSatisfy { $0.image != nil && ($0.target as? NSTextView) === merged })
+            precondition(resultMenu.item(withTitle: "Paste")!.isEnabled)
+            let blockItems = resultMenu.items.filter { $0.action == NSSelectorFromString("useBlock:") }
+            precondition(blockItems.count == 4 && blockItems.allSatisfy { $0.image != nil && $0.isEnabled })
+            let format = resultMenu.item(withTitle: "Line endings")!.submenu!.item(withTitle: "CR")!
+            menuDefaults.set(false, forKey: "ShowAppContextMenuIcons")
+            let hiddenIcons = provider.mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
+            print("ICON POLICY DIAGNOSTIC", MenuPresentationSettings.applicationContextIcons(defaults: menuDefaults), hiddenIcons.items.map { ($0.title, $0.image != nil, $0.isSeparatorItem) }); fflush(stdout)
+            precondition(hiddenIcons.items.allSatisfy { $0.image == nil })
+            menuDefaults.set(true, forKey: "ShowAppContextMenuIcons")
+            clipboard.clearContents()
+            precondition(!provider.mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard).item(withTitle: "Paste")!.isEnabled)
+            let untouchedResult = model.result
+            for quit in [false, true] {
+                model.busy = !quit; model.confirmingQuit = quit
+                let locked = provider.mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
+                precondition(!locked.item(withTitle: "Cut")!.isEnabled && !locked.item(withTitle: "Paste")!.isEnabled)
+                precondition(locked.items.filter { $0.action == NSSelectorFromString("useBlock:") }.allSatisfy { !$0.isEnabled })
+                precondition(locked.item(withTitle: "Line endings")!.submenu!.items.allSatisfy { !$0.isEnabled })
+                precondition(locked.item(withTitle: "File Encoding")!.submenu!.items.allSatisfy { !$0.isEnabled })
+                let sourceLocked = (mine as! MergeContextMenuProviding).mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
+                precondition(!sourceLocked.item(withTitle: "Use this whole file")!.isEnabled && sourceLocked.item(withTitle: "Copy")!.isEnabled)
+                precondition(!merged.validateMenuItem(format) && !merged.validateMenuItem(blockItems[0]))
+                _ = NSApplication.shared.sendAction(format.action!, to: format.target, from: format)
+                _ = NSApplication.shared.sendAction(blockItems[0].action!, to: blockItems[0].target, from: blockItems[0])
+                precondition(model.result == untouchedResult)
+            }
+            model.busy = false; model.confirmingQuit = false
+            model.resetHistory()
+            let history = merged.undoManager!; history.groupsByEvent = false; history.beginUndoGrouping()
+            _ = NSApplication.shared.sendAction(format.action!, to: format.target, from: format)
+            history.endUndoGrouping()
+            precondition(model.result == MergeLineEndings.converting(untouchedResult, to: .cr) && model.dirty)
+            model.undo(); precondition(model.result == untouchedResult && !model.dirty)
+            model.redo(); precondition(model.result == MergeLineEndings.converting(untouchedResult, to: .cr))
+            model.undo(); model.resetHistory()
             precondition(!model.dirty)
             controller.close()
         }
@@ -93,6 +142,6 @@ import TurtleGitCore
         let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(initialHead == finalHead && initialIndex == finalIndex)
         for path in paths { let bytes = try Data(contentsOf: root.appendingPathComponent(path)); precondition(bytes == workingBytes[path]) }
-        print("PASS: nine actual unmerged Git source pairs loaded by native three-pane controllers; all ending styles retain exact stage text, source numbering, read-only aligned rows/gaps and linked scrolling; native private-pasteboard Copy includes removed/conflict rows, skips Empty gaps, normalizes LF and retains emoji/partial selection, empty selection does not replace clipboard. HEAD/raw index/conflicted working bytes retained; owned hidden windows closed. No main app, physical input, screenshots or signed acceptance.")
+        print("PASS: nine actual unmerged Git source pairs loaded by native three-pane controllers; all ending styles retain exact stage text, source numbering, read-only aligned rows/gaps and linked scrolling; native private-pasteboard Copy includes removed/conflict rows, skips Empty gaps, normalizes LF and retains emoji/partial selection, empty selection does not replace clipboard. HEAD/raw index/conflicted working bytes retained; explicit native menu targets/original icons and icon setting, private Paste availability, busy/Quit metadata and direct-action refusal, enabled CR format action/Undo/Redo verified; owned hidden windows closed. No main app, physical input, screenshots or signed acceptance.")
     }
 }

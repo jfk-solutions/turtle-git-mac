@@ -37,6 +37,7 @@ public enum MenuIcon: String, CaseIterable {
     case refresh = "refresh"
     case mergeReload = "Refresh"
     case mergeMarked = "linemarked"
+    case mergePaste = "Paste"
     case mergeUndo = "Undo", mergeRedo = "Redo", mergeFind = "Search"
     case mergePreviousConflict = "UpRed", mergeNextConflict = "DownRed"
     case mergeUseMine = "UseMine", mergeUseTheirs = "UseTheirs"
@@ -52,7 +53,7 @@ public enum MenuIcon: String, CaseIterable {
         #else
         let bundle = Bundle(for: IconResourceBundle.self)
         #endif
-        let ribbon: Set<MenuIcon> = [.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine]
+        let ribbon: Set<MenuIcon> = [.mergePaste,.mergeReload, .mergeSave, .mergeSaveAs, .mergeResolved, .mergeUndo, .mergeRedo, .mergeFind, .mergePreviousConflict, .mergeNextConflict, .mergeUseMine, .mergeUseTheirs, .mergeMineThenTheirs, .mergeTheirsThenMine]
         let isRibbon = ribbon.contains(self)
         guard let url = bundle.url(forResource: rawValue, withExtension: isRibbon ? "bmp" : "ico", subdirectory: "Icons"),
               let image = isRibbon ? Self.ribbonImage(at: url) : NSImage(contentsOf: url) else { return nil }
