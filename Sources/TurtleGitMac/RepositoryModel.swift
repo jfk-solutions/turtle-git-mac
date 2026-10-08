@@ -39,6 +39,7 @@ import TurtleGitCore
     private var fetchWindows: [String: FetchWindowController] = [:]
     private var pushWindows: [String: PushWindowController] = [:]
     private var referenceWindows: [String: BranchTagWindowController] = [:]
+    private var switchProgressWindows: [UUID: SwitchProgressWindowController] = [:]
     private var switchWindows: [String: SwitchWindowController] = [:]
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
     private var addWindows: [String: AddWindowController] = [:]
@@ -867,6 +868,10 @@ import TurtleGitCore
         controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.onCheckout = { [weak self] hash in self?.showSwitch(repository: repository, access: access, revision: hash) }
         controller.model.onReset = { [weak self] hash in self?.showReset(repository: repository, access: access, revision: hash) }
+        controller.model.onSwitchBranch = { [weak self, weak controller] reference in
+            guard let parent = controller?.window, parent.attachedSheet == nil else { return }
+            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent)
+        }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -1293,6 +1298,30 @@ import TurtleGitCore
         controller.model.onPushTag = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         referenceWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showSwitchProgress(repository: GitRepository, access: RepositoryAccessLease?, reference: String, parent: NSWindow) {
+        let id = UUID(), root = repository.root
+        let controller = SwitchProgressWindowController(repository: repository, access: access, reference: reference)
+        controller.onClosed = { [weak self] in self?.switchProgressWindows.removeValue(forKey: id) }
+        controller.model.onFinished = { [weak self] output, _ in
+            self?.referenceLogWindows[root.path]?.model.reload()
+            self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root)
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        controller.model.onPostAction = { [weak self] action, previousBranch in
+            switch action {
+            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [])
+            case .mergePreviousBranch: self?.showMerge(repository: repository, access: access, revision: "refs/heads/" + previousBranch)
+            case .pull: self?.showFetch(repository: repository, access: access, isPull: true)
+            case .commit, .resolve: self?.showCommitDialog(repository: repository, access: access, paths: [])
+            case .stash: self?.showStash(repository: repository, access: access)
+            case .retry, .switchWithMerge: break
+            }
+        }
+        switchProgressWindows[id] = controller
+        if let window = controller.window { parent.beginSheet(window) }
+        controller.model.start()
     }
     private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
         let root = repository.root

@@ -506,3 +506,7 @@ RefLog remote Switch defaults adapt GitLogListAction.cpp's first-remote guess an
 Git.cpp's sorted hash-to-reference map, including peeled annotated tags. Explicit
 symbolic remote presets remain visible in the native picker and use the resolved
 remote branch name for a new local branch. Source pin is recorded in upstream.json.
+
+RefLog express local branch menus adapt GitLogListBase.cpp and GitLogListAction.cpp.
+Native immediate Switch progress adapts AppUtils.cpp PerformSwitch's success,
+failure, merge-conflict and retry post-actions at the recorded upstream pin.

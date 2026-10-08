@@ -122,6 +122,7 @@ import TurtleGitCore
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onCheckout: ((String) -> Void)?
     var onReset: ((String) -> Void)?
+    var onSwitchBranch: ((String) -> Void)?
     @Published private(set) var referenceNamesByHash: [String: [String]] = [:]
     @Published private(set) var currentHeadHash: String?
     @Published private(set) var currentBranch = ""
@@ -254,6 +255,15 @@ import TurtleGitCore
     func performHistory(_ command: ReferenceLogHistoryCommand, ids: Set<String>) {
         guard canPerformHistory(command, ids: ids), let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         switch command { case .reset: onReset?(entry.hash); case .checkout: onCheckout?(referenceNamesByHash[entry.hash]?.first { $0.hasPrefix("refs/remotes/") } ?? entry.hash) }
+    }
+    func switchBranches(_ ids: Set<String>) -> [String] {
+        guard !invalidated, !selecting, !busy, hasWorkingTree,
+              ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }), !isOnStash(entry) else { return [] }
+        return (referenceNamesByHash[entry.hash] ?? []).filter { $0.hasPrefix("refs/heads/") && $0 != "refs/heads/" + currentBranch }
+    }
+    func switchBranch(_ ref: String, ids: Set<String>) {
+        guard switchBranches(ids).contains(ref) else { return }
+        onSwitchBranch?(ref)
     }
     func comparisonSides(_ command: ReferenceLogComparisonCommand, ids: Set<String>) -> (ComparisonRevision, ComparisonRevision)? {
         guard !busy, !ids.isEmpty else { return nil }
@@ -467,7 +477,18 @@ private struct ReferenceLogDialog: View {
                     Button { model.showLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.count != 1 || model.onLog == nil)
                     Button { model.perform(.browseRepository, ids: ids) } label: { CommandLabel(title: ReferenceLogRevisionCommand.browseRepository.title, icon: .repositoryBrowser) }.disabled(!model.canPerform(.browseRepository, ids: ids))
                     if !model.selecting && model.hasWorkingTree && ids.count == 1 {
-                        ForEach(ReferenceLogHistoryCommand.allCases, id: \.self) { command in
+                        Button { model.performHistory(.reset, ids: ids) } label: { CommandLabel(title: ReferenceLogHistoryCommand.reset.title(branch: model.currentBranch), icon: .reset) }.disabled(!model.canPerformHistory(.reset, ids: ids))
+                        let branches = model.switchBranches(ids)
+                        if branches.count == 1, let ref = branches.first {
+                            Button { model.switchBranch(ref, ids: ids) } label: { CommandLabel(title: "Switch branch \"" + ref.dropFirst("refs/heads/".count) + "\"", icon: .checkout) }.disabled(model.onSwitchBranch == nil)
+                        } else if branches.count > 1 {
+                            Menu {
+                                ForEach(branches, id: \.self) { ref in
+                                    Button { model.switchBranch(ref, ids: ids) } label: { CommandLabel(title: String(ref.dropFirst("refs/heads/".count)), icon: .checkout) }
+                                }
+                            } label: { CommandLabel(title: "Switch branch", icon: .checkout) }.disabled(model.onSwitchBranch == nil)
+                        }
+                        ForEach([ReferenceLogHistoryCommand.checkout], id: \.self) { command in
                             Button { model.performHistory(command, ids: ids) } label: { CommandLabel(title: command.title(branch: model.currentBranch), icon: command.icon) }.disabled(!model.canPerformHistory(command, ids: ids))
                         }
                     }

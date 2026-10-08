@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "ea0d66f8cafcf0832d65a97e1d736bd389ce23d5",
+  "scope": "RefLog express local branch single/submenu and immediate owned native Switch progress with source success/failure/merge-conflict/retry post-actions. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "520a0dad1c91766b8606074ff470b12ebbc45516363818bdfff663adf62c4399",
+    "NOTICE": "ac2b871a1309e80500f76a8849fbc9852fc8934012f11d9df7600e39936b4b50",
+    "Sources/TurtleGitCore/Checkout.swift": "f401bfa5f9e3ea9bdbd9f33a70b322e78eedac3bd9a6047697911763b0a8c808",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "49ce933cb191e7beacbe320464df0f46198f8328576c452adf3d625782f7b57a",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "39ebba62e809ea76ceb49296ba73474d4bfe6c5741e2c1307f4c19bc43c36dde",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "235b8e6e58d52882586154864beb5ae7fc34b6468a18734b35f9a4eadea683c5",
+    "docs/REFLOG-PARITY.md": "d403b1b20dba9efb86408d3f52339996f4e875e96fe61ea9d1edcfdf925cdcb0",
+    "docs/upstream-files.csv": "a81b791ed3f6f6976e59cb54b1c59f1812413bfd6cf78ecde28cdfae6cb2109f",
+    "docs/qa/reflog-express-switch-native-2026-10-08.swift": "42f0b79fb1c83be1837386c82da85a2dc3366c99b8889cbac904dd9d32332c24",
+    "scripts/test-reflog-express-switch.py": "325d0ff6974ee245aaf8117ba7f7e76e301e3e66a55958473e15520d507324da"
+  },
+  "all_sources_manifest_sha256": "a502d03f021e8cd1455482e769dd82bb18240ed7df36e0fbc6eb5b35feaf2593",
+  "verification": {
+    "core": "CheckoutTests 7 passed. Checkout adds optional cancellation, checked before preparation and forwarded to the final Git switch process; ordinary callers retain their behavior.",
+    "native": "Final express-switch receiver passed system Git, 2.37.1, 2.39.5 and bundled 2.55.0. Model branch candidates sorted single/multiple local refs; active branch/remote/tag exclusion and other branch at HEAD eligibility. Empty/stale/multi/busy/chooser/invalidation and bare guards checked. Actual native progress model performs checkout, captures previous branch, selects success post-actions and dispatches captured Merge callback. Dirty failure preserves HEAD/index/file; explicit merge produces actual index conflicts and failed progress despite Git exit zero, Resolve/Retry menu, then succeeds after fixture reset and retry. Missing branch, pre-cancelled operation preserving HEAD, detached-source and gitlink submodule post-actions, original icon mapping checked. Receivers create models only: no windows, preferences, clipboard or external apps. Final matrix also proves express menu eligibility with unresolved unborn HEAD and actual switch into existing topic from a clean no-checkout clone.",
+    "iterations": "Initial Debug and SwiftPM compile failed because await appeared in the synchronous right-hand autoclosure of &&. Both sessions were terminal before the correction. Extracted async conflict read into a separate statement and cleared partial success actions before failure actions. Final Debug, CheckoutTests and four-Git native matrix passed. Failed logs retained. Final source review removed an extra resolved-HEAD guard from express switching, which source does not require; added an actual unborn-to-existing branch fixture. Debug rebuilt before rerunning final native matrix. Final express-switch receiver passed all four Git versions including unborn fixture.",
+    "documentation": "Parity notes, NOTICE, four upstream inventory mappings and macOS workflow updated. Pin checker and all 3277 seven-column source rows passed. Local site generated; unpublished.",
+    "limitations": "Physical context-menu layout/sheet rendering/window ownership, close/cancel handlers and actual post-action factory/refresh routing unverified. Only pre-cancellation is exercised; process interruption is delegated to existing cancellable Git runtime and not separately exercised here. Signed repository access, streaming output, progress persistence, Stash follow-up Pull flag and broader Switch options progress integration pending. Current/adjacent stash express-menu predicates share existing gates but are not separately exercised by this receiver. Full RefLog/context/dialog/Finder parity, updated real screenshots/manual, hosted CI/publication and signed App Store distribution remain incomplete. GitHub authentication unavailable; not retried.",
+    "regression": "Remote Switch defaults receiver passed all four Git versions after progress/menu changes, before only the final removal of express switch resolved-HEAD guard and its new unborn fixture. Final express receiver compiles all native Sources. Remote receiver verifies actual Switch defaults, symbolic remote selection, moved-ref refresh, read-only state and tracked Core branch creation.",
+    "builds": "Final unsigned Debug and AppStore builds passed. Both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git 2.55.0 Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "processes": "All compiler/native/build/audit sessions terminal. Main GUI never launched; receivers create models only, no windows. Final app/native receiver process audit empty. No preference or clipboard writes."
+  },
+  "logs": {
+    "build/qa/reflog-express-switch/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-express-switch/core-initial-failed.log": "0de32d801dd25d8a521a4010870e976a3222d75c0b47c8254857e4baab942565",
+    "build/qa/reflog-express-switch/core.log": "15bc541c9abe667b56773bd9ab514dc02b03a529dd711c05a6a5d78863290c31",
+    "build/qa/reflog-express-switch/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-express-switch/debug-before-unborn-fix.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-express-switch/debug-initial-failed.log": "59f9002ec4331e71b6013f64566c6b37c2aff7ef7312d53b9e135f0fa4519071",
+    "build/qa/reflog-express-switch/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-express-switch/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-express-switch/native-before-unborn-fix.log": "6fcb4f3cbb70950194973ccba87c59e17892f828b259c9a1d0fcb11638555501",
+    "build/qa/reflog-express-switch/native.log": "d17ebbac66a48a4e8a17f1d2997e55aa166778ff4ccfa5d756d2776880ad4e80",
+    "build/qa/reflog-express-switch/remote-regression-before-unborn-fix.log": "3c82a7288f08df299523a5427e4fa908b1c07b9b7bbe2139bbfdaf8b8175c702",
+    "build/qa/reflog-express-switch/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-express-switch/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-express-switch/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-express-switch/store-before-unborn-fix.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/reflog-express-switch/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

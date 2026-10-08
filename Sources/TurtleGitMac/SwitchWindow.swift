@@ -255,3 +255,138 @@ struct ReferencePopup: NSViewRepresentable {
         }
     }
 }
+
+// PerformSwitch's immediate branch command and its progress/post-command choices.
+enum SwitchPostAction: String, CaseIterable, Hashable {
+    case submoduleUpdate, mergePreviousBranch, pull, commit, resolve, stash, retry, switchWithMerge
+    var title: String {
+        switch self {
+        case .submoduleUpdate: return "Submodule Update…"
+        case .mergePreviousBranch: return "Merge…"
+        case .pull: return "Pull…"
+        case .commit: return "Commit…"
+        case .resolve: return "Resolve…"
+        case .stash: return "Stash Save…"
+        case .retry: return "Retry"
+        case .switchWithMerge: return "Switch with Merge"
+        }
+    }
+    var icon: MenuIcon {
+        switch self {
+        case .submoduleUpdate: return .fetch
+        case .mergePreviousBranch: return .merge
+        case .pull: return .pull
+        case .commit: return .commit
+        case .resolve: return .resolve
+        case .stash: return .stash
+        case .retry: return .mergeReload
+        case .switchWithMerge: return .checkout
+        }
+    }
+}
+@MainActor final class SwitchProgressWindowController: NSWindowController, NSWindowDelegate {
+    let model: SwitchProgressWindowModel
+    var onClosed: () -> Void = {}
+    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String) {
+        model = SwitchProgressWindowModel(repository: repository, access: access, reference: reference)
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "\(repository.root.lastPathComponent) – Switch Progress – TurtleGit"
+        window.contentMinSize = NSSize(width: 560, height: 300); window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: SwitchProgressDialog(model: model))
+        super.init(window: window); window.delegate = self
+        model.close = { [weak self] in
+            guard let self, !self.model.busy, self.window?.attachedSheet == nil else { return }
+            if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
+        }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.busy { model.cancel(); return false }
+        guard sender.attachedSheet == nil else { return false }
+        sender.sheetParent?.endSheet(sender); return true
+    }
+    func windowWillClose(_ notification: Notification) { onClosed() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+@MainActor final class SwitchProgressWindowModel: ObservableObject {
+    let repository: GitRepository
+    let reference: String
+    private let access: RepositoryAccessLease?
+    private var cancellation = OperationCancellation()
+    private var started = false
+    private var merging = false
+    @Published private(set) var busy = true
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var output = ""
+    @Published private(set) var previousBranch = ""
+    @Published private(set) var postActions: [SwitchPostAction] = []
+    var onFinished: (String, Bool) -> Void = { _, _ in }
+    var onPostAction: ((SwitchPostAction, String) -> Void)?
+    var close: () -> Void = {}
+    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String) { self.repository = repository; self.access = access; self.reference = reference }
+    func start() { Task { await run() } }
+    func run() async { guard !started else { return }; started = true; await execute(merge: false) }
+    func cancel() { guard busy else { return }; cancellation.cancel() }
+    func perform(_ action: SwitchPostAction) {
+        guard !busy, postActions.contains(action) else { return }
+        if action == .retry || action == .switchWithMerge {
+            let merge = action == .switchWithMerge || merging
+            busy = true; cancellation = OperationCancellation()
+            Task { await execute(merge: merge) }
+        } else if let onPostAction { let branch = previousBranch; close(); onPostAction(action, branch) }
+    }
+    private func execute(merge: Bool) async {
+        busy = true; success = false; cancelled = false; postActions = []; output = ""; merging = merge
+        do {
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            guard reference.hasPrefix("refs/heads/"), try await !repository.isBare() else { throw CheckoutFailure.invalidRevision }
+            previousBranch = try await repository.branch()
+            var options = CheckoutOptions(); options.revision = reference; options.merge = merge
+            output = try await repository.checkout(options, cancellation: cancellation)
+            let conflicts = try await repository.status(refreshIndex: false).contains { $0.state == .conflicted }
+            if merge && conflicts { output += "\nHas merge conflict" }
+            else {
+                if (try? await repository.submoduleUpdatePaths().isEmpty) == false { postActions.append(.submoduleUpdate) }
+                if !previousBranch.isEmpty { postActions.append(.mergePreviousBranch) }
+                if try await !repository.branch().isEmpty { postActions.append(.pull) }
+                postActions.append(.commit)
+                success = true
+            }
+        } catch { output += (output.isEmpty ? "" : "\n") + error.localizedDescription }
+        cancelled = cancellation.isCancelled
+        if !success {
+            postActions = []
+            let conflicts = merge ? ((try? await repository.status(refreshIndex: false).contains { $0.state == .conflicted }) == true) : false
+            if conflicts { postActions.append(.resolve) }
+            if !merge { postActions.append(.stash) }
+            postActions.append(.retry)
+            if !merge { postActions.append(.switchWithMerge) }
+        }
+        busy = false; onFinished(output, success)
+    }
+}
+private struct SwitchProgressDialog: View {
+    @ObservedObject var model: SwitchProgressWindowModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Switch to \(model.reference.dropFirst("refs/heads/".count))").font(.headline)
+            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            HStack {
+                if model.busy { ProgressView().controlSize(.small); Text("Switching…") }
+                else { Text(model.cancelled ? "Cancelled" : model.success ? "Finished" : "Switch failed").foregroundStyle(model.success ? Color.green : Color.red) }
+                Spacer()
+            }
+            HStack {
+                if let first = model.postActions.first {
+                    HStack(spacing: 2) {
+                        Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
+                        Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Switch post-actions") }.menuStyle(.borderlessButton).fixedSize()
+                    }.disabled(model.busy)
+                }
+                Spacer()
+                if model.busy { Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction) }
+                else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
+            }
+        }.padding(12)
+    }
+}

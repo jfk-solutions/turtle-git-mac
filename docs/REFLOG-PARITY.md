@@ -422,7 +422,7 @@ chooser/bare/unborn/invalidation guards and original icons are checked. Ordinary
 HEAD/refs/index/config/working bytes remain unchanged by those reads. No windows
 are displayed. Physical menu/title/icon rendering, independently owned windows,
 confirmation/operation/close acceptance, adjacent stash index history-action gates,
-detached captions, express branch switching,
+detached captions, displayed express branch switching,
 broader Switch/Reset parity and signed access remain pending.
 Full RefLog/dialog/application parity remains incomplete.
 
@@ -448,5 +448,41 @@ remote refs, symbolic presets and ordinary read-only repository state. A separat
 fixture operation creates the correctly tracked local branch through Core. No
 window or preferences are written. The [QA record](qa/reflog-remote-defaults-2026-10-08.json)
 records runtime/build coverage. Physical picker/menu rendering, signed access,
-complete express branch progress/post-actions and full application parity remain
+physical express branch progress acceptance and full application parity remain
 pending.
+
+## Express local branch switch
+
+The selected entry's matching local refs now supply upstream's express command.
+The active branch is excluded. One candidate produces `Switch branch "name"`;
+multiple candidates produce a sorted submenu with short names. Other branches at
+HEAD remain eligible even though Switch/Checkout to HEAD is disabled. Remote refs
+and tags are excluded. The command retains working-tree/current-stash/chooser,
+selection/loading/closed-model gates and the original Switch icon. A resolved HEAD is not required: an unborn
+branch can switch to an existing local branch selected from its RefLog.
+
+The command executes immediately in an owned native progress sheet, rather than
+opening the Switch options dialog. Git resolves the current branch by name when
+executing, matching upstream if a branch moved after the menu snapshot. Ordinary
+switching preserves local changes or fails; it never forces a checkout. The sheet
+shows command output and status, blocks closing while the command is active and
+provides cancellation. RefLog, Commit, Status and repository Log views refresh
+through the operation callback after success or failure.
+
+Success offers Submodule Update when applicable, Merge with the branch active
+before the switch, Pull when the new HEAD is attached, and Commit. Failure offers
+Stash Save, Retry and Switch with Merge. A merge attempt with index conflicts is
+reported as failed even when Git exits zero and offers Resolve (the source's
+Commit dialog handoff) and Retry. Retry preserves the merge mode. Post-actions use
+original icons and the existing native repository dialogs; the sheet closes before
+handing off to another dialog. Branches are revalidated by Core at execution and
+App Store invocations require the repository security-scope lease.
+
+The [headless receiver](qa/reflog-express-switch-native-2026-10-08.swift) and
+[QA record](qa/reflog-express-switch-2026-10-08.json) cover actual models and Git
+operations. They do not display windows. Physical menu/sheet/close/cancel behavior,
+post-action factory routing, signed access and streaming output still need
+acceptance. The Stash Save handoff currently uses the existing dialog; upstream's
+extra follow-up Pull flag, complete progress presentation/persistence and broader
+Switch options progress integration remain pending. Full application parity is
+not established by these checks.
