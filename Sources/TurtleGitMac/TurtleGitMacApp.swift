@@ -47,7 +47,7 @@ import TurtleGitCore
             }
             CommandMenu("TurtleGit") {
                 ForEach(RepositoryAction.allCases.filter { $0 != .clone && $0 != .initialize && $0 != .editConflict && $0 != .diffLater && $0 != .clearComparisonMark && $0.resolveChoice == nil }) { action in
-                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection) || (action.isIgnore && !model.canIgnoreSelection(action)) || (action.isResolve && !model.canResolveSelection))
+                    Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.disabled(model.root == nil || model.busy || (model.bare && action.requiresWorkingTree) || (action == .mergeAbort && !model.mergeActive) || (action == .rename && !model.canRenameSelection) || ([RepositoryAction.remove, .removeKeep].contains(action) && !model.canRemoveSelection) || (action.isIgnore && !model.canIgnoreSelection(action)) || (action.isResolve && !model.canResolveSelection))
                 }
                 Divider()
                 Button { model.activate(.diffLater) } label: { CommandLabel(title: model.comparisonMarkTitle, icon: .compare) }.disabled(model.busy || model.confirmingQuit)
@@ -103,8 +103,8 @@ struct RepositoryWindow: View {
                             }.buttonStyle(.plain).disabled(model.bare && action.requiresWorkingTree)
                         }
                         Divider()
-                        ForEach([RepositoryAction.pull, .push, .fetch, .branch, .tag, .switchBranch, .merge, .rebase, .stash, .stashApply, .stashPop, .stashList, .reflog]) { action in
-                            Button(action.title) { model.activate(action) }.buttonStyle(.plain).padding(6).disabled(model.bare && action.requiresWorkingTree)
+                        ForEach([RepositoryAction.pull, .push, .fetch, .branch, .tag, .switchBranch, .merge, .mergeAbort, .rebase, .stash, .stashApply, .stashPop, .stashList, .reflog]) { action in
+                            Button { model.activate(action) } label: { CommandLabel(title: action.title, icon: action.icon) }.buttonStyle(.plain).padding(6).disabled((model.bare && action.requiresWorkingTree) || (action == .mergeAbort && !model.mergeActive))
                         }
                         Spacer()
                         Text("Native macOS port • In development").font(.caption).foregroundStyle(.secondary)
@@ -210,6 +210,9 @@ struct RepositoryWindow: View {
                     Button { model.activate(.rename) } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!model.canRenameSelection)
                     if model.canResolveSelection && !model.selectedPaths.isEmpty {
                         ResolveSelectionMenu(paths: model.selectedPaths, rebase: model.conflictRebase, canEdit: model.selection.count == 1 && model.entries.contains(where: { model.selection.contains($0.id) && $0.state == .conflicted })) { action, paths in model.activate(action, paths: paths) }
+                    }
+                    if model.mergeActive {
+                        Button { model.activate(.mergeAbort) } label: { CommandLabel(title: RepositoryAction.mergeAbort.title, icon: .mergeAbort) }.disabled(model.busy || model.confirmingQuit)
                     }
                     if model.canIgnoreSelection(.ignore) {
                         IgnoreSelectionMenu(paths: model.selectedPaths) { action, paths in model.activate(action, paths: paths) }

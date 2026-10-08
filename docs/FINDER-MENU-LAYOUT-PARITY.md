@@ -46,3 +46,15 @@ in [the verification record](qa/finder-menu-layout-2026-10-06.json). Core code i
 unchanged, so no new core-suite run is claimed. Actual activated context/toolbar
 appearance, manager Add gesture, full shell conditions, root placement/customization,
 omitted commands, signed integration and remote verification remain pending.
+
+## Abort Merge command
+
+Abort Merge is now included immediately after Resolve in the source's recovery
+group. Its active-merge conditions come from the pinned `MenuInfo.cpp`; conflict
+resolution alone does not remove it. The actual builder now projects all 40
+implemented command mappings onto the complete pinned groups. It also checks
+original Abort artwork, icons on/off, captured paths/URL, real conflicted repository
+metadata serialized through the cache, nonmutation during menu construction, and
+removal after abort/refresh. See [the QA record](qa/merge-abort-menu-2026-10-08.json).
+This remains headless builder evidence; activated Finder and signed handoff remain
+pending.

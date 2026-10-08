@@ -19,7 +19,7 @@ public enum MenuIcon: String, CaseIterable {
     case repositoryBrowser = "menurepobrowse", executableOverlay = "executableovl", symlinkOverlay = "symlinkovl", externalOverlay = "externalovl"
     case repositoryBackdrop = "RepoBrowserBackground", addBackdrop = "AddBackground"
     case compare = "menucompare", unifiedDiff = "menudiff", pull = "pull1", push = "Push", fetch = "menuupdate"
-    case branch = "menucopy", tag = "tag", checkout = "menuswitch", merge = "menumerge", rebase = "menurebase"
+    case branch = "menucopy", tag = "tag", checkout = "menuswitch", merge = "menumerge", mergeAbort = "menumergeabort", rebase = "menurebase"
     case rebasePick = "menupick", rebaseSkip = "menuskip", rebaseEdit = "menuedit", rebaseSquash = "menusquash", reverse = "switch"
     case stash = "menushelve", stashPop = "menuunshelve", clone = "menucheckout", initialize = "menucreaterepos"
     case graphBar = "graph-bar", graphStackedBar = "graph-bar-stacked", graphLine = "graph-line", graphStackedLine = "graph-line-stacked", graphPie = "graph-pie"
@@ -114,6 +114,7 @@ extension RepositoryAction {
         case .tag: return .tag
         case .switchBranch: return .checkout
         case .merge: return .merge
+        case .mergeAbort: return .mergeAbort
         case .rebase: return .rebase
         case .stash: return .stash
         case .stashApply, .stashPop: return .stashPop

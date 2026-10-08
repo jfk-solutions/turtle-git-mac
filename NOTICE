@@ -526,3 +526,7 @@ reset modes follow MergeAbortDlg.cpp and AppUtils.cpp Reset at the recorded pin.
 Native Abort Merge adapts MergeAbortDlg.cpp/.h and IDD_MERGEABORT, including the
 three reset choices and working-tree comparison. Cancel-to-Abort routing and
 mode-specific reset post-actions follow AppUtils.cpp and ProgressDlg.cpp.
+
+Abort Merge shell command visibility and order adapt MenuInfo.cpp and
+ContextMenu.cpp. The original menumergeabort.ico is bundled unchanged with
+its resource-license notice and provenance hash.

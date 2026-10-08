@@ -1066,6 +1066,33 @@
           "no": []
         }
       ]
+    },
+    "mergeAbort": {
+      "command": "MergeAbort",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_INGIT",
+            "ITEMIS_MERGEACTIVE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_MERGEACTIVE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
   }
 }

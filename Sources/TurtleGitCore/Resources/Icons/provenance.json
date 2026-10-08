@@ -482,6 +482,11 @@
       "asset": "graph-pie.ico",
       "source": "src/Resources/graph-pie.ico",
       "sha256": "0bc8a67ecb22e80c46d723e273a081be5ab59be2214eb8c34b8f090b74409602"
+    },
+    {
+      "asset": "menumergeabort.ico",
+      "source": "src/Resources/menumergeabort.ico",
+      "sha256": "596a554a20f5b340e84fdf63b95452c9cda7ea5a9b98e5834f2555e17ad89483"
     }
   ]
 }

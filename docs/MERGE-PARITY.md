@@ -64,7 +64,7 @@ Escape and Cancel. HEAD/index/worktree remained unchanged.
   acceptance with a different branch/commit, tag merge and detached/unborn cases.
 - Physical progress/sheet/cancellation and post-action routing acceptance, live
   streaming, displayed conflict-hint acceptance, git-svn post-action and physical cancel-to-Abort flow.
-- Abort Merge context-menu entry and three-way conflict editor. The native Abort
+- Activated Abort Merge context-menu acceptance and three-way conflict editor. The native Abort
   dialog/models are implemented; physical conflict recovery remains unverified.
 - Interactive hooks/signing/editor workflows, strategy variants, user-data/rebase
   guards, dark/minimum-window/keyboard/sandbox runtime QA.
@@ -139,7 +139,8 @@ Close returns OK; Cancel/titlebar dismissal freshly checks the index and request
 Abort Merge only when conflicts remain. The native three-choice Abort dialog and
 comparison callback are now wired. Physical hint/suppression/keyboard rendering,
 signed access and broader abort/recovery cases remain pending. The hint retains
-upstream wording; its Abort Merge context-menu entry still needs implementation.
+upstream wording; its Abort Merge context-menu entry is now implemented, with
+activated Finder/native popup acceptance still pending.
 Full application parity remains incomplete.
 
 ## Native Abort Merge dialog and Cancel routing
@@ -168,6 +169,32 @@ Close/Cancel distinction, fresh resolved-conflict dismissal, duplicate protectio
 index-lock failures and mode-specific retry, and active Bisect post-actions.
 It creates no windows and cannot establish physical layout/keyboard/owner-sheet
 acceptance. Active-process cancellation routing, submodule post-action acceptance,
-context-menu integration/icon, saved geometry, live progress output, signed scope
+activated context-menu acceptance, saved geometry, live progress output, signed scope
 and the full Reset workflow remain pending. Existing screenshots have not been
 updated to show this dialog. Full application parity remains incomplete.
+
+## Abort Merge context menus and original icon
+
+The shared command now opens the native Abort Merge dialog from Finder requests,
+the application command menu/sidebar, and the workspace status context menu.
+Finder follows `MenuInfo.cpp`: Abort Merge follows Resolve in the same group and
+requires an active merge plus a tracked item or a folder in the worktree. It does
+not require an unresolved conflict or a single selection. Bare repositories and
+inactive merges omit it. Workspace/menu availability uses refreshed merge metadata;
+opening the dialog itself performs no reset until OK.
+
+The original `menumergeabort.ico` is copied unchanged, with SHA-256 provenance and
+the existing upstream resource-license notice. Finder's icon preference hides
+its image while retaining the command; the app's context-icon preference applies
+through the existing labels. The Sidebar's operation buttons also use their
+original command icons. Incoming requests retain literal paths and repository
+access and dispatch the independent Abort controller. Status-window dispatch avoids
+explicitly raising the workspace.
+
+Core condition/metadata/request tests and the actual extension menu builder verify
+this command, exact source group order, original image availability and toggling,
+URL/path round-trips, real merge metadata serialized through the cache, and removal
+after abort/refresh. The builder creates no Finder controller, windows or popups.
+See [the verification record](qa/merge-abort-menu-2026-10-08.json). Installed Finder
+activation, security-scope approval, app menu gestures and new real screenshots
+remain pending; cache freshness depends on repository refresh.

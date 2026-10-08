@@ -25,7 +25,7 @@ import TurtleGitCore
             .diff: "Diff", .diffLater: "DiffLater", .log: "Log", .reflog: "RefLog", .repositoryBrowser: "RepoBrowse",
             .bisectStart: "BisectStart", .bisectGood: "BisectGood", .bisectBad: "BisectBad", .bisectSkip: "BisectSkip", .bisectReset: "BisectReset",
             .status: "ShowChanged", .rebase: "Rebase", .stash: "StashSave", .stashApply: "StashApply",
-            .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .rename: "Rename",
+            .stashPop: "StashPop", .stashList: "StashList", .resolve: "Resolve", .mergeAbort: "MergeAbort", .rename: "Rename",
             .remove: "Remove", .removeKeep: "RemoveKeep", .revert: "Revert", .clean: "Cleanup", .switchBranch: "Switch",
             .merge: "Merge", .branch: "Branch", .tag: "Tag", .export: "Export", .initialize: "CreateRepo",
             .ignore: "IgnoreSub", .ignoreDelete: "DeleteIgnoreSub", .worktreeList: "Worktree",
@@ -195,6 +195,12 @@ import TurtleGitCore
         verifyOrder(merging)
         precondition([RepositoryAction.pull, .merge, .rebase, .stash].allSatisfy { !rootActions(merging).contains($0) })
         precondition(rootActions(merging).contains(.fetch) && rootActions(merging).contains(.commit) && rootActions(merging).contains(.stashApply))
+        precondition(!rootActions(ordinary).contains(.mergeAbort) && rootActions(merging).contains(.mergeAbort))
+        let abortItem = items(merging).first { FinderShellMenuLayout.action($0) == .mergeAbort }!
+        precondition(abortItem.isEnabled && abortItem.image != nil && abortItem.title == "Abort Merge")
+        let abortCommand = abortItem.representedObject as! FinderMenuCommand
+        precondition(FinderRequest(url: abortCommand.url()!)!.action == .mergeAbort)
+        precondition(abortCommand.request.paths == FinderRequest(action: .mergeAbort, paths: [folder]).paths)
         let bisecting = metadataMenu(FinderRepositoryMetadata(bisectActive: true))
         verifyOrder(bisecting)
         precondition([RepositoryAction.pull, .merge, .rebase].allSatisfy { !rootActions(bisecting).contains($0) } && rootActions(bisecting).contains(.stash))
@@ -279,6 +285,39 @@ import TurtleGitCore
         let owner = try await realChildRepo.discoverSelectionRoot(for: .rename, selected: actualChild)
         precondition(owner.path == actualRoot.path)
         print("Actual collected-cache receiver: real parent refresh discovers unopened Unicode/newline child; serialized snapshot drives enabled captured Rename/Remove and verified parent selection routing. No entitled publication/native activation performed.")
+        // Real merge metadata, rather than a manually asserted cache flag.
+        _ = try await parentRepo.run(["switch", "-c", "abort-feature"])
+        try Data("theirs\n".utf8).write(to: actualRoot.appendingPathComponent("file.txt")); try await parentRepo.stage(["file.txt"]); _ = try await parentRepo.commit(message: "theirs")
+        _ = try await parentRepo.run(["switch", "main"])
+        try Data("ours\n".utf8).write(to: actualRoot.appendingPathComponent("file.txt")); try await parentRepo.stage(["file.txt"]); _ = try await parentRepo.commit(message: "ours")
+        do { _ = try await parentRepo.run(["merge", "--no-edit", "abort-feature"]); preconditionFailure("Expected conflict") } catch is GitFailure {}
+        var mergeSnapshot = FinderSnapshot.build(root: actualRoot, tracked: try await parentRepo.trackedPaths(), changes: try await parentRepo.status())
+        mergeSnapshot.repositories[actualRoot.path] = try await parentRepo.finderMetadata()
+        let decodedMerge = try JSONDecoder().decode(FinderSnapshot.self, from: JSONEncoder().encode(mergeSnapshot))
+        let mergeHead = try await parentRepo.run(["rev-parse", "HEAD"]).stdout
+        let mergeIndex = try Data(contentsOf: actualRoot.appendingPathComponent(".git/index"))
+        let mergeFile = try Data(contentsOf: actualRoot.appendingPathComponent("file.txt"))
+        for selected in [[actualRoot], [actualRoot.appendingPathComponent("file.txt")], [actualRoot.appendingPathComponent("file.txt"), actualRoot.appendingPathComponent(".gitmodules")]] {
+            for icons in [true, false] {
+                var settings = FinderMenuSettings(); settings.showIcons = icons
+                let menu = FinderMenuBuilder.make(paths: selected, snapshot: decodedMerge, settings: settings, comparisonMark: nil, target: target, actionSelector: selector)
+                verifyOrder(menu)
+                let item = items(menu).first { FinderShellMenuLayout.action($0) == .mergeAbort }!
+                precondition(item.isEnabled && (item.image != nil) == icons)
+                let command = item.representedObject as! FinderMenuCommand
+                precondition(command.request.paths == FinderRequest(action: .mergeAbort, paths: selected).paths)
+                precondition(FinderRequest(url: command.url()!)!.action == .mergeAbort)
+            }
+        }
+        let afterMergeHead = try await parentRepo.run(["rev-parse", "HEAD"]).stdout
+        let afterMergeIndex = try Data(contentsOf: actualRoot.appendingPathComponent(".git/index")), afterMergeFile = try Data(contentsOf: actualRoot.appendingPathComponent("file.txt"))
+        precondition(mergeHead == afterMergeHead && mergeIndex == afterMergeIndex && mergeFile == afterMergeFile)
+        _ = try await parentRepo.abortMerge()
+        var afterSnapshot = FinderSnapshot.build(root: actualRoot, tracked: try await parentRepo.trackedPaths(), changes: try await parentRepo.status())
+        afterSnapshot.repositories[actualRoot.path] = try await parentRepo.finderMetadata()
+        let afterMenu = FinderMenuBuilder.make(paths: [actualRoot], snapshot: afterSnapshot, settings: FinderMenuSettings(), comparisonMark: nil, target: target, actionSelector: selector)
+        precondition(!rootActions(afterMenu).contains(.mergeAbort))
+        print("Abort Merge menu: real conflicted Git metadata survives cache serialization; repository, tracked file and multiple tracked selections offer correctly ordered enabled original icon/URL actions with icons on/off; menu construction preserves HEAD/index/file; refreshed aborted state removes entry. No installed Finder activation.")
         for state in FileState.allCases { precondition(state.icon.image() != nil, "Badge artwork stays available") }
         print("Actual Finder menu builder: parent/action/nested-ignore/marked-compare images toggle; six selection cases preserve titles, enabled states and routing; fresh cache reset and badge artwork pass. No Finder controller/extension/window activated; signed integration and gestures remain pending.")
     }

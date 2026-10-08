@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "202676487da1124db1cd6edaeedd6a24b05a513d",
+  "scope": "Abort Merge context-menu action, upstream conditions/order, original icon, native dialog routing and app availability. Full port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseShell/MenuInfo.cpp": "aee7f91ad1111fe03ab85b390855885ca940a27f",
+    "src/TortoiseShell/ContextMenu.cpp": "0b31f963e73ff71cd9cdb0861972a671236ae20f",
+    "src/TortoiseShell/resourceshell.rc": "c5b11b96e120e1f4e2eabcd7d93d222d6cff4ce0",
+    "src/TortoiseProc/Commands/MergeCommand.cpp": "5e16896e8b894defd5a184d02b0563751dd6382a",
+    "src/Resources/menumergeabort.ico": "44616763665bfd0d12005c4be7b4f2157aebaf66"
+  },
+  "sha256": {
+    "FinderSync/FinderSync.swift": "f305c73ca172c842142b04d9a6d2e0aad85f1051a4966051a19d6ec20cee449e",
+    "NOTICE": "6a25dc5213ca624a29c4a6cd10e43120bd616890c411a4d20df5bffcc997e1b8",
+    "Sources/TurtleGitCore/FinderCache.swift": "84e0a1f13a76e2cd6093032d490db56284476087f474fc6b5125821712242952",
+    "Sources/TurtleGitCore/MenuIcons.swift": "5caa25d63bdd8c8e5e88b20d1e3051372c1c1b7dbbe9e4ddf3c289ee12760f0e",
+    "Sources/TurtleGitCore/Resources/Icons/menumergeabort.ico": "596a554a20f5b340e84fdf63b95452c9cda7ea5a9b98e5834f2555e17ad89483",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "01b57aec8f7386ab032cd379f83639ae5da5721aee80bcca03b1679f32a76475",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "63ff4cce014576ac5ce915c3e9c08b6f1197af83a62a4aab60b96e6f40f05c07",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "4fa8d236578a178268d066771f5aba8e5d3475137ac40a3402d94ee067d73c40",
+    "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift": "9d205eddefda9500c35df7b306f2d63a91a2d94de7df5a7439470765cefeab99",
+    "docs/FINDER-MENU-LAYOUT-PARITY.md": "42725668827165bcf6b23d963fa4de91a5bc095275dabda91fc3ff1dc64d6f52",
+    "docs/MERGE-PARITY.md": "63cadad932fae0af9c0b087211b2344046f6b93c9e4cb2e0ec4f7550f2773029",
+    "docs/upstream-files.csv": "78b68a8fdaa63b678114ced40680d9de9d97f890a6f5c3b41f1035a57abaf835",
+    "docs/upstream-shell-menu-conditions.json": "27776bb6af67dcdd54ee7191a038fe215d3441288464612de86b3f37341628c0",
+    "docs/upstream-shell-menu-order.json": "e0d38e3fee4a5fc1bce3e884350830c22013832753d3fa66875f3a4e989c30bf",
+    "scripts/test-finder-menu.py": "b528db55ede6f0ac69e7ba9119c971590625d87963d55b74ee8f095d9c07f3fe",
+    "scripts/test-merge-abort-dialog.py": "c1af0c279e34d40a2acf8393a3bf428ed25d7a27e06e93e2acc7cc1f029f022a",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "c8882896e9be5a87ed0be997341d09d7dbdae052c5dad558550674cea925e1ef",
+    ".github/workflows/macos.yml": "a9ee82d79112ac4f9f3e21a8387fd5389523767cca1798a2eefd801aeb675bbe"
+  },
+  "all_sources_manifest_sha256": "0f32b3b4df5ade891652dcf4baafe51ea28057cdf6b061c2792e5f1663a54b5b",
+  "verification": {
+    "core": "20 selected FinderShellRules/RepositoryMetadata/Request/MenuSettings tests passed. Independent pinned fixture now contains 40 rules including exact Abort Merge clauses. Active merge required; tracked item or folder-in-worktree allowed without conflict/one-selection restriction; inactive/bare excluded. Literal Unicode/newline action URL, no value/raw arguments, working-tree requirement and original icon mapping checked.",
+    "finder": "Actual extension menu builder passed, no activated Finder controller. All 40 implemented root command mappings preserve pinned source groups/order. Synthetic active merge offers enabled original Abort icon with captured paths/URL; inactive state omits it. A real system-Git conflicted parent repository produces merge metadata, serialized cache drives repository/file/multiple-tracked selections with icons on/off. Menu construction preserves HEAD/index/file bytes; abort and refresh remove entry. Existing menu/selection/submodule checks pass.",
+    "regression": "Abort dialog/model receiver passed system Git, 2.37.1, 2.39.5, bundled 2.55.0. All modes, Cancel/Close and fresh-conflict routing, duplicate guards, captured selection, lock failure/mode-specific retry and Bisect list. This receiver preceded only final Root initialization lines clearing mergeActive during session/adoption; it does not call those Root methods. Final unsigned builds compile all final Sources.",
+    "iterations": "Initial Debug source review found the new action accidentally in requiresValue and removed it before tests. Final Core/native checks passed. Two subsequent Root adoption clear lines received final Debug and AppStore compilation; receiver model behavior unaffected. Earlier successful Debug logs retained.",
+    "limitations": "Real receiver uses system Git for menu metadata fixture; abort regression spans all four Gits. Installed Finder activation, entitled cache publication, signed security-scope and destination handoff, native app popup/menu/Sidebar rendering and gestures, repository-switch failure gesture, screenshot update and broader shell/Reset/application parity remain pending. App menu uses refreshed active-merge state; cache may be stale until refresh. No main GUI, screenshot, standard preferences or clipboard writes. GitHub auth/remote CI/publication unavailable and not retried.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 97 original artwork assets verified. Store --require-git audited 11 universal Git 2.55.0 Mach-O files with actual fixture operations. EditorConfig/IssueRegex audits passed.",
+    "documentation": "NOTICE, Merge/Finder layout parity, source clause fixture and five partial source/resource mappings updated. Pin checker passed all 3277 seven-column entries. Local site generated, unpublished.",
+    "processes": "All compiler/Core/native/build/audit sessions terminal. Native receivers used prohibited activation and no displayed windows/Finder extension. Temporary fixtures/executables cleaned on exit; final app/native receiver process audit empty. No user applications killed."
+  },
+  "logs": {
+    "build/qa/merge-abort-menu/abort-regression.log": "04a28f4b57aa53f10ab6b9c59de2e8ae77436f244964dbe078d8f0b5bfc647e0",
+    "build/qa/merge-abort-menu/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/merge-abort-menu/core.log": "de950820d3b6a838b16eafc14fef60f0ac1c7945756093b459f232388cd006a9",
+    "build/qa/merge-abort-menu/debug-audit.log": "2228e0db182b765e6393937051b74a35aaf24bd41dcb32a65bd2e3f9b86a605b",
+    "build/qa/merge-abort-menu/debug-before-adoption-clear.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-menu/debug-before-clone-adoption-clear.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-menu/debug-before-value-fix.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-menu/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-menu/finder-menu.log": "3b80b1756a340bab0855914025f961e183410748dc2e3b9d4821f2fea9084676",
+    "build/qa/merge-abort-menu/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-abort-menu/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-abort-menu/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-abort-menu/store-audit.log": "fb29dad30e22611adb029ae178697708d069417a5cb1803c6e745c72efc355a9",
+    "build/qa/merge-abort-menu/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

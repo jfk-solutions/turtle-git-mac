@@ -18,7 +18,7 @@ final class FinderShellRulesTests: XCTestCase {
             "ITEMIS_INVERSIONEDFOLDER": .inVersionedFolder, "ITEMIS_SUBMODULE": .submodule,
             "ITEMIS_DELETED": .deleted, "ITEMIS_STASH": .stash, "ITEMIS_SUBMODULECONTAINER": .submoduleContainer
         ]
-        XCTAssertEqual(fixture.rules.count, 39)
+        XCTAssertEqual(fixture.rules.count, 40)
         XCTAssertEqual(Set(fixture.rules.keys), Set(FinderShellRules.conditions.keys.map(\.rawValue)))
         func mask(_ names: [String]) throws -> FinderShellFlags {
             try names.reduce(into: FinderShellFlags()) { $0.formUnion(try XCTUnwrap(tokens[$1], $1)) }
@@ -66,6 +66,23 @@ final class FinderShellRulesTests: XCTestCase {
         XCTAssertFalse(FinderShellRules.allows(.pull, flags: folder.union(.merge)))
         XCTAssertFalse(FinderShellRules.allows(.clone, flags: folder))
         XCTAssertTrue(FinderShellRules.allows(.clone, flags: folder.union(.extended)))
+    }
+
+    func testMergeAbortRequiresActiveMergeButNotConflictsOrOneSelection() throws {
+        for flags in [[.inGit, .merge], [.folderInGit, .merge], [.inGit, .merge, .two], [.inGit, .merge, .normal]] as [FinderShellFlags] {
+            XCTAssertTrue(FinderShellRules.allows(.mergeAbort, flags: flags))
+        }
+        for flags in [[], [.inGit], [.folderInGit], [.merge], [.bare, .merge], [.inGit, .conflicted]] as [FinderShellFlags] {
+            XCTAssertFalse(FinderShellRules.allows(.mergeAbort, flags: flags))
+        }
+        XCTAssertFalse(FinderRepositoryMetadata().allows(.mergeAbort))
+        XCTAssertTrue(FinderRepositoryMetadata(mergeActive: true).allows(.mergeAbort))
+        XCTAssertFalse(FinderRepositoryMetadata(bare: true, mergeActive: true).allows(.mergeAbort))
+        let request = FinderRequest(action: .mergeAbort, paths: [URL(fileURLWithPath: "/tmp/repo 雪/file\n")])
+        let decoded = try XCTUnwrap(request.url.flatMap(FinderRequest.init(url:)))
+        XCTAssertEqual(decoded.action, .mergeAbort); XCTAssertEqual(decoded.paths, request.paths)
+        XCTAssertTrue(decoded.action.requiresWorkingTree); XCTAssertFalse(decoded.action.requiresValue)
+        XCTAssertNil(decoded.action.arguments(value: "")); XCTAssertEqual(decoded.action.icon, .mergeAbort)
     }
 
     func testCachedPathClassification() throws {

@@ -8,6 +8,7 @@ import TurtleGitCore
     @Published var branch = ""
     @Published var bare = false
     @Published var conflictRebase = false
+    @Published var mergeActive = false
     @Published var submodules = Set<String>()
     @Published var entries: [StatusEntry] = []
     @Published var selection = Set<String>()
@@ -145,7 +146,7 @@ import TurtleGitCore
     }
     func closeRepository() {
         guard !busy, !confirmingQuit else { return }
-        adoptionGeneration += 1; bare = false
+        adoptionGeneration += 1; bare = false; mergeActive = false
         repository = nil; activeAccess = nil; root = nil; entries = []; selection = []
         branch = ""; message = ""; output = "Open a repository to get started."
     }
@@ -184,7 +185,7 @@ import TurtleGitCore
                 }
                 repository = try makeRepository(resolved); activeAccess = lease; root = resolved
                 restoreCloneKeyAccess(root: resolved)
-                selection = []; entries = []; branch = ""
+                selection = []; entries = []; branch = ""; mergeActive = false
                 section = .status
                 output = "Repository: \(resolved.path)"
                 try await reload()
@@ -216,6 +217,7 @@ import TurtleGitCore
         branch = try await repository.branch()
         let tracked = bare ? [] : try await repository.trackedPaths()
         let metadata = try await repository.finderMetadata(knownBare: bare)
+        mergeActive = metadata.mergeActive
         var snapshot = FinderSnapshot.build(root: root, tracked: tracked, changes: entries)
         snapshot.repositories[root.path] = metadata
         let children = bare ? FinderSubmoduleScan() : try await repository.finderSubmoduleSnapshots(authorizedRoot: activeAccess?.url ?? root)
@@ -329,6 +331,9 @@ import TurtleGitCore
             guard let repository else { return }
             showLog(repository: repository, access: activeAccess, paths: paths)
 
+        case .mergeAbort:
+            guard let repository else { return }
+            showMergeAbort(repository: repository, access: activeAccess)
         case .merge:
             guard let repository else { return }
             showMerge(repository: repository, access: activeAccess)
@@ -410,7 +415,7 @@ import TurtleGitCore
             while busy && generation == adoptionGeneration { try? await Task.sleep(nanoseconds: 50_000_000) }
             guard generation == adoptionGeneration else { return }
             repository = repo; activeAccess = access; root = repo.root; self.bare = bare
-            entries = []; selection = []; branch = ""; section = bare ? .log : .status; self.output = output
+            entries = []; selection = []; branch = ""; mergeActive = false; section = bare ? .log : .status; self.output = output
             await refresh()
         }
     }
@@ -850,7 +855,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .clean && action != .add && action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .clean && action != .add && action != .diff && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller
