@@ -696,7 +696,7 @@ extension GitRepository {
     public func saveCommitNote(_ note: CommitNoteSnapshot, text: String) throws -> String {
         guard !text.contains("\0") else { throw CommitNoteFailure.invalidText }
         guard note.accepts(text) else { throw CommitNoteFailure.minimumLength(note.minimumLength) }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitNote-" + UUID().uuidString)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitNote-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let file = directory.appendingPathComponent("note.txt")

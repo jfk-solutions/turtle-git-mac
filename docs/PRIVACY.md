@@ -56,3 +56,10 @@ Settings → [Saved Data](SAVED-DATA.md) can clear URL/directory histories, inpu
 message histories and remembered answers. These operations remove local
 preferences only; they preserve repository bookmarks and working files. The
 action log is cleared separately.
+
+Temporary files now use the private `TurtleGitTemporaryFiles` directory under
+macOS temporary storage, including Git stdout/stderr, previews and cached author
+images. [Saved Data temporary-file cleanup](TEMPORARY-FILES.md) clears that folder
+after confirmation. It preserves repository/bookmark/history/action-log storage.
+Already displayed author images and HTTP-cache responses can remain; old builds'
+temporary files outside the new folder are not scanned or deleted.

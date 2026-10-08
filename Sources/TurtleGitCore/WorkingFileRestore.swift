@@ -37,7 +37,7 @@ extension GitRepository {
         let before = try manager.attributesOfItem(atPath: location.path)
         let type = before[.type] as? FileAttributeType
         guard type == .typeRegular || type == .typeSymbolicLink else { throw WorkingFileRestoreFailure.unsupported }
-        let directory = manager.temporaryDirectory.appendingPathComponent("TurtleGitRestore-" + UUID().uuidString)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitRestore-" + UUID().uuidString)
         try manager.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         do {
             let target: String?

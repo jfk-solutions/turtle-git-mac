@@ -77,7 +77,7 @@ extension GitRepository {
         return realStage
     }
     func commitSelectionIsEmpty(checked: [StatusEntry], base: String, fileModes: [String: String]) throws -> Bool {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-selection-" + UUID().uuidString)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-selection-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
         let environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]
@@ -88,7 +88,7 @@ extension GitRepository {
     func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: [String: String] = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
         let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
         var environment = ["GIT_INDEX_FILE": directory.appendingPathComponent("index").path]

@@ -32,7 +32,7 @@ public struct HistoricalFilePreview: Sendable {
         let ext = name.pathExtension
         let filename = name.deletingPathExtension + "-" + hash.prefix(7) + (ext.isEmpty ? "" : "." + ext)
         let manager = FileManager.default
-        let directory = manager.temporaryDirectory.appendingPathComponent("TurtleGitHistoricalPreview-" + UUID().uuidString, isDirectory: true)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitHistoricalPreview-" + UUID().uuidString, isDirectory: true)
         try manager.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         do {
             let file = directory.appendingPathComponent(filename)

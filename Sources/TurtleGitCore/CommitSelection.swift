@@ -91,7 +91,7 @@ extension GitRepository {
         if options.signOff { args.append("--signoff") }
         if let author = options.author, !author.isEmpty { args.append("--author=" + author) }
         if commitPaths.isEmpty { return try run(args, cancellation: cancellation).text }
-        let file = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-commit-\(UUID().uuidString)")
+        let file = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-commit-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: file) }
         let data = Data(Set(commitPaths).sorted().flatMap { Array($0.utf8) + [0] })
         guard FileManager.default.createFile(atPath: file.path, contents: data, attributes: [.posixPermissions: 0o600]) else {

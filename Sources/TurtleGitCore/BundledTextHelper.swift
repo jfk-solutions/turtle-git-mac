@@ -7,7 +7,7 @@ enum BundledTextHelper {
     /// termination is bounded and cancellation is checked before/after execution.
     static func capture(executable: URL, arguments: [String], cancellation: OperationCancellation? = nil) throws -> Data {
         try Task.checkCancellation()
-        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitTextHelper-" + UUID().uuidString)
+        let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitTextHelper-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
         let outputURL = temporary.appendingPathComponent("stdout"), errorURL = temporary.appendingPathComponent("stderr")

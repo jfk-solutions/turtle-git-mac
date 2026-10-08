@@ -115,3 +115,10 @@ The [Saved Data guide](SAVED-DATA.md) maps URL/input-message history and stored
 decision controls to the source and documents reset scope and remaining groups.
 Core reset-scope tests and private native model checks are recorded in
 [the checkpoint](qa/saved-data-2026-10-08.json).
+
+## Temporary files checkpoint
+
+The [temporary-file guide](TEMPORARY-FILES.md) maps shared private temporary
+storage and Saved Data's confirmed cleanup to the pinned source.
+[Checkpoint evidence](qa/temporary-files-2026-10-08.json) distinguishes Core/native
+checks from remaining physical, live-operation and signed acceptance.

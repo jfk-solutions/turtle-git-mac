@@ -1,6 +1,7 @@
 import AppKit
 import CryptoKit
 import SwiftUI
+import TurtleGitCore
 
 struct LogGravatarRequest {
     static let defaultTemplate = "https://gravatar.com/avatar/%HASH%?d=identicon"
@@ -23,7 +24,7 @@ struct LogGravatarRequest {
     private let delay: UInt64
     private var request: Task<Void, Never>?
     private var generation = 0
-    init(defaults: UserDefaults = .standard, session: URLSession = .shared, cache: URL = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-Gravatar", isDirectory: true), delay: UInt64 = 500_000_000) {
+    init(defaults: UserDefaults = .standard, session: URLSession = .shared, cache: URL = TurtleGitTemporaryStorage.defaultRoot.appendingPathComponent("TurtleGit-Gravatar", isDirectory: true), delay: UInt64 = 500_000_000) {
         self.defaults = defaults; self.session = session; self.cache = cache; self.delay = delay
     }
     func load(email: String?) {
@@ -45,7 +46,7 @@ struct LogGravatarRequest {
                 guard (response as? HTTPURLResponse)?.statusCode == 200, !data.isEmpty, data.count <= 8 * 1024 * 1024, let loaded = NSImage(data: data) else { image = nil; request = nil; return }
                 image = loaded
                 // A cache failure does not hide a successfully loaded image.
-                try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true)
+                try? FileManager.default.createDirectory(at: cache, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
                 try? data.write(to: file, options: .atomic)
                 request = nil
             } catch {

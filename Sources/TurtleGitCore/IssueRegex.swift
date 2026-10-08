@@ -81,7 +81,7 @@ public enum IssueRegexRuntime {
     static func capture(message: String, check: String, extract: String, executable: URL?, bundle: Bundle = .main, mode: [String] = [], messageUnits: [UInt16]? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
         let parser = try executable ?? Self.executable(bundle: bundle)
         guard FileManager.default.isExecutableFile(atPath: parser.path) else { throw IssueRegexFailure.runtimeMissing }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitIssueRegex-" + UUID().uuidString)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitIssueRegex-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
         let inputs = [Array(check.utf16), Array(extract.utf16), messageUnits ?? Array(message.utf16)]

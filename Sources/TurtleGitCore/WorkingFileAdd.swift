@@ -76,7 +76,7 @@ extension GitRepository {
         defer { if ownsLock { try? FileManager.default.removeItem(at: lock) } }
         let handle = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
         defer { try? handle.close() }
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitAdd-" + UUID().uuidString)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitAdd-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }
         let privateIndex = directory.appendingPathComponent("index")

@@ -129,7 +129,7 @@ extension GitRepository {
     public func applyPatchSelection(_ document: GitPatch, paths: [String], staged: Bool, lines: Set<Int>, entireHunks: Bool, base: String? = nil) throws {
         guard try patch(paths: paths, staged: staged, base: base).text == document.text else { throw PatchFailure.changed }
         let text = try document.selectedPatch(lines: lines, entireHunks: entireHunks, reverse: staged)
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-patch-\(UUID().uuidString)")
+        let url = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-patch-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: url) }
         guard FileManager.default.createFile(atPath: url.path, contents: Data(text.utf8), attributes: [.posixPermissions: 0o600]) else {
             throw CocoaError(.fileWriteUnknown)

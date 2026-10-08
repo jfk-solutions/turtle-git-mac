@@ -54,7 +54,7 @@ public struct UnifiedDiffPreview: Sendable {
     public let file: URL
     public static func create(_ bytes: Data) throws -> Self {
         let manager = FileManager.default
-        let directory = manager.temporaryDirectory.appendingPathComponent("TurtleGitUnifiedDiffPreview-" + UUID().uuidString, isDirectory: true)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitUnifiedDiffPreview-" + UUID().uuidString, isDirectory: true)
         try manager.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         do {
             let file = directory.appendingPathComponent("diff.patch")

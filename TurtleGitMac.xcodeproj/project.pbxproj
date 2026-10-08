@@ -145,6 +145,7 @@
 		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
 		CC6D27AC08555115BD75EB87 /* Clean.swift in Sources */ = {isa = PBXBuildFile; fileRef = 340673250460ADE4B0D7C99C /* Clean.swift */; };
 		CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */; };
+		D17A1D5A00D1AFA7FA41B044 /* TemporaryFiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FC37D449B700916B289DDB7 /* TemporaryFiles.swift */; };
 		D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */; };
 		D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A48D22D1E6D22153CBA3744 /* Push.swift */; };
 		D346F92FAD1A13414F11CBB9 /* AlternativeEditorPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1461AE9BD8BFDBA1939F33FF /* AlternativeEditorPreferences.swift */; };
@@ -275,6 +276,7 @@
 		29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusListClipboard.swift; sourceTree = "<group>"; };
 		2ED7A4FB5DF119ED7F648EF4 /* ReferenceLogWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceLogWindow.swift; sourceTree = "<group>"; };
 		2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeLineEndings.swift; sourceTree = "<group>"; };
+		2FC37D449B700916B289DDB7 /* TemporaryFiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TemporaryFiles.swift; sourceTree = "<group>"; };
 		2FD299C13A57D2632BB2467B /* Pull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pull.swift; sourceTree = "<group>"; };
 		3036BB1B040A593A364B721E /* RequestPullWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RequestPullWindow.swift; sourceTree = "<group>"; };
 		3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OperationCancellation.swift; sourceTree = "<group>"; };
@@ -620,6 +622,7 @@
 				6308259E880D7D7EFFC7032A /* SubmoduleComparison.swift */,
 				F925723BED85497207863D60 /* SubmoduleConflict.swift */,
 				C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */,
+				2FC37D449B700916B289DDB7 /* TemporaryFiles.swift */,
 				8927431F95C0127D9B66489A /* TextConflict.swift */,
 				0798256025F9255AA83AB053 /* UnifiedDiffAppearance.swift */,
 				548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */,
@@ -917,6 +920,7 @@
 				4E69E4757C052B8B130BCBB3 /* SubmoduleComparison.swift in Sources */,
 				DD54AAAEE6EEE0B9B1245370 /* SubmoduleConflict.swift in Sources */,
 				61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */,
+				D17A1D5A00D1AFA7FA41B044 /* TemporaryFiles.swift in Sources */,
 				7246ECD3855DE7281A03DD64 /* TextConflict.swift in Sources */,
 				9A231DB2AB704CC8E89188CC /* UnifiedDiffAppearance.swift in Sources */,
 				2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */,

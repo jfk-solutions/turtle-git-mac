@@ -174,7 +174,7 @@ extension GitRepository {
             if FileManager.default.fileExists(atPath: file.path) { project = try Data(contentsOf: file) }
         }
         if let project {
-            let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitProjectProperties-" + UUID().uuidString)
+            let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitProjectProperties-" + UUID().uuidString)
             try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
             defer { try? FileManager.default.removeItem(at: temporary) }
             let file: URL

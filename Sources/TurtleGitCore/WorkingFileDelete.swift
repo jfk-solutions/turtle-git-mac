@@ -69,7 +69,7 @@ extension GitRepository {
             }
         }
         let removing = Set(paths).intersection(indexed).sorted()
-        let directory = manager.temporaryDirectory.appendingPathComponent("TurtleGitDelete-" + UUID().uuidString)
+        let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitDelete-" + UUID().uuidString)
         try manager.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? manager.removeItem(at: directory) }
         let privateIndex = directory.appendingPathComponent("index")

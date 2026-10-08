@@ -102,7 +102,7 @@ import TurtleGitCore
                 preferences.set(mail, forKey: Self.sendMailKey)
                 let bytes = try await repository.requestPull(options, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }; guard !invalidated else { return }
-                let directory = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGit-request-pull-" + UUID().uuidString)
+                let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-request-pull-" + UUID().uuidString)
                 try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
                 let file = directory.appendingPathComponent("pullrequest.txt")
                 do { try bytes.write(to: file, options: .atomic) } catch { try? FileManager.default.removeItem(at: directory); throw error }

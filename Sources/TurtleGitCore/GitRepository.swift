@@ -9,7 +9,7 @@ public actor GitRepository {
     }
     public func run(_ arguments: [String], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         try cancellation?.check()
-        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
         let out = temporary.appendingPathComponent("stdout"), err = temporary.appendingPathComponent("stderr")

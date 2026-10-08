@@ -150,7 +150,7 @@ extension GitRepository {
         let (working, workingPermissions) = try conflictWorkingSnapshot(location)
         if let working { _ = try text(working) }
         let permissions = workingPermissions ?? (entry.stages.first { $0.number == mineStage }?.mode == "100755" ? 0o755 : 0o644)
-        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitMerge-" + UUID().uuidString)
+        let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitMerge-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
         for (name, value) in [("mine", mine), ("base", base), ("theirs", theirs)] { try Data(value.utf8).write(to: temporary.appendingPathComponent(name)) }

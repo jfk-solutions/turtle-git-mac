@@ -461,7 +461,7 @@ extension GitRepository {
                   plan.options.branch == "HEAD", plan.upstreamHash == plan.branchHash, plan.ontoHash == plan.branchHash else { throw RebaseFailure.changed }
         }
         _ = try rebaseTodo(plan)
-        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: temporary) }
         var replay = plan

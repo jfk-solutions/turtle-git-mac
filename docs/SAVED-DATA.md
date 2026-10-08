@@ -8,6 +8,8 @@ questions appear again. The controls follow TortoiseGit's Saved Data page.
 - **Log messages (Input dialog) → Clear** removes saved Commit message histories
   across repositories. The history backend reloads storage on each access, so an
   existing history object sees the cleared entries and can save new messages.
+- **Temp files (including Gravatar images) → Clear** removes app-owned temporary
+  files after an Abort/Proceed confirmation. See [temporary files](TEMPORARY-FILES.md).
 - **Stored decisions → Clear** forgets remembered answers and suppressed warnings.
   This includes Fetch/Rebase decisions, Stash Pop changes questions, Merge conflict
   hints, Push All Branches confirmation and Commit cancellation/template hints.
@@ -17,7 +19,8 @@ questions appear again. The controls follow TortoiseGit's Saved Data page.
 Hover over URL or input-message history controls to see the current number of
 saved entries and histories. Their Clear buttons are disabled when no matching
 saved history exists. Stored decisions can always be cleared, matching upstream.
-The controls act immediately; there is no extra confirmation for these groups.
+URL, input-message, stored-decision and action-log controls act immediately.
+Temporary-file cleanup asks for confirmation.
 
 Newly opened dialogs load the cleared histories. An already open dialog can keep
 its current text and loaded dropdown choices; clearing saved data does not cancel
@@ -41,7 +44,7 @@ URL histories include Request Pull's existing native list; its other per-reposit
 input defaults are preserved.
 
 Remaining Saved Data groups include authentication data, dialog sizes/positions,
-Show Log cache, temporary files/Gravatar images and future approved-hook decisions.
+Show Log cache and future approved-hook decisions.
 Merge input-message history is not implemented yet. The merge-editor reset key is
 included for future use, but its corresponding prompt is not implemented. No
 completion claim covers those groups or physical/signed UI acceptance.

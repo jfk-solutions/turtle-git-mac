@@ -121,7 +121,7 @@ extension GitRepository {
         guard snapshot.root == root, snapshot.objectID != nil,
               entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { throw RepositoryBrowserFailure.selection }
         let manager = FileManager.default
-        let container = manager.temporaryDirectory.appendingPathComponent("TurtleGitBrowserExport-" + UUID().uuidString, isDirectory: true)
+        let container = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitBrowserExport-" + UUID().uuidString, isDirectory: true)
         try manager.createDirectory(at: container, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         var count = 0
         func writeFile(_ listing: RepositoryBrowserSnapshot, _ value: RepositoryBrowserEntry, to url: URL) throws {
