@@ -140,9 +140,26 @@ split view through its public positioning API, save/reopen restoration, smaller
 window constraints and Saved Data clearing. It does not simulate mouse dragging
 or establish physical divider/accessibility acceptance.
 
+## Dropped patch files
+
+The patch table accepts native file-URL drops. Files append in provider order,
+with directories and duplicate standardized paths skipped, following the source
+`CPatchListCtrl::OnDropFiles`. New entries are checked. The Add panel retains its
+separate source behavior and can add repeated paths.
+
+While macOS loads the URL representations, row mutations, imports, further drops,
+close and application quit are guarded. Failed providers report an error and
+restore the controls; other valid files in the drop can still be added. File
+leases use the same sandbox checks as Add. No extension filter is imposed.
+
+[Drop QA](qa/import-patch-drop-2026-10-08.json) uses real `NSItemProvider` file-URL
+representations to check ordering, deduplication, directory skipping, failure
+recovery and operation guards. Physical Finder-to-table dragging and signed
+sandbox access outside the repository remain unverified.
+
 ## Remaining parity work
 
-Patch review/application context command, drag/drop,
+Patch review/application context command,
 identity configuration prompts and idle-session
 application-quit prompts remain pending. Preview whitespace markers and the source's exact context-menu/keyboard behavior also remain pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,

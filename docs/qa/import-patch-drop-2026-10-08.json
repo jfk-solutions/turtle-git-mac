@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "995b8aed3b021814ae7d0babf0d204d561d4007d",
+  "scope": "Import Patch native file-URL drop and CPatchListCtrl dropped-file rules; full port/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/PatchListCtrl.cpp": "dea42bf97d4a1b265d31712e9b60ce7dd87dda8d",
+    "src/TortoiseProc/PatchListCtrl.h": "e8ea1a22743da0b38e9db25dda92048ca9f65751"
+  },
+  "sources_manifest_sha256": "742577fd8dec3594bb4dee313ca552a6faa2a2b4e9fc4d2467e2a72182cc22dd",
+  "changed_files_sha256": {
+    "NOTICE": "0ceb929c8970a14236fbda798999dd52bea332353dd4492fa0df811e4ccc1ce2",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "b9408eed3002dbad48fd0c3968fbd0ae7e046b408f0dfe7bbb923aa2a986e172",
+    "docs/IMPORT-PATCH-PARITY.md": "58da7eb2c1f8f011311800c5028037ff0a2328c466deac2822b7d6447e2ca658",
+    "docs/qa/import-patch-native-2026-10-08.swift": "f660dde190bb3a8af8700dc51f58b6761330f70a3d6807f7b3cd78e6b776e054",
+    "docs/upstream-files.csv": "4ed3c8a5f6239acb841e2cb2d3addf52f20209d2a8e00294803fb90c3524d166"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four receiver runs pass. Actual NSItemProvider registered file-URL representations append in order, skip directories and duplicates within drop and existing rows, remain checked/pending; non-file providers rejected. Pending load blocks add/import/remove/close/reentry. Failed provider reports error and restores editable controls. Existing real Git batch/recovery/session/slow-hook, native table/divider/colors and injected viewer/mail tests also pass.",
+    "core": "No Core production edits; no new Core tests for UI provider changes.",
+    "builds": "Unsigned Debug/Store builds pass. No source/receiver/NOTICE edits during compiler/native sessions. NOTICE attribution sentence expanded after native runs; Debug repackaged then Store built sequentially. No source changes after native run.",
+    "bundles": "Debug/Store bundle audits, NOTICE comparisons, inventory pin, CSV shape, documentation site and whitespace checks pass."
+  },
+  "iterations": [
+    "Single source build and four-engine native run pass. Attribution prose changed after terminal native run; final Debug resource build then Store."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.8CD9B641-1D9A-4DCC-A419-FAEC9B55F427.plist",
+      "TurtleGit.ImportPatch.QA.67B201D4-03CA-43A5-B436-504DE3029BE9.plist",
+      "TurtleGit.ImportPatch.QA.C320FEF9-8664-4B71-8E65-7BBCB5696F30.plist",
+      "TurtleGit.ImportPatch.QA.C294E3D1-1E9B-4236-BFA1-7D0EFB739151.plist"
+    ],
+    "retained_nonempty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "app_or_receiver_processes": [],
+    "fixtures": "TemporaryDirectory fixtures removed; owned hidden windows closed. Standard application preferences untouched."
+  },
+  "limitations": [
+    "Real NSItemProvider callback checks do not establish physical Finder-to-table dragging or deployed extension integration.",
+    "Signed sandbox security-scoped URL delivery outside the authorized repository remains unverified; existing Add lease checks still apply.",
+    "Duplicate comparison uses standardized native paths; case/alias/symlink identity equivalence is not added beyond source path-string behavior.",
+    "Identity prompts, patch review/application, exact keyboard/context behavior and idle quit prompts remain pending.",
+    "Unsigned builds do not establish signed sandbox/App Store or physical visual/accessibility acceptance.",
+    "GitHub auth/CI/push and CUA remain unavailable from previous evidence; not retried. Full objective active."
+  ],
+  "logs_sha256": {
+    "build/qa/import-patch-drop/cleanup.json": "2dec8acc561d864cf73d95337e3dd21ce5f5ecd2271aa7ada2d94d56b1c276a8",
+    "build/qa/import-patch-drop/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-drop/debug-notice.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-drop/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-drop/native.log": "38ded164a780c6eb3c65cf5d8d2de24ab12e5b6b5c579be21ee8fb1641d07344",
+    "build/qa/import-patch-drop/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/import-patch-drop/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/import-patch-drop/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-drop/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

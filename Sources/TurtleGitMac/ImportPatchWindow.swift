@@ -1,6 +1,7 @@
 // Adapts TortoiseGit's ImportPatchDlg controls and git-am workflow (see NOTICE).
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 import TurtleGitCore
 
 @MainActor final class ImportPatchWindowController: NSWindowController, NSWindowDelegate, NSSharingServiceDelegate {
@@ -10,7 +11,7 @@ import TurtleGitCore
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
     private var mailCompletion: ((String?) -> Void)?
-    var activeOperation: Bool { model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil }
+    var activeOperation: Bool { model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -72,7 +73,7 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if approvedClose { return true }
-        guard sender.attachedSheet == nil, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
+        guard sender.attachedSheet == nil, !model.receivingDrop, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
         model.requestClose(); return false
     }
     func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); onClosed() }
@@ -106,6 +107,7 @@ import TurtleGitCore
     @Published private(set) var busy = false
     @Published private(set) var stopRequested = false
     @Published private(set) var closing = false
+    @Published private(set) var receivingDrop = false
     @Published private(set) var openingViewer = false
     @Published private(set) var composingMail = false
     @Published var error: String?
@@ -121,13 +123,13 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
-    var editable: Bool { !busy && !closing && !openingViewer && !composingMail && !invalidated }
+    var editable: Bool { !receivingDrop && !busy && !closing && !openingViewer && !composingMail && !invalidated }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
         previewDocument.setReadOnlyDiff(Data()); previewDocument.refreshAvailable = false
     }
-    func invalidate() { guard !busy, !openingViewer, !composingMail else { return }; invalidated = true; previewGeneration = UUID(); items = []; selection = [] }
+    func invalidate() { guard !receivingDrop, !busy, !openingViewer, !composingMail else { return }; invalidated = true; previewGeneration = UUID(); items = []; selection = [] }
     func contextActions(_ ids: Set<UUID>) -> [ContextAction] {
         guard editable else { return [] }
         let count = items.filter { ids.contains($0.id) }.count
@@ -165,6 +167,39 @@ import TurtleGitCore
             guard !GitRuntime.isAppStoreBuild || lease.hasSecurityScope || (access?.hasSecurityScope == true && access?.contains(url) == true) else { error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; continue }
             items.append(Item(file: url, access: lease))
         }
+    }
+    /// Matches CPatchListCtrl::OnDropFiles: ordered files, no directories or duplicates.
+    func receiveDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard editable else { return false }
+        let files = providers.filter { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }
+        guard !files.isEmpty else { return false }
+        receivingDrop = true
+        Task {
+            var urls: [URL] = []
+            var failure: String?
+            for provider in files {
+                do {
+                    let data: Data = try await withCheckedThrowingContinuation { continuation in
+                        provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, error in
+                            if let data { continuation.resume(returning: data) }
+                            else { continuation.resume(throwing: error ?? MailPatchFailure.file) }
+                        }
+                    }
+                    guard let url = URL(dataRepresentation: data, relativeTo: nil), url.isFileURL else { throw MailPatchFailure.file }
+                    urls.append(url)
+                } catch { failure = error.localizedDescription }
+            }
+            receivingDrop = false
+            guard !invalidated else { return }
+            var paths = Set(items.map { $0.file.standardizedFileURL.path })
+            let newFiles = urls.filter { url in
+                guard (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) != true else { return false }
+                return paths.insert(url.standardizedFileURL.path).inserted
+            }
+            add(newFiles)
+            if let failure { error = failure }
+        }
+        return true
     }
     func check(_ id: UUID, _ checked: Bool) {
         guard editable, let index = items.firstIndex(where: { $0.id == id }), items[index].state != .success else { return }
@@ -323,6 +358,7 @@ struct ImportPatchDialog: View {
                 }
             } primaryAction: { ids in model.viewPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift)) }
             .frame(minHeight: 120)
+            .onDrop(of: [UTType.fileURL], isTargeted: nil) { model.receiveDrop($0) }
             HStack {
                 Toggle("3-way", isOn: $model.options.threeWay)
                 Toggle("Ignore space change", isOn: $model.options.ignoreSpaceChange)
@@ -340,7 +376,7 @@ struct ImportPatchDialog: View {
                 if model.busy { ProgressView().controlSize(.small); Text(model.stopRequested ? "Stopping after current command…" : "Applying patches…") }
                 Spacer()
                 Button(model.finished ? "OK" : "Apply") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.editable || model.items.isEmpty)
-                Button(model.busy ? "Abort" : "Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.closing || model.stopRequested && model.busy)
+                Button(model.busy ? "Abort" : "Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.receivingDrop || model.closing || model.stopRequested && model.busy)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
             }
         }.padding(16)

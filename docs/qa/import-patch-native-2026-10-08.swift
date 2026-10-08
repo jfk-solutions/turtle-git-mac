@@ -1,12 +1,13 @@
 import AppKit
 import Darwin
 import SwiftUI
+import UniformTypeIdentifiers
 import TurtleGitCore
 
 @main struct ImportPatchVerification {
     @MainActor static func settle(_ model: ImportPatchWindowModel) async throws {
         for _ in 0..<1000 {
-            if !model.busy && !model.closing && !model.openingViewer && !model.composingMail { return }
+            if !model.receivingDrop && !model.busy && !model.closing && !model.openingViewer && !model.composingMail { return }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
         fatalError("Import did not finish")
@@ -48,6 +49,29 @@ import TurtleGitCore
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host
         defer { window.contentView = nil; window.close() }
+        let dropped = ImportPatchWindowModel(repository: repo, access: nil, preferences: prefs)
+        func provider(_ url: URL) -> NSItemProvider {
+            let item = NSItemProvider()
+            item.registerDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier, visibility: .all) { done in
+                done(url.dataRepresentation, nil); return nil
+            }
+            return item
+        }
+        dropped.add([patches[0]])
+        precondition(!dropped.receiveDrop([NSItemProvider(object: "text" as NSString)]))
+        precondition(dropped.receiveDrop([provider(repo.root), provider(patches[1]), provider(patches[0]), provider(patches[1])]))
+        precondition(dropped.receivingDrop && !dropped.editable)
+        dropped.add([patches[0]]); dropped.apply(); dropped.remove(); dropped.requestClose()
+        precondition(dropped.items.count == 1 && !dropped.busy && !dropped.closing)
+        precondition(!dropped.receiveDrop([provider(patches[0])]))
+        try await settle(dropped)
+        precondition(dropped.items.map(\.file) == patches && dropped.items.allSatisfy { $0.checked && $0.state == .pending })
+        let broken = NSItemProvider()
+        broken.registerDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier, visibility: .all) { done in done(nil, MailPatchFailure.file); return nil }
+        precondition(dropped.receiveDrop([broken, provider(patches[0])]))
+        try await settle(dropped); precondition(dropped.editable && dropped.error != nil && dropped.items.count == 2)
+        dropped.invalidate()
+        print("PASS: native file URL providers preserve order, skip directories/duplicates, reject non-file providers; pending drops block edits/import/close/reentry, failed providers unlock controls; no pointer drag simulation.")
         model.add(patches + [patches[0]])
         let ids = model.items.map(\.id)
         model.selection = [ids[1]]; model.move(-1); precondition(model.items.map(\.id) == [ids[1], ids[0], ids[2]])
