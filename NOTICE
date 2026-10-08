@@ -599,3 +599,7 @@ Upstream clone-output test fixtures are retained with their GPL attribution.
 
 Push live command-list output adapts CAppUtils::DoPush and ProgressDlg.cpp,
 retaining full raw failure classification independently of visible log limits.
+
+Native Fetch and Pull live output adapts CAppUtils::DoFetch/Pull and
+ProgressDlg.cpp's CLI parser presentation, using the shared source CR rules,
+percentage/phase and captured display limits with complete raw diagnostics.

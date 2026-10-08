@@ -151,3 +151,11 @@ phase/percentage, captured output limit and end scrolling. Complete raw results
 still drive recovery after display truncation. [Push live-output QA](qa/push-stream-2026-10-08.json)
 records Core and four-Git hidden native evidence; physical scrolling, complete
 progress controls, hooks/network and signed acceptance remain pending.
+
+
+Fetch and merge-based Pull now have live CLI output, CR replacement,
+phase/percentage, captured limits and end scrolling. Fetch/Rebase retains its
+source decisions and immutable target; ff-only Merge clears the Fetch phase but
+still returns completion-time output. [Fetch/Pull live-output QA](qa/fetch-pull-stream-2026-10-08.json)
+records Core and four-Git hidden native checks. Complete controls, physical
+scrolling/focus/defaults/themes, real network and signed acceptance remain pending.

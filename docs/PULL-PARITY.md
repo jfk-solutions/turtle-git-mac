@@ -146,3 +146,29 @@ Configured automatic Rebase bypasses the new manual Fetch/Rebase questions and
 forwards auto-start/preserve-merges. Manual Fetch/Rebase now offers source
 up-to-date/unchanged/fast-forward choices; see FETCH-PARITY.md for real Git
 evidence, retained results and remaining physical/signed acceptance.
+
+
+## Live merge-Pull output
+
+Merge-based Pull now forwards CLI stdout/stderr through the same source parser
+and native presentation as Fetch. The progress model captures its display limit,
+shows phase/percentage while the owned command is running, and retains complete
+raw diagnostics independently of visible truncation. Existing conflict detection,
+Resolve/Commit, non-conflict recovery, old/new HEAD comparison and Stash/Push
+follow-ups use their original repository/result logic. Explicit unrelated-history
+retry resets bytes/phase/truncation and creates a fresh parser and cancellation
+token. Rebase-configured Pull uses the streamed Fetch/Rebase route described in
+[Fetch parity](FETCH-PARITY.md#live-fetch-and-fetchrebase-output).
+
+[Live-output QA](qa/fetch-pull-stream-2026-10-08.json) records complete raw observer
+results, real fast-forward HEAD/tracking and mixed-change preservation, Unicode
+split across writes, remote CR replacement and phase/percentage before an owned
+helper exits, hidden native layout, No/Yes process cancellation, and captured
+16 KiB truncation retaining full diagnostics and non-conflict recovery. Existing
+Pull progress checks cover conflict/non-conflict decisions and unrelated retry
+through the new stream path. No displayed UI or real remote cadence is claimed.
+
+Physical scrolling/defaults/focus/keyboard/themes/accessibility, full progress
+controls, source project hooks, real network/authentication, signed folder grants
+and Finder/App Store acceptance remain pending. Screenshots predate streaming;
+full Pull/application parity remains incomplete.

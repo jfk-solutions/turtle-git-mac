@@ -449,6 +449,28 @@ enum PullPostAction: String, CaseIterable, Hashable {
     @Published private(set) var confirmingConflictHint = false
     @Published private(set) var dispatchingAction = false
     @Published private(set) var output = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var currentWork = ""
+    private(set) var rawOutput = ""
+    private var outputState: GitProgressOutputState
+    var outputLimit: Int { outputState.limit }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        guard !invalidated else { return }
+        outputState.consume(emission, parser: parser)
+        output = outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
+    }
+    private func resetOutput() {
+        outputState.reset(); output = ""; rawOutput = ""; percentage = nil; currentWork = ""
+    }
+    private func displayFailure(_ error: Error, transport: String) {
+        if let failure = error as? GitCommandCancellationFailure { rawOutput = failure.result.text + "\n" + failure.localizedDescription }
+        else { rawOutput += (rawOutput.isEmpty ? "" : "\n") + error.localizedDescription }
+        let message: String
+        if let failure = error as? GitFailure, failure.arguments.first == transport, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
+        else if let failure = error as? FetchRebaseExecutionFailure, outputState.hasOutput { message = "Preparing Rebase failed.\n" + (failure.commandFailure.map { "Git command failed (\($0.code))." } ?? failure.details) }
+        else { message = error.localizedDescription }
+        output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
+    }
     @Published private(set) var postActions: [PullPostAction] = []
     @Published private(set) var oldHead = ""
     @Published private(set) var newHead = ""
@@ -464,7 +486,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
         if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: PullOptions, followUp: PullFollowUp, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+        self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
     }
     func invalidate() { invalidated = true }
     func start() { Task { await run() } }
@@ -473,16 +495,17 @@ enum PullPostAction: String, CaseIterable, Hashable {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute(_ snapshot: PullOptions) async {
-        busy = true; success = false; cancelled = false; cancelling = false; output = ""; postActions = []; newHead = ""
+        busy = true; success = false; cancelled = false; cancelling = false; resetOutput(); postActions = []; newHead = ""
         do { try validateAccess(); if cancellation.isCancelled { throw OperationCancellationFailure.cancelled } }
         catch { output = error.localizedDescription; cancelled = cancellation.isCancelled; completed(); return }
         var beganPull = false
         do {
             oldHead = try await repository.run(["rev-parse", "--verify", "--end-of-options", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines)
             beganPull = true
-            output = try await repository.pull(snapshot, cancellation: cancellation)
+            rawOutput = try await streamPull(snapshot)
+            if !outputState.hasOutput { output = rawOutput }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }; success = true
-        } catch { output = error.localizedDescription; cancelled = cancellation.isCancelled }
+        } catch { displayFailure(error, transport: "pull"); cancelled = cancellation.isCancelled }
         guard beganPull else { completed(); return }
         if success {
             if followUp.showStashPop { postActions.append(.stashPop) }
@@ -514,6 +537,17 @@ enum PullPostAction: String, CaseIterable, Hashable {
             postActions += [.pull, .stash, .reset]
         }
         completed()
+    }
+    private func streamPull(_ snapshot: PullOptions) async throws -> String {
+        let parser = GitCliOutputParser(limit: outputState.limit)
+        let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let operation = Task {
+            defer { continuation.finish() }
+            return try await repository.pull(snapshot, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+        }
+        for await _ in updates { consume(parser.processPending(), parser: parser) }
+        consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
+        return try await operation.value
     }
     func cancel() {
         guard !invalidated, busy, canCancel else { return }
@@ -593,12 +627,17 @@ enum PullPostAction: String, CaseIterable, Hashable {
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
-private struct PullProgressDialog: View {
+struct PullProgressDialog: View {
     @ObservedObject var model: PullProgressWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Pulling…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Pull failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            ScrollViewReader { reader in
+                ScrollView { VStack(alignment: .leading, spacing: 0) { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading); Color.clear.frame(height: 1).id("transport-output-end") } }
+                    .onChange(of: model.output) { _ in reader.scrollTo("transport-output-end", anchor: .bottom) }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
+            if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
+            HStack { if model.busy && model.percentage == nil { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Pulling…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Pull failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if let first = model.postActions.first {
                     Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
@@ -659,6 +698,28 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var dispatchingAction = false
     @Published private(set) var output = ""
+    @Published private(set) var percentage: Int?
+    @Published private(set) var currentWork = ""
+    private(set) var rawOutput = ""
+    private var outputState: GitProgressOutputState
+    var outputLimit: Int { outputState.limit }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        guard !invalidated else { return }
+        outputState.consume(emission, parser: parser)
+        output = outputState.output; percentage = outputState.percentage; currentWork = outputState.currentWork
+    }
+    private func resetOutput() {
+        outputState.reset(); output = ""; rawOutput = ""; percentage = nil; currentWork = ""
+    }
+    private func displayFailure(_ error: Error, transport: String) {
+        if let failure = error as? GitCommandCancellationFailure { rawOutput = failure.result.text + "\n" + failure.localizedDescription }
+        else { rawOutput += (rawOutput.isEmpty ? "" : "\n") + error.localizedDescription }
+        let message: String
+        if let failure = error as? GitFailure, failure.arguments.first == transport, outputState.hasOutput { message = "Git command failed (\(failure.code))." }
+        else if let failure = error as? FetchRebaseExecutionFailure, outputState.hasOutput { message = "Preparing Rebase failed.\n" + (failure.commandFailure.map { "Git command failed (\($0.code))." } ?? failure.details) }
+        else { message = error.localizedDescription }
+        output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
+    }
     @Published private(set) var postActions: [FetchPostAction] = []
     @Published private(set) var confirmingRebaseDecision = false
     @Published private(set) var merging = false
@@ -671,7 +732,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false) {
-        self.repository = repository; self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+        self.repository = repository; self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.outputState = GitProgressOutputState(preferences: preferences)
         self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges
     }
     private func answer(_ prompt: FetchRebasePrompt) async -> Int {
@@ -690,13 +751,13 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute() async {
-        busy = true; success = false; cancelled = false; cancelling = false; merging = false; output = ""; postActions = []
+        busy = true; success = false; cancelled = false; cancelling = false; merging = false; resetOutput(); postActions = []
         do {
             try validateAccess()
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-            var fetched: FetchRebaseResult?
-            if rebaseMode == .none { output = try await repository.fetch(options, cancellation: cancellation) }
-            else { let result = try await repository.fetchForRebase(options, cancellation: cancellation); fetched = result; output = result.output }
+            let transport = try await streamFetch()
+            let fetched = transport.1; rawOutput = transport.0
+            if !outputState.hasOutput { output = rawOutput }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             if let fetched {
                 var openRebase = true
@@ -707,9 +768,10 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
                         let choice = await answer(.fastForward)
                         if choice == 3 { openRebase = false }
                         if choice == 1 {
-                            merging = true
+                            merging = true; percentage = nil; currentWork = ""
                             var merge = MergeOptions(); merge.revision = fetched.upstream; merge.fastForwardOnly = true
-                            output += "\n" + (try await repository.merge(merge, cancellation: cancellation))
+                            let mergeOutput = try await repository.merge(merge, cancellation: cancellation)
+                            rawOutput += "\n" + mergeOutput; output += "\n" + mergeOutput
                             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                             success = true; busy = false; onCompleted(); close(); return
                         }
@@ -727,12 +789,26 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             postActions.append(.switchBranch)
         } catch {
-            output += (output.isEmpty ? "" : "\n") + error.localizedDescription; cancelled = cancellation.isCancelled; success = false
+            displayFailure(error, transport: "fetch"); cancelled = cancellation.isCancelled; success = false
             if merging { postActions = ((try? await repository.status(refreshIndex: false).contains(where: { $0.state == .conflicted })) ?? false) ? [.resolve] : [] }
             else { postActions = [.retry]; if options.allRemotes { postActions.append(.log) } }
         }
         busy = false; cancelling = false; confirmingCancellation = false; onCompleted()
         if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
+    }
+    private func streamFetch() async throws -> (String, FetchRebaseResult?) {
+        let parser = GitCliOutputParser(limit: outputState.limit)
+        let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
+        let operation = Task<(String, FetchRebaseResult?), Error> {
+            defer { continuation.finish() }
+            let observer: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
+            if rebaseMode == .none { return (try await repository.fetch(options, cancellation: cancellation, onOutput: observer), nil) }
+            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer)
+            return (result.output, result)
+        }
+        for await _ in updates { consume(parser.processPending(), parser: parser) }
+        consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
+        return try await operation.value
     }
     func cancel() {
         guard !invalidated, busy, canCancel else { return }
@@ -811,12 +887,17 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
-private struct FetchProgressDialog: View {
+struct FetchProgressDialog: View {
     @ObservedObject var model: FetchProgressWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
-            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.confirmingRebaseDecision ? "Waiting for your choice…" : model.merging ? "Merging…" : "Fetching…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : model.merging ? "Merge failed" : "Fetch failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            ScrollViewReader { reader in
+                ScrollView { VStack(alignment: .leading, spacing: 0) { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading); Color.clear.frame(height: 1).id("transport-output-end") } }
+                    .onChange(of: model.output) { _ in reader.scrollTo("transport-output-end", anchor: .bottom) }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            if model.busy, let percentage = model.percentage { ProgressView(value: Double(percentage), total: 100).tint(.green) }
+            if !model.currentWork.isEmpty { Text(model.currentWork).font(.caption).lineLimit(2) }
+            HStack { if model.busy && model.percentage == nil { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : model.confirmingRebaseDecision ? "Waiting for your choice…" : model.merging ? "Merging…" : "Fetching…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : model.merging ? "Merge failed" : "Fetch failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if let first = model.postActions.first {
                     Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }

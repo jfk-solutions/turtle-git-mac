@@ -293,3 +293,38 @@ a stale conventional ref; the unchanged test uses the pre-fetch conventional has
 as upstream does. Native full remote chooser, empty-branch fallback/all-remotes
 Rebase, libgit2 mode, failure after mutation, hook/credential/streaming and signed
 sandbox acceptance remain pending. Full port and distribution remain incomplete.
+
+
+## Live Fetch and Fetch/Rebase output
+
+The native result now streams the CLI Fetch phase through GitCliOutputParser,
+as `CAppUtils::DoFetch` uses `CProgressDlg` in the pinned source. Ordinary Fetch
+and the selected-branch Fetch/Rebase path forward typed stdout/stderr chunks;
+validation, revision resolution and ancestor queries are kept out of the visible
+transport log. Coalesced UI wake-ups retain parser-held bytes until consumption.
+The result captures GitOutputLimitinKiB (default 2048 KiB, bounded 16..102400),
+shows CR replacement, phase and green percentage, and scrolls to the end. After
+its soft display limit the parser drops presentation bytes; complete raw output
+and diagnostics remain available to the result model. Concise failures avoid
+replaying transport output already shown. A successful Fetch whose Rebase-target
+preparation fails preserves both transport and later command diagnostics.
+
+Retry creates a fresh token/parser and clears previous bytes, truncation and
+phase while retaining captured options and display-limit policy. Existing
+Rebase questions, immutable target and automatic handoff are preserved. When
+manual Fetch/Rebase chooses its ff-only Merge, the Fetch percentage is cleared
+before that phase; Merge output still uses its existing completion path.
+
+[Fetch/Pull live-output QA](qa/fetch-pull-stream-2026-10-08.json) records Core
+observer/result checks and four-Git hidden native checks for ordinary Fetch,
+Fetch/Rebase and merge Pull: split Unicode, remote CR replacement and 50% visible
+before an owned helper exits, actual tracking refs and immutable Rebase target,
+mixed changes preserved, No/Yes cancellation and owned child cleanup, captured
+16 KiB limit with complete failure diagnostics and fresh Retry. Existing Fetch
+result and Rebase decision receivers are regression gates. Synthetic helper
+progress verifies delivery timing, not real network transfer cadence.
+
+Physical scrolling, focus, keyboard/defaults, themes/accessibility, all progress
+controls, full libgit2/source-hook variants, real network authentication/timing,
+streaming the ff-only Merge phase and signed Finder/sandbox/App Store acceptance
+remain pending. Existing screenshots predate this progress behavior.

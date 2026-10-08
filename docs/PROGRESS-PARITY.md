@@ -28,7 +28,7 @@ does not prove displayed picker interaction.
 
 ## Remaining parity
 
-Streaming adoption outside Clone and Push, complete progress-window controls/layout, physical
+Streaming adoption outside Clone, Push, Fetch and merge-based Pull, complete progress-window controls/layout, physical
 Close/Escape/titlebar/nested-sheet/default/accessibility/theme behavior,
 remaining progress replacements for other command dialogs,
 command-line closeonend override and libgit2 progress variants remain pending.
@@ -68,3 +68,10 @@ output limit preserve full raw result classification after display truncation.
 See [Push parity](PUSH-PARITY.md#live-cli-output) and
 [live-output QA](qa/push-stream-2026-10-08.json); physical/signed acceptance and
 streaming adoption in other dialogs remain pending.
+
+
+Fetch, its selected-branch Rebase route and merge-based Pull now stream the shared
+CLI parser, with captured display limits and complete raw diagnostics. Retry
+resets the parser and visible phase. The ff-only Merge chosen after Fetch still
+uses completion-time output. See [Fetch/Pull live-output QA](qa/fetch-pull-stream-2026-10-08.json)
+and the individual parity documents; physical/signed acceptance remains pending.

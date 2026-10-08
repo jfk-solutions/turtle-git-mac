@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "c45562d157a293cc04f43770c73d0ed3c9c30972",
+  "scope": "Live Fetch, selected-branch Fetch/Rebase and merge-based Pull through the source CLI parser/presentation. Full application/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/GitCliOutputParser.cpp": "719cd542dbb77314dedca6f28f6ad1c29eb43421",
+    "src/TortoiseProc/GitCliOutputParser.h": "dbbe922317200247c2be24a4dc278f4a37f569db",
+    "src/TortoiseProc/PullFetchDlg.cpp": "261e75446acd8f6c3a14ed29dd57dd56d92a449a",
+    "src/TortoiseProc/PullFetchDlg.h": "ecddac7ebe6ae0976f3a011206311559c9bb9a89"
+  },
+  "sources_manifest_sha256": "0d20e5231892ac49a963eb6fc91104417c7b17fab6d12cef46e83886e8c8145e",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "48637d73be547e2be146c220d5718b3ae1dc2ba1e1723b7b812b88155d92e386",
+    "NOTICE": "8f6f3f263f636621d751f79584bcdf8f7a75bce8a6cd2241db5a026717535be8",
+    "Sources/TurtleGitCore/Fetch.swift": "56d6e381838ec762ca1771335e12dc8664051c47ca65db9c54dfb1ef60050295",
+    "Sources/TurtleGitCore/Pull.swift": "fe6ddcbfb946962ba8ee63ccfeb4844689556043960c32cc038a64f940afb516",
+    "Sources/TurtleGitMac/FetchWindow.swift": "8bcaacfaaf1306f4524590b33c765566145f21622364bfd9fb62479b1f5f7806",
+    "Sources/TurtleGitMac/GitProgressOutputState.swift": "e255a182157afc81576c44800cba19ad3987de3c215d21b40ba3438f5aa25fdc",
+    "Tests/TurtleGitCoreTests/FetchPullOutputTests.swift": "1c76fd563810fbe11e707f936a5b0dc615d15d3ea914fe729939071812e152bc",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "b8065a0fc44d35ed01436b900ea7d2b2846f2f5a1073dce88996f01318ad6440",
+    "docs/FETCH-PARITY.md": "6f47fec199cfdc4149c427a4d8ecc0994fd39f7faca63a38d0a6c18e31393437",
+    "docs/PULL-PARITY.md": "e4c66a6a74829ed6fb7d201b69f7258824f351d2fe12912df1a4b2474d2f85a3",
+    "docs/PROGRESS-PARITY.md": "d5448f758e8b0bb333c9888fefaff893c759e4a108268adea3452e5da591b9aa",
+    "docs/UI-PARITY.md": "04ce8435fb1e315f3ebada7bdd8acbf4cf44e2862986ec55f7db98ecde83a585",
+    "docs/upstream-files.csv": "a5a36f088f70e27c927f1965747520207fa54eec8cecb66561158b95f047886a",
+    "docs/qa/fetch-pull-stream-native-2026-10-08.swift": "e7c6df49923595c4b7c82d73c6c406f1ac9274b627a5dbd6989f130e1939a113",
+    "scripts/test-fetch-pull-stream.py": "b9fe063a2d1eee84a90333ac24247ca0bd3819fb37ad799ecc2d82562b844442"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Final 32 focused tests passed: two new observer/result and post-Fetch Rebase-metadata failure checks; Fetch/Pull, pinned parser, live binary output and process-cancellation regressions. Success observer bytes match complete returned text for ordinary Fetch, Fetch/Rebase and Pull; actual target/ref/HEAD/file effects checked. Failed metadata preserves successful transport output and structured rev-parse failure. Not a full-suite rerun.",
+    "native": "Final four-Git live receiver passed Unicode split across writes, remote 10% replaced by 50%, phase and percentage visible while owned helper still runs. Ordinary Fetch and Fetch/Rebase update actual tracking refs while HEAD/index/working contents stay unchanged; automatic handoff captures immutable target once. Actual fast-forward Pull changes HEAD and adds remote file while preserving unrelated staged/later working contents. Hidden Fetch/Pull hosts layout. Full raw completion retains CR bytes. No/Yes cancellation keeps original HEAD/index, preserves raw Unicode and stops owned leader/child. Fetch and Pull capture 16 KiB limit despite preference changed to 100 MiB; complete failure payload/missing-remote diagnostics retain source recovery. Fetch Retry resets bytes/truncation/raw/phase with same captured limit and succeeds against reviewed config.",
+    "regressions": "Final four-Git ordinary Fetch progress, Fetch/Rebase decisions and Pull progress receivers passed after cancellation-diagnostics correction. Includes exact success/failure/bare/all-remotes actions, real partial all-remotes update and preserved mixed state, current Reset defaults, immutable Retry/options/once dispatch; source sequential saved decisions, equal/ahead/diverged/ff-only routes and conflicts/dirty failures; Pull old/new HEAD, conflict hint/suppression, Resolve/Commit-only recovery, non-conflict actions and real unrelated two-parent retry with follow-ups.",
+    "iterations": "Initial Core assertion assumed Git error text named FETCH_HEAD; corrected to inspect structured command arguments and preserved diagnostics. Initial live receiver exposed raw diagnostics being lost on cancellation although visible output remained. Native displayFailure now preserves GitCommandCancellationFailure.result bytes/text. All earlier compiler/native sessions stopped before source/receiver correction; final Debug and all four receiver matrices recompiled/rerun. Earlier logs retained as historical evidence.",
+    "implementation": "Optional typed observers affect actual Fetch/Pull transport only, excluding validation/hash/ancestor reads. FetchForRebase propagates successful transport diagnostics in a structured later-preparation failure. Native shared presentation captures source output limit, soft truncation/drop, Unicode/CR/ANSI, phase/green percentage/end scrolling; coalesced wake-ups retain parser-held bytes. Raw success/failure/cancel diagnostics remain complete. Fresh Retry resets parser/display/token. ff-only Merge clears previous Fetch phase but retains completion-time output. Existing conflict/ref/Rebase decisions remain repository/result-based. Independent streams are sampled, not strictly chronologically merged.",
+    "builds": "Initial/final/cancellation-fix unsigned Debug and final unsigned AppStore builds passed. Debug/Store bundle audits passed Finder extension, 98 original icons/licenses, universal EditorConfig/IssueRegex; Store Git 2.55.0 has 11 universal Mach-O files and local fixture verification. NOTICE matches both bundles byte-for-byte. Sources/NOTICE/receivers stationary during each compiler/native session; all native/Core jobs terminal before Store started.",
+    "documentation": "Fetch/Pull/shared-progress/UI audits, NOTICE and CI receiver step updated. Six upstream mappings retain partial status; native shared output helper added to three mappings. Source inventory remains 3,277 seven-column LF data rows. Xcode project regenerated for the new native source. Site built locally with existing real screenshots; no new displayed capture or hosted deployment.",
+    "processes": "No main app launch or synthetic events; NSApplication prohibited with hidden hosts only. Removed 28 empty owned UUID preference domains from two ordinary-Fetch/Rebase/Pull matrices and the final live matrix; standard/nonempty domains untouched. One nonempty private QA domain left from the failed receiver. Final process audit found no app, receiver or owned slow helper running.",
+    "limitations": "Headless delivery/hosting does not prove physical scrolling/focus/defaults/keyboard/themes/accessibility, complete progress controls, production Root follow-up factories, real remote transfer cadence/authentication, project hooks/libgit2, signed folder grants/Finder/App Store acceptance. ff-only Merge and other dialog streaming still pending. GitHub authorization/CUA unavailable and not retried. Full application/distribution goal remains active."
+  },
+  "logs_sha256": {
+    "build/qa/fetch-pull-stream/core-final.log": "7806b381df826c3a3c3c7f6b5973c0f89d15a4f16d48120336fbc5e9fdeeffc6",
+    "build/qa/fetch-pull-stream/core.log": "bbf331ea88cde9d55085e8e995064bfd07295917e767f95e2b9066e6c5941915",
+    "build/qa/fetch-pull-stream/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/fetch-pull-stream/debug-cancellation.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-pull-stream/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-pull-stream/debug.log": "e578a1422d1b3289c8d25d70c3ca3ed98e78b82b377807b534a8c1636c53b2cb",
+    "build/qa/fetch-pull-stream/fetch-progress-final.log": "57b6effe62397a8e4cec5fd91733a6bd71b60c5a29716b22c6009010334c2b95",
+    "build/qa/fetch-pull-stream/fetch-progress.log": "57b6effe62397a8e4cec5fd91733a6bd71b60c5a29716b22c6009010334c2b95",
+    "build/qa/fetch-pull-stream/native-final.log": "fd586d13ae9c5bfc72fe006b8df12db95ade2bd143ad7fbe3c19a477e25a518d",
+    "build/qa/fetch-pull-stream/native.log": "2bab172d17dad69f8e2353fa78ed6b4214c29d2bb013590223a77073f875638a",
+    "build/qa/fetch-pull-stream/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/fetch-pull-stream/preferences.log": "f0852dd07b89a2ee2c99eb3232843df1b58cb48d9104bf87738165526cf73c59",
+    "build/qa/fetch-pull-stream/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/fetch-pull-stream/pull-progress-final.log": "17eed5ba8b3f1254ad965e6d3d43f901e2ad29ad8de95b56c0d445147e7c150c",
+    "build/qa/fetch-pull-stream/pull-progress.log": "17eed5ba8b3f1254ad965e6d3d43f901e2ad29ad8de95b56c0d445147e7c150c",
+    "build/qa/fetch-pull-stream/rebase-decisions-final.log": "41cc777594679ccdf0dea4cef052f2003d6d51c7ea354dc731464b95e7bd65fb",
+    "build/qa/fetch-pull-stream/rebase-decisions.log": "41cc777594679ccdf0dea4cef052f2003d6d51c7ea354dc731464b95e7bd65fb",
+    "build/qa/fetch-pull-stream/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-pull-stream/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-pull-stream/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/fetch-pull-stream/store.log": "c6b15ded77af7ec7402dc88d58d90ea2c6f5d12d00f06b8ebc9ee7ec80f316ea"
+  }
+}

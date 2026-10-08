@@ -92,6 +92,8 @@ jobs:
         run: python3 scripts/test-commit-progress.py
       - name: Native Fetch/Rebase decisions and fast-forward merge
         run: python3 scripts/test-fetch-rebase-decisions.py
+      - name: Native Fetch and Pull live command output
+        run: python3 scripts/test-fetch-pull-stream.py
       - name: Native ordinary Fetch progress and post-actions
         run: python3 scripts/test-fetch-progress.py
       - name: Native Abort Merge choices and Cancel routing

@@ -35,7 +35,7 @@ extension GitRepository {
         return PullDefaults(trackedRemote: remote, trackedBranch: merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : merge,
                             rebase: ["true", "yes", "on", "1", "merges", "interactive", "preserve"].contains(rebase), preserveMerges: ["merges", "preserve"].contains(rebase))
     }
-    public func pull(_ options: PullOptions, cancellation: OperationCancellation? = nil) throws -> String {
+    public func pull(_ options: PullOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         guard !(options.noFastForward && options.fastForwardOnly) else { throw PullFailure.combination }
         let defaults = try pullDefaults()
@@ -61,6 +61,6 @@ extension GitRepository {
         args += ["--", fetch.remote]
         let configuredTracking = !fetch.arbitraryURL && fetch.namedRemoteFetchAll && fetch.remote == defaults.trackedRemote && branch == defaults.trackedBranch
         if !branch.isEmpty && !configuredTracking { args.append(branch) }
-        return try run(args, cancellation: cancellation).text
+        return try run(args, cancellation: cancellation, onOutput: onOutput).text
     }
 }
