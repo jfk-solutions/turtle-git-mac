@@ -49,11 +49,19 @@ verify force retry, cancellation, owner and operation guards, and preserve real
 repository HEAD/index/working contents. They do not verify a real Git LFS
 helper, authenticated remote or physical input.
 
-The packaged Git engine currently **excludes Git LFS**. Helper packaging,
-licenses/source pins, universal binary auditing and signed sandbox execution
-must be added before the App Store build can deliver this feature. Development
-execution uses Git's normal external-command lookup; missing helpers surface a
-command error. There is no App Store fallback to an external Git engine.
+The packaged Git engine includes Git LFS 3.8.0. `Configuration/GitLFSRuntime.json`
+pins both official publisher archives, the complete source archive, Go notices
+and all 28 external module archives/notices. Preparation verifies publisher
+SHA-256 checksums and Go module sums; auditing compares executable code/data
+and loader commands with publisher binaries even after replacement signatures.
+App Store embedding requires this helper and has no external Git fallback.
+
+A real bundled-client loopback fixture verifies LFS pointer conversion, JSON
+lock listing, literal unusual filenames, ownership failures, continued per-file
+unlock and explicit force. It preserves HEAD, staged entries and working bytes.
+This complements the injected native dialog tests above. It does not establish
+authenticated provider or signed sandbox acceptance. See the
+[runtime QA record](qa/git-lfs-runtime-2026-10-08.json).
 
 Commit/Working Tree LFS columns and context actions, Finder routing, source
 availability gates, tri-state select-all, full shared column settings and

@@ -13,6 +13,7 @@ MACH = {b'\xcf\xfa\xed\xfe', b'\xfe\xed\xfa\xcf', b'\xca\xfe\xba\xbe', b'\xbe\xb
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('runtime', type=pathlib.Path)
+    parser.add_argument('--require-lfs', action='store_true', help='Require the pinned Git LFS component.')
     parser.add_argument('--https', action='store_true', help='Also verify a public HTTPS ls-remote with no user Git configuration.')
     args = parser.parse_args(); runtime = args.runtime.resolve()
     manifest = json.loads((runtime / 'runtime-manifest.json').read_text())
@@ -144,6 +145,8 @@ def main():
             result = run('ls-remote', '--exit-code', 'https://github.com/TortoiseGit/TortoiseGit.git', 'HEAD', timeout=60, cwd=directory)
         assert result.rstrip().endswith(b'\tHEAD'), 'Missing HTTPS remote HEAD'
         print('Public HTTPS ls-remote passed with bundled git-remote-https.')
+    if args.require_lfs or (runtime / 'git-lfs-manifest.json').exists():
+        subprocess.run(['/usr/bin/python3', str(pathlib.Path(__file__).resolve().parent / 'validate-git-lfs-runtime.py'), str(runtime)], check=True)
     print(f'Git {manifest["version"]}: {binaries} Mach-O files audited; architectures {manifest["architectures"]}; local init/commit/diff/stash/clone/log/notes/revert/blame (UTF-8, UTF-16, legacy code pages and first-parent merge attribution) passed.')
 
 if __name__ == '__main__': main()

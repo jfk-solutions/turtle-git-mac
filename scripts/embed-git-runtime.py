@@ -18,7 +18,7 @@ if not args.runtime.is_dir(): parser.error('Build the pinned runtime first: pyth
 pin = json.loads((ROOT / 'Configuration/GitRuntime.json').read_text())
 manifest = json.loads((args.runtime / 'runtime-manifest.json').read_text())
 assert manifest['version'] == pin['version'] and manifest['source_sha256'] == pin['source_sha256'], 'Runtime does not match pinned source.'
-subprocess.run(['/usr/bin/python3', str(ROOT / 'scripts/validate-git-runtime.py'), str(args.runtime)], check=True)
+subprocess.run(['/usr/bin/python3', str(ROOT / 'scripts/validate-git-runtime.py'), str(args.runtime), '--require-lfs'], check=True)
 target = args.app / 'Contents/Helpers/Git'
 if target.exists(): shutil.rmtree(target)
 target.parent.mkdir(parents=True, exist_ok=True)

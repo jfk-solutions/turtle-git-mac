@@ -793,5 +793,17 @@ version 2 or later. TGitPath.cpp copyright (C) 2008-2023, 2025-2026 TortoiseGit 
 copyright (C) 2009-2013, 2016-2021, 2023-2024 TortoiseGit and (C) 2003-2008
 TortoiseSVN; LFSSetLockedProgressCommand copyright (C) 2019-2021, 2023,
 2025-2026 TortoiseGit (header: 2019-2020, 2023). Native owned progress sheet and cancellation/lease gates
-adapt Windows modal progress. Git LFS helper packaging, Commit/Finder LFS menus
+adapt Windows modal progress. Commit/Finder LFS menus
 and lock columns and full shared-control/dialog parity remain pending.
+
+Git LFS runtime
+---------------
+Git LFS 3.8.0, upstream commit aece9221f8c09221a14395d964806b956289bc07,
+is distributed using the official darwin arm64 and amd64 binaries combined
+with lipo. Git LFS is MIT licensed; its LICENSE.md also retains notices for
+code copied from Go. The packaged share/licenses/git-lfs directory contains
+the complete unmodified source archive, original publisher binary archives,
+LICENSE.md, Go 1.27.0 LICENSE/PATENTS and retained notices for all 28 external
+Go modules recorded in the binaries. A repackage kit and exact archive/notice
+hashes are included. Configuration/GitLFSRuntime.json pins this material.
+These notices supplement, rather than replace, each dependency's license.

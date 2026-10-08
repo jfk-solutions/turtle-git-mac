@@ -38,7 +38,7 @@ print(f'App, embedded Finder extension, licenses and all {len(manifest["assets"]
 
 if args.require_git:
     import subprocess
-    subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-git-runtime.py'), str(app / 'Contents/Helpers/Git')], check=True)
+    subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-git-runtime.py'), str(app / 'Contents/Helpers/Git'), '--require-lfs'], check=True)
 
 import subprocess
 subprocess.run(['/usr/bin/python3', str(root / 'scripts/validate-editorconfig-runtime.py'), str(app / 'Contents/Helpers/EditorConfig')], check=True)

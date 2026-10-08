@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "2c3a2eaad90cfe367c108660b87cd41481e7599d",
+  "scope": "Pinned universal Git LFS helper, complete retained license notices and packaging/auditing. Whole application parity remains incomplete.",
+  "git_lfs_version": "3.8.0",
+  "git_lfs_upstream_commit": "aece9221f8c09221a14395d964806b956289bc07",
+  "artifacts": {
+    "arm64": {
+      "binary_member": "git-lfs-3.8.0/git-lfs",
+      "binary_sha256": "8cb21d1fa650af82a06eaa98c6078303bacf2f101199be3d77ab7370ec712bd0",
+      "filename": "git-lfs-darwin-arm64-v3.8.0.zip",
+      "sha256": "caff76a7d070d8160c89bc39b6e85d98f24135b6fed038a3b4de2590d25102d8",
+      "url": "https://github.com/git-lfs/git-lfs/releases/download/v3.8.0/git-lfs-darwin-arm64-v3.8.0.zip"
+    },
+    "x86_64": {
+      "binary_member": "git-lfs-3.8.0/git-lfs",
+      "binary_sha256": "1c26c24df68c8493be6f1ba546fcc863d9fbbe2e3e1b72f892d1dcb7ad4f2e13",
+      "filename": "git-lfs-darwin-amd64-v3.8.0.zip",
+      "sha256": "f1c17aeca0b4eaab9ea606226477dbed3b84b56fe0811a9f967d2ea2b2393c53",
+      "url": "https://github.com/git-lfs/git-lfs/releases/download/v3.8.0/git-lfs-darwin-amd64-v3.8.0.zip"
+    }
+  },
+  "source": {
+    "filename": "git-lfs-v3.8.0-source.tar.gz",
+    "prefix": "git-lfs-3.8.0",
+    "sha256": "a12ecfc17ebee002d1f6acca79442029d41cbf5e5b4ba9e02249ed96de20300f",
+    "url": "https://codeload.github.com/git-lfs/git-lfs/tar.gz/refs/tags/v3.8.0"
+  },
+  "go_version": "go1.27.0",
+  "external_module_count": 28,
+  "dependency_notice_file_count": 43,
+  "pin_sha256": "812d17fb86eba1b6ed3a062f8859da2e725bd1044abca73120cf28d9ebcd27db",
+  "sources_manifest_sha256": "2f361d69e9d73e6e16b46a95e89a3438f942d6a56523515a65aa2f61447ffc13",
+  "changed_files_sha256": {
+    "Configuration/GitLFSRuntime.json": "812d17fb86eba1b6ed3a062f8859da2e725bd1044abca73120cf28d9ebcd27db",
+    "NOTICE": "ba003237dc41a6cf5c7374b51373c2ab1f81548437cc59c2dbc96c4378a23e86",
+    "docs/DISTRIBUTION.md": "eb06c06fb9e83a60dd2db5f24dab09c5aac91ff75527787a58956a5f7d56b463",
+    "docs/LFS-PARITY.md": "bfd6dedc550bb360fdd43f4d2d982da33bcd2d19cb00dce76f8f31818b8cc6da",
+    "scripts/build-git-runtime.py": "2fb8b5b9b04344c2b38f048c89552fb078d5c10100a2efe6339ef5455913fa16",
+    "scripts/embed-git-runtime.py": "9e67a3ede868e4cfea09ac449d5ed3a165b8b36a69573d0c047f988833cabae3",
+    "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c",
+    "scripts/prepare-git-lfs-runtime.py": "c1784811bb0dba553229fec961c15f5fc039839878672a3f9bae6b1162b39ee2",
+    "scripts/test-git-lfs-provenance.py": "8ef5d73c466787243394af4d50f1835b9ff5fcf7b04f6e827b460ffc9452c601",
+    "scripts/test-git-lfs-runtime.py": "a6ff5bb5bb63bc551c224ff9d55796038f76ad919ce674e919eed14b7ec142cd",
+    "scripts/validate-app-bundle.py": "ab77484a05d9d93d5a817778615d0348d85f8dfe34cd49db83bf4aae5759d054",
+    "scripts/validate-git-lfs-runtime.py": "a12c71fea4ec97f317086c97d929351cc52694dd33f7514d4e5e5ceba3a7b02e",
+    "scripts/validate-git-runtime.py": "e84ec3632a2556f7499df69e6923f708e1b8e07b087fbe983d943733761375c1"
+  },
+  "verification": {
+    "runtime": "Prepared and embedded runtimes pass all 12 Mach-O architecture/minimum OS/system-library checks and local Git exercises. Both publisher slice code/data/loaders, Go/module versions, source/binary archive checksums and notice hashes audited. Execution is on the current arm64 host; Intel slice audited, not executed.",
+    "provenance": "Private physical runtime copy re-signed ad-hoc with hardened runtime; strict codesign verification and publisher provenance pass. Mutating an actual code byte is rejected by provenance audit before execution. No sandbox entitlements were used in this standalone acceptance test.",
+    "protocol": "Real bundled client tested both prepared and embedded Store runtime: local install/track/clean conversion to SHA-256 LFS pointers, loopback locks JSON, Unicode/tab/newline/option-like paths, ownership refusal and continued per-file unlock, explicit force, HEAD/staged entries/worktree bytes unchanged. Owned loopback server implements protocol fixtures; no public/authenticated provider proof.",
+    "builds": "Debug and sequential unsigned AppStore builds, both bundle audits, NOTICE equality, 99 original icons, inventory pin pass. No Swift sources changed; prior Core/native UI tests not rerun for runtime-only changes.",
+    "packaging": "Verified source/binary archives, Go and module notices, current reconstruction/repackage scripts included in prepared and Store runtimes.",
+    "site": "Local Pages generator passed and includes the LFS parity guide/runtime QA link; no deployment attempted."
+  },
+  "iterations": [
+    "Dependency notice discovery expanded to include British LICENCE spelling before final pin generation.",
+    "Go 1.27 AUTHORS URL returned 404; LICENSE/PATENTS retained.",
+    "Initial cleanup glob included an older xcodegen log file; corrected fixture audit to directories without deleting the retained log."
+  ],
+  "limitations": [
+    "Signed sandbox execution/inherited helper access, Intel execution, macOS 13 physical execution and authenticated remote provider acceptance remain pending.",
+    "Commit/Working Tree/Finder LFS context actions/columns and remaining dialog parity are incomplete.",
+    "Physical light/dark/accessibility/fresh screenshots, signed Finder installation and App Store eligibility remain pending.",
+    "Private GitHub authentication/push/CI inaccessible; no external CI or push claim.",
+    "The complete TortoiseGit port is not finished."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "fixture_search_roots": [
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T",
+      "/tmp"
+    ],
+    "app_launches": 0,
+    "loopback_server": "closed by finally; thread join verified",
+    "retained_older_log": "/tmp/turtlegit-lfs-xcodegen.log is a file, not a private fixture directory"
+  },
+  "local_log_sha256": {
+    "build/qa/git-lfs-runtime-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/git-lfs-runtime-2026-10-08/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/git-lfs-runtime-2026-10-08/embedded-protocol.log": "9652b3c319c3c81bd40c3b7bc6070ee43de692767c9ce0bbf9a68fe5be37705b",
+    "build/qa/git-lfs-runtime-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/git-lfs-runtime-2026-10-08/prepare.log": "5d83b9ff9103e5d5051bc5b6280ef3b9791c6f51337cbe868bca2513cae0219f",
+    "build/qa/git-lfs-runtime-2026-10-08/protocol.log": "9652b3c319c3c81bd40c3b7bc6070ee43de692767c9ce0bbf9a68fe5be37705b",
+    "build/qa/git-lfs-runtime-2026-10-08/provenance.log": "085de543018b63040d97ea1a6c09c8c50e8829f51a9865c2726d88a71d9e9b51",
+    "build/qa/git-lfs-runtime-2026-10-08/runtime.log": "9b457303e090e714397deba6915dbed9ef56e6c9701dc005bedc1606a011d91a",
+    "build/qa/git-lfs-runtime-2026-10-08/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/git-lfs-runtime-2026-10-08/store.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/git-lfs-runtime-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

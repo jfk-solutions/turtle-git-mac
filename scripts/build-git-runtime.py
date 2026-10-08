@@ -85,9 +85,10 @@ def main():
         reconstruction = licenses / 'build'
         (reconstruction / 'scripts').mkdir(parents=True)
         (reconstruction / 'Configuration').mkdir()
-        for script in ['build-git-runtime.py', 'validate-git-runtime.py']:
+        for script in ['build-git-runtime.py', 'validate-git-runtime.py', 'git_lfs_runtime.py', 'prepare-git-lfs-runtime.py', 'validate-git-lfs-runtime.py']:
             shutil.copy2(ROOT / 'scripts' / script, reconstruction / 'scripts' / script)
         shutil.copy2(ROOT / 'Configuration/GitRuntime.json', reconstruction / 'Configuration/GitRuntime.json')
+        shutil.copy2(ROOT / 'Configuration/GitLFSRuntime.json', reconstruction / 'Configuration/GitLFSRuntime.json')
         shutil.copy2(tree / 'reftable/LICENSE', licenses / 'REFTable-LICENSE')
         shutil.copy2(tree / 'sha1dc/LICENSE.txt', licenses / 'SHA1DC-LICENSE.txt')
         (licenses / 'README.txt').write_text('The complete unmodified Git source archive and build scripts are included.\nTo rebuild, run: python3 build/scripts/build-git-runtime.py\nThe script verifies the pinned archive checksum and uses the macOS SDK.\nGit is GPL v2; retained third-party notices are also present in the source archive.\n')
@@ -95,7 +96,8 @@ def main():
              'compiler': subprocess.check_output([clang, '--version'], text=True).splitlines()[0],
              'features': ['local-git', 'https-system-libcurl', 'credential-osxkeychain'],
              'excluded': ['git-gui', 'gitk', 'perl-tools', 'python-tools', 'git-lfs']}, indent=2) + '\n')
-        run(['/usr/bin/python3', ROOT / 'scripts/validate-git-runtime.py', prepared])
+        run(['/usr/bin/python3', ROOT / 'scripts/prepare-git-lfs-runtime.py', prepared])
+        run(['/usr/bin/python3', ROOT / 'scripts/validate-git-runtime.py', prepared, '--require-lfs'])
         args.output.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(prepared, args.output, symlinks=True)
     print('Built pinned Git runtime: ' + str(args.output.resolve()))

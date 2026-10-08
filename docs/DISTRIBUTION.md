@@ -76,16 +76,21 @@ and builds arm64 and x86_64 with the macOS SDK and minimum target 13.0.
 It uses system libcurl, crypto and compression libraries, avoiding Homebrew,
 MacPorts and Fink search paths. Git’s optional Rust implementation is disabled
 using its documented C build option. It includes the HTTPS transport and macOS
-Keychain credential helper. Perl/Python tools, git-gui/gitk and Git LFS are not
-bundled; those upstream workflows remain port work. The layout is:
+Keychain credential helper. Git LFS 3.8.0 is bundled from checksum-pinned official
+arm64 and x86_64 publisher binaries, combined with lipo. Its source archive,
+MIT/copied-Go notices, Go notices and notices for all 28 external Go modules
+are included. Perl/Python tools and git-gui/gitk remain port work. The layout is:
 
 ```text
 TurtleGitMac.app/Contents/Helpers/Git/
   bin/git
+  bin/git-lfs
   libexec/git-core/       # Git subcommands and transport helpers
   share/git-core/templates/
   share/licenses/git/    # pinned source archive, licenses and reconstruction scripts
+  share/licenses/git-lfs/ # source, publisher archives, dependency notices and repackage kit
   runtime-manifest.json
+  git-lfs-manifest.json
 ```
 
 The runtime validator checks every Mach-O file for both requested architectures
