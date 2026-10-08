@@ -29,8 +29,9 @@ URL/key histories, parent directory and recursive preference; Cancel saves none.
 Git arguments are separate process arguments, with source/destination after `--`.
 Option combinations, depth/revision, NULs, branch and origin names are validated.
 Execution uses an existing destination or its closest existing ancestor; failed
-destinations are not deleted. Errors retain the entered controls and offer Retry.
-Success shows captured output plus Show Log, Show in Finder and Close. Normal
+destinations are not deleted. Production owns a native result: failure offers Retry
+with submitted options; success offers Show Log then Show in Finder in a split
+action button, plus Close. Normal
 and bare clones are adopted when the workspace is idle and their resolved roots
 are saved to recents. Bare repositories now open in the workspace and Log with
 worktree actions disabled; see [Create Repository parity](INIT-PARITY.md). Native
@@ -57,7 +58,8 @@ pre-mutation validation, stored SSH commands and SVN argument construction. A
 disposable wrapper grants file transport only for the submodule fixture. A shell
 argument check confirms that a key filename containing quotes and shell-like text
 remains one literal argument and does not execute its contents. No SSH server or
-real private key is involved. The full suite passes 117 tests.
+real private key is involved. The historical full suite at that checkpoint passed 117 tests; this is not a
+current full-suite claim.
 
 Native QA used `/private/tmp/TurtleGitCloneQA` and a separate
 `/private/tmp/TurtleGitCloneResultQA` destination. Command-Shift-C opened the native
@@ -79,8 +81,8 @@ timed out. Cancel, picker interaction and further native checks remain unverifie
 - Native Cancel/close preservation, URL/key history relaunch, manual-directory
   changes, SSH protocol enablement, browse panels, bare/no-checkout/recursive UI
   execution, Show in Finder, minimum-width and dark appearance QA.
-- Live progress, cancellation, detailed transfer rows and full upstream retry and
-  post-operation behavior; output is currently shown after execution finishes.
+- Streaming output/detailed transfer rows, physical progress/cancellation and
+  full upstream libgit2 progress; command output is collected after execution.
 - Authentication, encrypted-key/agent UI, key use after restart, signed multi-folder
   sandbox grants, out-of-scope submodules and independent helper permissions.
 - Git-SVN runtime/dependencies and real SVN cloning, LFS capability/runtime handling,
@@ -88,3 +90,41 @@ timed out. Cancel, picker interaction and further native checks remain unverifie
 - Bare workspace reopening, saved geometry and upstream libgit2 progress callbacks.
 
 No complete Clone parity or App Store readiness is claimed.
+
+## Captured native progress and retries
+
+The options window owns a separate result until AppKit finishes dismissing its
+sheet. Failure Retry retains source, destination, Git executable, every Git/SVN
+option and source/destination/key access leases, recomputing the closest existing
+working directory each attempt. Retry uses a fresh cancellation token and never
+clears a failed/occupied destination. Failure Close returns reviewable options on
+macOS; upstream closes options before running. A missing sheet presenter cancels
+before cloning. Legacy no-presenter model callers keep their inline result.
+
+Successful Git completion resolves the captured repository, saves captured URL,
+recursive/parent/key preferences and invokes adoption once before acknowledgement.
+Subsequent field edits cannot replace the adopted clone or saved choices. Ordered
+Show Log and Show in Finder use that captured repository and original Log/Explorer
+artwork. A follow-up closes the result first and cannot repeat. A fresh production
+options controller prevents a second request from replacing a running draft.
+
+The result captures AutoCloseGitProgress at submission: manual/no-options retain
+success actions; no-errors closes success without choosing an action. Failure and
+cancellation remain reviewable. ConfirmKillProcess uses the source Yes/No question
+with Yes default. No retains the process; Yes cancels the owned process group.
+Completion while a question is pending delays automatic close until answered;
+late/duplicate answers cannot cancel completed work or repeat close. Native
+close/Quit guards cover grants, execution and result/confirmation ownership.
+Store attempts revalidate captured source/key scopes and destination scope for the
+working directory, destination and discovered repository root; signed acceptance
+remains unverified.
+
+[Progress QA](qa/clone-progress-2026-10-08.json) records six focused Core tests and
+four-Git native receivers for actual shallow branch/custom-origin, bare/no-checkout,
+captured history/adoption/result policies, occupied preservation/review, Retry,
+missing presentation and owned process cancellation. The slow wrapper creates its
+own synthetic partial file at the clone boundary; this proves process-group and
+file preservation, not cancellation of a live remote transfer. Physical nested
+sheet/Root adoption/Log/Finder routing, source/key grants, authentication, encrypted
+keys, recursive UI and real SVN/libgit2 execution remain partial. Existing Clone
+screenshots predate this result and are not new acceptance evidence.

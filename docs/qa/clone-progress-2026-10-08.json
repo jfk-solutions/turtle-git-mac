@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "4671df397fef8b9535a115035a429abd4e53ce5b",
+  "scope": "Clone owned native result, captured retry/options/grants, cancellation, success choices/history/adoption. Full application port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CloneDlg.cpp": "1d9cdcac52837484f7c18c818cc171fed77cadf1",
+    "src/TortoiseProc/CloneDlg.h": "32ecacd88942a6ab670db842a5cc925c815b1a1d",
+    "src/TortoiseProc/Commands/CloneCommand.cpp": "e354201124abad831b755561bf085d074c3a04af",
+    "src/TortoiseProc/Commands/CloneCommand.h": "13cae0396e32bb8dbed607cf7927af7478722d3b",
+    "src/TortoiseProc/ProgressCommands/CloneProgressCommand.cpp": "9684cda84e51af4e1ae1ab56b34a943d068ee3b5",
+    "src/TortoiseProc/ProgressCommands/CloneProgressCommand.h": "fc5f7d1bf4526d486fd0091765cc5221120fe01d",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "870b58716b0d2f669d6db6f65c3f21ab9ba40e63293c0814b5cac5768fd5702f",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "7abb28f7ac838f17a4eb6fb1277defdb0e5768cb73eb3f3b6e87cf8b7e4b71a1",
+    "NOTICE": "42b4637bb24ec74b6e0d17fb5b3674719551d029a270fe0d2bdf1490c97743ad",
+    "README.md": "9e4eff34d7d775288acf4fdb5ac3c5d56588bba90a3433f55307e30e37b268d3",
+    "Sources/TurtleGitCore/Clone.swift": "547f44e4acf84d98ba91aa898ee0063ed227f05d42bbe6062d5e6df640126ed6",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "294f8701ff6cdf137ccdad2a3832ef69f1b708bbb0fb225cae6bc1949b624ecd",
+    "Sources/TurtleGitMac/CloneWindow.swift": "0690485e7c443e95ff260f4936f09148450bf048aede1c16fe9263ff398ecf31",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "970e4c7fbfe4f96fb5560300b84fb41061fa01941e4bf25524457b8b912b7e57",
+    "Tests/TurtleGitCoreTests/CloneTests.swift": "d4efebba42d1e2a7be1a4d1c781a560f73296e8d94ac9b579cc1074d22aa7f92",
+    "docs/CLONE-PARITY.md": "8934cc0e0c4745d10a1060aa54549200bfaaeff643ee76fdcd2f8f200610890f",
+    "docs/PROGRESS-PARITY.md": "75d43dfb91668ff83d54de82259757db3ff63ba6b184d866d1c2b6470ec0a69a",
+    "docs/UI-PARITY.md": "6f4464677bf2360503933b3085a7beb83d5028200c66494a9ee32458b714f629",
+    "docs/upstream-files.csv": "2c8dc0ead4080e00f96a248a4d770b74440bd8a97b802fc67b65bf2e14219510",
+    "scripts/test-clone-progress.py": "876d85c20b8b2bbf1cf4aa35832adc84a7c79f4b245bd66f87ca6bc05876e7cf",
+    "docs/qa/clone-progress-native-2026-10-08.swift": "ba16635096eae6af3af196859c756975dad6807370159af338b55a75cae77311"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Six focused CloneTests passed. New pre-cancelled clone leaves destination absent and source HEAD unchanged. Existing actual tests cover shallow selected branch/custom origin, literal Unicode/quoted paths, bare/no-checkout, recursive submodule fixture, occupied preservation/invalid options, stored SSH command literal quoting and SVN arguments. No SSH server or real private key. Not a full-suite rerun.",
+    "native": "Four-Git receiver passed actual shallow selected feature branch/custom origin through real owner/result under all three captured close policies; later source/destination/branch/origin/recursive edits cannot affect created clone, saved history/recursive preference or once adoption. Actual bare and no-checkout clones retain semantics; ordered Log/Explorer actions and once owner-close-before-Log callback. Occupied user bytes preserved through captured Retry despite draft edits; failed Close restores options and reviewed clone succeeds. Missing presenter cancels before destination creation. Owned slow wrapper at clone boundary writes synthetic partial file: No leaves leader/helper running, Yes stops both PIDs and preserves file; Retry refuses occupied destination and preserves it; fixture removes only its own synthetic file, then fresh Retry succeeds. Completion under pending confirmation defers auto-close; duplicate late Yes cannot cancel completed clone or repeat close. Hidden result hosting and hidden close/Quit controller guards. Source HEAD/index/worktree bytes unchanged. No displayed UI/network/Finder reveal/standard preference writes.",
+    "regression": "Four-Git Switch progress receiver passed real captured full-option checkout, owner acknowledgement/policies, remote tracking/detach/force/override, name-conflict capture, failed retry, .gitmodules gate, once actions, owned cancellation/fresh retry and deferred completion/duplicate answers; missing presenter and hidden close/Quit remain intact.",
+    "source_notes": "Pinned CloneCommand CLI callback adds only Retry on failure; success adds Log then Explorer and resolves clone working directory before follow-ups. Native recomputes closest existing cwd each Retry, stores full immutable CloneOptions/Git executable and all leases, retains failed destination. Success adoption and captured histories occur after actual clone; native existing preference timing remains success-based. Options remain behind sheet, failure Close permits review, unlike upstream closed options. AppKit sheet dismissal completion releases parent. Legacy no-presenter inline API retained. OpenSSH/key bookmarks adapt Putty/Pageant. Store progress revalidates destination cwd/target/discovered root and local source/key scope; signed acceptance not proven.",
+    "builds": "Unsigned Debug and AppStore builds and bundle audits passed. NOTICE identical in both, embedded Finder extension/licenses/98 original icons/EditorConfig/IssueRegex present. Store Git has 11 universal Mach-O files and passed local Git fixtures. Native jobs ran against stationary Debug products and were terminal before Store.",
+    "documentation": "Clone, shared progress and UI parity, README, NOTICE, native CI step and five upstream mappings updated. 3277 seven-column LF data rows; mappings retain partial statuses. Site built locally with existing real screenshots, which predate this result. Hosted site and GitHub CI unverified.",
+    "processes": "No main GUI launches or synthetic events. NSApp activation prohibited; result hosted without a window, hidden controller view removed before execution to avoid any result sheet. Owned hidden controller closed. Sources/NOTICE/receivers stationary during compilers/receivers. Eight empty owned UUID domains removed across four-Git Clone and Switch runs; standard/nonempty domains untouched. Final app/receiver/helper audit empty.",
+    "limitations": "Headless callbacks/hidden hosting do not prove physical sheet/dismissal/default buttons/focus/keyboard/theme/accessibility, Root adoption and actual Log/Finder routing, live remote transfer cancellation, recursive UI or real source/key grant interaction. Output remains collected at command completion; detailed streaming, auth/encrypted keys/agents/SSH helpers, LFS, real SVN runtime and libgit2 progress remain incomplete. Signed sandbox/Finder/App Store acceptance and full port/distribution remain unverified. GitHub authorization and CUA unavailable; not retried."
+  },
+  "logs_sha256": {
+    "build/qa/clone-progress/core.log": "ede417f92c705c5986c73f11cce36750d20b1ae0304f4079a67d866feea07a43",
+    "build/qa/clone-progress/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/clone-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/clone-progress/native.log": "67712de6d38d592875a995c7a64f27770d84e5b00668eeb92ba59424aca51663",
+    "build/qa/clone-progress/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/clone-progress/private-preference-cleanup.log": "36922494b799e2a9f653a83a8ff2868855a85581648b6e670599cd83d976f343",
+    "build/qa/clone-progress/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/clone-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/clone-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/clone-progress/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/clone-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/clone-progress/switch-regression.log": "1d6e336fabfaa3d6954521108678b3c651709525978d97f9e8c2f8905b6b0bbf"
+  }
+}

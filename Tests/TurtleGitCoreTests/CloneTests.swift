@@ -109,4 +109,15 @@ final class CloneTests: XCTestCase {
         options.origin = ""; options.trunk = "trunk"; options.branches = "branches/*"; options.tags = "tags"; options.fromRevision = 7; options.username = "User 雪"
         XCTAssertEqual(try options.arguments(destination: destination), ["svn", "clone", "--prefix", "", "-T", "trunk", "-b", "branches/*", "-t", "tags", "-r", "7:HEAD", "--username", "User 雪", "--", source.absoluteString, destination.path])
     }
+    func testPreCancelledCloneLeavesDestinationAndSourceUnchanged() async throws {
+        let (parent, source, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: parent) }
+        let destination = parent.appendingPathComponent("cancelled")
+        var options = CloneOptions(); options.source = source.path
+        let token = OperationCancellation(); token.cancel()
+        let repo = GitRepository(root: source), before = try await repo.run(["rev-parse", "HEAD"]).stdout
+        do { _ = try await GitRepository(root: parent).clone(options, to: destination, cancellation: token); XCTFail("Cancelled clone ran") } catch is OperationCancellationFailure {}
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout
+        XCTAssertEqual(before, after); XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+    }
+
 }

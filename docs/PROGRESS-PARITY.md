@@ -10,7 +10,7 @@ three choices: Close manually (0), Auto-close if no further options are availabl
 Absent/invalid values use manual close; reading an invalid value does not rewrite
 it. Settings save immediately on macOS rather than waiting for Windows Apply.
 
-Native Commit, Push, Fetch, merge Pull, Merge, Reset, Clean dry-run/permanent deletion, Format Patch, Export, Abort Merge, Stash Save and Switch/Checkout (regular options and express)
+Native Clone, Commit, Push, Fetch, merge Pull, Merge, Reset, Clean dry-run/permanent deletion, Format Patch, Export, Abort Merge, Stash Save and Switch/Checkout (regular options and express)
 progress now apply this policy after success and after building their post-actions.
 Mode 1 retains a result that offers actions. Mode 2 closes successful results even
 when they offer actions, without selecting any of them. Failures remain open in
@@ -51,3 +51,7 @@ Existing screenshots predate this setting and policy behavior.
 Switch/Checkout now owns captured full-option progress with source-ordered recovery,
 ConfirmKillProcess and deferred completion while confirmation is pending. See
 [Switch parity](SWITCH-PARITY.md) and [native QA](qa/switch-progress-2026-10-08.json).
+
+Clone now owns a captured result with ordered Log/Explorer actions, captured Retry
+and ConfirmKillProcess. See [Clone parity](CLONE-PARITY.md) and
+[native QA](qa/clone-progress-2026-10-08.json).

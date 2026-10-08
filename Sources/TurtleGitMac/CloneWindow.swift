@@ -5,8 +5,9 @@ import TurtleGitCore
 @MainActor final class CloneWindowController: NSWindowController, NSWindowDelegate {
     let model: CloneWindowModel
     var onClosed: () -> Void = {}
-    init(directory: URL?, access: RepositoryAccessLease?) {
-        model = CloneWindowModel(directory: directory, access: access)
+    private var progressController: CloneProgressWindowController?
+    init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil) {
+        model = CloneWindowModel(directory: directory, access: access, preferences: preferences, executable: executable)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 820, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Git Clone – TurtleGit"
         window.minSize = NSSize(width: 780, height: 452)
@@ -15,10 +16,17 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: CloneDialog(model: model))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 820, height: 420)); window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.onExplore = { NSWorkspace.shared.activateFileViewerSelecting([$0]) }
+        model.onProgress = { [weak self] result in
+            guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
+            let controller = CloneProgressWindowController(model: result); self.progressController = controller
+            if let child = controller.window { window.beginSheet(child) { [weak self, weak result] _ in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) } }
+            else { self.progressController = nil; result.abandonPresentation() }
+        }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.activeOperation && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -51,6 +59,20 @@ import TurtleGitCore
     @Published var output: String?
     @Published var completed: URL?
     @Published var error: String?
+    private let preferences: UserDefaults
+    private let executable: URL?
+    private var invalidated = false, finished = false
+    @Published private(set) var granting = false
+    @Published private(set) var progress: CloneProgressWindowModel?
+    var activeOperation: Bool { busy || granting || progress != nil }
+    var onProgress: ((CloneProgressWindowModel) -> Void)?
+    var onExplore: (URL) -> Void = { _ in }
+    func invalidate() { invalidated = true; progress?.invalidate() }
+    func finish(_ result: CloneProgressWindowModel) {
+        guard progress === result, !result.busy, !result.confirmingCancellation else { return }
+        progress = nil; result.invalidate(); busy = false
+        guard !invalidated else { return }; if result.success { finished = true; close() }
+    }
     private var destinationAccess: RepositoryAccessLease?
     private var sourceAccess: RepositoryAccessLease?
     private var keyAccess: RepositoryAccessLease?
@@ -61,8 +83,9 @@ import TurtleGitCore
     var onCloned: (GitRepository, RepositoryAccessLease, RepositoryAccessLease?, Bool, String) -> Void = { _, _, _, _, _ in }
     var onLog: (GitRepository, RepositoryAccessLease) -> Void = { _, _ in }
     private var clonedRepository: GitRepository?
-    init(directory: URL?, access: RepositoryAccessLease?) {
-        let defaults = UserDefaults.standard
+    init(directory: URL?, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, executable: URL? = nil) {
+        self.preferences = preferences; self.executable = executable
+        let defaults = preferences
         self.directory = directory?.path ?? defaults.string(forKey: "Clone.Directory") ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].path
         recursive = defaults.bool(forKey: "Clone.Recursive")
         urls = defaults.stringArray(forKey: "Clone.URLHistory") ?? []
@@ -96,15 +119,18 @@ import TurtleGitCore
         }
     }
     func browseSource() {
+        guard !activeOperation, !invalidated, !finished else { return }; granting = true; defer { granting = false }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.prompt = "Select repository"
         if panel.runModal() == .OK, let url = panel.url { sourceAccess = RepositoryAccessLease(url: url); source = url.path; sourceChanged() }
     }
     func browseDirectory() {
+        guard !activeOperation, !invalidated, !finished else { return }; granting = true; defer { granting = false }
         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false
         panel.canCreateDirectories = true; panel.prompt = "Select destination"; panel.directoryURL = URL(fileURLWithPath: directory)
         if panel.runModal() == .OK, let url = panel.url { destinationAccess = RepositoryAccessLease(url: url); directory = url.path; automaticDirectory = "" }
     }
     func browseKey() {
+        guard !activeOperation, !invalidated, !finished else { return }; granting = true; defer { granting = false }
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.canChooseFiles = true; panel.prompt = "Select OpenSSH key"
         if panel.runModal() == .OK, let url = panel.url { keyAccess = RepositoryAccessLease(url: url); key = url.path }
     }
@@ -119,7 +145,7 @@ import TurtleGitCore
         return lease
     }
     func clone() {
-        guard !busy, completed == nil else { return }
+        guard !activeOperation, completed == nil, !invalidated, !finished else { return }; granting = true; defer { granting = false }
         do {
             let path = directory.trimmingCharacters(in: .whitespacesAndNewlines)
             guard path.hasPrefix("/") else { throw CloneFailure.destination }
@@ -148,33 +174,44 @@ import TurtleGitCore
                 guard FileManager.default.fileExists(atPath: key.path) else { throw CloneFailure.value }
                 guard let lease = grant(key, current: keyAccess, message: "Authorize this OpenSSH private key.", file: true) else { return }; keyAccess = lease
             }
-            let executable = try GitRuntime.executable(), snapshot = options
+            let executable = try self.executable ?? GitRuntime.executable(), snapshot = options
+            let capturedSourceAccess = sourceAccess, capturedKeyAccess = keyAccess
             busy = true; output = nil; error = nil
-            Task {
-                defer { busy = false }
-                do {
-                    let runner = GitRepository(root: cwd, executable: executable)
-                    if snapshot.svn { _ = try await runner.run(["svn", "--version"]) }
-                    let result = try await runner.clone(snapshot, to: destination)
-                    let candidate = GitRepository(root: destination, executable: executable)
-                    let repo: GitRepository
-                    if snapshot.bare { repo = candidate }
-                    else { repo = GitRepository(root: try await candidate.discoverRoot(), executable: executable) }
-                    clonedRepository = repo; completed = repo.root; output = result
-                    let defaults = UserDefaults.standard
-                    defaults.set(destination.deletingLastPathComponent().path, forKey: "Clone.Directory")
-                    defaults.set(recursive, forKey: "Clone.Recursive")
-                    defaults.set(([snapshot.source] + urls.filter { $0 != snapshot.source }).prefix(25).map { $0 }, forKey: "Clone.URLHistory")
-                    if let key = snapshot.sshKey { defaults.set(([key.path] + keys.filter { $0 != key.path }).prefix(25).map { $0 }, forKey: "Clone.KeyHistory") }
-                    onCloned(repo, access, keyAccess, snapshot.bare, result)
-                } catch { self.output = error.localizedDescription; self.error = error.localizedDescription }
+            if let onProgress {
+                let result = CloneProgressWindowModel(options: snapshot, destination: destination, executable: executable, destinationAccess: access, sourceAccess: capturedSourceAccess, keyAccess: capturedKeyAccess, preferences: preferences)
+                result.onCloned = { [weak self] repo, output in self?.recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess) }
+                result.onPostAction = { [weak self] action, repo in guard let self else { return }; if action == .log { self.onLog(repo, access) } else if action == .explore { self.onExplore(repo.root) } }
+                result.close = { [weak self, weak result] in guard let self, let result else { return }; self.finish(result) }
+                progress = result; onProgress(result); result.start()
+            } else {
+                Task {
+                    defer { busy = false }
+                    do {
+                        let runner = GitRepository(root: cwd, executable: executable)
+                        if snapshot.svn { _ = try await runner.run(["svn", "--version"]) }
+                        let output = try await runner.clone(snapshot, to: destination)
+                        let candidate = GitRepository(root: destination, executable: executable)
+                        let repo = snapshot.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(), executable: executable)
+                        guard !invalidated else { return }
+                        recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess)
+                    } catch { self.output = error.localizedDescription; self.error = error.localizedDescription }
+                }
             }
         } catch { self.error = error.localizedDescription }
+    }
+    private func recordClone(_ repo: GitRepository, output: String, options: CloneOptions, destination: URL, access: RepositoryAccessLease, keyAccess: RepositoryAccessLease?) {
+        guard !invalidated else { return }
+        clonedRepository = repo; completed = repo.root; self.output = output
+        preferences.set(destination.deletingLastPathComponent().path, forKey: "Clone.Directory")
+        preferences.set(options.recursive, forKey: "Clone.Recursive")
+        preferences.set(([options.source] + urls.filter { $0 != options.source }).prefix(25).map { $0 }, forKey: "Clone.URLHistory")
+        if let key = options.sshKey { preferences.set(([key.path] + keys.filter { $0 != key.path }).prefix(25).map { $0 }, forKey: "Clone.KeyHistory") }
+        onCloned(repo, access, keyAccess, options.bare, output)
     }
     func showLog() { if let repo = clonedRepository, let access = destinationAccess { onLog(repo, access) } }
 }
 
-private struct CloneDialog: View {
+struct CloneDialog: View {
     @ObservedObject var model: CloneWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -238,7 +275,7 @@ private struct CloneDialog: View {
                     Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-clone.html")!) }
                 }
             }
-        }.padding(16).textFieldStyle(.roundedBorder).toggleStyle(.checkbox).disabled(model.busy)
+        }.padding(16).textFieldStyle(.roundedBorder).toggleStyle(.checkbox).disabled(model.activeOperation)
         .onChange(of: model.source) { _ in model.sourceChanged() }
         .onChange(of: model.svn) { _ in model.svnChanged() }
         .onChange(of: model.bare) { value in if value { model.recursive = false; model.noCheckout = false; model.useOrigin = false } }
@@ -267,5 +304,117 @@ private struct CloneHistoryCombo: NSViewRepresentable {
         var choices: [String] = []; var updating = false; var change: (String) -> Void = { _ in }
         func controlTextDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox else { return }; change(combo.stringValue) }
         func comboBoxSelectionDidChange(_ notification: Notification) { guard !updating, let combo = notification.object as? NSComboBox, choices.indices.contains(combo.indexOfSelectedItem) else { return }; change(choices[combo.indexOfSelectedItem]) }
+    }
+}
+
+enum ClonePostAction: String, Hashable {
+    case retry, log, explore
+    var title: String { switch self { case .retry: return "Retry"; case .log: return "Show Log"; case .explore: return "Show in Finder" } }
+    var icon: MenuIcon { switch self { case .retry: return .refresh; case .log: return .log; case .explore: return .explore } }
+}
+@MainActor final class CloneProgressWindowModel: ObservableObject {
+    let options: CloneOptions
+    let destination: URL
+    private let executable: URL
+    private let destinationAccess: RepositoryAccessLease
+    private let sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?
+    private let preferences: UserDefaults, autoClosePolicy: GitProgressAutoClose
+    private var cancellation = OperationCancellation()
+    private var started = false, invalidated = false, dispatched = false, abandoned = false
+    private var repository: GitRepository?
+    @Published private(set) var busy = true
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var output = ""
+    @Published private(set) var postActions: [ClonePostAction] = []
+    var close: () -> Void = {}
+    var onCloned: (GitRepository, String) -> Void = { _,_ in }
+    var onPostAction: ((ClonePostAction, GitRepository) -> Void)?
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
+    var canCancel: Bool { busy && !cancelling && !confirmingCancellation }
+    init(options: CloneOptions, destination: URL, executable: URL, destinationAccess: RepositoryAccessLease, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        self.options = options; self.destination = destination; self.executable = executable; self.destinationAccess = destinationAccess; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
+    }
+    func invalidate() { invalidated = true }
+    func abandonPresentation() { abandoned = true; cancellation.cancel() }
+    func start() { Task { await run() } }
+    func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
+    private func execute() async {
+        do {
+            if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+            let cwd = try CloneOptions.workingDirectory(for: destination)
+            if GitRuntime.isAppStoreBuild {
+                guard destinationAccess.hasSecurityScope, destinationAccess.contains(cwd), destinationAccess.contains(destination) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let source = options.source.hasPrefix("/") ? URL(fileURLWithPath: options.source) : URL(string: options.source).flatMap { $0.isFileURL ? $0 : nil }
+                if let source { guard sourceAccess?.hasSecurityScope == true, sourceAccess?.contains(source) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
+                if let key = options.sshKey { guard keyAccess?.hasSecurityScope == true, keyAccess?.contains(key) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
+            }
+            let runner = GitRepository(root: cwd, executable: executable)
+            if options.svn { _ = try await runner.run(["svn", "--version"], cancellation: cancellation) }
+            output = try await runner.clone(options, to: destination, cancellation: cancellation)
+            let candidate = GitRepository(root: destination, executable: executable)
+            let repo = options.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(), executable: executable)
+            if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+            if GitRuntime.isAppStoreBuild && !destinationAccess.contains(repo.root) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path) }
+            repository = repo; success = true; postActions = [.log, .explore]
+            if !invalidated { onCloned(repo, output) }
+        } catch { output += (output.isEmpty ? "" : "\n") + error.localizedDescription; postActions = [.retry] }
+        cancelled = cancellation.isCancelled; busy = false; cancelling = false
+        finishAutomaticClose()
+    }
+    private func finishAutomaticClose() { if !busy, !confirmingCancellation, !invalidated, abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() } }
+    func cancel() {
+        guard canCancel, !invalidated else { return }; let token = cancellation
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true; var answered = false
+            confirmCancellation { [weak self] accepted in
+                guard !answered, let self, !self.invalidated, self.cancellation === token else { return }; answered = true; self.confirmingCancellation = false
+                if self.busy && accepted { self.cancelling = true; token.cancel() }
+                self.finishAutomaticClose()
+            }
+        } else { cancelling = true; token.cancel() }
+    }
+    func perform(_ action: ClonePostAction) {
+        guard !busy, !confirmingCancellation, !invalidated, !dispatched, postActions.contains(action) else { return }
+        if action == .retry {
+            busy = true; success = false; cancelled = false; cancelling = false; output = ""; postActions = []; repository = nil; cancellation = OperationCancellation()
+            Task { await execute() }; return
+        }
+        guard let repository, let onPostAction else { return }; dispatched = true; close(); onPostAction(action, repository)
+    }
+}
+@MainActor final class CloneProgressWindowController: NSWindowController, NSWindowDelegate {
+    let model: CloneProgressWindowModel
+    init(model: CloneProgressWindowModel) {
+        self.model = model
+        let window = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:430), styleMask: [.titled,.closable,.resizable], backing:.buffered, defer:false)
+        window.title = "Clone – TurtleGit"; window.contentMinSize = NSSize(width:600,height:320); window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView:CloneProgressDialog(model:model)); super.init(window:window); window.delegate = self
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle:"Yes"); alert.addButton(withTitle:"No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for:window) { choose($0 == .alertFirstButtonReturn) }
+        }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
+    func windowWillClose(_ notification: Notification) { model.invalidate() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+struct CloneProgressDialog: View {
+    @ObservedObject var model: CloneProgressWindowModel
+    var body: some View {
+        VStack(alignment:.leading,spacing:12) {
+            Text("Clone to \(model.destination.path)").font(.headline).textSelection(.enabled)
+            ScrollView { Text(model.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
+            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Cloning…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Clone failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack { if let first = model.postActions.first { Button { model.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }; Menu { ForEach(model.postActions,id:\.self) { action in Button { model.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) } } } label: { Image(systemName:"chevron.down").accessibilityLabel("Clone post-actions") }.menuStyle(.borderlessButton).fixedSize() }; Spacer()
+                if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
+                else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
+            }.disabled(model.confirmingCancellation)
+        }.padding(12)
     }
 }

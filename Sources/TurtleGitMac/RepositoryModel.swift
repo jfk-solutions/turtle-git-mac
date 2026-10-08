@@ -58,7 +58,7 @@ import TurtleGitCore
     private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
     private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
     private var stashWindows: [String: StashWindowController] = [:]
-    private var cloneWindow: CloneWindowController?
+    private var cloneWindows: [UUID: CloneWindowController] = [:]
     private var createWindows: [String: CreateRepositoryWindowController] = [:]
     private var renameWindows: [String: RenameWindowController] = [:]
     private var textConflictWindows: [String: TextConflictWindowController] = [:]
@@ -394,8 +394,8 @@ import TurtleGitCore
         } catch { self.error = "The clone’s SSH-key permission could not be renewed.\n" + error.localizedDescription }
     }
     private func showClone(directory: URL? = nil, source: String? = nil) {
-        let controller = cloneWindow ?? CloneWindowController(directory: directory ?? root, access: activeAccess)
-        controller.onClosed = { [weak self] in self?.cloneWindow = nil }
+        let id = UUID(), controller = CloneWindowController(directory: directory ?? root, access: activeAccess)
+        controller.onClosed = { [weak self] in self?.cloneWindows.removeValue(forKey: id) }
         controller.model.onLog = { [weak self] repository, access in self?.showLog(repository: repository, access: access, paths: []) }
         controller.model.onCloned = { [weak self] repo, access, keyAccess, bare, result in
             guard let self else { return }
@@ -406,7 +406,7 @@ import TurtleGitCore
             }
             self.adoptRepository(repo, access: access, bare: bare, output: result)
         }
-        cloneWindow = controller
+        cloneWindows[id] = controller
         if let source { controller.model.source = source }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

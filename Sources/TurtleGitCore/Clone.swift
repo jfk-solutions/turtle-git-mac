@@ -85,7 +85,8 @@ public enum CloneFailure: LocalizedError {
 }
 
 extension GitRepository {
-    public func clone(_ options: CloneOptions, to destination: URL) throws -> String {
+    public func clone(_ options: CloneOptions, to destination: URL, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         let args = try options.arguments(destination: destination)
         if let branch = options.branch {
             guard !branch.hasPrefix("-"), (try? run(["check-ref-format", "refs/heads/" + branch])) != nil else { throw CloneFailure.value }
@@ -95,9 +96,9 @@ extension GitRepository {
         }
         var environment: [String: String] = [:]
         if let command = try options.sshCommand() { environment["GIT_SSH_COMMAND"] = command }
-        let output = try run(args, environmentOverrides: environment, literalPathspecs: false).text
+        let output = try run(args, environmentOverrides: environment, literalPathspecs: false, cancellation: cancellation).text
         if options.svn, let command = try options.sshCommand() {
-            _ = try run(["-C", destination.path, "config", "--local", "core.sshCommand", command])
+            _ = try run(["-C", destination.path, "config", "--local", "core.sshCommand", command], cancellation: cancellation)
         }
         return output
     }

@@ -639,3 +639,6 @@ tag Push keeps captured intent. See [Branch/Tag parity](docs/BRANCH-TAG-PARITY.m
 
 Switch/Checkout now shares captured native progress, recovery actions and cancellation
 confirmation with express Switch and branch creation; see [Switch parity](docs/SWITCH-PARITY.md).
+
+Clone now owns a native result with captured Retry, Log/Finder actions and process
+cancellation confirmation; see [Clone parity](docs/CLONE-PARITY.md).

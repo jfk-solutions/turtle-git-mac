@@ -588,3 +588,7 @@ capturing cross-name/tag-push choices with guarded native ownership.
 Switch options/progress adapt GitSwitchDlg.cpp and CAppUtils::PerformSwitch with
 captured full checkout options, ordered recovery, source submodule-file gating
 and ProgressDlg cancellation confirmation.
+
+Clone results adapt CloneCommand.cpp post-operation actions and ProgressDlg.cpp
+with captured native progress, preserved failure destinations, retry and process
+cancellation confirmation. OpenSSH replaces the Windows Putty-key integration.
