@@ -51,3 +51,8 @@ are uploaded automatically.
 
 No claim of App Store privacy compliance is made yet. Final privacy labels and the
 published privacy URL must reflect the tested release build and all its components.
+
+Settings → [Saved Data](SAVED-DATA.md) can clear URL/directory histories, input
+message histories and remembered answers. These operations remove local
+preferences only; they preserve repository bookmarks and working files. The
+action log is cleared separately.

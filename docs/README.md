@@ -19,6 +19,7 @@ for baseline and update rules.
 
 - [Getting started with TurtleGit for Mac](GETTING-STARTED.md)
 - [Saved progress action log](ACTION-LOG.md)
+- [Saved Data settings](SAVED-DATA.md)
 - [Editing Git notes](GIT-NOTES.md)
 - [Reverting a commit from Log](REVERT-COMMIT.md)
 - [Cherry Pick from Log](CHERRY-PICK.md)

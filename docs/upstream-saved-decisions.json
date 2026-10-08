@@ -1,0 +1,30 @@
+{
+  "pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "blob": "761468a1b46c2f4ec196a351527e76de1ffbbc7c",
+  "sourceDecisions": [
+    "OldMsysgitVersionWarning",
+    "OpenRebaseRemoteBranchEqualsHEAD",
+    "OpenRebaseRemoteBranchUnchanged",
+    "OpenRebaseRemoteBranchFastForwards",
+    "DaemonNoSecurityWarning",
+    "NothingToCommitShowUnversioned",
+    "NoJumpNotFoundWarning",
+    "HintHierarchicalConfig",
+    "HintStagingMode",
+    "TagOptNoTagsWarning",
+    "NoStashIncludeUntrackedWarning",
+    "CommitMergeHint",
+    "AskSetTrackedBranch",
+    "StashPopShowChanges",
+    "StashPopShowConflictChanges",
+    "CommitWarnOnUnresolved",
+    "CommitAskBeforeCancel",
+    "PushAllBranches",
+    "CommitMessageContainsConflictHint",
+    "MergeConflictsNeedsCommit",
+    "CommitMessageTemplateNotEdited"
+  ],
+  "sourceMergeDecisions": [
+    "DeleteFileWhenEmpty"
+  ]
+}

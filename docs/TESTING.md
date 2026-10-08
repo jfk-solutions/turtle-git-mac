@@ -108,3 +108,10 @@ in `.upstream/TortoiseGit`; see [the UI audit](UI-PARITY.md).
 The [Action log guide](ACTION-LOG.md) tracks source retention and Saved Data
 Show/Clear parity, headless verification, covered progress windows and remaining
 physical/signed and wider Saved Data gaps.
+
+## Saved Data history and decisions checkpoint
+
+The [Saved Data guide](SAVED-DATA.md) maps URL/input-message history and stored
+decision controls to the source and documents reset scope and remaining groups.
+Core reset-scope tests and private native model checks are recorded in
+[the checkpoint](qa/saved-data-2026-10-08.json).

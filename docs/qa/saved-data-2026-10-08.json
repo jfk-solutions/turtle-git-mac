@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "ecb76b8aef261e4dbb5ad076c3416c728cbf98d0",
+  "scope": "Saved Data URL/Commit message history and source remembered-decision reset controls. Full Saved Data page, application and distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/Settings/SetSavedDataPage.cpp": "761468a1b46c2f4ec196a351527e76de1ffbbc7c",
+    "src/TortoiseProc/Settings/SetSavedDataPage.h": "4951f95f7d126fa52bd2fe37465efc8308b2ff60",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "bc0cf20041c1379bfdb5c1f6b1ffd3632efa4fe9155e3918c3faf19db8c2e898",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "6c2e9097e2561034febc868af9d0d52dadae5ae2023c3ef577ba4af081fad0fa",
+    "NOTICE": "e6a0b51c756c7123e90eefbf01115ebb1fa9d5990d04d676ed08d38805603d9f",
+    "Sources/TurtleGitCore/SavedData.swift": "0087fab89d27e23e985bcf24f1cd5576e738b8ee0c54af9452d3fc2a76e05d15",
+    "Sources/TurtleGitMac/SavedDataSettings.swift": "d896b649d25259b64d320d881a78c65314eca7080197f8cc812dfeba00de1a40",
+    "Tests/TurtleGitCoreTests/SavedDataTests.swift": "891bfe2e83397205c9d5e3291d61c3c9018a44db6d6a4b0a39462aa2a814074b",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "80a2e285b39dadf57562e93692179d7a9417c50f3724f4ec170a66f8a91d8448",
+    "docs/ACTION-LOG.md": "642371a9b8e4005345bd58743a45c880e99849ab981980df30aa7af11e3357e3",
+    "docs/PRIVACY.md": "2464f3206cd478e46d3772363fddc68361db279dc932bb09ffcf1e2a0cbe3bfd",
+    "docs/README.md": "353ec6dfd6f7660cb1c925b98cfba591f99798674cab5a39953ee7bb2d47d316",
+    "docs/SAVED-DATA.md": "69f6133f1ad944362439614228142a7e8ed8712d1982de67d4d4a5f7fbccc14c",
+    "docs/TESTING.md": "7a2119e67168749b0a99667236f7c36df29f271d935ca9d7412dcf6f5504b028",
+    "docs/UI-PARITY.md": "5085d3d332290588a34142d839a4f99953f2ca60cee4a2e7efa227e75c04c919",
+    "docs/qa/saved-data-native-2026-10-08.swift": "e4c384f486823c63758e9c850c10b58851ce7a2af6cc19e65ba16b95e6921571",
+    "docs/upstream-files.csv": "0ea18d4bbb1d7be7d16805c453caa516126198b77a6cab26978dfc34a12f4e80",
+    "docs/upstream-saved-decisions.json": "d571dc1b3b654aa7fc625b821b07d23654f08ca2a2b42a42940cab47db1037e4",
+    "scripts/test-saved-data.py": "6cf93b155ec1e85e7e391bb637685fc803421025a83a042f0ae0649361032c06"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Nine focused tests passed: four Saved Data checks for pinned 21 source TortoiseGit decision keys/merge key, multiple Commit histories/live backend reuse and fresh saving, all mapped URL namespaces/nearby preservation, false/integer/native-alias decisions and idempotent reset; five existing Action log tests passed. Not a full-suite rerun.",
+    "native": "Four-Git private receiver passed Saved Data counts and category refresh, new Clone/Push/Format Patch models loading empty cleared histories, existing Commit backend cleared and fresh entry visible, remembered false/integer/hint removal, and real Stash Pop showing its question again. Settings clearing preserves HEAD and exact index bytes before Stash; subsequent Stash operation preserves HEAD/index tree. Action log, SSH key-path history and ordinary close policy preserved. Hidden Saved Data host fitted. No main app or synthetic input.",
+    "regressions": "Existing four-Git Action log receiver passed real hidden Reset controllers, once-only close, stale-plan Retry records, quiet successful header, maximum-lines validation/zero disable, Show/Clear callbacks and failed-write isolation.",
+    "builds": "Unsigned Debug and AppStore builds passed. Both bundle audits and NOTICE comparisons passed: embedded Finder extension, 98 original icons, universal EditorConfig/IssueRegex helpers; Store bundled Git 2.55.0 eleven universal Mach-O files and local Git fixtures audited. No signed/sandbox acceptance claim.",
+    "inventory": "3277 seven-column LF source rows; SetSavedDataPage.cpp/.h remain partial with SavedData.swift mapping and clear-control notes. Decision fixture extracted from pinned source lists, with source pin/blob recorded; guide indexed.",
+    "gates": "Pinned inventory checker, site builder and whitespace checks passed.",
+    "cleanup": {
+      "empty_private_preferences_removed": [
+        "TurtleGit.SavedData.QA.026C6978-3EAD-4D4C-94A6-F2B1420E7A19.plist",
+        "TurtleGit.SavedData.QA.819E54D1-45E7-4D4F-B5F3-112142340670.plist",
+        "TurtleGit.ActionLog.QA.FF193E9E-C573-4622-93F3-B01C461F5B11.plist",
+        "TurtleGit.ActionLog.QA.00AD3FDA-5DDD-4123-9DAE-10A3876FE9E7.plist",
+        "TurtleGit.ActionLog.QA.18168037-8632-448B-88E9-2AE851C1BB8C.plist",
+        "TurtleGit.SavedData.QA.09843613-0713-4AF7-A592-732BBA2C0D2F.plist",
+        "TurtleGit.ActionLog.QA.CFA6128A-31B0-4143-833B-8D2734791D6A.plist",
+        "TurtleGit.SavedData.QA.484EBD80-B9B5-4937-8FB0-4FD2A17E0DDE.plist"
+      ],
+      "nonempty_private_preferences_retained": [
+        "TurtleGit.ActionLog.QA.7B53F2CB-8322-4007-9AF7-1685C70AAE4D.plist"
+      ],
+      "app_receiver_helpers": []
+    },
+    "limitations": "Authentication, temp/Gravatar cleanup, dialog geometry, Show Log cache, Merge message history and approved-hook resets remain pending. Merge DeleteFileWhenEmpty key reset anticipates an unimplemented prompt. Physical/native control/default/accessibility and signed/App Store acceptance unverified. GitHub authorization/CUA unavailable and not retried. Full goal active."
+  },
+  "logs_sha256": {
+    "build/qa/saved-data/action-log-native.log": "3a628d1aaac7e21dd03c7cc55c95bd782c56bc5be2cf5f481e5e3334682df215",
+    "build/qa/saved-data/cleanup.json": "9ed283ccc871be304c383084035e1aa5e57c55620ceef03793ffa031be2b4124",
+    "build/qa/saved-data/core-final.log": "63c76977bd564e1098801ef066d9fd43ad8f03ea4dce3b559435dc3f25c16c84",
+    "build/qa/saved-data/core.log": "8a76958fee3f02e795be095ed20eadb4ecb0b789bdc31543781aa9c98c0b5de8",
+    "build/qa/saved-data/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/saved-data/debug.log": "4f7ee5fd6d6bf6f055b7b0ddc006889eee1b188421cb017aebc746cca692591c",
+    "build/qa/saved-data/saved-data-native.log": "8ff5ef5833e237ab2baa1ef9f43a2666b60c8693b5615887df997af8bb596202",
+    "build/qa/saved-data/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/saved-data/store.log": "c6b15ded77af7ec7402dc88d58d90ea2c6f5d12d00f06b8ebc9ee7ec80f316ea"
+  }
+}

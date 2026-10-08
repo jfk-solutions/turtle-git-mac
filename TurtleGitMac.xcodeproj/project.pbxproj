@@ -82,6 +82,7 @@
 		737A5C831F62BBA90DDF08B4 /* ActionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 173811DDB174801ACF738211 /* ActionLog.swift */; };
 		73F05370C1A0B99B7BF35C5B /* CommitCompletionPopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4626C39B694CD13BD1D8FA1 /* CommitCompletionPopup.swift */; };
 		7402B84E5CE3702EC56EBAD8 /* FileComparisonEditing.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */; };
+		768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814E543BEB0736B84A50B21B /* SavedData.swift */; };
 		78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */; };
 		7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC73279697B4174BE7ED4D66 /* StashWindow.swift */; };
 		7CBA6AA078D63A8935313B51 /* RevisionComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */; };
@@ -332,6 +333,7 @@
 		7A48D22D1E6D22153CBA3744 /* Push.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Push.swift; sourceTree = "<group>"; };
 		7A4B370EB64932B2909A8228 /* CloneWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloneWindow.swift; sourceTree = "<group>"; };
 		7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflictWindow.swift; sourceTree = "<group>"; };
+		814E543BEB0736B84A50B21B /* SavedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedData.swift; sourceTree = "<group>"; };
 		81E52787ACF6315F812EA290 /* MessageSnippets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageSnippets.swift; sourceTree = "<group>"; };
 		83395323FFA0860A52795F9F /* Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stash.swift; sourceTree = "<group>"; };
 		85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleDiffWindow.swift; sourceTree = "<group>"; };
@@ -610,6 +612,7 @@
 				4CFFC2A3D59FEB71D24D009E /* RevertDialogSelection.swift */,
 				366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */,
 				870D95A7EC384863F1C04342 /* RevisionComparison.swift */,
+				814E543BEB0736B84A50B21B /* SavedData.swift */,
 				83395323FFA0860A52795F9F /* Stash.swift */,
 				29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */,
 				DA1D2D9DD08218C53951382F /* StatusListGroups.swift */,
@@ -906,6 +909,7 @@
 				F366E7B68CC9CA2A7D7171DA /* RevertDialogSelection.swift in Sources */,
 				413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */,
 				510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */,
+				768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
 				92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */,

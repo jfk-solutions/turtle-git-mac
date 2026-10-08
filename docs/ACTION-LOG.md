@@ -42,7 +42,8 @@ window controllers, Retry, quiet output, settings validation, Show/Clear
 callbacks and write-failure isolation. Run `swift test --filter ActionLogTests`
 and, after a Debug build, `python3 scripts/test-action-log.py`.
 
-This is partial Saved Data parity: other saved-data groups remain to be ported.
+The [Saved Data guide](SAVED-DATA.md) covers URL/message histories and stored
+decisions. Other saved-data groups remain to be ported.
 Other progress implementations, including replay and reference restoration,
 have not yet been wired to this persistent log. Physical Show/text-viewer UI,
 signed sandbox persistence and App Store distribution remain unverified.
