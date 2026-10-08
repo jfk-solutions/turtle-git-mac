@@ -1,0 +1,79 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "2b4935dc51cc26f78e73801f67e25cae69d26a5c",
+  "scope": "Native two-/three-pane Go to Line adaptation; original source-number navigation, AppKit bounded integer sheet, context actions and Control-G routing. Full app and physical acceptance incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5",
+    "src/TortoiseMerge/GotoLineDlg.cpp": "838a31f77395eb56ac59e276b4ef0acde7136c5d",
+    "src/TortoiseMerge/GotoLineDlg.h": "c4d2370e3366d8d537584e507062294f51e58c71"
+  },
+  "sources_manifest_sha256": "6e0b8540844c66c3750705c0abd6b3ffa4d5c21cc4c8451094ec9ae2dc7998a7",
+  "changed_files_sha256": {
+    "NOTICE": "4208f7a7e6865ddf272a0b267ed3b7fead810be63e070fd905ad21e9a6e8226c",
+    "Sources/TurtleGitCore/MergeSourceComparison.swift": "b10834b97df3fdca03fabe389ac44d21a7049234ef33459069d9ed08263c3ae4",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "8dba234e76b541af27e38f12012c25527a4848fd1ea305466752afcb1d605435",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "648faa854aea585d27ecd3fae9a98ff4751836266f3a3276799314bcba8fce48",
+    "Tests/TurtleGitCoreTests/MergeSourceComparisonTests.swift": "757a44a323e00daf3c9c167bd07b0feb32a6f3b92e6406cf71c25346044152a5",
+    "docs/COMPARISON-MARK-PARITY.md": "e3b0e586a9a2259cd68d07f8750fa879e145d888a6c00d870633bbc99097b51f",
+    "docs/qa/import-patch-native-2026-10-08.swift": "e0d10a78d45479d1a82273acc26ef50c75ce1099edb9dd6c7ee2f88f6af06391",
+    "docs/qa/three-pane-endings-native-2026-10-08.swift": "2c131b0745012081601a0853a78c8234458b2ad4ec76809734c453ab4f465ba2",
+    "docs/upstream-files.csv": "9c401a1efe175c715a57b31e96aac1ccc473d0d85fccbdf5f118991c4b8b0fb9"
+  },
+  "verification": {
+    "core": "Nine MergeSourceComparisonTests pass. New range tests cover all nine ending styles, Unicode UTF16 positions, unnumbered removed/gap/conflict rows, missing numbers, empty/single-line gating and raw pane ending ranges.",
+    "native": "Both hidden native receivers pass Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Actual menu dispatch reaches last numbered source row beyond removed/gaps, raw result last line and two-pane last source line for all nine endings. Injected nil/zero/overflow responses preserve selection. Three-pane busy/Quit states refuse direct stale-menu actions. AppKit number field/button validation covers empty/out-of-range/sign/fraction/space/full-width/overflow input and valid leading-zero input. Two-pane single-line gate verified. Existing native editing/Undo/Save and repository preservation checks pass.",
+    "builds": "Unsigned Debug and final Debug, both native receivers against stationary Debug, then sequential AppStore build pass. Both bundle audits, bundled NOTICE equality, inventory pin and diff checks pass. Sources/NOTICE/receivers frozen during all live build/Core/native sessions.",
+    "site": "Static GitHub Pages generator includes updated comparison parity and QA link; final result recorded in local site.log."
+  },
+  "iterations": [
+    "Initial Core test used adjacent LFCR separators and incorrectly expected three rows; existing pinned-compatible parser treats this ambiguous run as four. Test changed to distinct nonempty lines to test all nine unambiguous styles. Final Core tests pass; initial failing log retained. Native builds and both receivers pass first run."
+  ],
+  "limitations": [
+    "Physical number sheet presentation/focus, keyboard routing and actual attached-sheet Close/Quit interaction not exercised; chooser choices injected.",
+    "Native text selection/scroll adapts source view-line highlight; source locator/folding/full view behavior incomplete.",
+    "Number glyph is macOS native; source original assets retained elsewhere.",
+    "Full application parity, Finder signed deployment, real screenshots, App Store eligibility, GitHub CI and authenticated push remain incomplete."
+  ],
+  "cleanup": {
+    "removed_empty_preferences": [
+      "TurtleGit.ImportPatch.QA.70398C5E-E389-4656-97F4-F2FB5311EBA5.plist",
+      "TurtleGit.ImportPatch.QA.53D26493-2C29-45A6-B1EB-7C3E0AE9B9EF.plist",
+      "TurtleGit.ImportPatch.QA.9808995A-ACBC-402F-B53F-7906313D1E78.plist",
+      "TurtleGit.ImportPatch.QA.17B80234-3ED9-407D-AAFC-7F46EEF948A0.plist",
+      "TurtleGit.MergeMenu.QA.48CDB8A0-8E86-4F8F-8ECB-1A5B6B346107.plist",
+      "TurtleGit.MergeMenu.QA.F4AEC32A-02E3-4348-818F-BA012BE41693.plist",
+      "TurtleGit.MergeMenu.QA.D2B42553-35DD-416C-8F61-F2F230A4CB13.plist",
+      "TurtleGit.MergeMenu.QA.0C4EA588-4A17-455E-BE73-4749B12BD0DD.plist"
+    ],
+    "retained_nonempty_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "TurtleGit.ImportPatch.QA.77E263CF-C337-44E7-8E7E-D1E02A2F1C8E.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist",
+      "TurtleGit.MergeMenu.QA.08DC04E1-320A-4F44-BC87-017AD372B48F.plist",
+      "TurtleGit.MergeMenu.QA.33645076-C244-4915-BE35-EA57A82D24AE.plist",
+      "TurtleGit.MergeMenu.QA.E460D412-7C66-4E4D-B336-B7FA4A249B76.plist"
+    ],
+    "private_fixture_directories": [],
+    "processes": []
+  },
+  "local_log_sha256": {
+    "build/qa/merge-goto-line-2026-10-08/core-final.log": "2b023575e455e135af523781b2da64ff47ac21359fa9c5aa81417acc81186083",
+    "build/qa/merge-goto-line-2026-10-08/core.log": "57ee327b52396a832ebf1e87fb2c48a117a9f53305c09906324d026aa1206197",
+    "build/qa/merge-goto-line-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/merge-goto-line-2026-10-08/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-goto-line-2026-10-08/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-goto-line-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-goto-line-2026-10-08/store-audit.log": "c760ff4763f156e92fefd77049a3a405cd056e1834de60679fb6b388e97ef7a9",
+    "build/qa/merge-goto-line-2026-10-08/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/merge-goto-line-2026-10-08/three-pane-native.log": "e018ed8eed9875a4e9d5997090c0e139f4b8ccec382414726c02f0fa8303eb33",
+    "build/qa/merge-goto-line-2026-10-08/two-pane-native.log": "69c43ce2b33d55da535ac2c7c8a1bdef198ce696404b7e56b77cf6dae990b152",
+    "build/qa/merge-goto-line-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

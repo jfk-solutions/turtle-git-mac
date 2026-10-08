@@ -2,6 +2,29 @@ import XCTest
 @testable import TurtleGitCore
 
 final class MergeSourceComparisonTests: XCTestCase {
+    func testNavigationUsesSourceNumbersAcrossRemovedRowsGapsAndEveryEnding() {
+        for ending in MergeLineEnding.allCases {
+            let cells: [MergeSourceCell] = [
+                .init(text: "雪" + ending.rawValue, lineNumber: 1, state: .normal),
+                .init(text: "removed 🦎" + ending.rawValue, lineNumber: nil, state: .removed),
+                .init(text: "", lineNumber: nil, state: .empty),
+                .init(text: "last 🦎", lineNumber: 2, state: .conflicted),
+                .init(text: "", lineNumber: nil, state: .conflicted)]
+            XCTAssertEqual(MergeSourceComparison.navigationLimit(cells: cells), 2)
+            XCTAssertEqual(MergeSourceComparison.navigationRange(line: 2, cells: cells), NSRange(location: 14, length: 7))
+            XCTAssertEqual(MergeSourceComparison.navigationRange(line: 1, cells: cells), NSRange(location: 0, length: 1))
+            XCTAssertNil(MergeSourceComparison.navigationRange(line: 0, cells: cells))
+            XCTAssertNil(MergeSourceComparison.navigationRange(line: 3, cells: cells))
+            let text = "雪" + ending.rawValue + "middle" + ending.rawValue + "last 🦎"
+            let ranges = MergeSourceComparison.navigationRanges(text: text)
+            XCTAssertEqual(ranges.count, 3)
+            XCTAssertEqual(ranges.map { (text as NSString).substring(with: $0) }, ["雪", "middle", "last 🦎"])
+            XCTAssertEqual(MergeSourceComparison.navigationRanges(text: text + ending.rawValue).count, 3)
+        }
+        XCTAssertNil(MergeSourceComparison.navigationLimit(cells: []))
+        XCTAssertNil(MergeSourceComparison.navigationLimit(cells: [.init(text: "only", lineNumber: 1, state: .normal)]))
+        XCTAssertTrue(MergeSourceComparison.navigationRanges(text: "").isEmpty)
+    }
     func testRemovedRowsUnequalConflictSidesGapsAndOriginalNumbers() {
         let view = MergeSourceComparison(base: "head\nold1\nold2\ntail\n", mine: "head\nmine1\nmine2\nmine3\ntail\n", theirs: "head\ntheirs1\ntail\n")
         XCTAssertEqual(view.rows.map(\.mine.state), [.normal, .removed, .removed, .conflicted, .conflicted, .conflicted, .normal])

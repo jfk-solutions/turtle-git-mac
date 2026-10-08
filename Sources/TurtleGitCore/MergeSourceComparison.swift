@@ -122,6 +122,31 @@ public struct MergeSourceComparison: Sendable {
         }
         return result
     }
+    /// CBaseView::OnEditGotoline uses the last numbered source row, not
+    /// the count of aligned display rows. Its chooser is absent for <= 1 line.
+    public static func navigationLimit(cells: [MergeSourceCell]) -> Int? {
+        guard let last = cells.reversed().compactMap(\.lineNumber).first, last > 1 else { return nil }
+        return last
+    }
+    public static func navigationRange(line: Int, cells: [MergeSourceCell]) -> NSRange? {
+        guard line > 0 else { return nil }
+        var offset = 0
+        for cell in cells {
+            let length = (cell.displayText as NSString).length
+            if cell.lineNumber == line { return NSRange(location: offset, length: length) }
+            offset += length + 1
+        }
+        return nil
+    }
+    /// Raw Base/result panes have no alignment cells. Use the same nine-ending
+    /// parser as the editor; do not invent a numbered line after a final ending.
+    public static func navigationRanges(text: String) -> [NSRange] {
+        let source = text as NSString
+        return MergeLineEndings.lineRanges(in: text).map { range in
+            let content = MergeLineEndings.droppingFinalEnding(source.substring(with: range))
+            return NSRange(location: range.location, length: (content as NSString).length)
+        }
+    }
     private struct Hunk { let base: Range<Int>; let side: Range<Int>; let mine: Bool }
     private struct Region { var base: Range<Int>; var hunks: [Hunk] }
     private static func lines(_ text: String) -> [String] {

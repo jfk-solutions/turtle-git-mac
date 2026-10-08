@@ -14,6 +14,9 @@ import TurtleGitCore
         if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "g" {
             model?.find(flags.contains(.shift) ? .previousMatch : .nextMatch); return true
         }
+        if flags == .control, event.charactersIgnoringModifiers?.lowercased() == "g", let text = firstResponder as? FileComparisonTextView {
+            text.goToSourceLine(nil); return true
+        }
         if event.keyCode == 96 { model?.load(); return true }
         return super.performKeyEquivalent(with: event)
     }
@@ -683,7 +686,19 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding {
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding {
+    var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
+    var navigationPending = false
+    var navigationCells: [MergeSourceCell]? { sourceCells }
+    var navigationAllowed: Bool { model?.busy == false && model?.confirmingQuit == false }
+    @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if modifiers == .control, event.charactersIgnoringModifiers?.lowercased() == "g" {
+            goToSourceLine(nil); return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
     var history: UndoManager?
     weak var model: FileComparisonWindowModel?
     var baseSide = false
@@ -704,6 +719,7 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     override func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == NSSelectorFromString("undo:") { return model?.canUndo == true && model?.busy == false && model?.confirmingQuit == false }
         if item.action == NSSelectorFromString("redo:") { return model?.canRedo == true && model?.busy == false && model?.confirmingQuit == false }
+        if item.action == #selector(goToSourceLine(_:)) { return canNavigateToSourceLine }
         return super.validateMenuItem(item)
     }
     override func becomeFirstResponder() -> Bool {
@@ -799,6 +815,8 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
 
         }
         menu.addItem(.separator())
+        add("Go to Line…", #selector(goToSourceLine(_:)), NSImage(systemSymbolName: "number", accessibilityDescription: "Go to Line"), canNavigateToSourceLine)
+        menu.items.last?.keyEquivalent = "g"; menu.items.last?.keyEquivalentModifierMask = .control
         add("Save As…", #selector(exportPane), MenuIcon.mergeSaveAs.image(), !model.busy && !model.confirmingQuit)
         add("Undo", #selector(undoEdit), MenuIcon.mergeUndo.image(), model.canUndo && !model.busy && !model.confirmingQuit)
         add("Redo", #selector(redoEdit), MenuIcon.mergeRedo.image(), model.canRedo && !model.busy && !model.confirmingQuit)
@@ -842,5 +860,72 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate, Comparis
     @objc private func cutSelection() {
         guard isEditable, model?.canTransfer(toBase: baseSide) == true else { return }
         copy(nil); insertText("", replacementRange: selectedRange())
+    }
+}
+
+/// Shared native adaptation of CGotoLineDlg. AppKit owns the sheet, focus and
+/// validation; the injected choice supports tests without displaying a window.
+@MainActor final class MergeLineNumberPrompt: NSObject, NSTextFieldDelegate {
+    let alert = NSAlert()
+    let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+    let limit: Int
+    init(limit: Int) {
+        self.limit = limit
+        super.init()
+        alert.messageText = "Go to Line"
+        alert.informativeText = "Line number (1 – \(limit))"
+        alert.addButton(withTitle: "Go"); alert.addButton(withTitle: "Cancel")
+        alert.buttons[0].isEnabled = false
+        field.placeholderString = "Line number"; field.setAccessibilityLabel("Line number (1 – \(limit))")
+        field.delegate = self; alert.accessoryView = field
+        alert.window.initialFirstResponder = field
+    }
+    static func validated(_ input: String, limit: Int) -> Int? {
+        guard !input.isEmpty, input.utf8.allSatisfy({ (48...57).contains($0) }),
+              let value = Int(input), (1...max(1, limit)).contains(value), limit > 1 else { return nil }
+        return value
+    }
+    func controlTextDidChange(_ notification: Notification) {
+        alert.buttons[0].isEnabled = Self.validated(field.stringValue, limit: limit) != nil
+    }
+    static func choose(window: NSWindow, limit: Int) async -> Int? {
+        let prompt = MergeLineNumberPrompt(limit: limit)
+        let response = await withCheckedContinuation { continuation in
+            prompt.alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
+        }
+        guard response == .alertFirstButtonReturn else { return nil }
+        return validated(prompt.field.stringValue, limit: limit)
+    }
+}
+@MainActor protocol MergeLineNavigationProviding: AnyObject {
+    var chooseNavigationLine: (NSWindow, Int) async -> Int? { get set }
+    var navigationPending: Bool { get set }
+    var navigationCells: [MergeSourceCell]? { get }
+    var navigationAllowed: Bool { get }
+}
+extension MergeLineNavigationProviding where Self: NSTextView {
+    var navigationLimit: Int? {
+        if let cells = navigationCells { return MergeSourceComparison.navigationLimit(cells: cells) }
+        let count = MergeSourceComparison.navigationRanges(text: string).count
+        return count > 1 ? count : nil
+    }
+    var canNavigateToSourceLine: Bool {
+        navigationAllowed && !navigationPending && window?.attachedSheet == nil && navigationLimit != nil
+    }
+    func navigateToSourceLine() {
+        guard canNavigateToSourceLine, let window, let limit = navigationLimit else { return }
+        let original = string
+        navigationPending = true
+        Task { @MainActor in
+            defer { navigationPending = false }
+            guard let line = await chooseNavigationLine(window, limit), line >= 1, line <= limit,
+                  navigationAllowed, window.attachedSheet == nil, self.window === window,
+                  string.utf8.elementsEqual(original.utf8) else { return }
+            let range: NSRange?
+            if let cells = navigationCells { range = MergeSourceComparison.navigationRange(line: line, cells: cells) }
+            else { range = MergeSourceComparison.navigationRanges(text: string)[line - 1] }
+            guard let range, NSMaxRange(range) <= (string as NSString).length else { return }
+            window.makeFirstResponder(self); setSelectedRange(range); scrollRangeToVisible(range)
+        }
     }
 }

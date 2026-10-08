@@ -91,12 +91,39 @@ import TurtleGitCore
             precondition(!mine.writeSelection(to: clipboard, type: .rtf))
             mine.setSelectedRange(NSRange(location: 0, length: (mine.string as NSString).length))
             let sourceMenu = (mine as! MergeContextMenuProviding).mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
-            precondition(sourceMenu.items.filter { !$0.isSeparatorItem }.map(\.title) == ["Copy", "Find…", "Use this whole file"])
+            precondition(sourceMenu.items.filter { !$0.isSeparatorItem }.map(\.title) == ["Copy", "Find…", "Go to Line…", "Use this whole file"])
             precondition(sourceMenu.items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image != nil })
+            let mineCells = rows.map(\.mine)
+            let navigation = mine as! MergeLineNavigationProviding
+            let goto = sourceMenu.item(withTitle: "Go to Line…")!
+            precondition(goto.isEnabled && goto.keyEquivalent == "g" && goto.keyEquivalentModifierMask == .control)
+            let expectedLast = MergeSourceComparison.navigationRange(line: mineCells.compactMap(\.lineNumber).last!, cells: mineCells)!
+            navigation.chooseNavigationLine = { owner, limit in
+                precondition(owner === controller.window && limit == mineCells.compactMap(\.lineNumber).last!)
+                return limit
+            }
+            _ = NSApp.sendAction(goto.action!, to: goto.target, from: goto)
+            while navigation.navigationPending { try await Task.sleep(nanoseconds: 1_000_000) }
+            precondition(mine.selectedRange() == expectedLast)
+            for choice: Int? in [nil, 0, Int.max] {
+                navigation.chooseNavigationLine = { _, _ in choice }
+                _ = NSApp.sendAction(goto.action!, to: goto.target, from: goto)
+                while navigation.navigationPending { try await Task.sleep(nanoseconds: 1_000_000) }
+                precondition(mine.selectedRange() == expectedLast)
+            }
             let merged = textViews.first { $0.accessibilityLabel()?.hasPrefix("Merged ·") == true }!
             let firstBlock = model.blocks.first!
             merged.setSelectedRange(firstBlock.range)
             let provider = merged as! MergeContextMenuProviding
+            let resultNavigation = merged as! MergeLineNavigationProviding
+            let resultGoto = provider.mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard).item(withTitle: "Go to Line…")!
+            let resultRanges = MergeSourceComparison.navigationRanges(text: merged.string)
+            resultNavigation.chooseNavigationLine = { _, limit in precondition(limit == resultRanges.count); return limit }
+            let unmodifiedResult = model.result
+            _ = NSApp.sendAction(resultGoto.action!, to: resultGoto.target, from: resultGoto)
+            while resultNavigation.navigationPending { try await Task.sleep(nanoseconds: 1_000_000) }
+            precondition(merged.selectedRange() == resultRanges.last! && model.result == unmodifiedResult && !model.dirty)
+            merged.setSelectedRange(firstBlock.range)
             let resultMenu = provider.mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
             precondition(resultMenu.items.prefix(3).map(\.title) == ["Copy", "Cut", "Paste"])
             precondition(resultMenu.items.prefix(3).allSatisfy { $0.image != nil && ($0.target as? NSTextView) === merged })
@@ -121,6 +148,10 @@ import TurtleGitCore
                 precondition(locked.item(withTitle: "File Encoding")!.submenu!.items.allSatisfy { !$0.isEnabled })
                 let sourceLocked = (mine as! MergeContextMenuProviding).mergeContextMenu(defaults: menuDefaults, pasteboard: clipboard)
                 precondition(!sourceLocked.item(withTitle: "Use this whole file")!.isEnabled && sourceLocked.item(withTitle: "Copy")!.isEnabled)
+                precondition(!sourceLocked.item(withTitle: "Go to Line…")!.isEnabled)
+                navigation.chooseNavigationLine = { _, _ in preconditionFailure("Blocked Go to Line invoked chooser") }
+                _ = NSApp.sendAction(goto.action!, to: goto.target, from: goto)
+                precondition(!navigation.navigationPending && mine.selectedRange() == expectedLast)
                 precondition(!merged.validateMenuItem(format) && !merged.validateMenuItem(blockItems[0]))
                 _ = NSApplication.shared.sendAction(format.action!, to: format.target, from: format)
                 _ = NSApplication.shared.sendAction(blockItems[0].action!, to: blockItems[0].target, from: blockItems[0])
@@ -142,6 +173,6 @@ import TurtleGitCore
         let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(initialHead == finalHead && initialIndex == finalIndex)
         for path in paths { let bytes = try Data(contentsOf: root.appendingPathComponent(path)); precondition(bytes == workingBytes[path]) }
-        print("PASS: nine actual unmerged Git source pairs loaded by native three-pane controllers; all ending styles retain exact stage text, source numbering, read-only aligned rows/gaps and linked scrolling; native private-pasteboard Copy includes removed/conflict rows, skips Empty gaps, normalizes LF and retains emoji/partial selection, empty selection does not replace clipboard. HEAD/raw index/conflicted working bytes retained; explicit native menu targets/original icons and icon setting, private Paste availability, busy/Quit metadata and direct-action refusal, enabled CR format action/Undo/Redo verified; owned hidden windows closed. No main app, physical input, screenshots or signed acceptance.")
+        print("PASS: nine actual unmerged Git source pairs loaded by native three-pane controllers; all ending styles retain exact stage text, source numbering, read-only aligned rows/gaps and linked scrolling; native private-pasteboard Copy includes removed/conflict rows, skips Empty gaps, normalizes LF and retains emoji/partial selection, empty selection does not replace clipboard. HEAD/raw index/conflicted working bytes retained; Go to Line maps original source numbers past removed/gap rows and raw result last line; injected Cancel/out-of-range choices preserve selection, busy/Quit action guards pass; explicit native menu targets/original icons and icon setting, private Paste availability, busy/Quit metadata and direct-action refusal, enabled CR format action/Undo/Redo verified; owned hidden windows closed. No main app, physical input, screenshots or signed acceptance.")
     }
 }

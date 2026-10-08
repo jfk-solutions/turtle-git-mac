@@ -128,6 +128,9 @@ private enum MergeSourceSide {
             else if undo.canUndo { undo.undo() }
             return true
         }
+        if modifiers == .control, event.charactersIgnoringModifiers?.lowercased() == "g", let text = activeText as? MergeTextView {
+            text.goToSourceLine(nil); return true
+        }
         if modifiers == .command, event.charactersIgnoringModifiers == "f" {
             find(.showFindInterface); return true
         }
@@ -566,7 +569,19 @@ private struct MergeEditor: NSViewRepresentable {
 @MainActor protocol MergeContextMenuProviding {
     func mergeContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class MergeTextView: NSTextView, MergeContextMenuProviding {
+private final class MergeTextView: NSTextView, MergeContextMenuProviding, MergeLineNavigationProviding {
+    var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
+    var navigationPending = false
+    var navigationCells: [MergeSourceCell]? { sourceCells }
+    var navigationAllowed: Bool { model?.busy == false && model?.confirmingQuit == false }
+    @objc func goToSourceLine(_ sender: Any?) { navigateToSourceLine() }
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if modifiers == .control, event.charactersIgnoringModifiers?.lowercased() == "g" {
+            goToSourceLine(nil); return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
     weak var model: TextConflictWindowModel?
     var mergeEditable = false
     var sourceSide: MergeSourceSide?
@@ -649,6 +664,9 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding {
         menu.addItem(.separator())
         let find = NSMenuItem(title: "Find…", action: #selector(showFind(_:)), keyEquivalent: "")
         find.target = self; find.image = MenuIcon.mergeFind.contextImage(defaults: defaults); menu.addItem(find)
+        let navigationImage = MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? NSImage(systemSymbolName: "number", accessibilityDescription: "Go to Line") : nil
+        editingItem("Go to Line…", #selector(goToSourceLine(_:)), navigationImage, canNavigateToSourceLine)
+        menu.items.last?.keyEquivalent = "g"; menu.items.last?.keyEquivalentModifierMask = .control
         if let sourceSide {
             menu.addItem(.separator())
             let useFile = NSMenuItem(title: "Use this whole file", action: #selector(useSourceFile(_:)), keyEquivalent: "")
@@ -703,6 +721,7 @@ private final class MergeTextView: NSTextView, MergeContextMenuProviding {
         (window as? TextConflictNSWindow)?.find(.showFindInterface)
     }
     override func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(goToSourceLine(_:)) { return canNavigateToSourceLine }
         if menuItem.action == #selector(copyFromContext(_:)) { return selectedRange().length > 0 }
         if menuItem.action == #selector(cutFromContext(_:)) { return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && selectedRange().length > 0 }
         if menuItem.action == #selector(pasteFromContext(_:)) { return mergeEditable && isEditable && model?.busy == false && model?.confirmingQuit == false && NSPasteboard.general.availableType(from: [.string]) != nil }

@@ -193,8 +193,16 @@ import TurtleGitCore
         defer { menuClipboard.releaseGlobally() }
         menuClipboard.declareTypes([.string], owner: nil); menuClipboard.setString("private paste", forType: .string)
         editedView.setSelectedRange(NSRange(location: 0, length: 4))
+        let prompt = MergeLineNumberPrompt(limit: 2)
+        for input in ["", "0", "3", "-1", "1.5", " 1", "１", "9999999999999999999999"] {
+            prompt.field.stringValue = input; prompt.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification))
+            precondition(!prompt.alert.buttons[0].isEnabled && MergeLineNumberPrompt.validated(input, limit: 2) == nil)
+        }
+        prompt.field.stringValue = "02"; prompt.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification))
+        precondition(prompt.alert.buttons[0].isEnabled && MergeLineNumberPrompt.validated("02", limit: 2) == 2)
         let comparisonMenus = editedView as! ComparisonContextMenuProviding
         let menu = comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard)
+        precondition(!menu.item(withTitle: "Go to Line…")!.isEnabled) // Source single-line gate.
         precondition(["Copy", "Cut", "Paste"].allSatisfy { menu.item(withTitle: $0)?.image != nil && menu.item(withTitle: $0)?.isEnabled == true })
         precondition(["Copy", "Cut", "Paste"].allSatisfy { (menu.item(withTitle: $0)?.target as? NSTextView) === editedView })
         prefs.set(false, forKey: "ShowAppContextMenuIcons")
@@ -328,9 +336,26 @@ import TurtleGitCore
             precondition(endingModel.error == nil && endingModel.alignment!.rows.count == 2)
             let endingHost = NSHostingView(rootView: FileComparisonEditor(model: endingModel, cells: endingModel.alignment!.rows.map(\.destination), base: false))
             endingHost.frame = NSRect(x: 0, y: 0, width: 500, height: 300); endingHost.layoutSubtreeIfNeeded()
+            let navigationWindow = NSWindow(contentRect: endingHost.frame, styleMask: [.titled], backing: .buffered, defer: false)
+            navigationWindow.isReleasedWhenClosed = false; navigationWindow.contentView = endingHost
+            defer { navigationWindow.close() }
             let endingView = markedTextView(endingHost)!
             for _ in 0..<1000 { if endingView.isEditable { break }; try await Task.sleep(nanoseconds: 10_000_000) }
             precondition(endingView.string == "mine\ntail\n")
+            let navigation = endingView as! MergeLineNavigationProviding
+            let goto = (endingView as! ComparisonContextMenuProviding).comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard).item(withTitle: "Go to Line…")!
+            precondition(goto.isEnabled)
+            navigation.chooseNavigationLine = { owner, limit in precondition(owner === navigationWindow && limit == 2); return 2 }
+            _ = NSApp.sendAction(goto.action!, to: goto.target, from: goto)
+            while navigation.navigationPending { try await Task.sleep(nanoseconds: 1_000_000) }
+            precondition(endingView.selectedRange() == NSRange(location: 5, length: 4) && !endingModel.dirty)
+            for choice: Int? in [nil, 0, Int.max] {
+                navigation.chooseNavigationLine = { _, _ in choice }
+                _ = NSApp.sendAction(goto.action!, to: goto.target, from: goto)
+                while navigation.navigationPending { try await Task.sleep(nanoseconds: 1_000_000) }
+                precondition(endingView.selectedRange() == NSRange(location: 5, length: 4))
+            }
+            endingView.setSelectedRange(NSRange(location: 0, length: 0))
             let endingHistory = endingView.undoManager!; endingHistory.groupsByEvent = false
             endingHistory.beginUndoGrouping(); endingView.insertText("typed\n", replacementRange: NSRange(location: 0, length: 0)); endingHistory.endUndoGrouping()
             precondition(endingModel.draftText(base: false) == "typed" + eol + "mine" + eol + "tail")

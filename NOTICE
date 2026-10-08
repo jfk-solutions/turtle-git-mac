@@ -747,3 +747,9 @@ copy export. The shared FileSaveAs/export attribution above applies. Native save
 panels replace Windows file dialogs; pending export locks editing/Close/Quit and
 retains the original patch draft and repository state. Full source save-target
 retargeting and signed native panel access remain pending.
+
+Merge Go to Line adapts CBaseView::OnEditGotoline and CGotoLineDlg (copyright
+(C) 2023, 2025 TortoiseGit; (C) 2011, 2013, 2020 TortoiseSVN), GPL version 2
+or later. BaseView attribution above also applies. The native AppKit sheet
+validates one-based source numbers and skips unnumbered alignment rows;
+Control-G preserves macOS Command-G Find Next. Its number glyph is native.

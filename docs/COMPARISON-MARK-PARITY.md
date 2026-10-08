@@ -471,3 +471,31 @@ Import Patch regressions also pass. No Core code changed in this checkpoint.
 Physical context tracking, keyboard and actual clipboard action dispatch,
 read-only omission/source grouping, exhaustive format menu variants and signed
 sandbox acceptance remain pending.
+
+## Go to Line in comparison editors
+
+The pinned `CBaseView::OnEditGotoline` and `CGotoLineDlg` use one-based original
+source numbers, with a range ending at the last numbered source row. Removed
+Base rows and alignment gaps do not become destinations. No chooser opens when
+there are fewer than two numbered lines. The native two-pane comparison and
+three-pane conflict editors now provide **Go to Line…** in their context menus,
+with an AppKit sheet displaying that range, a focused number field, Go and
+Cancel. Go is disabled until the field contains a valid decimal number.
+
+**Control-G** opens the chooser; Command-G continues Find Next on macOS. The
+number glyph follows the application context-menu icon preference. Aligned
+Mine/Theirs and comparison panes navigate by their source numbers; raw Base and
+merged result panes use the shared parser for all nine line-ending styles. The
+native destination is selected and scrolled into view without changing text,
+Undo, encoding, or repository bytes. Busy/Quit states refuse navigation, repeated
+requests are ignored while pending, and a response is discarded if its pane
+text or owner window changed. Actual attached sheets participate in existing
+Close/Quit protection.
+
+[Go to Line QA](qa/merge-goto-line-2026-10-08.json) records Core range tests and
+hidden native receiver checks with injected choices. These checks exercise
+real menu target dispatch, source/result selection, Cancel, invalid responses,
+validation controls and operation guards. They do not prove physical sheet
+tracking, focus, keyboard routing or signed accessibility acceptance. The native
+text selection adapts the upstream view-line highlight; full locator/folding
+and source view behavior remain incomplete.
