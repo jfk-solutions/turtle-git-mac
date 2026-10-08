@@ -1,7 +1,12 @@
 import Foundation
 
+public protocol MessageHistory {
+    var entries: [String] { get }
+    func remove(_ messages: Set<String>)
+}
+
 /// User-local message history. Each mutation reloads storage so other open dialogs aren't overwritten.
-public final class CommitMessageHistory {
+public final class CommitMessageHistory: MessageHistory {
     private let defaults: UserDefaults
     private let key: String
     public let limit: Int

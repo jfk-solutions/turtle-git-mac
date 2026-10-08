@@ -74,6 +74,8 @@ jobs:
         run: python3 scripts/test-action-log.py
       - name: Native Merge and Fetch fast-forward live output
         run: python3 scripts/test-merge-stream.py
+      - name: Native Merge message history
+        run: python3 scripts/test-merge-history.py
       - name: Native Merge progress and recovery post-actions
         run: python3 scripts/test-merge-progress.py
       - name: Native Merge conflict hint and suppression

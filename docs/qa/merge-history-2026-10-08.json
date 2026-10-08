@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "b5317980291baab322c0e3533332d8b45d4d126b",
+  "scope": "Merge shared message history, native editor history context actions/insertion/save policy, shared picker and Saved Data clearing. Full app port incomplete. Wrong-chat protected-block request excluded.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/MergeDlg.cpp": "52095311feae10566902c8046bd1b606a1af3773",
+    "src/Utils/RegHistory.cpp": "23a4466ba7bb413767a874a0043717caf3c1b3a8",
+    "src/Utils/MiscUI/SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e",
+    "src/TortoiseProc/Settings/SetSavedDataPage.cpp": "761468a1b46c2f4ec196a351527e76de1ffbbc7c"
+  },
+  "sources_manifest_sha256": "785e2e6c5aa595e87f809b99847a1a57226adae2197652a16c6e506e07dc6885",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "cfefd471992e0a757f0b5f663e1987b05389f5d895fb939e349cbb65f2ff9eff",
+    "NOTICE": "2ba04dcba7bacde6ca030c1644a4e59cc900b27c8a57ae6d2706413a811f5bb9",
+    "Sources/TurtleGitCore/CommitMessageHistory.swift": "4e2ee8e9c24d0a4eb1f55f7d0da22dd267ff341c2894ae92485b2ca772dd5107",
+    "Sources/TurtleGitCore/MergeMessageHistory.swift": "dd7ead4719fab271b885fef8f705c7073148955ea7513fbb3bd8323de7816035",
+    "Sources/TurtleGitCore/SavedData.swift": "c8e7138c6d497c0a420d38810d397060c8b4f32a845e9bf75e2b1eebbbd5b706",
+    "Sources/TurtleGitMac/CommitMessageEditor.swift": "490d0c4ec7fa108577abb503026a213c8c74f67d58523a6cc3484b401cdeb6fe",
+    "Sources/TurtleGitMac/MergeMessageEditor.swift": "cb42e203dea1078f8b55419123dbc1ad30c3f5f471f7b4324673939db1f65f77",
+    "Sources/TurtleGitMac/MergeWindow.swift": "7f99e196f098cbe81bec4b2fdf53cf62b0bc457d968e051bfe590e85e3f70e44",
+    "Tests/TurtleGitCoreTests/MergeMessageHistoryTests.swift": "3d65f739df824b304f9a4be1bab4dc58d2373ccebff22843aee6b49d2685b6cf",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "c80902d7345f817a744db5490cbfa6de1936f2ba42fd75ff186d007905e1a5b7",
+    "docs/MERGE-PARITY.md": "e6cbcc23a96b8822f281e7ff32d99865d55a5db9ec4b45d41783d3814a29ce5b",
+    "docs/SAVED-DATA.md": "7288a71fc36474e9cb362ceae2f128bb3f1514bdd3761847094143c37c238592",
+    "docs/qa/merge-history-native-2026-10-08.swift": "486b106d1710d11184227530ad7684a26d9ed1d5bd81d7df62985dfe2b392bcc",
+    "docs/upstream-files.csv": "211053c2fa9aa5ffddbbe9f73e9d7cd8d999d358dbc008463ca4363d00b5c3c8",
+    "scripts/test-merge-history.py": "414cb7fbb8a149e3b035fdf0b59da50cb880e33533f6dd663bc97566395282b1"
+  },
+  "logs_sha256": {
+    "build/qa/merge-history/cleanup.json": "034205f124e1bb8386a6be961512ded42f9cba34be3fd022164802c2870a0d49",
+    "build/qa/merge-history/core.log": "9dd8dae21f46a113887e33f07c08dd7aa70a78f637ae2645162d924bcc8f4e61",
+    "build/qa/merge-history/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/merge-history/debug.log": "a55cb0c29c200b79c5252c7627ad675f5d731604fe779bd0fb0b219b99c91b7a",
+    "build/qa/merge-history/native.log": "36ba5b73e8835d3a26797740687ac096d2b0fd43e29ca2365dcd3d579fc65aa2",
+    "build/qa/merge-history/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-history/progress-regression.log": "1830c89a64769bf70c6b8d5859bf90ecaaf5377290106a1727da955a84c6fec4",
+    "build/qa/merge-history/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-history/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/merge-history/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "9 tests passed: MergeMessageHistoryTests (3), CommitMessageHistoryTests (2), SavedDataTests (4).",
+    "native": "Four engines passed new native Merge history/editor/controller receiver and existing Merge progress/recovery receiver. Private preferences and temporary repositories. No main app.",
+    "builds": "Unsigned Debug and AppStore builds passed sequentially, source unchanged across all compiler/native runs.",
+    "bundles": "Both bundle audits and NOTICE comparisons passed. 98 icons/universal EditorConfig/IssueRegex; Store Git 11 universal Mach-O files and local fixtures.",
+    "inventory": "Pinned inventory check, site build, 3277 records/7 fields and git diff --check passed."
+  },
+  "iterations": "No failed build/test iteration. Documentation-only scope/limitations text updated after native checks; final site generation follows this QA record.",
+  "cleanup": {
+    "empty_owned_preferences_removed": [
+      "TurtleGit.MergeHistory.Tests.6FA22452-F953-4527-98DF-B8E75BA3F370.plist",
+      "TurtleGit.MergeHistory.QA.82C6FF7C-698C-4AC9-BC1C-2DFF7359E132.plist",
+      "TurtleGit.MergeHistory.Tests.88DC8714-F95E-47AD-98A6-B26368044A68.plist",
+      "TurtleGit.MergeHistory.QA.B3D5D98A-B0DA-42D6-86C9-7A6C7D84CA98.plist",
+      "TurtleGit.MergeHistory.Tests.9D24B21B-165C-489D-8A5B-8212CA089536.plist",
+      "TurtleGit.MergeHistory.QA.0C59C1B2-212A-46DA-B220-A9C9B38FC1B3.plist",
+      "TurtleGit.MergeHistory.QA.01638185-3A29-4582-8C9C-9CFFFAF8FFC5.plist"
+    ],
+    "nonempty_preferences_preserved": [],
+    "app_or_receiver_processes": []
+  },
+  "intentional_source_difference": "Saved Data clears both Commit and Merge input history; pinned upstream counts both but deletes only Commit.",
+  "limitations": [
+    "Physical context menu/history sheet/keyboard/undo and light/dark appearance unverified.",
+    "Existing shared picker uses Swift String selection identities, so canonically equivalent Unicode spellings can share selection state; storage exact UTF-16 deduplication is verified.",
+    "Issue tracking/spelling/completion/editor font preferences and full Merge/application parity remain partial.",
+    "Unsigned bundle checks do not prove signing, sandbox/Finder runtime or App Store readiness.",
+    "GitHub CI/push and CUA unavailable from prior evidence; not retried."
+  ]
+}

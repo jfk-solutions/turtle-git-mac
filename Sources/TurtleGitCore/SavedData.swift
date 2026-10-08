@@ -33,7 +33,7 @@ public struct SavedDataStore {
         case .urlHistory:
             return ["Clone.URLHistory", "FormatPatchDirectories", "History.PullURLS", "History.RequestPull.url"].contains(key)
                 || key.hasPrefix("History.PushURLS.")
-        case .messageHistory: return key.hasPrefix("Commit.MessageHistory.")
+        case .messageHistory: return key.hasPrefix("Commit.MessageHistory.") || key == MergeMessageHistory.key
         case .dialogGeometry: return WindowGeometryStore.owns(key)
         case .storedDecisions: return Self.sourceDecisionKeys.contains(key) || Self.nativeDecisionKeys.contains(key)
         }

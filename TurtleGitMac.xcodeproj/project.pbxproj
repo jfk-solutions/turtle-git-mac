@@ -30,6 +30,7 @@
 		1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */; };
 		1E72435F8842C227747192C5 /* ConflictPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */; };
 		1EE5D062EF745705C82D9271 /* ReferenceCreation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 244AD68D8412684F520E64AC /* ReferenceCreation.swift */; };
+		2006DACDA67B90A4E15DCE8A /* MergeMessageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */; };
 		20EF27A5F53CDA212F1CD35E /* StashRestoreWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */; };
 		210F983F8CE785D0282CE58E /* WorkingTreeHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3452891FA131668D74905133 /* WorkingTreeHistory.swift */; };
 		230460E9908BB05D1AD2BD7C /* ApplicationDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A915E0D55658EE40F710D3B /* ApplicationDelegate.swift */; };
@@ -184,6 +185,7 @@
 		F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */; };
 		FB06077C7097755667D83917 /* CommitHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF6352B22FB03878FC59F470 /* CommitHistory.swift */; };
 		FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */; };
+		FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */; };
 		FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */; };
 /* End PBXBuildFile section */
 
@@ -316,6 +318,7 @@
 		5BAEA33A191EE642CA0F4FCA /* IssueRegex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueRegex.swift; sourceTree = "<group>"; };
 		5C1E4CB612A126A32276124E /* CommitMessageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitMessageHistory.swift; sourceTree = "<group>"; };
 		5CC68DDC9F827CA4F3DA9A05 /* SavedDataSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedDataSettings.swift; sourceTree = "<group>"; };
+		5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeMessageEditor.swift; sourceTree = "<group>"; };
 		5D08A34234EAA3FC6585226F /* WorktreeCreateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorktreeCreateWindow.swift; sourceTree = "<group>"; };
 		5E600ADAA231E0E7D95C9827 /* Icons */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Icons; path = Sources/TurtleGitCore/Resources/Icons; sourceTree = SOURCE_ROOT; };
 		61A970E8A247DF0EE306AB7F /* DialogGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogGeometry.swift; sourceTree = "<group>"; };
@@ -347,6 +350,7 @@
 		876D19E7421E1EB603F7DAD0 /* MessageFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageFormatting.swift; sourceTree = "<group>"; };
 		8927431F95C0127D9B66489A /* TextConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextConflict.swift; sourceTree = "<group>"; };
 		8BB0FD3A5C49E748AA9A42AC /* AddWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddWindow.swift; sourceTree = "<group>"; };
+		8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeMessageHistory.swift; sourceTree = "<group>"; };
 		8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProgressWindow.swift; sourceTree = "<group>"; };
 		9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonFileList.swift; sourceTree = "<group>"; };
 		92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWatermarkTable.swift; sourceTree = "<group>"; };
@@ -473,6 +477,7 @@
 				58A976676E04B6BC290F5465 /* LogGravatar.swift */,
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
 				63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */,
+				5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */,
 				326985003F83908822D7B91E /* MergeWindow.swift */,
 				9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */,
 				65BAEACE3DFED3450B1FD93F /* NativeFontSizeChoice.swift */,
@@ -593,6 +598,7 @@
 				35EFDB07D0E47ACAE56DF1EF /* MergeEditorPreferences.swift */,
 				EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */,
 				2F72591A0815973F2BD6B984 /* MergeLineEndings.swift */,
+				8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */,
 				5260D6BC21ED253CE64034DD /* MergeSourceComparison.swift */,
 				F7809458AF943456197C0AC7 /* MergeWhitespace.swift */,
 				28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */,
@@ -892,6 +898,7 @@
 				3CB563EE56DEB0B529C4BF4B /* MergeEditorPreferences.swift in Sources */,
 				3094584FBFF93568DEBA8626 /* MergeInlineComparison.swift in Sources */,
 				F84451AECD5756E3E03BCF2D /* MergeLineEndings.swift in Sources */,
+				2006DACDA67B90A4E15DCE8A /* MergeMessageHistory.swift in Sources */,
 				FDE4E41C91986D637B861330 /* MergeSourceComparison.swift in Sources */,
 				AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */,
 				B46406E18DBC3B1E7292BD5A /* MessageCodeScanner.swift in Sources */,
@@ -980,6 +987,7 @@
 				331C8EE4AE36F1AFA3067CD6 /* LogGravatar.swift in Sources */,
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,
 				78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */,
+				FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */,
 				1C7C643A9272F36E8A10A307 /* MergeWindow.swift in Sources */,
 				E0C3C88D342ACD61766B9E6A /* NativeFixedFontChoice.swift in Sources */,
 				8018F6DD761929B2D54820EF /* NativeFontSizeChoice.swift in Sources */,

@@ -626,3 +626,10 @@ folders replacing the Windows app-specific temporary directory. GPL-2.0-or-later
 Dialog frame persistence is a native AppKit implementation of TortoiseProc's
 EnableSaveRestore call-site behavior and Saved Data geometry clearing. Windows
 registry/window placement is replaced with scoped native frame preferences.
+
+Merge message history and editor insertion adapt TortoiseGit
+src/TortoiseProc/MergeDlg.cpp, copyright (C) 2008-2017, 2019-2020, 2023-2024
+TortoiseGit, and src/Utils/RegHistory.cpp, copyright (C) 2019 TortoiseGit and
+(C) 2007 TortoiseSVN, under GPL version 2 or later. The native editor follows
+src/Utils/MiscUI/SciEdit.cpp::InsertText under the same license; its copyright
+attribution is retained above. Windows registry storage becomes UserDefaults.

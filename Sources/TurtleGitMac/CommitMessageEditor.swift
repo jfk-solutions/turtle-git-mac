@@ -201,11 +201,11 @@ struct CommitEditorSettings: View {
 }
 
 struct CommitMessageHistoryDialog: View {
-    let history: CommitMessageHistory
+    let history: any MessageHistory
     let finish: (String?) -> Void
     @State private var entries: [String]
     @State private var selection = Set<String>()
-    init(history: CommitMessageHistory, finish: @escaping (String?) -> Void) {
+    init(history: any MessageHistory, finish: @escaping (String?) -> Void) {
         self.history = history; self.finish = finish; _entries = State(initialValue: history.entries)
     }
     var body: some View {
@@ -234,7 +234,7 @@ private struct CommitHistoryList: NSViewRepresentable {
         table.addTableColumn(NSTableColumn(identifier: NSUserInterfaceItemIdentifier("message")))
         table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.acceptRow(_:))
-        table.setAccessibilityLabel("Recent commit messages")
+        table.setAccessibilityLabel("Recent messages")
         scroll.documentView = table; return scroll
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
