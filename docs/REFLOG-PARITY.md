@@ -263,3 +263,37 @@ gates, original icon mapping and reuse predicates. HEAD, refs, index, config and
 working file remain unchanged by those reads. These checks display no UI; physical
 menu/icon rendering, complete upstream context order and actions, edited/busy
 window routing, light/dark layouts and signed sandbox execution remain pending.
+
+## Working-tree and selected-revision comparisons
+
+Compare with working tree passes one current entry's immutable revision and the
+working tree to the native Changed Files dialog. It is disabled for bare repositories.
+Compare revisions accepts exactly two current rows, including a non-adjacent pair,
+or a continuous selection of more than two rows. It compares the last displayed
+selected row as the base and the first as the destination, following `DiffCommit`
+and preserving older-to-newer patch direction. Distinct selectors with equal
+hashes remain valid and produce an empty comparison. Empty, stale, noncontinuous
+larger selections, busy models and absent callbacks do not dispatch.
+
+Comparison controls precede single-revision Log/Browser commands; multi-revision
+Compare follows Delete/Apply before clipboard commands. The existing unified-diff
+inspection action now precedes Log. Full upstream context menus/order, merge-parent
+unified diffs and two-revision unified/range commands remain pending. Read-only
+revision choosers may compare when their caller supplies a callback; current
+choosers without it leave the command disabled.
+
+Changed Files reuse requires matching repository/runtime and both revision fields,
+no active operation/sheet, and no busy or dirty owned child comparison. An edited
+or busy comparison retains its ownership while the requested comparison opens
+separately. Reopening a matching idle comparison reloads its snapshot, including
+current working content. Physical factory routing and independent close remain
+unverified.
+
+[Comparison receiver](qa/reflog-comparisons-native-2026-10-08.swift) and
+[QA record](qa/reflog-comparisons-2026-10-08.json) load actual Changed Files models
+for arbitrary pairs, continuous selections, repeated hashes, revision-to-working
+and bare revision pairs. Added/deleted paths and patch direction are checked;
+working bytes override staged bytes. Ordinary HEAD/refs/index/config/worktree
+remain byte-exact unchanged. No windows are displayed, so menu/icon rendering,
+physical comparison activation/reuse, light/dark layout and signed access remain
+pending. Full application parity remains incomplete.

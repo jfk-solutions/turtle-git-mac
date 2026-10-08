@@ -678,8 +678,13 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.load()
     }
     private func showRevisionComparison(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) {
-        let key = repository.root.path + "\0" + from.label + "\0" + to.label
-        let controller = revisionComparisonWindows[key] ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to)
+        let baseKey = repository.root.path + "\0" + from.label + "\0" + to.label
+        let reusable = revisionComparisonWindows.first { _, controller in
+            controller.model.repository.root == repository.root && controller.model.repository.executable == repository.executable &&
+            controller.window?.attachedSheet == nil && controller.model.canReuseForComparison(from: from, to: to)
+        }
+        let key = reusable?.key ?? (revisionComparisonWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
+        let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to)
         controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
         controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
@@ -689,6 +694,7 @@ import TurtleGitCore
             self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to)
         }
         revisionComparisonWindows[key] = controller
+        controller.model.load()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], amendToParent: Bool = false) {
@@ -857,6 +863,7 @@ import TurtleGitCore
         controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
         controller.model.onCreateReference = { [weak self] isTag, hash in self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash) }
         controller.model.onExport = { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash) }
+        controller.model.onCompare = { [weak self] from, to in self?.showRevisionComparison(repository: repository, access: access, from: from, to: to) }
         controller.model.onApply = { [weak self] hash in self?.showStashRestore(repository: repository, access: access, pop: false, reference: hash) }
         controller.model.onChanged = { [weak self] output in
             self?.refreshRepositoryLogs(root)

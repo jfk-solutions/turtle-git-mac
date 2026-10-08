@@ -108,6 +108,8 @@ import TurtleGitCore
     var onBrowseRepository: ((String) -> Void)?
     var onCreateReference: ((Bool, String) -> Void)?
     var onExport: ((String) -> Void)?
+    var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
+    @Published private(set) var hasWorkingTree = false
     @Published private(set) var currentStashHash: String?
     private var currentStashIndexParent: String?
     var onChanged: (String) -> Void = { _ in }
@@ -123,6 +125,7 @@ import TurtleGitCore
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let refs = try await repository.referenceLogNames(), result = try await repository.referenceLog(reference)
+                let bare = try await repository.isBare()
                 var stashHash: String?, indexParent: String?
                 if refs.contains("refs/stash") {
                     let hash = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "refs/stash"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
@@ -134,6 +137,7 @@ import TurtleGitCore
                 }
                 guard request == generation else { return }
                 currentStashHash = stashHash; currentStashIndexParent = indexParent
+                hasWorkingTree = !bare
                 names = Array(Set(refs + [reference])).sorted(); entries = result
                 selection.formIntersection(Set(result.map(\.id))); searchIndex = 0; searchWrapped = false; busy = false
             } catch { if request == generation { self.error = error.localizedDescription; busy = false } }
@@ -215,6 +219,26 @@ import TurtleGitCore
         if selecting { selection = ids; accept() }
         else if let entry = entries.first(where: { ids.contains($0.id) }) { onLog?(entry.hash) }
     }
+    func comparisonSides(_ command: ReferenceLogComparisonCommand, ids: Set<String>) -> (ComparisonRevision, ComparisonRevision)? {
+        guard !busy, !ids.isEmpty else { return nil }
+        let indices = entries.indices.filter { ids.contains(entries[$0].id) }
+        guard indices.count == ids.count, let first = indices.first, let last = indices.last else { return nil }
+        switch command {
+        case .workingTree:
+            guard ids.count == 1, hasWorkingTree else { return nil }
+            return (.revision(entries[first].hash), .workingTree)
+        case .revisions:
+            guard ids.count >= 2, ids.count == 2 || last - first + 1 == ids.count else { return nil }
+            return (.revision(entries[last].hash), .revision(entries[first].hash))
+        }
+    }
+    func canCompare(_ command: ReferenceLogComparisonCommand, ids: Set<String>) -> Bool {
+        onCompare != nil && comparisonSides(command, ids: ids) != nil
+    }
+    func compare(_ command: ReferenceLogComparisonCommand, ids: Set<String>) {
+        guard let onCompare, let (from, to) = comparisonSides(command, ids: ids) else { return }
+        onCompare(from, to)
+    }
     func showLog(_ ids: Set<String>) {
         guard !busy, ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         onLog?(entry.hash)
@@ -256,6 +280,11 @@ import TurtleGitCore
     }
 }
 enum ReferenceLogCopyFormat { case full, hashes, messages }
+enum ReferenceLogComparisonCommand {
+    case workingTree, revisions
+    var title: String { self == .workingTree ? "Compare with working tree" : "Compare revisions" }
+    var icon: MenuIcon { .compare }
+}
 enum ReferenceLogRevisionCommand: CaseIterable, Hashable {
     case browseRepository, createBranch, createTag, export
     var title: String {
@@ -292,16 +321,25 @@ private struct ReferenceLogDialog: View {
                 TableColumn("Date") { entry in if entry.date != nil { Text(ReferenceLogWindowModel.dateText(entry, dates: HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale))) } }.width(min: 140, ideal: 175)
             }.contextMenu(forSelectionType: String.self) { ids in
                 TurtleGitContextMenu {
+                    if ids.count == 1 {
+                        Button { model.compare(.workingTree, ids: ids) } label: { CommandLabel(title: ReferenceLogComparisonCommand.workingTree.title, icon: .compare) }.disabled(!model.canCompare(.workingTree, ids: ids))
+                        Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }
+                        Divider()
+                    }
                     Button { model.showLog(ids) } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(ids.count != 1 || model.onLog == nil)
                     ForEach(ReferenceLogRevisionCommand.allCases, id: \.self) { command in
                         Button { model.perform(command, ids: ids) } label: { CommandLabel(title: command.title, icon: command.icon) }.disabled(!model.canPerform(command, ids: ids))
                     }
-                    Button { model.inspect(ids) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.count != 1)
+                    Divider()
                     if !model.selecting { Button { model.delete(ids) } label: { CommandLabel(title: "Delete", icon: .deleted) }.disabled(ids.isEmpty) }
                     if !model.selecting && model.reference == "refs/stash" {
                         Button { model.apply(ids) } label: { CommandLabel(title: "Stash apply", icon: .stashPop) }.disabled(ids.count != 1)
                     }
                     Divider()
+                    if ids.count >= 2 {
+                        Button { model.compare(.revisions, ids: ids) } label: { CommandLabel(title: ReferenceLogComparisonCommand.revisions.title, icon: .compare) }.disabled(!model.canCompare(.revisions, ids: ids))
+                        Divider()
+                    }
                     Menu {
                         Button { model.copy(ids, format: .full) } label: { CommandLabel(title: "Full data", icon: .copy) }
                         Button { model.copy(ids, format: .hashes) } label: { CommandLabel(title: "SHA-1", icon: .copy) }

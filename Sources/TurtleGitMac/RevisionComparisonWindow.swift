@@ -83,6 +83,12 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     var comparisonWindows: [String: FileComparisonWindowController] = [:]
     var visibleFiles: [CommitFile] { snapshot?.files.filter { filter.isEmpty || $0.path.localizedCaseInsensitiveContains(filter) || $0.oldPath?.localizedCaseInsensitiveContains(filter) == true }.sorted(using: sortOrder) ?? [] }
     init(repository: GitRepository, access: RepositoryAccessLease?, from: ComparisonRevision, to: ComparisonRevision) { self.repository = repository; self.access = access; self.from = from.label; self.to = to.label }
+    func canReuseForComparison(from requestedFrom: ComparisonRevision, to requestedTo: ComparisonRevision) -> Bool {
+        !busy && !confirmingQuit && from == requestedFrom.label && to == requestedTo.label &&
+        patchWindow?.model.busy != true && patchWindow?.window?.attachedSheet == nil &&
+        !unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } &&
+        !comparisonWindows.values.contains { $0.model.busy || $0.model.dirty }
+    }
     private func side(_ input: String) -> ComparisonRevision {
         switch input.lowercased() { case "working tree": return .workingTree; case "empty tree": return .emptyTree; default: return .revision(input) }
     }

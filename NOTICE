@@ -481,3 +481,7 @@ RefLog Browse repository, Create Branch/Tag and Export revision handoffs and
 current-stash/adjacent-index-parent creation gates are adapted from
 GitLogListBase.cpp and GitLogListAction.cpp at the recorded TortoiseGit pin.
 Original command icons and existing native revision dialogs are reused.
+
+RefLog working-tree and selected-entry comparisons follow GitLogListBase.cpp,
+GitLogListAction.cpp and GitDiff.cpp at the recorded pin, including continuous
+selection eligibility and the source's older-to-newer comparison direction.

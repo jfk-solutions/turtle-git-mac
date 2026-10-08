@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "9ab2d2a0c0ee65569b9aff63e1cab29f29af6347",
+  "scope": "RefLog working-tree and selected-entry comparisons in native Changed Files, source selection eligibility and direction, and matching idle Changed Files window reuse. Partial parity; full app port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/TortoiseProc/GitDiff.cpp": "df09c3c370bb1f86b3f71e4981a6b1d64892dce7",
+    "src/TortoiseProc/refloglist.cpp": "c1fb07f5fa8bf318d436fbb877656944b8d2f008",
+    "src/Resources/TortoiseLoglistCommon.rc2": "a174ae27ca959c289076127e729f58ba37bd2fd6"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "1d277cc46131ccb59aeee9134d3b6fec85e53b1ec9fe0dd125bf99ac4b9e2f64",
+    "NOTICE": "d026c27a4b6be23d9c8ad7007ced104fff36ebb552ac8e1c67d7ae22e6e5ab57",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "39161588202c7f582dea6202f552de9e25865ed8c54ae2972ae5d06cfbd4a992",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "57bc668a1de2c978f96c975d9c0e49ab4023b91da24d178e5909c9aaf76dbe23",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "3112ac38292e757226bdd31d4debda88f4fd8ff2babb2a05a50d664ac0ff2704",
+    "docs/PORTING.md": "e006e7fbbc919f727152c09410c38944f2aedb72a3b34c5557d7b128602fb303",
+    "docs/REFLOG-PARITY.md": "603fb11337507eb578fafa9b2711cc68d4d3aff1a9d7868bba140f36307e430b",
+    "docs/qa/reflog-comparisons-native-2026-10-08.swift": "13ea53b75c4f148ca08ec4f82a6f374b9281e4f90b81a8bfefaf32023b9f20af",
+    "docs/upstream-files.csv": "ffa28deefc7aa9e5bd5e504f022d4998ee7f9d1821adc54a055ad54a47b522ec",
+    "scripts/test-reflog-comparisons.py": "a6111c584932434154f47853b2c8b948c10f3dd576f5e83afcb42f6ad89195a5"
+  },
+  "all_sources_manifest_sha256": "9fe49b3e79e8fd28c0643c714526825b38d469f4f8e8d3202ffdfe8bba758ca1",
+  "verification": {
+    "native": "System Git, Git 2.37.1, 2.39.5 and bundled 2.55.0 passed. Production callbacks load actual Changed Files models for arbitrary pairs, continuous larger selections, equal hashes, revision-to-working and bare-repository revision pairs. Source base/destination direction verified by deleted/added files and real patches. Working patch contains current Unicode bytes instead of staged content. Empty, stale, noncontinuous larger, single-revision pair, busy, missing callback and bare working-tree gates verified. Read-only chooser dispatch requires callback. Matching revision fields and edited/busy/confirming-quit reuse predicates checked. HEAD/refs/index/config/worktree byte-exact unchanged by ordinary read paths. No visible windows or preference writes.",
+    "regression": "Existing Browser/Branch/Tag/Export handoff receiver passed all four Git versions against final Sources, retaining immutable selected revisions, tree/blob and creation/export presets, current/older stash/index-parent gates, chooser restrictions and reuse predicates.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git Mach-O files and real fixture operations. EditorConfig and IssueRegex audits passed.",
+    "iterations": "Final Debug, comparison and handoff four-Git matrices and AppStore build passed first run; no failed iteration.",
+    "core": "No Core source changed. Receivers use real existing Core comparison, reflog and patch methods; no new Core suite run for this native routing checkpoint.",
+    "documentation": "RefLog parity, PORTING summary, NOTICE and pinned source inventory updated. Pin checker and all 3277 seven-column source rows passed. Local site generated; unpublished.",
+    "ci": "Comparison receiver added to macOS workflow. Hosted CI and push remain unverified; authentication unavailable, no retry.",
+    "processes": "All build/compiler/native/audit sessions terminal; no main GUI launch or displayed receiver windows. Final app/native receiver process audit empty.",
+    "limitations": "Physical context/menu/icon rendering and exact visibility/order, actual Changed Files factory reuse/independent close, owned child dirty/busy reuse guards, light/dark layouts and signed sandbox access remain unverified. Choosers without callbacks disable comparisons. Two-revision unified diffs, Log ranges, merge-parent choices and full revision/ref menus remain pending. Full dialog/Finder parity, genuine updated screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-comparisons/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-comparisons/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-comparisons/handoffs-regression.log": "a9323c6f97f8a6002e259ff840f51fd84db89ba3e3709f0383d1656a39508279",
+    "build/qa/reflog-comparisons/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-comparisons/native.log": "a6d03b64910f6134b910b739e405bc345fadb26d9adf7fd557ffb6e92ff58d4d",
+    "build/qa/reflog-comparisons/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-comparisons/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-comparisons/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-comparisons/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-comparisons/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
