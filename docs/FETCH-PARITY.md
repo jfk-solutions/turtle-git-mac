@@ -22,7 +22,8 @@ Git receives literal argument arrays, preserving branch names and URL punctuatio
 Browse retrieves actual remote heads through `ls-remote` and offers a searchable
 native selection sheet. Manage reuses the basic remote settings sheet from Push.
 Configured Git credential helpers and SSH agents replace PuTTY key loading.
-Successful fetch closes and refreshes views; failures retain inputs.
+Ordinary Fetch retains success or failure in an owned progress sheet, with source
+post-actions described below. Configured Fetch → Rebase retains its existing handoff.
 
 ## Evidence
 
@@ -165,9 +166,9 @@ physical history deletion and signed sandbox checks remain pending. Full port in
 
 Cancel and the window close gesture request cancellation during Fetch, merge Pull
 and Fetch-before-Rebase. Controls remain locked until the operation finishes;
-Cancel shows Cancelling… while the owned process group stops. Fetch and Fetch-before-Rebase windows stay
-open with selected inputs and a cancellation result. Merge-based Pull closes its
-owned progress/options after accepted cancellation finishes. Idle Cancel closes it.
+Cancel shows Cancelling… while the owned process group stops. Ordinary Fetch and
+merge-based Pull close their owned progress/options after accepted cancellation
+finishes. Fetch-before-Rebase retains its inputs and cancellation result. Idle Cancel closes it.
 A cancelled fetch does not trigger success or open Rebase. A fresh cancellation
 token is created for every invocation. Merge-based Pull now retains the result in
 its own progress sheet; see PULL-PARITY.md for its actions and owning-window lifecycle. Cancellation does not roll back changes
@@ -219,3 +220,33 @@ Physical dropdown event routing and highlight behavior, field-editor focus,
 actual Shift+Delete/Forward Delete/Escape, resize/theme/accessibility and signed
 sandbox acceptance remain pending. Source return-key/wheel handling and complete
 HistoryCombo parity are not established by these checks. Full port incomplete.
+
+## Ordinary Fetch progress and post-actions
+
+Ordinary Fetch captures its options and keeps the owning dialog locked until its
+progress result closes. Success offers Show log, Reset…, Fetch…, Rebase… and
+Switch/Checkout… in upstream order. Bare repositories omit Rebase, as upstream
+does. Failure offers Retry, plus Show log for an all-remotes fetch. Retry reuses
+the captured arguments with a fresh cancellation token; macOS retains the same
+progress sheet rather than opening another progress window. All-remotes failure
+can follow a successful update of another remote; Retry does not roll that back.
+
+Reset resolves the current tracked branch when selected, then opens native Reset
+with Hard selected. The Fetch result itself does not reset HEAD/index/worktree.
+The other actions route to native Log, a fresh Fetch dialog, Rebase After Fetch
+or Switch. Dispatch and close guards prevent duplicate actions. The original
+refresh.ico now supplies the Retry icon here and in Abort Merge; upstream
+IDI_REFRESH uses that resource, distinct from its ribbon Refresh bitmap.
+
+[Fetch progress QA](qa/fetch-progress-2026-10-08.json) records real Git checks for
+captured options, retained results, named/all-remotes retry, partial transport
+failure, fresh tracked Reset defaults, bare action conditions, duplicate dispatch
+and cancellation cleanup. It also records updated shared-history, clipboard and
+submodule regressions. No main GUI is launched by these receivers.
+
+Configured Fetch → Rebase still uses its earlier route. Upstream's up-to-date,
+unchanged and fast-forward decision prompts and automatic mode variants remain
+pending. Physical progress-sheet controls, destination windows, light/dark,
+keyboard/accessibility, streaming output, network credentials and signed sandbox
+acceptance remain pending. The existing screenshot shows options and predates
+this progress sheet. Full application parity is incomplete.

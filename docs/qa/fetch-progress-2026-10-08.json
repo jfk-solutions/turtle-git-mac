@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "6fda4ee01269aa32db2c1dcfc4a9ff991fe9dd40",
+  "scope": "Ordinary Fetch retained owned progress and source post-actions; configured Fetch/Rebase decision prompts and full application port remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/PullFetchDlg.cpp": "261e75446acd8f6c3a14ed29dd57dd56d92a449a",
+    "src/TortoiseProc/Commands/FetchCommand.cpp": "f4c60bae0c5c297c249146430e3b7004ee091e0a",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f",
+    "src/Resources/refresh.ico": "30c0ecba792ae5f953e12700fd4a883970bc2558"
+  },
+  "sources_manifest_sha256": "edecc4ecae4b615b57cef881ea0aa26f1a317a9557f0b376c80387d6decdcaed",
+  "files_sha256": {
+    "NOTICE": "6b6c74c964c3573adccb07e261cf2d0bd28ba63766d59949babbeeb7d75aacc7",
+    "README.md": "124cdef128ab6c5e17e3ab96b72e17a87855739a5ed9681a998e1b7460606ba9",
+    ".github/workflows/macos.yml": "36bd91ab754410d01c55fde74ce00e64d1c41191d6c77d4c6f2ac3c3cb7b9248",
+    "docs/FETCH-PARITY.md": "cbd3760095e0fb184617c39cb5a1f6fe42a265d9c13ffa4db7f7d8c60be7e6f5",
+    "docs/upstream-files.csv": "b4bfee8bf23ef7cc8e0f3061f945d52c69824aa6a17f5dad90edd0033be674a9",
+    "Sources/TurtleGitMac/FetchWindow.swift": "600bbe3444b77c8ebf11e92eef6508688f09a82b028e09fd7e86a1b913efccf0",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "83b0f67f738469b5b425b344bd0529ff6224c3c32ea7194bc6291ec938cc02cb",
+    "Sources/TurtleGitMac/MergeWindow.swift": "7fdac6967ad84681e6b77f923930c8a11acfcf438ffa8dc0b9712dfcb4860f86",
+    "Sources/TurtleGitCore/MenuIcons.swift": "a6f1b81080adc179d2be4ec57d4d0f7a23994011319cd41315a93418e5240357",
+    "Sources/TurtleGitCore/Resources/Icons/refresh.ico": "2a3c88473a11ae60e90b35b51039827794478ac0ed0eb6a60c73a9afffcb1bd3",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "9aa55cab9af62b966243136e28e1df6462602c7993baececbefe581b954f8edc",
+    "scripts/test-fetch-progress.py": "70737a03d26638f9b4a85b708aaf47f30a6bf4c68f1ebfa09413347d9ae63fbb",
+    "docs/qa/fetch-submodule-defaults-native-2026-10-07.swift": "1bc1b5aa0c303de29125e19a612de985249984f8b7127cf0928a786224e1da3d",
+    "docs/qa/fetch-history-native-2026-10-07.swift": "05766d756c222eb4198be19d124c905e04047bb53e25553d6e64e433957d250f",
+    "docs/qa/fetch-cancellation-native-2026-10-07.swift": "9d6bae1c6a3da52bce7212417509529fbcc1785501a7b130f210b57aafed239d",
+    "docs/qa/fetch-clipboard-native-2026-10-07.swift": "356dbbf3af34ae1b7db1670c93753b0023391a7c0f21f8e43e26c8bff2dd1d69",
+    "docs/qa/fetch-progress-native-2026-10-08.swift": "d52bf594ec6ececb47603017e39a1d9a748cb6bae90b682593158cacf11561e5"
+  },
+  "git_matrix": [
+    "2.50.1 (Apple Git-155)",
+    "2.37.1",
+    "2.39.5",
+    "2.55.0 (bundled)"
+  ],
+  "verification": {
+    "native": "Four-Git matrix passed: captured options and retained result/owner; named failure Retry, all-remotes failure Retry/Log; real partial all-remotes updates preserved; Retry captured args/fresh token; exact success and bare action lists; duplicate dispatch/early finish ignored; current tracked Hard Reset default callback without mutation; successful tracking update preserves HEAD/index/working bytes; corrected original refresh ICO loads.",
+    "cancellation": "Updated four-Git receiver passed Fetch/Pull/Fetch-before-Rebase cleanup: owned wrapper/helper dead, unrelated process survives, No/Yes confirmation, no success/Rebase callback, unchanged pre-transport HEAD/index. Owned ordinary Fetch and Pull policy modes close progress/owner after cleanup. One explicitly owned hidden settings window closes per process.",
+    "regressions": "Updated clipboard, shared history and registered submodule-default receivers passed four-Git matrices. Explicitly finish retained ordinary Fetch results before model reuse. No standard preferences or user pasteboard reads/writes.",
+    "builds": "Unsigned Debug and AppStore builds passed. Both bundle audits passed with embedded Finder extension, licenses and 98 upstream icons; bundled NOTICE byte-identical. Store bundled Git 2.55.0: 11 universal Mach-O files and actual local Git fixture operations passed. No signed distribution claim.",
+    "documentation": "Fetch parity, README, NOTICE, native CI step and partial source mappings updated; 3277 seven-column source rows; pin checker passed. Local site generated successfully, unpublished.",
+    "processes": "All five native receiver sessions terminal before AppStore build. Main GUI never launched. Receivers use prohibited activation; hidden owned controls/windows close. Empty private UUID preferences only removed after receiver termination; final app/receiver process audit empty. All build/audit sessions terminal. Removed 20 empty owned UUID test preference plists; nonempty files untouched.",
+    "limitations": "Headless model/Git evidence does not establish physical progress sheet/button/keyboard/theme/accessibility or native destination handoffs, signed scope/Finder/AppStore, streaming output or network credentials. Configured Fetch/Rebase retains earlier route; source up-to-date/unchanged/fast-forward prompts and automatic variants pending. Retry reuses macOS sheet rather than another upstream progress window. All other full file/dialog/application parity remains incomplete. Existing screenshot predates progress. Hosted CI/site publication unavailable; GitHub authorization not retried."
+  },
+  "logs_sha256": {
+    "build/qa/fetch-progress/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/fetch-progress/cancellation.log": "0135c929c28fac24b8178800ce5638254643ddb844d164f26c5b196940e10859",
+    "build/qa/fetch-progress/clipboard.log": "6925911b65b2eb41efd21658bfc17f22447dca455cf525339aaa17878e1ff566",
+    "build/qa/fetch-progress/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/fetch-progress/debug-before-original-retry-icon.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/fetch-progress/history.log": "7a7c1e3e8cee33ab753f46bb1fdc3e0bdbcab172a73d18e922ed75820c52540d",
+    "build/qa/fetch-progress/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/fetch-progress/native.log": "57b6effe62397a8e4cec5fd91733a6bd71b60c5a29716b22c6009010334c2b95",
+    "build/qa/fetch-progress/private-preference-cleanup.log": "7f7e9627eb9282038e96605196d3a236fa6af3d50dd507d7c9ffaef9af2a2bc2",
+    "build/qa/fetch-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/fetch-progress/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/fetch-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/fetch-progress/submodule-defaults.log": "60816ca1c9bfc1868b51b73c29328a962b5dc1ae9e3c1bd3a81723c854036578"
+  }
+}

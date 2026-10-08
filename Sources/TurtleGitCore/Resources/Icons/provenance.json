@@ -487,6 +487,11 @@
       "asset": "menumergeabort.ico",
       "source": "src/Resources/menumergeabort.ico",
       "sha256": "596a554a20f5b340e84fdf63b95452c9cda7ea5a9b98e5834f2555e17ad89483"
+    },
+    {
+      "asset": "refresh.ico",
+      "source": "src/Resources/refresh.ico",
+      "sha256": "2a3c88473a11ae60e90b35b51039827794478ac0ed0eb6a60c73a9afffcb1bd3"
     }
   ]
 }

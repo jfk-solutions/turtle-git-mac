@@ -35,6 +35,7 @@ import TurtleGitCore
         precondition(preferences.stringArray(forKey: urlKey) == [missing] && preferences.stringArray(forKey: branchKey)?.first == "main")
         let afterIndex = try Data(contentsOf: client.appendingPathComponent(".git/index")), afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
         precondition(index == afterIndex && head == afterHead)
+        fetch.finishFetch(fetch.fetchProgress!)
         // Native Pull shares the histories and fetches/merges the exact chosen URL.
         try Data("next".utf8).write(to: source.appendingPathComponent("file")); try await producer.stage(["file"]); _ = try await producer.commit(message: "next")
         _ = try await producer.run(["push", bare.path, "main"])

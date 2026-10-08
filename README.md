@@ -379,6 +379,8 @@ highlighting and encoding parity remain pending. See [Blame parity](docs/BLAME-P
   [Pull parity](docs/PULL-PARITY.md) records pending rebase and recovery workflows.
 - Separate native Fetch dialog with named remote/all remotes or URL, remote branch
   browsing, three-state Tags/Prune overrides and shallow depth.
+  Owned ordinary Fetch progress retains results with Log, Reset, Fetch, Rebase,
+  Switch and captured Retry actions; all-remotes failure also offers Log.
   [Fetch parity](docs/FETCH-PARITY.md) records remaining work.
 - Separate native Push dialog with reference/destination selectors, force with lease,
   tags, upstream tracking, per-branch defaults, submodule recursion and server option.

@@ -34,6 +34,7 @@ public enum MenuIcon: String, CaseIterable {
     case restore = "restore", restoreOverlay = "restoreovl"
     case resolve = "menuresolve", editConflict = "menuconflict"
     case mergeSave = "Save", mergeSaveAs = "SaveAs", mergeResolved = "Check"
+    case refresh = "refresh"
     case mergeReload = "Refresh"
     case mergeMarked = "linemarked"
     case mergeUndo = "Undo", mergeRedo = "Redo", mergeFind = "Search"

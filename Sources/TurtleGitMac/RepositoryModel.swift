@@ -1311,7 +1311,7 @@ import TurtleGitCore
             else if let access { self.openSession(access, action: .status) }
         }
         controller.model.onFetched = { [weak self, weak controller] output in
-            guard controller?.model.progress == nil else { return }
+            guard controller?.model.progress == nil, controller?.model.fetchProgress == nil else { return }
             self?.refreshRepositoryLogs(root)
             self?.statusWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
@@ -1336,6 +1336,16 @@ import TurtleGitCore
             case .push: self?.showPush(repository: repository, access: access)
             case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [])
             case .mergeUnrelated: break
+            }
+        }
+        controller.model.onFetchPostAction = { [weak self] action, revision in
+            switch action {
+            case .log: self?.showLog(repository: repository, access: access, paths: [])
+            case .reset: self?.showReset(repository: repository, access: access, revision: revision.isEmpty ? "HEAD" : revision, mode: .hard)
+            case .fetch: self?.showFetch(repository: repository, access: access)
+            case .rebase: self?.showRebase(repository: repository, access: access, afterFetch: true)
+            case .switchBranch: self?.showSwitch(repository: repository, access: access)
+            case .retry: break
             }
         }
         controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in

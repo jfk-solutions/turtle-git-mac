@@ -35,6 +35,7 @@ import TurtleGitCore
         precondition(index == afterSelectionIndex && head == afterSelectionHead)
         fetch.fetch(); try await wait(fetch)
         precondition(preferences.stringArray(forKey: "History.PullURLS")?.first == source.path)
+        fetch.finishFetch(fetch.fetchProgress!)
         // The native file URL adaptation is fed to a real Git fetch literally.
         text = source.absoluteString; fetch.options.branch = "main"; fetch.selectArbitraryURL()
         precondition(fetch.url == source.absoluteString); fetch.fetch(); try await wait(fetch)
@@ -45,6 +46,7 @@ import TurtleGitCore
         pull.load(); try await wait(pull); pull.selectArbitraryURL(); precondition(pull.url == source.path && pull.options.branch == "main")
         pull.fastForwardOnly = true; pull.fetch(); try await wait(pull)
         let contents = try Data(contentsOf: client.appendingPathComponent("file")); precondition(contents == Data("next".utf8))
+        fetch.finishFetch(fetch.fetchProgress!)
         text = "git fetch \(root.appendingPathComponent("missing.git").path) main ignored"; fetch.selectArbitraryURL()
         let chosenURL = fetch.url, chosenBranch = fetch.options.branch
         fetch.fetch(); try await wait(fetch, allowError: true)

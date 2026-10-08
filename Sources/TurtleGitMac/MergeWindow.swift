@@ -396,7 +396,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         switch self { case .retry: return "Retry"; case .submoduleUpdate: return "Submodule Update…"; case .good: return "Bisect good"; case .bad: return "Bisect bad"; case .skip: return "Bisect skip"; case .reset: return "Bisect reset"; case .clean: return "Clean up…" }
     }
     var icon: MenuIcon {
-        switch self { case .retry: return .mergeReload; case .submoduleUpdate: return .fetch; case .good: return .bisectGood; case .bad: return .bisectBad; case .skip: return .bisect; case .reset: return .bisectReset; case .clean: return .clean }
+        switch self { case .retry: return .refresh; case .submoduleUpdate: return .fetch; case .good: return .bisectGood; case .bad: return .bisectBad; case .skip: return .bisect; case .reset: return .bisectReset; case .clean: return .clean }
     }
     var bisectOperation: BisectOperation? { BisectOperation(rawValue: rawValue) }
 }

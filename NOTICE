@@ -534,3 +534,7 @@ its resource-license notice and provenance hash.
 Pull progress/recovery, old/new HEAD comparison/log and conditional Stash Pop/Push
 follow-ups adapt AppUtils.cpp::DoPull/Pull. The Stash Save Pull return preserves
 source follow-up flags; native owned sheets replace the Windows modal progress.
+
+Ordinary Fetch owned progress adapts AppUtils.cpp::DoFetch post-command
+actions, all-remotes failure Log, captured Retry and tracked Hard Reset default.
+Native progress Cancel closes its owner after the owned transport ends.

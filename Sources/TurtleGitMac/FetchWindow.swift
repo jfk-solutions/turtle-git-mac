@@ -6,6 +6,7 @@ import TurtleGitCore
     let model: FetchWindowModel
     var onClosed: () -> Void = {}
     private var progressController: PullProgressWindowController?
+    private var fetchProgressController: FetchProgressWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false) {
         model = FetchWindowModel(repository: repository, access: access, isPull: isPull)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -20,6 +21,13 @@ import TurtleGitCore
             self.progressController = controller
             if let child = controller.window { window.beginSheet(child) }
         }
+        model.onFetchProgress = { [weak self] progress in
+            guard let self, let window = self.window, window.attachedSheet == nil else { progress.cancel(); return }
+            let controller = FetchProgressWindowController(model: progress)
+            controller.onClosed = { [weak self, weak progress] in guard let self, let progress else { return }; self.fetchProgressController = nil; self.model.finishFetch(progress) }
+            self.fetchProgressController = controller
+            if let child = controller.window { window.beginSheet(child) }
+        }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational
@@ -32,7 +40,7 @@ import TurtleGitCore
     }
     func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        if model.progress != nil { if model.transportRunning { model.cancel() }; return false }
+        if model.progress != nil || model.fetchProgress != nil { if model.transportRunning { model.cancel() }; return false }
         guard model.transportRunning else { return !model.busy && sender.attachedSheet == nil }
         model.cancel(); return false
     }
@@ -66,23 +74,30 @@ import TurtleGitCore
     @Published var busy = false
     @Published private var legacyCancelling = false
     @Published private var legacyConfirmingCancellation = false
-    var cancelling: Bool { progress?.cancelling ?? legacyCancelling }
-    var confirmingCancellation: Bool { progress?.confirmingCancellation ?? legacyConfirmingCancellation }
+    var cancelling: Bool { progress?.cancelling ?? fetchProgress?.cancelling ?? legacyCancelling }
+    var confirmingCancellation: Bool { progress?.confirmingCancellation ?? fetchProgress?.confirmingCancellation ?? legacyConfirmingCancellation }
     @Published private(set) var progress: PullProgressWindowModel?
+    @Published private(set) var fetchProgress: FetchProgressWindowModel?
+    var onFetchProgress: ((FetchProgressWindowModel) -> Void)?
+    var onFetchPostAction: ((FetchPostAction, String) -> Void)?
     var followUp = PullFollowUp()
     var onProgress: ((PullProgressWindowModel) -> Void)?
     var onPullPostAction: ((PullPostAction, PullProgressContext) -> Void)?
     var onChanged: (String) -> Void = { _ in }
     private var invalidated = false
-    var operationActive: Bool { busy || progress != nil }
+    var operationActive: Bool { busy || progress != nil || fetchProgress != nil }
     func invalidate() { invalidated = true }
     func finish(_ result: PullProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingConflictHint, !result.confirmingCancellation, !result.dispatchingAction else { return }
         progress = nil; error = nil; result.invalidate(); close()
     }
+    func finishFetch(_ result: FetchProgressWindowModel) {
+        guard fetchProgress === result, !result.busy, !result.confirmingCancellation, !result.dispatchingAction else { return }
+        fetchProgress = nil; error = nil; result.invalidate(); close()
+    }
     private var cancellation: OperationCancellation?
-    var transportRunning: Bool { progress?.busy ?? (cancellation != nil) }
-    var canCancel: Bool { progress?.canCancel ?? (!busy || transportRunning && !cancelling && !confirmingCancellation) }
+    var transportRunning: Bool { progress?.busy ?? fetchProgress?.busy ?? (cancellation != nil) }
+    var canCancel: Bool { progress?.canCancel ?? fetchProgress?.canCancel ?? (!busy || transportRunning && !cancelling && !confirmingCancellation) }
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
     @Published var error: String?
     @Published var browsing = false
@@ -169,6 +184,7 @@ import TurtleGitCore
     }
     func cancel() {
         if let progress { if progress.busy { progress.cancel() } else { progress.close() }; return }
+        if let fetchProgress { if fetchProgress.busy { fetchProgress.cancel() } else { fetchProgress.close() }; return }
         guard busy else { close(); return }
         guard let token = cancellation, !cancelling, !confirmingCancellation else { return }
         func stop() { legacyCancelling = true; token.cancel() }
@@ -217,6 +233,19 @@ import TurtleGitCore
             }
             progress.close = { [weak self, weak progress] in if let progress { self?.finish(progress) } }
             onProgress?(progress); progress.start(); return
+        }
+        if !wantsRebase {
+            let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences)
+            fetchProgress = progress
+            progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
+            progress.onPostAction = onFetchPostAction
+            progress.onCompleted = { [weak self, weak progress] in
+                guard let self, let progress else { return }; self.busy = false
+                self.error = progress.success ? nil : progress.output; self.onChanged(progress.output)
+                if progress.success { self.onFetched(progress.output) }
+            }
+            progress.close = { [weak self, weak progress] in if let progress { self?.finishFetch(progress) } }
+            onFetchProgress?(progress); progress.start(); return
         }
         let token = OperationCancellation(); cancellation = token; legacyCancelling = false
         Task {
@@ -268,7 +297,7 @@ private struct FetchDialog: View {
             HStack { if model.busy { ProgressView().controlSize(.small) }; Spacer(); Button("OK") { model.fetch() }.keyboardShortcut(.defaultAction).disabled(model.operationActive); Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel); Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-pull.html")!) } }
         }.padding(16)
         .onChange(of: model.options.remote) { _ in model.remoteChanged() }
-        .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { model.progress == nil && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }
+        .alert(model.isPull ? "Pull failed" : "Fetch failed", isPresented: Binding(get: { model.progress == nil && model.fetchProgress == nil && model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil }; if model.isPull { Button("Open Working Tree") { model.error = nil; model.onShowStatus() } } } message: { Text(model.error ?? "") }
         .sheet(isPresented: $model.managing, onDismiss: { model.reloadRemotes() }) { PushRemoteSettings(onClose: { model.managing = false }, model: model.remoteSettings) }
         .sheet(isPresented: $model.browsing) { FetchBranchChooser(model: model) }
     }
@@ -602,6 +631,142 @@ private struct PullProgressDialog: View {
                     Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.dispatchingAction)
                 }
             }.disabled(model.confirmingConflictHint || model.dispatchingAction)
+        }.padding(12)
+    }
+}
+
+// Ordinary Fetch keeps the command-line DoFetch result; configured Fetch/Rebase
+// has its separate post-execution workflow and is not silently replaced here.
+enum FetchPostAction: String, CaseIterable, Hashable {
+    case retry, log, reset, fetch, rebase, switchBranch
+    var title: String {
+        switch self { case .retry: return "Retry"; case .log: return "Show log"; case .reset: return "Reset…"; case .fetch: return "Fetch…"; case .rebase: return "Rebase…"; case .switchBranch: return "Switch/Checkout…" }
+    }
+    var icon: MenuIcon {
+        switch self { case .retry: return .refresh; case .log: return .log; case .reset: return .reset; case .fetch: return .fetch; case .rebase: return .rebase; case .switchBranch: return .checkout }
+    }
+}
+@MainActor final class FetchProgressWindowModel: ObservableObject {
+    let repository: GitRepository
+    let options: FetchOptions
+    private let access: RepositoryAccessLease?
+    private let preferences: UserDefaults
+    private var cancellation = OperationCancellation()
+    private var started = false, invalidated = false, dispatched = false
+    @Published private(set) var busy = true
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var cancelling = false
+    @Published private(set) var confirmingCancellation = false
+    @Published private(set) var dispatchingAction = false
+    @Published private(set) var output = ""
+    @Published private(set) var postActions: [FetchPostAction] = []
+    var canCancel: Bool { !dispatchingAction && (!busy || !cancelling && !confirmingCancellation) }
+    var closeAfterCancellation = false
+    var close: () -> Void = {}
+    var onCompleted: () -> Void = {}
+    var onPostAction: ((FetchPostAction, String) -> Void)?
+    var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { choose in choose(false) }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.options = options; self.preferences = preferences
+    }
+    func invalidate() { invalidated = true }
+    func start() { Task { await run() } }
+    func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
+    private func validateAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    private func execute() async {
+        busy = true; success = false; cancelled = false; cancelling = false; output = ""; postActions = []
+        do {
+            try validateAccess()
+            if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+            output = try await repository.fetch(options, cancellation: cancellation)
+            if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
+            success = true
+            postActions = [.log, .reset, .fetch]
+            if (try? await repository.isBare()) == false { postActions.append(.rebase) }
+            postActions.append(.switchBranch)
+        } catch {
+            output = error.localizedDescription; cancelled = cancellation.isCancelled
+            postActions = [.retry]; if options.allRemotes { postActions.append(.log) }
+        }
+        busy = false; cancelling = false; confirmingCancellation = false; onCompleted()
+        if cancelled && closeAfterCancellation { close() }
+    }
+    func cancel() {
+        guard !invalidated, busy, canCancel else { return }
+        let token = cancellation
+        if preferences.bool(forKey: "ConfirmKillProcess") {
+            confirmingCancellation = true
+            confirmCancellation { [weak self] accepted in
+                guard let self, self.confirmingCancellation, self.cancellation === token else { return }
+                self.confirmingCancellation = false
+                if accepted { self.cancelling = true; token.cancel() }
+            }
+        } else { cancelling = true; token.cancel() }
+    }
+    func perform(_ action: FetchPostAction) {
+        guard !invalidated, !dispatched, !busy, !dispatchingAction, postActions.contains(action) else { return }
+        if action == .retry { cancellation = OperationCancellation(); busy = true; Task { await execute() }; return }
+        guard let onPostAction else { return }
+        if action == .reset {
+            dispatchingAction = true
+            Task {
+                var revision = ""
+                do {
+                    try validateAccess(); let defaults = try await repository.pullDefaults()
+                    if !defaults.trackedRemote.isEmpty && !defaults.trackedBranch.isEmpty { revision = "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch }
+                } catch { output += "\n" + error.localizedDescription; dispatchingAction = false; return }
+                dispatchingAction = false; guard !invalidated else { return }; dispatched = true
+                close(); onPostAction(action, revision)
+            }
+        } else { dispatched = true; close(); onPostAction(action, "") }
+    }
+}
+@MainActor final class FetchProgressWindowController: NSWindowController, NSWindowDelegate {
+    let model: FetchProgressWindowModel
+    var onClosed: () -> Void = {}
+    init(model: FetchProgressWindowModel) {
+        self.model = model; model.closeAfterCancellation = true
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "\(model.repository.root.lastPathComponent) – Fetch progress – TurtleGit"; window.minSize = NSSize(width: 620, height: 340); window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView: FetchProgressDialog(model: model))
+        super.init(window: window); window.delegate = self
+        model.close = { [weak self] in
+            guard let self, !self.model.busy, !self.model.dispatchingAction, self.window?.attachedSheet == nil else { return }
+            if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
+        }
+        model.confirmCancellation = { [weak window] choose in
+            guard let window, window.attachedSheet == nil else { choose(false); return }
+            let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
+            let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+        }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.busy { model.cancel(); return false }
+        guard !model.dispatchingAction, sender.attachedSheet == nil else { return false }
+        sender.sheetParent?.endSheet(sender); return true
+    }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+private struct FetchProgressDialog: View {
+    @ObservedObject var model: FetchProgressWindowModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ScrollView { Text(model.output).font(.system(.body, design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Fetching…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Fetch failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red); Spacer() }
+            HStack {
+                if let first = model.postActions.first {
+                    Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
+                    Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Fetch post-actions") }.menuStyle(.borderlessButton).fixedSize()
+                }
+                Spacer()
+                if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
+                else { if !model.success { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }; Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
+            }.disabled(model.dispatchingAction)
         }.padding(12)
     }
 }

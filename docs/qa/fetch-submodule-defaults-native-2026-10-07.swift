@@ -58,6 +58,7 @@ import TurtleGitCore
         let finalParent = try parentFiles.map { try Data(contentsOf: parentRoot.appendingPathComponent($0)) }
         precondition(pulled == target && branch == "main" && contents == Data("dirty remains".utf8) && finalParent == beforeParent)
         _ = try await child.run(["config", "branch.main.merge", "refs/heads/tracked"])
+        fetch.finishFetch(fetch.fetchProgress!)
         fetch.load(); try await wait(fetch); precondition(fetch.options.branch == "tracked")
         print("Submodule Pull/Fetch: named Unicode/newline path, .gitmodules branch over parent override, native defaults/history, actual selected-branch Fetch and ff-only Pull, child branch/dirty file retained, parent metadata byte-identical, child tracking priority passed")
     }
