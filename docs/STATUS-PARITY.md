@@ -46,7 +46,7 @@ cancelled without changing the repository. `site/assets/status.png` shows the ru
 - Full conditional Stash/Switch menus and post-operation behavior; the dedicated
   dialog ports remain partial.
 - Remote status checking, refresh cancellation/progress, F5 shortcut, persisted
-  filters/window geometry/column widths, empty-state text and selection restoration.
+  filters/window geometry, empty-state text and selection restoration.
 - File/folder-specific filter enablement, alternative diff tools and broader
   multi-repository, rename, conflict and submodule native QA.
 - Native scoped Finder invocation and signed Finder menu/badge appearance still
@@ -70,3 +70,32 @@ unflagging. Native confirmation, restoration to Modified and assume-unchanged
 status were verified; Git tests cover clearing both flags and linked-worktree
 index separation. See [Commit's index flag audit](COMMIT-PARITY.md#index-flag-context-actions)
 for source review, test evidence and remaining acceptance work.
+
+## Shared native columns and clipboard
+
+Working Tree now reuses Commit’s native AppKit header integration without a
+leading checkbox column. Nine physical text columns retain the source six-column
+default: Path, Extension, Status, Lines added, Lines removed and Last modified.
+Filename and File size are optional; LFS Lock is offered only with the common
+repository LFS marker. The header saves visibility, order and adjusted widths
+under WorkingTree.FileColumns, independently of Commit’s layout. Existing saved
+LFS visibility migrates on read without rewriting preferences. Path stays visible.
+
+The shared header supports content fitting, automatic header/content widths and
+confirmed Reset columns. No retains the layout; Yes restores the six-column
+default, clears adjusted widths/order and ownership. Busy and Quit confirmation
+block settings changes. All nine headers retain a single ascending/reverse sort
+column with path ties. Metadata is read once per refresh, including size/date
+and missing paths; dates and sizes use the existing native shared formatting.
+
+Copy to Clipboard offers original-icon Full paths, Relative paths, File/folder
+names and Copy all information. Text follows displayed row order; Copy all uses
+the saved visible-column order and headings. The shared integration also routes
+Command-C/Control-Insert to relative paths, Shift to paths/status, and the clicked
+column to single-column copy. Native LF replaces Windows CRLF. Flagged and staged
+status text follows the actual table; renamed rows include their source path in
+the displayed Path column. Literal names retain tabs/newlines.
+
+See [column QA](qa/working-tree-columns-2026-10-09.json) for current evidence and
+limits. Physical pointer/keyboard/context menu input, full status-list menus and
+signed sandbox/Finder acceptance remain pending. This is partial dialog parity.

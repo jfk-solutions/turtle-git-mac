@@ -840,3 +840,11 @@ avoiding a stale snapshot between rapid activations; Add, Revert and Submodule
 Update also supply this live count. Disabled native targets refuse activation.
 Resolve now reuses this shared control instead of a duplicate implementation,
 following ResolveDlg.cpp OnBnClickedSelectall's identical mixed-state rule.
+
+Working Tree now reuses the native status-list column interaction with no
+leading checkbox, adapting ChangedDlg.cpp defaults and GitStatusListCtrl.cpp
+column manager/clipboard behavior. Filename, size and optional LFS owner use
+saved visibility/order/adjusted widths, fitting and confirmed reset. Copy
+commands follow displayed row and visible-column order with native LF endings.
+Original source attribution and GPL version 2 or later apply. Physical
+interaction and complete source menu/workflow parity remain pending.

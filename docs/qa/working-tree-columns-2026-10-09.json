@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "5aa9db974e57c88970cf0ab896b563de83dfb09a",
+  "scope": "Working Tree shared native saved columns, filename/size metadata, header layout/fitting/reset and displayed-order clipboard. Full port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ChangedDlg.cpp": "6090253d98f92572eb957f9b8d484f378d4db1be",
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/ResizableColumnsListCtrl.h": "84350420f3d5dfd6eb685f21415559487dd59611"
+  },
+  "sources_manifest_sha256": "f1c90ee3784bf70f9c4f9c494f3e67284b9c0781e439bd9da64629c5e1051daa",
+  "changed_files_sha256": {
+    "NOTICE": "ac99b55a440b2d4b7991e4391a4db279dd297e7650ee496ba43e9abb3a957e53",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "50ac848b52b1361c8fc1da9a61e4106d348fccffca9427727569662d47c3437b",
+    "Sources/TurtleGitMac/StatusWindow.swift": "03e86fac9ea5be00cd1bd197fbb4faa76f611ce8bd632fc73c63a1c2d37a7770",
+    "docs/LFS-PARITY.md": "af20ffa4f9bc61a84167d5d67700d87217acf39b09cb73792b613a8c8d3c6ff1",
+    "docs/STATUS-PARITY.md": "62ee7e00b89d7cdd56a20e0b7881be82a967dfafec10f15bf0e91ef98539c194",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "a51edc223b22a8a49ae925f43944440b8bffc6a3d5609d4e08346de0f6ed6dcc",
+    "docs/upstream-files.csv": "d741ef0f93bd76000cda9ef8a2279e7c1bf6a902ecc581b9be22fcd8b260d361"
+  },
+  "verification": {
+    "native": "Final hidden AppKit receiver passes Apple Git and bundled Git 2.55.0. Actual nine-column Working Tree table/probe and header NSMenu target dispatch; default six visible columns and hidden filename/size/LFS; marker-gated owner; legacy visibility migration without writing on read; all nine ascending/reverse sort bindings and owner order, real file size ordering; saved owner-column move to first and width 217 restored in second actual native table; adjusted content fitting/default restoration; reset injected No/Yes answers check actual window ownership and busy guards; confirmed reset restores six-column default/order/width settings. Display-order relative/full/name/owner text and visible ordered clipboard headings verified without changing user clipboard. Existing Locks/Commit/Working Tree LFS routing/sheets/Force/cancellation/ownership and real-conflict Resolve selection checks execute. Main fixture HEAD/raw index/tracked bytes retained. All LFS responses injected.",
+    "commit_regression": "Current separate Commit native column receiver passes Apple Git: leading checkbox, optional columns, adjusted widths/order/reopen, fitting/confirmed reset, sorting/group/selection identity and actual data-source bindings remain intact. Final owned windows close and process exits.",
+    "core": "Core sources unchanged; shared metadata/comparison/settings helpers reused. Prior Core evidence retained; no additional Core suite run for this native change.",
+    "inventory": "3277 seven-field LF records, pinned upstream inventory check and diff checks pass. Three mappings extended and remain partial.",
+    "site": "Local Pages generator includes updated Status/LFS guides and current QA; no deployment or fresh screenshot claim.",
+    "builds": "Current Debug and sequential unsigned AppStore builds and bundle audits pass; Store audit requires bundled Git/Git LFS. Both packages contain current NOTICE. Sources/NOTICE/receivers frozen while compiler/native handles live. No signed sandbox or App Store acceptance claim."
+  },
+  "iterations": [
+    "First receiver passed Apple Git but bundled Git stopped at final reset condition after refresh; retained failed log. The receiver had not awaited the shared native target enabled state before reset dispatch.",
+    "Added the required enabled/not-busy precondition before reset dispatch; retained exact reset/model/layout assertions. Final receiver passes both engines. This supports receiver readiness handling, not a broader physical-input claim."
+  ],
+  "limitations": [
+    "Physical pointer/keyboard/context menu and actual reset alert-button input are unverified; reset answers are injected at the owned confirmation closure.",
+    "Full status-list menus, groups/changelists, filters/refresh progress/cancellation and other dialogs remain partial. Standalone Locks shared layout remains pending.",
+    "Appearance/accessibility/fresh screenshots, authenticated providers, signed sandbox/Finder/helper deployment, App Store eligibility and GitHub CI/push remain unverified. Whole application port incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": [],
+    "main_app_launches": 0,
+    "preferences": "Private UUID LFS.StatusQA and CommitSorting.QA suites; post-exit exact defaults deletion and verified empty file removal for five owned suites. Main app preferences untouched.",
+    "preference_cleanup_record": "build/qa/working-tree-columns-2026-10-09/preference-cleanup.json",
+    "preference_cleanup_sha256": "357f2b64b9df5347710bfb4cb05893130fee4181931a8796052ea29de0fadf41",
+    "windows": "Owned hidden windows and sheets close on successful exit. First failed receiver exited with SIGTRAP; wrapper removed private fixtures."
+  },
+  "local_log_sha256": {
+    "build/qa/working-tree-columns-2026-10-09/commit-native.log": "2cd7ed2a7a013e42dddaeb853b8e1b73ea6d290db313b947228176d2d5aa87fd",
+    "build/qa/working-tree-columns-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/working-tree-columns-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/working-tree-columns-2026-10-09/debug-widths-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/working-tree-columns-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/working-tree-columns-2026-10-09/native-final.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/working-tree-columns-2026-10-09/native.log": "edc4260bd1e2caef046e1ff7967639faf474f3953a255b9fc0d879908311f526",
+    "build/qa/working-tree-columns-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/working-tree-columns-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/working-tree-columns-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/working-tree-columns-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

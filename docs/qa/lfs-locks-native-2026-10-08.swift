@@ -93,6 +93,11 @@ import TurtleGitCore
         try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
         let defaultsName = "TurtleGit.LFS.StatusQA." + UUID().uuidString
         let defaults = UserDefaults(suiteName: defaultsName)!
+        // Existing visibility preferences migrate without writing on read.
+        defaults.set(true, forKey: "WorkingTree.LFSOwnerVisible")
+        let migratedStatus = StatusWindowModel(repository: repository, access: nil, defaults: defaults)
+        precondition(migratedStatus.showLFSOwners && defaults.object(forKey: "WorkingTree.FileColumns.Version") == nil)
+        defaults.removeObject(forKey: "WorkingTree.LFSOwnerVisible")
         let commit = CommitWindowController(repository: repository, access: nil, defaults: defaults)
         let status = StatusWindowController(repository: repository, access: nil, defaults: defaults)
         defer { defaults.removePersistentDomain(forName: defaultsName); commit.window?.close(); status.window?.close() }
@@ -222,11 +227,15 @@ import TurtleGitCore
         status.model.queryLFSOwners = { _ in statusQueries += 1; return statusReply }
         status.model.reload(); try await settle { !status.model.busy && status.model.hasLFS }
         precondition(statusQueries == 0 && !status.model.ownersVisible)
-        try await settle { descendants(status.window!.contentView!).contains { $0 is WorkingTreeLFSColumn.Probe } }
+        try await settle { descendants(status.window!.contentView!).contains { $0 is CommitFileInteraction.Probe } }
         let statusTable = descendants(status.window!.contentView!).compactMap { $0 as? NSTableView }.first!
         try await settle { statusTable.headerView?.menu?.item(withTitle: "LFS Lock") != nil }
         let statusOwner = statusTable.tableColumns.first { $0.headerCell.stringValue == "LFS Lock" }!
-        try await settle { statusTable.tableColumns.count == 7 && statusOwner.isHidden }
+        try await settle { statusTable.tableColumns.count == 9 && statusOwner.isHidden }
+        precondition(statusTable.tableColumns.filter { !$0.isHidden }.count == 6)
+        precondition(statusTable.tableColumns[1].isHidden && statusTable.tableColumns[7].isHidden)
+        func statusProbe() -> CommitFileInteraction.Probe { descendants(status.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first! }
+        precondition(statusProbe().leadingColumnCount == 0 && !statusProbe().keyboardDeleteEnabled)
         let statusChoice = statusTable.headerView!.menu!.item(withTitle: "LFS Lock")!
         status.model.selection = [unusual]
         _ = NSApplication.shared.sendAction(statusChoice.action!, to: statusChoice.target, from: statusChoice)
@@ -238,7 +247,7 @@ import TurtleGitCore
         statusReply = [LFSLock(id: "z", path: unusual, owner: "Zebra"), LFSLock(id: "a", path: "unlocked.bin", owner: "Alice")]
         status.model.reload(); try await settle { !status.model.busy }
         precondition(status.model.sortedRows.allSatisfy { $0.fileExtension == ".bin" })
-        let sortColumns: [StatusListColumn] = [.path,.fileExtension,.status,.added,.removed,.lastModified,.lfsOwner]
+        let sortColumns = StatusListColumn.allCases
         for (index, column) in sortColumns.enumerated() {
             for ascending in [true,false] {
                 let old = statusTable.sortDescriptors, prototype = statusTable.tableColumns[index].sortDescriptorPrototype!
@@ -249,6 +258,53 @@ import TurtleGitCore
                 precondition(status.model.selection == [unusual])
             }
         }
+        // Real header visibility/order/width fitting and reopened native table.
+        let filenameChoice = statusTable.headerView!.menu!.item(withTitle: "Filename")!
+        _ = NSApplication.shared.sendAction(filenameChoice.action!, to: filenameChoice.target, from: filenameChoice)
+        try await settle { !statusTable.tableColumns[1].isHidden }
+        let sizeChoice = statusTable.headerView!.menu!.item(withTitle: "File size")!
+        _ = NSApplication.shared.sendAction(sizeChoice.action!, to: sizeChoice.target, from: sizeChoice)
+        try await settle { !statusTable.tableColumns[7].isHidden }
+        precondition(status.model.sortedRows.allSatisfy { $0.metadata?.size != nil })
+        status.model.setSortOrder([StatusFileSort(column: .fileSize)])
+        let sizes = status.model.sortedRows.map { $0.metadata!.size! }
+        precondition(sizes == sizes.sorted())
+        status.model.setSortOrder([StatusFileSort(column: .lfsOwner)])
+        let allIDs: Set<String> = [unusual,"unlocked.bin"]
+        precondition(status.model.clipboardText(allIDs, copy: .column(.lfsOwner)) == "Alice\nZebra\n")
+        precondition(status.model.clipboardText(allIDs, copy: .relativePaths) == "unlocked.bin\n" + unusual + "\n")
+        precondition(status.model.clipboardText(allIDs, copy: .names) == "unlocked.bin\n" + unusual + "\n")
+        precondition(status.model.clipboardText(allIDs, copy: .fullPaths) == root.appendingPathComponent("unlocked.bin").path + "\n" + root.appendingPathComponent(unusual).path + "\n")
+        statusTable.moveColumn(8, toColumn: 0); statusOwner.width = 217
+        statusProbe().rememberNativeColumnLayout(adjustedColumn: .lfsOwner)
+        let savedStatusColumns = status.model.fileColumns
+        precondition(savedStatusColumns.order.first == .lfsOwner && savedStatusColumns.widths[.lfsOwner] == 217)
+        try await settle { statusProbe().columnDefinition(atNativeIndex: 0) == .lfsOwner }
+        let headings = status.model.clipboardText(allIDs, copy: .all).components(separatedBy: "\n")[0]
+        precondition(headings == status.model.visibleColumns.map(\.rawValue).joined(separator: "\t") && headings.hasPrefix("LFS Lock\t"))
+        let restoredStatus = StatusWindowController(repository: repository, access: nil, defaults: defaults)
+        restoredStatus.model.queryLFSOwners = { _ in statusReply }
+        restoredStatus.model.reload(); try await settle { !restoredStatus.model.busy && restoredStatus.model.hasLFS }
+        restoredStatus.window!.contentView!.layoutSubtreeIfNeeded()
+        try await settle {
+            let views = descendants(restoredStatus.window!.contentView!)
+            guard let table = views.compactMap({ $0 as? NSTableView }).first,
+                  let probe = views.compactMap({ $0 as? CommitFileInteraction.Probe }).first else { return false }
+            return probe.columnDefinition(atNativeIndex: 0) == .lfsOwner && !table.tableColumns[0].isHidden && abs(table.tableColumns[0].width - 217) < 0.5
+        }
+        precondition(restoredStatus.model.fileColumns == savedStatusColumns)
+        restoredStatus.window?.close()
+        precondition(statusProbe().fitColumn(atNativeIndex: 0, useDefault: false))
+        try await settle { !status.model.busy && statusProbe().enabled }
+        precondition(status.model.fileColumns.widths[.lfsOwner] != nil)
+        precondition(statusProbe().fitColumn(atNativeIndex: 0, useDefault: true))
+        precondition(status.model.fileColumns.widths[.lfsOwner] == nil)
+        let customizedStatusColumns = status.model.fileColumns
+        statusProbe().confirmResetColumns = { owner in precondition(owner === status.window && status.model.busy); return false }
+        let noReset = statusProbe().columnMenu().item(withTitle: "Reset columns")!
+        _ = NSApplication.shared.sendAction(noReset.action!, to: noReset.target, from: noReset)
+        try await settle { !status.model.busy && statusProbe().enabled }
+        precondition(status.model.fileColumns == customizedStatusColumns)
         status.model.setSortOrder([StatusFileSort(column: .lfsOwner),StatusFileSort(column: .path)])
         precondition(status.model.sortOrder.count == 1)
         status.model.confirmingQuit = true
@@ -285,6 +341,21 @@ import TurtleGitCore
         try FileManager.default.removeItem(at: root.appendingPathComponent(".git/lfs"))
         status.model.reload(); try await settle { !status.model.busy && !status.model.hasLFS }
         try await settle { statusTable.headerView?.menu?.item(withTitle: "LFS Lock") == nil }
+        // Confirmed reset restores the source six-column default and clears
+        // adjusted widths/order; calls during the question remain blocked.
+        statusProbe().confirmResetColumns = { owner in
+            precondition(owner === status.window && status.model.busy)
+            let before = status.model.fileColumns
+            status.model.setColumn(.fileSize, visible: false)
+            precondition(status.model.fileColumns == before)
+            return true
+        }
+        if !statusProbe().enabled { print("RESET TARGET WAIT: model busy", status.model.busy, "native target enabled", statusProbe().enabled); fflush(stdout) }
+        try await settle { statusProbe().enabled && !status.model.busy }
+        let yesReset = statusProbe().columnMenu().item(withTitle: "Reset columns")!
+        _ = NSApplication.shared.sendAction(yesReset.action!, to: yesReset.target, from: yesReset)
+        try await settle { !status.model.busy && status.model.fileColumns == StatusWindowModel.defaultColumns && statusProbe().columnDefinition(atNativeIndex: 0) == .path && statusTable.tableColumns.filter { !$0.isHidden }.count == 6 }
+        precondition(StatusWindowModel(repository: repository, access: nil, defaults: defaults).fileColumns == StatusWindowModel.defaultColumns)
         commit.window?.close(); status.window?.close()
         // Resolve shares the same three-state helper; use a separate real
         // conflicted repository and activate only selection controls.

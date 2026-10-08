@@ -100,8 +100,7 @@ Closing during an owner query cancels it and does not publish a late response.
 LFS batches capture paths in the displayed sort order. See
 [Working Tree owner QA](qa/working-tree-lfs-owner-2026-10-08.json).
 
-Working Tree full shared column layout/clipboard, Finder routing, source
-availability gates, full shared column settings and
+Finder routing, source availability gates, shared Locks-list column settings and
 locking progress/post-Pull actions remain incomplete. The native list adds an
 explicit Refresh button alongside F5. Physical keyboard/menu/pointer behavior,
 light/dark appearance, accessibility, fresh real screenshots, signed Finder
@@ -118,3 +117,10 @@ remains independent. Add, Revert and Submodule Update supply live counts to the
 same shared native helper. Resolve now reuses it too, including the disabled
 busy state. Its native checkbox is checked against a private repository with
 two real merge conflicts; checkbox changes leave the index untouched. See [three-state QA](qa/lfs-tristate-2026-10-08.json).
+
+Working Tree’s owner column now participates in the shared native saved layout,
+adjusted widths, fitting, confirmed reset and visible-column clipboard output.
+Filename and File size are optional too; the six default visible columns and
+LFS availability gate remain. Existing owner visibility migrates additively. See
+[Working Tree column QA](qa/working-tree-columns-2026-10-09.json). Full standalone
+Locks-list column settings and physical/signed/provider acceptance remain pending.

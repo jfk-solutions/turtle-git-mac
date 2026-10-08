@@ -6,6 +6,8 @@ import TurtleGitCore
 /// its selection, accessibility, checkbox or context-menu implementations.
 struct CommitFileInteraction: NSViewRepresentable {
     let rows: [StatusListRow]
+    var leadingColumnCount = 1
+    var keyboardDeleteEnabled = true
     let visibleColumns: Set<StatusListColumn>
     var availableColumns: Set<StatusListColumn> = Set(StatusListColumn.allCases)
     let columnText: (StatusEntry, StatusListColumn) -> String
@@ -26,6 +28,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
     }
     func updateNSView(_ view: Probe, context: Context) {
+        view.leadingColumnCount = leadingColumnCount; view.keyboardDeleteEnabled = keyboardDeleteEnabled
         view.columnText = columnText
         view.savedOrder = savedOrder; view.savedWidths = savedWidths; view.saveLayout = saveLayout
         view.availableColumns = availableColumns; view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
@@ -37,6 +40,8 @@ struct CommitFileInteraction: NSViewRepresentable {
 
     final class Probe: NSView {
         var rows: [StatusListRow] = []
+        var leadingColumnCount = 1
+        var keyboardDeleteEnabled = true
         var visibleColumns = Set(StatusListColumn.defaultColumns)
         var availableColumns = Set(StatusListColumn.allCases)
         var columnText: (StatusEntry, StatusListColumn) -> String = { _, _ in "" }
@@ -72,7 +77,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             }
             guard saveLayout(order, widths) else { return }
             savedOrder = order; savedWidths = widths
-            desiredColumns = [originalColumns[0]] + table.tableColumns.filter { columnDefinitions[ObjectIdentifier($0)] != nil }
+            desiredColumns = Array(originalColumns.prefix(leadingColumnCount)) + table.tableColumns.filter { columnDefinitions[ObjectIdentifier($0)] != nil }
             desiredWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
         }
         func fittedWidth(_ column: NSTableColumn, definition: StatusListColumn, includeHeader: Bool) -> CGFloat {
@@ -117,10 +122,10 @@ struct CommitFileInteraction: NSViewRepresentable {
                 if let table = view as? NSTableView, contains(table) { return table }
                 return view.subviews.compactMap(find).first
             }
-            guard let table = find(content), table.tableColumns.count == StatusListColumn.allCases.count + 1 else { return }
+            guard let table = find(content), table.tableColumns.count == StatusListColumn.allCases.count + leadingColumnCount else { return }
             if configuredTable !== table {
                 configuredTable = table; originalColumns = table.tableColumns
-                columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(), StatusListColumn.allCases).map { (ObjectIdentifier($0.0), $0.1) })
+                columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(leadingColumnCount), StatusListColumn.allCases).map { (ObjectIdentifier($0.0), $0.1) })
                 originalWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
                 desiredColumns = originalColumns; desiredWidths = originalWidths
                 for observer in layoutObservers { NotificationCenter.default.removeObserver(observer) }
@@ -135,10 +140,10 @@ struct CommitFileInteraction: NSViewRepresentable {
                     }
                 }
             }
-            let byDefinition = Dictionary(uniqueKeysWithValues: originalColumns.dropFirst().compactMap { column -> (StatusListColumn, NSTableColumn)? in
+            let byDefinition = Dictionary(uniqueKeysWithValues: originalColumns.dropFirst(leadingColumnCount).compactMap { column -> (StatusListColumn, NSTableColumn)? in
                 columnDefinitions[ObjectIdentifier(column)].map { ($0, column) }
             })
-            desiredColumns = [originalColumns[0]] + savedOrder.compactMap { byDefinition[$0] }
+            desiredColumns = Array(originalColumns.prefix(leadingColumnCount)) + savedOrder.compactMap { byDefinition[$0] }
             desiredWidths = originalWidths
             for (definition, column) in byDefinition where visibleColumns.contains(definition) && savedWidths[definition] == nil {
                 desiredWidths[ObjectIdentifier(column)] = fittedWidth(column, definition: definition, includeHeader: true)
@@ -292,7 +297,7 @@ struct CommitFileInteraction: NSViewRepresentable {
             guard let table = window.firstResponder as? NSTableView, contains(table) else { return event }
             let flags = event.modifierFlags.intersection([.command, .control, .option, .shift])
             contextColumn = nil; contextEntries = []
-            if event.keyCode == 49, flags.isEmpty, enabled {
+            if event.keyCode == 49, flags.isEmpty, enabled, leadingColumnCount > 0 {
                 let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
                 let mark = selected.first { $0.path == focusedPath?.wrappedValue } ?? selected.first
                 if let mark { toggleCheck(selected, mark); return nil }
@@ -315,7 +320,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 guard !selected.isEmpty else { return event }
                 copy(selected, flags.contains(.shift)); return nil
             }
-            if event.keyCode == 51 || event.keyCode == 117 {
+            if keyboardDeleteEnabled && (event.keyCode == 51 || event.keyCode == 117) {
                 guard enabled else { return event }
                 let selected = StatusListGroups.files(at: table.selectedRowIndexes, in: rows)
                 let mark = rows.compactMap(\.entry).first { $0.path == focusedPath?.wrappedValue } ?? (selected.count == 1 ? selected.first : nil)
