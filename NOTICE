@@ -522,3 +522,7 @@ retains source confirmation and Git's explicit force-delete operation.
 Merge's conflict information and suppression preference adapt AppUtils.cpp,
 MessageBox.cpp and IDS_NEED_TO_RESOLVE_CONFLICTS_HINT. Abort Merge's three Core
 reset modes follow MergeAbortDlg.cpp and AppUtils.cpp Reset at the recorded pin.
+
+Native Abort Merge adapts MergeAbortDlg.cpp/.h and IDD_MERGEABORT, including the
+three reset choices and working-tree comparison. Cancel-to-Abort routing and
+mode-specific reset post-actions follow AppUtils.cpp and ProgressDlg.cpp.

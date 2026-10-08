@@ -51,6 +51,7 @@ import TurtleGitCore
     private var statusWindows: [String: StatusWindowController] = [:]
     private var bisectWindows: [String: BisectWindowController] = [:]
     private var exportWindows: [String: ExportWindowController] = [:]
+    private var mergeAbortWindows: [UUID: MergeAbortWindowController] = [:]
     private var mergeWindows: [String: MergeWindowController] = [:]
     private var referenceLogWindows: [String: ReferenceLogWindowController] = [:]
     private var stashRestoreWindows: [String: StashRestoreWindowController] = [:]
@@ -1129,6 +1130,23 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func showMergeAbort(repository: GitRepository, access: RepositoryAccessLease?) {
+        let id = UUID(), root = repository.root
+        let controller = MergeAbortWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.mergeAbortWindows.removeValue(forKey: id) }
+        controller.model.onShowModified = { [weak self] in self?.showRevisionComparison(repository: repository, access: access, from: .revision("HEAD"), to: .workingTree) }
+        controller.model.onChanged = { [weak self] output in
+            self?.referenceLogWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
+            self?.refreshRepositoryLogs(root)
+            if self?.root == root { self?.output = output; Task { await self?.refresh() } }
+        }
+        controller.model.onPostAction = { [weak self] action in
+            if let operation = action.bisectOperation { self?.showBisect(repository: repository, access: access, operation: operation) }
+            else if action == .submoduleUpdate { self?.showSubmoduleUpdate(repository: repository, access: access, scope: []) }
+            else if action == .clean { self?.showClean(repository: repository, access: access, paths: []) }
+        }
+        mergeAbortWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
     private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false) {
         let root = repository.root, key = repository.root.path + "\0" + UUID().uuidString
         let controller = MergeWindowController(repository: repository, access: access)
@@ -1152,6 +1170,7 @@ import TurtleGitCore
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
         controller.model.showStashPop = showStashPop
+        controller.model.onAbortRequested = { [weak self] in self?.showMergeAbort(repository: repository, access: access) }
         controller.model.onPostAction = { [weak self] action, request in
             switch action {
             case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil)

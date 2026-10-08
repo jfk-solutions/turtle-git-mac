@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "ddb33043dfca1bda7adacecf10eb7ee6b0031eae",
+  "scope": "Native Abort Merge options, progress/retry/post-actions and Merge Cancel fresh-conflict routing. Full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/MergeAbortDlg.cpp": "82f9ab5eb47252802236ca2203f408f2dae8a239",
+    "src/TortoiseProc/MergeAbortDlg.h": "499da16eb5c2962f5995d0d6eee9f5fcedde194a",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "a9ee82d79112ac4f9f3e21a8387fd5389523767cca1798a2eefd801aeb675bbe",
+    "NOTICE": "f8007985c2110a6ce06f846420dc60693b5ecd6cbc2a0f92110300e9a0a26886",
+    "Sources/TurtleGitMac/MergeWindow.swift": "51f523b7e6d7b3063497bcceb3112eaff3c64f86aa635525082e7f323807bed3",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "84c1329257d293a1eae720a14d1ef421c559e77113aecb2e7a22973f334bf757",
+    "Sources/TurtleGitCore/Reset.swift": "9888eaad1b021e499e278636f19bed7388dc4ea6c80596d40edea189824c0d79",
+    "docs/MERGE-PARITY.md": "e586942bd54e1e1e3901e51ace96479489fbf43415faeb35aeb538abb0b935e2",
+    "docs/upstream-files.csv": "895f89c0e0396f1ffff67f7fe2b3813d1dee1f63ba0980bec879eb96d1fd6d70",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "c8882896e9be5a87ed0be997341d09d7dbdae052c5dad558550674cea925e1ef",
+    "scripts/test-merge-abort-dialog.py": "c1af0c279e34d40a2acf8393a3bf428ed25d7a27e06e93e2acc7cc1f029f022a"
+  },
+  "all_sources_manifest_sha256": "656134dc8b8c684bcde712740bd768ee7d2b1f71a87c704101e551a6a9631609",
+  "verification": {
+    "native": "Headless actual-model receiver passed system Git, 2.37.1, 2.39.5 and bundled 2.55.0. Default Merge, comparison callback, idle index nonmutation, invalidation, Close vs Cancel, duplicate dismissal, freshly resolved conflicts, all three real reset modes and selection snapshots, unchanged HEAD/untracked preservation, lock failures and Merge options retry vs Mixed/Hard direct retry, active Bisect action list. No windows, standard preferences or clipboard writes.",
+    "regression": "Existing Merge progress receiver passed all four Git versions against final Debug framework and native Sources. Includes options/message capture, conditional post-actions, branch-removal confirmation, conflicts, unrelated history retry, pre-cancellation and invalidation.",
+    "limitations": "Receiver tests models, not displayed controllers or destination factory acceptance. Abort options-to-progress uses one resized native window; upstream uses separate modal windows. Physical layout/keyboard/Cancel/titlebar/owner sheet and active-process cancellation routing, submodule action acceptance, context-menu entry/icon, saved geometry, live streaming, generic Reset parity and signed scope remain pending. Existing screenshots do not show Abort dialog. GitHub auth/hosted CI/publication unavailable and not retried. Full port/Finder parity and signed App Store distribution incomplete.",
+    "builds": "Unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified; Store --require-git audited 11 universal Git 2.55.0 Mach-O files and actual fixture operations. EditorConfig/IssueRegex verified.",
+    "documentation": "Native workflow step, Merge parity, NOTICE and five partial upstream source mappings updated. Pin check passed all 3277 seven-column entries. Local site generated, unpublished.",
+    "processes": "All compiler/native/build/audit sessions terminal. Receivers use NSApp prohibited and model-only operation, temporary fixture/executable cleanup on exit. Main GUI never launched. Final app/native receiver audit empty; no windows to close."
+  },
+  "logs": {
+    "build/qa/merge-abort-dialog/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/merge-abort-dialog/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/merge-abort-dialog/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-abort-dialog/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-abort-dialog/native.log": "04a28f4b57aa53f10ab6b9c59de2e8ae77436f244964dbe078d8f0b5bfc647e0",
+    "build/qa/merge-abort-dialog/progress-regression.log": "1c31ca8f890a5244863235b9bd118044dbe9cefe111669568818624d27ba5884",
+    "build/qa/merge-abort-dialog/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-abort-dialog/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-abort-dialog/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/merge-abort-dialog/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

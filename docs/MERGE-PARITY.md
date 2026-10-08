@@ -63,9 +63,9 @@ Escape and Cancel. HEAD/index/worktree remained unchanged.
 - Full reference chooser controls, persisted revision history and native chooser
   acceptance with a different branch/commit, tag merge and detached/unborn cases.
 - Physical progress/sheet/cancellation and post-action routing acceptance, live
-  streaming, displayed conflict-hint acceptance, git-svn post-action and cancel-to-Abort flow.
-- Dedicated Abort Merge dialog and three-way conflict editor. Conflicts and abort
-  are covered in backend tests; native conflict recovery is not yet verified.
+  streaming, displayed conflict-hint acceptance, git-svn post-action and physical cancel-to-Abort flow.
+- Abort Merge context-menu entry and three-way conflict editor. The native Abort
+  dialog/models are implemented; physical conflict recovery remains unverified.
 - Interactive hooks/signing/editor workflows, strategy variants, user-data/rebase
   guards, dark/minimum-window/keyboard/sandbox runtime QA.
 
@@ -104,7 +104,7 @@ The [receiver](qa/merge-progress-native-2026-10-08.swift) and
 without windows. Core adds optional cancellation and the unrelated-history flag.
 App Store progress checks the retained security-scope lease before any Git read.
 Physical window/menu/sheet/confirmation/cancel/refresh routing, active-process
-interruption, live streaming, displayed conflict hint acceptance, source cancel-to-Abort
+interruption, live streaming, displayed conflict hint acceptance, physical cancel-to-Abort
 behavior, git-svn post-actions, pre-dialog user-data/rebase guards and signed access
 remain pending. Existing screenshots depict the options, not the progress sheet.
 Full Merge/application parity remains incomplete.
@@ -135,10 +135,39 @@ Private UUID preference domains are used and removed; standard preferences and
 clipboard are untouched. Core tests additionally check unrelated working edits,
 untracked preservation, unchanged HEAD, pre-cancellation and bare rejection.
 
-Source review confirms that Close returns OK; Cancel/titlebar close return Cancel
-and open Abort Merge when conflicts remain. The dedicated native Abort Merge
-dialog (three radio choices, working-tree comparison, OK/Cancel/Help), cancel route,
-full Reset progress/post-actions, physical hint/suppression/keyboard rendering,
+Close returns OK; Cancel/titlebar dismissal freshly checks the index and requests
+Abort Merge only when conflicts remain. The native three-choice Abort dialog and
+comparison callback are now wired. Physical hint/suppression/keyboard rendering,
 signed access and broader abort/recovery cases remain pending. The hint retains
 upstream wording; its Abort Merge context-menu entry still needs implementation.
 Full application parity remains incomplete.
+
+## Native Abort Merge dialog and Cancel routing
+
+Abort Merge now has upstream's reminder, Reset Type radio group (Merge selected
+by default), Show modified files in working tree, and OK/Cancel/Help. Comparison
+opens the existing HEAD-to-working-tree dialog without resetting. The controller
+retains repository access and transitions the same native window to reset progress;
+upstream uses separate modal windows. Each request owns its own controller.
+
+Completed Merge progress keeps Close distinct from Cancel. Close preserves the
+conflicted result. Cancel and titlebar dismissal read current index conflicts,
+close the progress owner, and open Abort Merge only if conflicts remain. Duplicate
+dismissals and post-actions are blocked during that read. A cancelled operation
+uses the same path after it finishes. The conflict hint must be acknowledged first.
+
+Merge-mode reset failures return to the choices on Retry. Mixed/Hard failures
+retry the captured mode directly. Successful Merge reset has no post-actions;
+Mixed/Hard expose Bisect good/bad/skip/reset when active, and Hard offers Submodule
+Update when applicable and Clean up. These route to existing native dialogs and
+refresh repository/status/log views. Store access is checked before Git operations.
+
+The [headless receiver](qa/merge-abort-dialog-native-2026-10-08.swift) checks actual
+Git state, all three reset modes, selection snapshots, comparison callback,
+Close/Cancel distinction, fresh resolved-conflict dismissal, duplicate protection,
+index-lock failures and mode-specific retry, and active Bisect post-actions.
+It creates no windows and cannot establish physical layout/keyboard/owner-sheet
+acceptance. Active-process cancellation routing, submodule post-action acceptance,
+context-menu integration/icon, saved geometry, live progress output, signed scope
+and the full Reset workflow remain pending. Existing screenshots have not been
+updated to show this dialog. Full application parity remains incomplete.
