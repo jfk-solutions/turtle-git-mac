@@ -403,8 +403,9 @@ Switch/Checkout requires another revision. Older stash commits retain source
 eligibility. Revision choosers suppress these commands. Bare/unborn repositories,
 empty/stale/multiple selections, loading and closed models cannot dispatch.
 
-The immutable selected hash presets the existing native Switch or Reset dialog
-without applying an operation. Explicit revision requests open independently owned
+The selected revision presets the existing native Switch or Reset dialog
+without applying an operation. Reset uses the immutable hash; Switch prefers a
+matching remote ref as described below. Explicit revision requests open independently owned
 windows, preserving existing draft targets/options and operations. Generic menu
 requests retain their existing window behavior. Switch's explicit initial revision
 also survives a model reload; Switch has no automatic appearance-load callback.
@@ -421,6 +422,31 @@ chooser/bare/unborn/invalidation guards and original icons are checked. Ordinary
 HEAD/refs/index/config/working bytes remain unchanged by those reads. No windows
 are displayed. Physical menu/title/icon rendering, independently owned windows,
 confirmation/operation/close acceptance, adjacent stash index history-action gates,
-detached captions, remote-reference default guessing/express branch switching,
+detached captions, express branch switching,
 broader Switch/Reset parity and signed access remain pending.
 Full RefLog/dialog/application parity remains incomplete.
+
+## Remote defaults for Switch/Checkout
+
+RefLog Switch/Checkout now consults a sorted hash-to-reference map, as the pinned
+source does when no ref label was clicked. The first matching `refs/remotes/` name
+presets the native Branch target, Create New Branch, a suggested local branch name
+and automatic tracking. Local branches and tags do not override that remote guess.
+An entry without a matching remote still presets its immutable commit hash. Reset
+continues to use the hash. Refresh rebuilds this map, including annotated tags and
+symbolic remote names; bare/unborn handling retains the existing eligibility gates.
+
+A valid explicit symbolic remote preset (such as `refs/remotes/alpha/HEAD`) stays
+visible in the native picker. Its resolved remote target supplies the local branch
+suggestion, avoiding the invalid local name `HEAD`. Ordinary branch lists still
+omit unselected symbolic references. This is a native usability adaptation around
+upstream's symbolic-reference mapping and its backend-dependent branch lists.
+
+The [receiver](qa/reflog-remote-defaults-native-2026-10-08.swift) loads actual native
+models and checks sorted remote selection, hash fallback, reload retention, moved
+remote refs, symbolic presets and ordinary read-only repository state. A separate
+fixture operation creates the correctly tracked local branch through Core. No
+window or preferences are written. The [QA record](qa/reflog-remote-defaults-2026-10-08.json)
+records runtime/build coverage. Physical picker/menu rendering, signed access,
+complete express branch progress/post-actions and full application parity remain
+pending.

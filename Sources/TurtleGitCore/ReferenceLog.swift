@@ -34,6 +34,18 @@ public enum ReferenceLogFailure: LocalizedError {
     }
 }
 extension GitRepository {
+    /// Upstream's hash-to-friendly-name map, including peeled annotated tags.
+    /// RefLog has no clicked ref label, so Switch guesses the first remote name.
+    public func referenceLogReferenceNamesByHash() throws -> [String: [String]] {
+        let result = try run(["show-ref", "-d"], successfulExitCodes: 0...1)
+        var names: [String: [String]] = [:]
+        for line in result.text.split(separator: "\n") {
+            let fields = line.split(separator: " ", maxSplits: 1)
+            guard fields.count == 2 else { continue }
+            names[String(fields[0]), default: []].append(String(fields[1]))
+        }
+        return names.mapValues { $0.sorted() }
+    }
     public func referenceLogNames() throws -> [String] {
         ["HEAD"] + (try run(["for-each-ref", "--format=%(refname)"])).text.split(separator: "\n").map(String.init)
     }

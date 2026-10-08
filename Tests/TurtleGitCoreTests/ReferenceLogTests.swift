@@ -2,6 +2,28 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ReferenceLogTests: XCTestCase {
+    func testFriendlyReferenceMapIncludesLocalRemoteSymbolicAndPeeledTag() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        for ref in ["refs/heads/topic", "refs/remotes/zeta/topic", "refs/remotes/alpha/topic"] { _ = try await repo.run(["update-ref", ref, hash]) }
+        _ = try await repo.run(["symbolic-ref", "refs/remotes/alpha/HEAD", "refs/remotes/alpha/topic"])
+        _ = try await repo.run(["tag", "-a", "annotated", "-m", "tag", hash])
+        let tagHash = try await repo.run(["rev-parse", "refs/tags/annotated"]).text.trimmingCharacters(in: .newlines)
+        let map = try await repo.referenceLogReferenceNamesByHash()
+        XCTAssertEqual(map[hash], ["refs/heads/main", "refs/heads/topic", "refs/remotes/alpha/HEAD", "refs/remotes/alpha/topic", "refs/remotes/zeta/topic", "refs/tags/annotated^{}"])
+        XCTAssertEqual(map[tagHash], ["refs/tags/annotated"])
+        let after = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        XCTAssertEqual(after, hash)
+    }
+    func testFriendlyReferenceMapIsEmptyForUnbornRepository() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true); defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root)
+        _ = try await repo.run(["init", "-b", "main"])
+        let map = try await repo.referenceLogReferenceNamesByHash()
+        XCTAssertTrue(map.isEmpty)
+    }
+
     func testReflogRowsPreserveDistinctSelectorsDateAndUnicodeSubjects() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         for message in ["first 雪", "second: details"] {

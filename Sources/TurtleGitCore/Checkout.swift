@@ -16,7 +16,10 @@ public struct CheckoutReference: Identifiable, Sendable {
         return name
     }
     public var suggestedBranch: String {
-        if remote { return String(name.dropFirst("refs/remotes/".count).split(separator: "/", maxSplits: 1).last ?? "") }
+        if remote {
+            let source = symbolicTarget?.hasPrefix("refs/remotes/") == true ? symbolicTarget! : name
+            return String(source.dropFirst("refs/remotes/".count).split(separator: "/", maxSplits: 1).last ?? "")
+        }
         return "Branch_" + label
     }
 }

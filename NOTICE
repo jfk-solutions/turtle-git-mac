@@ -501,3 +501,8 @@ parent choices and base-to-selected Changed Files handoff at the recorded pin.
 RefLog Switch/Checkout and Reset commands follow GitLogListBase.cpp's working-tree,
 HEAD and current-stash eligibility, original icons and selected revision handoffs
 to native dialogs at the recorded TortoiseGit pin.
+
+RefLog remote Switch defaults adapt GitLogListAction.cpp's first-remote guess and
+Git.cpp's sorted hash-to-reference map, including peeled annotated tags. Explicit
+symbolic remote presets remain visible in the native picker and use the resolved
+remote branch name for a new local branch. Source pin is recorded in upstream.json.

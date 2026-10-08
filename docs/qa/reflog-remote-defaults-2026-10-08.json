@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "9df90d84cfc80f3e83a7d2f1d4cfbb6d26de9b57",
+  "scope": "RefLog first matching remote defaults for native Switch/Checkout, symbolic preset picker and resolved local name. Partial parity; express branch progress/post-actions and full application port remain incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/TortoiseProc/GitSwitchDlg.cpp": "db94cbe8bc1c8d4b0e240b327581c5d97339a4ee",
+    "src/TortoiseProc/ChooseVersion.h": "9bc3080bd557ba11f814e6d9221aa322b1414f1c"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "93ff306257098803ec6dc9e502d3d29453fdd047981447781883e9fb59087afc",
+    "NOTICE": "f4d1a5a5293153725ab79dfbf288216743b891ad0eda677a357172df5e7324ac",
+    "Sources/TurtleGitCore/Checkout.swift": "f47c9ee1d6e651601b5d1711bdbd79887214db5880b11d0bd3b3397c823d92bf",
+    "Sources/TurtleGitCore/ReferenceLog.swift": "eceac053071d5e482beb27ca46c3beca93e39cc6d665819a3db448a811dd5115",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "f37492eeedaef63825c0029d395c9547942f76239f956819065c2d8d3a5ef684",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "f12125c67c73321f5d572a32e0fa5d82222b7096ce8375808581ae8e8403f299",
+    "Tests/TurtleGitCoreTests/ReferenceLogTests.swift": "6e5f9ee4c525c56f678840e5c795b9c92e3959acd3aee333da766af729007740",
+    "docs/REFLOG-PARITY.md": "bc97478e765370227d5769ba4f924a1ccc9d407119f3cacb6b74f304a0e07b27",
+    "docs/upstream-files.csv": "a1ac355590b657eb7a643e1decb5a59269ddf6848cbad836c8966030c69ff407",
+    "docs/qa/reflog-remote-defaults-native-2026-10-08.swift": "a35bc86fa73375b92ea9e829f794b6efd1918571f921ec44f187a4469db9eb2f",
+    "scripts/test-reflog-remote-defaults.py": "af6ec5732862fb1de17148a870e8fdaddfc299401b9cbe7ec9c0c0d10dca86c1"
+  },
+  "all_sources_manifest_sha256": "3b65c63d5071a3004ef94a910736fa894ca29c994fcbfe94e2579185e99b73d2",
+  "verification": {
+    "core": "ReferenceLogTests 10 and CheckoutTests 7 passed. New real-Git tests cover sorted local/remote/symbolic/peeled annotated-tag map and empty unborn repository.",
+    "native": "Remote-default receiver passed system Git, 2.37.1, 2.39.5 and bundled 2.55.0. Actual Switch models select first matching remote, branch target/create/name/automatic tracking and retain preset on load; no-remote hash fallback and moved-ref refresh checked. Explicit symbolic ref remains in picker and resolved remote branch supplies local name. HEAD/multi/stale/busy/invalidation guards checked. Ordinary reads preserve HEAD/ref/index/config/worktree bytes. Explicit separate Core operation creates local topic with expected commit and origin alpha/topic upstream. No windows, preferences, external app or clipboard writes.",
+    "upstream_adaptation": "Upstream hash map includes valid symbolic remote refs; first remote name is selected. Branch picker differs between source libgit2 and CLI backends, with CLI omitting symbolic entries. Native explicit symbolic preset stays selectable, deriving suggested local name from target rather than invalid HEAD.",
+    "limitations": "Physical menu/picker rendering, tracking toggle interaction, actual window/factory routing and signed access remain unverified. Express local branch single/submenu with direct execution and complete source progress/retry/post-actions remains pending. Full RefLog/context/dialog/Finder parity, updated real screenshots/manual, hosted publication and signed App Store distribution remain incomplete. Hosted CI/push unavailable; not retried.",
+    "regression": "Existing RefLog history-action receiver passed all four Git versions against final Sources: actual Switch/Reset hash presets, unchanged reads, HEAD/current-stash/older-stash/chooser/bare/unborn/selection/busy/invalidation gates and original icons. It does not exercise physical dialogs or operations.",
+    "documentation": "Parity notes, NOTICE, six upstream inventory mappings and macOS workflow updated. Source pin and all 3277 seven-column source rows passed. Local site generated, unpublished.",
+    "builds": "Final unsigned Debug and AppStore builds passed. Both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git 2.55.0 Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "processes": "All compiler/native/build/audit sessions terminal. No main GUI launched; receivers create models only, no windows. App/native receiver process audit empty. No clipboard/preferences writes."
+  },
+  "logs": {
+    "build/qa/reflog-remote-defaults/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-remote-defaults/checkout-core.log": "a6a4a696308968accc0be7ce849a7d3d38e578f96fe43a998c55effafdb4c56f",
+    "build/qa/reflog-remote-defaults/core.log": "2315bf55bb147098eb7d97f68115181c729b372545ba78e88aab9907d17c49d3",
+    "build/qa/reflog-remote-defaults/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-remote-defaults/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-remote-defaults/history-regression.log": "43f88b95d47b85205c0115e08ac7033a93555e999bf9687d61d53d6bf4887d32",
+    "build/qa/reflog-remote-defaults/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-remote-defaults/native.log": "3c82a7288f08df299523a5427e4fa908b1c07b9b7bbe2139bbfdaf8b8175c702",
+    "build/qa/reflog-remote-defaults/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-remote-defaults/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-remote-defaults/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-remote-defaults/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

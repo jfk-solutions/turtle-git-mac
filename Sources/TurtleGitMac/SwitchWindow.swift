@@ -37,7 +37,7 @@ import TurtleGitCore
     @Published var commits: [LogEntry] = []
     var close: () -> Void = {}
     var onSwitched: (String) -> Void = { _ in }
-    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && $0.symbolicTarget == nil } }
+    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && ($0.symbolicTarget == nil || $0.name == branchRevision) } }
     var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
     var revision: String { switch options.target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
     var remote: Bool { options.target == .branch && references.first { $0.name == branchRevision }?.remote == true }

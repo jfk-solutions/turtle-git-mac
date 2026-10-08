@@ -122,6 +122,7 @@ import TurtleGitCore
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
     var onCheckout: ((String) -> Void)?
     var onReset: ((String) -> Void)?
+    @Published private(set) var referenceNamesByHash: [String: [String]] = [:]
     @Published private(set) var currentHeadHash: String?
     @Published private(set) var currentBranch = ""
     @Published private(set) var hasWorkingTree = false
@@ -145,6 +146,7 @@ import TurtleGitCore
                 let bare = try await repository.isBare()
                 let head = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "HEAD"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
                 let branch = try await repository.branch()
+                let referenceNames = try await repository.referenceLogReferenceNamesByHash()
                 var stashHash: String?, indexParent: String?
                 if refs.contains("refs/stash") {
                     let hash = try await repository.run(["rev-parse", "--verify", "--quiet", "--end-of-options", "refs/stash"], successfulExitCodes: 0...1).text.trimmingCharacters(in: .newlines)
@@ -155,6 +157,7 @@ import TurtleGitCore
                     }
                 }
                 guard request == generation else { return }
+                referenceNamesByHash = referenceNames
                 currentStashHash = stashHash; currentStashIndexParent = indexParent
                 hasWorkingTree = !bare
                 currentHeadHash = head.isEmpty ? nil : head; currentBranch = branch
@@ -250,7 +253,7 @@ import TurtleGitCore
     }
     func performHistory(_ command: ReferenceLogHistoryCommand, ids: Set<String>) {
         guard canPerformHistory(command, ids: ids), let entry = entries.first(where: { ids.contains($0.id) }) else { return }
-        switch command { case .reset: onReset?(entry.hash); case .checkout: onCheckout?(entry.hash) }
+        switch command { case .reset: onReset?(entry.hash); case .checkout: onCheckout?(referenceNamesByHash[entry.hash]?.first { $0.hasPrefix("refs/remotes/") } ?? entry.hash) }
     }
     func comparisonSides(_ command: ReferenceLogComparisonCommand, ids: Set<String>) -> (ComparisonRevision, ComparisonRevision)? {
         guard !busy, !ids.isEmpty else { return nil }
