@@ -250,7 +250,7 @@ import UniformTypeIdentifiers
     @Published var selection = Set<String>()
     @Published var fileMetadata: [String: StatusListMetadata] = [:]
     @Published var fileColumns = StatusListColumnSettings()
-    var visibleFileColumns: [StatusListColumn] { StatusListColumn.allCases.filter { fileColumns.visible.contains($0) } }
+    var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) } }
     @Published var fileSortOrder = [CommitFileSort(column: .path)]
     @Published var focusedFiles: [String: String] = [:]
     @Published var changelists = GitChangelists()
@@ -434,6 +434,12 @@ import UniformTypeIdentifiers
         guard let comparator = fileSortOrder.first else { return files }
         return files.map { CommitSortableRow(row: .file($0), statistics: statistics[$0.path], isDirectory: submodules.contains($0.path) || fileMetadata[$0.path]?.isDirectory == true, metadata: fileMetadata[$0.path]) }
             .sorted(using: comparator).compactMap(\.entry)
+    }
+    @discardableResult func saveFileColumnLayout(order: [StatusListColumn], widths: [StatusListColumn: Double]) -> Bool {
+        guard !busy, !confirmingQuit else { return false }
+        let next = StatusListColumnSettings(visible: fileColumns.visible, order: order, widths: widths)
+        if fileColumns != next { fileColumns = next; fileColumns.save(to: dialogDefaults) }
+        return true
     }
     func setFileColumn(_ column: StatusListColumn, visible: Bool) {
         guard column != .path, !busy, !confirmingQuit else { return }
@@ -1375,7 +1381,7 @@ GroupBox("Changes made (double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows, visibleColumns: Set(model.visibleFileColumns), setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
+        .background(CommitFileInteraction(rows: rows, visibleColumns: Set(model.visibleFileColumns), savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? !(mark.staged && mark.worktree == " ") : !model.checked.contains(mark.id)
             model.setFileChecked(mark, files: files, highlighted: Set(files.map(\.id)), checked: next)
         }))

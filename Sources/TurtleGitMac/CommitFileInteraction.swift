@@ -7,6 +7,9 @@ import TurtleGitCore
 struct CommitFileInteraction: NSViewRepresentable {
     let rows: [StatusListRow]
     let visibleColumns: Set<StatusListColumn>
+    let savedOrder: [StatusListColumn]
+    let savedWidths: [StatusListColumn: Double]
+    let saveLayout: ([StatusListColumn], [StatusListColumn: Double]) -> Bool
     let setColumnVisible: (StatusListColumn, Bool) -> Void
     let resetColumns: (@escaping () async -> Bool, @escaping () -> Void) -> Void
     @Binding var focusedPath: String?
@@ -21,6 +24,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
     }
     func updateNSView(_ view: Probe, context: Context) {
+        view.savedOrder = savedOrder; view.savedWidths = savedWidths; view.saveLayout = saveLayout
         view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
         view.rows = rows; view.focusedPath = $focusedPath
         view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn; view.toggleCheck = toggleCheck
@@ -31,6 +35,9 @@ struct CommitFileInteraction: NSViewRepresentable {
     final class Probe: NSView {
         var rows: [StatusListRow] = []
         var visibleColumns = Set(StatusListColumn.defaultColumns)
+        var savedOrder = StatusListColumn.allCases
+        var savedWidths: [StatusListColumn: Double] = [:]
+        var saveLayout: ([StatusListColumn], [StatusListColumn: Double]) -> Bool = { _, _ in false }
         var setColumnVisible: (StatusListColumn, Bool) -> Void = { _, _ in }
         var resetColumns: (@escaping () async -> Bool, @escaping () -> Void) -> Void = { _, _ in }
         var confirmResetColumns: (NSWindow) async -> Bool = { window in
@@ -51,9 +58,16 @@ struct CommitFileInteraction: NSViewRepresentable {
         private var trackingHeader = false
         private var draggingHeader = false
         private var adjustingLayout = false
-        func rememberNativeColumnLayout() {
-            guard !adjustingLayout, let table = configuredTable else { return }
-            desiredColumns = table.tableColumns
+        func rememberNativeColumnLayout(adjustedColumn: StatusListColumn? = nil) {
+            guard enabled, !adjustingLayout, let table = configuredTable else { return }
+            let order = table.tableColumns.compactMap { columnDefinitions[ObjectIdentifier($0)] }
+            var widths = savedWidths
+            if let adjustedColumn, let column = table.tableColumns.first(where: { columnDefinitions[ObjectIdentifier($0)] == adjustedColumn }) {
+                widths[adjustedColumn] = Double(column.width)
+            }
+            guard saveLayout(order, widths) else { return }
+            savedOrder = order; savedWidths = widths
+            desiredColumns = [originalColumns[0]] + table.tableColumns.filter { columnDefinitions[ObjectIdentifier($0)] != nil }
             desiredWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
         }
         private func applyNativeColumnLayout() {
@@ -78,18 +92,30 @@ struct CommitFileInteraction: NSViewRepresentable {
                 desiredColumns = originalColumns; desiredWidths = originalWidths
                 for observer in layoutObservers { NotificationCenter.default.removeObserver(observer) }
                 layoutObservers = [NSTableView.columnDidMoveNotification, NSTableView.columnDidResizeNotification].map { name in
-                    NotificationCenter.default.addObserver(forName: name, object: table, queue: .main) { [weak self] _ in
+                    NotificationCenter.default.addObserver(forName: name, object: table, queue: .main) { [weak self] notification in
                         guard let self, self.trackingHeader,
                               self.draggingHeader || NSApplication.shared.currentEvent?.type == .leftMouseDragged else { return }
-                        self.draggingHeader = true; self.rememberNativeColumnLayout()
+                        self.draggingHeader = true
+                        let column = notification.userInfo?["NSTableColumn"] as? NSTableColumn
+                        let adjusted = name == NSTableView.columnDidResizeNotification ? column.flatMap { self.columnDefinitions[ObjectIdentifier($0)] } : nil
+                        self.rememberNativeColumnLayout(adjustedColumn: adjusted)
                     }
                 }
             }
+            let byDefinition = Dictionary(uniqueKeysWithValues: originalColumns.dropFirst().compactMap { column -> (StatusListColumn, NSTableColumn)? in
+                columnDefinitions[ObjectIdentifier(column)].map { ($0, column) }
+            })
+            desiredColumns = [originalColumns[0]] + savedOrder.compactMap { byDefinition[$0] }
+            desiredWidths = originalWidths
+            for (definition, width) in savedWidths {
+                if let column = byDefinition[definition] { desiredWidths[ObjectIdentifier(column)] = max(column.minWidth, min(column.maxWidth, CGFloat(width))) }
+            }
             table.allowsColumnReordering = enabled; table.allowsColumnResizing = enabled
-            applyNativeColumnLayout()
+            table.columnAutoresizingStyle = .noColumnAutoresizing
             for column in table.tableColumns {
                 if let definition = columnDefinitions[ObjectIdentifier(column)] { column.isHidden = !visibleColumns.contains(definition) && definition != .path }
             }
+            applyNativeColumnLayout()
             table.headerView?.menu = columnMenu()
         }
         func columnDefinition(atNativeIndex index: Int) -> StatusListColumn? {

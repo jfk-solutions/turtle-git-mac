@@ -1622,9 +1622,9 @@ not open symlink targets or alter repository content.
 **Reset columns** asks the source Yes/No question in an owned native sheet. No
 retains choices and layout. Yes restores default visibility and the current
 table's initial column order/widths. The Commit owner stays busy until the
-answer; stale visibility/sort/reset actions are refused. This increment saves
-visibility; complete Commit width/order persistence and source autosizing are
-still pending. Native moved-column identity is tracked independently of indexes
+answer; stale visibility/sort/reset actions are refused. This increment originally saved visibility; the saved-layout follow-up below
+also persists column order and adjusted widths. Complete source autosizing
+remains pending. Native moved-column identity is tracked independently of indexes
 so the clicked-column clipboard route remains aligned. Copy All now emits only
 visible column headings and values, including the same date/size text displayed
 in the table. Other consumers keep their original five-column clipboard default.
@@ -1637,7 +1637,34 @@ retention and startup-width reset (180 versus a later 215.5-point layout),
 all eight sort bindings, groups/selection/checks, metadata clipboard text and
 repository byte preservation. Native move/resize plus the production capture
 method exercise restoration; pointer tracking itself is not exercised. Physical header tracking/confirmation/keyboard/
-resize, screenshots, signed lease behavior, saved width/order and LFS Lock
+resize, screenshots, signed lease behavior, source autosizing and LFS Lock
 remain pending. Earlier screenshots show the source default columns and are
 not evidence of these new optional controls. Full Commit and app parity remain
 incomplete.
+
+## Saved Commit column layout
+
+Commit now saves the full native column order and only user-adjusted widths,
+alongside visibility in its versioned column preferences. Existing visibility-only
+records remain valid; absent layout fields use the source/native defaults. Unknown
+columns and duplicate order entries are removed, missing known columns are
+appended, and nonpositive/nonfinite widths are ignored. Stored widths are bounded
+and clamped to each native column's constraints when restored. Widths use macOS
+points; Windows registry/DPI pixel values are not imported.
+
+A newly opened native table restores the saved order, widths and visibility. The
+leading checkbox stays separate and leading; header choices still protect Path.
+Current windows retain their own state. Sorting remains attached to column
+identity; clicked-column clipboard lookup and Copy All use the displayed order.
+Reset No retains the layout; Yes clears adjusted widths and order as well as
+visibility and restores the table's native defaults. Busy/Quit confirmation
+reject layout persistence and reset changes. Unadjusted columns retain their
+native widths rather than saving every autosized value as a user adjustment.
+
+[Saved layout QA](qa/commit-column-layout-2026-10-08.json) records preference
+migration/normalization tests and actual hidden native table reopening, direct
+AppKit move/resize followed by the production capture method, copied visible
+headings, Reset and repository preservation across four Git engines. Pointer
+notification capture, physical dragging/resize, autosizing, changed fonts,
+multiple displays/DPI, themes and signed acceptance remain pending. Full
+ColumnManager, Commit and application parity are still incomplete.

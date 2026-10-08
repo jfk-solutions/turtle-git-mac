@@ -35,6 +35,23 @@ final class StatusListSortingTests: XCTestCase {
         defaults.set(99, forKey: "Commit.FileColumns.Version")
         XCTAssertEqual(StatusListColumnSettings.load(from: defaults).visible, Set(StatusListColumn.defaultColumns))
     }
+    func testLayoutPreferenceMigrationOrderWidthValidationAndReset() {
+        let suite = "TurtleGit.ColumnLayout.Core.QA." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(1, forKey: "Commit.FileColumns.Version")
+        defaults.set(["Path", "Filename"], forKey: "Commit.FileColumns")
+        let legacy = StatusListColumnSettings.load(from: defaults)
+        XCTAssertEqual(legacy.order, StatusListColumn.allCases); XCTAssertTrue(legacy.widths.isEmpty)
+        defaults.set(["Filename", "bad", "Path", "Filename"], forKey: "Commit.FileColumns.Order")
+        defaults.set(["Filename": 252.5, "File size": -5, "Status": 100001, "bad": 32], forKey: "Commit.FileColumns.Widths")
+        let loaded = StatusListColumnSettings.load(from: defaults)
+        XCTAssertEqual(Array(loaded.order.prefix(2)), [.fileName, .path]); XCTAssertEqual(Set(loaded.order).count, StatusListColumn.allCases.count)
+        XCTAssertEqual(loaded.widths, [.fileName: 252.5, .status: 10000])
+        loaded.save(to: defaults); XCTAssertEqual(StatusListColumnSettings.load(from: defaults), loaded)
+        StatusListColumnSettings().save(to: defaults)
+        XCTAssertEqual(StatusListColumnSettings.load(from: defaults), StatusListColumnSettings())
+        XCTAssertTrue(StatusListColumnSettings(widths: [.path: .infinity, .status: .nan, .added: 0]).widths.isEmpty)
+    }
     func testMetadataLiteralFileDirectoryLinkMissingAndEscapingParent() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-metadata-core-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -97,14 +97,32 @@ public enum StatusListClipboard {
 /// Versioned native equivalent of CommitDlg's default/selected column mask.
 public struct StatusListColumnSettings: Equatable, Sendable {
     public var visible: Set<StatusListColumn>
-    public init(visible: Set<StatusListColumn> = Set(StatusListColumn.defaultColumns)) { self.visible = visible.union([.path]) }
+    public var order: [StatusListColumn]
+    /// Only user-adjusted widths are persisted; other columns keep native defaults.
+    public var widths: [StatusListColumn: Double]
+    public init(visible: Set<StatusListColumn> = Set(StatusListColumn.defaultColumns), order: [StatusListColumn] = StatusListColumn.allCases, widths: [StatusListColumn: Double] = [:]) {
+        self.visible = visible.union([.path])
+        var seen = Set<StatusListColumn>()
+        self.order = (order + StatusListColumn.allCases).filter { seen.insert($0).inserted }
+        self.widths = widths.filter { $0.value.isFinite && $0.value > 0 }.mapValues { min(10000, $0) }
+    }
     public static func load(from defaults: UserDefaults, key: String = "Commit.FileColumns") -> Self {
         guard defaults.integer(forKey: key + ".Version") == 1,
               let names = defaults.stringArray(forKey: key) else { return Self() }
-        return Self(visible: Set(names.compactMap(StatusListColumn.init(rawValue:))))
+        let order = (defaults.stringArray(forKey: key + ".Order") ?? []).compactMap(StatusListColumn.init(rawValue:))
+        let saved = defaults.dictionary(forKey: key + ".Widths") ?? [:]
+        var widths: [StatusListColumn: Double] = [:]
+        for (name, value) in saved {
+            guard let column = StatusListColumn(rawValue: name), let number = value as? NSNumber else { continue }
+            widths[column] = number.doubleValue
+        }
+        return Self(visible: Set(names.compactMap(StatusListColumn.init(rawValue:))), order: order, widths: widths)
     }
     public func save(to defaults: UserDefaults, key: String = "Commit.FileColumns") {
         defaults.set(1, forKey: key + ".Version")
         defaults.set(StatusListColumn.allCases.filter { visible.contains($0) || $0 == .path }.map(\.rawValue), forKey: key)
+        let normalized = Self(visible: visible, order: order, widths: widths)
+        defaults.set(normalized.order.map(\.rawValue), forKey: key + ".Order")
+        defaults.set(Dictionary(uniqueKeysWithValues: normalized.widths.map { ($0.key.rawValue, $0.value) }), forKey: key + ".Widths")
     }
 }

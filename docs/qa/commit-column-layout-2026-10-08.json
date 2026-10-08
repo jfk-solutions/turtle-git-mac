@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "4e3fb027b8af7108e433330fd2ecab06b0dc750b",
+  "scope": "Saved Commit column order and adjusted widths; native reopening, Reset and displayed-order clipboard. Full app/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/ColumnManager.cpp": "6776d4d47a80a9af042223ebd5f8589cd48b57f3",
+    "src/TortoiseProc/ColumnManager.h": "bd12076609badaecb865f168ebefd1e235a7315b"
+  },
+  "sources_manifest_sha256": "8fa00b5ae9107352d41725e91b42d75794f3fe237f2ded70f27b14bac1d9236d",
+  "changed_files_sha256": {
+    "NOTICE": "a88ad71d88a3e2b31a9a28270ba9188a99286b3ea0f29cbc7b8a398e0be8f765",
+    "Sources/TurtleGitCore/StatusListClipboard.swift": "df5d67042d0efe5a6c3a5ae09265eb9b31c4db9b1f34bab406bb8686990210a9",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "c88b11e6f9fe8db585a2646750a54ba9cc19f16e45c5f5a9db89c1ae6935bb34",
+    "Sources/TurtleGitMac/CommitWindow.swift": "66bf2d3e266c566c3a883a7d6a9efe52cacb719a5617e43e9ea61e9023821a72",
+    "Tests/TurtleGitCoreTests/StatusListSortingTests.swift": "baa18fc51aae0c74131136085b681dd050fd6f4277bd6afd40105fe68439b3cc",
+    "docs/COMMIT-PARITY.md": "3ad7699d69a84d95cd97ad4b320613a2c7efc88668f28a5e90ce5b8ac2d9782a",
+    "docs/qa/commit-column-sorting-native-2026-10-08.swift": "94c30d7716feb4a640829743b1d70a00db94b985084e8b86b8b26b98ccd84821",
+    "docs/upstream-files.csv": "1cc1356c97b687bab022a98043ffaae190134731e319d508124decc9577dae8b"
+  },
+  "verification": {
+    "core": "19 StatusListSorting/Group/Clipboard tests pass: visibility-only version 1 migration, unknown/duplicate order cleanup, missing-column append, finite/positive/bounded widths, saved round trip and reset; existing sorting, metadata and clipboard regressions.",
+    "native": "Four Git engines pass: Apple Git 2.50.1, Git 2.37.1, Git 2.39.5, bundled Git 2.55.0. Actual second hidden native table restores order and adjusted 217-point Filename width, with unadjusted widths absent from saved settings. Copy All visible headings follow saved order. Injected Reset No retains layout; Yes clears persisted adjustments and restores original 180-point width. All eight sort bindings and existing grouping/check/highlight/focus/staged stats, reload and HEAD/raw index/worktree/changelist preservation checks pass. Direct AppKit move/resize followed by production capture; physical gestures not exercised.",
+    "builds": "Final Debug and sequential unsigned AppStore builds pass, as do both current bundle audits, original icon audit, packaged Git runtime audit, NOTICE equality, inventory pin and diff checks. Production sources/tests/receivers frozen while compile/Core/native handles live.",
+    "site": "Static documentation generator includes the new QA record and updated Commit parity page; local site log recorded."
+  },
+  "iterations": [
+    "Initial reopening check exposed native automatic width redistribution (saved 252.5 points reopened as 264). Disabled native column autoresizing and applied saved layout after visibility.",
+    "Next receiver passed reopening but Reset retained custom 217 instead of startup 180. Configure now resets desired widths to original native defaults before applying saved adjustments. Final four-engine receiver confirms 217 restored on reopen and 180 after Reset. Prior failing logs and nonempty private suites retained."
+  ],
+  "limitations": [
+    "Physical drag/resize notification capture, actual confirmation sheet/keyboard/default/Escape, light/dark screenshots, accessibility and display/font/DPI variants remain unverified; choices injected.",
+    "Full shared ColumnManager behavior including source autosizing, other consumers and LFS Lock remains incomplete. Widths use native points and constraints; Windows registry pixel values not imported.",
+    "Signed sandbox/Finder deployment, App Store eligibility, fresh screenshots, external GitHub CI/push and full application/dialog parity remain incomplete."
+  ],
+  "cleanup": {
+    "removed_empty_preferences": [
+      "TurtleGit.ColumnLayout.Core.QA.3689D6A3-1C37-46A6-9DC3-8BBA963B32FC.plist",
+      "TurtleGit.CommitSorting.QA.40C74F1E-A3AC-43FE-BAFD-1090AC4BCED2.plist",
+      "TurtleGit.CommitSorting.QA.58CB8CA1-5A33-4DC5-83D5-AC7C80F65923.plist",
+      "TurtleGit.CommitSorting.QA.C188A128-782E-4DAE-9862-29422B25CCE1.plist",
+      "TurtleGit.CommitSorting.QA.C8866794-04D6-4242-96F3-22DD32CCDF77.plist"
+    ],
+    "retained_nonempty_failed_preferences": [
+      "TurtleGit.CommitSorting.QA.406525AC-A287-4456-94D8-46210E46E1A5.plist",
+      "TurtleGit.CommitSorting.QA.43F598B1-3867-4993-BCA4-E85BE13EC646.plist",
+      "TurtleGit.CommitSorting.QA.B0A2175C-5C99-4ECE-8824-ED6CE2CDAB7C.plist",
+      "TurtleGit.CommitSorting.QA.C78D2417-C4D7-48BD-AD88-592D5CEA86FD.plist",
+      "TurtleGit.CommitSorting.QA.F0A46B5A-D9D5-4AFF-ABC9-08A9C914F333.plist"
+    ],
+    "processes": [],
+    "private_fixture_directories": []
+  },
+  "local_log_sha256": {
+    "build/qa/commit-column-layout-2026-10-08/core.log": "b47d9461fa24b428d7e64d003de07312dd362c528d3d367a14a4b80b8818bc18",
+    "build/qa/commit-column-layout-2026-10-08/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-column-layout-2026-10-08/debug-audit-reset-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-column-layout-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-column-layout-2026-10-08/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-column-layout-2026-10-08/debug-reset-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-column-layout-2026-10-08/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-column-layout-2026-10-08/native-diagnostic.log": "c89312d0981536c0a87d8164d345c735653cd42e7f5ed20125b5bb7dd91e20a9",
+    "build/qa/commit-column-layout-2026-10-08/native-final.log": "01ebb13848262bfe1c58a61c99202b05ee60cc01d986485b13e98110368fed04",
+    "build/qa/commit-column-layout-2026-10-08/native-reset-final.log": "185bb591aaf5b8f03a8a7d5ffa62dd31bbf1419b9463cd4ed8490158c59b46c1",
+    "build/qa/commit-column-layout-2026-10-08/native.log": "985d0b68d94f283a42d2ca3d3e8bab5cba12df57de4ebc9878e82fcbdc59bf01",
+    "build/qa/commit-column-layout-2026-10-08/pin-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-column-layout-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-column-layout-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-column-layout-2026-10-08/store-audit.log": "c760ff4763f156e92fefd77049a3a405cd056e1834de60679fb6b388e97ef7a9",
+    "build/qa/commit-column-layout-2026-10-08/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

@@ -769,5 +769,11 @@ attribution applies. ColumnManager.cpp copyright (C) 2008, 2014 TortoiseSVN and 
 2019-2020, 2023-2026 TortoiseGit, GPL version 2 or later. Native metadata is read inside the repository access
 lease; native date/byte formatting replaces Windows formatting. Persisted
 visibility retains the source Commit defaults; Reset uses an owned Yes/No
-sheet and locks the Commit owner. Full width/order persistence,
-LFS column, physical header behavior and signed access remain pending.
+sheet and locks the Commit owner. LFS column, physical header behavior and signed access remain pending.
+
+Commit column settings now also retain the native order and user-adjusted widths
+in versioned preferences, adapting the shared ColumnManager ReadSettings/
+WriteSettings/ParseWidths/ParseColumnOrder behavior. ColumnManager copyright
+and GPL attribution above applies. Native widths use points and clamp to the
+current column constraints; unadjusted columns retain native defaults. Reset
+clears adjusted widths/order; Copy All follows the displayed visible order.
