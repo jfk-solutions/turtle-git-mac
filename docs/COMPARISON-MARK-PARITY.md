@@ -446,3 +446,28 @@ checking exact output bytes and unchanged Base. Physical format-menu interaction
 dominant ending, and exhaustive mixed-ending/selection combinations remain pending.
 Three-pane read-only source alignment now shares the boundary parser; see
 [its parity record](TEXT-MERGE-PARITY.md#nine-style-source-alignment).
+
+## Comparison clipboard context icons
+
+Two-pane and prepared patch-result context menus now use the original Paste
+ribbon artwork alongside the existing Copy/block/Undo/Redo images. Copy/Paste
+menu selectors forward through app-owned actions, avoiding AppKit's automatic
+standard-action images when the application icon setting is disabled. Cut keeps
+the native scissors symbol. Clipboard entries retain their original aligned
+selection/editing paths; read-only Cut/Paste stay disabled. Paste availability is
+checked as a plain-string type before enabling the entry.
+
+Cut/Paste metadata and context handlers check the pane's editing state and
+busy/Quit guards before invoking clipboard/editing operations. This prevents a
+stale context Cut from copying text after editing has been locked. The native
+menu builder accepts private preferences/pasteboards for receiver checks; normal
+application use still supplies standard preferences and the general clipboard.
+
+[Comparison menu QA](qa/comparison-context-menu-2026-10-08.json) uses the actual
+prepared aligned editor and four Git versions. It checks clipboard targets and
+images, complete icon-off menus, private Paste availability, read-only Before
+and busy/Quit metadata. The full receiver's existing editing/save/Undo/Redo and
+Import Patch regressions also pass. No Core code changed in this checkpoint.
+Physical context tracking, keyboard and actual clipboard action dispatch,
+read-only omission/source grouping, exhaustive format menu variants and signed
+sandbox acceptance remain pending.

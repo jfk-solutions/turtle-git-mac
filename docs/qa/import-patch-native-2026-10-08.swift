@@ -189,6 +189,31 @@ import TurtleGitCore
         try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
         let editedView = edit.afterScroll!.documentView as! NSTextView
         precondition((edit.beforeScroll!.documentView as! NSTextView).isEditable == false)
+        let menuClipboard = NSPasteboard.withUniqueName()
+        defer { menuClipboard.releaseGlobally() }
+        menuClipboard.declareTypes([.string], owner: nil); menuClipboard.setString("private paste", forType: .string)
+        editedView.setSelectedRange(NSRange(location: 0, length: 4))
+        let comparisonMenus = editedView as! ComparisonContextMenuProviding
+        let menu = comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard)
+        precondition(["Copy", "Cut", "Paste"].allSatisfy { menu.item(withTitle: $0)?.image != nil && menu.item(withTitle: $0)?.isEnabled == true })
+        precondition(["Copy", "Cut", "Paste"].allSatisfy { (menu.item(withTitle: $0)?.target as? NSTextView) === editedView })
+        prefs.set(false, forKey: "ShowAppContextMenuIcons")
+        precondition(comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard).items.allSatisfy { $0.image == nil })
+        prefs.removeObject(forKey: "ShowAppContextMenuIcons")
+        for quit in [false, true] {
+            edit.editor!.busy = !quit; edit.editor!.confirmingQuit = quit
+            let lockedMenu = comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard)
+            precondition(!lockedMenu.item(withTitle: "Cut")!.isEnabled && !lockedMenu.item(withTitle: "Paste")!.isEnabled && lockedMenu.item(withTitle: "Copy")!.isEnabled)
+        }
+        edit.editor!.busy = false; edit.editor!.confirmingQuit = false
+        menuClipboard.clearContents()
+        precondition(!comparisonMenus.comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard).item(withTitle: "Paste")!.isEnabled)
+        let beforeView = edit.beforeScroll!.documentView as! NSTextView
+        beforeView.setSelectedRange(NSRange(location: 0, length: min(1, (beforeView.string as NSString).length)))
+        let beforeMenu = (beforeView as! ComparisonContextMenuProviding).comparisonContextMenu(defaults: prefs, pasteboard: menuClipboard)
+        precondition(!beforeMenu.item(withTitle: "Cut")!.isEnabled && !beforeMenu.item(withTitle: "Paste")!.isEnabled)
+        beforeView.setSelectedRange(NSRange(location: 0, length: 0)); editedView.setSelectedRange(NSRange(location: 0, length: 0)); edit.editor!.selectedRows = nil
+        print("PASS: actual aligned comparison menu clipboard targets/artwork, icon-off policy without standard-selector glyph fallback, private Paste availability, read-only and busy/Quit editing metadata. No synthetic context events or general clipboard writes.")
         editedView.undoManager!.groupsByEvent = false
         editedView.undoManager!.beginUndoGrouping()
         editedView.insertText("custom\nno final newline", replacementRange: NSRange(location: 0, length: (editedView.string as NSString).length))

@@ -736,3 +736,8 @@ src/Resources/ribbon/Paste.bmp (resource GPL alternative); Copy/Find/block artwo
 uses the existing original assets. Cut uses the native macOS scissors symbol.
 Explicit AppKit menu targets replace inherited context entries; physical menu
 tracking, clipboard services and complete source ordering remain pending.
+
+Two-pane comparison clipboard context entries also use app-owned Copy/Paste
+selectors, the original Paste artwork and busy/Quit guards. The BaseView and
+resource GPL attribution above applies. Existing aligned selection/editing paths
+remain in use; physical menu and clipboard dispatch parity remain pending.

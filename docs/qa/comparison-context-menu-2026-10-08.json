@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "f1aa95091e3b16d82ce20e589bfa9d101c5e235b",
+  "scope": "Shared two-pane/prepared patch comparison clipboard context icons and editing guards; full port/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/BaseView.cpp": "366693a9d1d37033f6c99222fe616e6c1dc394c5"
+  },
+  "source_method": "CBaseView::AddCutCopyAndPaste",
+  "sources_manifest_sha256": "a0ac171d1afd64cbb798e501e556077677070e0691d066ec9a503843bb8e5b2d",
+  "changed_files_sha256": {
+    "NOTICE": "2f7fd815ed10be839959077c782ec5434f30b33ff01e3e87b5867a4208ef1636",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "b3e1ebcc76b73e6cf61578d63680a52bf4722277165e4420f403ade963be8d22",
+    "docs/COMPARISON-MARK-PARITY.md": "f7316faaceb6a041e160c7b128cb4aca51199b6056fe97d51f44b7e66f070faa",
+    "docs/qa/import-patch-native-2026-10-08.swift": "12046f59e43dac03fc12dc6a5fd144ac9f6a051a7090ac3ab2395dbc137ca872",
+    "docs/upstream-files.csv": "41bd390ee5dc3f83320ccbd8577372924b4df5328e12b5ade863111108831a28"
+  },
+  "verification": {
+    "native": "Full Import Patch receiver passes Apple Git 2.50.1, Git 2.37.1, Git 2.39.5 and bundled Git 2.55.0. Actual prepared aligned NSTextView menu builder checks Copy/Cut/Paste artwork and targets, complete icon-off menus, private Paste availability, immutable Before/read-only and busy/Quit metadata. Existing real editing/Undo/Redo/save/default Auto Add/marked-policy/ending/Import Patch regressions pass. No context events, physical input or clipboard action dispatch.",
+    "builds": "Final unsigned Debug, stationary-Debug full four-engine receiver, then AppStore. Both packaging audits (99 original assets), bundled NOTICE equality, pin and diff checks pass. Sources/NOTICE/receiver frozen during live compiler/native sessions.",
+    "core": "No Core code or assets changed; no new Core run claimed for this Mac menu-binding change.",
+    "site": "Static GitHub Pages generator passes with comparison menu parity and QA links."
+  },
+  "iterations": [
+    "Debug, final Debug after NOTICE, full native receiver and Store pass first run."
+  ],
+  "limitations": [
+    "Physical context tracking, keyboard/actual clipboard action dispatch and stale action runtime checks remain pending; metadata is tested and handler guards reviewed.",
+    "Read-only entries remain disabled rather than omitted; exact source grouping/ordering, all menu branches and signed sandbox acceptance remain pending.",
+    "Original Paste/Copy artwork retained; Cut remains native scissors. Other application standard-selector menus still need audit.",
+    "Full app parity, Finder deployment, real screenshots, App Store eligibility and external CI/push remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_native_fixtures": [],
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.E79866D1-1DDA-4667-96FA-EE12A5DA74AE.plist",
+      "TurtleGit.ImportPatch.QA.1B9CEA8B-5C82-4522-946A-C98914CA4D3F.plist",
+      "TurtleGit.ImportPatch.QA.6F260750-9EEF-4337-B630-94F1F022C48B.plist",
+      "TurtleGit.ImportPatch.QA.87EC1757-82BC-40E1-AAF3-A98B6FD799ED.plist"
+    ],
+    "retained_nonempty_prior_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "TurtleGit.ImportPatch.QA.77E263CF-C337-44E7-8E7E-D1E02A2F1C8E.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "main_app_launched": false,
+    "clipboard": "Private pasteboard for menu availability; clipboard menu actions not dispatched, general clipboard not seeded or written."
+  },
+  "logs_sha256": {
+    "build/qa/comparison-context-menu/cleanup.json": "9176527b71972cf6b1db05f88ddf32ebeefefd32d1cf30a48a3f143499c36ecc",
+    "build/qa/comparison-context-menu/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/comparison-context-menu/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/comparison-context-menu/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/comparison-context-menu/native.log": "b8ffb7df89452c71d64a14833a8ff9dc18374c13621441f73aa9363e26c9a6b3",
+    "build/qa/comparison-context-menu/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/comparison-context-menu/store-audit.log": "c760ff4763f156e92fefd77049a3a405cd056e1834de60679fb6b388e97ef7a9",
+    "build/qa/comparison-context-menu/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/comparison-context-menu/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

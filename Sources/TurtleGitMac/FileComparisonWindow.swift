@@ -669,7 +669,10 @@ struct FileComparisonEditor: NSViewRepresentable {
         deinit { NotificationCenter.default.removeObserver(self) }
     }
 }
-private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
+@MainActor protocol ComparisonContextMenuProviding {
+    func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
+}
+private final class FileComparisonTextView: NSTextView, NSMenuDelegate, ComparisonContextMenuProviding {
     var history: UndoManager?
     weak var model: FileComparisonWindowModel?
     var baseSide = false
@@ -722,11 +725,15 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard let model else { return super.menu(for: event) }
+        guard model != nil else { return super.menu(for: event) }
+        return comparisonContextMenu(defaults: .standard, pasteboard: .general)
+    }
+    func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu {
+        guard let model else { return NSMenu() }
         model.updateSelection(selectedRange(), cells: sourceCells)
         let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
         func add(_ title: String, _ action: Selector, _ icon: NSImage?, _ enabled: Bool) {
-            let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = MenuPresentationSettings.applicationContextIcons() ? icon : nil; item.isEnabled = enabled; menu.addItem(item)
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: ""); item.target = self; item.image = MenuPresentationSettings.applicationContextIcons(defaults: defaults) ? icon : nil; item.isEnabled = enabled; menu.addItem(item)
         }
         let block = model.canTransfer(toBase: false) && model.transferRows != nil
         add(baseSide ? "Use this block" : "Use other block", #selector(useBlock), MenuIcon.mergeUseTheirs.image(), block)
@@ -785,9 +792,9 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
         add("Undo", #selector(undoEdit), MenuIcon.mergeUndo.image(), model.canUndo && !model.busy && !model.confirmingQuit)
         add("Redo", #selector(redoEdit), MenuIcon.mergeRedo.image(), model.canRedo && !model.busy && !model.confirmingQuit)
         menu.addItem(.separator())
-        add("Copy", #selector(copy(_:)), MenuIcon.copy.image(), selectedRange().length > 0)
-        add("Cut", #selector(cutSelection), NSImage(systemSymbolName: "scissors", accessibilityDescription: nil), isEditable && selectedRange().length > 0)
-        add("Paste", #selector(paste(_:)), NSImage(systemSymbolName: "doc.on.clipboard", accessibilityDescription: nil), isEditable && NSPasteboard.general.string(forType: .string) != nil)
+        add("Copy", #selector(copyFromContext), MenuIcon.copy.image(), selectedRange().length > 0)
+        add("Cut", #selector(cutSelection), NSImage(systemSymbolName: "scissors", accessibilityDescription: nil), isEditable && model.canTransfer(toBase: baseSide) && selectedRange().length > 0)
+        add("Paste", #selector(pasteFromContext), MenuIcon.mergePaste.image(), isEditable && model.canTransfer(toBase: baseSide) && pasteboard.availableType(from: [.string]) != nil)
         return menu
     }
     @objc private func useBlock() { model?.useOtherBlock(targetBase: false) }
@@ -816,5 +823,13 @@ private final class FileComparisonTextView: NSTextView, NSMenuDelegate {
     @objc private func exportPane() { model?.export(base: baseSide) }
     @objc private func undoEdit() { model?.undo() }
     @objc private func redoEdit() { model?.redo() }
-    @objc private func cutSelection() { copy(nil); insertText("", replacementRange: selectedRange()) }
+    @objc private func copyFromContext() { copy(nil) }
+    @objc private func pasteFromContext() {
+        guard isEditable, model?.canTransfer(toBase: baseSide) == true else { return }
+        paste(nil)
+    }
+    @objc private func cutSelection() {
+        guard isEditable, model?.canTransfer(toBase: baseSide) == true else { return }
+        copy(nil); insertText("", replacementRange: selectedRange())
+    }
 }
