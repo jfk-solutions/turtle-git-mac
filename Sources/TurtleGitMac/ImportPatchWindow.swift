@@ -9,9 +9,10 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var approvedClose = false
     private var patch: PatchWindowController?
+    private var review: WorkingTreePatchWindowController?
     private var mail: NSSharingService?
     private var mailCompletion: ((String?) -> Void)?
-    var activeOperation: Bool { model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil }
+    var activeOperation: Bool { model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -21,6 +22,21 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self
         window.setContentSize(.init(width: 800, height: 620))
         window.contentMinSize = .init(width: 660, height: 460); window.center()
+        model.childActive = { [weak self] in self?.review?.activeOperation == true || self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
+        model.onStateChanged = { [weak self] in self?.review?.model.objectWillChange.send() }
+        model.showReview = { [weak self] bytes, title, lease in
+            guard let self else { return }
+            self.review?.close()
+            let controller = WorkingTreePatchWindowController(repository: repository, access: access, fileAccess: lease, bytes: bytes, title: title, preferences: preferences)
+            controller.model.parentActive = { [weak self] in
+                guard let self else { return true }
+                return self.model.busy || self.model.closing || self.model.confirmingQuit || self.window?.attachedSheet != nil
+            }
+            controller.model.onChanged = { [weak self] output in self?.model.onChanged(output) }
+            controller.model.onBusyChanged = { [weak self] in self?.model.objectWillChange.send() }
+            controller.onClosed = { [weak self, weak controller] in if self?.review === controller { self?.review = nil; self?.model.objectWillChange.send() } }
+            self.review = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        }
         model.chooseFiles = { [weak self] in self?.chooseFiles() }
         model.showPatch = { [weak self] bytes, title, alternate in
             guard let self else { return }
@@ -98,10 +114,13 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if approvedClose { return true }
-        guard sender.attachedSheet == nil, !model.confirmingQuit, !model.receivingDrop, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
+        guard review?.activeOperation != true, sender.attachedSheet == nil, !model.confirmingQuit, !model.receivingDrop, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
         model.requestClose(); return false
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); review?.close(); onClosed() }
+    func setQuitConfirmation(_ value: Bool) {
+        model.confirmingQuit = value; review?.setQuitConfirmation(value)
+    }
     func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) { finishMail(nil) }
     func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) { finishMail(error.localizedDescription) }
     private func finishMail(_ error: String?) { let completion = mailCompletion; mailCompletion = nil; mail = nil; completion?(error) }
@@ -111,7 +130,7 @@ import TurtleGitCore
 @MainActor final class ImportPatchWindowModel: ObservableObject {
     enum State: String { case pending = "", applying = "Applying", success = "Success", failed = "Failed", skipped = "Skipped" }
     enum CloseChoice { case abort, keep, cancel }
-    enum ContextAction: String { case viewPatch = "View Patch", sendMail = "Send Mail…" }
+    enum ContextAction: String { case viewPatch = "View Patch", reviewPatch = "Review Patch with TurtleGitMerge", sendMail = "Send Mail…" }
     struct Item: Identifiable {
         let id = UUID()
         let file: URL
@@ -129,10 +148,10 @@ import TurtleGitCore
     @Published private(set) var preview = ""
     @Published private(set) var previewNotice: String?
     @Published private(set) var output = ""
-    @Published private(set) var busy = false
+    @Published private(set) var busy = false { didSet { onStateChanged() } }
     @Published private(set) var stopRequested = false
-    @Published var confirmingQuit = false
-    @Published private(set) var closing = false
+    @Published var confirmingQuit = false { didSet { onStateChanged() } }
+    @Published private(set) var closing = false { didSet { onStateChanged() } }
     @Published private(set) var receivingDrop = false
     @Published private(set) var openingViewer = false
     @Published private(set) var composingMail = false
@@ -141,6 +160,9 @@ import TurtleGitCore
     private var invalidated = false
     private var previewGeneration = UUID()
     var chooseFiles: () -> Void = {}
+    var onStateChanged: () -> Void = {}
+    var childActive: () -> Bool = { false }
+    var showReview: (Data, String, RepositoryAccessLease) throws -> Void = { _, _, _ in }
     var showPatch: (Data, String, Bool) async throws -> Void = { _, _, _ in }
     var composeMail: ([URL], @escaping (String?) -> Void) -> Void = { _, done in done("No mail composition service is available.") }
     var configureIdentity: () async throws -> Bool = { false }
@@ -150,7 +172,7 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
-    var editable: Bool { !confirmingQuit && !receivingDrop && !busy && !closing && !openingViewer && !composingMail && !invalidated }
+    var editable: Bool { !confirmingQuit && !receivingDrop && !busy && !closing && !openingViewer && !composingMail && !invalidated && !childActive() }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
@@ -160,7 +182,7 @@ import TurtleGitCore
     func contextActions(_ ids: Set<UUID>) -> [ContextAction] {
         guard editable else { return [] }
         let count = items.filter { ids.contains($0.id) }.count
-        return count == 1 ? [.viewPatch, .sendMail] : count > 1 ? [.sendMail] : []
+        return count == 1 ? [.viewPatch, .reviewPatch, .sendMail] : count > 1 ? [.sendMail] : []
     }
     func viewPatch(_ ids: Set<UUID>, alternate: Bool) {
         guard editable, contextActions(ids).contains(.viewPatch), let item = items.first(where: { ids.contains($0.id) }) else { return }
@@ -172,6 +194,17 @@ import TurtleGitCore
                 // The external viewer receives an exact app-owned byte snapshot.
                 let bytes = try await Task.detached { try Data(contentsOf: item.file) }.value
                 try await showPatch(bytes, item.file.lastPathComponent, alternate)
+            } catch { self.error = error.localizedDescription }
+        }
+    }
+    func reviewPatch(_ ids: Set<UUID>) {
+        guard editable, contextActions(ids).contains(.reviewPatch), let item = items.first(where: { ids.contains($0.id) }) else { return }
+        openingViewer = true
+        Task {
+            defer { openingViewer = false }
+            do {
+                let bytes = try await Task.detached { try Data(contentsOf: item.file) }.value
+                try showReview(bytes, item.file.lastPathComponent, item.access)
             } catch { self.error = error.localizedDescription }
         }
     }
@@ -406,11 +439,12 @@ struct ImportPatchDialog: View {
                     Button {
                         switch action {
                         case .viewPatch: model.viewPatch(ids, alternate: NSEvent.modifierFlags.contains(.shift))
+                        case .reviewPatch: model.reviewPatch(ids)
                         case .sendMail: model.sendMail(ids)
                         }
                     } label: {
                         HStack {
-                            if contextIcons { Image(nsImage: (action == .viewPatch ? MenuIcon.patch : .sendMail).image() ?? NSImage()) }
+                            if contextIcons { Image(nsImage: (action == .sendMail ? MenuIcon.sendMail : .patch).image() ?? NSImage()) }
                             Text(action.rawValue)
                         }
                     }
@@ -503,5 +537,147 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         let position = Double(upper.view.frame.height)
         guard position.isFinite, position > 0 else { return }
         if preferences.double(forKey: Self.positionKey) != position { preferences.set(position, forKey: Self.positionKey) }
+    }
+}
+
+@MainActor final class WorkingTreePatchWindowController: NSWindowController, NSWindowDelegate {
+    let model: WorkingTreePatchWindowModel
+    var onClosed: () -> Void = {}
+    var activeOperation: Bool { model.busy || model.confirmingQuit || model.previewDocument.busy || window?.attachedSheet != nil }
+    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard) {
+        model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences)
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "\(title) – Review Patch – TurtleGitMerge"; window.isReleasedWhenClosed = false
+        let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model)); host.sizingOptions = []
+        window.contentViewController = host
+        super.init(window: window); window.delegate = self
+        window.setContentSize(.init(width: 1100, height: 720)); window.contentMinSize = .init(width: 800, height: 460); window.center()
+        DialogGeometry.attach(window, identifier: "TurtleGit.PatchReview")
+        model.close = { [weak self] in self?.window?.performClose(nil) }
+        model.refresh()
+    }
+    func setQuitConfirmation(_ value: Bool) { model.confirmingQuit = value; model.previewDocument.confirmingQuit = value }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation }
+    func windowWillClose(_ notification: Notification) { onClosed() }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+@MainActor final class WorkingTreePatchWindowModel: ObservableObject {
+    let repository: GitRepository
+    private let access: RepositoryAccessLease?
+    private let fileAccess: RepositoryAccessLease?
+    private let bytes: Data
+    let previewDocument: PatchWindowModel
+    @Published private(set) var review: WorkingTreePatchReview?
+    @Published private(set) var selected: Set<Int> = []
+    @Published private(set) var appliedPaths: Set<Data> = []
+    @Published private(set) var busy = false { didSet { onBusyChanged() } }
+    @Published var confirmingQuit = false
+    @Published private(set) var reversed = false
+    @Published private(set) var stripCount = 1
+    @Published private(set) var requiresRefresh = false
+    @Published private(set) var notice = ""
+    @Published private(set) var output = ""
+    private var selectedReview: WorkingTreePatchReview?
+    var close: () -> Void = {}
+    var onChanged: (String) -> Void = { _ in }
+    var onBusyChanged: () -> Void = {}
+    var parentActive: () -> Bool = { false }
+    var editable: Bool { !busy && !confirmingQuit && !previewDocument.busy && !parentActive() }
+    var canApply: Bool { editable && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
+    init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes
+        previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
+        previewDocument.setReadOnlyDiff(bytes); previewDocument.refreshAvailable = false
+    }
+    func setReversed(_ value: Bool) {
+        guard editable, value != reversed else { return }
+        reversed = value; requiresRefresh = true; selectedReview = nil; notice = "Refresh to check the changed options."
+    }
+    func setStripCount(_ value: Int) {
+        guard editable, value != stripCount else { return }
+        stripCount = value; requiresRefresh = true; selectedReview = nil; notice = "Refresh to check the changed options."
+    }
+    private func checkAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
+    func refresh() {
+        guard editable else { return }; busy = true; selectedReview = nil; appliedPaths = []
+        let reverse = reversed, strip = stripCount
+        Task {
+            defer { busy = false }
+            do { try checkAccess(); try await load(reverse: reverse, strip: strip) }
+            catch { review = nil; selected = []; notice = error.localizedDescription }
+        }
+    }
+    private func load(reverse: Bool, strip: Int) async throws {
+        let next = try await repository.reviewWorkingTreePatch(bytes, reversed: reverse, stripCount: strip)
+        review = next; requiresRefresh = false
+        selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))
+        try await validateSelection()
+    }
+    private func validateSelection() async throws {
+        selectedReview = nil
+        guard let review, !selected.isEmpty else { notice = appliedPaths.isEmpty ? "Select files to apply." : "Selected files have been applied."; return }
+        let next = try await repository.reviewWorkingTreePatchFiles(review, fileIDs: selected)
+        selectedReview = next; notice = next.validationError ?? "Checked files can be applied to the working tree."
+    }
+    func check(_ id: Int, _ value: Bool) {
+        guard editable, !requiresRefresh, let file = review?.files.first(where: { $0.id == id }), !appliedPaths.contains(file.pathBytes) else { return }
+        if value { selected.insert(id) } else { selected.remove(id) }
+        busy = true; selectedReview = nil
+        Task { defer { busy = false }; do { try checkAccess(); try await validateSelection() } catch { notice = error.localizedDescription } }
+    }
+    func apply() {
+        guard canApply, let selection = selectedReview else { return }; busy = true; selectedReview = nil
+        let reverse = reversed, strip = stripCount
+        Task {
+            defer { busy = false }
+            do {
+                try checkAccess()
+                let result = try await repository.applyWorkingTreePatch(selection)
+                appliedPaths.formUnion(selection.files.map(\.pathBytes)); output += result + "\nApplied \(selection.files.count) file(s).\n"
+                onChanged(output)
+                try await load(reverse: reverse, strip: strip)
+            } catch { notice = error.localizedDescription; output += "\n" + notice + "\n" }
+        }
+    }
+}
+
+struct WorkingTreePatchDialog: View {
+    @ObservedObject var model: WorkingTreePatchWindowModel
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(model.repository.root.path).lineLimit(1).help(model.repository.root.path)
+                Spacer(); Toggle("Reverse patch", isOn: Binding(get: { model.reversed }, set: { model.setReversed($0) }))
+                Text("Strip paths:"); TextField("Strip paths", value: Binding(get: { model.stripCount }, set: { model.setStripCount($0) }), formatter: NumberFormatter()).frame(width: 45)
+                Button("Refresh") { model.refresh() }
+            }.disabled(!model.editable)
+            HSplitView {
+                VStack(alignment: .leading) {
+                    Text("Files to patch:")
+                    Table(model.review?.files ?? []) {
+                        TableColumn("") { file in
+                            Toggle(file.path, isOn: Binding(get: { model.selected.contains(file.id) }, set: { model.check(file.id, $0) })).labelsHidden().disabled(!model.editable || model.requiresRefresh || model.appliedPaths.contains(file.pathBytes))
+                        }.width(26)
+                        TableColumn("Path") { file in Text(file.path).help(file.path) }
+                        TableColumn("Changes") { file in
+                            Text(model.appliedPaths.contains(file.pathBytes) ? "Applied" : file.isBinary ? "Binary" : "+\(file.additions ?? 0) −\(file.deletions ?? 0)")
+                                .foregroundStyle(model.appliedPaths.contains(file.pathBytes) ? Color.green : .secondary)
+                        }.width(80)
+                    }
+                }.frame(minWidth: 280, idealWidth: 350)
+                VStack(alignment: .leading) { Text("Original patch:"); PatchTextView(model: model.previewDocument) }.frame(minWidth: 400)
+            }
+            Text(model.notice).foregroundStyle(model.canApply ? Color.secondary : Color.orange).textSelection(.enabled)
+            if !model.output.isEmpty { DisclosureGroup("Output") { OutputView(text: model.output, usesLogFont: true).frame(height: 100) } }
+            HStack {
+                if model.busy { ProgressView().controlSize(.small); Text("Checking patch…") }
+                Text("Only checked files will be applied.").foregroundStyle(.secondary)
+                Spacer(); Button("Apply selected") { model.apply() }.disabled(!model.canApply)
+                Button("Close") { model.close() }.disabled(!model.editable)
+            }
+        }.padding(16)
     }
 }

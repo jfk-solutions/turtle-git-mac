@@ -117,8 +117,20 @@ block concurrent import, row mutation and window close. Failures re-enable the
 controls. Context icons follow the application context-menu icon setting.
 
 The source's **Review Patch with TortoiseGitMerge** command opens a working-tree
-review/application workflow, separate from the serial `git am` import. Its native
-window and context command remain pending.
+review/application workflow, separate from the serial `git am` import. The single-row **Review Patch with TurtleGitMerge** command now opens a native
+window with a checked file list, original colored patch preview, applicability
+results, reverse/strip options and selected complete-file application. Successful
+files are marked Applied while remaining files can continue from the original
+snapshot. Changed options require Refresh before Apply. Review changes the working
+files without staging or creating commits. Parent import/close/quit operations and
+child patch operations guard each other. The file access lease stays retained.
+
+[Native review QA](qa/patch-review-native-2026-10-08.json) covers the actual hidden
+AppKit table and preview, selected application/continuation/reversal, exact HEAD
+and index preservation, busy close/Quit/options guards and injected context
+handoff/failure recovery. It does not establish physical menu gestures or visual
+comparison. Editable before/after merge panes and hunk-level application remain
+pending.
 
 The Core review/application backend now keeps original patch bytes, obtains Git's
 statistics and summary, and checks applicability without staging or committing.
@@ -150,7 +162,8 @@ rejected. Per-file selection requires UTF-8 paths; whole-patch application keeps
 raw path bytes through Git. [Selected-file QA](qa/patch-file-apply-2026-10-08.json)
 checks literal wildcard/backslash names, an unselected conflict, sequential
 rename/binary/remaining-file application and reverse rename without changing the
-index. Native checkboxes and per-file comparison remain pending. The source suppresses the generic
+index. Native checkboxes use this backend; per-file before/after comparison remains
+pending. The source suppresses the generic
 Apply context command in Import Patch; this native list does too.
 
 The headless receiver checks source selection conditions, exact UTF-16 bytes and
@@ -246,7 +259,7 @@ sandbox access outside the repository remain unverified.
 
 ## Remaining parity work
 
-Patch review/application context command,
+Editable before/after patch merge panes, hunk/line application and
 the full Git configuration settings page remain pending. The source's exact context-menu/keyboard behavior remains pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,
 deployed Finder integration and App Store acceptance are unverified. No screenshot

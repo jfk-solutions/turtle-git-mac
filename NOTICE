@@ -665,7 +665,8 @@ commands, copyright (C) 2008-2020, 2023-2024, 2026 TortoiseGit, under GPL versio
 2 or later. Native worktree-specific session detection distinguishes mail
 application from rebase so am recovery cannot abort a rebase.
 
-Import Patch's View Patch/double-click, Send Mail selection and dropped-file rules adapt
+Import Patch's View Patch/double-click, Review Patch context handoff, Send Mail
+selection and dropped-file rules adapt
 CPatchListCtrl.cpp/.h, copyright (C) 2009-2013, 2015-2016, 2018-2023, 2025
 TortoiseGit, under GPL version 2 or later. Native file leases, exact byte viewer
 snapshots and the macOS sharing service replace the Windows process handoffs.
@@ -684,3 +685,8 @@ Import Patch identity preflight/configuration retry adapts CAppUtils::CheckUserD
 and CGit user/committer lookup ordering, copyright (C) 2008-2026 TortoiseGit
 and (C) 2003-2011, 2013-2014 TortoiseSVN, under GPL version 2 or later. Native sheets and Git CLI validation replace the
 Windows settings handoff; committer email follows GIT_COMMITTER_EMAIL.
+
+The native Review Patch window adapts CAppUtils::StartExtPatch working-tree and
+reverse-patch handoff. AppUtils copyright and GPL attribution above apply. The
+checked-file review and application use native Swift/AppKit and Git CLI checks;
+editable TortoiseGitMerge before/after patch panes remain pending.

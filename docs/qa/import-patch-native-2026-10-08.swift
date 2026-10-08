@@ -79,6 +79,46 @@ import TurtleGitCore
         precondition(identities.components(separatedBy: "Native Importer 雪 <native@example.invalid>").count == 3 && identities.contains("Author 雪 <author@example.invalid>"))
         identity.invalidate()
         print("PASS: missing identity Cancel preserves HEAD/pending rows; configuration callback retries after name-only change, locks mutations, then imports two real patches with original author and configured committer; no global settings changed or physical sheets invoked.")
+        let (reviewRepo, reviewFiles) = try await fixture(root.appendingPathComponent("review-window"), git)
+        let reviewBytes = try Data(contentsOf: reviewFiles[0]) + Data(contentsOf: reviewFiles[1])
+        let reviewController = WorkingTreePatchWindowController(repository: reviewRepo, access: nil, fileAccess: nil, bytes: reviewBytes, title: "series.patch", preferences: prefs)
+        defer { reviewController.close() }
+        let reviewer = reviewController.model
+        func waitReview() async throws {
+            for _ in 0..<1000 { if !reviewer.busy { return }; try await Task.sleep(nanoseconds: 10_000_000) }
+            fatalError("Review did not settle")
+        }
+        try await waitReview()
+        reviewController.window?.contentView?.layoutSubtreeIfNeeded()
+        precondition(nativeTable(reviewController.window!.contentView!)?.numberOfRows == 2 && reviewer.canApply && reviewer.previewDocument.readOnly && reviewer.previewDocument.exportDocument.bytes == reviewBytes)
+        let reviewIndex = try Data(contentsOf: reviewRepo.root.appendingPathComponent(".git/index")), reviewHead = try await reviewRepo.run(["rev-parse", "HEAD"]).stdout
+        var reviewChanges = 0; reviewer.onChanged = { _ in reviewChanges += 1 }
+        let firstFile = reviewer.review!.files.first { $0.path == "file" }!
+        reviewer.check(firstFile.id, false); try await waitReview(); precondition(reviewer.canApply && reviewer.selected.count == 1)
+        var parentBusy = true; reviewer.parentActive = { parentBusy }
+        reviewer.apply(); reviewer.refresh(); reviewer.check(firstFile.id, true); precondition(!reviewer.busy && reviewer.selected.count == 1)
+        parentBusy = false
+        reviewController.setQuitConfirmation(true); reviewer.apply(); precondition(!reviewer.busy && reviewer.previewDocument.confirmingQuit); reviewController.setQuitConfirmation(false)
+        reviewer.apply(); precondition(reviewer.busy && !reviewController.windowShouldClose(reviewController.window!))
+        precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+        reviewer.refresh(); reviewer.check(firstFile.id, true); reviewer.setReversed(true); reviewer.setStripCount(0)
+        precondition(!reviewer.reversed && reviewer.stripCount == 1)
+        try await waitReview()
+        let unselectedReviewFile = try Data(contentsOf: reviewRepo.root.appendingPathComponent("file")), appliedReviewFile = try Data(contentsOf: reviewRepo.root.appendingPathComponent("other"))
+        precondition(unselectedReviewFile == Data("base\n".utf8) && appliedReviewFile == Data("feature\n".utf8))
+        precondition(reviewChanges == 1 && reviewer.appliedPaths == [Data("other".utf8)] && reviewer.canApply)
+        reviewer.apply(); try await waitReview(); precondition(reviewChanges == 2 && !reviewer.canApply && reviewer.selected.isEmpty)
+        reviewer.setStripCount(0); precondition(reviewer.requiresRefresh && !reviewer.canApply)
+        reviewer.check(firstFile.id, true); reviewer.apply(); precondition(!reviewer.busy && !reviewer.canApply)
+        reviewer.setStripCount(1); reviewer.setReversed(true); precondition(reviewer.requiresRefresh && !reviewer.canApply)
+        reviewer.check(firstFile.id, true); precondition(!reviewer.busy && !reviewer.canApply)
+        reviewer.refresh(); try await waitReview(); precondition(reviewer.canApply && !reviewer.requiresRefresh)
+        reviewer.apply(); try await waitReview()
+        let reviewFinalHead = try await reviewRepo.run(["rev-parse", "HEAD"]).stdout
+        let finalReviewFile = try Data(contentsOf: reviewRepo.root.appendingPathComponent("file")), finalReviewIndex = try Data(contentsOf: reviewRepo.root.appendingPathComponent(".git/index"))
+        precondition(finalReviewFile == Data("base\n".utf8) && !FileManager.default.fileExists(atPath: reviewRepo.root.appendingPathComponent("other").path) && reviewIndex == finalReviewIndex && reviewHead == reviewFinalHead && reviewChanges == 3)
+        precondition(reviewer.previewDocument.exportDocument.bytes == reviewBytes)
+        print("PASS: actual hidden native Review Patch table/preview, checked-file application, remaining-file continuation and reverse; original bytes/HEAD/index retained, busy close/Quit/options/reentry guards; no main app or physical context gestures.")
         let dropped = ImportPatchWindowModel(repository: repo, access: nil, preferences: prefs)
         func provider(_ url: URL) -> NSItemProvider {
             let item = NSItemProvider()
@@ -309,7 +349,7 @@ import TurtleGitCore
         try bytes.write(to: utf16)
         context.add(patches + [utf16]); let contextIDs = context.items.map(\.id)
         precondition(context.contextActions([]).isEmpty && context.contextActions([UUID()]).isEmpty)
-        precondition(context.contextActions([contextIDs[0]]) == [.viewPatch, .sendMail])
+        precondition(context.contextActions([contextIDs[0]]) == [.viewPatch, .reviewPatch, .sendMail])
         precondition(context.contextActions([contextIDs[0], contextIDs[1]]) == [.sendMail])
         var viewed: Data?, viewedTitle = "", usedAlternate = false
         context.showPatch = { data, title, alternate in
@@ -330,11 +370,23 @@ import TurtleGitCore
         completeMail?("Mail fixture failed"); completeMail = nil
         precondition(!context.composingMail && context.error == "Mail fixture failed")
         context.error = nil
+        var reviewHandoffs = 0
+        context.showReview = { data, title, lease in
+            reviewHandoffs += 1
+            precondition(data == bytes && title == utf16.lastPathComponent && lease === context.items[2].access)
+        }
+        context.reviewPatch([contextIDs[2]])
+        precondition(context.openingViewer && !context.editable)
+        try await settle(context); precondition(reviewHandoffs == 1)
+        context.reviewPatch([contextIDs[0], contextIDs[1]]); precondition(!context.openingViewer)
+        context.showReview = { _, _, _ in throw MailPatchFailure.file }
+        context.reviewPatch([contextIDs[0]]); try await settle(context)
+        precondition(context.error != nil && context.editable); context.error = nil
         context.showPatch = { _, _, _ in throw MailPatchFailure.file }
         context.viewPatch([contextIDs[0]], alternate: false); try await settle(context)
         precondition(!context.openingViewer && context.error != nil && context.editable)
         context.viewPatch([contextIDs[0], contextIDs[1]], alternate: false); precondition(!context.openingViewer)
-        print("PASS: source context selection policy; exact UTF-16 viewer bytes/title/Shift handoff and read-only export; viewer/mail mutation guards; ordered composition attachments; failure recovery. Injected handoffs, no external app or mail service invoked; native menu gestures remain unverified.")
+        print("PASS: source context selection policy; exact UTF-16 viewer bytes/title/Shift handoff and read-only export; review exact-byte/title/lease handoff and failures; viewer/mail mutation guards; ordered composition attachments; failure recovery. Injected handoffs, no external app or mail service invoked; native menu gestures remain unverified.")
         let large = root.appendingPathComponent("large.patch")
         FileManager.default.createFile(atPath: large.path, contents: Data())
         let handle = try FileHandle(forWritingTo: large); try handle.truncate(atOffset: 250 * 1024 * 1024); try handle.close()

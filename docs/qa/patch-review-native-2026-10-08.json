@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "24ecfdde78a1897725075ebf279d2690a794aaee",
+  "scope": "Partial native working-tree Review Patch window and Import Patch single-file context handoff. Full app port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9",
+    "src/TortoiseProc/PatchListCtrl.cpp": "dea42bf97d4a1b265d31712e9b60ce7dd87dda8d",
+    "src/TortoiseProc/PatchListCtrl.h": "e8ea1a22743da0b38e9db25dda92048ca9f65751",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563"
+  },
+  "sources_manifest_sha256": "adbe4579092369956de284dc49ee08d96bc37b2d83634f1e2991422ef1954da2",
+  "changed_files_sha256": {
+    "NOTICE": "14714a1e5d716e37a1c87adb75078caa12a23ec0bb3877cb23e360ae48e3ece7",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "c956412556010fce2e25ded97ab04004442ac497c71eacf3552746c373792930",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "63221a87ae6449753e2f8d676aea980716eb0561c4c81f7b7bf4065ff5cc293a",
+    "docs/IMPORT-PATCH-PARITY.md": "e4256b52081e854ffd6fdfedb42969e89abadb11b9cab99795f98774ac1f037e",
+    "docs/qa/import-patch-native-2026-10-08.swift": "e2b001b2a692d1115b5fa82fca1d18a6625f08abd7f03bdd8b19ed968577c1ab",
+    "docs/upstream-files.csv": "b5107eb4749d13154705bd16e22b2b90560d6b4ab1e70f35e5d3febb89b3d513"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Final complete native receiver passes four engines. Actual hidden AppKit file table and read-only original-byte preview; uncheck file, apply other, continue remaining file, reverse both; exact HEAD/raw index and original bytes preserved. Busy refresh/check/reverse/strip/close/Quit reentry refused. Injected parent-active and quit flags prevent application. Reverse/strip edits require Refresh; checking a row cannot revive stale options. Single-file context exact bytes/title/file lease and failure recovery, multiple-file rejection through injected callback. Existing mail-import/preview/divider/Find/identity/drop/close/quit/recovery/stop regressions pass. No main app, physical input, external viewer/mail, shared pasteboard or standard preference writes.",
+    "core": "No Core production edits; prior nine-case four-engine 36-pass selected-file backend record remains applicable, not rerun.",
+    "builds": "Final unsigned Debug and Store builds pass. Source/NOTICE/native receiver frozen during all compiler/native sessions. Final four-engine native receiver runs against stationary Debug before sequential Store build. Core production unchanged; prior backend record not rerun.",
+    "bundles": "Debug/Store bundle validators and NOTICE comparisons, inventory pin, CSV 3277 records/seven fields, site and whitespace checks pass. Store packaged Git runtime and universal EditorConfig/IssueRegex helpers verified."
+  },
+  "iterations": [
+    "Initial Debug catch-variable error repaired. Native first run SIGSEGV: Published option rollback recursively entered didSet; replaced with guarded methods. Setter methods first placed in wrong model by edit, build failed; moved to review model. Four-engine repaired native run passes. Added explicit requiresRefresh guard to prevent checkboxes restoring a review with old reverse/strip options; final Debug and complete four-engine native run pass. Failed logs retained."
+  ],
+  "limitations": [
+    "Full TortoiseGitMerge before/after editable patch panes, hunk/line application and source patch engine still pending. Preview shows original whole patch, including unchecked files, labeled Original patch.",
+    "Native review receiver uses two concatenated mail patches containing text modification/addition. Binary/rename/mode/deletion/wildcard/stale/unsafe-path coverage is Core evidence, not a separate native case.",
+    "Parent-active operation guard tested via injected closure; production ownership/actual parent sheets not physically tested. Native context handoff injected; no physical menu gestures/screenshots/accessibility acceptance.",
+    "Changing options invalidates applicability until Refresh. External writers are not globally locked. Repeated path records require complete-path selection; non-UTF-8 selection cannot use argv include filters.",
+    "Signed sandbox/Finder deployment/App Store acceptance and visual equivalence remain unverified. GitHub auth/CI/push and CUA remain unavailable from prior evidence, not retried. Whole objective remains active."
+  ],
+  "cleanup": {
+    "app_or_receiver_processes": [],
+    "remaining_fixture_roots": [],
+    "removed_empty_private_preferences": [
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.CE532106-51FF-4584-A965-0FBBFA1C6926.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.D72BC3C8-9E16-49CD-83FB-8BC1EBC85C56.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.B3E53516-8E84-479F-A655-5AC0166C4DFB.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.0DBEB8DF-794C-44CD-9B90-E9409EA60029.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.0A922202-A65C-415A-AED0-C8289ED6364B.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.54EBCC10-E576-4A95-940E-CCC3C65780A4.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.471E3770-CDC6-461F-9914-EE24468A8ECD.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.E8D15108-8CD4-4872-9E76-0E2B741DF64D.plist"
+    ],
+    "retained_failed_nonempty_preferences": [
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.77E263CF-C337-44E7-8E7E-D1E02A2F1C8E.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ]
+  },
+  "logs_sha256": {
+    "build/qa/patch-review-native/cleanup.json": "025c5e3adbe91f16e5269c593ba78eb21b8dd4ec42badf38e04976c7cbbb844f",
+    "build/qa/patch-review-native/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/patch-review-native/debug-final-validated.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-review-native/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-review-native/debug-guards.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-review-native/debug-repaired.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-review-native/debug-setters.log": "7fc9b4b815d7ba91721185519b5ddebfda581bb07e47b22b0966003fc8588bbc",
+    "build/qa/patch-review-native/debug.log": "aff0ba38fe19b621da668cf592cfe76819558cc6000111e364c2cc86d524bed3",
+    "build/qa/patch-review-native/native-final.log": "900c9c00f9972578b2e4c62022f88851d81954a0469865f5697303ea06560c7f",
+    "build/qa/patch-review-native/native-repaired.log": "331c0bb5a065f3ac918884feeeea868440557fba41386b867a3f10c2370604a8",
+    "build/qa/patch-review-native/native.log": "7b5cec41e9bf8c1a6d0095e9dd395630dceaded9b842b5ebf78a75278e0a2b81",
+    "build/qa/patch-review-native/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/patch-review-native/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/patch-review-native/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/patch-review-native/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}
