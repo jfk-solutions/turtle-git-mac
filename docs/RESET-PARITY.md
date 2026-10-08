@@ -73,8 +73,45 @@ Debug URL dispatch.
 
 ## Remaining parity
 
-Full upstream ref/log chooser and FileDiffDlg, progress/cancellation/post-actions,
+Full upstream ref/log chooser and FileDiffDlg, complete progress controls and physical cancellation/post-action acceptance,
 native Hard warning/Cancel and error recovery, bare native layout, keyboard focus,
 Help, saved position, Log handoff, parent restoration and signed sandbox runtime
 remain pending. Full submodule Base/Mine/Theirs chooser remains unported. Delete/modify conflicts
 now have a native window with separate gaps recorded in DELETE-CONFLICT-PARITY.md. Reset and Resolve remain partial.
+
+
+## Owned result and command follow-ups
+
+Production Reset now opens a separate native progress sheet with captured immutable
+ResetPlan, output, semantic completion colors and original action icons. Failure
+retains Retry. Successful Hard reset offers Submodule Update when the working tree
+has .gitmodules (the source HasSubmodules gate, even without index gitlinks), then active-bisect Good/Bad/Skip/Reset actions in
+source order, then Clean. Soft/Mixed offer only applicable bisect actions. Clean,
+Submodule Update and bisect dispatch open the existing native flows after releasing
+the result, once only. These operations are not executed by constructing their menu.
+
+AutoCloseGitProgress applies: manual retains all results; no-options closes successful
+Soft/Mixed without actions but retains Hard/Clean and bisect/submodule results;
+no-errors closes all successful results. Failures stay open. ConfirmKillProcess
+uses the native Yes/No cancellation question with Yes default. No keeps running;
+Yes stops owned Git/helper processes. Retry creates a fresh token and reuses the
+captured plan. Its HEAD/branch check stays active: changed HEAD or symbolic branch
+requires closing the result and reviewing the options again, rather than silently
+resetting a different branch. Cancellation may leave actual Git effects, which are
+not rolled back. Result notifications refresh repository views after every attempt.
+
+The native Hard warning now has an explicit pending state and No/Yes callback;
+inputs and duplicate submissions remain locked while it is open. No leaves the
+repository unchanged. Success notifications for callers, including submodule
+Resolve continuation, occur once after result acknowledgement. Failed Close restores
+the options dialog. The no-presenter headless compatibility path retains immediate
+completion. Missing production presentation cancels and releases its owned result.
+
+[Progress QA](qa/reset-progress-2026-10-08.json) records real mode effects, close
+policies, native confirmation/acknowledgement model callbacks, stale branch retry
+rejection/recovery, ordered submodule/bisect actions, and owned No/Yes cancellation
+with fresh Retry. Hidden progress hosting does not establish displayed interaction.
+Streaming/full progress controls, libgit2 variants, metadata-query error recovery,
+physical nested sheets/defaults/keyboard/menus/close/focus/themes/accessibility,
+actual follow-up controller/Resolve handoff and signed sandbox/Finder/App Store
+acceptance remain pending. Existing screenshots predate the owned result.

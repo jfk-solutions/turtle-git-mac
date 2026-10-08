@@ -519,11 +519,22 @@ import TurtleGitCore
         if let mode { controller.model.mode = mode }
         controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
         controller.model.onStatus = { [weak self] in self?.showStatus(repository: repository, access: access, paths: []) }
-        controller.model.onReset = { [weak self] output in
+        controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
             self?.refreshRepositoryLogs(root); self?.commitWindows[root.path]?.model.reload()
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
-            completion?()
+        }
+        controller.model.onReset = { _ in completion?() }
+        controller.model.onPostAction = { [weak self] action in
+            switch action {
+            case .submoduleUpdate: self?.showSubmoduleUpdate(repository: repository, access: access, scope: [])
+            case .clean: self?.showClean(repository: repository, access: access, paths: [])
+            case .bisectGood: self?.showBisect(repository: repository, access: access, operation: .good)
+            case .bisectBad: self?.showBisect(repository: repository, access: access, operation: .bad)
+            case .bisectSkip: self?.showBisect(repository: repository, access: access, operation: .skip)
+            case .bisectReset: self?.showBisect(repository: repository, access: access, operation: .reset)
+            case .retry: break
+            }
         }
         resetWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

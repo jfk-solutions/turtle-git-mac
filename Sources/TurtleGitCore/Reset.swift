@@ -28,12 +28,15 @@ extension GitRepository {
         let reference = try? run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
         return ResetPlan(revision: target, originalHead: head, originalReference: reference, mode: mode)
     }
-    public func reset(_ plan: ResetPlan) throws -> String {
-        let head = try run(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .newlines)
-        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
+    public func reset(_ plan: ResetPlan, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
+        let head = try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let reference = try? run(["symbolic-ref", "--quiet", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        try cancellation?.check()
         guard head == plan.originalHead, reference == plan.originalReference else { throw ResetFailure.changedHead }
         if plan.mode != .soft, try isBare() { throw ResetFailure.workingTreeRequired }
-        return try run(["reset", "--" + plan.mode.rawValue, plan.revision, "--"]).text
+        try cancellation?.check()
+        return try run(["reset", "--" + plan.mode.rawValue, plan.revision, "--"], cancellation: cancellation).text
     }
     public func submoduleResetTarget(_ entry: ConflictEntry, using choice: ResolveChoice) throws -> (URL, String) {
         guard let current = try conflicts().first(where: { $0.path == entry.path }), current == entry,

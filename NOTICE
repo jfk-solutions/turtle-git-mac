@@ -565,3 +565,6 @@ retaining ordered success/rejection actions, captured presets and auto-close pol
 
 Native Push result notifications refresh repository views after failed or cancelled
 transport, preserving visible completed mutations without reporting success.
+
+Reset progress adapts CAppUtils::Reset and ProgressDlg.cpp with ordered Retry,
+Submodule/Bisect/Clean actions, retained results, cancellation and close policies.

@@ -111,4 +111,16 @@ final class MergeAbortResetTests: XCTestCase {
         let bare = GitRepository(root: bareRoot, executable: repo.executable)
         do { _ = try await bare.abortMerge(); XCTFail("Bare abort accepted") } catch MergeAbortFailure.workingTreeRequired {}
     }
+    func testPreCancelledResetPreservesHeadIndexAndWorkingTree() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "next"])
+        try Data("staged\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); try Data("working\n".utf8).write(to: root.appendingPathComponent(path))
+        let plan = try await repo.prepareReset(to: "HEAD^", mode: .hard)
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try await repo.run(["diff", "--cached", "--binary"]).stdout, working = try await repo.run(["diff", "--binary"]).stdout
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.reset(plan, cancellation: token); XCTFail("Pre-cancelled") } catch is OperationCancellationFailure {}
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterIndex = try await repo.run(["diff", "--cached", "--binary"]).stdout, afterWorking = try await repo.run(["diff", "--binary"]).stdout
+        XCTAssertEqual(head, afterHead); XCTAssertEqual(index, afterIndex); XCTAssertEqual(working, afterWorking)
+    }
+
 }

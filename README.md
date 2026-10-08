@@ -617,3 +617,7 @@ for verification and remaining acceptance.
 Native Push now retains a separate result with TortoiseGit's ordered follow-ups:
 Request Pull, Push, Switch, superproject Commit, and Pull/Fetch after rejection.
 See [Push parity](docs/PUSH-PARITY.md) for captured presets, close policies and limits.
+
+Reset now retains an owned result with Retry, Submodule Update, bisect and Clean
+follow-ups, and follows the shared automatic-close setting. See [Reset parity](docs/RESET-PARITY.md)
+for verified scope and remaining physical/signed acceptance.

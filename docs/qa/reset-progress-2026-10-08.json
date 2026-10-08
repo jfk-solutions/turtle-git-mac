@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "16dbd2cfd9c267165a17bddb7bdc577e2daafdc0",
+  "scope": "Native Reset owned result, cancellation, retained Retry and ordered post-actions. Full application port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ResetDlg.cpp": "b4bb451612a87b300c9439c39b644335b24c92e1",
+    "src/TortoiseProc/ResetDlg.h": "914cb7fa98c39503a9fe469d9739735b0ae77c27",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/ProgressDlg.h": "c21856cbed61b28586faaf5f37b9ef051e31bb52",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f",
+    "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2"
+  },
+  "sources_manifest_sha256": "d3e0cd16c8a7acba4ad3f54c2363bcfefe3468f46c0f62baa6ceadd9d24d3e7c",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "abd51f617733c90aa1e30acb7430934a83116430845b9b0bdadfba0c81da22a3",
+    "NOTICE": "5175b0b7f118b634af2c9f201643cbdd488407f00b532a610ff946e5924f914c",
+    "README.md": "f4285e86c9fd8e2c9b4a483f9028235307b45471199b6e03116897df87096e26",
+    "Sources/TurtleGitCore/Reset.swift": "0d809b7b5510ed9c395f84c7f800a4667f2e93332a69ed7cad22e7566c255624",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "e2cff38274e6bbc6fc3980283c120458da2a6e1bbde200455c253f9beb2353ac",
+    "Sources/TurtleGitMac/ResetWindow.swift": "10f3ada99b1cd0c63a5f53967b9aa35b1a6c6e4eb090f71b81453afbf54d2ac9",
+    "Tests/TurtleGitCoreTests/ResetTests.swift": "68e1f1ed268aec022567b74e222ac9a30684376296b76323ab3405aa6690fcde",
+    "docs/PROGRESS-PARITY.md": "cde45812295bf4245f8fbac6f38ca72e22d45d7efd424fa50cf69e6f31aaa191",
+    "docs/RESET-PARITY.md": "dd8e12df408cc1029d8d8eae1c9e85457bcf615ed5d92fe69f1053fab9eaf442",
+    "docs/upstream-files.csv": "bcc832a5ee55eb498ad48fa1fc4635f3d23aeaeec9e0fbda97daa9489e9ba5b7",
+    "scripts/test-reset-progress.py": "e08db807c4b0e3b2fa888431a9e55884a3215ddfc7330d073baef1262539b82b",
+    "docs/qa/reset-progress-native-2026-10-08.swift": "215d6fc27d1d2e8d28b1d0a2f7332a962720e86c5b2e324f38c63ffe4d695417"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "Six selected Reset/merge-abort tests passed, including pre-cancelled Hard reset preserving HEAD, index and working diff bytes. Not a full-suite rerun.",
+    "native": "Four-Git actual Soft/Mixed/Hard HEAD/index/worktree effects across three close policies; model Hard No/Yes capture and acknowledgement continuation; stale symbolic branch Retry rejection and recovery; Hard submodule action with both gitlink and configuration-only .gitmodules; active bisect action order and once dispatch; owned slow Reset/helper No/Yes cancellation, stopped PIDs, unchanged HEAD and fresh Retry. Hidden native progress hosting only.",
+    "regression": "Four-Git RefLog history-action receiver passed exact captured revision presets, checkout/reset gates, bare/unborn/stale/busy/chooser restrictions, original icons and read-only repository invariants.",
+    "documentation": "3277 seven-column inventory rows retain partial mappings. Reset and progress parity documents, NOTICE, README and native CI step updated. Existing screenshots predate this result.",
+    "processes": "Debug compiler terminal before native compilers/receivers. Both native jobs terminal before AppStore build. No main app instances or displayed windows. Four empty owned Reset private UUID preference plists removed after termination; no nonempty preferences changed. Final owned app/receiver process audit empty.",
+    "limitations": "Displayed nested sheets, keyboard, menus, focus, themes, accessibility, actual Resolve/follow-up controller handoff, streaming/full progress controls, libgit2 alternative and metadata-query error recovery pending. Unsigned checks do not establish signed sandbox/Finder/App Store acceptance. Full source/dialog port and hosted CI/site/distribution incomplete; GitHub authorization unavailable and not retried.",
+    "builds": "Unsigned Debug and AppStore builds and bundle audits passed: embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 original icons. NOTICE byte-identical in both. Store Git 2.55.0 includes 11 universal Mach-O files and passed local Git fixture operations."
+  },
+  "logs_sha256": {
+    "build/qa/reset-progress/core-final.log": "7593805b816ec36a436c197d4b52690185d112ed9d321ccc6c2073ef4f53a16e",
+    "build/qa/reset-progress/core.log": "9de3c4a4040a6308b302c0415baf31404c527ba8f24eebdc14494d61d54e5b2b",
+    "build/qa/reset-progress/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/reset-progress/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reset-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reset-progress/history-regression.log": "43f88b95d47b85205c0115e08ac7033a93555e999bf9687d61d53d6bf4887d32",
+    "build/qa/reset-progress/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reset-progress/native.log": "6cc9567bba43405d345cd72d7b909a64e4e1b409fd99c09b0dd13784462c6217",
+    "build/qa/reset-progress/private-preference-cleanup.log": "1d77429fd34bb73b3aee4673b88cd85a6a8b1a0682ed854caaf64c707519e5eb",
+    "build/qa/reset-progress/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reset-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reset-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reset-progress/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/reset-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
