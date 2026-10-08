@@ -250,6 +250,17 @@ extension WorkingTreePatchReview {
 public struct WorkingTreePatchFileComparison: Sendable {
     public let document: FileComparisonDocument
     public let fileID: Int
+    fileprivate let review: WorkingTreePatchReview
+    fileprivate let inputs: [String: ComparisonFileContent]
+    fileprivate let outputs: [String: ComparisonFileContent]
+    public var editingDocument: FileComparisonDocument {
+        let base = document.base
+        return FileComparisonDocument(base: ComparisonFileContent(path: base.path, revision: .revision("Before patch"), bytes: base.bytes, mode: base.mode, permissions: base.permissions, encoding: base.encoding), destination: document.destination)
+    }
+    public var snapshot: RevisionComparisonSnapshot {
+        let file = CommitFile(path: document.destination.path, oldPath: document.base.path, action: "M", added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+        return RevisionComparisonSnapshot(root: review.repositoryRoot, from: .revision("Before patch"), to: .workingTree, fromDetails: nil, toDetails: nil, files: [file], options: RevisionDiffOptions())
+    }
 }
 
 extension GitRepository {
@@ -298,8 +309,10 @@ extension GitRepository {
                 return ComparisonFileContent(path: path, revision: .workingTree, bytes: value.bytes, mode: value.mode, permissions: value.permissions)
             }
             var before: ComparisonFileContent?
+            var inputs: [String: ComparisonFileContent] = [:]
             for name in paths {
                 let location = try restoreLocation(name), value = try read(location, path: name, anchor: root)
+                inputs[name] = value
                 if name == source { before = value }
                 guard value.mode != nil else { continue }
                 let copy = temporary.appendingPathComponent(name)
@@ -315,7 +328,8 @@ extension GitRepository {
             let gitDirectory = temporary.appendingPathComponent(".git").path
             let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": temporary.path, "GIT_INDEX_FILE": temporary.appendingPathComponent(".git/index").path]
             let location = ["-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
-            _ = try run(location + ["init", "--template="], environmentOverrides: environment)
+            let format = try run(["rev-parse", "--show-object-format"]).text.trimmingCharacters(in: .newlines)
+            _ = try run(location + ["init", "--template=", "--object-format=" + format], environmentOverrides: environment)
             // Match repository-local apply policy, including whitespace fixing.
             var configuration: [String] = []
             for key in ["apply.whitespace", "apply.ignoreWhitespace", "core.whitespace"] {
@@ -326,7 +340,83 @@ extension GitRepository {
             _ = try run(arguments + ["--check", "--", patch.path], environmentOverrides: environment)
             _ = try run(arguments + ["--", patch.path], environmentOverrides: environment)
             guard let before else { throw WorkingTreePatchFailure.metadata }
-            return WorkingTreePatchFileComparison(document: FileComparisonDocument(base: before, destination: try read(temporary.appendingPathComponent(destination), path: destination, anchor: temporary)), fileID: fileID)
+            let outputs = try Dictionary(uniqueKeysWithValues: paths.map { ($0, try read(temporary.appendingPathComponent($0), path: $0, anchor: temporary)) })
+            return WorkingTreePatchFileComparison(document: FileComparisonDocument(base: before, destination: outputs[destination]!), fileID: fileID, review: selected, inputs: inputs, outputs: outputs)
         }
+    }
+}
+
+
+public struct WorkingTreePatchSaveResult: Sendable {
+    public let output: String
+    /// Saving succeeded even if the optional subsequent Add failed.
+    public let addError: String?
+}
+
+extension GitRepository {
+    public func saveWorkingTreePatchFile(_ comparison: WorkingTreePatchFileComparison, text: String, encoding: ComparisonTextEncoding? = nil, autoAddNewFiles: Bool = true) throws -> WorkingTreePatchSaveResult {
+        let destination = comparison.document.destination
+        guard comparison.review.repositoryRoot == root, ["100644", "100755"].contains(destination.mode ?? "") else { throw FileComparisonEditFailure.unsupported }
+        let bytes = try FileComparisonEditing.encoded(text, like: destination, encoding: encoding)
+        func validateInputs() throws {
+            for (path, expected) in comparison.inputs {
+                let location = try restoreLocation(path)
+                var parent = location.deletingLastPathComponent()
+                while parent.path != root.path {
+                    guard parent.path.hasPrefix(root.path + "/") else { throw WorkingFileRestoreFailure.location }
+                    if let attributes = try? FileManager.default.attributesOfItem(atPath: parent.path), attributes[.type] as? FileAttributeType == .typeSymbolicLink { throw WorkingFileRestoreFailure.location }
+                    parent.deleteLastPathComponent()
+                }
+                let current: ComparisonFileContent
+                do { current = try WorkingFileComparison.workingContent(at: location) }
+                catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {
+                    guard expected.mode == nil else { throw FileComparisonEditFailure.changed }; continue
+                }
+                guard current.bytes == expected.bytes, current.mode == expected.mode, current.permissions == expected.permissions else { throw FileComparisonEditFailure.changed }
+            }
+        }
+        try validateInputs()
+        let manager = FileManager.default, temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitPatchSave-" + UUID().uuidString)
+        try manager.createDirectory(at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        defer { try? manager.removeItem(at: temporary) }
+        let gitDirectory = temporary.appendingPathComponent(".git").path
+        let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": temporary.path, "GIT_INDEX_FILE": gitDirectory + "/index", "GIT_OBJECT_DIRECTORY": gitDirectory + "/objects", "GIT_ALTERNATE_OBJECT_DIRECTORIES": ""]
+        let location = ["-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
+        let format = try run(["rev-parse", "--show-object-format"]).text.trimmingCharacters(in: .newlines)
+        _ = try run(location + ["init", "--template=", "--object-format=" + format], environmentOverrides: environment)
+        func tree(_ contents: [String: ComparisonFileContent]) throws -> String {
+            _ = try run(location + ["read-tree", "--empty"], environmentOverrides: environment)
+            for (path, content) in contents.sorted(by: { $0.key < $1.key }) {
+                guard let mode = content.mode else { continue }
+                let payload = temporary.appendingPathComponent("payload")
+                try content.bytes.write(to: payload, options: .atomic)
+                let object = try run(location + ["hash-object", "-w", "--no-filters", "--", payload.path], environmentOverrides: environment).text.trimmingCharacters(in: .newlines)
+                _ = try run(location + ["update-index", "--add", "--cacheinfo", mode + "," + object + "," + path], environmentOverrides: environment)
+            }
+            return try run(location + ["write-tree"], environmentOverrides: environment).text.trimmingCharacters(in: .newlines)
+        }
+        var outputs = comparison.outputs
+        // PatchSave removes zero-line results, including proposed new files.
+        outputs[destination.path] = ComparisonFileContent(path: destination.path, revision: .workingTree, bytes: text.isEmpty ? Data() : bytes, mode: text.isEmpty ? nil : destination.mode, permissions: destination.permissions)
+        let before = try tree(comparison.inputs), after = try tree(outputs)
+        let patch = try run(location + ["diff", "--binary", "--full-index", "--no-ext-diff", "--no-textconv", "--no-color", "--no-renames", before, after], environmentOverrides: environment).stdout
+        try validateInputs()
+        var output = "Saved patched result.\n"
+        if !patch.isEmpty {
+            output += try withWorkingTreePatch(patch) { file in
+                // Save edited bytes exactly; repository whitespace-fix policy was
+                // already reflected in the initial patched preview.
+                let arguments = ["apply", "--whitespace=nowarn"]
+                _ = try run(arguments + ["--check", "--", file.path])
+                try validateInputs()
+                return try run(arguments + ["--", file.path]).text
+            }
+        }
+        var addError: String?
+        if autoAddNewFiles, comparison.inputs[destination.path]?.mode == nil, !text.isEmpty {
+            do { _ = try stage([destination.path]); output += "Added \(destination.path) to Git.\n" }
+            catch { addError = error.localizedDescription }
+        }
+        return WorkingTreePatchSaveResult(output: output, addError: addError)
     }
 }

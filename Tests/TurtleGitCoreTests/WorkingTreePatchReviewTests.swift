@@ -2,11 +2,11 @@ import XCTest
 @testable import TurtleGitCore
 
 final class WorkingTreePatchReviewTests: XCTestCase {
-    func fixture() async throws -> (URL, GitRepository, Data) {
+    func fixture(format: String = "sha1") async throws -> (URL, GitRepository, Data) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitReview-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let repo = GitRepository(root: root, executable: URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_PATCH_TEST_GIT"] ?? "/usr/bin/git"))
-        _ = try await repo.run(["init", "-b", "main"])
+        _ = try await repo.run(["init", "-b", "main", "--object-format=" + format])
         _ = try await repo.run(["config", "user.name", "Review"]); _ = try await repo.run(["config", "user.email", "review@example.invalid"])
         _ = try await repo.run(["config", "commit.gpgsign", "false"]); _ = try await repo.run(["config", "core.hooksPath", "/dev/null"])
         try Data("one\ntwo\nthree\nfour\n".utf8).write(to: root.appendingPathComponent("--old 雪"))
@@ -260,6 +260,66 @@ final class WorkingTreePatchReviewTests: XCTestCase {
             let rejected = try await repo.reviewWorkingTreePatch(unsafe)
             do { _ = try await repo.compareWorkingTreePatchFile(rejected, fileID: rejected.files[0].id); XCTFail("Unsafe preview accepted") } catch WorkingTreePatchFailure.review {}
         }
+    }
+
+    func testEditedRenameSaveAndZeroLineRemovalPreserveHeadAndIndex() async throws {
+        let (root, repo, bytes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let review = try await repo.reviewWorkingTreePatch(bytes)
+        let rename = try await repo.compareWorkingTreePatchFile(review, fileID: review.files.first { $0.path == "--new 雪" }!.id)
+        let saved = try await repo.saveWorkingTreePatchFile(rename, text: "edited\nno final newline", autoAddNewFiles: false)
+        XCTAssertNil(saved.addError)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("--new 雪")), Data("edited\nno final newline".utf8))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("--old 雪").path))
+        XCTAssertEqual((try FileManager.default.attributesOfItem(atPath: root.appendingPathComponent("--new 雪").path)[.posixPermissions] as! NSNumber).intValue & 0o111, 0o111)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(head, afterHead)
+        let added = try await repo.compareWorkingTreePatchFile(review, fileID: review.files.first { $0.path == "added" }!.id)
+        _ = try await repo.saveWorkingTreePatchFile(added, text: "")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("added").path))
+        let plain = Data("--- other\n+++ other\n@@ -1 +1 @@\n-unrelated\n+changed\n".utf8)
+        let deletionReview = try await repo.reviewWorkingTreePatch(plain, stripCount: 0)
+        let deletion = try await repo.compareWorkingTreePatchFile(deletionReview, fileID: deletionReview.files[0].id)
+        _ = try await repo.saveWorkingTreePatchFile(deletion, text: "")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("other").path))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+    func testEditedSaveAutoAddAndFailureKeepSavedBytesAndRejectStaleCollision() async throws {
+        let (root, repo, bytes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let review = try await repo.reviewWorkingTreePatch(bytes), id = review.files.first { $0.path == "added" }!.id
+        let comparison = try await repo.compareWorkingTreePatchFile(review, fileID: id)
+        try Data("collision\n".utf8).write(to: root.appendingPathComponent("added"))
+        do { _ = try await repo.saveWorkingTreePatchFile(comparison, text: "edited\n"); XCTFail("Collision overwritten") } catch FileComparisonEditFailure.changed {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("added")), Data("collision\n".utf8))
+        try FileManager.default.removeItem(at: root.appendingPathComponent("added"))
+        let saved = try await repo.saveWorkingTreePatchFile(comparison, text: "edited\n")
+        XCTAssertNil(saved.addError)
+        let staged = try await repo.run(["show", ":added"]).stdout; XCTAssertEqual(staged, Data("edited\n".utf8))
+        _ = try await repo.run(["reset", "--hard", "HEAD"])
+        try Data("added\n".utf8).write(to: root.appendingPathComponent(".git/info/exclude"))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let failure = try await repo.saveWorkingTreePatchFile(comparison, text: "saved despite Add failure\n")
+        XCTAssertNotNil(failure.addError)
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("added")), Data("saved despite Add failure\n".utf8))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let (foreign, foreignRepo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: foreign) }
+        do { _ = try await foreignRepo.saveWorkingTreePatchFile(comparison, text: "foreign"); XCTFail("Foreign save accepted") } catch FileComparisonEditFailure.unsupported {}
+    }
+    func testEditedSaveKeepsUTF16BOMCRLFAndWhitespaceInSHA256Repository() async throws {
+        let (root, repo, _) = try await fixture(format: "sha256"); defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("wild*?,雪\t\nfile")
+        try ComparisonTextEncoding.utf16LEBOM.encode("before\r\n").write(to: file)
+        try await repo.stage([file.lastPathComponent]); _ = try await repo.commit(message: "UTF16")
+        try ComparisonTextEncoding.utf16LEBOM.encode("proposed\r\n").write(to: file)
+        let bytes = try await repo.run(["diff", "--binary", "--no-ext-diff", "--no-color"]).stdout
+        _ = try await repo.run(["restore", "--", file.lastPathComponent])
+        _ = try await repo.run(["config", "apply.whitespace", "fix"])
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let review = try await repo.reviewWorkingTreePatch(bytes), comparison = try await repo.compareWorkingTreePatchFile(review, fileID: review.files[0].id)
+        XCTAssertEqual(comparison.document.destination.encoding, .utf16LEBOM)
+        _ = try await repo.saveWorkingTreePatchFile(comparison, text: "edited   \r\nlast", autoAddNewFiles: false)
+        XCTAssertEqual(try Data(contentsOf: file), try ComparisonTextEncoding.utf16LEBOM.encode("edited   \r\nlast"))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
     }
 
 }

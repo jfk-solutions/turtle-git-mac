@@ -16,7 +16,7 @@ struct MergeEditorSettings: View {
     }
     private var changed: Bool {
         guard let width = validWidth else { return true }
-        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig) != .load()
+        return MergeEditorPreferences(tabWidth: width, useSpaces: draft.useSpaces, smartTab: draft.smartTab, showLineNumbers: draft.showLineNumbers, enableEditorConfig: draft.enableEditorConfig, autoAdd: draft.autoAdd) != .load()
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -34,6 +34,7 @@ struct MergeEditorSettings: View {
                         Stepper("", value: Binding(get: { validWidth ?? draft.tabWidth }, set: { tabSize = String($0) }), in: 1...1000).labelsHidden()
                         Spacer()
                     }
+                    Toggle("Add new files to Git after saving a patched result", isOn: $draft.autoAdd)
                     Toggle("Enable EditorConfig", isOn: $draft.enableEditorConfig)
                     if validWidth == nil { Text("Enter a tab size from 1 to 1000.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)

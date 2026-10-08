@@ -279,6 +279,20 @@ import TurtleGitCore
     var selectionRequest: Int?
     private var scrolls: [Bool: NSScrollView] = [:]
     private var synchronizing = false
+    var onRegisterScroll: (NSScrollView, Bool) -> Void = { _, _ in }
+    var patchEditingEnabled: Bool { drafts?.editingEnabled(base: false) == true }
+    func setPatchEditing(_ enabled: Bool) {
+        guard !busy, !confirmingQuit else { return }
+        drafts?.setEditing(enabled, base: false); activeBase = false; selectEditorActions()
+    }
+    init(patchComparison: WorkingTreePatchFileComparison, access: RepositoryAccessLease?, preferences: UserDefaults) {
+        repository = nil; self.access = access; snapshot = patchComparison.snapshot; path = patchComparison.document.destination.path
+        document = patchComparison.editingDocument; drafts = FileComparisonDrafts(patchComparison.editingDocument)
+        drafts?.setEditing(false, base: false); showInlineDiff = false
+        editorPreferences = .load(from: preferences); showLineNumbers = editorPreferences.showLineNumbers
+        editorConfigEnabled = [true: editorPreferences.enableEditorConfig, false: editorPreferences.enableEditorConfig]
+        rebuildAlignment(); reloadEditorConfig()
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RevisionComparisonSnapshot, path: String) {
         self.repository = repository; self.access = access; self.snapshot = snapshot; self.path = path
     }
@@ -394,7 +408,7 @@ import TurtleGitCore
     func remapOtherAnnotations(from old: FileComparisonAlignment, to new: FileComparisonAlignment, changedBase: Bool) {
         drafts?.remapAnnotations(from: old, to: new, base: !changedBase)
     }
-    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll }
+    func register(_ scroll: NSScrollView, base: Bool) { scrolls[base] = scroll; onRegisterScroll(scroll, base) }
     func scrolled(_ source: NSScrollView) {
         guard !synchronizing else { return }; synchronizing = true; defer { synchronizing = false }
         for target in scrolls.values where target !== source {
@@ -485,7 +499,7 @@ private struct FileComparisonDialog: View {
         .alert("Comparison failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("OK") { model.error = nil } } message: { Text(model.error ?? "") }
     }
 }
-private struct FileComparisonEditor: NSViewRepresentable {
+struct FileComparisonEditor: NSViewRepresentable {
     @ObservedObject var model: FileComparisonWindowModel
     let cells: [MergeSourceCell]
     let base: Bool

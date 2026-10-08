@@ -39,7 +39,7 @@ import AppKit
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
         guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
-        guard !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) else { return .terminateNow }
+        guard !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) || reviews.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
         for controller in imports { controller.setQuitConfirmation(true) }
         for controller in reviews { controller.setQuitConfirmation(true) }
@@ -55,7 +55,10 @@ import AppKit
         for controller in controllers { controller.model.confirmingQuit = true }
         Task {
             var allowQuit = true
-            for controller in fileComparisons where controller.model.dirty {
+            for controller in reviews where controller.model.dirty {
+                if !(await controller.model.resolveDraft(discardImmediately: false)) { allowQuit = false; break }
+            }
+            for controller in fileComparisons where allowQuit && controller.model.dirty {
                 controller.window?.makeKeyAndOrderFront(nil)
                 let alert = NSAlert(); alert.messageText = "Save changes to “\(controller.model.unsavedFilesDescription)” before quitting?"
                 alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")

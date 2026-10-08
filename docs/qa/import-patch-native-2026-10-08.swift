@@ -167,6 +167,81 @@ import TurtleGitCore
         let unchangedLong = try Data(contentsOf: longPath)
         precondition(unchangedLong == Data(longBefore.utf8))
         print("PASS: actual hidden aligned before/after text, source Merge colors, line ruler, addition absence, Find bar, linked vertical scrolling and next-difference navigation; real worktree/HEAD/index unchanged by preview. No physical input/screenshot acceptance.")
+        let (editRepo, editFiles) = try await fixture(root.appendingPathComponent("edited-review"), git)
+        let editBytes = try Data(contentsOf: editFiles[0]) + Data(contentsOf: editFiles[1])
+        let editController = WorkingTreePatchWindowController(repository: editRepo, access: nil, fileAccess: nil, bytes: editBytes, title: "edit.patch", preferences: prefs)
+        defer { editController.close() }
+        let edit = editController.model
+        func waitEdit(_ condition: () -> Bool) async throws {
+            for _ in 0..<1000 {
+                editController.window?.contentView?.layoutSubtreeIfNeeded()
+                if condition() { return }
+                try await Task.sleep(nanoseconds: 10_000_000)
+            }
+            fatalError("Edited review did not settle")
+        }
+        try await waitEdit { !edit.busy && edit.afterScroll != nil }
+        let editIndex = try Data(contentsOf: editRepo.root.appendingPathComponent(".git/index")), editHead = try await editRepo.run(["rev-parse", "HEAD"]).stdout
+        var mergePreferences = MergeEditorPreferences.load(from: prefs); precondition(mergePreferences.autoAdd)
+        mergePreferences.autoAdd = false; mergePreferences.save(to: prefs)
+        precondition(!MergeEditorPreferences.load(from: prefs).autoAdd)
+        edit.setEditing(true)
+        try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
+        let editedView = edit.afterScroll!.documentView as! NSTextView
+        precondition((edit.beforeScroll!.documentView as! NSTextView).isEditable == false)
+        editedView.undoManager!.groupsByEvent = false
+        editedView.undoManager!.beginUndoGrouping()
+        editedView.insertText("custom\nno final newline", replacementRange: NSRange(location: 0, length: (editedView.string as NSString).length))
+        editedView.undoManager!.endUndoGrouping()
+        precondition(edit.dirty && edit.editor!.draftText(base: false) == "custom\nno final newline")
+        edit.editor!.undo(); precondition(!edit.dirty && edit.editor!.draftText(base: false) == "feature\n")
+        edit.editor!.redo(); precondition(edit.dirty && edit.editor!.draftText(base: false) == "custom\nno final newline")
+        let pendingID = edit.focusedFile, pendingSelection = edit.selected
+        edit.refresh(); edit.focusFile(nil); edit.setReversed(true); edit.setStripCount(0); edit.apply()
+        precondition(edit.focusedFile == pendingID && edit.selected == pendingSelection && !edit.reversed && edit.stripCount == 1 && !edit.busy)
+        var choices = 0; edit.chooseDraft = { choices += 1; return .cancel }
+        precondition(!editController.windowShouldClose(editController.window!))
+        try await waitEdit { choices == 1 && !edit.draftDecisionPending }
+        precondition(edit.dirty && edit.editor!.draftText(base: false) == "custom\nno final newline")
+        let quitEdit = TurtleGitApplicationDelegate(); var editReply: Bool?
+        quitEdit.replyToTermination = { _, value in editReply = value }
+        precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
+        try await waitEdit { editReply != nil }
+        precondition(editReply == false && edit.dirty && !edit.confirmingQuit)
+        edit.chooseDraft = { choices += 1; return .save }; editReply = nil
+        precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
+        try await waitEdit { editReply != nil }
+        let editedDisk = try Data(contentsOf: editRepo.root.appendingPathComponent("file")), afterEditedIndex = try Data(contentsOf: editRepo.root.appendingPathComponent(".git/index"))
+        precondition(editReply == true && editedDisk == Data("custom\nno final newline".utf8) && editIndex == afterEditedIndex && !edit.dirty)
+        // The receiver captures the reply; it never terminates NSApplication.
+        try await waitEdit { !edit.busy && edit.afterScroll != nil && edit.comparison?.document.destination.path == "other" }
+        mergePreferences.autoAdd = true; mergePreferences.save(to: prefs)
+        edit.setEditing(true); try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
+        let newEditor = edit.afterScroll!.documentView as! NSTextView
+        newEditor.insertText("new edited file\n", replacementRange: NSRange(location: 0, length: (newEditor.string as NSString).length))
+        precondition(edit.dirty); edit.saveDraft(); precondition(edit.busy)
+        precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
+        try await waitEdit { !edit.busy }
+        let stagedNew = try await editRepo.run(["show", ":other"]).stdout, stagedOriginal = try await editRepo.run(["show", ":file"]).stdout
+        let finalEditHead = try await editRepo.run(["rev-parse", "HEAD"]).stdout
+        precondition(stagedNew == Data("new edited file\n".utf8) && stagedOriginal == Data("base\n".utf8) && finalEditHead == editHead && !edit.dirty)
+        _ = try await editRepo.run(["reset", "--hard", "HEAD"])
+        edit.refresh(); try await waitEdit { !edit.busy && edit.afterScroll != nil }
+        edit.setEditing(true); try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
+        let staleEditor = edit.afterScroll!.documentView as! NSTextView
+        staleEditor.insertText("retained draft\n", replacementRange: NSRange(location: 0, length: (staleEditor.string as NSString).length))
+        try Data("external change\n".utf8).write(to: editRepo.root.appendingPathComponent("file"))
+        editReply = nil
+        precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
+        try await waitEdit { editReply != nil }
+        precondition(editReply == false && edit.dirty && edit.editor!.draftText(base: false) == "retained draft\n")
+        let externalFile = try Data(contentsOf: editRepo.root.appendingPathComponent("file")); precondition(externalFile == Data("external change\n".utf8))
+        edit.chooseDraft = { choices += 1; return .discard }; editReply = nil
+        precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
+        try await waitEdit { editReply != nil }
+        precondition(editReply == true && edit.dirty) // Don’t Save retains draft if another document cancels Quit.
+        edit.discardDraft(); precondition(!edit.dirty && !edit.editingEnabled)
+        print("PASS: real aligned native editing/Undo/Redo, draft transition locks and Close/Quit Cancel/Save/Don’t Save; edited bytes/no-final-newline saved, existing index/HEAD retained, default Auto Add stages only new result; stale save keeps draft and cancels Quit. Captured replies/injected choices, no physical sheets or app termination.")
         let dropped = ImportPatchWindowModel(repository: repo, access: nil, preferences: prefs)
         func provider(_ url: URL) -> NSItemProvider {
             let item = NSItemProvider()

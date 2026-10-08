@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "0611550e87f732b33c7304b75f2243e1ecfb6cf9",
+  "scope": "Edited working-tree patch results using shared aligned native editor, checked private-tree delta save, zero-line removal, default Auto Add and dirty close/Quit handling. Full port/distribution remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/MainFrm.cpp": "0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138",
+    "src/TortoiseMerge/SetMainPage.cpp": "34599580d98bb5862099cd36cd761acd959c690f",
+    "src/TortoiseProc/PatchListCtrl.cpp": "dea42bf97d4a1b265d31712e9b60ce7dd87dda8d"
+  },
+  "references": [
+    "https://git-scm.com/docs/git-update-index",
+    "https://git-scm.com/docs/git-hash-object"
+  ],
+  "sources_manifest_sha256": "5f90e2aa961c367abc4fb228df0a082716adb7722a44fd1a72d3acab02bdae71",
+  "changed_files_sha256": {
+    "NOTICE": "cbaad18eb5337d521a822b41cbfa8e7f6f7de97d4b25e74eeabfcad326634462",
+    "Sources/TurtleGitCore/GitPatch.swift": "80baf708fca9e51e185e3bd9c014af09eac81f1c8685d45ca0053139a4a71207",
+    "Sources/TurtleGitCore/MergeEditorPreferences.swift": "93c5b703fc91e7e1c11eb6e6756c1b4b6916fa49993f31ce2b4ee2ddb2e3cc44",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "bdc13e4b2ef5ab94eab06d58223dbbf3e955f310baf35a6e36fab156dcc34089",
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "3484e76d9c6e7b4330d919f61c8a4bd799356b78c46d86458d7b2e8a5110b5ad",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "ed29545a35f642fa70c4ae7ac7fc8bd464a2923b084a5624af4543b7b656c619",
+    "Sources/TurtleGitMac/MergeEditorSettings.swift": "dc5907c9737c16c265ec2cc255380e6f733c85a9477179ecfc5875d4332a8ebb",
+    "Tests/TurtleGitCoreTests/WorkingTreePatchReviewTests.swift": "abb77e67b0d30036a3c75306d5332f0056b72d0f95e3faf82564f8781be73421",
+    "docs/IMPORT-PATCH-PARITY.md": "1e003c8f12da90ae0772190283acf9c6b93cf5fc34c3f794ee089daf59ab1a01",
+    "docs/qa/import-patch-native-2026-10-08.swift": "8552c0b2b0a469bb0e5170199fd339f8bdae1050a9424996a8a4fea2c411badf",
+    "docs/upstream-files.csv": "5ade4ff6493bef30fda6d7e8282847f07895222a6f5d5f09aeb790224997e4c0"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "15 cases x four engines = 60 final passing executions. New actual-Git edited rename/mode/no-final-newline saves, original HEAD/index preservation with Auto Add off, zero-line removal for existing/new result, destination collision refusal, default new-file Add and ignored-file Add failure preserving saved bytes/index, foreign review refusal, SHA256 UTF16 BOM/CRLF/edited whitespace retained despite apply.whitespace=fix. Existing comparison/whole/selected patch tests pass.",
+    "editor_regressions": "21 existing MergeEditorPreferences, EditorConfig and FileComparisonEditing cases pass once on default Apple Git, after Store completion. Not four-engine results.",
+    "native": "Full receiver passes four engines. Actual NSTextView insertText reaches aligned shared editor, private Undo/Redo, immutable before pane, unchanged original patch bytes; draft locks block refresh/file/options/bulk apply. Actual window delegate Close Cancel; actual application delegate Quit Cancel/Save/Don\u2019t Save with injected choices/captured reply; saved existing custom/no-final-newline bytes retain raw index, new result stages only destination under Auto Add, HEAD retained. Stale Save keeps draft and cancels Quit. Don\u2019t Save reply leaves draft until actual termination, then explicit Discard clears it. Private preference default/on/off round trip. Existing Import Patch and comparison regressions pass.",
+    "builds": "Final unsigned Debug and Store pass. Sources/NOTICE/receiver/tests frozen while compiler/native sessions live. Final four-engine backend suite then Debug, complete four-engine native receiver against stationary Debug, sequential Store, then 21 editor regression tests. No source changes after final Debug except docs.",
+    "bundles": "Debug and Store validators, NOTICE comparisons, inventory pin, site, CSV 3277 records/seven fields, whitespace and final hashes pass. Store packaged Git 2.55.0 (11 universal Mach-O files), universal EditorConfig/IssueRegex and 98 upstream icons audited."
+  },
+  "iterations": [
+    "Initial 15-case Apple backend run passed. Reused shared aligned editor through prepared snapshot initializer/read-only base and explicit native view identity; initial/final Debug builds pass. Final four-engine backend suite passes. Final close-discard helper review changed only Mac code before reviewed Debug. Four-engine native receiver passes first run; no failed build or native repair iteration."
+  ],
+  "limitations": [
+    "Full TortoiseGitMerge rejected-hunk/conflict/3-way patch engine, hunk/line patch application, exact source UI/menu/keyboard behavior and physical/signed acceptance remain pending. Symlink/undecodable binary editing unavailable; whole-file application remains available.",
+    "Aligned editor shared block/context/encoding/line-ending controls are reused; this receiver directly checks text/Undo/Redo and saves, not every menu/marked-block/format action. Physical Cmd-S/Undo keys, sheets, multi-document cancellation and light/dark visual comparison unverified.",
+    "Native dirty-close Cancel and Quit Save/Cancel/Discard/stale failure tested; production parent close ownership and optional Add failure UI not separate runtime cases. Don\u2019t Save retains drafts if a later document cancels Quit; receiver verifies retention without actual termination.",
+    "Edited save validates full captured inputs/permissions and fresh Git checks. External writers are not globally locked. Private trees avoid user clean/textconv filters for exact bytes; optional subsequent Add uses ordinary repository Git behavior.",
+    "New-file Auto Add changes the user index; existing-file edits/rename source deletion remain unstaged. Add failure is distinct from file-save failure and never retries completed mutation. Zero-line removal follows source behavior.",
+    "GitHub auth/CI/push and CUA unavailable from prior evidence, not retried. Unsigned builds do not establish signed sandbox/Finder deployment/App Store eligibility. Full objective stays active."
+  ],
+  "cleanup": {
+    "app_or_receiver_processes": [],
+    "remaining_fixture_or_comparison_save_roots": [],
+    "removed_empty_private_preferences": [
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.2845923D-8ECC-4BC7-87D9-47BF12483F17.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.61495F12-30C3-4509-BC5E-02CC80320A58.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.110A5024-BB40-4440-955F-299C4D81BBB7.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.D6521348-D15C-4ED5-99A6-961E85EDB1F0.plist"
+    ],
+    "retained_failed_nonempty_preferences": [
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.77E263CF-C337-44E7-8E7E-D1E02A2F1C8E.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ]
+  },
+  "logs_sha256": {
+    "build/qa/patch-edit-save/cleanup.json": "1a015fc4305e5edb85648bc1a2df3036ea0816aeb6dcdea3328128355649c73b",
+    "build/qa/patch-edit-save/core-2.37.1-final.log": "8b36bbd28327063987a8d127299e169c976d5b3df36b1c19d169af6393546c1d",
+    "build/qa/patch-edit-save/core-2.39.5-final.log": "8cd39dd0fccb3ccc8afdd0bf5426713494b6d0e0d187384ca8938b6041f1d216",
+    "build/qa/patch-edit-save/core-2.55.0-final.log": "392efa0e7d9a734e26cec4bafc9a52787984629f3b555b6af01dc61c6ddbeaf6",
+    "build/qa/patch-edit-save/core-apple-final.log": "52470f54d2cc31b2a40478ebed141683704a67bd57ec55afb3e3890d25027d24",
+    "build/qa/patch-edit-save/core-apple.log": "c7a5ba39c18cdff17aaef5fdebe1df381a4dca7bcd4329096fff852f7f8a3a5e",
+    "build/qa/patch-edit-save/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/patch-edit-save/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-edit-save/debug-reviewed.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-edit-save/debug.log": "323e81860f030bbdfcd2111f1dd95ce5693b68720b3fbc20add2ea489daa63ef",
+    "build/qa/patch-edit-save/editor-regressions.log": "7e631e9e2778b0378818e547500b93e3c51d86a8bf484b43289869b84e37d3b7",
+    "build/qa/patch-edit-save/native.log": "a570eee8487fb6ee8afe03f59df0d9ff5b9ab615bd80902753d2e20167235bd9",
+    "build/qa/patch-edit-save/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/patch-edit-save/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/patch-edit-save/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/patch-edit-save/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

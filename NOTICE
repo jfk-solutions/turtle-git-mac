@@ -695,4 +695,11 @@ Review Patch before/after panes adapt CMainFrame::PatchFile in TortoiseMerge/Mai
 copyright (C) 2008-2026 TortoiseGit, (C) 2004-2018, 2020 TortoiseSVN and
 (C) 2012-2014 Sven Strickroth, under GPL version 2 or later. Native byte snapshots, Git CLI temporary
 application, aligned read-only panes and shared Merge colors replace Windows
-temporary-file/view handoffs. Editable patch results remain pending.
+temporary-file/view handoffs. Prepared native aligned editors now support edited patch result saving with
+source PatchSave zero-line removal and optional Auto Add. Full patch engine parity remains pending.
+
+Merge Auto Add preferences adapt TortoiseMerge/SetMainPage.cpp, copyright
+(C) 2013-2014, 2019, 2024-2025 TortoiseGit and (C) 2006-2010, 2012-2014, 2016,
+2018, 2020 TortoiseSVN, under GPL version 2 or later. Native edited patch saves use
+private raw-blob Git trees, byte/permission checks and checked working-tree
+application; the existing native aligned editor provides Undo/Redo and format controls.

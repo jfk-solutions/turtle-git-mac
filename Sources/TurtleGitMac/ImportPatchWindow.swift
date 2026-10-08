@@ -1,6 +1,7 @@
 // Adapts TortoiseGit's ImportPatchDlg controls and git-am workflow (see NOTICE).
 import AppKit
 import SwiftUI
+import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
 
@@ -22,8 +23,8 @@ import TurtleGitCore
         super.init(window: window); window.delegate = self
         window.setContentSize(.init(width: 800, height: 620))
         window.contentMinSize = .init(width: 660, height: 460); window.center()
-        model.childActive = { [weak self] in self?.review?.activeOperation == true || self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
-        model.onStateChanged = { [weak self] in self?.review?.model.objectWillChange.send() }
+        model.childActive = { [weak self] in self?.review?.activeOperation == true || self?.review?.model.dirty == true || self?.review?.model.editingEnabled == true || self?.patch?.model.busy == true || self?.patch?.window?.attachedSheet != nil }
+        model.onStateChanged = { [weak self] in self?.review?.model.updateParentState() }
         model.showReview = { [weak self] bytes, title, lease in
             guard let self else { return }
             self.review?.close()
@@ -105,7 +106,7 @@ import TurtleGitCore
         return true
     }
     private func chooseFiles() {
-        guard !activeOperation, let window else { return }
+        guard !activeOperation, model.editable, let window else { return }
         let panel = NSOpenPanel(); panel.allowsMultipleSelection = true; panel.canChooseDirectories = false
         panel.title = "Add patches"; panel.directoryURL = model.repository.root
         panel.beginSheetModal(for: window) { [weak self] response in
@@ -115,7 +116,10 @@ import TurtleGitCore
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if approvedClose { return true }
         guard review?.activeOperation != true, sender.attachedSheet == nil, !model.confirmingQuit, !model.receivingDrop, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
-        model.requestClose(); return false
+        if let review, review.model.dirty {
+            Task { [weak self] in if await review.model.resolveDraft() { self?.model.requestClose() } }
+        } else { model.requestClose() }
+        return false
     }
     func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); review?.close(); onClosed() }
     func setQuitConfirmation(_ value: Bool) {
@@ -540,30 +544,58 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
 }
 
+@MainActor private final class WorkingTreePatchNativeWindow: NSWindow {
+    weak var model: WorkingTreePatchWindowModel?
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        let flags = event.modifierFlags.intersection([.command, .shift, .option, .control])
+        if flags == .command, event.charactersIgnoringModifiers == "s" { model?.saveDraft(); return true }
+        if flags == .command || flags == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "z", (firstResponder as? NSTextView)?.isFieldEditor != true {
+            if flags.contains(.shift) { model?.editor?.redo() } else { model?.editor?.undo() }; return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+}
+
 @MainActor final class WorkingTreePatchWindowController: NSWindowController, NSWindowDelegate {
     let model: WorkingTreePatchWindowModel
     var onClosed: () -> Void = {}
-    var activeOperation: Bool { model.busy || model.confirmingQuit || model.previewDocument.busy || window?.attachedSheet != nil }
+    private var approvedClose = false
+    var activeOperation: Bool { model.busy || model.confirmingQuit || model.draftDecisionPending || model.previewDocument.busy || window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, title: String, preferences: UserDefaults = .standard) {
         model = WorkingTreePatchWindowModel(repository: repository, access: access, fileAccess: fileAccess, bytes: bytes, preferences: preferences)
-        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = WorkingTreePatchNativeWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 720), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(title) – Review Patch – TurtleGitMerge"; window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model)); host.sizingOptions = []
         window.contentViewController = host
-        super.init(window: window); window.delegate = self
+        super.init(window: window); window.delegate = self; window.model = model
         window.setContentSize(.init(width: 1100, height: 720)); window.contentMinSize = .init(width: 800, height: 460); window.center()
         DialogGeometry.attach(window, identifier: "TurtleGit.PatchReview")
-        model.close = { [weak self] in self?.window?.performClose(nil) }
+        model.close = { [weak self] in self?.approvedClose = true; self?.window?.performClose(nil) }
+        model.chooseDraft = { [weak self] in
+            guard let window = self?.window, window.attachedSheet == nil else { return .cancel }
+            let alert = NSAlert(); alert.messageText = "Save the edited patched result?"
+            alert.addButton(withTitle: "Save"); alert.addButton(withTitle: "Don’t Save"); alert.addButton(withTitle: "Cancel")
+            alert.buttons[0].keyEquivalent = ""; alert.buttons[2].keyEquivalent = "\r"; alert.window.defaultButtonCell = alert.buttons[2].cell as? NSButtonCell
+            let response = await withCheckedContinuation { continuation in alert.beginSheetModal(for: window) { continuation.resume(returning: $0) } }
+            return response == .alertFirstButtonReturn ? .save : response == .alertSecondButtonReturn ? .discard : .cancel
+        }
         model.refresh()
     }
     func setQuitConfirmation(_ value: Bool) { model.confirmingQuit = value; model.previewDocument.confirmingQuit = value }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !activeOperation }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if approvedClose { return true }
+        guard !activeOperation else { return false }
+        if model.dirty { model.requestClose(); return false }
+        return true
+    }
     func windowWillClose(_ notification: Notification) { onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
 @MainActor final class WorkingTreePatchWindowModel: ObservableObject {
+    enum DraftChoice { case save, discard, cancel }
     let repository: GitRepository
+    private let preferences: UserDefaults
     private let access: RepositoryAccessLease?
     private let fileAccess: RepositoryAccessLease?
     private let bytes: Data
@@ -571,12 +603,21 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     @Published private(set) var review: WorkingTreePatchReview?
     @Published private(set) var selected: Set<Int> = []
     @Published private(set) var appliedPaths: Set<Data> = []
-    @Published private(set) var busy = false { didSet { onBusyChanged() } }
-    @Published var confirmingQuit = false
+    @Published private(set) var busy = false { didSet { updateParentState(); onBusyChanged() } }
+    @Published var confirmingQuit = false { didSet { updateParentState() } }
     @Published private(set) var reversed = false
     @Published private(set) var stripCount = 1
     @Published private(set) var comparison: WorkingTreePatchFileComparison?
-    @Published private(set) var alignment: FileComparisonAlignment?
+    @Published private(set) var editor: FileComparisonWindowModel?
+    private var editorChanges: AnyCancellable?
+    @Published private(set) var draftDecisionPending = false { didSet { updateParentState(); onBusyChanged() } }
+    var chooseDraft: () async -> DraftChoice = { .cancel }
+    var alignment: FileComparisonAlignment? { editor?.alignment }
+    var dirty: Bool { editor?.dirty == true }
+    var editingEnabled: Bool { editor?.patchEditingEnabled == true }
+    var canReplaceComparison: Bool { editable && !dirty && !editingEnabled }
+    var canEditResult: Bool { editable && !requiresRefresh && alignment != nil && editor?.canEdit(base: false) == true }
+    var canSaveDraft: Bool { canEditResult && editingEnabled }
     @Published private(set) var focusedFile: Int?
     @Published private(set) var comparisonNotice = ""
     @Published var previewTab = 0
@@ -592,26 +633,26 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var onChanged: (String) -> Void = { _ in }
     var onBusyChanged: () -> Void = {}
     var parentActive: () -> Bool = { false }
-    var editable: Bool { !busy && !confirmingQuit && !previewDocument.busy && !parentActive() }
-    var canApply: Bool { editable && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
+    var editable: Bool { !busy && !confirmingQuit && !draftDecisionPending && !previewDocument.busy && !parentActive() }
+    var canApply: Bool { canReplaceComparison && !requiresRefresh && selectedReview?.canApply == true && !selected.isEmpty }
     init(repository: GitRepository, access: RepositoryAccessLease?, fileAccess: RepositoryAccessLease?, bytes: Data, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes
+        self.repository = repository; self.access = access; self.fileAccess = fileAccess; self.bytes = bytes; self.preferences = preferences
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
         previewDocument.setReadOnlyDiff(bytes); previewDocument.refreshAvailable = false
     }
     func setReversed(_ value: Bool) {
-        guard editable, value != reversed else { return }
-        reversed = value; requiresRefresh = true; selectedReview = nil; comparison = nil; alignment = nil; notice = "Refresh to check the changed options."
+        guard canReplaceComparison, value != reversed else { return }
+        reversed = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
     }
     func setStripCount(_ value: Int) {
-        guard editable, value != stripCount else { return }
-        stripCount = value; requiresRefresh = true; selectedReview = nil; comparison = nil; alignment = nil; notice = "Refresh to check the changed options."
+        guard canReplaceComparison, value != stripCount else { return }
+        stripCount = value; requiresRefresh = true; selectedReview = nil; comparison = nil; editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; notice = "Refresh to check the changed options."
     }
     private func checkAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func refresh() {
-        guard editable else { return }; busy = true; selectedReview = nil; appliedPaths = []; comparison = nil; alignment = nil
+        guard canReplaceComparison else { return }; busy = true; selectedReview = nil; appliedPaths = []; comparison = nil; editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil
         let reverse = reversed, strip = stripCount
         Task {
             defer { busy = false }
@@ -633,12 +674,12 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         selectedReview = next; notice = next.validationError ?? "Checked files can be applied to the working tree."
     }
     func focusFile(_ id: Int?) {
-        guard editable, !requiresRefresh else { return }
+        guard canReplaceComparison, !requiresRefresh else { return }
         focusedFile = id; busy = true
         Task { defer { busy = false }; await loadComparison() }
     }
     private func loadComparison() async {
-        comparison = nil; alignment = nil; comparisonNotice = ""; difference = -1
+        comparison = nil; editor = nil; editorChanges = nil; beforeScroll = nil; afterScroll = nil; comparisonNotice = ""; difference = -1
         guard let review else { focusedFile = nil; return }
         let candidates = review.files.filter { !appliedPaths.contains($0.pathBytes) }
         guard let file = candidates.first(where: { $0.id == focusedFile }) ?? candidates.first else { focusedFile = nil; return }
@@ -647,9 +688,10 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             try checkAccess()
             let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id)
             comparison = value
-            if let before = value.document.base.text, let after = value.document.destination.text {
-                alignment = FileComparisonAlignment(base: before, destination: after)
-            }
+            let nextEditor = FileComparisonWindowModel(patchComparison: value, access: access, preferences: preferences)
+            nextEditor.onRegisterScroll = { [weak self] scroll, base in if base { self?.beforeScroll = scroll } else { self?.afterScroll = scroll } }
+            editorChanges = nextEditor.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
+            editor = nextEditor; updateParentState()
         } catch { comparisonNotice = error.localizedDescription }
     }
     func synchronizeScroll(from scroll: NSScrollView) {
@@ -678,8 +720,62 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         let sender = NSMenuItem(); sender.tag = NSTextFinder.Action.showFindInterface.rawValue
         view.performTextFinderAction(sender)
     }
+    func updateParentState() {
+        editor?.busy = busy
+        editor?.confirmingQuit = confirmingQuit || draftDecisionPending || parentActive()
+        objectWillChange.send()
+    }
+    func setEditing(_ value: Bool) {
+        guard canEditResult, !dirty else { return }
+        editor?.setPatchEditing(value)
+    }
+    func discardDraft() {
+        guard editable else { return }
+        resetComparisonDraft()
+    }
+    private func resetComparisonDraft() {
+        guard let comparison else { return }
+        editor?.resetHistory(); beforeScroll = nil; afterScroll = nil
+        let next = FileComparisonWindowModel(patchComparison: comparison, access: access, preferences: preferences)
+        next.onRegisterScroll = { [weak self] scroll, base in if base { self?.beforeScroll = scroll } else { self?.afterScroll = scroll } }
+        editorChanges = next.objectWillChange.sink { [weak self] in self?.objectWillChange.send(); self?.onBusyChanged() }
+        editor = next; updateParentState(); onBusyChanged()
+    }
+    func saveDraft() {
+        guard canSaveDraft else { return }
+        busy = true
+        Task { _ = await performSave(alreadyBusy: true) }
+    }
+    private func performSave(alreadyBusy: Bool = false) async -> Bool {
+        guard (alreadyBusy ? busy : !busy), let comparison, let editor, editor.canEdit(base: false) else { return false }
+        let text = editor.draftText(base: false), encoding = editor.encoding(base: false)
+        let autoAdd = MergeEditorPreferences.load(from: preferences).autoAdd
+        busy = true; defer { busy = false }
+        do {
+            try checkAccess()
+            let saved = try await repository.saveWorkingTreePatchFile(comparison, text: text, encoding: encoding, autoAddNewFiles: autoAdd)
+            appliedPaths.insert(Data(comparison.document.destination.path.utf8)); output += saved.output
+            editor.resetHistory(); self.editor = nil; onChanged(output)
+            try await load(reverse: reversed, strip: stripCount)
+            if let failure = saved.addError { notice = "Saved patched result, but Add failed: " + failure; output += notice + "\n"; return false }
+            return true
+        } catch { notice = error.localizedDescription; output += notice + "\n"; return false }
+    }
+    func resolveDraft(discardImmediately: Bool = true) async -> Bool {
+        guard dirty else { return true }
+        guard !busy, !draftDecisionPending else { return false }
+        draftDecisionPending = true; defer { draftDecisionPending = false }
+        switch await chooseDraft() {
+        case .cancel: return false
+        case .save: return await performSave()
+        case .discard:
+            if discardImmediately { resetComparisonDraft() }
+            return true
+        }
+    }
+    func requestClose() { Task { if await resolveDraft() { close() } } }
     func check(_ id: Int, _ value: Bool) {
-        guard editable, !requiresRefresh, let file = review?.files.first(where: { $0.id == id }), !appliedPaths.contains(file.pathBytes) else { return }
+        guard canReplaceComparison, !requiresRefresh, let file = review?.files.first(where: { $0.id == id }), !appliedPaths.contains(file.pathBytes) else { return }
         if value { selected.insert(id) } else { selected.remove(id) }
         busy = true; selectedReview = nil
         Task { defer { busy = false }; do { try checkAccess(); try await validateSelection() } catch { notice = error.localizedDescription } }
@@ -709,13 +805,13 @@ struct WorkingTreePatchDialog: View {
                 Spacer(); Toggle("Reverse patch", isOn: Binding(get: { model.reversed }, set: { model.setReversed($0) }))
                 Text("Strip paths:"); TextField("Strip paths", value: Binding(get: { model.stripCount }, set: { model.setStripCount($0) }), formatter: NumberFormatter()).frame(width: 45)
                 Button("Refresh") { model.refresh() }
-            }.disabled(!model.editable)
+            }.disabled(!model.canReplaceComparison)
             HSplitView {
                 VStack(alignment: .leading) {
                     Text("Files to patch:")
                     Table(model.review?.files ?? [], selection: Binding(get: { model.focusedFile }, set: { model.focusFile($0) })) {
                         TableColumn("") { file in
-                            Toggle(file.path, isOn: Binding(get: { model.selected.contains(file.id) }, set: { model.check(file.id, $0) })).labelsHidden().disabled(!model.editable || model.requiresRefresh || model.appliedPaths.contains(file.pathBytes))
+                            Toggle(file.path, isOn: Binding(get: { model.selected.contains(file.id) }, set: { model.check(file.id, $0) })).labelsHidden().disabled(!model.canReplaceComparison || model.requiresRefresh || model.appliedPaths.contains(file.pathBytes))
                         }.width(26)
                         TableColumn("Path") { file in Text(file.path).help(file.path) }
                         TableColumn("Changes") { file in
@@ -735,7 +831,7 @@ struct WorkingTreePatchDialog: View {
                 if model.busy { ProgressView().controlSize(.small); Text("Checking patch…") }
                 Text("Only checked files will be applied.").foregroundStyle(.secondary)
                 Spacer(); Button("Apply selected") { model.apply() }.disabled(!model.canApply)
-                Button("Close") { model.close() }.disabled(!model.editable)
+                Button("Close") { model.requestClose() }.disabled(!model.editable)
             }
         }.padding(16)
     }
@@ -767,7 +863,10 @@ struct WorkingTreePatchComparisonView: View {
                 Button { model.navigate(-1) } label: { Image(nsImage: MenuIcon.mergePreviousConflict.image() ?? NSImage()) }.help("Previous difference").accessibilityLabel("Previous difference").disabled(model.difference <= 0)
                 Button { model.navigate(1) } label: { Image(nsImage: MenuIcon.mergeNextConflict.image() ?? NSImage()) }.help("Next difference").accessibilityLabel("Next difference").disabled(model.alignment?.differences.isEmpty != false || model.difference >= (model.alignment?.differences.count ?? 0) - 1)
                 Button { model.findComparison() } label: { CommandLabel(title: "Find", icon: .mergeFind) }.disabled(model.alignment == nil)
-                Spacer(); Text("Read-only preview").font(.caption).foregroundStyle(.secondary)
+                Button { model.saveDraft() } label: { CommandLabel(title: "Save patched result", icon: .mergeSave) }.disabled(!model.canSaveDraft)
+                Button("Discard edits") { model.discardDraft() }.disabled(!model.editingEnabled)
+                Spacer()
+                Toggle("Edit patched result", isOn: Binding(get: { model.editingEnabled }, set: { model.setEditing($0) })).disabled(!model.canEditResult || model.dirty)
             }.disabled(!model.editable)
             HSplitView { pane(base: true); pane(base: false) }
             if model.requiresRefresh { Text("Refresh to compare the changed options.").foregroundStyle(.orange) }
@@ -777,47 +876,22 @@ struct WorkingTreePatchComparisonView: View {
     }
 }
 
-struct WorkingTreePatchComparisonEditor: NSViewRepresentable {
+struct WorkingTreePatchComparisonEditor: View {
     @ObservedObject var model: WorkingTreePatchWindowModel
     let cells: [MergeSourceCell]
     let base: Bool
-    func makeNSView(context: Context) -> NSScrollView {
-        let view = NSTextView(); view.isEditable = false; view.isRichText = false
-        view.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
-        view.textContainerInset = NSSize(width: 8, height: 8)
-        view.isVerticallyResizable = true; view.isHorizontallyResizable = true
-        view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
-        view.textContainer?.widthTracksTextView = false; view.textContainer?.containerSize = view.maxSize
-        view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
-        view.setAccessibilityLabel(base ? "Before patch" : "After patch")
-        let scroll = NSScrollView(); scroll.documentView = view; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
-        scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent
-        scroll.hasVerticalRuler = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
-        scroll.rulersVisible = true; scroll.contentView.postsBoundsChangedNotifications = true
-        if base { model.beforeScroll = scroll } else { model.afterScroll = scroll }
-        context.coordinator.scroll = scroll
-        NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.scrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
-        return scroll
+    var body: some View {
+        if let editor = model.editor { WorkingTreePatchPreparedEditor(editor: editor, base: base).id(ObjectIdentifier(editor)) }
     }
-    func updateNSView(_ scroll: NSScrollView, context: Context) {
-        guard let view = scroll.documentView as? NSTextView else { return }
-        let value = NSMutableAttributedString(string: ""), font = view.font!
-        let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
-        paragraph.defaultTabInterval = 4 * (" " as NSString).size(withAttributes: [.font: font]).width
-        for cell in cells {
-            value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: NSColor.labelColor, .backgroundColor: MergePalette.color(cell.state), .paragraphStyle: paragraph]))
+}
+private struct WorkingTreePatchPreparedEditor: View {
+    @ObservedObject var editor: FileComparisonWindowModel
+    let base: Bool
+    var body: some View {
+        VStack(alignment: .leading) {
+            FileComparisonEditor(model: editor, cells: editor.alignment?.rows.map { base ? $0.base : $0.destination } ?? [], base: base)
+            MergeFormatControls(label: base ? "Before" : "After", encoding: editor.encoding(base: base), text: editor.document == nil ? nil : editor.draftText(base: base), editable: editor.canTransfer(toBase: base), changeEncoding: { editor.changeEncoding($0, base: base) }, changeEnding: { editor.changeLineEnding($0, base: base) })
+            if let error = editor.error { Text(error).foregroundStyle(.orange).font(.caption) }
         }
-        if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
-        else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
-        (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
-        scroll.verticalRulerView?.needsDisplay = true
-    }
-    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
-    @MainActor final class Coordinator: NSObject {
-        let model: WorkingTreePatchWindowModel
-        weak var scroll: NSScrollView?
-        init(model: WorkingTreePatchWindowModel) { self.model = model }
-        @objc func scrolled(_ note: Notification) { if let scroll { model.synchronizeScroll(from: scroll) } }
-        deinit { NotificationCenter.default.removeObserver(self) }
     }
 }

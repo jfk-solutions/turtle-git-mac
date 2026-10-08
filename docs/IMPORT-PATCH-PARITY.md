@@ -129,7 +129,7 @@ child patch operations guard each other. The file access lease stays retained.
 AppKit table and preview, selected application/continuation/reversal, exact HEAD
 and index preservation, busy close/Quit/options guards and injected context
 handoff/failure recovery. It does not establish physical menu gestures or visual
-comparison. Editing the patched result and hunk-level application remain pending.
+comparison. Edited result saving is implemented below; hunk-level patch-engine application remains pending.
 
 The **Compare** tab now shows the focused file before and after the patch, with
 aligned rows, source Merge colors, line numbers, linked vertical scrolling,
@@ -153,7 +153,7 @@ text/binary/rename/mode/add/delete/reverse, unusual-name, symlink, local whitesp
 policy and stale/unsafe/foreign-review checks. The native receiver checks the
 hidden before/after text controls, palette, ruler, Find, file selection, linked
 scrolling and difference navigation. Physical visual/accessibility acceptance
-and editable patch-result saving remain pending.
+remain pending.
 
 The Core review/application backend now keeps original patch bytes, obtains Git's
 statistics and summary, and checks applicability without staging or committing.
@@ -185,7 +185,7 @@ rejected. Per-file selection requires UTF-8 paths; whole-patch application keeps
 raw path bytes through Git. [Selected-file QA](qa/patch-file-apply-2026-10-08.json)
 checks literal wildcard/backslash names, an unselected conflict, sequential
 rename/binary/remaining-file application and reverse rename without changing the
-index. Native checkboxes use this backend; editable before/after comparison remains
+index. Native checkboxes use this backend; full conflict/hunk-level patch review remains
 pending. The source suppresses the generic
 Apply context command in Import Patch; this native list does too.
 
@@ -231,6 +231,49 @@ implementation.
 in a hidden ordinary window and verifies Find-bar visibility, focus restoration
 and guarded close dispatch. It avoids shared Find-pasteboard writes and synthetic
 key events; search matching and physical keyboard acceptance remain unverified.
+
+## Edited patched results
+
+Enable **Edit patched result** in Compare to edit the right pane. The left pane
+stays immutable. The shared native aligned editor retains source row gaps,
+Undo/Redo, block context commands with original icons, and encoding/line-ending
+controls; display gaps never become saved file bytes. **Save patched result**
+(or Command-S) applies that focused result. **Discard edits** returns to the
+original proposal. File selection, refresh, path options, checks and bulk Apply
+are guarded until editing finishes, preserving the current draft.
+
+Close and application Quit offer Save / Don’t Save / Cancel for a dirty result,
+with Cancel the safe keyboard default. A failed save retains the draft and cancels
+closing/quitting. Don’t Save during Quit does not clear drafts prematurely, so
+another document can still cancel the overall quit. Closing the parent Import
+Patch window resolves its dirty review child first. Parent imports are guarded
+while the child is editing.
+
+The save backend validates the captured input bytes, file modes and permissions,
+including a rename destination that was absent. It creates private raw-blob Git
+trees for before/edited-after states, generates a binary-capable patch, checks
+current files again and applies it without committing. The private index and
+objects are removed on completion; user index entries are retained unless Auto
+Add applies. Encoding/BOM, line endings, missing final newline and edited trailing
+spaces are preserved. Private trees use the repository’s SHA-1/SHA-256 format.
+External writers are not globally locked.
+
+Following `CMainFrame::PatchSave`, saving a zero-line result removes the file.
+**Settings → TurtleGitMerge → General → Add new files to Git after saving a
+patched result** follows the source Auto Add preference, enabled by default.
+Only a newly created destination is added; existing-file edits and rename source
+deletions are not automatically staged. A failed Add reports that the result was
+saved and does not repeat the file mutation.
+
+[Edited patch QA](qa/patch-edit-save-2026-10-08.json) records Core real-Git
+rename/mode saves, zero-line removal, Auto Add success/failure, stale collision
+and foreign-review refusal, and SHA-256 UTF-16/BOM/CRLF/whitespace preservation.
+Native checks use actual aligned text input, Undo/Redo, format-preserving saves,
+draft locks, captured Quit replies and injected Save/Discard/Cancel choices.
+Physical sheets/keys/menus, signed sandbox access, comprehensive marked-block
+and format-menu behavior, rejected-hunk conflict panes, and full source parity
+remain unverified or pending. Symlink/binary editing remains unavailable; the
+original selected-file application still handles those complete operations.
 
 ## Whitespace markers
 
@@ -282,7 +325,7 @@ sandbox access outside the repository remain unverified.
 
 ## Remaining parity work
 
-Editable before/after patch merge panes, hunk/line application and
+Full patch conflict/merge engine, hunk/line application and
 the full Git configuration settings page remain pending. The source's exact context-menu/keyboard behavior remains pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,
 deployed Finder integration and App Store acceptance are unverified. No screenshot
