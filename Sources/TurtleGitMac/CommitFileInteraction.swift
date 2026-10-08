@@ -6,6 +6,9 @@ import TurtleGitCore
 /// its selection, accessibility, checkbox or context-menu implementations.
 struct CommitFileInteraction: NSViewRepresentable {
     let rows: [StatusListRow]
+    let visibleColumns: Set<StatusListColumn>
+    let setColumnVisible: (StatusListColumn, Bool) -> Void
+    let resetColumns: (@escaping () async -> Bool, @escaping () -> Void) -> Void
     @Binding var focusedPath: String?
     let enabled: Bool
     let delete: ([StatusEntry], StatusEntry, Bool) -> Void
@@ -18,13 +21,111 @@ struct CommitFileInteraction: NSViewRepresentable {
         CGSize(width: proposal.width ?? nsView.frame.width, height: proposal.height ?? nsView.frame.height)
     }
     func updateNSView(_ view: Probe, context: Context) {
+        view.visibleColumns = visibleColumns; view.setColumnVisible = setColumnVisible; view.resetColumns = resetColumns
         view.rows = rows; view.focusedPath = $focusedPath
         view.enabled = enabled; view.delete = delete; view.copy = copy; view.copyColumn = copyColumn; view.toggleCheck = toggleCheck
+        DispatchQueue.main.async { [weak view] in view?.configureColumns() }
     }
     static func dismantleNSView(_ view: Probe, coordinator: ()) { view.stopObserving() }
 
     final class Probe: NSView {
         var rows: [StatusListRow] = []
+        var visibleColumns = Set(StatusListColumn.defaultColumns)
+        var setColumnVisible: (StatusListColumn, Bool) -> Void = { _, _ in }
+        var resetColumns: (@escaping () async -> Bool, @escaping () -> Void) -> Void = { _, _ in }
+        var confirmResetColumns: (NSWindow) async -> Bool = { window in
+            let alert = NSAlert(); alert.messageText = "Are you sure to reset columns?"
+            alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+            let answer = await withCheckedContinuation { continuation in
+                alert.beginSheetModal(for: window) { continuation.resume(returning: $0) }
+            }
+            return answer == .alertFirstButtonReturn
+        }
+        private weak var configuredTable: NSTableView?
+        private var columnDefinitions: [ObjectIdentifier: StatusListColumn] = [:]
+        private var originalColumns: [NSTableColumn] = []
+        private var originalWidths: [ObjectIdentifier: CGFloat] = [:]
+        private var desiredColumns: [NSTableColumn] = []
+        private var desiredWidths: [ObjectIdentifier: CGFloat] = [:]
+        private var layoutObservers: [NSObjectProtocol] = []
+        private var trackingHeader = false
+        private var draggingHeader = false
+        private var adjustingLayout = false
+        func rememberNativeColumnLayout() {
+            guard !adjustingLayout, let table = configuredTable else { return }
+            desiredColumns = table.tableColumns
+            desiredWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
+        }
+        private func applyNativeColumnLayout() {
+            guard let table = configuredTable, !trackingHeader else { return }
+            adjustingLayout = true; defer { adjustingLayout = false }
+            for (index, column) in desiredColumns.enumerated() {
+                if let current = table.tableColumns.firstIndex(where: { $0 === column }), current != index { table.moveColumn(current, toColumn: index) }
+                if let width = desiredWidths[ObjectIdentifier(column)], abs(column.width - width) > 0.5 { column.width = width }
+            }
+        }
+        func configureColumns() {
+            guard let content = window?.contentView else { return }
+            func find(_ view: NSView) -> NSTableView? {
+                if let table = view as? NSTableView, contains(table) { return table }
+                return view.subviews.compactMap(find).first
+            }
+            guard let table = find(content), table.tableColumns.count == StatusListColumn.allCases.count + 1 else { return }
+            if configuredTable !== table {
+                configuredTable = table; originalColumns = table.tableColumns
+                columnDefinitions = Dictionary(uniqueKeysWithValues: zip(table.tableColumns.dropFirst(), StatusListColumn.allCases).map { (ObjectIdentifier($0.0), $0.1) })
+                originalWidths = Dictionary(uniqueKeysWithValues: table.tableColumns.map { (ObjectIdentifier($0), $0.width) })
+                desiredColumns = originalColumns; desiredWidths = originalWidths
+                for observer in layoutObservers { NotificationCenter.default.removeObserver(observer) }
+                layoutObservers = [NSTableView.columnDidMoveNotification, NSTableView.columnDidResizeNotification].map { name in
+                    NotificationCenter.default.addObserver(forName: name, object: table, queue: .main) { [weak self] _ in
+                        guard let self, self.trackingHeader,
+                              self.draggingHeader || NSApplication.shared.currentEvent?.type == .leftMouseDragged else { return }
+                        self.draggingHeader = true; self.rememberNativeColumnLayout()
+                    }
+                }
+            }
+            table.allowsColumnReordering = enabled; table.allowsColumnResizing = enabled
+            applyNativeColumnLayout()
+            for column in table.tableColumns {
+                if let definition = columnDefinitions[ObjectIdentifier(column)] { column.isHidden = !visibleColumns.contains(definition) && definition != .path }
+            }
+            table.headerView?.menu = columnMenu()
+        }
+        func columnDefinition(atNativeIndex index: Int) -> StatusListColumn? {
+            guard let table = configuredTable, table.tableColumns.indices.contains(index) else { return nil }
+            return columnDefinitions[ObjectIdentifier(table.tableColumns[index])]
+        }
+        func columnMenu() -> NSMenu {
+            let menu = NSMenu(); menu.autoenablesItems = false
+            let reset = NSMenuItem(title: "Reset columns", action: #selector(resetColumnLayout(_:)), keyEquivalent: "")
+            reset.target = self; reset.isEnabled = enabled; menu.addItem(reset); menu.addItem(.separator())
+            for (index, column) in StatusListColumn.allCases.enumerated() where column != .path {
+                let item = NSMenuItem(title: column.rawValue, action: #selector(toggleColumn(_:)), keyEquivalent: "")
+                item.target = self; item.tag = index; item.state = visibleColumns.contains(column) ? .on : .off
+                item.isEnabled = enabled && column != .path; menu.addItem(item)
+            }
+            return menu
+        }
+        @objc private func toggleColumn(_ sender: NSMenuItem) {
+            guard enabled, StatusListColumn.allCases.indices.contains(sender.tag) else { return }
+            let column = StatusListColumn.allCases[sender.tag]
+            guard column != .path else { return }
+            setColumnVisible(column, !visibleColumns.contains(column))
+        }
+        @objc private func resetColumnLayout(_ sender: Any?) {
+            guard enabled, let window, window.attachedSheet == nil else { return }
+            resetColumns({ [weak self, weak window] in
+                guard let self, let window else { return false }
+                let approved = await self.confirmResetColumns(window)
+                return approved && self.window === window
+            }, { [weak self] in self?.resetNativeLayout() })
+        }
+        private func resetNativeLayout() {
+            guard configuredTable != nil else { return }
+            desiredColumns = originalColumns; desiredWidths = originalWidths
+            applyNativeColumnLayout()
+        }
         var focusedPath: Binding<String?>?
         private var contextColumn: StatusListColumn?
         private var contextEntries: [StatusEntry] = []
@@ -39,7 +140,7 @@ struct CommitFileInteraction: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); stopObserving()
             guard window != nil else { return }
-            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .keyDown]) { [weak self] event in
+            monitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .leftMouseDragged, .leftMouseUp, .rightMouseDown, .keyDown]) { [weak self] event in
                 guard let self else { return event }
                 return self.observe(event)
             }
@@ -53,6 +154,8 @@ struct CommitFileInteraction: NSViewRepresentable {
             monitor = nil
             if let menuObserver { NotificationCenter.default.removeObserver(menuObserver) }
             menuObserver = nil
+            for observer in layoutObservers { NotificationCenter.default.removeObserver(observer) }
+            layoutObservers = []
         }
         deinit { stopObserving() }
         private func prepareClipboardMenu(_ menu: NSMenu) {
@@ -83,6 +186,22 @@ struct CommitFileInteraction: NSViewRepresentable {
         }
         private func observe(_ event: NSEvent) -> NSEvent? {
             guard let window, event.window === window else { return event }
+            if event.type == .rightMouseDown { trackingHeader = false; draggingHeader = false }
+            if event.type == .leftMouseDown {
+                draggingHeader = false
+                if let table = configuredTable, let header = table.headerView {
+                    trackingHeader = header.bounds.contains(header.convert(event.locationInWindow, from: nil))
+                }
+            }
+            if event.type == .leftMouseDragged { if trackingHeader { draggingHeader = true }; return event }
+            if event.type == .leftMouseUp {
+                if trackingHeader {
+                    if draggingHeader { rememberNativeColumnLayout() }
+                    trackingHeader = false; draggingHeader = false
+                    DispatchQueue.main.async { [weak self] in self?.configureColumns() }
+                }
+                return event
+            }
             if event.type != .keyDown {
                 contextColumn = nil; contextEntries = []
                 guard let content = window.contentView,
@@ -90,7 +209,7 @@ struct CommitFileInteraction: NSViewRepresentable {
                 let row = table.row(at: table.convert(event.locationInWindow, from: nil))
                 if event.type == .rightMouseDown && rows.indices.contains(row), rows[row].entry != nil {
                     let column = table.column(at: table.convert(event.locationInWindow, from: nil))
-                    contextColumn = StatusListColumn.nativeColumn(column)
+                    contextColumn = columnDefinition(atNativeIndex: column)
                     let rows = table.selectedRowIndexes.contains(row) ? table.selectedRowIndexes : IndexSet(integer: max(0, row))
                     contextEntries = StatusListGroups.files(at: rows, in: self.rows)
                 }

@@ -8,6 +8,50 @@ final class StatusListSortingTests: XCTestCase {
     private func stats(_ path: String, _ added: Int?, _ removed: Int?, present: Bool = true) -> CommitFile {
         CommitFile(path: path, oldPath: nil, action: "M", added: added, removed: removed, hasStatistics: present, isSubmodule: false)
     }
+    func testOptionalFilenameDateAndSizeUseRawValuesWithPathTie() {
+        let a = entry("z/file2"), b = entry("a/file10")
+        XCTAssertEqual(StatusListSorting.compare(a, b, column: .fileName), .orderedAscending)
+        let early = StatusListMetadata(modificationDate: Date(timeIntervalSince1970: 10), size: 10000, isDirectory: false)
+        let late = StatusListMetadata(modificationDate: Date(timeIntervalSince1970: 20), size: 2, isDirectory: false)
+        XCTAssertEqual(StatusListSorting.compare(a, b, column: .lastModified, lhsMetadata: early, rhsMetadata: late), .orderedAscending)
+        XCTAssertEqual(StatusListSorting.compare(a, b, column: .fileSize, lhsMetadata: early, rhsMetadata: late), .orderedDescending)
+        XCTAssertEqual(StatusListSorting.compare(a, b, column: .fileSize, rhsMetadata: late), .orderedAscending)
+        XCTAssertEqual(StatusListMetadata(modificationDate: nil, size: 9999, isDirectory: true).size, 0)
+        let old = StatusListMetadata(modificationDate: Date(timeIntervalSince1970: -1), size: 1, isDirectory: false)
+        XCTAssertEqual(StatusListSorting.compare(a, b, column: .lastModified, rhsMetadata: old), .orderedAscending)
+        let directory = StatusListMetadata(modificationDate: nil, size: 9999, isDirectory: true)
+        XCTAssertEqual(StatusListSorting.compare(entry("z.ext"), entry("a.ext"), column: .fileExtension, lhsMetadata: directory), .orderedAscending)
+    }
+    func testColumnDefaultsVersionPathProtectionAndRoundTrip() {
+        let suite = "TurtleGit.ColumnSettings.Core.QA." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(StatusListColumnSettings.load(from: defaults).visible, Set(StatusListColumn.defaultColumns))
+        defaults.set(["File size"], forKey: "Commit.FileColumns")
+        XCTAssertEqual(StatusListColumnSettings.load(from: defaults).visible, Set(StatusListColumn.defaultColumns))
+        defaults.set(1, forKey: "Commit.FileColumns.Version"); defaults.set(["Filename", "File size", "bad"], forKey: "Commit.FileColumns")
+        let selected = StatusListColumnSettings.load(from: defaults)
+        XCTAssertEqual(selected.visible, [.path, .fileName, .fileSize]); selected.save(to: defaults)
+        XCTAssertEqual(StatusListColumnSettings.load(from: defaults), selected)
+        defaults.set(99, forKey: "Commit.FileColumns.Version")
+        XCTAssertEqual(StatusListColumnSettings.load(from: defaults).visible, Set(StatusListColumn.defaultColumns))
+    }
+    func testMetadataLiteralFileDirectoryLinkMissingAndEscapingParent() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-metadata-core-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let name = "雪\t🦎.txt", bytes = Data("payload".utf8), date = Date(timeIntervalSince1970: 1700000000)
+        try bytes.write(to: root.appendingPathComponent(name))
+        try FileManager.default.setAttributes([.modificationDate: date], ofItemAtPath: root.appendingPathComponent(name).path)
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("dir"), withIntermediateDirectories: true)
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("link").path, withDestinationPath: "/missing/external")
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("escape").path, withDestinationPath: "/tmp")
+        let metadata = await GitRepository(root: root).statusListMetadata(paths: [name, "dir", "link", "gone", "../outside", "escape/foreign", ".git/index"])
+        XCTAssertEqual(metadata[name]?.size, Int64(bytes.count)); XCTAssertEqual(metadata[name]?.modificationDate, date)
+        XCTAssertEqual(metadata["dir"]?.size, 0); XCTAssertEqual(metadata["dir"]?.isDirectory, true)
+        XCTAssertEqual(metadata["link"]?.size, Int64("/missing/external".utf8.count))
+        for path in ["gone", "../outside", "escape/foreign", ".git/index"] { XCTAssertNil(metadata[path]?.size); XCTAssertNil(metadata[path]?.modificationDate) }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(name)), bytes)
+    }
     func testNaturalPathExtensionAndPathTie() {
         XCTAssertEqual(StatusListSorting.compare(entry("File2.swift"), entry("file10.swift"), column: .path), .orderedAscending)
         XCTAssertEqual(StatusListSorting.compare(entry("z.x2"), entry("a.x10"), column: .fileExtension), .orderedAscending)

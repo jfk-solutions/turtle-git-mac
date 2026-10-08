@@ -85,7 +85,8 @@ public enum StatusListGroups {
 public enum StatusListSorting {
     public static func compare(_ lhs: StatusEntry, _ rhs: StatusEntry, column: StatusListColumn,
                                lhsStatistics: CommitFile? = nil, rhsStatistics: CommitFile? = nil,
-                               lhsDirectory: Bool = false, rhsDirectory: Bool = false) -> ComparisonResult {
+                               lhsDirectory: Bool = false, rhsDirectory: Bool = false,
+                               lhsMetadata: StatusListMetadata? = nil, rhsMetadata: StatusListMetadata? = nil) -> ComparisonResult {
         func text(_ a: String, _ b: String, numeric: Bool = true) -> ComparisonResult {
             a.compare(b, options: numeric ? [.caseInsensitive, .numeric] : [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
         }
@@ -99,8 +100,19 @@ public enum StatusListSorting {
         var result: ComparisonResult
         switch column {
         case .path: result = text(lhs.path, rhs.path)
+        case .fileName: result = text((lhs.path as NSString).lastPathComponent, (rhs.path as NSString).lastPathComponent)
+        case .lastModified:
+            switch (lhsMetadata?.modificationDate, rhsMetadata?.modificationDate) {
+            case (nil, nil): result = .orderedSame
+            case (nil, _): result = .orderedAscending
+            case (_, nil): result = .orderedDescending
+            case let (a?, b?): result = a < b ? .orderedAscending : a > b ? .orderedDescending : .orderedSame
+            }
+        case .fileSize:
+            let a = lhsMetadata?.size ?? 0, b = rhsMetadata?.size ?? 0
+            result = a < b ? .orderedAscending : a > b ? .orderedDescending : .orderedSame
         case .fileExtension:
-            result = text(StatusListClipboard.fileExtension(lhs.path, isDirectory: lhsDirectory), StatusListClipboard.fileExtension(rhs.path, isDirectory: rhsDirectory))
+            result = text(StatusListClipboard.fileExtension(lhs.path, isDirectory: lhsDirectory || lhsMetadata?.isDirectory == true), StatusListClipboard.fileExtension(rhs.path, isDirectory: rhsDirectory || rhsMetadata?.isDirectory == true))
         case .status: result = text(status(lhs, lhsStatistics), status(rhs, rhsStatistics), numeric: false)
         case .added, .removed:
             let a = count(lhsStatistics, added: column == .added), b = count(rhsStatistics, added: column == .added)
@@ -111,6 +123,34 @@ public enum StatusListSorting {
         // case-only names need a deterministic tie without merging their rows.
         if result == .orderedSame, !lhs.path.utf8.elementsEqual(rhs.path.utf8) {
             result = lhs.path.utf8.lexicographicallyPrecedes(rhs.path.utf8) ? .orderedAscending : .orderedDescending
+        }
+        return result
+    }
+}
+
+public struct StatusListMetadata: Sendable, Equatable {
+    public let modificationDate: Date?
+    public let size: Int64?
+    public let isDirectory: Bool
+    public init(modificationDate: Date?, size: Int64?, isDirectory: Bool) {
+        self.modificationDate = modificationDate; self.size = isDirectory ? 0 : size; self.isDirectory = isDirectory
+    }
+    public var dateText: String { modificationDate.map { DateFormatter.localizedString(from: $0, dateStyle: .short, timeStyle: .medium) } ?? "–" }
+    public var sizeText: String { size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "–" }
+}
+extension GitRepository {
+    /// Read metadata on the repository actor, once per refresh. Missing/denied
+    /// paths remain unavailable and do not prevent committing other files.
+    /// The shared location gate rejects escaping parents; attributes describe
+    /// the final symlink itself rather than opening its target.
+    public func statusListMetadata(paths: [String]) -> [String: StatusListMetadata] {
+        var result: [String: StatusListMetadata] = [:]
+        for path in paths {
+            let location = try? restoreLocation(path)
+            let attributes = location.flatMap { try? FileManager.default.attributesOfItem(atPath: $0.path) }
+            result[path] = StatusListMetadata(modificationDate: attributes?[.modificationDate] as? Date,
+                size: (attributes?[.size] as? NSNumber)?.int64Value,
+                isDirectory: attributes?[.type] as? FileAttributeType == .typeDirectory)
         }
         return result
     }

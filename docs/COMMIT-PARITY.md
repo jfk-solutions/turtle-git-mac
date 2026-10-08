@@ -1598,3 +1598,46 @@ repository bytes. No mouse/key events are synthesized. Physical header arrows/
 click modifiers, light/dark screenshots, accessibility, optional source columns,
 completion catalog order and other status-list consumers remain pending. This
 is a Commit sorting increment, not full Commit or application parity.
+
+## Optional file columns and header choices
+
+The native Commit table now also offers **Filename**, **Last modified** and
+**File size**. They start hidden, matching CommitDlg's source default mask.
+Right-click the native header to choose columns. Path and the checkbox remain
+visible; Path is omitted from the choices, matching `ColumnManager::AddMenuItem`.
+The current native order and widths are also retained across SwiftUI redraws
+within the open window; this prevents busy/confirmation updates from silently
+reordering a user-arranged header. Visibility is saved in versioned native preferences and restored in newly opened
+Commit dialogs. Existing windows retain their own loaded choices. A schema
+mismatch restores source defaults without rewriting settings merely on load.
+
+Metadata is read once per refresh on the repository actor, after the App Store
+lease gate. The shared location check blocks invalid paths and escaping parent
+symlinks. Final symlinks display their own metadata; missing/unavailable paths
+show a dash, directory sizes are zero. Date and byte text use macOS formatters.
+The optional columns sort by basename, date and raw byte count with path ties.
+Missing dates precede valid dates, including pre-1970 dates. Metadata reads do
+not open symlink targets or alter repository content.
+
+**Reset columns** asks the source Yes/No question in an owned native sheet. No
+retains choices and layout. Yes restores default visibility and the current
+table's initial column order/widths. The Commit owner stays busy until the
+answer; stale visibility/sort/reset actions are refused. This increment saves
+visibility; complete Commit width/order persistence and source autosizing are
+still pending. Native moved-column identity is tracked independently of indexes
+so the clicked-column clipboard route remains aligned. Copy All now emits only
+visible column headings and values, including the same date/size text displayed
+in the table. Other consumers keep their original five-column clipboard default.
+
+[Optional columns QA](qa/commit-columns-2026-10-08.json) records Core tests and
+the strengthened hidden native Commit receiver with all four Git engines. It
+checks real header menus and targets, saved choices/reopening, native hiding,
+injected Reset No/Yes and owner locking, moved-column identity, customized width
+retention and startup-width reset (180 versus a later 215.5-point layout),
+all eight sort bindings, groups/selection/checks, metadata clipboard text and
+repository byte preservation. Native move/resize plus the production capture
+method exercise restoration; pointer tracking itself is not exercised. Physical header tracking/confirmation/keyboard/
+resize, screenshots, signed lease behavior, saved width/order and LFS Lock
+remain pending. Earlier screenshots show the source default columns and are
+not evidence of these new optional controls. Full Commit and app parity remain
+incomplete.

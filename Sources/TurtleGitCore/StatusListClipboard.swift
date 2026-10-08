@@ -1,10 +1,10 @@
 import Foundation
 
 public enum StatusListColumn: String, CaseIterable, Sendable {
-    case path = "Path", fileExtension = "Extension", status = "Status", added = "Lines added", removed = "Lines removed"
+    case path = "Path", fileName = "Filename", fileExtension = "Extension", status = "Status", added = "Lines added", removed = "Lines removed", lastModified = "Last modified", fileSize = "File size"
+    public static let defaultColumns: [StatusListColumn] = [.path, .fileExtension, .status, .added, .removed]
     /// The native list has a leading checkbox column, which carries no text.
-    public static func nativeColumn(_ index: Int) -> StatusListColumn? {
-        let columns = allCases
+    public static func nativeColumn(_ index: Int, columns: [StatusListColumn] = defaultColumns) -> StatusListColumn? {
         return (1...columns.count).contains(index) ? columns[index - 1] : nil
     }
 }
@@ -36,10 +36,12 @@ public enum StatusListClipboard {
 
     /// Log merge parents can contain different occurrences of the same path.
     /// Read each occurrence's own statistics and use its ID for displayed statuses.
-    public static func text(_ files: [CommitFile], root: URL, statuses: [String: String], copy: StatusListCopy, visibleColumns: [StatusListColumn] = StatusListColumn.allCases) -> String {
+    public static func text(_ files: [CommitFile], root: URL, statuses: [String: String], copy: StatusListCopy, visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
         func cell(_ file: CommitFile, _ column: StatusListColumn) -> String {
             switch column {
             case .path: return displayedPath(file)
+            case .fileName: return (file.path as NSString).lastPathComponent
+            case .lastModified, .fileSize: return "–"
             case .fileExtension: return fileExtension(file.path, isDirectory: file.isSubmodule)
             case .status: return statuses[file.id] ?? file.status
             case .added: return file.addedText
@@ -51,12 +53,15 @@ public enum StatusListClipboard {
 
     /// Copy the displayed row order. Single-column output has no heading;
     /// multi-column output uses headings and tabs, with macOS LF line endings.
-    public static func text(_ entries: [StatusEntry], root: URL, statistics: [String: CommitFile], copy: StatusListCopy, visibleColumns: [StatusListColumn] = StatusListColumn.allCases) -> String {
+    public static func text(_ entries: [StatusEntry], root: URL, statistics: [String: CommitFile], copy: StatusListCopy, metadata: [String: StatusListMetadata] = [:], visibleColumns: [StatusListColumn] = StatusListColumn.defaultColumns) -> String {
         func cell(_ entry: StatusEntry, _ column: StatusListColumn) -> String {
             let stats = statistics[entry.path]
             switch column {
             case .path: return displayedPath(entry)
-            case .fileExtension: return fileExtension(entry.path, isDirectory: stats?.isSubmodule == true)
+            case .fileName: return (entry.path as NSString).lastPathComponent
+            case .lastModified: return metadata[entry.path]?.dateText ?? "–"
+            case .fileSize: return metadata[entry.path]?.sizeText ?? "–"
+            case .fileExtension: return fileExtension(entry.path, isDirectory: stats?.isSubmodule == true || metadata[entry.path]?.isDirectory == true)
             case .status: return entry.index == "R" || entry.worktree == "R" ? "Renamed" : stats?.status ?? entry.state.rawValue.capitalized
             case .added: return stats?.added.map(String.init) ?? "–"
             case .removed: return stats?.removed.map(String.init) ?? "–"
@@ -86,5 +91,20 @@ public enum StatusListClipboard {
             default: return columns.map { cell(entry, $0) }.joined(separator: "\t")
             }
         }.joined(separator: "\n") + "\n"
+    }
+}
+
+/// Versioned native equivalent of CommitDlg's default/selected column mask.
+public struct StatusListColumnSettings: Equatable, Sendable {
+    public var visible: Set<StatusListColumn>
+    public init(visible: Set<StatusListColumn> = Set(StatusListColumn.defaultColumns)) { self.visible = visible.union([.path]) }
+    public static func load(from defaults: UserDefaults, key: String = "Commit.FileColumns") -> Self {
+        guard defaults.integer(forKey: key + ".Version") == 1,
+              let names = defaults.stringArray(forKey: key) else { return Self() }
+        return Self(visible: Set(names.compactMap(StatusListColumn.init(rawValue:))))
+    }
+    public func save(to defaults: UserDefaults, key: String = "Commit.FileColumns") {
+        defaults.set(1, forKey: key + ".Version")
+        defaults.set(StatusListColumn.allCases.filter { visible.contains($0) || $0 == .path }.map(\.rawValue), forKey: key)
     }
 }

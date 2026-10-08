@@ -248,6 +248,9 @@ import UniformTypeIdentifiers
     @Published var statistics: [String: CommitFile] = [:]
     @Published var checked = Set<String>()
     @Published var selection = Set<String>()
+    @Published var fileMetadata: [String: StatusListMetadata] = [:]
+    @Published var fileColumns = StatusListColumnSettings()
+    var visibleFileColumns: [StatusListColumn] { StatusListColumn.allCases.filter { fileColumns.visible.contains($0) } }
     @Published var fileSortOrder = [CommitFileSort(column: .path)]
     @Published var focusedFiles: [String: String] = [:]
     @Published var changelists = GitChangelists()
@@ -410,6 +413,7 @@ import UniformTypeIdentifiers
     init(repository: GitRepository, access: RepositoryAccessLease?, unversionedDefaults: UserDefaults = .standard, dialogDefaults: UserDefaults = .standard) {
         self.repository = repository; self.access = access; self.unversionedDefaults = unversionedDefaults
         self.dialogDefaults = dialogDefaults
+        fileColumns = .load(from: dialogDefaults)
         completionAction = CompletionAction(sourceIndex: dialogDefaults.integer(forKey: "CommitLastAction"))
         selectFilesAutomatically = dialogDefaults.object(forKey: "SelectFilesForCommit") as? Bool ?? true
         doNotAutoselectMissing = dialogDefaults.bool(forKey: "AutoselectMissingFiles")
@@ -428,8 +432,27 @@ import UniformTypeIdentifiers
     }
     func sortedFiles(_ files: [StatusEntry], statistics: [String: CommitFile]) -> [StatusEntry] {
         guard let comparator = fileSortOrder.first else { return files }
-        return files.map { CommitSortableRow(row: .file($0), statistics: statistics[$0.path], isDirectory: submodules.contains($0.path)) }
+        return files.map { CommitSortableRow(row: .file($0), statistics: statistics[$0.path], isDirectory: submodules.contains($0.path) || fileMetadata[$0.path]?.isDirectory == true, metadata: fileMetadata[$0.path]) }
             .sorted(using: comparator).compactMap(\.entry)
+    }
+    func setFileColumn(_ column: StatusListColumn, visible: Bool) {
+        guard column != .path, !busy, !confirmingQuit else { return }
+        if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
+        fileColumns.save(to: dialogDefaults)
+    }
+    @discardableResult func resetFileColumns() -> Bool {
+        guard !busy, !confirmingQuit else { return false }
+        fileColumns = StatusListColumnSettings(); fileColumns.save(to: dialogDefaults); return true
+    }
+    func requestResetFileColumns(choose: @escaping () async -> Bool, onAccepted: @escaping () -> Void) {
+        guard !busy, !confirmingQuit else { return }
+        busy = true
+        Task {
+            defer { busy = false }
+            guard await choose(), !confirmingQuit else { return }
+            fileColumns = StatusListColumnSettings(); fileColumns.save(to: dialogDefaults)
+            onAccepted()
+        }
     }
     func setFileSortOrder(_ order: [CommitFileSort]) {
         guard !busy, !confirmingQuit else { return }
@@ -483,7 +506,7 @@ import UniformTypeIdentifiers
     }
     func copyFileText(_ selected: [StatusEntry], statistics: [String: CommitFile], copy: StatusListCopy) {
         guard !selected.isEmpty else { return }
-        let text = StatusListClipboard.text(selected, root: repository.root, statistics: statistics, copy: copy)
+        let text = StatusListClipboard.text(selected, root: repository.root, statistics: statistics, copy: copy, metadata: fileMetadata, visibleColumns: visibleFileColumns)
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string)
     }
     private func validateRestoreAccess() throws {
@@ -670,6 +693,8 @@ import UniformTypeIdentifiers
                 if amend && !hasParent { amendDiffToLastCommit = true }
                 comparisonBase = amendToParent ? try await repository.commitComparisonBase(amendToParent: true) : nil
                 entries = try await repository.commitDialogStatus(amendToParent: amendToParent); submodules = try await repository.submodulePaths(); branch = try await repository.branch()
+                try validateRestoreAccess()
+                fileMetadata = await repository.statusListMetadata(paths: entries.map(\.path))
                 let snippetURL = RepositoryAccessStore.defaultStorageURL.deletingLastPathComponent().appendingPathComponent("snippet.txt")
                 messageSnippets = await snippetLoader.load(userURL: snippetURL)
                 changelistsLoaded = false
@@ -1000,6 +1025,7 @@ struct CommitSortableRow: Identifiable {
     let row: StatusListRow
     let statistics: CommitFile?
     let isDirectory: Bool
+    var metadata: StatusListMetadata? = nil
     var id: String { row.id }
     var entry: StatusEntry? { row.entry }
     var group: StatusListGroup? { row.group }
@@ -1009,7 +1035,7 @@ struct CommitFileSort: SortComparator {
     var order: SortOrder = .forward
     func compare(_ lhs: CommitSortableRow, _ rhs: CommitSortableRow) -> ComparisonResult {
         guard let a = lhs.entry, let b = rhs.entry else { return .orderedSame }
-        let comparison = StatusListSorting.compare(a, b, column: column, lhsStatistics: lhs.statistics, rhsStatistics: rhs.statistics, lhsDirectory: lhs.isDirectory, rhsDirectory: rhs.isDirectory)
+        let comparison = StatusListSorting.compare(a, b, column: column, lhsStatistics: lhs.statistics, rhsStatistics: rhs.statistics, lhsDirectory: lhs.isDirectory, rhsDirectory: rhs.isDirectory, lhsMetadata: lhs.metadata, rhsMetadata: rhs.metadata)
         if order == .forward { return comparison }
         return comparison == .orderedAscending ? .orderedDescending : comparison == .orderedDescending ? .orderedAscending : .orderedSame
     }
@@ -1179,7 +1205,7 @@ GroupBox("Changes made (double-click on file for diff):") {
         let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
         let ignored = Set(model.indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
         let rows = StatusListGroups.rows(entries: entries, changelists: model.changelists, locallyIgnored: ignored)
-        let tableRows = rows.map { CommitSortableRow(row: $0, statistics: $0.entry.flatMap { statistics[$0.path] }, isDirectory: $0.entry.map { model.submodules.contains($0.path) } ?? false) }
+        let tableRows = rows.map { CommitSortableRow(row: $0, statistics: $0.entry.flatMap { statistics[$0.path] }, isDirectory: $0.entry.map { model.submodules.contains($0.path) } ?? false, metadata: $0.entry.flatMap { model.fileMetadata[$0.path] }) }
         let sort = Binding(get: { model.fileSortOrder }, set: { model.setFileSortOrder($0) })
         return Table(tableRows, selection: selection, sortOrder: sort) {
             TableColumn("") { (row: CommitSortableRow) in
@@ -1207,8 +1233,11 @@ GroupBox("Changes made (double-click on file for diff):") {
                     }.accessibilityLabel(group.title)
                 }
             }.width(min: 260, ideal: 420)
+            TableColumn("Filename", sortUsing: CommitFileSort(column: .fileName)) { (row: CommitSortableRow) in
+                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent) } else { groupRule }
+            }.width(min: 100, ideal: 180)
             TableColumn("Extension", sortUsing: CommitFileSort(column: .fileExtension)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path))) }
+                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)) }
                 else { groupRule }
             }.width(75)
             TableColumn("Status", sortUsing: CommitFileSort(column: .status)) { (row: CommitSortableRow) in
@@ -1221,6 +1250,12 @@ GroupBox("Changes made (double-click on file for diff):") {
             TableColumn("Lines removed", sortUsing: CommitFileSort(column: .removed)) { (row: CommitSortableRow) in
                 lineCount(row.row, statistics: statistics, selected: selection.wrappedValue, added: false)
             }.width(95)
+            TableColumn("Last modified", sortUsing: CommitFileSort(column: .lastModified)) { (row: CommitSortableRow) in
+                if row.entry != nil { Text(row.metadata?.dateText ?? "–") } else { groupRule }
+            }.width(min: 140, ideal: 180)
+            TableColumn("File size", sortUsing: CommitFileSort(column: .fileSize)) { (row: CommitSortableRow) in
+                if row.entry != nil { Text(row.metadata?.sizeText ?? "–") } else { groupRule }
+            }.width(90)
         }.contextMenu(forSelectionType: String.self) { requested in
             TurtleGitContextMenu {
                 let ids = requested.intersection(Set(entries.map(\.id)))
@@ -1340,7 +1375,7 @@ GroupBox("Changes made (double-click on file for diff):") {
             if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
             else { model.compare(paths: ids) }
         }
-        .background(CommitFileInteraction(rows: rows, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
+        .background(CommitFileInteraction(rows: rows, visibleColumns: Set(model.visibleFileColumns), setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: !model.busy && !model.confirmingQuit, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in
             let next = model.stagingEnabled ? !(mark.staged && mark.worktree == " ") : !model.checked.contains(mark.id)
             model.setFileChecked(mark, files: files, highlighted: Set(files.map(\.id)), checked: next)
         }))

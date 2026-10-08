@@ -760,3 +760,14 @@ TortoiseSVN; (C) 2008-2017, 2019, 2026 TortoiseGit, GPL version 2 or later,
 and CGitStatusListCtrl::OnHdnItemclick (existing GitStatusListCtrl attribution
 above). Native table headers and Foundation numeric/case-insensitive collation
 replace Windows headers/StrCmpLogicalW. Group and Git path identities remain.
+
+Commit optional Filename/Last modified/File size columns and the native header
+visibility menu adapt GitStatusListCtrl column definitions and ColumnManager
+ReadSettings/OnContextMenuHeader/ResetColumns. Existing GitStatusListCtrl
+attribution applies. ColumnManager.cpp copyright (C) 2008, 2014 TortoiseSVN and (C) 2008-2020,
+2023, 2025-2026 TortoiseGit, GPL version 2 or later. ColumnManager.h copyright (C) 2003-2008, 2014 TortoiseSVN; (C) 2016,
+2019-2020, 2023-2026 TortoiseGit, GPL version 2 or later. Native metadata is read inside the repository access
+lease; native date/byte formatting replaces Windows formatting. Persisted
+visibility retains the source Commit defaults; Reset uses an owned Yes/No
+sheet and locks the Commit owner. Full width/order persistence,
+LFS column, physical header behavior and signed access remain pending.

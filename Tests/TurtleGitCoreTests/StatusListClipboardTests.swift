@@ -5,6 +5,12 @@ final class StatusListClipboardTests: XCTestCase {
     let root = URL(fileURLWithPath: "/tmp/repository")
     let entries = [StatusEntry(path: "雪/new.txt", originalPath: "old.txt", index: "R", worktree: " "), StatusEntry(path: "raw.bin", originalPath: nil, index: "?", worktree: "?")]
     func text(_ copy: StatusListCopy) -> String { StatusListClipboard.text(entries, root: root, statistics: [:], copy: copy) }
+    func testOptionalMetadataClipboardUsesVisibleColumnsAndNativeFormatting() {
+        let metadata = StatusListMetadata(modificationDate: Date(timeIntervalSince1970: 1700000000), size: 12345, isDirectory: false)
+        let output = StatusListClipboard.text(entries, root: root, statistics: [:], copy: .all, metadata: [entries[0].path: metadata], visibleColumns: [.fileName, .lastModified, .fileSize])
+        XCTAssertEqual(output, "Filename\tLast modified\tFile size\nnew.txt\t" + metadata.dateText + "\t" + metadata.sizeText + "\nraw.bin\t–\t–\n")
+        XCTAssertEqual(StatusListColumn.nativeColumn(2, columns: StatusListColumn.allCases), .fileName)
+    }
     func testPathCommandsKeepRawPathsAndSelectedOrder() {
         XCTAssertEqual(text(.relativePaths), "雪/new.txt\nraw.bin\n")
         XCTAssertEqual(text(.fullPaths), "/tmp/repository/雪/new.txt\n/tmp/repository/raw.bin\n")

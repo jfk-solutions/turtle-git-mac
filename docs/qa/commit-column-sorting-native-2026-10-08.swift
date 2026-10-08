@@ -46,13 +46,61 @@ import TurtleGitCore
         func probe() -> CommitFileInteraction.Probe { descendants(window.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first! }
         let groups = probe().rows.compactMap(\.group)
         precondition(groups == [.modified, .unversioned, .changelist("review")])
-        precondition(table.tableColumns.count == 6 && table.tableColumns[0].sortDescriptorPrototype == nil)
+        precondition(table.tableColumns.count == 9 && table.tableColumns[0].sortDescriptorPrototype == nil)
         func request(_ column: Int, ascending: Bool) {
             let old = table.sortDescriptors
             let prototype = table.tableColumns[column].sortDescriptorPrototype!
             table.sortDescriptors = [prototype.ascending == ascending ? prototype : prototype.reversedSortDescriptor as! NSSortDescriptor]
             table.dataSource!.tableView?(table, sortDescriptorsDidChange: old)
         }
+        try await settle { table.headerView?.menu != nil }
+        let initialFilenameWidth = table.tableColumns[2].width
+        let menu = probe().columnMenu()
+        precondition(menu.item(withTitle: "Path") == nil)
+        for column in StatusListColumn.allCases {
+            let index = StatusListColumn.allCases.firstIndex(of: column)! + 1
+            precondition(table.tableColumns[index].isHidden == !StatusListColumn.defaultColumns.contains(column))
+        }
+        for column in [StatusListColumn.fileName, .lastModified, .fileSize, .status] {
+            let item = probe().columnMenu().item(withTitle: column.rawValue)!
+            _ = NSApplication.shared.sendAction(item.action!, to: item.target, from: item)
+            let visible = !StatusListColumn.defaultColumns.contains(column)
+            try await settle { model.fileColumns.visible.contains(column) == visible && table.tableColumns[StatusListColumn.allCases.firstIndex(of: column)! + 1].isHidden == !visible }
+            precondition(model.checked == checked && model.selection == selection)
+        }
+        let reopened = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
+        precondition(reopened.fileColumns == model.fileColumns)
+        let visible = model.visibleFileColumns
+        let copied = StatusListClipboard.text(model.sortedFiles(model.visibleEntries, statistics: model.statistics), root: root, statistics: model.statistics, copy: .all, metadata: model.fileMetadata, visibleColumns: visible)
+        precondition(copied.hasPrefix(visible.map(\.rawValue).joined(separator: "\t") + "\n") && !copied.hasPrefix("Path\tFilename\tExtension\tStatus"))
+        precondition(model.fileMetadata["file10.swift"]!.size! > model.fileMetadata["file2.swift"]!.size!)
+        // Native column identity is independent of its physical position.
+        let original = table.tableColumns[2], originalWidth = table.tableColumns[2].width
+        original.width = min(original.maxWidth, originalWidth + 37)
+        let customizedWidth = original.width
+        precondition(customizedWidth > originalWidth)
+        table.moveColumn(2, toColumn: 4)
+        probe().rememberNativeColumnLayout() // Production header-tracking capture, no synthesized gesture.
+        precondition(probe().columnDefinition(atNativeIndex: 4) == .fileName)
+        let reset = probe().columnMenu().item(withTitle: "Reset columns")!
+        let customized = model.fileColumns
+        probe().confirmResetColumns = { owner in precondition(owner === window && model.busy); return false }
+        _ = NSApplication.shared.sendAction(reset.action!, to: reset.target, from: reset)
+        precondition(model.busy)
+        try await settle { !model.busy && probe().enabled && table.tableColumns[4] === original }
+        precondition(model.fileColumns == customized && table.tableColumns[4] === original && abs(original.width - customizedWidth) < 0.5)
+        probe().confirmResetColumns = { owner in
+            precondition(owner === window && model.busy)
+            model.setFileColumn(.fileSize, visible: false)
+            model.setFileSortOrder([CommitFileSort(column: .status)])
+            precondition(model.fileColumns == customized && model.fileSortOrder.first!.column == .path)
+            return true
+        }
+        _ = NSApplication.shared.sendAction(reset.action!, to: reset.target, from: reset)
+        try await settle { model.fileColumns.visible == Set(StatusListColumn.defaultColumns) && table.tableColumns[2] === original && table.tableColumns[2].isHidden }
+        print("RESET WIDTH DIAGNOSTIC", "initial", initialFilenameWidth, "before resize", originalWidth, "custom", customizedWidth, "reset", original.width); fflush(stdout)
+        precondition(abs(original.width - initialFilenameWidth) < 0.5)
+        precondition(StatusListColumnSettings.load(from: defaults).visible == Set(StatusListColumn.defaultColumns))
         for column in StatusListColumn.allCases {
             let index = StatusListColumn.allCases.firstIndex(of: column)! + 1
             for ascending in [true, false] {
@@ -71,6 +119,9 @@ import TurtleGitCore
         for quit in [false, true] {
             model.busy = !quit; model.confirmingQuit = quit
             model.setFileSortOrder([CommitFileSort(column: .path)])
+            let columns = model.fileColumns
+            model.setFileColumn(.fileName, visible: true)
+            precondition(!model.resetFileColumns() && model.fileColumns == columns)
             precondition(model.fileSortOrder == retained)
         }
         model.busy = false; model.confirmingQuit = false
@@ -89,7 +140,7 @@ import TurtleGitCore
         let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(finalIndex == index)
         let after = try protected.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
         window.close()
-        print("PASS: native Commit five sortable header prototypes and actual data source binding dispatch; numeric/path ascending+descending, source path tie, fixed group order, checked/highlighted/focus identity; busy/Quit refusal, one-column policy, staged/unstaged statistics and reload retention; repository HEAD/raw index/worktree/changelists retained. Owned hidden window closed; no synthetic events or physical header acceptance.")
+        print("PASS: native Commit eight sortable header prototypes, default optional hiding, header visibility dispatch, saved choices/reopen, injected reset No/Yes and owner operation locks, native moved-column identity and width retention/reset, visible-only metadata clipboard and actual data source binding dispatch; numeric/path ascending+descending, source path tie, fixed group order, checked/highlighted/focus identity; busy/Quit refusal, one-column policy, staged/unstaged statistics and reload retention; repository HEAD/raw index/worktree/changelists retained. Owned hidden window closed; no synthetic events or physical header acceptance.")
     }
 }
 struct CommitSortingHost: View {
