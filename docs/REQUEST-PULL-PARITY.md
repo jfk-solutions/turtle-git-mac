@@ -52,10 +52,12 @@ callbacks: tests do not launch an editor or compose/send mail.
 Physical fields/popup/Shift+Delete/Log sheet/Cancel/Escape/resize/default/button
 behavior, appearance/accessibility, editor/mail composer invocation and lifecycle,
 mail To/CC/subject/attachment/combine/SMTP controls, network credential access,
-command-line endrev/url presets, Push success-result routing, signed sandbox and
+command-line endrev/url presets, physical Push follow-up window handoff, signed sandbox and
 App Store acceptance remain pending. Branch-name validation uses Git CLI plus
 source exclusions rather than libgit2; complete Unicode/pathological name
 validation equivalence remains unverified. Temporary result cleanup/retention in
 long-lived external editors needs displayed acceptance. Screenshots predate this
 new window. This is a partial native replacement, not full dialog/application or
 distribution parity.
+
+Push success now routes the captured destination into this dialog; see [Push parity](PUSH-PARITY.md).

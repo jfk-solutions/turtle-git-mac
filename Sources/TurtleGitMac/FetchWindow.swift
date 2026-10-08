@@ -111,7 +111,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool, preferences: UserDefaults = .standard) {
         self.isPull = isPull; self.repository = repository; self.access = access; self.preferences = preferences; remoteSettings = PushWindowModel(repository: repository, access: access)
     }
-    func load() {
+    func load(remote presetRemote: String? = nil, allRemotes presetAllRemotes: Bool? = nil) {
         guard !invalidated, !operationActive else { return }; busy = true
         Task {
             defer { busy = false }
@@ -134,6 +134,14 @@ import TurtleGitCore
                 launchRebase = !bare && !options.allRemotes && (rebaseRequired || preferences.bool(forKey: key + ".rebase"))
                 fastForwardOnly = isPull && preferences.bool(forKey: key + ".ffonly")
                 squash = false; noCommit = false; noFastForward = false
+                if let presetRemote, !presetRemote.isEmpty {
+                    if remotes.contains(presetRemote) {
+                        options.remote = presetRemote; options.arbitraryURL = false; options.allRemotes = false
+                        let preset = try await repository.fetchDefaults(remote: presetRemote)
+                        tagsDefault = preset.tags; pruneDefault = preset.prune
+                    } else { options.arbitraryURL = true; options.allRemotes = false; url = presetRemote; launchRebase = false }
+                }
+                if !isPull, let presetAllRemotes { options.allRemotes = presetAllRemotes; if presetAllRemotes { options.arbitraryURL = false; launchRebase = false } }
                 remoteSettings.remotes = remotes
             } catch { self.error = error.localizedDescription }
         }

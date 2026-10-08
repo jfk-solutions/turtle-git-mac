@@ -29,8 +29,12 @@ public struct PushExecutionFailure: LocalizedError {
     public let completed: [String]
     public let failedRemote: String
     public let details: String
+    public let output: String
+    public init(completed: [String], failedRemote: String, details: String, output: String = "") {
+        self.completed = completed; self.failedRemote = failedRemote; self.details = details; self.output = output
+    }
     public var errorDescription: String? {
-        (completed.isEmpty ? "" : "Completed: " + completed.joined(separator: ", ") + ".\n") + "Push to \(failedRemote) failed.\n" + details
+        output + (completed.isEmpty ? "" : "Completed: " + completed.joined(separator: ", ") + ".\n") + "Push to \(failedRemote) failed.\n" + details
     }
 }
 public enum PushValidationFailure: LocalizedError {
@@ -150,7 +154,7 @@ extension GitRepository {
                     output += try run(args, cancellation: cancellation).text; completed.append(remote)
                     if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: cancellation) + "\n" }
                 }
-            } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription) }
+            } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription, output: output) }
         }
         return output
     }

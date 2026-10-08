@@ -1313,7 +1313,7 @@ import TurtleGitCore
         if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, followUp: PullFollowUp = PullFollowUp()) {
+    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, followUp: PullFollowUp = PullFollowUp(), remote: String? = nil, allRemotes: Bool? = nil) {
         let root = repository.root, key = repository.root.path + (isPull ? ":pull:" : ":fetch:") + UUID().uuidString
         let controller = FetchWindowController(repository: repository, access: access, isPull: isPull)
         controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
@@ -1364,18 +1364,42 @@ import TurtleGitCore
         controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in
             self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true)
         }
-        fetchWindows[key] = controller; controller.model.load()
+        fetchWindows[key] = controller; controller.model.load(remote: remote, allRemotes: allRemotes)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showPush(repository: GitRepository, access: RepositoryAccessLease?, source: String? = nil) {
-        let root = repository.root
-        let controller = pushWindows[root.path] ?? PushWindowController(repository: repository, access: access)
-        controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: root.path) }
+        let root = repository.root, key = repository.root.path + ":push:" + UUID().uuidString
+        let controller = PushWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: key) }
         controller.model.onPushed = { [weak self] output in
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        pushWindows[root.path] = controller; controller.model.load(source: source)
+        controller.model.onPostAction = { [weak self] action, options, superproject in
+            guard let self else { return }
+            switch action {
+            case .requestPull: self.showRequestPull(repository: repository, access: access, end: options.destination)
+            case .push: self.showPush(repository: repository, access: access, source: options.source)
+            case .switchBranch: self.showSwitch(repository: repository, access: access)
+            case .pull: self.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true))
+            case .fetch: self.showFetch(repository: repository, access: access, remote: options.allRemotes ? nil : options.remote, allRemotes: options.allRemotes)
+            case .commitSuperproject:
+                guard let superproject else { return }
+                if !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(superproject) == true {
+                    self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable), access: access, paths: [])
+                } else {
+                    let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.directoryURL = superproject
+                    panel.prompt = "Authorize super project"; panel.message = "Choose the super project folder to open its Commit dialog."
+                    panel.begin { [weak self] response in
+                        guard response == .OK, let folder = panel.url else { return }
+                        let lease = RepositoryAccessLease(url: folder)
+                        guard lease.hasSecurityScope, lease.contains(superproject) else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+                        self?.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable), access: lease, paths: [])
+                    }
+                }
+            }
+        }
+        pushWindows[key] = controller; controller.model.load(source: source)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showReference(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, revision: String? = nil) {

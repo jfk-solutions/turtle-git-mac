@@ -613,3 +613,7 @@ See [Push parity](docs/PUSH-PARITY.md) for verified scope and remaining work.
 Start/URL/End fields, saved histories and Log selection. Git generates pull-request
 text for the macOS editor or mail composer. See [Request Pull parity](docs/REQUEST-PULL-PARITY.md)
 for verification and remaining acceptance.
+
+Native Push now retains a separate result with TortoiseGit's ordered follow-ups:
+Request Pull, Push, Switch, superproject Commit, and Pull/Fetch after rejection.
+See [Push parity](docs/PUSH-PARITY.md) for captured presets, close policies and limits.

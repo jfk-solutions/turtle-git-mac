@@ -59,7 +59,7 @@ final class PushTests: XCTestCase {
         try await repo.saveRemote(name: "z-bad", fetchURL: root.appendingPathComponent("missing.git").path, pushURL: "", existing: false)
         var options = PushOptions(); options.allRemotes = true; options.source = "refs/heads/main"
         do { _ = try await repo.push(options); XCTFail("Second destination must fail") }
-        catch let failure as PushExecutionFailure { XCTAssertEqual(failure.completed, ["a-good"]); XCTAssertEqual(failure.failedRemote, "z-bad") }
+        catch let failure as PushExecutionFailure { XCTAssertEqual(failure.completed, ["a-good"]); XCTAssertEqual(failure.failedRemote, "z-bad"); XCTAssertTrue(failure.output.contains("refs/heads/main")) }
         let received = try await remote.run(["rev-parse", "refs/heads/main"]).text; XCTAssertFalse(received.isEmpty)
     }
     func testURLPushSavedPushSettingsDeletionAndInvalidOption() async throws {

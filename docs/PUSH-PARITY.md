@@ -24,7 +24,9 @@ before transport, like upstream, and remain set if transport fails. All branches
 asks confirmation; an empty source asks confirmation for configured pushes or
 remote deletion. All branches with tags uses separate branch and tag pushes.
 All remotes reports completed destinations when a later destination fails.
-Failures preserve the dialog; success closes it and refreshes repository views.
+Preflight failures preserve the options dialog. Transport results use the separate
+owned progress sheet described below; success refreshes repository views before
+result acknowledgement.
 
 ## Evidence
 
@@ -45,7 +47,7 @@ Force-with-lease enablement was checked in the running window. Actual captures a
 
 ## Remaining comparison work
 
-- Streaming progress/separate progress-window layout, interactive authentication/signing, project
+- Streaming progress/full progress-window controls and physical layout, interactive authentication/signing, project
   hooks, and failure recovery across network transports.
 - Full Browse References tree; physical Log/RefLog source-picker interaction and
   complete chooser parity. Selection-mode native Log/RefLog are now wired below.
@@ -72,8 +74,9 @@ the Dialogs settings page. With it enabled, Cancel asks the source question
 No leaves the operation running; Yes requests cancellation. The close gesture
 uses the same model path and keeps the window until transport finishes. Inputs
 remain disabled during transport; Cancel displays Cancelling… until the owned
-process group stops. Failure/cancellation retains inputs, idle Cancel closes, and
-a retry creates a fresh token. Cancelled operations do not trigger success.
+process group stops. The retained result now captures these inputs on failure/cancellation; its Push
+action opens a fresh dialog. The no-presenter headless compatibility path retains
+inputs for an in-place retry with a fresh token. Idle Cancel closes. Cancelled operations do not trigger success.
 
 This maps `CAppUtils::DoPush` and `CProgressDlg::OnCancel`. The source queues
 separate commands for each remote and for branches/tags. Native cancellation
@@ -280,3 +283,43 @@ filtered/compressed/all-ref graphs remains pending. Log and Push physical settin
 interaction, appearance/accessibility and signed runtime acceptance remain pending.
 Push's retained result/post-actions window, Request Pull and project hooks remain
 unfinished; this setting does not establish full Push or application parity.
+
+
+## Retained result and post-actions
+
+Production Push now owns a separate native progress sheet. Validated fields and
+histories are captured before transport, and inputs remain locked until its result
+is acknowledged. Success retains raw command output and offers Create pull request,
+Push, Switch/Checkout, and Commit super project for an actual submodule checkout.
+Failures retain output; porcelain non-fast-forward `[rejected]` offers Pull, Fetch,
+Push, while other errors (including server `[remote rejected]`) offer Push.
+Completed destinations/command output survive a later remote failure or cancellation.
+
+Follow-ups close/release the result before dispatch, once only. Request Pull receives
+the captured destination; Push opens a fresh dialog with the captured source.
+Rejected Pull enables its Show Push follow-up. Fetch restores the captured remote
+or arbitrary URL, or all-remotes mode. Superproject Commit opens its actual root;
+the App Store path requests folder authorization if the child lease cannot access
+it. Push dialogs are now distinct owned instances, preventing a follow-up from
+reusing an active result. No post-action performs a mutation until the new dialog
+is submitted.
+
+The three AutoCloseGitProgress policies apply. All success results have post-actions,
+so no-options retains them and no-errors closes them. Failures stay open. If a
+cancellation prompt outlives successful transport, automatic close resumes after
+that prompt ends. Cancel uses ConfirmKillProcess in the child sheet; accepted
+cancellation retains a failed result and its completed phases until Close.
+Preflight validation errors still retain the options dialog. The headless
+no-presenter compatibility path retains previous programmatic completion behavior;
+production always presents the owned result. Missing production presentation
+cancels the owned request and releases its result after completion.
+
+[Progress QA](qa/push-progress-2026-10-08.json) records real transports and exact
+ordered actions, close policies, immutable presets/duplicate/dispatch guards,
+submodule detection, rejected-versus-hook failures, Fetch presets, and owned
+cancellation/retry. Hidden progress layout is not displayed acceptance.
+Streaming output, complete progress controls/layout, project pre/post-Push hooks,
+physical sheets/defaults/menus/keyboard/close/themes/accessibility, actual nested
+follow-up windows and signed sandbox/network/Finder/App Store acceptance remain
+pending. Existing screenshots predate the progress sheet. Full Push/application
+parity remains incomplete.

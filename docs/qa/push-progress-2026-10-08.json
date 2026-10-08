@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "c077c67cede37e57c02728a83630aa46af31279f",
+  "scope": "Native Push owned result and ordered follow-ups, captured presets, auto-close policies and retained partial output. Full application/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/ProgressDlg.h": "c21856cbed61b28586faaf5f37b9ef051e31bb52",
+    "src/TortoiseProc/PushDlg.cpp": "9fc65e54a987e17aece767b750732f723d97becc",
+    "src/TortoiseProc/PushDlg.h": "2c8b37386d7b7c90dd2b0c7077c2b7c501dc5096",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "c6e8d3d3c3d8c0a459847e849f3ca513fd880b529b39b4edfb3d83d48368b665",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "4c8523b74371f0791300dc4556ecf4302ad0b2319464cee9897a77c8738b3af9",
+    "NOTICE": "b0256a7a288de9dfb905dd7257f4a65ddb126a216f58e6cef5d05ab1ffb69571",
+    "README.md": "13678f0c0729fb101651c715b9fe8f692cc5c017cda87a861c9b75d2b2ee4d78",
+    "Sources/TurtleGitCore/Push.swift": "74e5a8af3a48d2c400a5fa4c051b971fee5f373c9a94b8a94444d1e148cd9f18",
+    "Sources/TurtleGitMac/FetchWindow.swift": "b745e3d573bfea5f956d86b3b501a7ee5f99139be78d266e3b2efc6069ffbc59",
+    "Sources/TurtleGitMac/PushWindow.swift": "e529cc6ef089f4fc2db4fbd531d56808e103020edc69d0acbb3f404fe26149db",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "d6412f0360f6febebaaae19c97ef2c8ffcb45563913ef964a9f85ef14c482d39",
+    "Tests/TurtleGitCoreTests/PushTests.swift": "71bb01f1f4ebe38f8f5acad7d9e2e5045a4fdf6f481720ee97e050cb59f6eaaf",
+    "docs/PROGRESS-PARITY.md": "eddcde5176d794d6720ca42edb678253b9a70411bcf1fe5dea434cb57c7bd0e3",
+    "docs/PUSH-PARITY.md": "46817778b6a0c305b272f8784d6bda770a7f73189c737bf9e8541da55ff696c1",
+    "docs/REQUEST-PULL-PARITY.md": "cfd4f30178c6c1534c3b10c7a76da238391b6f21326786bf7935e0ae01c4bbc6",
+    "docs/upstream-files.csv": "74820afdd000afa812da372520ec80b7b02ac1e5469d130c4391785ea6bcbaf2",
+    "docs/qa/push-progress-native-2026-10-08.swift": "c50c2ed44cb5bd795f07d45ef6798dfa64fbcfb387c92ff427608c28811a3cda",
+    "scripts/test-push-progress.py": "a3f582abb9eca8d2fb02606cb1512b7bc594e54b85bb398ee1de01b4d75627a4"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "12 focused Push tests passed. Later-remote failure now retains earlier successful command output as well as completed destinations; real first remote published hash verified. Existing branches/tags/lease/defaults/options/counter/partial mutation/pre-cancellation/mixed-change cases pass.",
+    "native": "Four-Git receiver passed three source auto-close policies, actual successful transport and exact RequestPull/Push/Switch action order, immutable source/destination despite parent mutation, duplicate gate, once-only action dispatch after owner release. Real non-fast-forward porcelain [rejected] offers Pull/Fetch/Push; actual missing URL and [remote rejected] pre-receive hook failures offer Push and remain open in mode 2 without duplicate parent error. Actual submodule detects superproject and offers Commit after success. Named/URL/all-remotes Fetch presets apply after load. Missing presenter cancels and releases ownership with no success callback. Actual owned slow transport/helper, No then Yes cancellation, retained cancelled result/acknowledgement and new-owner fresh-token successful retry passed. Deferred close resumes after simulated blocking prompt guard. Hidden progress hosting layout only.",
+    "regression": "Existing no-presenter Push cancellation receiver passed four Gits: owned transport/helper cleanup, unrelated process retained, No/Yes, completed remotes and branch/tag phases, HEAD/index preservation, cancelled callbacks suppressed and same-model fresh-token retries. Compatibility path retains older headless acknowledgement behavior; production always owns a result.",
+    "builds": "Unsigned Debug and AppStore builds and bundle audits passed: embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 original icons. NOTICE byte-identical in both. Store Git 2.55.0: 11 universal Mach-O files plus local Git fixture operations passed.",
+    "documentation": "Pin checker and 3277 seven-column source rows passed. Seven source mappings retain partial status. README, Push/Progress/RequestPull parity, NOTICE and native CI step updated. Local site build logs recorded separately, unpublished. Screenshots predate retained progress.",
+    "processes": "Core compiler terminal before Debug; Debug terminal before two native compilers/receivers; both native jobs terminal before Store. No main app launches or displayed windows. Native prohibited activation/private UUID preferences, no standard preference or clipboard writes. Owned wrapper/helper dead before retry; final owned app/receiver audit empty. Eight empty owned UUID preference plists removed after termination; zero nonempty changed.",
+    "iterations": "Initial SwiftPM compile caught a mismatched Fetch load signature and inherited NSWindowController.owner property name. Fixed explicit preset parameters and pushModel name; 12 core tests then passed. Initial native compile caught missing isPull constructor argument in receiver; corrected and reran all four Gits. Failed logs retained.",
+    "limitations": "Streaming/full progress controls/layout, project pre/post-Push hooks, physical menu/sheets/default/keyboard/close/theme/accessibility, actual nested follow-up controller handoffs and superproject sandbox authorization, complete source default/graph/root detection equivalence, signed sandbox/network/Finder/App Store acceptance pending. Native result remains as a child of locked options rather than disposing the Windows input modal first. Accepted cancellation retains result until acknowledgement; source cancellation lifecycle still needs physical comparison. Full file/dialog/application port and hosted CI/site/distribution incomplete. GitHub authorization unavailable and not retried."
+  },
+  "logs_sha256": {
+    "build/qa/push-progress/cancellation-regression.log": "eec35e4bbb79ac7d443a2c5cdefd5d8ca2846169a5c67f360570f6978c9714c8",
+    "build/qa/push-progress/core-retry.log": "5af0750d12d583f80739e79bb8eaa83e868badcd9cb6dbcf1b5d2265898bcfa9",
+    "build/qa/push-progress/core.log": "ec2775313474fb71cc9f47560c71d40c6b6b5cc79926abe60642d2524cb22b2d",
+    "build/qa/push-progress/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/push-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-progress/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/push-progress/native-retry.log": "ac066609f0fd91463463e441b68db8d0f1c818c70b69775036f46860613c4e32",
+    "build/qa/push-progress/native.log": "7cd6989a5e21e94c9ac526f02d9e7f925958121fb9ba4e3b6f2d05dfca761199",
+    "build/qa/push-progress/private-preference-cleanup.log": "5dff2d212b0a213882b39f07005d8f5ba685b78127d524445d9b0329e3c80c78",
+    "build/qa/push-progress/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/push-progress/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/push-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/push-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

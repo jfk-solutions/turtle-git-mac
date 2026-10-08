@@ -5,6 +5,7 @@ import TurtleGitCore
 @MainActor final class PushWindowController: NSWindowController, NSWindowDelegate {
     let model: PushWindowModel
     var onClosed: () -> Void = {}
+    private var progressController: PushProgressWindowController?
     private var sourceLogPicker: LogWindowController?
     private var sourceRefLogPicker: ReferenceLogWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?) {
@@ -13,7 +14,14 @@ import TurtleGitCore
         window.title = "\(repository.root.lastPathComponent) – Push – TurtleGit"; window.minSize = NSSize(width: 720, height: 610); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: PushDialog(model: model))
         super.init(window: window); window.delegate = self; window.setContentSize(NSSize(width: 750, height: 590)); window.center()
-        model.close = { [weak window] in window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.onProgress = { [weak self] result in
+            guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
+            let controller = PushProgressWindowController(owner: self.model, result: result)
+            controller.onClosed = { [weak self, weak result] in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) }
+            self.progressController = controller
+            if let child = controller.window { window.beginSheet(child) } else { result.abandonPresentation() }
+        }
         model.pickSourceLog = { [weak self] in
             guard let self, let window = self.window, window.attachedSheet == nil, self.sourceLogPicker == nil, self.sourceRefLogPicker == nil else { return }
             let picker = LogWindowController(repository: repository, access: access, onChoose: { [weak self] entry in self?.model.chooseSourceRevision(entry?.hash) })
@@ -32,14 +40,14 @@ import TurtleGitCore
             let alert = Self.submissionAlert(message: message, allBranches: allBranches, deletion: deletion)
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn, alert.suppressionButton?.state == .on) }
         }
-        model.confirmCancellation = { [weak window] choose in
-            guard let window, window.attachedSheet == nil else { choose(false); return }
+        model.confirmCancellation = { [weak self] choose in
+            guard let window = self?.progressController?.window ?? self?.window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational
             alert.messageText = "The process is still running."
             alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
             yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
-            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
+            alert.beginSheetModal(for: window) { [weak self] response in choose(response == .alertFirstButtonReturn); self?.model.progress?.tryAutomaticClose() }
         }
     }
     static func submissionAlert(message: String, allBranches: Bool, deletion: Bool) -> NSAlert {
@@ -62,7 +70,8 @@ import TurtleGitCore
         onClosed()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard model.transportRunning else { return true }
+        if model.progress != nil { if model.transportRunning { model.cancel() }; return false }
+        guard model.transportRunning else { return !model.busy && sender.attachedSheet == nil }
         model.cancel(); return false
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -77,6 +86,13 @@ import TurtleGitCore
     @Published var references: [CheckoutReference] = []
     @Published var localBranch: String?
     @Published var busy = false
+    @Published private(set) var progress: PushProgressWindowModel?
+    var onProgress: ((PushProgressWindowModel) -> Void)?
+    var onPostAction: ((PushPostAction, PushOptions, URL?) -> Void)?
+    func finish(_ result: PushProgressWindowModel) {
+        guard progress === result, !result.busy, !confirmingCancellation else { return }
+        progress = nil; result.invalidate(); busy = false; error = nil; close()
+    }
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     private var cancellation: OperationCancellation?
@@ -198,6 +214,7 @@ import TurtleGitCore
         pushOptionHistory = FetchDialogHistory.save(snapshot.pushOption, entries: pushOptionHistory, preferences: preferences, key: pushOptionHistoryKey, caseSensitive: true)
     }
     func cancel() {
+        if let progress, !progress.busy { progress.close(); return }
         guard busy else { close(); return }
         guard let token = cancellation, !cancelling, !confirmingCancellation else { return }
         func stop() { cancelling = true; token.cancel() }
@@ -221,7 +238,7 @@ import TurtleGitCore
         }
     }
     func push(confirmed: Bool = false) {
-        guard !busy, confirmed || confirmation == nil else { return }
+        guard !busy, progress == nil, confirmed || confirmation == nil else { return }
         if !confirmed {
             let source = FetchDialogHistory.trim(options.source), destination = FetchDialogHistory.trim(options.destination)
             if options.allBranches && !preferences.bool(forKey: "PushAllBranches") {
@@ -239,7 +256,7 @@ import TurtleGitCore
         let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
         busy = true
         Task {
-            defer { cancellation = nil; cancelling = false; confirmingCancellation = false; busy = false }
+            defer { cancellation = nil; cancelling = false; confirmingCancellation = false; busy = progress != nil }
             do {
                 try await repository.validatePushOptions(snapshot, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
@@ -248,9 +265,32 @@ import TurtleGitCore
                 preferences.set(!snapshot.arbitraryURL && snapshot.allRemotes, forKey: key + ".allRemotes")
                 preferences.set(PushSubmodules.allCases.firstIndex(of: snapshot.submodules)!, forKey: submodulePreferenceKey)
                 if !snapshot.arbitraryURL && !snapshot.allRemotes { preferences.set(snapshot.remote, forKey: key + ".remote") }
+                let result: PushProgressWindowModel?
+                if let onProgress {
+                    let parentText = ((try? await repository.run(["rev-parse", "--show-superproject-working-tree"]).text) ?? "").trimmingCharacters(in: .newlines)
+                    let parent = parentText.isEmpty ? nil : URL(fileURLWithPath: parentText)
+                    let captured = PushProgressWindowModel(options: snapshot, superproject: parent, preferences: preferences)
+                    captured.close = { [weak self, weak captured] in guard let captured else { return }; self?.finish(captured) }
+                    captured.cancelWithoutPresenter = { token.cancel() }
+                    captured.onPostAction = { [weak self, weak captured] action in
+                        guard let self, let captured else { return }
+                        let options = captured.options, parent = captured.superproject
+                        self.onPostAction?(action, options, parent)
+                    }
+                    progress = captured; result = captured; onProgress(captured)
+                } else { result = nil }
+                do {
                 let output = try await repository.push(snapshot, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
-                onPushed(output); close()
+                cancellation = nil; cancelling = false; confirmingCancellation = false
+                onPushed(output)
+                if let result { result.complete(output: output, success: true, cancelled: false) }
+                else { close() }
+                } catch {
+                    cancellation = nil; cancelling = false; confirmingCancellation = false
+                    if let result { result.complete(output: error.localizedDescription, success: false, cancelled: token.isCancelled) }
+                    else { self.error = error.localizedDescription }
+                }
             }
             catch { self.error = error.localizedDescription }
         }
@@ -459,5 +499,81 @@ enum PushSourcePresentation {
         if source.hasPrefix("refs/heads/") { return String(source.dropFirst(11)) }
         if source.hasPrefix("refs/remotes/") { return String(source.dropFirst(5)) }
         return source
+    }
+}
+
+// DoPush's retained result and ordered success/rejection follow-ups.
+enum PushPostAction: String, Hashable {
+    case requestPull, push, switchBranch, commitSuperproject, pull, fetch
+    var title: String { switch self { case .requestPull: return "Create pull request"; case .push: return "Push…"; case .switchBranch: return "Switch/Checkout…"; case .commitSuperproject: return "Commit super project"; case .pull: return "Pull…"; case .fetch: return "Fetch…" } }
+    var icon: MenuIcon { switch self { case .requestPull: return .unifiedDiff; case .push: return .push; case .switchBranch: return .checkout; case .commitSuperproject: return .commit; case .pull: return .pull; case .fetch: return .fetch } }
+}
+@MainActor final class PushProgressWindowModel: ObservableObject {
+    let options: PushOptions
+    let superproject: URL?
+    private let autoClosePolicy: GitProgressAutoClose
+    private var invalidated = false, dispatched = false, abandoned = false, automaticCloseRequested = false
+    @Published private(set) var busy = true
+    @Published private(set) var output = ""
+    @Published private(set) var success = false
+    @Published private(set) var cancelled = false
+    @Published private(set) var postActions: [PushPostAction] = []
+    var close: () -> Void = {}
+    var cancelWithoutPresenter: () -> Void = {}
+    var onPostAction: ((PushPostAction) -> Void)?
+    init(options: PushOptions, superproject: URL?, preferences: UserDefaults = .standard) { self.options = options; self.superproject = superproject; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
+    func invalidate() { invalidated = true }
+    func abandonPresentation() { abandoned = true; cancelWithoutPresenter(); if !busy { close() } }
+    func complete(output: String, success: Bool, cancelled: Bool) {
+        guard busy else { return }; self.output = output; self.success = success; self.cancelled = cancelled
+        if success { postActions = [.requestPull, .push, .switchBranch]; if superproject != nil { postActions.append(.commitSuperproject) } }
+        else {
+            // Native transport uses --porcelain, where the ! flag and [rejected]
+            // reason are separated by a refspec. Remote hook rejection differs.
+            let rejected = output.split(separator: "\n").contains { $0.trimmingCharacters(in: .whitespaces).hasPrefix("!") && $0.contains("[rejected]") }
+            postActions = rejected ? [.pull, .fetch, .push] : [.push]
+        }
+        busy = false
+        if abandoned || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { automaticCloseRequested = true; tryAutomaticClose() }
+    }
+    func tryAutomaticClose() { if automaticCloseRequested, !busy, !invalidated { close() } }
+    func perform(_ action: PushPostAction) {
+        guard !busy, !invalidated, !dispatched, postActions.contains(action), let onPostAction else { return }
+        dispatched = true; close(); onPostAction(action)
+    }
+}
+@MainActor final class PushProgressWindowController: NSWindowController, NSWindowDelegate {
+    let pushModel: PushWindowModel
+    let result: PushProgressWindowModel
+    var onClosed: () -> Void = {}
+    init(owner: PushWindowModel, result: PushProgressWindowModel) {
+        self.pushModel = owner; self.result = result
+        let window = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:430), styleMask:[.titled,.closable,.resizable], backing:.buffered, defer:false)
+        window.title = "Push – \(owner.repository.root.lastPathComponent) – TurtleGit"; window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
+        window.contentViewController = NSHostingController(rootView:PushProgressDialog(owner:owner,result:result))
+        super.init(window:window); window.delegate = self
+        result.close = { [weak self] in guard let self, !self.result.busy, !self.pushModel.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if result.busy { pushModel.cancel(); return false }; guard !pushModel.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
+    func windowWillClose(_ notification: Notification) { result.invalidate(); onClosed() }
+    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+}
+struct PushProgressDialog: View {
+    @ObservedObject var owner: PushWindowModel
+    @ObservedObject var result: PushProgressWindowModel
+    var body: some View {
+        VStack(alignment:.leading,spacing:12) {
+            ScrollView { Text(result.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading) }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
+            HStack { if result.busy { ProgressView().controlSize(.small) }; Text(result.busy ? owner.cancelling ? "Cancelling…" : "Pushing…" : result.cancelled ? "Cancelled" : result.success ? "Finished" : "Push failed").foregroundStyle(result.busy ? Color.primary : result.success ? Color.green : Color.red); Spacer() }
+            HStack {
+                if let first = result.postActions.first {
+                    Button { result.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }
+                    Menu { ForEach(result.postActions,id:\.self) { action in Button { result.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) } } } label: { Image(systemName:"chevron.down").accessibilityLabel("Push post-actions") }.menuStyle(.borderlessButton).fixedSize()
+                }
+                Spacer()
+                if result.busy { Button(owner.cancelling ? "Cancelling…" : "Cancel") { owner.cancel() }.keyboardShortcut(.cancelAction).disabled(!owner.canCancel) }
+                else { if !result.success { Button("Cancel") { result.close() }.keyboardShortcut(.cancelAction) }; Button("Close") { result.close() }.keyboardShortcut(.defaultAction) }
+            }.disabled(owner.confirmingCancellation)
+        }.padding(12)
     }
 }
