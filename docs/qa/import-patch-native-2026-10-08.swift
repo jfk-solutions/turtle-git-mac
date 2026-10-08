@@ -4,6 +4,11 @@ import SwiftUI
 import UniformTypeIdentifiers
 import TurtleGitCore
 
+@MainActor final class PreviewCloseGuard: NSObject, NSWindowDelegate {
+    var requests = 0
+    func windowShouldClose(_ sender: NSWindow) -> Bool { requests += 1; return false }
+}
+
 @main struct ImportPatchVerification {
     @MainActor static func settle(_ model: ImportPatchWindowModel) async throws {
         for _ in 0..<1000 {
@@ -176,6 +181,20 @@ import TurtleGitCore
         let darkMarks = patchText(host) as! PatchTextView.PatchText
         precondition(rgb(darkMarks.whitespaceColor) == 0xb4b4b4 && darkMarks.whitespaceMarks(in: darkMarks.bounds).count == 6)
         print("PASS: actual native glyph layout supplies four space/two tab markers including Unicode-adjacent whitespace; offscreen marks excluded; private-pasteboard copy, backing text and original export bytes unchanged; dark marker palette. Physical rendered appearance unverified.")
+        darkMarks.setSelectedRange(NSRange(location: 0, length: 0))
+        precondition(window.makeFirstResponder(darkMarks))
+        darkMarks.showFind(nil); try await settleLayout()
+        precondition(darkMarks.enclosingScrollView?.isFindBarVisible == true)
+        let closeGuard = PreviewCloseGuard(); window.delegate = closeGuard; window.styleMask.insert(.closable)
+        darkMarks.cancelOperation(nil); try await settleLayout()
+        precondition(darkMarks.enclosingScrollView?.isFindBarVisible == false && window.firstResponder === darkMarks && closeGuard.requests == 0)
+        darkMarks.find(.showFindInterface); try await settleLayout()
+        precondition(darkMarks.enclosingScrollView?.isFindBarVisible == true)
+        darkMarks.find(.hideFindInterface); try await settleLayout()
+        darkMarks.cancelOperation(nil)
+        precondition(closeGuard.requests == 1 && model.previewDocument.exportDocument.bytes == markerBytes)
+        window.delegate = nil
+        print("PASS: embedded ordinary NSWindow preview Find action shows native find bar; Cancel hides it and returns text focus before requesting guarded window close. No key events or shared Find pasteboard writes; search matching/physical keyboard unverified.")
         precondition(model.options.threeWay && model.options.ignoreSpaceChange && model.options.keepCR && !model.options.signOff)
         model.options.signOff = true; var refreshes = 0; model.onChanged = { _ in refreshes += 1 }
         model.apply(); precondition(model.busy)

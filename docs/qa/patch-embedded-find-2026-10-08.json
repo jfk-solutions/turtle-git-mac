@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "788454ee73de3ce162e81d4d393888d4d422b064",
+  "scope": "Embedded native diff Find context action, text-owned Find/key routing and Escape hide-before-close. Full port/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Utils/MiscUI/SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e"
+  },
+  "sources_manifest_sha256": "1028dbca08e87213c8d46d0009375b446bcb920910c9c7abac6b9385d7ad9bf2",
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/PatchWindow.swift": "018dac2ecfe8f9a47649c751d6938592506d9cd37f07b4a40a31e981d9b9c17e",
+    "docs/IMPORT-PATCH-PARITY.md": "bbd60ad1be495ac15d1cdc53d0054391179d593c7bd375cfc8a3086b995c70d6",
+    "docs/qa/import-patch-native-2026-10-08.swift": "ef583b69883b8f4268e9d7cdd6b2a64d651db05c3a4f409c618f5b5ad4f42aba",
+    "docs/upstream-files.csv": "2bf814423ae0cdae041f5784f2be93c61eeb419be7d911cfd9c5ee9a19061bae"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four complete receiver runs pass. Actual hidden ordinary NSWindow hosting preview: showFind opens AppKit Find bar; cancelOperation hides it and restores text first responder without close; direct show/hide actions work; subsequent cancel reaches windowShouldClose guard exactly once. Original export bytes retained. No synthetic key events, actual Find pasteboard seed or process termination. Existing marker/private-copy/real import/recovery/quit/identity/drop/layout regressions pass.",
+    "core": "Core production unchanged; no additional Core tests.",
+    "builds": "Unsigned Debug/Store builds pass. Sources and receiver frozen during compiler/native sessions. Store after terminal native tests; no production edits after native run.",
+    "bundles": "Debug/Store validators, NOTICE comparisons, pin, CSV 3277 records/7 fields, documentation site and whitespace checks pass."
+  },
+  "iterations": [
+    "Single Debug and four-engine native run pass. No repair iteration."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.36828619-D759-48AC-B80D-F2F3F8EA01FD.plist",
+      "TurtleGit.ImportPatch.QA.86007DDA-AFB3-4734-B00A-D5D1A4C45103.plist",
+      "TurtleGit.ImportPatch.QA.C67F3BDD-B399-4038-8623-3A8DE499FA21.plist",
+      "TurtleGit.ImportPatch.QA.A9E15C7A-B2E5-425B-A3D5-2266024BF204.plist"
+    ],
+    "retained_nonempty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "app_or_receiver_processes": [],
+    "fixtures": "TemporaryDirectory fixtures removed; owned hidden windows closed. Standard application preferences untouched; unique copy pasteboards released. No explicit shared Find pasteboard writes."
+  },
+  "limitations": [
+    "Physical Command-F/G/Shift-G/Escape, matching navigation, selection-seeded shared Find string and Find-field focus behavior remain unverified. Tests invoke AppKit actions directly.",
+    "Standalone PatchNSWindow delegates its Find method to the same control but its physical key routing is not newly exercised.",
+    "Plain OutputView Log Find behavior not added; exact upstream context/keyboard parity remains partial.",
+    "Escape requests guarded window close for shared embedded diff controls; other parent dialogs not individually acceptance-tested here.",
+    "Unsigned builds do not establish signed sandbox/Finder/App Store, screenshot or accessibility acceptance.",
+    "Patch review/application and full Git settings remain pending. GitHub auth/CI/push and CUA remain unavailable from previous evidence, not retried. Full objective active."
+  ],
+  "logs_sha256": {
+    "build/qa/patch-embedded-find/cleanup.json": "69a3cf8bc38a9b0d9425786c0527f425f6ffa6f34fa0b8e220ba92209f411482",
+    "build/qa/patch-embedded-find/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/patch-embedded-find/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-embedded-find/native.log": "914fd8df9117d85663db446cd1a3cc97d0509612902d234fe8159df01f254f72",
+    "build/qa/patch-embedded-find/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/patch-embedded-find/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/patch-embedded-find/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/patch-embedded-find/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

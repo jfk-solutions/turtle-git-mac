@@ -148,6 +148,21 @@ font/color. It also checks BOM display and original-byte export, a sparse 250 Mi
 fixture and multi-selection clearing. These checks do not establish screenshot
 or physical accessibility acceptance.
 
+## Embedded Find and Escape
+
+The preview's Find context command now opens the native Find bar directly from
+the text control, including in ordinary dialog windows. With preview focus,
+Command-F opens Find and Command-G/Shift-Command-G route to next/previous match.
+Escape dismisses an open Find bar and returns focus to the preview; another
+Escape requests window close through its delegate, preserving the import's
+session and operation guards. The standalone diff viewer uses the same Find
+implementation.
+
+[Embedded Find QA](qa/patch-embedded-find-2026-10-08.json) invokes native actions
+in a hidden ordinary window and verifies Find-bar visibility, focus restoration
+and guarded close dispatch. It avoids shared Find-pasteboard writes and synthetic
+key events; search matching and physical keyboard acceptance remain unverified.
+
 ## Whitespace markers
 
 The shared native diff control draws space dots and tab arrows, matching

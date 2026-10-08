@@ -22,13 +22,7 @@ import UniformTypeIdentifiers
         return super.performKeyEquivalent(with: event)
     }
     func find(_ action: NSTextFinder.Action) {
-        guard let patchText else { return }
-        if action == .showFindInterface, patchText.selectedRange().length > 0 {
-            let selection = NSMenuItem(); selection.tag = NSTextFinder.Action.setSearchString.rawValue
-            patchText.performTextFinderAction(selection)
-        }
-        let sender = NSMenuItem(); sender.tag = action.rawValue
-        patchText.performTextFinderAction(sender)
+        (patchText as? PatchTextView.PatchText)?.find(action)
     }
     override func cancelOperation(_ sender: Any?) {
         if patchText?.enclosingScrollView?.isFindBarVisible == true {
@@ -301,7 +295,30 @@ struct PatchTextView: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow(); (window as? PatchNSWindow)?.patchText = self
         }
-        override func cancelOperation(_ sender: Any?) { window?.cancelOperation(sender) }
+        func find(_ action: NSTextFinder.Action) {
+            if action == .showFindInterface, selectedRange().length > 0 {
+                let selection = NSMenuItem(); selection.tag = NSTextFinder.Action.setSearchString.rawValue
+                performTextFinderAction(selection)
+            }
+            let item = NSMenuItem(); item.tag = action.rawValue
+            performTextFinderAction(item)
+        }
+        override func performKeyEquivalent(with event: NSEvent) -> Bool {
+            let modifiers = event.modifierFlags.intersection([.command, .shift, .control, .option])
+            guard window?.firstResponder === self || enclosingScrollView?.isFindBarVisible == true else { return super.performKeyEquivalent(with: event) }
+            if modifiers == .command, event.charactersIgnoringModifiers?.lowercased() == "f" {
+                find(.showFindInterface); return true
+            }
+            if modifiers == .command || modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "g" {
+                find(modifiers.contains(.shift) ? .previousMatch : .nextMatch); return true
+            }
+            return super.performKeyEquivalent(with: event)
+        }
+        override func cancelOperation(_ sender: Any?) {
+            if enclosingScrollView?.isFindBarVisible == true {
+                find(.hideFindInterface); window?.makeFirstResponder(self)
+            } else { window?.performClose(sender) }
+        }
         @objc func savePatch(_ sender: Any?) {
             guard let window, window.attachedSheet == nil, let model = coordinator?.model, !model.busy, !model.confirmingQuit else { return }
             let snapshot = model.exportDocument
@@ -313,7 +330,7 @@ struct PatchTextView: NSViewRepresentable {
                 catch { model.error = error.localizedDescription }
             }
         }
-        @objc func showFind(_ sender: Any?) { (window as? PatchNSWindow)?.find(.showFindInterface) }
+        @objc func showFind(_ sender: Any?) { find(.showFindInterface) }
         override func menu(for event: NSEvent) -> NSMenu? {
             guard let coordinator else { return super.menu(for: event) }
             if selectedRange().length == 0 {
