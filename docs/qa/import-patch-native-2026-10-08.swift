@@ -212,6 +212,41 @@ import TurtleGitCore
         precondition(retainedUnknown == .applying && headAfterUnknown == beforeUnavailableHead)
         _ = try await closingRepo.recoverMailPatch(.abort)
         print("PASS: unavailable Git directory during real active am: Cancel retains window, explicit close keeps HEAD/index/file/session intact, controls recover; no automatic abort.")
+        let (quitRepo, quitFiles) = try await fixture(root.appendingPathComponent("quit"), git, conflict: true)
+        let quitController = ImportPatchWindowController(repository: quitRepo, access: nil, preferences: prefs)
+        quitController.window?.contentViewController = nil
+        let quitModel = quitController.model
+        defer { quitModel.invalidate(); quitController.close() }
+        quitModel.add(quitFiles); quitModel.apply(); try await settle(quitModel)
+        let quitHead = try await quitRepo.run(["rev-parse", "HEAD"]).stdout
+        let application = TurtleGitApplicationDelegate()
+        var replies: [Bool] = [], quitPrompts = 0, quitCloses = 0
+        application.replyToTermination = { _, allow in replies.append(allow) }
+        quitModel.close = { quitCloses += 1 }
+        func waitReply(_ count: Int) async throws {
+            for _ in 0..<1000 { if replies.count == count { return }; try await Task.sleep(nanoseconds: 10_000_000) }
+            fatalError("Missing deferred termination reply")
+        }
+        quitModel.chooseClose = {
+            quitPrompts += 1
+            precondition(quitModel.confirmingQuit && quitModel.closing && !quitModel.editable)
+            quitModel.add([quitFiles[0]]); quitModel.remove(); quitModel.apply(); quitModel.requestClose()
+            return .cancel
+        }
+        precondition(application.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
+        precondition(application.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
+        try await waitReply(1)
+        let quitRetained = try await quitRepo.mailPatchSession(), cancelQuitHead = try await quitRepo.run(["rev-parse", "HEAD"]).stdout
+        precondition(replies == [false] && quitPrompts == 1 && quitCloses == 0 && quitModel.editable && quitModel.items.count == 2 && quitRetained == .applying && cancelQuitHead == quitHead)
+        quitModel.chooseClose = { quitPrompts += 1; return .keep }
+        precondition(application.applicationShouldTerminate(NSApplication.shared) == .terminateLater); try await waitReply(2)
+        let keepQuitSession = try await quitRepo.mailPatchSession()
+        precondition(replies == [false, true] && quitCloses == 0 && keepQuitSession == .applying && quitModel.editable)
+        quitModel.chooseClose = { quitPrompts += 1; return .abort }
+        precondition(application.applicationShouldTerminate(NSApplication.shared) == .terminateLater); try await waitReply(3)
+        let abortQuitSession = try await quitRepo.mailPatchSession()
+        precondition(replies == [false, true, true] && quitPrompts == 3 && quitCloses == 0 && abortQuitSession == .none && quitModel.editable)
+        print("PASS: actual application delegate defers Quit for idle real am conflict: Cancel/Keep/Abort replies, retained/aborted sessions, one pending quit, mutation locks reset; no premature window close or actual application termination.")
         let (slow, slowFiles) = try await fixture(root.appendingPathComponent("stop"), git)
         let hooks = slow.root.appendingPathComponent("hooks"); try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: true)
         let hook = hooks.appendingPathComponent("applypatch-msg")

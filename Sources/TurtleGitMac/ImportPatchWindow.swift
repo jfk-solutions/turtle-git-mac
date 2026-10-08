@@ -11,7 +11,7 @@ import TurtleGitCore
     private var patch: PatchWindowController?
     private var mail: NSSharingService?
     private var mailCompletion: ((String?) -> Void)?
-    var activeOperation: Bool { model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil }
+    var activeOperation: Bool { model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -98,7 +98,7 @@ import TurtleGitCore
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if approvedClose { return true }
-        guard sender.attachedSheet == nil, !model.receivingDrop, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
+        guard sender.attachedSheet == nil, !model.confirmingQuit, !model.receivingDrop, !model.openingViewer, !model.composingMail, patch?.model.busy != true, patch?.window?.attachedSheet == nil else { return false }
         model.requestClose(); return false
     }
     func windowWillClose(_ notification: Notification) { model.invalidate(); patch?.close(); onClosed() }
@@ -131,6 +131,7 @@ import TurtleGitCore
     @Published private(set) var output = ""
     @Published private(set) var busy = false
     @Published private(set) var stopRequested = false
+    @Published var confirmingQuit = false
     @Published private(set) var closing = false
     @Published private(set) var receivingDrop = false
     @Published private(set) var openingViewer = false
@@ -149,7 +150,7 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
-    var editable: Bool { !receivingDrop && !busy && !closing && !openingViewer && !composingMail && !invalidated }
+    var editable: Bool { !confirmingQuit && !receivingDrop && !busy && !closing && !openingViewer && !composingMail && !invalidated }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.repository = repository; self.access = access
         previewDocument = PatchWindowModel(repository: repository, access: access, appearancePreferences: preferences)
@@ -347,28 +348,38 @@ import TurtleGitCore
         guard editable else { return }; closing = true
         Task {
             defer { closing = false }
-            let session: MailPatchSession
-            do {
-                try checkAccess()
-                session = try await repository.mailPatchSession()
-            } catch {
-                // Missing repository/runtime or lost access must not trap an idle
-                // window. An unknown session can only be left intact, not aborted.
-                if await chooseUnavailableClose(error.localizedDescription) { close() }
-                return
-            }
-            do {
-                if session == .applying {
-                    switch await chooseClose() {
-                    case .cancel: return
-                    case .keep: break
-                    case .abort: output += try await repository.recoverMailPatch(.abort); onChanged(output)
-                    }
-                }
-                close()
-            } catch { self.error = error.localizedDescription }
+            if await confirmCloseState() { close() }
         }
     }
+    /// Quit uses the same session choices without closing windows before every
+    /// other document has approved termination.
+    func confirmQuit() async -> Bool {
+        guard !busy, !closing, !receivingDrop, !openingViewer, !composingMail, !invalidated else { return false }
+        closing = true
+        defer { closing = false }
+        return await confirmCloseState()
+    }
+    private func confirmCloseState() async -> Bool {
+        let session: MailPatchSession
+        do {
+            try checkAccess()
+            session = try await repository.mailPatchSession()
+        } catch {
+            // Unknown state may only be kept, never automatically aborted.
+            return await chooseUnavailableClose(error.localizedDescription)
+        }
+        do {
+            if session == .applying {
+                switch await chooseClose() {
+                case .cancel: return false
+                case .keep: break
+                case .abort: output += try await repository.recoverMailPatch(.abort); onChanged(output)
+                }
+            }
+            return true
+        } catch { self.error = error.localizedDescription; return false }
+    }
+
 }
 
 struct ImportPatchDialog: View {
@@ -424,7 +435,7 @@ struct ImportPatchDialog: View {
                 if model.busy { ProgressView().controlSize(.small); Text(model.stopRequested ? "Stopping after current command…" : "Applying patches…") }
                 Spacer()
                 Button(model.finished ? "OK" : "Apply") { model.apply() }.keyboardShortcut(.defaultAction).disabled(!model.editable || model.items.isEmpty)
-                Button(model.busy ? "Abort" : "Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.receivingDrop || model.closing || model.stopRequested && model.busy)
+                Button(model.busy ? "Abort" : "Cancel") { model.requestClose() }.keyboardShortcut(.cancelAction).disabled(model.confirmingQuit || model.receivingDrop || model.closing || model.stopRequested && model.busy)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-patch.html")!) }
             }
         }.padding(16)

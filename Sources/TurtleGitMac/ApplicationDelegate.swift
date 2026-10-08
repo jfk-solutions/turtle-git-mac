@@ -3,6 +3,7 @@ import AppKit
 @MainActor final class TurtleGitApplicationDelegate: NSObject, NSApplicationDelegate {
     weak var repositoryModel: RepositoryModel?
     private var confirmingQuit = false
+    var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); UnifiedDiffPreviewFiles.discardAll() }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if confirmingQuit { return .terminateLater }
@@ -23,6 +24,7 @@ import AppKit
         if sender.windows.compactMap({ $0.delegate as? FormatPatchWindowController }).contains(where: { $0.activeOperation }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? WorktreeCreateWindowController }).contains(where: { $0.model.busy || $0.model.chooser.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? WorktreeListWindowController }).contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        let imports = sender.windows.compactMap { $0.delegate as? ImportPatchWindowController }
         let controllers = sender.windows.compactMap { $0.delegate as? TextConflictWindowController }
         let commits = sender.windows.compactMap { $0.delegate as? CommitWindowController }
         let adds = sender.windows.compactMap { $0.delegate as? AddWindowController }
@@ -35,8 +37,9 @@ import AppKit
         let fileComparisons = sender.windows.compactMap { $0.delegate as? FileComparisonWindowController }
         let progress = sender.windows.compactMap { $0.delegate as? RevertProgressWindowController }
         guard !adds.contains(where: { $0.model.busy || $0.window?.attachedSheet != nil }), !addProgress.contains(where: { $0.model.busy }), !browsers.contains(where: { $0.model.mutating }), !fileComparisons.contains(where: { $0.model.busy }), !submoduleDiffs.contains(where: { $0.model.busy }), !comparisons.contains(where: { $0.model.busy || $0.model.patchWindow?.model.busy == true || $0.model.unifiedWindows.values.contains(where: { $0.model.busy }) }), !updates.contains(where: { $0.model.busy }), !progress.contains(where: { $0.model.busy }), !reverts.contains(where: { $0.model.busy }), !commits.contains(where: { $0.model.busy }), repositoryModel?.busy != true, !controllers.contains(where: { $0.model.busy }) else { return .terminateCancel }
-        guard !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) else { return .terminateNow }
+        guard !imports.isEmpty || !commits.isEmpty || controllers.contains(where: { $0.model.dirty }) || fileComparisons.contains(where: { $0.model.dirty }) else { return .terminateNow }
         confirmingQuit = true
+        for controller in imports { controller.model.confirmingQuit = true }
         repositoryModel?.confirmingQuit = true
         for browser in browsers { browser.model.confirmingQuit = true }
         for comparison in fileComparisons { comparison.model.confirmingQuit = true }
@@ -86,6 +89,11 @@ import AppKit
                     if !approved { allowQuit = false; break }
                 }
             }
+            if allowQuit {
+                for controller in imports {
+                    if !(await controller.model.confirmQuit()) { allowQuit = false; break }
+                }
+            }
             if allowQuit { for commit in commits { commit.model.restoreCopies.removeAll() } }
             for browser in browsers { browser.model.confirmingQuit = false }
             for diff in submoduleDiffs { diff.model.confirmingQuit = false }
@@ -97,8 +105,9 @@ import AppKit
             for commit in commits { commit.setQuitConfirmation(false) }
             repositoryModel?.confirmingQuit = false
             for controller in controllers { controller.model.confirmingQuit = false }
+            for controller in imports { controller.model.confirmingQuit = false }
             confirmingQuit = false
-            sender.reply(toApplicationShouldTerminate: allowQuit)
+            replyToTermination(sender, allowQuit)
         }
         return .terminateLater
     }

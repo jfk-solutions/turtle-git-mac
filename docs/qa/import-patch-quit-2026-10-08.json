@@ -1,0 +1,70 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "398219ac0ee673cf1b53f2526b201b9b4496d18d",
+  "scope": "Import Patch idle application Quit session confirmation and shared window-close decisions. Full port/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9"
+  },
+  "sources_manifest_sha256": "e75c4e17c8bbab1ba89f35e2305d674552931e7ce3ec17fcdda8843a564362bf",
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "1b34ade5ca76233cdc7f978873eb9c2846193008999c300c88c2e5f48667cb47",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "8dff5487941e4a46d6e054f0eb50909ad69b88bc3eef2db12ca968d83e397904",
+    "docs/IMPORT-PATCH-PARITY.md": "2a909c8d00fbf6f968d44ab380d23146e59e7062f068345a3f34b8c7c648f2d8",
+    "docs/qa/import-patch-native-2026-10-08.swift": "f804a45ea1b50dde401b3389a8a9990168c82240a924b293a506a402bf427cd6",
+    "docs/upstream-files.csv": "817437f2bfbddb99959819f8acb0ed693fdae8a2116415e321f05f55c5c18f5f"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four complete receiver runs pass. Actual NSApplication delegate discovers hidden real Import Patch window with conflicted git am; defers and replies Cancel false/Keep true/Abort true via injected reply callback. Cancel retains HEAD/session/rows; Keep retains active session; Abort clears it. Duplicate pending Quit returns terminateLater without duplicate prompt. Import mutation/reentry locked; controls unlock; window close callback never invoked. Existing close/unavailable/recovery/identity/drop/layout/preview/slow-hook tests also pass.",
+    "core": "Core production unchanged; no new Core test run.",
+    "builds": "Final unsigned Debug and Store pass. Sources and receiver frozen during compiler/native sessions. Store starts after all native handles terminal.",
+    "bundles": "Debug/Store validators and NOTICE comparisons, inventory pin, 3277-record/7-field CSV, documentation site and whitespace checks pass."
+  },
+  "iterations": [
+    "Initial Debug failed due to invalid !await syntax; fixed with parentheses after terminal compiler. Next Debug passes. Added controller quit flags to active-operation and window-close guards; final Debug and single four-engine native run pass. Failed build log retained."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.D35185EB-0421-40A1-9CEE-049A424EDEBF.plist",
+      "TurtleGit.ImportPatch.QA.B35CD434-2340-4C6E-9F4F-852A020770DB.plist",
+      "TurtleGit.ImportPatch.QA.CA3B88C7-0432-45DB-A8BB-68DDB21A783B.plist",
+      "TurtleGit.ImportPatch.QA.E6D306E3-AAFB-499B-97B9-7BF8FC7A0A15.plist"
+    ],
+    "retained_nonempty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "app_or_receiver_processes": [],
+    "fixtures": "TemporaryDirectory fixtures removed; owned hidden windows closed. Standard application preferences untouched."
+  },
+  "limitations": [
+    "Prompts and termination replies injected; actual process termination, physical sheets/keyboard/accessibility and multi-document quit cancellation are not runtime acceptance evidence.",
+    "Quit-specific failed abort, unavailable repository, multiple active repositories and busy import refusal not separately exercised here. They use existing shared close/error and active-operation paths; unavailable window-close regression passes.",
+    "Explicit Abort may change Git state before a later repository cancels Quit; windows remain open and unlocked. No automatic rollback of an explicitly requested abort.",
+    "macOS application Quit is a native adaptation of upstream per-dialog close, since Windows dialogs run separately.",
+    "Patch review/application, full Git settings and other documented parity gaps remain pending.",
+    "Unsigned builds do not establish signed sandbox/Finder/App Store. GitHub auth/CI/push and CUA remain unavailable from previous evidence, not retried. Full objective active."
+  ],
+  "logs_sha256": {
+    "build/qa/import-patch-quit/cleanup.json": "67d5993d4b4d3e171c5e4fdb4f4cfb21de72067c85d60fefe7e5fe154e00dbe5",
+    "build/qa/import-patch-quit/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-quit/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-quit/debug-guards.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-quit/debug.log": "ce65ac9252e9e84e1c93dab2fb9283ee4d52f8a6cb0c543dbfd722d1a8b12bcc",
+    "build/qa/import-patch-quit/native.log": "8f19164f8d4f55c2590a57b5f4ef190fe6df8a868cb196f6ccadf7963d541ed4",
+    "build/qa/import-patch-quit/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/import-patch-quit/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/import-patch-quit/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-quit/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

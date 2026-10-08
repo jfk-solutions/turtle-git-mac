@@ -66,7 +66,20 @@ kill that command or close the window. Idle Cancel/window-close checks the Git
 session and offers Abort, Keep session or Cancel. Failed aborts keep the window
 open. If repository access or the Git session check fails, an explicit **Close and
 keep state** choice allows the idle window to close without attempting recovery;
-Cancel keeps it open. Cancel is the safe default. Quitting is refused during an operation or attached sheet. Patch-file
+Cancel keeps it open. Cancel is the safe default. Quitting is refused during an operation or attached sheet.
+
+Idle application Quit now defers termination and checks each open Import Patch
+session with the same Abort/Keep session/Cancel choices as window-close. Cancel
+or a failed abort cancels Quit; Keep retains Git state. An unavailable repository
+requires the explicit keep-state choice. Import controls and close stay locked
+while the application completes all quit confirmations, then unlock if Quit is
+cancelled. The session check does not close the dialog prematurely.
+
+[Quit QA](qa/import-patch-quit-2026-10-08.json) checks the actual application
+delegate with a real conflicted import and captures termination replies rather
+than terminating the receiver. It verifies Cancel/Keep/Abort, repeated Quit while
+pending, session preservation/cleanup and control unlocking. Physical sheets and
+multi-document quit cancellation remain unverified. Patch-file
 security-scope leases and repository access remain retained by the model.
 
 The command uses the original patch icon in the app and Finder. Finder command
@@ -171,8 +184,7 @@ sandbox access outside the repository remain unverified.
 ## Remaining parity work
 
 Patch review/application context command,
-the full Git configuration settings page and idle-session
-application-quit prompts remain pending. Preview whitespace markers and the source's exact context-menu/keyboard behavior also remain pending. Physical keyboard/accessibility,
+the full Git configuration settings page remain pending. Preview whitespace markers and the source's exact context-menu/keyboard behavior also remain pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,
 deployed Finder integration and App Store acceptance are unverified. No screenshot
 or release-readiness claim covers these hidden native checks.
