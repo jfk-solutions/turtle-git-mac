@@ -333,10 +333,20 @@ public enum HistoryWalkFailure: LocalizedError {
     case singleFile
     public var errorDescription: String? { "Follow renames requires one file path. Select a file's history instead of a folder or multiple paths." }
 }
+public struct HistoryRevisionRange: Equatable, Sendable {
+    public enum Kind: Sendable { case difference, symmetricDifference }
+    public let from: String
+    public let to: String
+    public let kind: Kind
+    public init(from: String, to: String, kind: Kind = .difference) { self.from = from; self.to = to; self.kind = kind }
+    public var separator: String { kind == .difference ? ".." : "..." }
+    public var expression: String { from + separator + to }
+}
 public struct HistoryOptions: Sendable {
     public var walk = HistoryWalkOptions()
     public var allBranches = false
     public var endRevision: String?
+    public var revisionRange: HistoryRevisionRange?
     public var limit = 200
     public var search = ""
     public var searchFields: HistorySearchFields = .messages
@@ -720,13 +730,13 @@ extension GitRepository {
         }
         if options.limit == 0 { return [] }
         // An unborn HEAD is valid; --all may still have commits in other branches.
-        if !options.allBranches && options.endRevision == nil {
+        if !options.allBranches && options.endRevision == nil && options.revisionRange == nil {
             do { _ = try historyRun(["rev-parse", "--verify", "--quiet", "HEAD"]) }
             catch let failure as GitFailure where failure.code == 1 { return [] }
         }
         if options.walk.followRenames {
             let paths = (options.path.map { $0.isEmpty ? [] : [$0] } ?? []) + options.paths
-            guard !options.allBranches, try canFollowHistory(paths: paths, revision: options.endRevision, cancellation: cancellation) else { throw HistoryWalkFailure.singleFile }
+            guard !options.allBranches, try canFollowHistory(paths: paths, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation) else { throw HistoryWalkFailure.singleFile }
         }
         let issueProperties = try issueProperties ?? issueTrackerProperties(cancellation: cancellation)
         var issueCache: [String: String] = [:]
@@ -748,7 +758,11 @@ extension GitRepository {
         if options.walk.followRenames { args.append("--follow") }
         if options.walk.fullHistory { args.append("--full-history") }
         if !filterInMemory { args.append("-\(options.limit)") }
-        if let revision = options.endRevision {
+        if let range = options.revisionRange {
+            let from = try historyRun(["rev-parse", "--verify", "--end-of-options", range.from + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+            let to = try historyRun(["rev-parse", "--verify", "--end-of-options", range.to + "^{commit}"]).text.trimmingCharacters(in: .newlines)
+            args.append(from + range.separator + to)
+        } else if let revision = options.endRevision {
             let hash = try historyRun(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines)
             args.append(hash)
         } else if options.allBranches { args.append("--all") }

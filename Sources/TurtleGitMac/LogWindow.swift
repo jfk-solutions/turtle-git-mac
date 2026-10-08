@@ -586,6 +586,7 @@ struct LogCommandRequest: Identifiable {
         reload()
     }
     @Published var endRevision: String?
+    @Published var revisionRange: HistoryRevisionRange?
     @Published var historyPaths: [String] = []
     @Published var showWholeProject = true
     @Published private(set) var unrelatedPathMode = HistoryUnrelatedPathMode.gray
@@ -973,6 +974,14 @@ struct LogCommandRequest: Identifiable {
         historyWalk.followRenames = false; canFollowRenames = false
         historyPaths = scope; showWholeProject = scope.isEmpty; reload()
     }
+    func canReuseForRange(_ range: HistoryRevisionRange) -> Bool {
+        !isInvalidated && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !unifiedViewerBusy && !copyingDetails &&
+        revisionRange == range && endRevision == nil && historyPaths.isEmpty
+    }
+    func configureWholeProjectScope() {
+        historyWalk.followRenames = false; canFollowRenames = false
+        historyPaths = []; showWholeProject = true
+    }
     private func cancelActionReads() {
         actionCancellation?.cancel(); actionCancellation = nil
         actionQueue = []; activeActionHash = nil; actionGeneration += 1
@@ -1035,7 +1044,7 @@ struct LogCommandRequest: Identifiable {
         if more { limit += 200 } else { limit = 200 }
         cancelClipboardRead()
         generation += 1; let request = generation
-        var options = HistoryOptions(); options.endRevision = endRevision; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
+        var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
         options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
         let referenceVisibility = referenceVisibility, rollupStates = rollupStates
         let scope = historyPaths
@@ -1051,8 +1060,8 @@ struct LogCommandRequest: Identifiable {
                 if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase() }
                 let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
-                let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.endRevision, cancellation: cancellation)
-                let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.endRevision, cancellation: cancellation)
+                let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
+                let pathScopes = try await repository.historyPathScopes(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
                 let showPatch = patchPreviewPreferenceLoaded ? patchPreviewVisible : try await repository.run(["config", "--bool", "--get", "tgit.logshowpatch"], successfulExitCodes: 0...1, cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 var result = try await repository.history(options: options, cancellation: cancellation, issueProperties: issueProperties)
                 let working = showWorkingTree && !selecting && !bare ? try await repository.workingTreeHistory(cancellation: cancellation) : nil
@@ -1898,7 +1907,7 @@ struct LogDialog: View {
             Text("Showing \(model.entries.filter { !$0.hash.isEmpty }.count) revision(s) • \(model.selectedWorkingTree ? "Working tree selected" : "\(model.revisions.count) revision(s) selected") • \(model.files.count) changed file(s)")
                 .font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading)
             HStack {
-                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil || model.historyWalk.followRenames).onChange(of: model.allBranches) { _ in model.reload() }
+                Toggle("All Branches", isOn: $model.allBranches).toggleStyle(.checkbox).disabled(model.endRevision != nil || model.revisionRange != nil || model.historyWalk.followRenames).onChange(of: model.allBranches) { _ in model.reload() }
                 Menu {
                     ForEach([HistoryWalkCommand.firstParent, .noMerges, .followRenames, .fullHistory], id: \.self) { command in
                         Toggle(command.rawValue, isOn: Binding(get: { model.historyWalk.contains(command) }, set: { _ in model.toggleHistoryWalk(command) })).disabled(!model.canToggleHistoryWalk(command))

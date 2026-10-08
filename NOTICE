@@ -485,3 +485,7 @@ Original command icons and existing native revision dialogs are reused.
 RefLog working-tree and selected-entry comparisons follow GitLogListBase.cpp,
 GitLogListAction.cpp and GitDiff.cpp at the recorded pin, including continuous
 selection eligibility and the source's older-to-newer comparison direction.
+
+RefLog forward, reverse and symmetric-difference Log ranges follow
+GitLogListBase.cpp and GitLogListAction.cpp at the recorded pin. Native history
+range endpoints are validated as commit objects before Git walks the range.

@@ -105,6 +105,7 @@ import TurtleGitCore
     func accept() { if selecting { if !busy, let entry = selectedEntry { onChoose(entry) } } else { close() } }
     var onApply: (String) -> Void = { _ in }
     var onLog: ((String) -> Void)?
+    var onLogRange: ((HistoryRevisionRange) -> Void)?
     var onBrowseRepository: ((String) -> Void)?
     var onCreateReference: ((Bool, String) -> Void)?
     var onExport: ((String) -> Void)?
@@ -244,10 +245,27 @@ import TurtleGitCore
         onLog?(entry.hash)
     }
     static func configureRevisionLog(_ log: LogWindowModel, revision: String) {
+        log.revisionRange = nil
         log.endRevision = revision; log.selected = [revision]
         log.search = ""; log.useDates = false
         log.allBranches = false; log.showWorkingTree = false
-        log.historyPaths = []; log.showWholeProject = true
+        log.configureWholeProjectScope()
+    }
+    func logRange(_ command: ReferenceLogRangeCommand, ids: Set<String>) -> HistoryRevisionRange? {
+        guard !busy, ids.count == 2 else { return nil }
+        let selected = entries.filter { ids.contains($0.id) }
+        guard selected.count == 2 else { return nil }
+        let first = selected[0].hash, last = selected[1].hash
+        return HistoryRevisionRange(from: command == .reverse ? first : last, to: command == .reverse ? last : first, kind: command == .symmetric ? .symmetricDifference : .difference)
+    }
+    func showLogRange(_ command: ReferenceLogRangeCommand, ids: Set<String>) {
+        guard let range = logRange(command, ids: ids) else { return }
+        onLogRange?(range)
+    }
+    static func configureRangeLog(_ log: LogWindowModel, range: HistoryRevisionRange) {
+        log.endRevision = nil; log.revisionRange = range; log.selected = []
+        log.search = ""; log.useDates = false; log.allBranches = false; log.showWorkingTree = false
+        log.configureWholeProjectScope()
     }
     func clipboardText(_ ids: Set<String>, format: ReferenceLogCopyFormat, dates: HistoryDateSettings = .load()) -> String? {
         let chosen = entries.filter { ids.contains($0.id) }
@@ -280,6 +298,7 @@ import TurtleGitCore
     }
 }
 enum ReferenceLogCopyFormat { case full, hashes, messages }
+enum ReferenceLogRangeCommand: CaseIterable, Hashable { case forward, reverse, symmetric }
 enum ReferenceLogComparisonCommand {
     case workingTree, revisions
     var title: String { self == .workingTree ? "Compare with working tree" : "Compare revisions" }
@@ -338,6 +357,13 @@ private struct ReferenceLogDialog: View {
                     Divider()
                     if ids.count >= 2 {
                         Button { model.compare(.revisions, ids: ids) } label: { CommandLabel(title: ReferenceLogComparisonCommand.revisions.title, icon: .compare) }.disabled(!model.canCompare(.revisions, ids: ids))
+                        if ids.count == 2 {
+                            ForEach(ReferenceLogRangeCommand.allCases, id: \.self) { command in
+                                if let range = model.logRange(command, ids: ids) {
+                                    Button { model.showLogRange(command, ids: ids) } label: { CommandLabel(title: "Show log of " + range.from.prefix(7) + range.separator + range.to.prefix(7), icon: .log) }.disabled(model.onLogRange == nil)
+                                }
+                            }
+                        }
                         Divider()
                     }
                     Menu {

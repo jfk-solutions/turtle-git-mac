@@ -860,6 +860,7 @@ import TurtleGitCore
         let controller = referenceLogWindows[root.path] ?? ReferenceLogWindowController(repository: repository, access: access, reference: reference)
         controller.onClosed = { [weak self] in self?.referenceLogWindows.removeValue(forKey: root.path) }
         controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash) }
+        controller.model.onLogRange = { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range) }
         controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
         controller.model.onCreateReference = { [weak self] isTag, hash in self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash) }
         controller.model.onExport = { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash) }
@@ -998,10 +999,18 @@ import TurtleGitCore
     private func refreshRepositoryLogs(_ root: URL) {
         for log in logWindows.values where log.model.repository.root == root && !log.model.isInvalidated { log.model.requestRepositoryRefresh() }
     }
-    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil) {
+    private func showLog(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], endRevision: String? = nil, selectedRevision: String? = nil, revisionRange: HistoryRevisionRange? = nil) {
         let root = repository.root
-        let key = root.path + (endRevision.map { "\0" + $0 } ?? "") + (paths.isEmpty ? "" : "\0paths\0" + paths.sorted().joined(separator: "\0"))
-        let controller = logWindows[key] ?? LogWindowController(repository: repository, access: access)
+        let baseKey = root.path + (revisionRange.map { "\0range\0" + $0.expression } ?? endRevision.map { "\0" + $0 } ?? "") + (paths.isEmpty ? "" : "\0paths\0" + paths.sorted().joined(separator: "\0"))
+        let reusable: (key: String, value: LogWindowController)?
+        if let revisionRange {
+            reusable = logWindows.first { _, controller in
+                controller.model.repository.root == root && controller.model.repository.executable == repository.executable &&
+                controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange)
+            }
+        } else { reusable = logWindows[baseKey].map { (key: baseKey, value: $0) } }
+        let key = reusable?.key ?? (logWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
+        let controller = reusable?.value ?? LogWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.logWindows.removeValue(forKey: key) }
         controller.model.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
@@ -1064,10 +1073,15 @@ import TurtleGitCore
         controller.model.onBrowseRepository = { [weak self] hash in self?.showRepositoryBrowser(repository: repository, access: access, revision: hash) }
         logWindows[key] = controller
         controller.model.endRevision = endRevision
+        controller.model.revisionRange = revisionRange
         let location = paths.count == 1 ? root.lastPathComponent + "/" + paths[0] : root.lastPathComponent
         controller.window?.title = location + " – Log Messages" + (endRevision.map { " at " + $0.prefix(7) } ?? "") + " – TurtleGit"
         controller.model.setPathScope(paths)
         if let selectedRevision { ReferenceLogWindowModel.configureRevisionLog(controller.model, revision: selectedRevision) }
+        if let revisionRange {
+            ReferenceLogWindowModel.configureRangeLog(controller.model, range: revisionRange)
+            controller.window?.title = location + " – Log Messages " + revisionRange.expression + " – TurtleGit"
+        }
         controller.model.reload()
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

@@ -26,7 +26,7 @@ to HEAD and ordinary full-reference logs. Selected Apply passes the displayed co
 hash to the native restore controller, preventing a later stash-index change from
 redirecting that selection. Inspection uses the first-parent diff and full commit
 metadata. General reflog entries also offer Browse repository, Create Branch/Tag and
-Export at the selected revision. These use the original command icons and the
+Export at the selected revision, plus the three two-entry Log ranges. These use the original command icons and the
 existing native dialogs; other revision actions remain pending.
 
 Deletion and Clear prompt with Delete/Abort. Selected Delete defaults to Delete;
@@ -278,7 +278,7 @@ larger selections, busy models and absent callbacks do not dispatch.
 Comparison controls precede single-revision Log/Browser commands; multi-revision
 Compare follows Delete/Apply before clipboard commands. The existing unified-diff
 inspection action now precedes Log. Full upstream context menus/order, merge-parent
-unified diffs and two-revision unified/range commands remain pending. Read-only
+unified diffs and two-revision unified commands remain pending. Read-only
 revision choosers may compare when their caller supplies a callback; current
 choosers without it leave the command disabled.
 
@@ -297,3 +297,35 @@ working bytes override staged bytes. Ordinary HEAD/refs/index/config/worktree
 remain byte-exact unchanged. No windows are displayed, so menu/icon rendering,
 physical comparison activation/reuse, light/dark layout and signed access remain
 pending. Full application parity remains incomplete.
+
+## Two-entry Log ranges
+
+Exactly two current RefLog rows now offer the three source Log ranges in order:
+last-to-first `..`, first-to-last `..`, then last-to-first `...`. The last and
+first refer to displayed selection order, not lexical hashes or click order.
+Repeated hashes are valid and yield empty ranges. Empty, stale, larger selections
+and loading cannot dispatch; callers without the optional range callback disable
+the menu commands.
+
+The history reader accepts an explicit range with two endpoints and a difference
+or symmetric-difference kind. It resolves both endpoints as commit objects with
+`rev-parse --verify --end-of-options` before building the Git walk expression.
+The range takes precedence over end-revision/all-branches scope, retaining the
+existing limit, search, date and path options. RefLog handoff clears old text/date/
+path/end filters, turns off working-tree/all-branches rows and rename following,
+and leaves the existing Log graph/list intact. All Branches is disabled for a
+range. Ordinary scoped revision handoff clears any previous range.
+
+Range Log windows retain independent ownership. Matching idle windows may be
+reused; edited range/scope, active history work, note edits or viewer operations
+open a separate owned window. Physical reuse/close acceptance remains pending.
+
+[Range receiver](qa/reflog-ranges-native-2026-10-08.swift) and
+[QA record](qa/reflog-ranges-2026-10-08.json) cover actual native Log models with
+divergent forward/reverse/symmetric commit sets and graph row counts, filter/scope
+reset, dispatch and reuse guards, duplicate hashes and unchanged repository state.
+Core tests additionally cover annotated-tag endpoints, path/search/limit behavior,
+range precedence and rejection of invalid/option/range-expression endpoints.
+No windows are displayed. Rendered labels/icons, physical activation/reuse,
+broader merge-base topologies, range-specific follow-renames, signed sandbox
+execution and complete RefLog/dialog/application parity remain pending.

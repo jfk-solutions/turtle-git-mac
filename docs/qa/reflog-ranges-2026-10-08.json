@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "f046e2a097e918442fbbf3428309acb190ee3943",
+  "scope": "RefLog exact-two forward, reverse and symmetric-difference Log ranges, validated Core range endpoints and native Log scope/reuse guards. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/TortoiseProc/refloglist.cpp": "c1fb07f5fa8bf318d436fbb877656944b8d2f008",
+    "src/Resources/TortoiseLoglistCommon.rc2": "a174ae27ca959c289076127e729f58ba37bd2fd6"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "3dfc90477a8b0a0e9d18923550273776ee1fd3ee7a450387df2c87db9863d2b9",
+    "NOTICE": "27f14164411555a38c2eed1bfb837600b71bf608a70b1ae95adcdc1ad020b479",
+    "Sources/TurtleGitCore/CommitHistory.swift": "7f92ab7c4b9c5f3fe20ff9c9cbbd1b291f732ce07648f9bdb5801a31762ae719",
+    "Sources/TurtleGitMac/LogWindow.swift": "0f12b6e5493190c4ddb51a4e1121e42a95b448e07349742f202250fadbb0cb23",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "89d69a5cc87752708576c59248a400d480b2392aefc2147ce0e1a6331b57d4a0",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6fa3d7e5bba67280278425e82681ab3cf30376604821f872bf59b690c66ac891",
+    "Tests/TurtleGitCoreTests/HistoryRangeTests.swift": "b2aea0606852ce2d49337814286fa6f8c872d943ac2ce23b2b2f06c77c3e142c",
+    "docs/REFLOG-PARITY.md": "c948218b75d7fe0ccb57f64cc20aefc207b23414909a8969242e8905cbd9fab8",
+    "docs/qa/reflog-ranges-native-2026-10-08.swift": "eddec9484c16fabac394ce845a567906a28e4c7fbc85794d71e6013a9832a1fc",
+    "docs/upstream-files.csv": "ab177961b7de532703f998239d946dcbc37e98e91d10a2f1b441d3b559141abe",
+    "scripts/test-reflog-ranges.py": "855cd24b7e1aef72fc4ab831f5375d21bb52fe2a315f472c5a450660b4f6f019"
+  },
+  "all_sources_manifest_sha256": "e3e7e8c483dcefa092f4e0dcf3c67684ff7749745d2e0ae2e988d7f6e917a729",
+  "verification": {
+    "core": "45 selected HistoryRangeTests and CommitHistoryTests passed. New divergent-branch range test checks forward/reverse/symmetric and equal endpoints, annotated tags, path/search/limit behavior, range precedence over end/all, rejection of option/range-expression/missing/empty endpoints, and unchanged HEAD/refs/index/config/worktree. Existing 44 history tests passed against final Core and app compilation.",
+    "native": "System Git, Git 2.37.1, 2.39.5 and bundled 2.55.0 passed. Actual native Log models load exact divergent forward/reverse/symmetric commit sets with graph row counts; clear prior search/date/path/end/working/all scope; reject empty/one/stale/multi/busy dispatch; retain duplicate-selector equal-hash empty ranges; reject changed/busy range model reuse. Ordinary scoped revision clears range. HEAD/refs/index/config/worktree remain unchanged. No displayed windows; private preferences removed on completion.",
+    "regression": "Existing RefLog actions receiver passed all four Git versions against final Sources. Immutable older Log handoff, chooser acceptance, selected hash/filter reset, ordered CRLF Unicode duplicate-hash clipboard text, actual private pasteboard and byte-exact repository preservation retained; general clipboard untouched.",
+    "iterations": "Initial Debug and SwiftPM compilation failed because RefLog attempted to modify the private Log historyWalk setter. Moved whole-project reset into the owning Log model. Final Debug/Core/native/regression/Store checks passed. Failed compiler logs retained; no test failure after compilation.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "documentation": "RefLog parity, NOTICE and pinned source inventory updated. Inventory pin and 3277 seven-column source rows validated. Local site generated; unpublished.",
+    "ci": "Native range receiver added to macOS workflow. Hosted CI and push remain unverified; authentication unavailable, no retry.",
+    "processes": "All compiler/Core/native/build/audit sessions terminal. No main GUI launch or displayed receiver windows. Final app/native receiver process audit empty; private QA domains removed, no owned range/action preference files found during cleanup; private pasteboards released.",
+    "limitations": "Physical range menu/title/icon rendering, actual factory reuse/independent close, broader merge-base graphs, range-specific follow-renames and signed sandbox execution remain pending. Choosers without callbacks disable range commands. Complete revision/ref menus, two-revision unified diffs, remaining dialog/Finder parity, genuine updated screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-ranges/actions-regression.log": "97428e5411499329dd8ee55d1d21ade9272199e419a77a292ad3c11c7fc616ae",
+    "build/qa/reflog-ranges/cleanup.log": "61c198d2d1f7b4cef7ef02367790da37b7cdd324827f815cbfe0bf073f302811",
+    "build/qa/reflog-ranges/core-access-control-failure.log": "067d97d1af18a22eb335deba40957a7ba5ef9cbdd74c634bc770652a156388d1",
+    "build/qa/reflog-ranges/core.log": "9c7e3559bfaa3eb6dc2808c6f26997ec1add2afed67c88fa22159ced8ae7e341",
+    "build/qa/reflog-ranges/debug-access-control-failure.log": "d17ffed18b06b5736b91e0bc4d4b88752545d99c80b84f9bcfcffb673b8910cf",
+    "build/qa/reflog-ranges/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-ranges/debug.log": "01496684a8093d8f255b3f51ffba1a32a18bc1cd7b7304ac12072198bc852f47",
+    "build/qa/reflog-ranges/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-ranges/native.log": "751f68e369624ffd2c8e35755ec393b299b1df6c4ed4b96e8609c25c34d7a3e8",
+    "build/qa/reflog-ranges/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-ranges/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-ranges/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-ranges/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-ranges/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}
