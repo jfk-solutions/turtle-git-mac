@@ -10,13 +10,33 @@ pinned source/resource layouts when reviewing every replacement. Native controls
 should retain upstream's semantic colors, recognizable artwork, list density and
 layout. A single accent color is not a substitute for those distinctions.
 
-The initial file-status palette follows the [upstream status roles](https://tortoisegit.org/docs/tortoisegit/tgit-dug-wcstatus.html):
-modified blue, added purple, deleted dark red (brighter red in dark mode), conflicts
-red, unchanged/unversioned normal label text, and ignored secondary text. Commit
-paths, Working Tree paths/status and workspace status labels use these roles. Icons and status words remain
-visible, so color is not the only signal. Remote-status-specific colors remain
-pending along with remote checks. Graph lanes and branch/tag labels already use
-multiple colors; the patch view distinguishes additions, removals and hunk headers.
+The file-status defaults now use the pinned CColors RGB values: modified
+(0,50,160), added/copy (100,0,100), deleted (100,0,0), conflict (255,0,0),
+renamed (0,0,255) and merged (0,100,0). Native dynamic colors follow the source
+HSL lightness inversion for dark appearance, including its 5–90 lightness clamp;
+high-contrast dark uses the source's unclamped inversion. Neutral normal,
+unversioned and ignored records use native label text. The source's explicit
+GRAY action is a separate Log-filter condition and is not inferred from ignored
+working files. Merged is retained as a palette role; porcelain working statuses
+do not provide a separate merged action.
+
+Commit and Working Tree apply the action color to every text column, including
+line counts, metadata and the optional owner column. Combined index/worktree
+actions use source priority: conflict, modification/type change, added/copy,
+deletion, rename, then neutral. A renamed file with further modifications is
+therefore modified blue. Selected rows use native semantic primary text across
+all columns. Original icons and status words remain visible. Other FileState
+consumers share the exact default roles, but their complete action/selection
+behavior still needs individual source review. Graph lanes and branch/tag labels
+use multiple colors; the patch view distinguishes additions, removals and hunks.
+Remote-specific colors and user-configurable CColors settings remain pending.
+
+[Status color QA](qa/status-colors-2026-10-09.json) compares numeric RGB values
+and Aqua/Dark Aqua/high-contrast dark AppKit resolutions against independently
+compiled pinned C++ conversion functions. It also checks mixed action priority
+and the selected semantic color. These checks do not prove current pixels,
+selected-row contrast, accessibility or visual parity in every dialog. Existing
+screenshots below predate this palette change and have not been refreshed.
 
 The Rebase port adds five byte-exact original assets for Pick, Skip, Edit, Squash
 and branch/upstream reversal, with provenance hashes. The icon suite renders all

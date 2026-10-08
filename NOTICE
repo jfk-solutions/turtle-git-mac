@@ -891,3 +891,12 @@ LFSSetLockedProgressCommand::m_PostCmdCallback and CGitProgressDlg::OnCmdEnd
 at the pinned TortoiseGit revision. Failure, cancellation and Unlock do not
 open Pull. The native callback retains the selected repository access lease
 and opens the existing Pull options workflow. GPL-2.0-or-later applies.
+
+Status row default RGB roles and dark/high-contrast HSL conversion adapt
+TortoiseProc/Colors.cpp and Utils/Theme.cpp. The combined action priority and
+all-subitem coloring follow Git/GitStatusListCtrl.cpp::OnNMCustomdraw and
+Git/TGitPath.cpp::ParseStatus. Original TortoiseGit/TortoiseSVN copyright and
+GPL-2.0-or-later apply; native selection text uses macOS semantic primary.
+LFS result status text now follows GitProgressList.cpp::SetColorCode's neutral
+Lock/Unlock notification defaults and ReportError's Conflict role. The native
+combined per-file result layout remains an adaptation, not a full progress port.

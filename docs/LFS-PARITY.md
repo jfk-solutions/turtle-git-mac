@@ -245,3 +245,10 @@ success/failure/cancellation gates and repository preservation. Server replies
 are injected, and native windows stay hidden. Visible activation, physical
 interaction, authenticated LFS/Pull transport and signed sandbox access remain
 unverified.
+
+LFS result status labels now use native neutral text for successful Lock/Unlock
+and the exact source Conflict color for failures, following GitProgressList's
+SetColorCode and ReportError. See [Appearance](APPEARANCE.md) and
+[status color QA](qa/status-colors-2026-10-09.json). The combined per-file result
+layout remains an adaptation; full progress rows/context commands and visual
+acceptance are still pending.

@@ -103,3 +103,12 @@ signed sandbox/Finder acceptance remain pending. This is partial dialog parity.
 Copy all now retains its heading when Path is the only visible column, using
 the shared source command-mask rule. Explicit column/path copies omit headings.
 See [menu/copy QA](qa/lfs-menu-copy-2026-10-09.json).
+
+## Exact status row color roles
+
+Working Tree applies the pinned default CColors role to all nine text columns,
+with source combined index/worktree priority and semantic selected text. Rename
+is distinct from modification; unversioned/ignored/normal rows stay neutral.
+See [Appearance](APPEARANCE.md) and [status color QA](qa/status-colors-2026-10-09.json).
+Native RGB/appearance resolution is checked separately from current pixel and
+accessibility/contrast acceptance.

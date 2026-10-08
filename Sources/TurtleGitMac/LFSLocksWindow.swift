@@ -307,7 +307,7 @@ struct LFSUnlockProgress: View {
             CommandLabel(title: model.operationLocked ? "LFS Lock" : "LFS Unlock", icon: model.operationLocked ? .lock : .unlock).font(.headline)
             Table(model.results) {
                 TableColumn("Path", value: \.path).width(min: 230, ideal: 340)
-                TableColumn("Result") { result in Text(result.success ? (model.operationLocked ? "Locked" : "Unlocked") : "Failed").foregroundStyle(result.success ? .green : .red) }.width(80)
+                TableColumn("Result") { result in Text(result.success ? (model.operationLocked ? "Locked" : "Unlocked") : "Failed").foregroundStyle(result.resultTextColor) }.width(80)
                 TableColumn("Message", value: \.output).width(min: 170, ideal: 330)
             }.frame(minHeight: 200)
             if model.busy { ProgressView().controlSize(.small) }

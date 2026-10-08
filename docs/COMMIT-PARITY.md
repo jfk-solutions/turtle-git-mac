@@ -1693,3 +1693,12 @@ versus header/content sizing, saved adjustment removal, offscreen rows, refresh
 retention and operation locks. These checks do not prove physical pointer
 tracking, platform font/display variants or visual acceptance. LFS Lock, other
 shared-control consumers and full Commit/application parity remain incomplete.
+
+## Exact status row color roles
+
+Commit's text columns now share the pinned default CColors roles and source
+combined action priority, including rename/copy and type-change distinctions.
+Line counts follow the row action instead of a fixed blue. Selected text stays
+semantic primary across all text columns. See [Appearance](APPEARANCE.md) and
+[status color QA](qa/status-colors-2026-10-09.json); current pixel/contrast and
+custom status color settings remain unverified or pending.

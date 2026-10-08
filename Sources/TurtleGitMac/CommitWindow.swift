@@ -1283,7 +1283,7 @@ GroupBox("Changes made (double-click on file for diff):") {
                         Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
                             if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
                         }
-                        Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(selection.wrappedValue.contains(entry.id) ? Color.primary : entry.state.textColor)
+                        Text(StatusListClipboard.displayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id)))
                     }.help(model.fileHelp(entry))
                 } else if let group = row.group {
                     HStack {
@@ -1293,14 +1293,14 @@ GroupBox("Changes made (double-click on file for diff):") {
                 }
             }.width(min: 260, ideal: 420)
             TableColumn("Filename", sortUsing: CommitFileSort(column: .fileName)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent) } else { groupRule }
+                if let entry = row.entry { Text((entry.path as NSString).lastPathComponent).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
             }.width(min: 100, ideal: 180)
             TableColumn("Extension", sortUsing: CommitFileSort(column: .fileExtension)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)) }
+                if let entry = row.entry { Text(StatusListClipboard.fileExtension(entry.path, isDirectory: model.submodules.contains(entry.path) || model.fileMetadata[entry.path]?.isDirectory == true)).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) }
                 else { groupRule }
             }.width(min: 40, ideal: 75)
             TableColumn("Status", sortUsing: CommitFileSort(column: .status)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized) }
+                if let entry = row.entry { Text(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) }
                 else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("Lines added", sortUsing: CommitFileSort(column: .added)) { (row: CommitSortableRow) in
@@ -1310,13 +1310,13 @@ GroupBox("Changes made (double-click on file for diff):") {
                 lineCount(row.row, statistics: statistics, selected: selection.wrappedValue, added: false)
             }.width(min: 40, ideal: 95)
             TableColumn("Last modified", sortUsing: CommitFileSort(column: .lastModified)) { (row: CommitSortableRow) in
-                if row.entry != nil { Text(row.metadata?.dateText ?? "–") } else { groupRule }
+                if let entry = row.entry { Text(row.metadata?.dateText ?? "–").foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
             }.width(min: 140, ideal: 180)
             TableColumn("File size", sortUsing: CommitFileSort(column: .fileSize)) { (row: CommitSortableRow) in
-                if row.entry != nil { Text(row.metadata?.sizeText ?? "–") } else { groupRule }
+                if let entry = row.entry { Text(row.metadata?.sizeText ?? "–").foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("LFS Lock", sortUsing: CommitFileSort(column: .lfsOwner)) { (row: CommitSortableRow) in
-                if row.entry != nil { Text(row.lfsOwner) } else { groupRule }
+                if let entry = row.entry { Text(row.lfsOwner).foregroundStyle(entry.statusTextColor(selected: selection.wrappedValue.contains(entry.id))) } else { groupRule }
             }.width(min: 100, ideal: 160)
         }.contextMenu(forSelectionType: String.self) { requested in
             TurtleGitContextMenu {
@@ -1455,7 +1455,7 @@ GroupBox("Changes made (double-click on file for diff):") {
         if let entry = row.entry {
             let count: Int? = added ? statistics[entry.path]?.added : statistics[entry.path]?.removed
             let label = count.map { String($0) } ?? "–"
-            Text(label).foregroundStyle(selected.contains(entry.id) ? Color.primary : Color.blue)
+            Text(label).foregroundStyle(entry.statusTextColor(selected: selected.contains(entry.id)))
         } else { groupRule }
     }
     private var groupRule: some View { Rectangle().fill(Color.secondary.opacity(0.35)).frame(height: 1) }

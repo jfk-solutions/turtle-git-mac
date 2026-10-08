@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "4e3f8964af614f2d27a00d99c6273e69f9875c52",
+  "scope": "Pinned default status colors, combined action priority, native appearance resolution and all-text-column Commit/Working Tree wiring; neutral LFS success and Conflict error labels. Full port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2",
+    "src/TortoiseProc/Colors.cpp": "f83b8e189b041998f4627aa0da31c38f6899394e",
+    "src/TortoiseProc/Colors.h": "e262be247e5b8e0cc41959b7d16d09da90e0904e",
+    "src/Utils/Theme.cpp": "619a0b07219aa0fadefba8692cb35ebda3fd03c3",
+    "src/TortoiseProc/GitProgressList.cpp": "60bd80285a3e11bf05920d73ceda953d17bf3ae7"
+  },
+  "sources_manifest_sha256": "b5e867730fd3178704e853767c2328f4a5d74bb3dbf437d674c33d42ea43f891",
+  "changed_files_sha256": {
+    "NOTICE": "20016a57940fbaf211f4edb5b53beda0da5c60eb02665ce36a52056fb32b21d9",
+    "Sources/TurtleGitMac/Appearance.swift": "aa31aa3243486ed589a2a3f77be95bf5437a2bd824c98b18c4aad4a530ac3e3e",
+    "Sources/TurtleGitMac/CommitWindow.swift": "a76f826ca3165acc54bdf3e3e98a90e0f6e1d0a8132483525f5bb8a8253f2126",
+    "Sources/TurtleGitMac/LFSLocksWindow.swift": "396b1598b670d95d0f8f807f0b3b2859308a61d9cde7a8cc4db64b100236b10e",
+    "Sources/TurtleGitMac/StatusWindow.swift": "ac814ef966db24c4b27fe5865c02ecb0ca378a2e367fda22ecfc9ba0f3092df0",
+    "docs/APPEARANCE.md": "4405e1ac4a14f585d43a333e911e1f74ab9d55541406222e31afe1f619edf7d6",
+    "docs/COMMIT-PARITY.md": "c37e88bcc80b2b049fcee08dc59232b9803ca9c0805b0aa4ff69ba7cc99b150d",
+    "docs/LFS-PARITY.md": "d182cd3e22e9e617ebfcfb5b3424a1f9ecb34307bed794526118d3416aaa6f16",
+    "docs/STATUS-PARITY.md": "85dd168bdf877dbff024870a89a10916678bbde4b678512c4b85bae39f218c4d",
+    "docs/site/index.html": "d1b6905274036ecf02d9916eebaa97bed8dfc4b07447e0e96a71ebd99303ba53",
+    "docs/upstream-files.csv": "8b50fb8a4eb25bbc90e1c2c02b034ca5bad08a3554bc9f93cdab3952d40ef1cf",
+    "scripts/test-status-colors.py": "c4253829966976a55d283b17d06371313bf6c9a910492acf10218b7515590e0d",
+    "docs/qa/status-colors-native-2026-10-09.swift": "a77f76d6015acfb1ff3e7f11208ecda507664a0a11dbf5a2aa20b8d5a8212788"
+  },
+  "verification": {
+    "colors": "Final dedicated activation-prohibited AppKit receiver passes. Python compiles the actual pinned RGBtoHSL/HSLtoRGB C++ source functions independently, extracts six CColors RGB defaults, and compares the native Float conversion and dynamic color resolutions. Aqua, Dark Aqua and high-contrast dark match source default RGB values; high-contrast light matches the light defaults. Same dynamic NSColor is resolved across appearances. Eighteen combined-status cases check conflict precedence, M/T ahead of A/C/D/R, add/copy ahead of delete/rename, pure rename distinct and normal/untracked/ignored neutral; selected helper returns semantic Color.primary. LFS successful result is primary; failure resolves Conflict RGB across appearances. These six defaults do not exercise arbitrary custom-color clamp endpoints.",
+    "columns": "Source inspection and final Debug compilation verify all nine Commit/Working Tree text columns use the entry action role and selected semantic primary, including counts, metadata and owner. Complete native LFS receiver passes Apple Git and bundled Git on final sources, retaining existing actual table/header/layout/scroll/copy/owner/progress/Force/cancel/Close-refresh/successful-Pull/Resolve checks and HEAD/raw-index/tracked-byte preservation. No rendered pixel color or contrast claim.",
+    "debug": "Final Debug build and bundle audit pass.",
+    "store": "Sequential unsigned AppStore build and required Git/Git LFS bundle audit pass. Both Debug/Store packages contain current NOTICE. Source/NOTICE/test/receiver/helper files frozen during compiler/native handles.",
+    "inventory": "Pinned inventory and git diff checks pass, upstream checkout diff empty; six mappings moved/extended to partial.",
+    "site": "Local Pages generation passes; generated HTML contains the appearance-audit link and explicit earlier-screenshot note. Current guide/QA changes are repository files linked from the site, not embedded by the generator. No deployment or new screenshot claim."
+  },
+  "iterations": [
+    "Initial default color oracle and complete native two-engine checks pass. After source audit, LFS success labels corrected from green to neutral and errors use source Conflict; high-contrast light and LFS label assertions added. Final oracle/native checks pass. No production assertions weakened."
+  ],
+  "limitations": [
+    "No fresh displayed screenshot, current selected-row pixel contrast, accessibility evaluation, every-window appearance switching or physical interaction acceptance.",
+    "Custom saved CColors settings, other role consumers/action mapping, explicit Log GRAY filtering, full LFS progress/dialog/menu parity remain pending.",
+    "Authenticated LFS/Pull, signed Finder/sandbox deployment, App Store acceptance, GitHub CI/push and full application port remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "preferences": "Four private LFS.StatusQA suites removed after receiver exits; remaining plists verified empty then removed. Dedicated color receiver writes no preferences.",
+    "preference_cleanup_sha256": "84d38c0cc37e1bc1c393693f110771b1484abc21211c167decca272d7acfe22a",
+    "owned_windows": "LFS receivers close owned windows/sheets/Pull options and exit; wrappers remove fixtures. Color receiver opens no windows.",
+    "processes": [],
+    "private_fixture_directories": [],
+    "private_preference_plists": []
+  },
+  "local_log_sha256": {
+    "build/qa/status-colors-2026-10-09/colors-final.log": "c81e9e5aeeccf8f4e64eaf70b6d711075581cfc9d09e37e612e969bb02486595",
+    "build/qa/status-colors-2026-10-09/colors.log": "e8607a988a1eee840db0d8057334f18accd0342ff41cc777f18228a395182fc4",
+    "build/qa/status-colors-2026-10-09/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/status-colors-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/status-colors-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/status-colors-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/status-colors-2026-10-09/native-final.log": "aba5996cce1fd5a9a487fac8dda258252da9e423fbeb426ec20b611d5619b0c4",
+    "build/qa/status-colors-2026-10-09/native.log": "aba5996cce1fd5a9a487fac8dda258252da9e423fbeb426ec20b611d5619b0c4",
+    "build/qa/status-colors-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/status-colors-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/status-colors-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/status-colors-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

@@ -322,19 +322,19 @@ struct StatusDialog: View {
             }
             Table(rows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder }, set: { model.setSortOrder($0) })) {
                 TableColumn("Path", sortUsing: StatusFileSort(column: .path)) { row in
-                    HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.state.textColor).lineLimit(1) }
+                    HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id))).lineLimit(1) }
                         .help(row.file.entry.originalPath.map { "Renamed from \($0)" } ?? row.path)
                 }.width(min: 250, ideal: 380)
-                TableColumn("Filename", sortUsing: StatusFileSort(column: .fileName)) { Text($0.fileName) }.width(min: 100, ideal: 180)
-                TableColumn("Extension", sortUsing: StatusFileSort(column: .fileExtension)) { Text($0.fileExtension) }.width(min: 45, ideal: 65)
-                TableColumn("Status", sortUsing: StatusFileSort(column: .status)) { row in Text(row.status).foregroundStyle(row.file.state.textColor) }.width(min: 110, ideal: 155)
-                TableColumn("Lines added", sortUsing: StatusFileSort(column: .added)) { Text($0.addedText) }.width(min: 60, ideal: 80)
-                TableColumn("Lines removed", sortUsing: StatusFileSort(column: .removed)) { Text($0.removedText) }.width(min: 60, ideal: 90)
+                TableColumn("Filename", sortUsing: StatusFileSort(column: .fileName)) { Text($0.fileName).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 100, ideal: 180)
+                TableColumn("Extension", sortUsing: StatusFileSort(column: .fileExtension)) { Text($0.fileExtension).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 45, ideal: 65)
+                TableColumn("Status", sortUsing: StatusFileSort(column: .status)) { row in Text(row.status).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id))) }.width(min: 110, ideal: 155)
+                TableColumn("Lines added", sortUsing: StatusFileSort(column: .added)) { Text($0.addedText).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 60, ideal: 80)
+                TableColumn("Lines removed", sortUsing: StatusFileSort(column: .removed)) { Text($0.removedText).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 60, ideal: 90)
                 TableColumn("Last modified", sortUsing: StatusFileSort(column: .lastModified)) { row in
-                    Text(row.metadata?.dateText ?? "–")
+                    Text(row.metadata?.dateText ?? "–").foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id)))
                 }.width(min: 150, ideal: 170)
-                TableColumn("File size", sortUsing: StatusFileSort(column: .fileSize)) { Text($0.sizeText) }.width(min: 70, ideal: 100)
-                TableColumn("LFS Lock", sortUsing: StatusFileSort(column: .lfsOwner)) { Text($0.lfsOwner) }.width(min: 100, ideal: 160)
+                TableColumn("File size", sortUsing: StatusFileSort(column: .fileSize)) { Text($0.sizeText).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 70, ideal: 100)
+                TableColumn("LFS Lock", sortUsing: StatusFileSort(column: .lfsOwner)) { Text($0.lfsOwner).foregroundStyle($0.file.entry.statusTextColor(selected: model.selection.contains($0.id))) }.width(min: 100, ideal: 160)
             }
             .background(CommitFileInteraction(rows: rows.map { .file($0.file.entry) }, leadingColumnCount: 0, keyboardDeleteEnabled: false,
                 visibleColumns: Set(model.visibleColumns), availableColumns: model.availableColumns, columnText: { entry, column in
