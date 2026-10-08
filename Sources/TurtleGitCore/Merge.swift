@@ -4,6 +4,7 @@ public struct MergeOptions: Sendable {
     public var revision = ""
     public var squash = false
     public var noCommit = false
+    public var allowUnrelatedHistories = false
     public var noFastForward = false
     public var fastForwardOnly = false
     public var logCount: Int?
@@ -32,7 +33,8 @@ extension GitRepository {
         let value = (try? run(["config", "--get", "merge.log"]).text.trimmingCharacters(in: .newlines)) ?? ""
         return Int(value).flatMap { $0 > 0 ? $0 : nil } ?? 20
     }
-    public func merge(_ options: MergeOptions) throws -> String {
+    public func merge(_ options: MergeOptions, cancellation: OperationCancellation? = nil) throws -> String {
+        try cancellation?.check()
         guard !(options.noFastForward && (options.fastForwardOnly || options.squash)) else { throw MergeFailure.combination }
         if let count = options.logCount, count < 0 { throw MergeFailure.logCount }
         guard options.strategy.isEmpty || MergeOptions.strategies.contains(options.strategy),
@@ -44,6 +46,7 @@ extension GitRepository {
         if options.fastForwardOnly { args.append("--ff-only") }
         if options.squash { args.append("--squash") }
         if options.noCommit { args.append("--no-commit") }
+        if options.allowUnrelatedHistories { args.append("--allow-unrelated-histories") }
         if let count = options.logCount { args.append("--log=\(count)") }
         if !options.strategy.isEmpty { args.append("--strategy=" + options.strategy) }
         // Upstream ignores hidden option/parameter values when the strategy changes.
@@ -65,6 +68,6 @@ extension GitRepository {
         }
         // Keep the selected ref name for Git's generated message; -- prevents options.
         args += ["--", options.revision]
-        return try run(args).text
+        return try run(args, cancellation: cancellation).text
     }
 }

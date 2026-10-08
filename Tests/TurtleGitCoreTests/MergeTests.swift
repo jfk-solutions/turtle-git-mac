@@ -2,6 +2,21 @@ import XCTest
 @testable import TurtleGitCore
 
 final class MergeTests: XCTestCase {
+    func testUnrelatedHistoryRetryRequiresExplicitFlagAndCreatesTwoParents() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let left = try await repo.run(["rev-parse", "HEAD"]).stdout
+        _ = try await repo.run(["checkout", "--orphan", "unrelated"])
+        _ = try await repo.run(["rm", "-rf", "--", "."])
+        try Data("right\n".utf8).write(to: root.appendingPathComponent("right")); try await repo.stage(["right"]); _ = try await repo.commit(message: "right")
+        _ = try await repo.run(["checkout", "main"])
+        var options = MergeOptions(); options.revision = "refs/heads/unrelated"
+        do { _ = try await repo.merge(options); XCTFail("Unrelated history merged without explicit retry") } catch is GitFailure {}
+        let afterFailure = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(left, afterFailure)
+        options.allowUnrelatedHistories = true; _ = try await repo.merge(options)
+        let parents = try await repo.run(["rev-list", "--parents", "-n", "1", "HEAD"]).text.split(whereSeparator: \.isWhitespace)
+        XCTAssertEqual(parents.count, 3); XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("right").path))
+    }
+
     func fixture() async throws -> (URL, GitRepository, String) {
         let (root, repo, path) = try await GitPatchTests().fixture()
         _ = try await repo.run(["checkout", "-b", "feature"])

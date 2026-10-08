@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "1872050b615c69d66c9de722409cb3df07c97f11",
+  "scope": "Merge owned progress, explicit unrelated retry, conflict and success post-actions, confirmed local branch removal, captured options and Stash save-to-merge-to-Pop intent. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/MergeDlg.cpp": "52095311feae10566902c8046bd1b606a1af3773",
+    "src/TortoiseProc/MergeDlg.h": "550c064cdfa1da8b5e0a31cf39b93d8b270e074a"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "9bcc2510744882a0dd76e26c9a8234b21f0589e271d22a7a75a41a0a96bd852d",
+    "NOTICE": "0988533c8719547c1ce475567d67810ac5533843bbd33b15f01e1d52572e08fc",
+    "Sources/TurtleGitCore/Merge.swift": "dede4db9a4de20555addc12f67c69fc64526bacdf1579f8872c779fe1f9256da",
+    "Sources/TurtleGitMac/MergeWindow.swift": "f9f12eb90f1828f14ca1c513dfdec382dd8beea9fd5b8800614a18877a480594",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "0bf7d9eaa150f034b95885caef091ff08b9e83a1affe8d0b535d7cbe99fab7fc",
+    "Tests/TurtleGitCoreTests/MergeTests.swift": "5bf455355a95095e10705aaadae5d0bc4d5a62c452b6d7d5426c77479cb91ccd",
+    "docs/MERGE-PARITY.md": "196c0228a86d0f7cf5e538b39025aa7c845d17fd6523ad709cf03b3b70bf395b",
+    "docs/STASH-PARITY.md": "1ec2ed54d3616497a1c85504530382a1d75980b2ee6f20f702f96f07840b9c20",
+    "docs/upstream-files.csv": "d31e04253a4ce0d3f1fe86adecf7cd4975819449c0f0d64041d9ced621e1bae3",
+    "docs/qa/merge-progress-native-2026-10-08.swift": "2cdbd61412c2dd3033feb43596725765faa02ebc5c90da2579a5087ec806ef36",
+    "scripts/test-merge-progress.py": "905ebc0cfc96e2f9b478a4bd4647507bcc7e9f0dfcc7cd3bbdfafe8cf025c087"
+  },
+  "all_sources_manifest_sha256": "327fab75f814fc8dae6e8289b297c062e949d67dcdfea3e424a13b1a893639c8",
+  "verification": {
+    "core": "MergeTests: 6 passed. New real-Git unrelated-root test rejects without explicit flag, preserves HEAD on failure, then merges with two parents when flag enabled. Existing FF/no-FF/squash/no-commit/message/strategy/conflict tests passed. Merge adds optional cancellation checked before preparation and passed to final command.",
+    "native": "Merge progress receiver passed system Git, 2.37.1, 2.39.5 and bundled 2.55.0. Actual Merge options model captures message/options and blocks duplicate dispatch; No Commit preserves message and supplies optional Pop before Commit, retains progress until close. Local success offers Remove/Push; deletion Abort preserves ref, Delete removes ref without moving HEAD, duplicate callback blocked. Remote omits removal. Squash Commit condition, conflict Resolve/Commit/Stash target callbacks and actual unmerged index, unrelated explicit retry with two-parent merge, pre-cancellation/HEAD preservation/invalidation and original icon mapping checked. No windows, preferences or clipboard writes.",
+    "regression": "Stash Save progress receiver passed all four Git versions against final Sources, including captured options, created/no-change action conditions, warning/Abort/invalidation, separated staged/worktree stash parents, preserved HEAD and pre-cancellation. It does not execute the native Merge factory handoff.",
+    "iterations": "Initial Debug, Core and both four-Git native matrices passed. No failed compile/test iteration.",
+    "limitations": "Physical menu/sheet/window ownership, deletion alert, close/cancel/conflict hint and actual post-action/factory/refresh routing unverified. Only pre-cancellation tested; active interruption/partial outcomes and live streaming need acceptance. Conflict hint suppression, source cancel-to-Abort behavior, git-svn post-action, pre-dialog user-data/rebase guards, signed scope and broader strategy/message/persistence parity pending. Native Stash-to-Merge showStashPop flag is wired but full displayed save/merge/Pop chain is not executed by receivers. Branch deletion follows source force-delete-by-name semantics after confirmation; concurrent ref movement and current-branch deletion failure not separately tested here. Pull follow-through Pop/Push still pending. Existing screenshots depict options, not progress. Full dialogs/Finder parity, updated real screenshots/manual, hosted CI/publication and signed App Store distribution incomplete. GitHub auth unavailable; not retried.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git 2.55.0 Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "documentation": "Merge/Stash parity, NOTICE, three upstream source mappings and native workflow step updated. Pin checker and all 3277 seven-column source rows passed. Local site generated; unpublished.",
+    "processes": "All compiler/native/build/audit sessions terminal. Main GUI never launched; receivers create models only, no windows. Final app/native receiver process audit empty. No preference or clipboard writes."
+  },
+  "logs": {
+    "build/qa/merge-progress/app-process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/merge-progress/core.log": "9a032f35e52a927f7c793a4a0fd6d6d274fc60d4af9b3910e775dc64b5cb67d3",
+    "build/qa/merge-progress/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/merge-progress/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/merge-progress/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/merge-progress/native.log": "1c31ca8f890a5244863235b9bd118044dbe9cefe111669568818624d27ba5884",
+    "build/qa/merge-progress/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-progress/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/merge-progress/stash-regression.log": "e209dcc9c5020b77dd4b38204daa3bf827ebf86275f6a2f6578aa38132849684",
+    "build/qa/merge-progress/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/merge-progress/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  }
+}

@@ -62,8 +62,8 @@ Escape and Cancel. HEAD/index/worktree remained unchanged.
   editor font preferences and saved geometry.
 - Full reference chooser controls, persisted revision history and native chooser
   acceptance with a different branch/commit, tag merge and detached/unborn cases.
-- Progress output with cancellation and upstream post-operation actions: Resolve,
-  Commit, Stash, retry unrelated histories, branch removal, Push and git-svn.
+- Physical progress/sheet/cancellation and post-action routing acceptance, live
+  streaming, conflict-hint suppression, git-svn post-action and cancel-to-Abort flow.
 - Dedicated Abort Merge dialog and three-way conflict editor. Conflicts and abort
   are covered in backend tests; native conflict recovery is not yet verified.
 - Interactive hooks/signing/editor workflows, strategy variants, user-data/rebase
@@ -72,3 +72,39 @@ Escape and Cancel. HEAD/index/worktree remained unchanged.
 No complete Merge parity or App Store readiness is claimed. Completing pending
 merges currently requires Commit staging mode; checked-file merge completion
 remains an existing limitation.
+
+## Progress and recovery post-actions
+
+Merge now runs the captured options/message in an owned native progress sheet.
+The options window remains fixed until that sheet closes. Command output and
+success/failure are retained instead of immediately closing the dialog. Exactly
+one pending operation can dispatch. Closed models cannot merge, and attached
+reference/progress sheets prevent closing the owner. Commands retain the original
+merge ref name for Git's generated message. Each Merge request owns a fresh options
+window so new requests cannot reset an existing draft or operation.
+
+Failure offers Resolve and Commit when the index has conflicts, then an explicit
+Merge unrelated histories retry when there is no common ancestor, followed by
+Stash Save. The retry preserves the captured options and adds the explicit Git
+flag; it does not automatically accept unrelated history. Stash Save retains the
+merge ref and offers Merge after saving. That return Merge requests Stash Pop
+following success, completing the native save-and-merge post-action chain.
+
+Success offers requested Stash Pop first. No Commit or Squash then offers Commit.
+Otherwise, branch merges offer Remove branch for a local ref and Push; remote refs
+omit removal, while Tag/Commit targets do not receive branch actions. Remove
+branch asks Delete/Abort before running the source's explicit `git branch -D`
+command. Abort preserves the branch. Duplicate confirmations/responses cannot
+repeat removal. Failed removal retains the progress result and reports its error.
+All post-actions use the original icons and existing native destination dialogs;
+operation/deletion callbacks refresh RefLog, Commit, Status and repository logs.
+
+The [receiver](qa/merge-progress-native-2026-10-08.swift) and
+[QA record](qa/merge-progress-2026-10-08.json) exercise actual models/Git behavior
+without windows. Core adds optional cancellation and the unrelated-history flag.
+App Store progress checks the retained security-scope lease before any Git read.
+Physical window/menu/sheet/confirmation/cancel/refresh routing, active-process
+interruption, live streaming, conflict hint/suppression, source cancel-to-Abort
+behavior, git-svn post-actions, pre-dialog user-data/rebase guards and signed access
+remain pending. Existing screenshots depict the options, not the progress sheet.
+Full Merge/application parity remains incomplete.

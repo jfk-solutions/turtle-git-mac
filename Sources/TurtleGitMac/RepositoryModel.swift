@@ -1129,10 +1129,10 @@ import TurtleGitCore
         controller.onClosed = { [weak self] in self?.exportWindows.removeValue(forKey: key) }
         exportWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
-        let root = repository.root
-        let controller = mergeWindows[root.path] ?? MergeWindowController(repository: repository, access: access)
-        controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: root.path) }
+    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false) {
+        let root = repository.root, key = repository.root.path + "\0" + UUID().uuidString
+        let controller = MergeWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
@@ -1151,7 +1151,20 @@ import TurtleGitCore
                 log.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
             log.onReset = { [weak self] revision in self?.showReset(repository: repository, access: access, revision: revision) }
         }
-        mergeWindows[root.path] = controller; controller.model.load(revision: revision)
+        controller.model.showStashPop = showStashPop
+        controller.model.onPostAction = { [weak self] action, request in
+            switch action {
+            case .resolve: self?.showResolve(repository: repository, access: access, paths: [], quick: nil)
+            case .commit: self?.showCommitDialog(repository: repository, access: access, paths: [])
+            case .stash:
+                var followUp = StashSaveFollowUp(); followUp.mergeRevision = request.revision
+                self?.showStash(repository: repository, access: access, followUp: followUp)
+            case .stashPop: self?.showStashRestore(repository: repository, access: access, pop: true)
+            case .push: self?.showPush(repository: repository, access: access)
+            case .mergeUnrelated, .removeBranch: break
+            }
+        }
+        mergeWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showStash(repository: GitRepository, access: RepositoryAccessLease?, followUp: StashSaveFollowUp = StashSaveFollowUp()) {
@@ -1171,7 +1184,7 @@ import TurtleGitCore
         controller.model.onPostAction = { [weak self] action, request in
             switch action {
             case .pull: self?.showFetch(repository: repository, access: access, isPull: true)
-            case .merge: if let revision = request.mergeRevision { self?.showMerge(repository: repository, access: access, revision: revision) }
+            case .merge: if let revision = request.mergeRevision { self?.showMerge(repository: repository, access: access, revision: revision, showStashPop: true) }
             case .pop, .apply: self?.showStashRestore(repository: repository, access: access, pop: action == .pop)
             }
         }

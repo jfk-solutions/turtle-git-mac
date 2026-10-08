@@ -83,7 +83,7 @@ were verified; no conflict prompt image is published.
 
 ## Remaining
 
-- Physical progress/sheet/cancellation acceptance, live output streaming, and downstream Pull/Merge follow-through flags (subsequent Pop/Push choices).
+- Physical progress/sheet/cancellation acceptance, live output streaming, and downstream Pull follow-through flags (subsequent Pop/Push choices).
 - RefLog now provides native list, selected Apply, inspection and guarded Drop/Clear.
   Selected Pop, branch-from-stash and broader deletion/recovery QA remain pending.
   See REFLOG-PARITY.md.
@@ -122,8 +122,9 @@ cancellation token to the stash command; existing callers retain default behavio
 The [headless receiver](qa/stash-save-progress-native-2026-10-08.swift) and
 [QA record](qa/stash-save-progress-2026-10-08.json) cover actual models/Git behavior,
 not displayed acceptance. Captured Pull/Merge intent is passed to the post-action
-callback, but native Pull/Merge destinations still use their current workflows:
-upstream's subsequent Pop/Push flags need implementation there. Live streaming,
+callback, but native Pull/Merge destinations use their native workflows:
+Merge now requests Stash Pop after success (see MERGE-PARITY.md); Pull's
+subsequent Pop/Push flags still need implementation. Live streaming,
 active-process interruption, physical sheet/window/close/factory routing, warning
 suppression persistence, signed invocation and broader application parity remain
 pending. Existing screenshots show the options, not the new progress sheet.

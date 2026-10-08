@@ -514,3 +514,7 @@ failure, merge-conflict and retry post-actions at the recorded upstream pin.
 Stash Save native progress and conditional Pull/Merge/Pop/Apply post-actions adapt
 AppUtils.cpp StashSave at the recorded upstream pin. The options dialog retains
 its captured save request while the owned progress sheet runs.
+
+Native Merge progress, unrelated-history retry, conflict and success post-actions
+adapt AppUtils.cpp DoMerge at the recorded upstream pin. Local branch removal
+retains source confirmation and Git's explicit force-delete operation.
