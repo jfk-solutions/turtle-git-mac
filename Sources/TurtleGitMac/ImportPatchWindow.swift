@@ -44,6 +44,10 @@ import TurtleGitCore
             let response = await self.prompt("A patch import is active", "Abort the import, or keep its state to continue later?", buttons: ["Abort", "Keep session", "Cancel"])
             return response == 0 ? .abort : response == 1 ? .keep : .cancel
         }
+        model.chooseUnavailableClose = { [weak self] reason in
+            guard let self else { return false }
+            return await self.prompt("Could not check patch import state", reason + "\n\nClose this window and keep any existing Git state?", buttons: ["Close and keep state", "Cancel"]) == 0
+        }
         model.close = { [weak self] in self?.approvedClose = true; self?.window?.performClose(nil) }
         DialogGeometry.attach(window, identifier: "ImportDlg", legacyName: "ImportDlg")
     }
@@ -113,6 +117,7 @@ import TurtleGitCore
     var composeMail: ([URL], @escaping (String?) -> Void) -> Void = { _, done in done("No mail composition service is available.") }
     var chooseRecovery: () async -> MailPatchRecovery? = { nil }
     var chooseClose: () async -> CloseChoice = { .cancel }
+    var chooseUnavailableClose: (String) async -> Bool = { _ in false }
     var close: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
     var finished: Bool { !items.isEmpty && items.allSatisfy { $0.state == .success || $0.state == .skipped } }
@@ -259,9 +264,18 @@ import TurtleGitCore
         guard editable else { return }; closing = true
         Task {
             defer { closing = false }
+            let session: MailPatchSession
             do {
                 try checkAccess()
-                if try await repository.mailPatchSession() == .applying {
+                session = try await repository.mailPatchSession()
+            } catch {
+                // Missing repository/runtime or lost access must not trap an idle
+                // window. An unknown session can only be left intact, not aborted.
+                if await chooseUnavailableClose(error.localizedDescription) { close() }
+                return
+            }
+            do {
+                if session == .applying {
                     switch await chooseClose() {
                     case .cancel: return
                     case .keep: break

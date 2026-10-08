@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "8431283e6516af20f57502f09b2d48546a5c5bbc",
+  "scope": "Import Patch idle close after repository/session check failure; full port remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ImportPatchDlg.cpp": "3bce8ea1941166a18a3380799d9a44e201a995c9"
+  },
+  "sources_manifest_sha256": "f9e10d0d59d9ac9f03e23fd359d521c0b45ab72b5d95974f0649d1547d12eef1",
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "bf2ccdf5fe0a58bc31eb14967ceae389e0357a6349d99235e78984ab8d413754",
+    "docs/IMPORT-PATCH-PARITY.md": "149204899d5e34ac871853349e093dce82d50963405371462d42d74fb77ede3a",
+    "docs/qa/import-patch-native-2026-10-08.swift": "82ab50eaa6b75cf56db0363a2dce28799dc89af375599272a32410b801d08598",
+    "docs/upstream-files.csv": "8948db31289bac045ce544695dfc2e52e17fe7d0e89823ce2fb7db87b2009bdc"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four engines pass the complete receiver. Temporarily moves .git during a real conflicted git am: Cancel retains window and unlocks controls; explicit close preserves index and working file bytes, active session and HEAD after directory restoration. Fixture aborts only after assertions. Existing batch/recovery/stop, divider, appearance, preview and injected context handoffs also pass.",
+    "core": "No Core production changes; no additional Core tests for this UI-only change.",
+    "builds": "Unsigned Debug and Store builds pass. Sources and receiver frozen during compiler/native runs; Store follows terminal native run.",
+    "bundles": "Debug and Store bundle validators and NOTICE comparisons pass. Inventory pin, 3277 CSV records with 7 fields, documentation site and whitespace checks pass."
+  },
+  "iterations": [
+    "Single final four-engine native run passes; no source edits after native compilation."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.9E41A3D5-006E-4D86-BDAD-1B7FEDEC79C1.plist",
+      "TurtleGit.ImportPatch.QA.55B2DB60-0D13-4571-AA41-0AAC00709607.plist",
+      "TurtleGit.ImportPatch.QA.12DC4C1E-C78B-41A7-AE3A-0B4A361D47D9.plist",
+      "TurtleGit.ImportPatch.QA.04831027-7F08-44DD-8918-CFDA82490C71.plist"
+    ],
+    "retained_nonempty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "app_or_receiver_processes": [],
+    "fixtures": "Native TemporaryDirectory fixtures removed; owned hidden windows closed. Standard application preferences untouched."
+  },
+  "limitations": [
+    "The unavailable-state escape is a native adaptation: upstream uses a filesystem HasRebaseApply check. Unknown state is never automatically aborted; failed explicit abort still keeps the window open.",
+    "Native prompt selection is injected; physical sheet/default/Escape acceptance, actual lost sandbox access and unavailable executable are not exercised. They share the caught check failure path.",
+    "Idle application-quit prompts, patch review/application, drag/drop and other documented dialog parity remain pending.",
+    "Unsigned builds do not establish signed sandbox/Finder/App Store or physical screenshot acceptance.",
+    "GitHub auth/CI/push and CUA remain unavailable from previous evidence; not retried. Full objective remains active."
+  ],
+  "logs_sha256": {
+    "build/qa/import-patch-close/cleanup.json": "ce859815fb76f9ba0cbf3e8b3700a24c594d7fdc894b5f38913e1c1e613735c7",
+    "build/qa/import-patch-close/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/import-patch-close/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/import-patch-close/native.log": "b182fa1b224000e4fd2f3a04fc280bbf038f06d980f3967f756f1996b94de59e",
+    "build/qa/import-patch-close/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/import-patch-close/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/import-patch-close/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/import-patch-close/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

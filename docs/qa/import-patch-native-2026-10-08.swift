@@ -144,6 +144,25 @@ import TurtleGitCore
         closing.chooseClose = { .abort }; closing.requestClose(); try await settle(closing); precondition(closes == 2)
         let cleared = try await closingRepo.mailPatchSession(); precondition(cleared == .none)
 
+        // Make a real active am session temporarily unavailable without deleting it.
+        let beforeUnavailableHead = try await closingRepo.run(["rev-parse", "HEAD"]).stdout
+        closing.apply(); try await settle(closing)
+        let gitDirectory = closingRepo.root.appendingPathComponent(".git"), heldDirectory = closingRepo.root.appendingPathComponent("held-git")
+        let indexBefore = try Data(contentsOf: gitDirectory.appendingPathComponent("index"))
+        let fileBefore = try Data(contentsOf: closingRepo.root.appendingPathComponent("file"))
+        try FileManager.default.moveItem(at: gitDirectory, to: heldDirectory)
+        var unknownPrompts = 0
+        closing.chooseUnavailableClose = { reason in unknownPrompts += 1; precondition(!reason.isEmpty); return false }
+        closing.requestClose(); try await settle(closing); precondition(closes == 2 && unknownPrompts == 1 && closing.editable)
+        closing.chooseUnavailableClose = { _ in unknownPrompts += 1; return true }
+        closing.requestClose(); try await settle(closing); precondition(closes == 3 && unknownPrompts == 2)
+        let unknownIndex = try Data(contentsOf: heldDirectory.appendingPathComponent("index")), unknownFile = try Data(contentsOf: closingRepo.root.appendingPathComponent("file"))
+        precondition(unknownIndex == indexBefore && unknownFile == fileBefore)
+        try FileManager.default.moveItem(at: heldDirectory, to: gitDirectory)
+        let retainedUnknown = try await closingRepo.mailPatchSession(), headAfterUnknown = try await closingRepo.run(["rev-parse", "HEAD"]).stdout
+        precondition(retainedUnknown == .applying && headAfterUnknown == beforeUnavailableHead)
+        _ = try await closingRepo.recoverMailPatch(.abort)
+        print("PASS: unavailable Git directory during real active am: Cancel retains window, explicit close keeps HEAD/index/file/session intact, controls recover; no automatic abort.")
         let (slow, slowFiles) = try await fixture(root.appendingPathComponent("stop"), git)
         let hooks = slow.root.appendingPathComponent("hooks"); try FileManager.default.createDirectory(at: hooks, withIntermediateDirectories: true)
         let hook = hooks.appendingPathComponent("applypatch-msg")

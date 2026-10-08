@@ -53,7 +53,9 @@ An active rebase is refused. Git committer identity is checked before importing.
 **Abort** while a batch runs stops after the current Git command; it does not
 kill that command or close the window. Idle Cancel/window-close checks the Git
 session and offers Abort, Keep session or Cancel. Failed aborts keep the window
-open. Quitting is refused during an operation or attached sheet. Patch-file
+open. If repository access or the Git session check fails, an explicit **Close and
+keep state** choice allows the idle window to close without attempting recovery;
+Cancel keeps it open. Cancel is the safe default. Quitting is refused during an operation or attached sheet. Patch-file
 security-scope leases and repository access remain retained by the model.
 
 The command uses the original patch icon in the app and Finder. Finder command
@@ -69,6 +71,9 @@ row movement/checks, fixed batch input/options, two real mail commits and sign-o
 retained conflict cursor and all recovery choices, Cancel/Keep/Abort close choices,
 and a slow real Git hook proving that batch stop completes the current command.
 The [native QA record](qa/import-patch-native-2026-10-08.json) records four Git engines.
+[Unavailable-session close QA](qa/import-patch-close-2026-10-08.json) additionally
+checks Cancel and explicit close with a temporarily moved Git directory, preserving
+the real active import session, HEAD, index and working file.
 Finder checks cover menu order, conditions, icons and routing metadata; they do
 not prove a deployed Finder extension.
 
