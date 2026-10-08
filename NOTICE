@@ -690,3 +690,9 @@ The native Review Patch window adapts CAppUtils::StartExtPatch working-tree and
 reverse-patch handoff. AppUtils copyright and GPL attribution above apply. The
 checked-file review and application use native Swift/AppKit and Git CLI checks;
 editable TortoiseGitMerge before/after patch panes remain pending.
+
+Review Patch before/after panes adapt CMainFrame::PatchFile in TortoiseMerge/MainFrm.cpp,
+copyright (C) 2008-2026 TortoiseGit, (C) 2004-2018, 2020 TortoiseSVN and
+(C) 2012-2014 Sven Strickroth, under GPL version 2 or later. Native byte snapshots, Git CLI temporary
+application, aligned read-only panes and shared Merge colors replace Windows
+temporary-file/view handoffs. Editable patch results remain pending.

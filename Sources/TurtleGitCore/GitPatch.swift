@@ -245,3 +245,88 @@ extension WorkingTreePatchReview {
         }
     }
 }
+
+/// Exact current and patched bytes. Temporary files are discarded before return.
+public struct WorkingTreePatchFileComparison: Sendable {
+    public let document: FileComparisonDocument
+    public let fileID: Int
+}
+
+extension GitRepository {
+    public func compareWorkingTreePatchFile(_ review: WorkingTreePatchReview, fileID: Int) throws -> WorkingTreePatchFileComparison {
+        guard review.repositoryRoot == root, review.includePatterns.isEmpty,
+              let file = review.files.first(where: { $0.id == fileID }) else { throw WorkingTreePatchFailure.selection }
+        let matching = review.files.filter { $0.pathBytes == file.pathBytes }
+        let selected = try reviewWorkingTreePatchFiles(review, fileIDs: Set(matching.map(\.id)))
+        guard selected.canApply else { throw WorkingTreePatchFailure.review }
+        return try withWorkingTreePatch(review.document.bytes) { patch in
+            // Opposite-direction numstat names the preimage of each record,
+            // including renames, without parsing human-readable quoted headers.
+            // Git reverses record order as well as patch direction.
+            let opposite = try Array(WorkingTreePatchReview.parseFiles(run(["apply", "-p\(review.stripCount)"] + (review.reversed ? [] : ["--reverse"]) + ["--numstat", "-z", "--", patch.path]).stdout).reversed())
+            guard opposite.count == review.files.count else { throw WorkingTreePatchFailure.metadata }
+            func path(_ bytes: Data) throws -> String {
+                guard let value = String(data: bytes, encoding: .utf8) else { throw WorkingTreePatchFailure.pathEncoding }
+                _ = try restoreLocation(value)
+                return value
+            }
+            let destination = try path(file.pathBytes), source = try path(opposite[file.id].pathBytes)
+            let paths = try Set(matching.flatMap { record in [try path(record.pathBytes), try path(opposite[record.id].pathBytes)] })
+            let manager = FileManager.default
+            let temporary = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGitPatchComparison-" + UUID().uuidString, isDirectory: true)
+            try manager.createDirectory(at: temporary, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+            defer { try? manager.removeItem(at: temporary) }
+            func checkParents(_ location: URL, anchor: URL) throws {
+                var parent = location.deletingLastPathComponent()
+                while parent.path != anchor.path {
+                    guard parent.path.hasPrefix(anchor.path + "/") else { throw WorkingFileRestoreFailure.location }
+                    do {
+                        let attributes = try manager.attributesOfItem(atPath: parent.path)
+                        guard attributes[.type] as? FileAttributeType != .typeSymbolicLink else { throw WorkingFileRestoreFailure.location }
+                    } catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError { }
+                    parent.deleteLastPathComponent()
+                }
+            }
+            func read(_ location: URL, path: String, anchor: URL) throws -> ComparisonFileContent {
+                try checkParents(location, anchor: anchor)
+
+                do { _ = try manager.attributesOfItem(atPath: location.path) }
+                catch let error as NSError where error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoSuchFileError {
+                    return ComparisonFileContent(path: path, revision: .workingTree, bytes: Data(), mode: nil)
+                }
+                let value = try WorkingFileComparison.workingContent(at: location)
+                return ComparisonFileContent(path: path, revision: .workingTree, bytes: value.bytes, mode: value.mode, permissions: value.permissions)
+            }
+            var before: ComparisonFileContent?
+            for name in paths {
+                let location = try restoreLocation(name), value = try read(location, path: name, anchor: root)
+                if name == source { before = value }
+                guard value.mode != nil else { continue }
+                let copy = temporary.appendingPathComponent(name)
+                try checkParents(copy, anchor: temporary)
+                try manager.createDirectory(at: copy.deletingLastPathComponent(), withIntermediateDirectories: true)
+                if value.mode == "120000" {
+                    try manager.createSymbolicLink(atPath: copy.path, withDestinationPath: manager.destinationOfSymbolicLink(atPath: location.path))
+                } else {
+                    try value.bytes.write(to: copy, options: .withoutOverwriting)
+                    try manager.setAttributes([.posixPermissions: value.permissions ?? 0o600], ofItemAtPath: copy.path)
+                }
+            }
+            let gitDirectory = temporary.appendingPathComponent(".git").path
+            let environment = ["GIT_DIR": gitDirectory, "GIT_COMMON_DIR": gitDirectory, "GIT_WORK_TREE": temporary.path, "GIT_INDEX_FILE": temporary.appendingPathComponent(".git/index").path]
+            let location = ["-C", temporary.path, "--git-dir=" + gitDirectory, "--work-tree=" + temporary.path]
+            _ = try run(location + ["init", "--template="], environmentOverrides: environment)
+            // Match repository-local apply policy, including whitespace fixing.
+            var configuration: [String] = []
+            for key in ["apply.whitespace", "apply.ignoreWhitespace", "core.whitespace"] {
+                let value = try run(["config", "--get", key], successfulExitCodes: 0...1)
+                if value.exitCode == 0 { configuration += ["-c", key + "=" + value.text.trimmingCharacters(in: .newlines)] }
+            }
+            let arguments = location + configuration + ["apply", "-p\(review.stripCount)"] + (review.reversed ? ["--reverse"] : []) + selected.includePatterns.map { "--include=" + $0 }
+            _ = try run(arguments + ["--check", "--", patch.path], environmentOverrides: environment)
+            _ = try run(arguments + ["--", patch.path], environmentOverrides: environment)
+            guard let before else { throw WorkingTreePatchFailure.metadata }
+            return WorkingTreePatchFileComparison(document: FileComparisonDocument(base: before, destination: try read(temporary.appendingPathComponent(destination), path: destination, anchor: temporary)), fileID: fileID)
+        }
+    }
+}

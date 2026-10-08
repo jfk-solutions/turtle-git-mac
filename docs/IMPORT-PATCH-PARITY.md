@@ -129,8 +129,31 @@ child patch operations guard each other. The file access lease stays retained.
 AppKit table and preview, selected application/continuation/reversal, exact HEAD
 and index preservation, busy close/Quit/options guards and injected context
 handoff/failure recovery. It does not establish physical menu gestures or visual
-comparison. Editable before/after merge panes and hunk-level application remain
-pending.
+comparison. Editing the patched result and hunk-level application remain pending.
+
+The **Compare** tab now shows the focused file before and after the patch, with
+aligned rows, source Merge colors, line numbers, linked vertical scrolling,
+difference navigation and native Find. Selecting another file refreshes its
+comparison; the Original patch tab retains the entire unchanged patch. Content that cannot be decoded as text shows a bounded hexadecimal preview,
+with exact bytes kept
+in the comparison snapshot. Absent files and file modes are shown explicitly.
+
+To produce the after image, the Core backend copies only the selected path
+operation's current inputs into a private temporary repository, applies the
+original bytes with the same reverse/strip/include and local whitespace policy,
+then returns exact before/after bytes and removes the temporary directory.
+Parent symlinks are rejected for original reads and temporary copy/result paths.
+Forward and opposite-direction Git metadata are paired in opposite record order
+so renames use the correct preimage. Current files, HEAD and index are untouched.
+A conflicting focused file reports a preview error; other checked applicable
+files can still be applied.
+
+[Before/after QA](qa/patch-comparison-2026-10-08.json) records real-Git Core
+text/binary/rename/mode/add/delete/reverse, unusual-name, symlink, local whitespace
+policy and stale/unsafe/foreign-review checks. The native receiver checks the
+hidden before/after text controls, palette, ruler, Find, file selection, linked
+scrolling and difference navigation. Physical visual/accessibility acceptance
+and editable patch-result saving remain pending.
 
 The Core review/application backend now keeps original patch bytes, obtains Git's
 statistics and summary, and checks applicability without staging or committing.
@@ -162,7 +185,7 @@ rejected. Per-file selection requires UTF-8 paths; whole-patch application keeps
 raw path bytes through Git. [Selected-file QA](qa/patch-file-apply-2026-10-08.json)
 checks literal wildcard/backslash names, an unselected conflict, sequential
 rename/binary/remaining-file application and reverse rename without changing the
-index. Native checkboxes use this backend; per-file before/after comparison remains
+index. Native checkboxes use this backend; editable before/after comparison remains
 pending. The source suppresses the generic
 Apply context command in Import Patch; this native list does too.
 

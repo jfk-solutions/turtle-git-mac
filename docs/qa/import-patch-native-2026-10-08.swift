@@ -92,6 +92,30 @@ import TurtleGitCore
         reviewController.window?.contentView?.layoutSubtreeIfNeeded()
         precondition(nativeTable(reviewController.window!.contentView!)?.numberOfRows == 2 && reviewer.canApply && reviewer.previewDocument.readOnly && reviewer.previewDocument.exportDocument.bytes == reviewBytes)
         let reviewIndex = try Data(contentsOf: reviewRepo.root.appendingPathComponent(".git/index")), reviewHead = try await reviewRepo.run(["rev-parse", "HEAD"]).stdout
+        precondition(reviewer.comparison?.document.base.bytes == Data("base\n".utf8) && reviewer.comparison?.document.destination.bytes == Data("feature\n".utf8))
+        for _ in 0..<100 {
+            reviewController.window?.contentView?.layoutSubtreeIfNeeded()
+            if reviewer.beforeScroll != nil && reviewer.afterScroll != nil { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        let beforeEditor = reviewer.beforeScroll!.documentView as! NSTextView, afterEditor = reviewer.afterScroll!.documentView as! NSTextView
+        precondition(!beforeEditor.isEditable && !afterEditor.isEditable && beforeEditor.string == "base\n" && afterEditor.string == "feature\n")
+        precondition(reviewer.beforeScroll!.rulersVisible && (reviewer.beforeScroll!.verticalRulerView as! MergeLineRuler).sourceNumbers == [1])
+        for (editor, state) in [(beforeEditor, MergeSourceState.removed), (afterEditor, .added)] {
+            let actual = (editor.textStorage!.attribute(.backgroundColor, at: 0, effectiveRange: nil) as! NSColor).usingColorSpace(.deviceRGB)!
+            let expected = MergePalette.color(state).usingColorSpace(.deviceRGB)!
+            precondition(abs(actual.redComponent - expected.redComponent) < 0.001 && abs(actual.greenComponent - expected.greenComponent) < 0.001 && abs(actual.blueComponent - expected.blueComponent) < 0.001)
+        }
+        reviewer.navigate(1); precondition(reviewer.difference == 0 && afterEditor.selectedRange().location == 0)
+        reviewer.findComparison(); precondition(reviewer.afterScroll!.isFindBarVisible)
+        reviewer.afterScroll!.isFindBarVisible = false
+        let additionID = reviewer.review!.files.first { $0.path == "other" }!.id
+        reviewer.focusFile(additionID); precondition(reviewer.busy); try await waitReview()
+        precondition(reviewer.comparison?.document.base.mode == nil && reviewer.comparison?.document.destination.bytes == Data("feature\n".utf8))
+        reviewer.focusFile(reviewer.review!.files.first { $0.path == "file" }!.id); try await waitReview()
+        let previewHead = try await reviewRepo.run(["rev-parse", "HEAD"]).stdout
+        let previewIndex = try Data(contentsOf: reviewRepo.root.appendingPathComponent(".git/index"))
+        precondition(previewIndex == reviewIndex && previewHead == reviewHead)
         var reviewChanges = 0; reviewer.onChanged = { _ in reviewChanges += 1 }
         let firstFile = reviewer.review!.files.first { $0.path == "file" }!
         reviewer.check(firstFile.id, false); try await waitReview(); precondition(reviewer.canApply && reviewer.selected.count == 1)
@@ -119,6 +143,30 @@ import TurtleGitCore
         precondition(finalReviewFile == Data("base\n".utf8) && !FileManager.default.fileExists(atPath: reviewRepo.root.appendingPathComponent("other").path) && reviewIndex == finalReviewIndex && reviewHead == reviewFinalHead && reviewChanges == 3)
         precondition(reviewer.previewDocument.exportDocument.bytes == reviewBytes)
         print("PASS: actual hidden native Review Patch table/preview, checked-file application, remaining-file continuation and reverse; original bytes/HEAD/index retained, busy close/Quit/options/reentry guards; no main app or physical context gestures.")
+        let longBefore = (0..<120).map { "line \($0)\n" }.joined()
+        let longAfter = longBefore.replacingOccurrences(of: "line 75\n", with: "changed 75\n")
+        let longPath = reviewRepo.root.appendingPathComponent("long")
+        try Data(longBefore.utf8).write(to: longPath); try await reviewRepo.stage(["long"]); _ = try await reviewRepo.commit(message: "long preview")
+        try Data(longAfter.utf8).write(to: longPath)
+        let longBytes = try await reviewRepo.run(["diff", "--no-ext-diff", "--no-color", "--", "long"]).stdout
+        _ = try await reviewRepo.run(["restore", "--", "long"])
+        let scrollController = WorkingTreePatchWindowController(repository: reviewRepo, access: nil, fileAccess: nil, bytes: longBytes, title: "long.patch", preferences: prefs)
+        defer { scrollController.close() }
+        let scrollModel = scrollController.model
+        for _ in 0..<1000 {
+            scrollController.window?.contentView?.layoutSubtreeIfNeeded()
+            if !scrollModel.busy && scrollModel.beforeScroll != nil && scrollModel.afterScroll != nil { break }
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        precondition(!scrollModel.busy && scrollModel.alignment?.rows.count == 120)
+        let leftScroll = scrollModel.beforeScroll!, rightScroll = scrollModel.afterScroll!
+        leftScroll.contentView.scroll(to: NSPoint(x: 0, y: 220)); leftScroll.reflectScrolledClipView(leftScroll.contentView)
+        precondition(leftScroll.contentView.bounds.minY > 0 && abs(leftScroll.contentView.bounds.minY - rightScroll.contentView.bounds.minY) < 1)
+        scrollModel.navigate(1)
+        precondition(scrollModel.difference == 0 && (rightScroll.documentView as! NSTextView).selectedRange().location > 0)
+        let unchangedLong = try Data(contentsOf: longPath)
+        precondition(unchangedLong == Data(longBefore.utf8))
+        print("PASS: actual hidden aligned before/after text, source Merge colors, line ruler, addition absence, Find bar, linked vertical scrolling and next-difference navigation; real worktree/HEAD/index unchanged by preview. No physical input/screenshot acceptance.")
         let dropped = ImportPatchWindowModel(repository: repo, access: nil, preferences: prefs)
         func provider(_ url: URL) -> NSItemProvider {
             let item = NSItemProvider()

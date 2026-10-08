@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "a86c27d5836c27c7ed58d8d9eb3491ffd8f8fc93",
+  "scope": "Native read-only before/after working-tree patch comparison, private exact-byte simulation and aligned native panes. Editable patch results and full app/distribution objective remain incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseMerge/MainFrm.cpp": "0d5d08525a1ee6a3f8bfa5f15cff9bf6bcba1138",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/PatchListCtrl.cpp": "dea42bf97d4a1b265d31712e9b60ce7dd87dda8d"
+  },
+  "reference": "https://git-scm.com/docs/git-apply",
+  "sources_manifest_sha256": "d9805e6324aa290e484d7f558ba1fdf74de3f7f33a3dce0bd710040b4b09e2c4",
+  "changed_files_sha256": {
+    "NOTICE": "bc48de9a4ec27badcd17b5a3b94f9ff75a45e87f8a6e092b7a87637330bfb3bd",
+    "Sources/TurtleGitCore/GitPatch.swift": "661aff426c98c3347e7f4aacaddf93bbef04d08122f90d48e8e6102abc72b18d",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "8ba6b71f4779c021cc0dc80983e8b028097ab2032a1a10bb484bd8a3316495c1",
+    "Tests/TurtleGitCoreTests/WorkingTreePatchReviewTests.swift": "aafa8254352babde87980a436fecc09871ae42449b0f1f4067df8866cc5af5b2",
+    "docs/IMPORT-PATCH-PARITY.md": "5407156cc2e8d4a8527bf5e7b70ee1ccdf3d64f1702beac8809d83e5de6d82cc",
+    "docs/qa/import-patch-native-2026-10-08.swift": "2b57447beb4cc31a238ad781ae10687a2d6bacd56efaea78240f670bb66baf44",
+    "docs/upstream-files.csv": "ae3ca33173468d59121101216eacab998a3d355a877ae310d1e243713d62921a"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "12 cases x four engines = 48 final passing executions (11 real-Git cases and one metadata/parser case per engine). Three new cases: exact text/binary/rename/mode/add/delete forward and reverse before/after bytes; preview keeps HEAD/raw index/worktree; literal wildcard/backslash/tab/newline/Unicode name, exact symlink target bytes and local apply.whitespace=fix policy; stale, unsafe and foreign review refused. Existing selected/whole-patch regressions pass. Final runs additionally reject a patch through an internal parent symlink and preserve its real target bytes.",
+    "native": "Complete Import Patch receiver passes four engines. Actual hidden comparison text controls show real base/feature bytes with read-only guard, source Merge colors, ruler line numbers, native Find visibility, file selection and addition absence. A real 120-line patch proves linked vertical scrolling and next-difference selection; original long working bytes preserved. Existing Review Patch selected apply/continue/reverse/busy/quit/option-refresh guards and Import Patch context/identity/drop/preview/divider/Find/recovery/stop regressions pass. No main GUI launch or physical inputs.",
+    "builds": "Unsigned Debug and Store builds pass. Final Debug/NOTICE bundle is stationary during complete four-engine native receiver; Store runs after terminal Core/native/compiler sessions. Source/NOTICE/receiver/tests frozen during live sessions.",
+    "bundles": "Debug and Store validators, NOTICE comparisons, inventory pin, CSV 3277 records/seven fields, site and whitespace checks pass. Store packaged Git 2.55.0 (11 universal Mach-O files), EditorConfig, IssueRegex and 98 upstream icons audited."
+  },
+  "iterations": [
+    "First Apple Core run failed: opposite-direction numstat also reverses file-record order, so ordinal pairing selected wrong rename/symlink preimage. Independent real-Git probe confirmed ordering; fixed reversal and tightened missing-file error handling. Repaired 12-case Apple run passes, then three other engine runs pass. No native repair iteration.",
+    "Intermediate repaired Core Apple run preceded UI edits; other three intermediate Core runs followed UI edits. Core source/tests unchanged across those intermediate runs. Final parent-symlink guard then triggered all four Core reruns, final Debug, complete four-engine native receiver and final sequential Store.",
+    "Final filesystem review added explicit parent-symlink rejection for original reads, temporary copies and temporary result reads; real internal symlink-parent patch rejection/preserved target added to existing stale/unsafe case. All 12 cases rerun sequentially on four engines and pass. Debug/native/Store gates repeated after Core change."
+  ],
+  "limitations": [
+    "This comparison is read-only; editing/saving patched result, hunk/line application, conflict merge/reject panes, full TortoiseGitMerge parser and source-exact UI behavior remain pending.",
+    "Native compare tests use text modification/addition and a long text file; binary/rename/mode/delete/symlink/local policy coverage is Core evidence. Native binary hex preview, dark rendering, physical keyboard/menu/scroll gestures, accessibility and rendered visual comparison remain unverified.",
+    "Opposite metadata record-order pairing is verified for tested engines and patch types. Copy/submodule/repeated-path preview and non-UTF-8 per-file selection are not new runtime cases. Per-file argv filtering requires UTF-8 paths.",
+    "Private simulation copies only selected operation input/target paths and returns immutable byte snapshots; no user worktree/index/HEAD writes. Preview does not prevent external writers changing originals afterward; application performs fresh checking.",
+    "No signed sandbox/Finder deployment or App Store acceptance claim. GitHub auth/CI/push and CUA unavailable from prior evidence, not retried. Full goal remains active.",
+    "Parent-symlink checks strengthen private-copy containment; an actual external-writer race was not deterministically injected or globally locked."
+  ],
+  "cleanup": {
+    "app_or_receiver_processes": [],
+    "remaining_fixture_or_comparison_roots": [],
+    "removed_empty_private_preferences": [
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.EF2FA6CB-16DC-4E92-947A-30EFD06B3D78.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.D0BFAA19-69C9-40DE-9E74-5AB2D66C452E.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.B95D727C-4375-40B1-8042-9C7ABB92688B.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.B799741A-B4BD-4D53-AEF6-EBC31EC8B6EC.plist"
+    ],
+    "retained_failed_nonempty_preferences": [
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.77E263CF-C337-44E7-8E7E-D1E02A2F1C8E.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "/Users/jkuehner/Library/Preferences/TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ]
+  },
+  "logs_sha256": {
+    "build/qa/patch-comparison/cleanup-final.json": "e3c18d35c400c4ef20207ca8fc474c33cdec6f783238b452536d6becebb4df2b",
+    "build/qa/patch-comparison/cleanup.json": "572e62ec5c19b5ea98709b0fcb71e97b41227e71e1247b11f2cbf35fb6d67c79",
+    "build/qa/patch-comparison/core-2.37.1-final.log": "eb3af2d88fc715beab53d1edf71d60be1d6837434ac33b6002f056fd26360a9a",
+    "build/qa/patch-comparison/core-2.37.1.log": "1adee2e22ae2eba550bc9bd57fe603227ea4bf8547a842857c1a763bb2b34985",
+    "build/qa/patch-comparison/core-2.39.5-final.log": "cf7ba38391b44f67f44615d2b9847e5795e13b6f5a4c301b1946e9672482b1b1",
+    "build/qa/patch-comparison/core-2.39.5.log": "4353fcdec02b0c1ff9dd911f3f30ddfdded9bca8468b7f9f7398b1b4ba8191c3",
+    "build/qa/patch-comparison/core-2.55.0-final.log": "d3ad30b687604e6e909aaf8f5213347ed6c531f63f4c92752d58397adfe8ce61",
+    "build/qa/patch-comparison/core-2.55.0.log": "eeb53a92e41e17fd5850957b9d6fdb3b3a65763efd6696bb5b770a455330a79a",
+    "build/qa/patch-comparison/core-apple-final.log": "d0bf64afcd5255b84928e39cec5110b34167d949a4724a559910d85f2eda7004",
+    "build/qa/patch-comparison/core-apple-repaired.log": "e7b6d12fd2a2735a0261ec5bdb4e4f65fc86bcf0a3cfd2c9840ecee87fdf0bcb",
+    "build/qa/patch-comparison/core-apple.log": "0ba4f925d50370a4d8758c889eb44c1ca59ee0200731b3f1465f592346555acc",
+    "build/qa/patch-comparison/debug-audit-final.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/patch-comparison/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/patch-comparison/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-comparison/debug-hardened.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-comparison/debug.log": "ea04b3c84d77a3c00c9e9720878612be91056ad168893f541bbc51144158fa50",
+    "build/qa/patch-comparison/native-final.log": "6bb308221acc69c48393bbcdfe66737533eb46bb232cbcbcbbe7839d931cbef2",
+    "build/qa/patch-comparison/native.log": "6bb308221acc69c48393bbcdfe66737533eb46bb232cbcbcbbe7839d931cbef2",
+    "build/qa/patch-comparison/pin-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/patch-comparison/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/patch-comparison/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/patch-comparison/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/patch-comparison/store-audit-final.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/patch-comparison/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/patch-comparison/store-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-comparison/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

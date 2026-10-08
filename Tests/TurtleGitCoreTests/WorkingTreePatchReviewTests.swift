@@ -184,4 +184,82 @@ final class WorkingTreePatchReviewTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: root.appendingPathComponent("--old 雪").path))
     }
 
+    func testFileComparisonsUseCurrentBytesWithoutTouchingWorktreeOrIndex() async throws {
+        let (root, repo, bytes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
+        let review = try await repo.reviewWorkingTreePatch(bytes)
+        var comparisons: [String: WorkingTreePatchFileComparison] = [:]
+        for file in review.files {
+            let value = try await repo.compareWorkingTreePatchFile(review, fileID: file.id)
+            XCTAssertEqual(value.fileID, file.id); comparisons[file.path] = value
+        }
+        let rename = comparisons["--new 雪"]!.document
+        XCTAssertEqual(rename.base.path, "--old 雪"); XCTAssertEqual(rename.destination.path, "--new 雪")
+        XCTAssertEqual(rename.base.bytes, Data("one\ntwo\nthree\nfour\n".utf8))
+        XCTAssertEqual(rename.destination.bytes, Data("one\ntwo changed\nthree\nfour\n".utf8))
+        XCTAssertEqual(rename.base.mode, "100644"); XCTAssertEqual(rename.destination.mode, "100755")
+        XCTAssertNil(comparisons["added"]!.document.base.mode)
+        XCTAssertEqual(comparisons["added"]!.document.destination.bytes, Data("added\n".utf8))
+        XCTAssertNil(comparisons["delete"]!.document.destination.mode)
+        XCTAssertEqual(comparisons["delete"]!.document.base.bytes, Data("delete\n".utf8))
+        XCTAssertEqual(comparisons["binary"]!.document.base.bytes, Data([0, 1, 2, 3, 4]))
+        XCTAssertEqual(comparisons["binary"]!.document.destination.bytes, Data([0, 4, 3, 2, 1, 255]))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("--old 雪")), rename.base.bytes)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: root.appendingPathComponent("--new 雪").path))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+        let unchangedHead = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(unchangedHead, head)
+        _ = try await repo.applyWorkingTreePatch(review)
+        let reverse = try await repo.reviewWorkingTreePatch(bytes, reversed: true)
+        for file in reverse.files {
+            let value = try await repo.compareWorkingTreePatchFile(reverse, fileID: file.id)
+            let forward = comparisons[file.path == "--old 雪" ? "--new 雪" : file.path]!.document
+            XCTAssertEqual(value.document.base.bytes, forward.destination.bytes)
+            XCTAssertEqual(value.document.destination.bytes, forward.base.bytes)
+            XCTAssertEqual(value.document.destination.mode, forward.base.mode)
+        }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(".git/index")), index)
+    }
+    func testFileComparisonLiteralPathsLocalPolicyAndSymlinkBytes() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let name = "wild*?[]\\\t雪\nfile"
+        try Data("one\ntwo\n".utf8).write(to: root.appendingPathComponent(name))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("link").path, withDestinationPath: "missing-before")
+        try await repo.stage([name, "link"]); _ = try await repo.commit(message: "paths and link")
+        try Data("one\nchanged   \n".utf8).write(to: root.appendingPathComponent(name))
+        try FileManager.default.removeItem(at: root.appendingPathComponent("link"))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("link").path, withDestinationPath: "missing-after")
+        let bytes = try await repo.run(["diff", "--binary", "--no-ext-diff", "--no-color"]).stdout
+        _ = try await repo.run(["restore", "--", name, "link"])
+        _ = try await repo.run(["config", "apply.whitespace", "fix"])
+        let review = try await repo.reviewWorkingTreePatch(bytes)
+        let text = try await repo.compareWorkingTreePatchFile(review, fileID: review.files.first { $0.path == name }!.id)
+        XCTAssertEqual(text.document.destination.bytes, Data("one\nchanged\n".utf8))
+        let link = try await repo.compareWorkingTreePatchFile(review, fileID: review.files.first { $0.path == "link" }!.id)
+        XCTAssertEqual(link.document.base.mode, "120000"); XCTAssertEqual(link.document.destination.mode, "120000")
+        XCTAssertEqual(link.document.base.bytes, Data("missing-before".utf8)); XCTAssertEqual(link.document.destination.bytes, Data("missing-after".utf8))
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: root.appendingPathComponent("link").path), "missing-before")
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(name)), Data("one\ntwo\n".utf8))
+    }
+    func testFileComparisonRefusesStaleUnsafeAndForeignReviews() async throws {
+        let (root, repo, bytes) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let review = try await repo.reviewWorkingTreePatch(bytes), file = review.files.first { $0.path == "--new 雪" }!
+        try Data("local conflict\n".utf8).write(to: root.appendingPathComponent("--old 雪"))
+        do { _ = try await repo.compareWorkingTreePatchFile(review, fileID: file.id); XCTFail("Stale comparison accepted") } catch WorkingTreePatchFailure.review {}
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("--old 雪")), Data("local conflict\n".utf8))
+        try FileManager.default.createDirectory(at: root.appendingPathComponent("actual"), withIntermediateDirectories: true)
+        try Data("before\n".utf8).write(to: root.appendingPathComponent("actual/file"))
+        try FileManager.default.createSymbolicLink(atPath: root.appendingPathComponent("alias").path, withDestinationPath: "actual")
+        let throughLink = Data("diff --git a/alias/file b/alias/file\n--- a/alias/file\n+++ b/alias/file\n@@ -1 +1 @@\n-before\n+after\n".utf8)
+        let aliasReview = try await repo.reviewWorkingTreePatch(throughLink)
+        do { _ = try await repo.compareWorkingTreePatchFile(aliasReview, fileID: aliasReview.files[0].id); XCTFail("Symlink parent preview accepted") } catch WorkingTreePatchFailure.review { }
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("actual/file")), Data("before\n".utf8))
+        let (other, otherRepo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: other) }
+        do { _ = try await otherRepo.compareWorkingTreePatchFile(review, fileID: file.id); XCTFail("Foreign review accepted") } catch WorkingTreePatchFailure.selection {}
+        for path in ["../outside", ".git/config"] {
+            let unsafe = Data("diff --git a/\(path) b/\(path)\nnew file mode 100644\n--- /dev/null\n+++ b/\(path)\n@@ -0,0 +1 @@\n+unsafe\n".utf8)
+            let rejected = try await repo.reviewWorkingTreePatch(unsafe)
+            do { _ = try await repo.compareWorkingTreePatchFile(rejected, fileID: rejected.files[0].id); XCTFail("Unsafe preview accepted") } catch WorkingTreePatchFailure.review {}
+        }
+    }
+
 }

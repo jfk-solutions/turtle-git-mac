@@ -575,6 +575,15 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     @Published var confirmingQuit = false
     @Published private(set) var reversed = false
     @Published private(set) var stripCount = 1
+    @Published private(set) var comparison: WorkingTreePatchFileComparison?
+    @Published private(set) var alignment: FileComparisonAlignment?
+    @Published private(set) var focusedFile: Int?
+    @Published private(set) var comparisonNotice = ""
+    @Published var previewTab = 0
+    @Published var difference = -1
+    weak var beforeScroll: NSScrollView?
+    weak var afterScroll: NSScrollView?
+    private var synchronizingScroll = false
     @Published private(set) var requiresRefresh = false
     @Published private(set) var notice = ""
     @Published private(set) var output = ""
@@ -592,17 +601,17 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     func setReversed(_ value: Bool) {
         guard editable, value != reversed else { return }
-        reversed = value; requiresRefresh = true; selectedReview = nil; notice = "Refresh to check the changed options."
+        reversed = value; requiresRefresh = true; selectedReview = nil; comparison = nil; alignment = nil; notice = "Refresh to check the changed options."
     }
     func setStripCount(_ value: Int) {
         guard editable, value != stripCount else { return }
-        stripCount = value; requiresRefresh = true; selectedReview = nil; notice = "Refresh to check the changed options."
+        stripCount = value; requiresRefresh = true; selectedReview = nil; comparison = nil; alignment = nil; notice = "Refresh to check the changed options."
     }
     private func checkAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func refresh() {
-        guard editable else { return }; busy = true; selectedReview = nil; appliedPaths = []
+        guard editable else { return }; busy = true; selectedReview = nil; appliedPaths = []; comparison = nil; alignment = nil
         let reverse = reversed, strip = stripCount
         Task {
             defer { busy = false }
@@ -615,12 +624,59 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         review = next; requiresRefresh = false
         selected = Set(next.files.filter { !appliedPaths.contains($0.pathBytes) }.map(\.id))
         try await validateSelection()
+        await loadComparison()
     }
     private func validateSelection() async throws {
         selectedReview = nil
         guard let review, !selected.isEmpty else { notice = appliedPaths.isEmpty ? "Select files to apply." : "Selected files have been applied."; return }
         let next = try await repository.reviewWorkingTreePatchFiles(review, fileIDs: selected)
         selectedReview = next; notice = next.validationError ?? "Checked files can be applied to the working tree."
+    }
+    func focusFile(_ id: Int?) {
+        guard editable, !requiresRefresh else { return }
+        focusedFile = id; busy = true
+        Task { defer { busy = false }; await loadComparison() }
+    }
+    private func loadComparison() async {
+        comparison = nil; alignment = nil; comparisonNotice = ""; difference = -1
+        guard let review else { focusedFile = nil; return }
+        let candidates = review.files.filter { !appliedPaths.contains($0.pathBytes) }
+        guard let file = candidates.first(where: { $0.id == focusedFile }) ?? candidates.first else { focusedFile = nil; return }
+        focusedFile = file.id
+        do {
+            try checkAccess()
+            let value = try await repository.compareWorkingTreePatchFile(review, fileID: file.id)
+            comparison = value
+            if let before = value.document.base.text, let after = value.document.destination.text {
+                alignment = FileComparisonAlignment(base: before, destination: after)
+            }
+        } catch { comparisonNotice = error.localizedDescription }
+    }
+    func synchronizeScroll(from scroll: NSScrollView) {
+        guard !synchronizingScroll else { return }
+        let other = scroll === beforeScroll ? afterScroll : beforeScroll
+        guard let other else { return }
+        synchronizingScroll = true; defer { synchronizingScroll = false }
+        other.contentView.scroll(to: NSPoint(x: other.contentView.bounds.minX, y: scroll.contentView.bounds.minY))
+        other.reflectScrolledClipView(other.contentView)
+    }
+    func navigate(_ step: Int) {
+        guard editable, let alignment, !alignment.differences.isEmpty else { return }
+        difference = min(max(difference + step, 0), alignment.differences.count - 1)
+        let row = alignment.differences[difference].lowerBound
+        for (scroll, base) in [(beforeScroll, true), (afterScroll, false)] {
+            guard let text = scroll?.documentView as? NSTextView else { continue }
+            let cells = alignment.rows.map { base ? $0.base : $0.destination }
+            let offset = cells.prefix(row).reduce(0) { $0 + ($1.displayText as NSString).length + 1 }
+            text.setSelectedRange(NSRange(location: min(offset, (text.string as NSString).length), length: 0))
+            text.scrollRangeToVisible(text.selectedRange())
+        }
+    }
+    func findComparison() {
+        guard let view = afterScroll?.documentView as? NSTextView else { return }
+        view.window?.makeFirstResponder(view)
+        let sender = NSMenuItem(); sender.tag = NSTextFinder.Action.showFindInterface.rawValue
+        view.performTextFinderAction(sender)
     }
     func check(_ id: Int, _ value: Bool) {
         guard editable, !requiresRefresh, let file = review?.files.first(where: { $0.id == id }), !appliedPaths.contains(file.pathBytes) else { return }
@@ -657,7 +713,7 @@ struct WorkingTreePatchDialog: View {
             HSplitView {
                 VStack(alignment: .leading) {
                     Text("Files to patch:")
-                    Table(model.review?.files ?? []) {
+                    Table(model.review?.files ?? [], selection: Binding(get: { model.focusedFile }, set: { model.focusFile($0) })) {
                         TableColumn("") { file in
                             Toggle(file.path, isOn: Binding(get: { model.selected.contains(file.id) }, set: { model.check(file.id, $0) })).labelsHidden().disabled(!model.editable || model.requiresRefresh || model.appliedPaths.contains(file.pathBytes))
                         }.width(26)
@@ -668,7 +724,10 @@ struct WorkingTreePatchDialog: View {
                         }.width(80)
                     }
                 }.frame(minWidth: 280, idealWidth: 350)
-                VStack(alignment: .leading) { Text("Original patch:"); PatchTextView(model: model.previewDocument) }.frame(minWidth: 400)
+                TabView(selection: $model.previewTab) {
+                    WorkingTreePatchComparisonView(model: model).tabItem { Text("Compare") }.tag(0)
+                    VStack(alignment: .leading) { Text("Original patch:"); PatchTextView(model: model.previewDocument) }.tabItem { Text("Original patch") }.tag(1)
+                }.frame(minWidth: 440)
             }
             Text(model.notice).foregroundStyle(model.canApply ? Color.secondary : Color.orange).textSelection(.enabled)
             if !model.output.isEmpty { DisclosureGroup("Output") { OutputView(text: model.output, usesLogFont: true).frame(height: 100) } }
@@ -679,5 +738,86 @@ struct WorkingTreePatchDialog: View {
                 Button("Close") { model.close() }.disabled(!model.editable)
             }
         }.padding(16)
+    }
+}
+
+struct WorkingTreePatchComparisonView: View {
+    @ObservedObject var model: WorkingTreePatchWindowModel
+    private func pane(base: Bool) -> some View {
+        let content = base ? model.comparison?.document.base : model.comparison?.document.destination
+        return VStack(alignment: .leading, spacing: 5) {
+            Text(base ? "Before patch" : "After patch").font(.headline)
+            if let content {
+                Text(content.path).font(.caption).lineLimit(1).help(content.path)
+                if let alignment = model.alignment {
+                    WorkingTreePatchComparisonEditor(model: model, cells: alignment.rows.map { base ? $0.base : $0.destination }, base: base)
+                } else {
+                    ScrollView {
+                        Text("Binary or unsupported text encoding · \(content.bytes.count) bytes\n" + content.bytes.prefix(4096).enumerated().map { ($0.offset % 16 == 0 ? "\n" : " ") + String(format: "%02X", $0.element) }.joined())
+                            .font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                Text("\(content.mode ?? "Absent") · \(content.bytes.count) bytes").font(.caption).foregroundStyle(.secondary)
+            } else { Color(nsColor: .textBackgroundColor) }
+        }.padding(6).frame(minWidth: 200, maxWidth: .infinity, maxHeight: .infinity)
+    }
+    var body: some View {
+        VStack(alignment: .leading) {
+            HStack {
+                Button { model.navigate(-1) } label: { Image(nsImage: MenuIcon.mergePreviousConflict.image() ?? NSImage()) }.help("Previous difference").accessibilityLabel("Previous difference").disabled(model.difference <= 0)
+                Button { model.navigate(1) } label: { Image(nsImage: MenuIcon.mergeNextConflict.image() ?? NSImage()) }.help("Next difference").accessibilityLabel("Next difference").disabled(model.alignment?.differences.isEmpty != false || model.difference >= (model.alignment?.differences.count ?? 0) - 1)
+                Button { model.findComparison() } label: { CommandLabel(title: "Find", icon: .mergeFind) }.disabled(model.alignment == nil)
+                Spacer(); Text("Read-only preview").font(.caption).foregroundStyle(.secondary)
+            }.disabled(!model.editable)
+            HSplitView { pane(base: true); pane(base: false) }
+            if model.requiresRefresh { Text("Refresh to compare the changed options.").foregroundStyle(.orange) }
+            else if !model.comparisonNotice.isEmpty { Text(model.comparisonNotice).foregroundStyle(.orange).textSelection(.enabled) }
+            else if model.comparison == nil { Text("Select a file to compare.").foregroundStyle(.secondary) }
+        }.padding(6)
+    }
+}
+
+struct WorkingTreePatchComparisonEditor: NSViewRepresentable {
+    @ObservedObject var model: WorkingTreePatchWindowModel
+    let cells: [MergeSourceCell]
+    let base: Bool
+    func makeNSView(context: Context) -> NSScrollView {
+        let view = NSTextView(); view.isEditable = false; view.isRichText = false
+        view.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        view.textContainerInset = NSSize(width: 8, height: 8)
+        view.isVerticallyResizable = true; view.isHorizontallyResizable = true
+        view.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        view.textContainer?.widthTracksTextView = false; view.textContainer?.containerSize = view.maxSize
+        view.usesFindBar = true; view.isIncrementalSearchingEnabled = true
+        view.setAccessibilityLabel(base ? "Before patch" : "After patch")
+        let scroll = NSScrollView(); scroll.documentView = view; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
+        scroll.borderType = .bezelBorder; scroll.findBarPosition = .belowContent
+        scroll.hasVerticalRuler = true; scroll.verticalRulerView = MergeLineRuler(scrollView: scroll, orientation: .verticalRuler)
+        scroll.rulersVisible = true; scroll.contentView.postsBoundsChangedNotifications = true
+        if base { model.beforeScroll = scroll } else { model.afterScroll = scroll }
+        context.coordinator.scroll = scroll
+        NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.scrolled(_:)), name: NSView.boundsDidChangeNotification, object: scroll.contentView)
+        return scroll
+    }
+    func updateNSView(_ scroll: NSScrollView, context: Context) {
+        guard let view = scroll.documentView as? NSTextView else { return }
+        let value = NSMutableAttributedString(string: ""), font = view.font!
+        let paragraph = NSMutableParagraphStyle(); paragraph.tabStops = []
+        paragraph.defaultTabInterval = 4 * (" " as NSString).size(withAttributes: [.font: font]).width
+        for cell in cells {
+            value.append(NSAttributedString(string: cell.displayText + "\n", attributes: [.font: font, .foregroundColor: NSColor.labelColor, .backgroundColor: MergePalette.color(cell.state), .paragraphStyle: paragraph]))
+        }
+        if !view.string.utf8.elementsEqual(value.string.utf8) { view.textStorage?.setAttributedString(value) }
+        else { value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in view.textStorage?.setAttributes(attributes, range: range) } }
+        (scroll.verticalRulerView as? MergeLineRuler)?.sourceNumbers = cells.map(\.lineNumber)
+        scroll.verticalRulerView?.needsDisplay = true
+    }
+    func makeCoordinator() -> Coordinator { Coordinator(model: model) }
+    @MainActor final class Coordinator: NSObject {
+        let model: WorkingTreePatchWindowModel
+        weak var scroll: NSScrollView?
+        init(model: WorkingTreePatchWindowModel) { self.model = model }
+        @objc func scrolled(_ note: Notification) { if let scroll { model.synchronizeScroll(from: scroll) } }
+        deinit { NotificationCenter.default.removeObserver(self) }
     }
 }
