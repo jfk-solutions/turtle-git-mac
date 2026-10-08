@@ -30,6 +30,11 @@ final class WorkingTreePatchReviewTests: XCTestCase {
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let review = try await repo.reviewWorkingTreePatch(bytes)
         XCTAssertTrue(review.canApply); XCTAssertEqual(review.document.bytes, bytes)
+        XCTAssertEqual(review.files.count, 4)
+        XCTAssertTrue(review.files.first { $0.path == "binary" }?.isBinary == true)
+        XCTAssertTrue(review.files.contains { $0.path == "--new 雪" })
+        XCTAssertEqual(review.files.first { $0.path == "added" }?.additions, 1)
+        XCTAssertEqual(review.files.first { $0.path == "delete" }?.deletions, 1)
         XCTAssertTrue(review.statistics.contains("binary")); XCTAssertTrue(review.summary.contains("rename")); XCTAssertTrue(review.summary.contains("mode"))
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("--old 雪")), Data("one\ntwo\nthree\nfour\n".utf8))
         _ = try await repo.applyWorkingTreePatch(review)
@@ -91,4 +96,32 @@ final class WorkingTreePatchReviewTests: XCTestCase {
         _ = try await repo.applyWorkingTreePatch(review)
         XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("other")), Data("plain changed\n".utf8))
     }
+    func testRealNumstatPreservesTabsNewlinesUnicodeAndReverseCounts() async throws {
+        let (root, repo, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let names = ["tabs\tfile\n雪", "-dash space😀"]
+        for name in names { try Data("base\n".utf8).write(to: root.appendingPathComponent(name)) }
+        try await repo.stage(names); _ = try await repo.commit(message: "unusual paths")
+        for name in names { try Data("one\ntwo\n".utf8).write(to: root.appendingPathComponent(name)) }
+        let bytes = try await repo.run(["diff", "--binary", "--no-ext-diff", "--no-color", "--"] + names).stdout
+        let reverse = try await repo.reviewWorkingTreePatch(bytes, reversed: true)
+        XCTAssertTrue(reverse.canApply); XCTAssertEqual(Set(reverse.files.map(\.path)), Set(names))
+        XCTAssertTrue(reverse.files.allSatisfy { $0.additions == 1 && $0.deletions == 2 && !$0.isBinary })
+        _ = try await repo.run(["restore", "--"] + names)
+        let review = try await repo.reviewWorkingTreePatch(bytes)
+        XCTAssertTrue(review.canApply); XCTAssertEqual(review.document.bytes, bytes)
+        XCTAssertEqual(Set(review.files.map(\.pathBytes)), Set(names.map { Data($0.utf8) }))
+        XCTAssertEqual(review.files.map(\.id), [0, 1])
+        XCTAssertTrue(review.files.allSatisfy { $0.additions == 2 && $0.deletions == 1 && !$0.isBinary })
+        _ = try await repo.applyWorkingTreePatch(review)
+        for name in names { XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent(name)), Data("one\ntwo\n".utf8)) }
+    }
+    func testMetadataRetainsRawNonUTF8PathsAndRejectsIncompleteRecords() throws {
+        let rawPath = Data([0xff, 9, 10, 0xfe])
+        let binary = try WorkingTreePatchReview.parseFiles(Data("-\t-\t".utf8) + rawPath + Data([0]))
+        XCTAssertEqual(binary.count, 1); XCTAssertEqual(binary[0].pathBytes, rawPath); XCTAssertTrue(binary[0].isBinary)
+        for malformed in [Data("1\t2\tpath".utf8), Data("1\t-\tpath\0".utf8), Data("1\t2\t\0".utf8)] {
+            XCTAssertThrowsError(try WorkingTreePatchReview.parseFiles(malformed))
+        }
+    }
+
 }

@@ -143,6 +143,16 @@ extension GitRepository {
 /// A byte-preserving review of a patch against the current working tree.
 /// Applying it changes files, without staging them or creating a commit.
 public struct WorkingTreePatchReview: Sendable {
+    public struct File: Sendable, Identifiable {
+        public let id: Int
+        /// Raw filesystem path bytes from Git's NUL-delimited output.
+        public let pathBytes: Data
+        public var path: String { String(decoding: pathBytes, as: UTF8.self) }
+        public let additions: Int?
+        public let deletions: Int?
+        public var isBinary: Bool { additions == nil && deletions == nil }
+    }
+    public let files: [File]
     public let document: UnifiedDiffDocument
     public let statistics: String
     public let summary: String
@@ -154,11 +164,12 @@ public struct WorkingTreePatchReview: Sendable {
 }
 
 public enum WorkingTreePatchFailure: LocalizedError {
-    case stripCount, review
+    case stripCount, review, metadata
     public var errorDescription: String? {
         switch self {
         case .stripCount: return "The patch path strip count must be nonnegative."
         case .review: return "Review an applicable patch in this repository before applying it."
+        case .metadata: return "Git returned incomplete patch file statistics."
         }
     }
 }
@@ -170,10 +181,11 @@ extension GitRepository {
             let arguments = ["apply", "-p\(stripCount)"] + (reversed ? ["--reverse"] : [])
             let statistics = try run(arguments + ["--stat", "--", file.path]).text
             let summary = try run(arguments + ["--summary", "--", file.path]).text
+            let files = try WorkingTreePatchReview.parseFiles(run(arguments + ["--numstat", "-z", "--", file.path]).stdout)
             var failure: String?
             do { _ = try run(arguments + ["--check", "--", file.path]) }
             catch let error as GitFailure { failure = error.localizedDescription }
-            return WorkingTreePatchReview(document: UnifiedDiffDocument(bytes: bytes), statistics: statistics, summary: summary, validationError: failure, repositoryRoot: root, reversed: reversed, stripCount: stripCount)
+            return WorkingTreePatchReview(files: files, document: UnifiedDiffDocument(bytes: bytes), statistics: statistics, summary: summary, validationError: failure, repositoryRoot: root, reversed: reversed, stripCount: stripCount)
         }
     }
     public func applyWorkingTreePatch(_ review: WorkingTreePatchReview) throws -> String {
@@ -191,5 +203,22 @@ extension GitRepository {
         guard FileManager.default.createFile(atPath: file.path, contents: bytes, attributes: [.posixPermissions: 0o600]) else { throw CocoaError(.fileWriteUnknown) }
         defer { try? FileManager.default.removeItem(at: file) }
         return try operation(file)
+    }
+}
+
+
+extension WorkingTreePatchReview {
+    static func parseFiles(_ bytes: Data) throws -> [File] {
+        guard bytes.isEmpty || bytes.last == 0 else { throw WorkingTreePatchFailure.metadata }
+        return try bytes.split(separator: 0).enumerated().map { index, record in
+            // Only the first two tabs are field separators. Every remaining byte
+            // belongs to the path, including tabs/newlines and non-UTF-8 bytes.
+            let fields = record.split(separator: 9, maxSplits: 2, omittingEmptySubsequences: false)
+            guard fields.count == 3, !fields[2].isEmpty else { throw WorkingTreePatchFailure.metadata }
+            let added = String(decoding: fields[0], as: UTF8.self), deleted = String(decoding: fields[1], as: UTF8.self)
+            let additions = Int(added), deletions = Int(deleted)
+            guard (added == "-" && deleted == "-") || (additions.map { $0 >= 0 } == true && deletions.map { $0 >= 0 } == true) else { throw WorkingTreePatchFailure.metadata }
+            return File(id: index, pathBytes: Data(fields[2]), additions: additions, deletions: deletions)
+        }
     }
 }

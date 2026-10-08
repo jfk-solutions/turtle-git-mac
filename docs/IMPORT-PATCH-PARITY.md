@@ -126,6 +126,14 @@ Application rechecks the same byte snapshot against current files and invokes
 whole-patch `git apply` without index/reject/unsafe-path options. Reversal and
 explicit path strip counts are supported. Reviews are bound to their repository.
 Git handles text, binary payloads, renames, mode changes, additions and deletions.
+The review also exposes Git's ordered NUL-delimited file statistics: raw path
+bytes, display path, added/deleted line counts and binary markers. Tabs/newlines
+in names are preserved; reverse reviews expose reverse counts. Rename statistics
+name the resulting destination; they do not provide the original source path.
+Raw non-UTF-8 path bytes remain available separately from the display string.
+[File-list QA](qa/patch-file-list-2026-10-08.json) covers actual Git patches with
+tabs, newlines, Unicode, leading dashes and binary entries, plus incomplete
+metadata rejection.
 [Working-tree patch QA](qa/working-tree-patch-2026-10-08.json) verifies real files,
 unchanged HEAD/index, stale-review rejection and unrelated local changes. This
 backend does not establish per-file before/after review, editable merge panes,
