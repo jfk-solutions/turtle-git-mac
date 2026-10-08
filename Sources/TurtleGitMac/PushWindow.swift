@@ -233,6 +233,7 @@ import TurtleGitCore
         }
         confirmation = nil
         var snapshot = options
+        snapshot.showBranchRevisionNumber = preferences.bool(forKey: "ShowBranchRevisionNumber")
         snapshot.source = FetchDialogHistory.trim(snapshot.source); snapshot.destination = FetchDialogHistory.trim(snapshot.destination)
         if snapshot.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url) }
         let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil

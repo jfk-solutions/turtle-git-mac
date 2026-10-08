@@ -256,3 +256,27 @@ publishes the selected older commit while retaining local HEAD/index. These are
 headless model/Git checks. Physical menu/sheet accept/Cancel/focus/resize/theme,
 child/parent close lifecycle, full browser parity, accessibility and signed
 sandbox lease execution remain pending. Full Push/application parity incomplete.
+
+
+## Branch revision display
+
+Dialogs settings now exposes upstream's Display branch revision number, default
+off (`ShowBranchRevisionNumber`). Push snapshots it at submission. For each
+successful destination in a single-source push, it appends the output of
+`git rev-list --count --first-parent --end-of-options <source> --`, including tags
+and revision expressions, as upstream DoPush does. All-branch pushes skip it.
+The number is a display aid and is not a unique commit identifier. A count failure
+after transport reports the destination as completed: published/deleted refs are
+not rolled back. Empty-source deletion with this option can therefore succeed
+remotely and then fail its count, matching the source command ordering.
+
+[Counter QA](qa/branch-revision-number-2026-10-08.json) covers a merge whose total
+count differs from its first-parent count, two destinations, disabled/all-branch
+exclusion, count failure after deletion and native submission preference capture.
+Native Log shows Branch RevNo next to the hash only for a single revision in its
+first graph lane. It clears it on selection changes and captures the setting when
+opening, like upstream. Native lane layout is an adaptation; full equivalence for
+filtered/compressed/all-ref graphs remains pending. Log and Push physical setting,
+interaction, appearance/accessibility and signed runtime acceptance remain pending.
+Push's retained result/post-actions window, Request Pull and project hooks remain
+unfinished; this setting does not establish full Push or application parity.

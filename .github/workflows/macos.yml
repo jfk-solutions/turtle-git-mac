@@ -56,6 +56,8 @@ jobs:
         run: python3 scripts/test-merge-conflict-hint.py
       - name: Native Pull progress and Stash follow-ups
         run: python3 scripts/test-pull-progress.py
+      - name: Native branch revision number display
+        run: python3 scripts/test-branch-revision-number.py
       - name: Native Git progress automatic close policies
         run: python3 scripts/test-progress-auto-close.py
       - name: Native remembered Commit button actions

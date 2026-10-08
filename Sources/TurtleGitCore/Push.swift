@@ -16,6 +16,7 @@ public struct PushOptions: Sendable {
     public var savePushBranch = false
     public var submodules = PushSubmodules.none
     public var pushOption = ""
+    public var showBranchRevisionNumber = false
     public init() {}
 }
 public struct PushDefaults: Sendable {
@@ -112,6 +113,10 @@ extension GitRepository {
     public func validatePushOptions(_ options: PushOptions, cancellation: OperationCancellation? = nil) throws {
         _ = try validatedPush(options, cancellation: cancellation)
     }
+    /// The upstream first-parent counter is a display value, not a unique revision ID.
+    public func branchRevisionNumber(_ revision: String, cancellation: OperationCancellation? = nil) throws -> String {
+        try run(["rev-list", "--count", "--first-parent", "--end-of-options", revision, "--"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+    }
     public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil) throws -> String {
         let plan = try validatedPush(options, cancellation: cancellation)
         let source = plan.source, destination = plan.destination, remotes = plan.remotes, destinationRef = plan.destinationRef
@@ -143,6 +148,7 @@ extension GitRepository {
                     args += ["--", remote]
                     if !source.isEmpty || !destination.isEmpty { args.append(source + (destinationRef.isEmpty ? "" : ":" + destinationRef)) }
                     output += try run(args, cancellation: cancellation).text; completed.append(remote)
+                    if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: cancellation) + "\n" }
                 }
             } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription) }
         }

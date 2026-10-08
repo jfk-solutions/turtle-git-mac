@@ -880,6 +880,8 @@ struct LogCommandRequest: Identifiable {
     private var generation = 0
     private(set) var isInvalidated = false
     private var detailGeneration = 0
+    private let showBranchRevisionNumber: Bool
+    @Published private(set) var branchRevisionNumber: String?
     private var clipboardCancellation: OperationCancellation?
     private var clipboardGeneration = 0
     @Published var copyingDetails = false
@@ -926,11 +928,12 @@ struct LogCommandRequest: Identifiable {
     var message: String {
         if selectedWorkingTree, let snapshot = workingTreeSnapshot { return "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "") }
         guard let revision else { return selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected." }
-        return "SHA-1: \(revision.hash)\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
+        return "SHA-1: \(revision.hash)" + (branchRevisionNumber.map { ", Branch RevNo: " + $0 } ?? "") + "\nAuthor: \(revision.author) <\(revision.email)>\nDate: \(HistoryDateSettings.load().format(revision.date))\n" +
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
         self.historyRegexExecutable = historyRegexExecutable
+        self.showBranchRevisionNumber = labelDefaults.bool(forKey: "ShowBranchRevisionNumber")
         self.gravatar = gravatar ?? LogGravatar(defaults: labelDefaults)
         self.repository = repository; self.access = access; self.selecting = selecting; self.selectingMultiple = selectingMultiple; self.labelDefaults = labelDefaults; showWorkingTree = !selecting
         showGravatar = labelDefaults.object(forKey: gravatarDefaultsKey) == nil ? labelDefaults.bool(forKey: "EnableGravatar") : labelDefaults.bool(forKey: gravatarDefaultsKey)
@@ -1100,7 +1103,7 @@ struct LogCommandRequest: Identifiable {
         for entry in entries where !entry.hash.isEmpty && hashes.contains(entry.hash) { selectionNavigation.add(entry.hash) }
         cancelClipboardRead()
         detailCancellation?.cancel(); detailCancellation = nil
-        selected = hashes; refreshGravatar(); selectedFiles = []; fileSelectionMark = nil; files = []; fileGroups = []
+        selected = hashes; branchRevisionNumber = nil; refreshGravatar(); selectedFiles = []; fileSelectionMark = nil; files = []; fileGroups = []
         detailGeneration += 1; let request = detailGeneration
         if selectedWorkingTree { updateWorkingFiles(); return }
         guard let revision else { return }
@@ -1121,6 +1124,16 @@ struct LogCommandRequest: Identifiable {
                     let choices = try? await repository.logParentChoices(revision, cancellation: cancellation)
                     guard request == detailGeneration else { return }
                     if let choices { parentMetadata[revision.hash] = choices }
+                }
+                if showBranchRevisionNumber, let index = entries.firstIndex(where: { $0.hash == revision.hash }), graph.indices.contains(index), graph[index].column == 0 {
+                    do {
+                        let number = try await repository.branchRevisionNumber(revision.hash, cancellation: cancellation)
+                        guard request == detailGeneration else { return }
+                        branchRevisionNumber = number
+                    } catch {
+                        guard request == detailGeneration else { return }
+                        if !cancellation.isCancelled { self.error = "Could not get rev count\n" + error.localizedDescription }
+                    }
                 }
                 detailCancellation = nil; refreshPatchPreview()
             } catch { if request == detailGeneration { detailCancellation = nil; if !cancellation.isCancelled { self.error = error.localizedDescription } } }
@@ -2070,6 +2083,7 @@ struct LogDialog: View {
 }
 
 struct LogDialogSettings: View {
+    @AppStorage("ShowBranchRevisionNumber") private var showBranchRevisionNumber = false
     @AppStorage("AutoCloseGitProgress") private var autoCloseGitProgress = 0
     @AppStorage("ConfirmKillProcess") private var confirmKillProcess = false
     @AppStorage("DiffByDoubleClickInLog") private var diffByDoubleClick = false
@@ -2086,6 +2100,8 @@ struct LogDialogSettings: View {
             }.help("Successful operations close according to this policy. Failed operations stay open.")
             Toggle("Confirm to kill running git process", isOn: $confirmKillProcess)
                 .help("When closing a progress dialog with a running git process, ask for confirmation before killing it")
+            Toggle("Display branch revision number", isOn: $showBranchRevisionNumber)
+                .help("Show branch revision number (git rev-list --count --first-parent) in log dialog and after a push to a remote branch; this is not guaranteed to be unique, please see help")
             GroupBox("Log messages") {
                 VStack(alignment: .leading, spacing: 10) {
                     Toggle("Can double-click in log list to compare with previous revision", isOn: $diffByDoubleClick)

@@ -552,3 +552,6 @@ MenuButton.cpp::SetCurrentEntry, retaining the CommitLastAction indices.
 
 Git progress automatic close adapts ProgressDlg.cpp and SetDialogs2.cpp,
 retaining AutoCloseGitProgress values, source labels and success-only decisions.
+
+Branch revision number display adapts LogDlg.cpp, AppUtils.cpp and SetDialogs.cpp,
+retaining ShowBranchRevisionNumber, the source labels and first-parent Git counter.

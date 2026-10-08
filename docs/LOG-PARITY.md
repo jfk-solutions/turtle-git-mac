@@ -1482,3 +1482,21 @@ pointer timing, clicked/selected ordering under modifier gestures, Shift alterna
 tool selection, follow-rename/path-specific comparison factories and displayed
 settings/sheet/keyboard/VoiceOver/signed acceptance remain pending. This is partial
 Log parity; the full application port remains incomplete.
+
+
+## First-lane branch revision counter
+
+The native single-selection message header now appends `Branch RevNo: <count>`
+when Display branch revision number (`ShowBranchRevisionNumber`, default false)
+was enabled when opening Log and the selected node is in native graph lane zero.
+The count is Git's first-parent walk, not the total reachable commit count and not
+a unique revision identifier. Selection clearing, multiple selection, working-tree
+rows and side-lane nodes omit it. Generation checks discard stale detail reads.
+
+This adapts LogDlg.cpp's active-first-lane gate. Native graph layout is not yet
+proven identical for all filtered, compressed and all-ref histories; the feature
+uses the native first lane rather than claiming complete Lanes equivalence.
+[Counter QA](qa/branch-revision-number-2026-10-08.json) records four-Git real merge
+history, displayed-message model and rapid-selection checks. Hidden settings
+layout does not establish physical toggle, themes, accessibility or signed runtime.
+See [Push parity](PUSH-PARITY.md) for the matching post-transport counter.

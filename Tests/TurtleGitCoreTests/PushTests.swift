@@ -149,4 +149,51 @@ final class PushTests: XCTestCase {
         XCTAssertNil(tag.localBranch)
     }
 
+    func testFirstParentCounterAfterEachRemoteAndAllBranchesExclusion() async throws {
+        let (root, repo, remote, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["checkout", "-b", "side"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "side one"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "side two"])
+        _ = try await repo.run(["checkout", "main"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "main two"])
+        _ = try await repo.run(["merge", "--no-ff", "side", "-m", "merge"])
+        let count = try await repo.branchRevisionNumber("main")
+        let total = try await repo.run(["rev-list", "--count", "main"]).text
+        XCTAssertEqual(count, "3"); XCTAssertEqual(total, "5\n")
+        _ = try await repo.run(["tag", "counter-tag"])
+        let tagCount = try await repo.branchRevisionNumber("refs/tags/counter-tag")
+        XCTAssertEqual(tagCount, "3")
+        let otherURL = root.appendingPathComponent("other.git")
+        try FileManager.default.createDirectory(at: otherURL, withIntermediateDirectories: true)
+        let other = GitRepository(root: otherURL); _ = try await other.run(["init", "--bare"])
+        try await repo.saveRemote(name: "other", fetchURL: otherURL.path, pushURL: "", existing: false)
+        var options = PushOptions(); options.source = "main"; options.allRemotes = true; options.showBranchRevisionNumber = true
+        let output = try await repo.push(options)
+        XCTAssertEqual(output.split(separator: "\n").filter { $0 == "3" }.count, 2)
+        let head = try await repo.run(["rev-parse", "HEAD"]).text
+        for destination in [remote, other] {
+            let actual = try await destination.run(["rev-parse", "refs/heads/main"]).text
+            XCTAssertEqual(actual, head)
+        }
+        options.allBranches = true
+        let allOutput = try await repo.push(options)
+        XCTAssertFalse(allOutput.split(separator: "\n").contains("3"))
+        options.allBranches = false; options.showBranchRevisionNumber = false
+        let normalOutput = try await repo.push(options)
+        XCTAssertFalse(normalOutput.split(separator: "\n").contains("3"))
+    }
+    func testCounterFailureAfterRemoteDeletionReportsCompletedMutation() async throws {
+        let (root, repo, remote, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var options = PushOptions(); options.remote = "origin"; options.source = "main"; options.destination = "delete-me"
+        _ = try await repo.push(options)
+        options.source = ""; options.showBranchRevisionNumber = true
+        do { _ = try await repo.push(options); XCTFail("The source count has no revision after deletion") }
+        catch let failure as PushExecutionFailure {
+            XCTAssertEqual(failure.completed, ["origin"])
+            XCTAssertEqual(failure.failedRemote, "origin")
+        }
+        let refs = try await remote.checkoutReferences()
+        XCTAssertFalse(refs.contains { $0.name == "refs/heads/delete-me" })
+    }
+
 }

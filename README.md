@@ -604,3 +604,7 @@ the final choice in order. The panel aligns beside Log, follows movement/resizin
 while docked, and can be dragged away or snapped back.
 
 See [Log parity](docs/LOG-PARITY.md) for source audits and verification limits.
+
+Dialogs settings also includes TortoiseGit's **Display branch revision number**:
+first-parent counts appear in Log's first graph lane and after single-source Push.
+See [Push parity](docs/PUSH-PARITY.md) for verified scope and remaining work.

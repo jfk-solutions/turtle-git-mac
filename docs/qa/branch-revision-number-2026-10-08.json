@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "93517e6b6dccd465d949efbad5193107de08701a",
+  "scope": "Source branch revision number preference, first-lane native Log message and single-source Push counters. Full port and distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/LogDlg.cpp": "d456ae8d668767195f464ad8d850a15c034127f5",
+    "src/TortoiseProc/Settings/SetDialogs.cpp": "14912ad2447b6a5e2828d0f0f1bfa035fcaf0298",
+    "src/TortoiseProc/lanes.h": "c05d1050064ef3d541b7fc814fb94dc1ed70c8bd",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "237b424a844e522c3eb5bbd5bbb50eb20643f71b02f78fc8b2158610068f355b",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "576b3f1bc838b57d641ec3c90f5f7ab5730cfe8d1339f2fdb6870b9c4b6808d9",
+    "NOTICE": "6d9a00862fbc5e5ee0f55b913c8c3a42a4c40174cac1e8fe04cd899ecb358b50",
+    "README.md": "f57924dd2392cb13bc6db64c5ddef2556760d9af4e0760a7370964fd51af60a0",
+    "Sources/TurtleGitCore/Push.swift": "4e39f7c2554041407fa7719e05da0cadfa244fefafe5816d4f29e0d67028d4c5",
+    "Sources/TurtleGitMac/LogWindow.swift": "6c4dca9be6487806283292076a21c93f5b172eef1b16cc39884f4578333364ea",
+    "Sources/TurtleGitMac/PushWindow.swift": "8d20c1bd02dfb01975f0fbe50428ee15c97ceb32c322efeadea8bf08f1f2d82b",
+    "Tests/TurtleGitCoreTests/PushTests.swift": "bebb5c44aed58522c66fbec60b47223d83e86c1ad8a02c5716e6723734cbbb5f",
+    "docs/LOG-PARITY.md": "a5691b36a6f200a92acbd1041a90a2ab4fbd8bbb40d86b09283f94b41549ceaf",
+    "docs/PUSH-PARITY.md": "6407b2c4ee7e6c30d2393e8bc11aa940bef370fe9da1eeb48116d4cd19b2ea65",
+    "docs/upstream-files.csv": "346972c81d77a40f828762ffefc42930482c88e85d5d98f6e2e010192c9acab6",
+    "docs/qa/branch-revision-number-native-2026-10-08.swift": "7a051578d798cc549fece8b572479080926cfd8f438f82c22640970f918e90dc",
+    "scripts/test-branch-revision-number.py": "4c8220a753bee0a8527500ba220476552527fde4b42a0d3c0b4ff58d76a3e061"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "12 focused Push tests passed. New real merge graph yields first-parent 3 versus reachable 5, qualified tag count 3, counts after two successful destinations, disabled/all-branch exclusion. Enabled empty-source deletion deletes the remote ref then count fails and reports origin completed. Existing branch/tag/default/force-with-lease/mixed-index/options/cancellation/validation tests remain green.",
+    "native": "Four-Git receiver passed actual merge Log history: setting default off, opening snapshot retained when preference changes, first native graph lane header Branch RevNo: 3, side lane and multiple/rapid selection clearing. Actual Push snapshots preference at submission before async work, appends count when enabled and omits when disabled; remote published hash and local HEAD verified. Private hidden settings layout only; no physical controls claim.",
+    "regression": "Four-Git existing Push cancellation receiver passed optional No/Yes, owned transport/helper termination, unrelated process retained, completed remotes and branches-before-tags without rollback, unchanged local HEAD/index and retained inputs, no cancelled success callbacks, fresh-token retries and idle Cancel.",
+    "builds": "Unsigned Debug and AppStore builds and audits passed: embedded Finder extension, licenses, EditorConfig/IssueRegex and 98 upstream icons. NOTICE byte-identical in both. Store universal Git 2.55.0: 11 Mach-O files and local Git fixture operations passed. No signed acceptance claim.",
+    "documentation": "Pin checker passed; 3277 seven-column source rows. Four source mappings retain partial status. README, Push/Log parity, NOTICE and native CI step updated. Local site build logs recorded separately, unpublished. Initial CSV writer used CRLF; corrected to existing LF before final diff check.",
+    "processes": "Core compiler terminal before Debug; Debug terminal before native receivers; all native compilers/receivers terminal before Store. No main GUI launches or displayed windows. Prohibited activation and private UUID preferences, no standard preference or pasteboard writes. Eight empty owned UUID preference plists removed after receiver termination; zero nonempty files changed. Owned app/receiver audit empty.",
+    "limitations": "Native graph lane zero is an adaptation of source active first lane; equivalence across filtered/compressed/all-ref histories unproven. Physical settings/selection/keyboard/theme/accessibility and signed sandbox/Finder/App Store acceptance pending. Push retained progress/post-actions including Request Pull/project hooks unfinished. Existing screenshots predate this setting. Full file/dialog/application port, hosted CI/site and distribution incomplete. GitHub authorization unavailable and not retried."
+  },
+  "logs_sha256": {
+    "build/qa/branch-revision-number/cancellation-regression.log": "eec35e4bbb79ac7d443a2c5cdefd5d8ca2846169a5c67f360570f6978c9714c8",
+    "build/qa/branch-revision-number/core.log": "63fb96ebc60637b643bb939e542ebb2bf35221da501325c0e7815b21b4a94876",
+    "build/qa/branch-revision-number/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/branch-revision-number/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/branch-revision-number/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/branch-revision-number/native.log": "f04ed8a2ebee1a086a36d34c063c865deafa6ff41937ee9f1666298a0049ac31",
+    "build/qa/branch-revision-number/private-preference-cleanup.log": "5dff2d212b0a213882b39f07005d8f5ba685b78127d524445d9b0329e3c80c78",
+    "build/qa/branch-revision-number/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/branch-revision-number/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/branch-revision-number/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/branch-revision-number/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/branch-revision-number/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
