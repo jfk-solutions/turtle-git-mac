@@ -192,7 +192,7 @@ struct PatchTextView: NSViewRepresentable {
     }
     func updateNSView(_ scroll: NSScrollView, context: Context) {
         context.coordinator.model = model
-        guard let text = scroll.documentView as? NSTextView else { return }
+        guard let text = scroll.documentView as? PatchText else { return }
         let settings = UnifiedDiffAppearance.load(from: model.appearancePreferences), dark = scheme == .dark, highContrast = contrast == .increased
         let cache = context.coordinator
         guard cache.lastText != model.document.text || cache.lastAppearance != settings || cache.dark != dark || cache.highContrast != highContrast else { return }
@@ -204,6 +204,7 @@ struct PatchTextView: NSViewRepresentable {
         func color(_ rgb: UInt32) -> NSColor { NSColor(srgbRed: CGFloat((rgb >> 16) & 255) / 255, green: CGFloat((rgb >> 8) & 255) / 255, blue: CGFloat(rgb & 255) / 255, alpha: 1) }
         text.backgroundColor = highContrast ? .textBackgroundColor : color(settings.colors(.context, dark: dark).background)
         text.insertionPointColor = highContrast ? .labelColor : color(settings.colors(.context, dark: dark).foreground)
+        text.whitespaceColor = highContrast ? .labelColor : dark ? NSColor(srgbRed: 180.0/255, green: 180.0/255, blue: 180.0/255, alpha: 1) : .secondaryLabelColor
         let value = NSMutableAttributedString(string: "")
         for (index, line) in model.document.lines.enumerated() {
             let terminated = index < model.document.lines.count - 1 || model.document.text.hasSuffix("\n")
@@ -214,6 +215,7 @@ struct PatchTextView: NSViewRepresentable {
                 .backgroundColor: highContrast ? NSColor.textBackgroundColor : color(palette.background)]))
         }
         text.textStorage?.setAttributedString(value)
+        text.needsDisplay = true
         if contentChanged { text.setSelectedRange(NSRange(location: 0, length: 0)) }
         else {
             let location = min(selection.location, value.length)
@@ -241,6 +243,47 @@ struct PatchTextView: NSViewRepresentable {
     }
     final class PatchText: NSTextView {
         weak var coordinator: Coordinator?
+        struct WhitespaceMark {
+            enum Kind { case space, tab }
+            let kind: Kind
+            let rect: NSRect
+        }
+        var whitespaceColor: NSColor = .secondaryLabelColor
+        /// Draw only visible spaces/tabs. The backing text, selection offsets,
+        /// accessibility text and exported patch bytes are never rewritten.
+        func whitespaceMarks(in rect: NSRect) -> [WhitespaceMark] {
+            guard let manager = layoutManager, let container = textContainer else { return [] }
+            let origin = textContainerOrigin
+            let glyphs = manager.glyphRange(forBoundingRect: rect.offsetBy(dx: -origin.x, dy: -origin.y), in: container)
+            let characters = manager.characterRange(forGlyphRange: glyphs, actualGlyphRange: nil)
+            let contents = string as NSString
+            guard characters.location != NSNotFound, NSMaxRange(characters) <= contents.length else { return [] }
+            return (characters.location..<NSMaxRange(characters)).compactMap { index in
+                let character = contents.character(at: index)
+                guard character == 32 || character == 9 else { return nil }
+                let glyph = manager.glyphRange(forCharacterRange: NSRange(location: index, length: 1), actualCharacterRange: nil)
+                let bounds = manager.boundingRect(forGlyphRange: glyph, in: container).offsetBy(dx: origin.x, dy: origin.y)
+                guard bounds.width > 0, bounds.height > 0, bounds.intersects(rect) else { return nil }
+                return WhitespaceMark(kind: character == 32 ? .space : .tab, rect: bounds)
+            }
+        }
+        override func draw(_ dirtyRect: NSRect) {
+            super.draw(dirtyRect)
+            whitespaceColor.set()
+            for mark in whitespaceMarks(in: dirtyRect) {
+                let rect = mark.rect
+                switch mark.kind {
+                case .space:
+                    NSBezierPath(ovalIn: NSRect(x: rect.midX - 1, y: rect.midY - 1, width: 2, height: 2)).fill()
+                case .tab:
+                    let start = rect.minX + min(2, rect.width / 4), end = rect.maxX - min(2, rect.width / 4)
+                    let tip = min(3, (end - start) / 2)
+                    let path = NSBezierPath(); path.lineWidth = 1
+                    path.move(to: NSPoint(x: start, y: rect.midY)); path.line(to: NSPoint(x: end, y: rect.midY))
+                    path.move(to: NSPoint(x: end - tip, y: rect.midY - tip)); path.line(to: NSPoint(x: end, y: rect.midY)); path.line(to: NSPoint(x: end - tip, y: rect.midY + tip)); path.stroke()
+                }
+            }
+        }
         private var printSession: PatchPrintSession?
         @objc func printPatch(_ sender: Any?) {
             guard let window, window.attachedSheet == nil, let model = coordinator?.model,

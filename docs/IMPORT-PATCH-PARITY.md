@@ -148,6 +148,21 @@ font/color. It also checks BOM display and original-byte export, a sparse 250 Mi
 fixture and multi-selection clearing. These checks do not establish screenshot
 or physical accessibility acceptance.
 
+## Whitespace markers
+
+The shared native diff control draws space dots and tab arrows, matching
+`CSciEdit::SetUDiffStyle`'s always-visible whitespace. Marks use the visible
+AppKit glyph layout and do not replace text characters. Copy, search, selection
+coordinates, accessibility text and original-byte export keep their existing
+content. Light mode uses the native secondary label color; dark mode uses the
+source 180/180/180 marker color, and increased contrast uses the label color.
+The Log tab keeps its separate plain-text control.
+
+[Whitespace QA](qa/patch-whitespace-2026-10-08.json) checks actual native glyph
+geometry, Unicode-adjacent spaces/tabs, offscreen exclusion, private-pasteboard
+copy and original-byte export. It does not establish rendered visual or physical
+accessibility acceptance.
+
 ## Divider layout
 
 A native horizontal `NSSplitView` separates the patch list/options from the
@@ -184,7 +199,7 @@ sandbox access outside the repository remain unverified.
 ## Remaining parity work
 
 Patch review/application context command,
-the full Git configuration settings page remain pending. Preview whitespace markers and the source's exact context-menu/keyboard behavior also remain pending. Physical keyboard/accessibility,
+the full Git configuration settings page remain pending. The source's exact context-menu/keyboard behavior remains pending. Physical keyboard/accessibility,
 light/dark visual comparison, signed sandbox access for files outside the repository,
 deployed Finder integration and App Store acceptance are unverified. No screenshot
 or release-readiness claim covers these hidden native checks.

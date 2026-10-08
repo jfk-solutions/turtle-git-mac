@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "2c554a510c73f679541c2f37ea5e9c182775fc57",
+  "scope": "Shared native unified diff whitespace dots/tab arrows following SciEdit::SetUDiffStyle. Full port/distribution remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Utils/MiscUI/SciEdit.cpp": "5d221b688a02e72bf8b5ef0a9e260f9aa2a3fc7e"
+  },
+  "sources_manifest_sha256": "290f6d82437f486883b48f7ebc59197357e3d4edd62cf180b56c519556a23061",
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/PatchWindow.swift": "3ed9b78a2353161dca91eeedf93d9794b9c7b8e7c72bb7fd1b426a71ba468f30",
+    "docs/IMPORT-PATCH-PARITY.md": "7a7f4d069271156962687be87ae4d20df55f26ccabd1bf521fe2f0b52d0280ed",
+    "docs/qa/import-patch-native-2026-10-08.swift": "0a5881a0e0cedfb400a9ec363eb2e5212b866d76ed2c7f1c15e8d7329db66c05",
+    "docs/upstream-files.csv": "240eb2398ed3ca8bab7f05c7fc2937cf53dc78d029138029c12ebfa6cd2c4fcc"
+  },
+  "git_engines": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four final complete receiver runs pass. Actual NSTextView glyph layout supplies four spaces/two tabs including Unicode-adjacent glyphs with positive visible bounds; offscreen rectangle excludes marks. Standard writeSelection with advertised writablePasteboardTypes copies backing text unchanged through unique private pasteboard. Original export bytes unchanged. Dark marker color matches source 0xb4b4b4; marker count retained. Existing real import/recovery/quit/identity/drop/layout/appearance/context handoff regressions pass.",
+    "core": "Core production unchanged; no new Core tests.",
+    "builds": "Unsigned Debug/Store builds pass. Sources/receiver/NOTICE frozen during compiler/native sessions; Store starts after final native handle terminal. No production changes after first Debug.",
+    "bundles": "Debug/Store validators and NOTICE comparisons, inventory pin, 3277-record/7-field CSV, documentation site and whitespace checks pass."
+  },
+  "iterations": [
+    "Initial native run and diagnostic run failed Copy assertion because test forced NSPasteboard.string rather than the advertised legacy NSStringPboardType. Glyph geometry assertions passed.",
+    "Isolated AppKit probe confirms pasteboard set/read works, forced unsupported type returns false and advertised writable types copy successfully. Receiver corrected to standard supported-type path.",
+    "Final four-engine runs pass; failed logs and isolated probes retained. No product changes were required for Copy."
+  ],
+  "cleanup": {
+    "removed_empty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C80DD05-7A6E-4CAC-AFD6-5F2D3D764CE8.plist",
+      "TurtleGit.ImportPatch.QA.FC0738F2-2894-4B5C-B77B-2F56B579D7A9.plist",
+      "TurtleGit.ImportPatch.QA.55F3C8D9-96F7-43FD-977F-53C9219800EB.plist",
+      "TurtleGit.ImportPatch.QA.95DBC591-F699-4988-B82E-63A4E2CE076B.plist"
+    ],
+    "retained_nonempty_private_preferences": [
+      "TurtleGit.ImportPatch.QA.3C8F56DF-8941-47C7-B516-9B0C19F6FD90.plist",
+      "TurtleGit.ImportPatch.QA.98A50281-8FE7-45BF-9EDB-195DBAA19B57.plist",
+      "TurtleGit.ImportPatch.QA.2A45BABA-E467-4514-8F1A-D2804202E131.plist",
+      "TurtleGit.ImportPatch.QA.93C18042-52C1-447C-921D-5E18F4921BEB.plist",
+      "TurtleGit.ImportPatch.QA.3AA3C62E-87E4-4F47-A0A5-04737623A505.plist",
+      "TurtleGit.ImportPatch.QA.2D5016A3-FBA3-46D9-90F6-C176600B95D9.plist",
+      "TurtleGit.ImportPatch.QA.906D90F9-3E82-4B95-9B73-4076F8E6354F.plist",
+      "TurtleGit.ImportPatch.QA.74753A45-A25F-4E3D-ABEA-AFFDA5ED989A.plist"
+    ],
+    "app_or_receiver_processes": [],
+    "fixtures": "TemporaryDirectory fixtures removed; owned hidden windows closed on passing runs. Crashed receivers terminal; nonempty failed private preferences retained. Standard application preferences untouched."
+  },
+  "limitations": [
+    "Geometry and private-pasteboard evidence do not establish actual rendered marker visibility, Retina scaling, selection contrast or physical accessibility/visual acceptance.",
+    "High-contrast/light marker color behavior follows code but is not separately asserted; native dark color asserted.",
+    "Shared PatchTextView consumers receive markers; runtime tests here cover Import Patch embedded preview. Separate viewer/staging consumers and print behavior not newly acceptance-tested.",
+    "Large or extremely long lines, performance and complex shaping beyond tested Unicode are unverified. Only ASCII space/tab glyphs are marked; EOL/control-character visualization not added.",
+    "Exact keyboard/context behavior, patch review/application, full Git settings and other parity gaps remain pending.",
+    "Unsigned builds do not establish signed sandbox/Finder/App Store. GitHub auth/CI/push and CUA remain unavailable from previous evidence, not retried. Full objective active."
+  ],
+  "logs_sha256": {
+    "build/qa/patch-whitespace/cleanup.json": "219623ab76198cb81e20dc52f3c92364907532ab9f51f46595da15dab1678e05",
+    "build/qa/patch-whitespace/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/patch-whitespace/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/patch-whitespace/native-copy-diagnostic.log": "93cac27c6dcd7b90a4ebbca47c268fca552ace79fd08d1f9b223c5274d353a2d",
+    "build/qa/patch-whitespace/native-copy-failed.log": "430a96b8a9b043454857f99caeeb0d99e2b60f5fe600040388ccc183e6589082",
+    "build/qa/patch-whitespace/native.log": "68426c85d1e93ca8952cb5781d5e562a00471d6a8c2b595fc093e635d86998c3",
+    "build/qa/patch-whitespace/pasteboard-probe-supported.log": "8dc11bf4fa4a52ceeb634e133be6cf178fe1e0ccd89e9bd5afc47eea2bc1b1fe",
+    "build/qa/patch-whitespace/pasteboard-probe.log": "e6adc451b834796191b35708d0cd133efbf339a58e00605b19dae426f0c7e68f",
+    "build/qa/patch-whitespace/pasteboard-probe.swift": "35ccd102148fc723a9243c8c0302fd6ae31f459a5274e3ea5f72167ccaeb4e0b",
+    "build/qa/patch-whitespace/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/patch-whitespace/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/patch-whitespace/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/patch-whitespace/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

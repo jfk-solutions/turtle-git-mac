@@ -158,6 +158,24 @@ import TurtleGitCore
         let customEditor = patchText(host)!, customAdded = (customEditor.string as NSString).range(of: "\n+feature\n").location + 1
         precondition((customEditor.textStorage!.attribute(.font, at: customAdded, effectiveRange: nil) as? NSFont)?.pointSize == 17 && rgb(customEditor.textStorage!.attribute(.backgroundColor, at: customAdded, effectiveRange: nil) as! NSColor) == 0xabcdef)
         print("PASS: actual hidden Import Patch styled preview, source default font, light/dark added-line palettes, custom shared color/font and original export bytes; no physical screenshot acceptance.")
+        let markerBytes = Data("+a b\tc\n+ \t雪😀 tail \n".utf8)
+        model.previewDocument.setReadOnlyDiff(markerBytes); try await settleLayout()
+        let markerEditor = patchText(host) as! PatchTextView.PatchText
+        markerEditor.layoutManager?.ensureLayout(for: markerEditor.textContainer!)
+        let beforeMarkers = markerEditor.string, marks = markerEditor.whitespaceMarks(in: markerEditor.bounds)
+        precondition(marks.filter { $0.kind == .space }.count == 4 && marks.filter { $0.kind == .tab }.count == 2)
+        precondition(marks.allSatisfy { $0.rect.width > 0 && $0.rect.height > 0 && $0.rect.intersects(markerEditor.bounds) })
+        precondition(markerEditor.whitespaceMarks(in: NSRect(x: 100000, y: 100000, width: 10, height: 10)).isEmpty)
+        markerEditor.setSelectedRange(NSRange(location: 0, length: (markerEditor.string as NSString).length))
+        let board = NSPasteboard.withUniqueName(); defer { board.releaseGlobally() }
+        let wroteMarkers = markerEditor.writeSelection(to: board, types: markerEditor.writablePasteboardTypes)
+        print("COPY DIAGNOSTIC", wroteMarkers, markerEditor.selectedRange(), String(reflecting: beforeMarkers), String(reflecting: board.string(forType: .string))); fflush(stdout)
+        precondition(wroteMarkers && board.string(forType: .string) == beforeMarkers)
+        precondition(markerEditor.string == beforeMarkers && model.previewDocument.exportDocument.bytes == markerBytes)
+        host.rootView = AnyView(ImportPatchDialog(model: model).defaultAppStorage(prefs).environment(\.colorScheme, .dark)); try await settleLayout()
+        let darkMarks = patchText(host) as! PatchTextView.PatchText
+        precondition(rgb(darkMarks.whitespaceColor) == 0xb4b4b4 && darkMarks.whitespaceMarks(in: darkMarks.bounds).count == 6)
+        print("PASS: actual native glyph layout supplies four space/two tab markers including Unicode-adjacent whitespace; offscreen marks excluded; private-pasteboard copy, backing text and original export bytes unchanged; dark marker palette. Physical rendered appearance unverified.")
         precondition(model.options.threeWay && model.options.ignoreSpaceChange && model.options.keepCR && !model.options.signOff)
         model.options.signOff = true; var refreshes = 0; model.onChanged = { _ in refreshes += 1 }
         model.apply(); precondition(model.busy)
