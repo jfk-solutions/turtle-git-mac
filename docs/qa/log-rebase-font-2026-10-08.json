@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "f9ab1164d597a29b87b951f79db01d05d25e32bb",
+  "scope": "Source global log font consumers in Log message details and Rebase editable/read-only messages/progress; explicit shared OutputView font opt-in and restoration. Full app/distribution goal incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/LogDlg.cpp": "d456ae8d668767195f464ad8d850a15c034127f5",
+    "src/TortoiseProc/RebaseDlg.cpp": "92f8f3d666bcc43a83b311e6e35d84feb895be05"
+  },
+  "sources_manifest_sha256": "d06a6daa22f9b580620a4ca6623c661f84ecf9699d02ad0a7451ec53855d58db",
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "28920b3f097f1f9be68c21e09809e6bafe8c49a01fc91b3ac18151ad86b883eb",
+    "NOTICE": "0d4d77d37ad1e43e7c96cbabf2b71146b3528159aeaba0a3bf00be8ec4076df8",
+    "Sources/TurtleGitMac/LogWindow.swift": "e6e8eb1a7f246f7d53efad56ebef73fddb473cfee4ebb08b62e76920d36c1578",
+    "Sources/TurtleGitMac/MessageEditorFont.swift": "b202e5a299b3ada218f542c5f6655bdc884d6b28f7855bb0df16acd8058a0d17",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "ac4afd565727427c20ae16a02143117744eb9e3ec34160ca83671e85314e92d0",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "530c159989e40f9c1a560356d97df69b623c59dc1d0f44b069c2dd7b79956a93",
+    "docs/LOG-MERGE-REBASE.md": "496052bde2e9f3a856b23e72dac555212ad31d4fdac5ee951bce6de84bbf6145",
+    "docs/LOG-PARITY.md": "812706de35c54784157d33e75436dadde34c72b6bf23520679436d456930ac7a",
+    "docs/MERGE-PARITY.md": "870969b1c3675179514bba8ed03bbcb39d95ac609f31522892aee00bc4e67b13",
+    "docs/qa/log-rebase-font-native-2026-10-08.swift": "83aa00ef895eb8bc7c501ae79faa7d022e80576c0b0953fc42bad37b08f652f2",
+    "docs/upstream-files.csv": "3c77f8d26f20d1661bba9ccd3a64a2c80d06f243e68e38e52c1b83912cf567c1",
+    "scripts/test-log-rebase-font.py": "32ae340167182409a018134e66fe20147ecc40cd33fbeb8a933c1fcb1d374f4f"
+  },
+  "logs_sha256": {
+    "build/qa/log-rebase-font/cleanup.json": "06b2d5d1d7a1fb941d5f2636a6e7efce7a689ee55f7a638c5cef15470ff1a039",
+    "build/qa/log-rebase-font/commit-merge-regression.log": "9fc07e34cb49e7ddf4e8dd82f1211ad140f4e69fb2c5099699ecd9dfbf680bb4",
+    "build/qa/log-rebase-font/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/log-rebase-font/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-rebase-font/debug.log": "fd337359ff71685a7f02afd66cd33bdbb0f40947d2c9a20a7db45595c05266bd",
+    "build/qa/log-rebase-font/native-initial.log": "beecd0f9302db9e546075a148349217a9d76dc65878ef05d75e9ddee110a4bac",
+    "build/qa/log-rebase-font/native.log": "beecd0f9302db9e546075a148349217a9d76dc65878ef05d75e9ddee110a4bac",
+    "build/qa/log-rebase-font/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-rebase-font/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-rebase-font/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/log-rebase-font/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  },
+  "verification": {
+    "native": "Final headless receiver verifies actual hidden LogDialog message pane (placeholder state), RebaseDialog amend and progress tabs (fixture fileRecovery state), 9-point default, live Monaco/18 then 22, Unicode draft and selection preservation, output read-only, legacy 12-point output and configured->legacy mode restoration. No rebase operation.",
+    "regression": "Existing Commit/Merge native font receiver passes live updates, draft/selection/existing undo preservation, Menlo styling and fallback/settings checks.",
+    "core": "No Core implementation changes; no additional Core tests run for this UI-only change.",
+    "builds": "Initial Debug, final Debug and unsigned AppStore builds pass. Final native and regression receivers run against stationary final Debug framework before Store build. Source unchanged throughout final checks.",
+    "bundles": "Debug/Store audits and NOTICE byte comparisons pass: 98 icons, universal EditorConfig/IssueRegex; Store Git 11 universal Mach-O files/local fixtures.",
+    "other": "Pinned-inventory verifier, site generation, 3277 source records/7 fields and diff whitespace checks pass."
+  },
+  "iterations": "Initial native run passed. After adding symmetric configured->legacy OutputView font restoration and source attribution, final Debug/new native receiver (including mode toggle) and Commit/Merge regression both passed. No failed iteration.",
+  "cleanup": {
+    "empty_owned_preferences_removed": [
+      "TurtleGit.LogRebaseFont.QA.6FCFB295-8B8F-41C1-85B7-EC9EC60D9275.plist",
+      "TurtleGit.LogRebaseFont.QA.DFB8D73D-4FB2-4A57-9ACD-CA93D1B0C5FF.plist",
+      "TurtleGit.MessageFont.QA.4522C550-8EB0-4C80-9A31-AABD063290E5.plist"
+    ],
+    "nonempty_preferences_preserved": [
+      "TurtleGit.MessageFont.QA.A8A4954B-AF08-43FC-90A0-04F304411D62.plist"
+    ],
+    "owned_app_or_receiver_processes": []
+  },
+  "limitations": [
+    "Log fixture tests placeholder details rather than a loaded revision or rich message styling/links.",
+    "Rebase receiver sets UI fixture state; no real replay, conflict/squash/split transition or read-only SwiftUI Text font inspection. Read-only Text source modifier is inspected, not claimed as composed runtime acceptance.",
+    "Physical interactions, light/dark composed appearance and screenshots of this change unverified.",
+    "Other source global-font consumers including Input, Import Patch and Revision Graph pending.",
+    "Unsigned audits do not prove signing, sandbox/Finder runtime or App Store acceptance.",
+    "Previous nonempty failed-font fixture preferences retained; standard preferences untouched.",
+    "GitHub auth/CI/push and CUA unavailable from prior evidence; not retried. Full app goal remains active."
+  ]
+}

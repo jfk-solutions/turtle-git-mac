@@ -284,7 +284,7 @@ and focus their native table initially. See [history picker verification](qa/his
 
 ## Message editor font
 
-Settings → Dialogs → Message editor font selects a native fixed-pitch family and
+Settings → Dialogs → Font for log messages selects a native fixed-pitch family and
 point size for both Commit and Merge. The `LogFontName` and `LogFontSize`
 preference names and default size of 9 follow TortoiseGit's CommonAppUtils and
 SetDialogs. Menlo replaces Windows' default Consolas; unavailable names fall
@@ -295,9 +295,9 @@ bold/italic faces from the chosen base font when AppKit provides those faces.
 Fonts without a requested face, such as the measured Monaco bold conversion,
 retain the native font; synthetic Windows-style font traits remain pending.
 
-This checkpoint covers the Commit and Merge editors. Other upstream consumers
-of the same global font, including Log, Rebase and other text dialogs, still need
-integration. The native font control lives under Dialogs as in upstream.
+Commit and Merge editors, Log message details and Rebase message/progress
+views use this setting. Other upstream consumers, including Input,
+Import Patch and Revision Graph, still need integration. The native font control lives under Dialogs as in upstream.
 No complete typography or visible appearance
 parity is claimed. Headless checks are recorded in
 [message font QA](qa/message-font-2026-10-08.json).

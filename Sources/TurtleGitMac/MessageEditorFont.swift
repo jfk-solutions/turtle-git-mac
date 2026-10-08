@@ -20,13 +20,13 @@ struct MessageEditorFontSettings: View {
     @State private var draftSize = String(MessageEditorFont.defaultSize)
     private var validSize: Int? { Int(draftSize).flatMap { (1...1000).contains($0) ? $0 : nil } }
     var body: some View {
-        GroupBox("Message editor font") {
+        GroupBox("Font for log messages") {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     NativeFixedFontChoice(value: $name).frame(height: 24)
                     NativeFontSizeChoice(value: $draftSize).frame(width: 75, height: 24)
                 }
-                Text("Applies to Commit and Merge messages.").font(.caption).foregroundStyle(.secondary)
+                Text("Applies to Commit, Merge, Log messages and Rebase messages/progress.").font(.caption).foregroundStyle(.secondary)
                 if validSize == nil { Text("Enter a font size from 1 to 1000 points.").font(.caption).foregroundStyle(.red) }
             }.padding(8)
         }.onAppear { draftSize = String(size) }

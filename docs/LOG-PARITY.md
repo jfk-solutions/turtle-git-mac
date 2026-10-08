@@ -1500,3 +1500,19 @@ uses the native first lane rather than claiming complete Lanes equivalence.
 history, displayed-message model and rapid-selection checks. Hidden settings
 layout does not establish physical toggle, themes, accessibility or signed runtime.
 See [Push parity](PUSH-PARITY.md) for the matching post-transport counter.
+
+
+## Configured log message font
+
+Settings → Dialogs → Font for log messages now applies to the message details
+pane, matching `LogDlg.cpp::SetupLogMessageViewControl`. The revision table and
+changed-file list keep their existing native fonts, as this source call targets
+`IDC_MSGVIEW`. The setting shares `LogFontName`/`LogFontSize` with Commit, Merge
+and Rebase. Menlo replaces Consolas on macOS, with the source default of 9 points.
+Changing preferences updates an open pane and retains its selected text.
+
+The read-only native `OutputView` opts into this setting explicitly. Other output
+views keep their existing 12-point system monospaced font. See
+[Log/Rebase font QA](qa/log-rebase-font-2026-10-08.json) for actual hidden native
+pane checks. Physical font-control interactions, light/dark composed appearance,
+rich-message links/styling and the complete Log dialog remain partially verified.

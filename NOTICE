@@ -647,3 +647,9 @@ Windows font creation; Menlo replaces the source default Consolas on macOS.
 Those font helpers retain copyright (C) 2008-2020, 2023-2025 TortoiseGit and
 (C) 2003-2008, 2010, 2020 TortoiseSVN. SetDialogs.cpp retains copyright
 (C) 2008-2020, 2025 TortoiseGit and (C) 2003-2008 TortoiseSVN.
+
+Native Log message and Rebase message/progress font consumers follow
+LogDlg.cpp::SetupLogMessageViewControl and RebaseDlg.cpp's font call sites,
+copyright (C) 2008-2026 TortoiseGit and, for LogDlg.cpp,
+(C) 2003-2009, 2015 TortoiseSVN, under GPL version 2 or later.
+AppKit and SwiftUI replace the Windows text controls.

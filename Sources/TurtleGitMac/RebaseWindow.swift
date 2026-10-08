@@ -659,6 +659,9 @@ struct RebaseReplayCell<Content: View>: View {
 
 struct RebaseDialog: View {
     @ObservedObject var model: RebaseWindowModel
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
+    private var messageFont: Font { Font(MessageEditorFont.resolve(name: fontName, size: fontSize)) }
     var body: some View {
         VStack(spacing: 10) {
             HStack {
@@ -722,12 +725,12 @@ struct RebaseDialog: View {
                         if model.fileRecovery || model.state?.squashMessage != nil || model.state?.isEditPause == true || model.state?.split != nil {
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(model.state?.squashMessage != nil ? "Combined commit message:" : "Edit commit message:")
-                                TextEditor(text: $model.amendMessage).font(.system(.body, design: .monospaced)).accessibilityLabel(model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message")
+                                TextEditor(text: $model.amendMessage).font(messageFont).accessibilityLabel(model.state?.squashMessage != nil ? "Combined commit message" : "Edit commit message")
                                 if let squash = model.state?.squashMessage { Text("Author: first commit • Author date: " + (squash.datePolicy == .first ? "first commit" : squash.datePolicy == .latest ? "latest commit" : "current time")).font(.caption) }
                             }.padding(8)
-                        } else { ScrollView { Text(model.message).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }
+                        } else { ScrollView { Text(model.message).font(messageFont).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).padding(8) } }
                     }.tabItem { Text("Commit Message") }.tag(1)
-                    OutputView(text: model.output).tabItem { Text("Progress") }.tag(2)
+                    OutputView(text: model.output, usesLogFont: true).tabItem { Text("Progress") }.tag(2)
                 }.frame(minHeight: 150)
             }
             if model.active {

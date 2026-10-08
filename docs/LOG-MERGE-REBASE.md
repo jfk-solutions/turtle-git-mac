@@ -42,3 +42,17 @@ and views are hidden; no displayed navigation or signed execution is claimed.
 
 Clicked-label targeting, broad displayed dialog/keyboard/accessibility parity,
 remaining advanced Log commands and full application parity remain unfinished.
+
+
+## Shared log font in Rebase
+
+Rebase's editable commit message, read-only message text and progress output now
+use the Dialogs font preferences, matching RebaseDlg's message/output font call
+sites. Changes apply to open native views. Font changes preserve the draft and
+selected text. Progress remains read-only. Other comparison/output views keep
+their separate appearance settings or existing native font.
+
+[Log/Rebase font QA](qa/log-rebase-font-2026-10-08.json) exercises hidden native
+Log and Rebase hosts using isolated preferences. Rebase UI state is a fixture;
+this receiver performs no rebase operation and does not prove conflict recovery,
+squash/split transitions, signed sandbox or physical appearance acceptance.

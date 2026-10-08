@@ -1891,7 +1891,7 @@ struct LogDialog: View {
             VSplitView {
                 RevisionTable(model: model).frame(minHeight: 200, idealHeight: 350)
                 HStack(alignment: .top, spacing: 0) {
-                    OutputView(text: model.message).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    OutputView(text: model.message, usesLogFont: true).frame(maxWidth: .infinity, maxHeight: .infinity)
                     if model.showGravatar { LogGravatarView(loader: model.gravatar) }
                 }.frame(minHeight: 110, idealHeight: 150)
                     .onChange(of: shortDate) { _ in model.objectWillChange.send() }

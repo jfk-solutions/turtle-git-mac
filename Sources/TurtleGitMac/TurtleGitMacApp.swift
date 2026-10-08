@@ -290,6 +290,9 @@ struct OperationDialog: View {
 
 struct OutputView: NSViewRepresentable {
     let text: String
+    var usesLogFont = false
+    @AppStorage("LogFontName") private var fontName = MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize = MessageEditorFont.defaultSize
     func makeNSView(context: Context) -> NSScrollView {
         let view = NSTextView()
         view.isEditable = false; view.isSelectable = true
@@ -301,6 +304,10 @@ struct OutputView: NSViewRepresentable {
         return scroll
     }
     func updateNSView(_ nsView: NSScrollView, context: Context) {
-        if let view = nsView.documentView as? NSTextView, view.string != text { view.string = text }
+        guard let view = nsView.documentView as? NSTextView else { return }
+        if view.string != text { view.string = text }
+        let font = usesLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize)
+            : NSFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+        if view.font != font { let ranges = view.selectedRanges; view.font = font; view.selectedRanges = ranges }
     }
 }
