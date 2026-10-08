@@ -253,6 +253,18 @@ import TurtleGitCore
         guard let onCompare, let (from, to) = comparisonSides(command, ids: ids) else { return }
         onCompare(from, to)
     }
+    func canCompareParent(_ ids: Set<String>, number: Int = 1) -> Bool {
+        guard !invalidated, !busy, onCompare != nil, ids.count == 1,
+              let entry = entries.first(where: { ids.contains($0.id) }),
+              let parents = diffParents[entry.hash] else { return false }
+        return parents.contains { $0.number == number }
+    }
+    func compareParent(_ ids: Set<String>, number: Int = 1) {
+        guard canCompareParent(ids, number: number),
+              let entry = entries.first(where: { ids.contains($0.id) }),
+              let parent = diffParents[entry.hash]?.first(where: { $0.number == number }) else { return }
+        onCompare?(.revision(parent.hash), .revision(entry.hash))
+    }
     func showLog(_ ids: Set<String>) {
         guard !busy, ids.count == 1, let entry = entries.first(where: { ids.contains($0.id) }) else { return }
         onLog?(entry.hash)
@@ -410,6 +422,17 @@ private struct ReferenceLogDialog: View {
                                 } label: { CommandLabel(title: "Unified diff with", icon: .unifiedDiff) }.disabled(model.unifiedViewerBusy)
                             } else if parents.count == 1 {
                                 Button { model.inspect(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(!model.canInspect(ids))
+                            }
+                        }
+                        if let entry = model.entries.first(where: { ids.contains($0.id) }), let parents = model.diffParents[entry.hash] {
+                            if parents.count > 1 {
+                                Menu {
+                                    ForEach(parents, id: \.number) { parent in
+                                        Button { model.compareParent(ids, number: parent.number) } label: { CommandLabel(title: parent.title, icon: .compare) }.disabled(!model.canCompareParent(ids, number: parent.number))
+                                    }
+                                } label: { CommandLabel(title: "Compare with previous revision", icon: .compare) }.disabled(model.onCompare == nil)
+                            } else if parents.count == 1 {
+                                Button { model.compareParent(ids) } label: { CommandLabel(title: "Compare with previous revision", icon: .compare) }.disabled(!model.canCompareParent(ids))
                             }
                         }
                         Divider()

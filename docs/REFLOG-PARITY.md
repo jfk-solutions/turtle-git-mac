@@ -366,3 +366,29 @@ ownership tests cover the RefLog close path. Physical light/dark viewer renderin
 external launch, Save As/print, parent menus, owned viewer lifecycle, bare/signed
 invocation and broader octopus/encoding cases remain pending. Full RefLog/dialog/
 application parity remains incomplete.
+
+## Compare with previous revision
+
+The source command now opens native Changed Files with the selected commit's
+parent as the base and the selected commit as destination. A normal commit uses
+its only parent; a merge offers each numbered parent with the existing subject/
+hash label, immediately after the unified-diff choices and before Log commands.
+Root commits have no command. The original Compare icon is reused.
+
+Exactly one current selector, loaded parent metadata, a valid parent number and
+a supplied comparison callback are required. Empty/stale/multiple selections,
+loading, missing callbacks and a closed model cannot dispatch. This read-only
+command remains available in bare repositories, matching the source's separate
+eligibility from unified diffs. Revision choosers may compare when their caller
+supplies the callback. Changed Files keeps the existing matching idle-window
+reuse and edited/busy-window ownership rules.
+
+[Parent comparison receiver](qa/reflog-parent-comparisons-native-2026-10-08.swift)
+and [QA record](qa/reflog-parent-comparisons-2026-10-08.json) load actual Changed
+Files models for a normal commit and both merge parents, verify base/destination
+and raw non-UTF-8 patch direction, selection/parent/callback/busy/invalidation
+rejection, chooser dispatch and a bare merge comparison. Ordinary HEAD/refs/index/
+config/working bytes remain unchanged by reads. No windows are displayed. Physical
+menu/parent/icon rendering, activation and window ownership, octopus/missing-parent
+variants and signed sandbox access remain pending. Full RefLog/dialog/application
+parity remains incomplete.

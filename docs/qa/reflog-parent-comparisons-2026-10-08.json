@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "e214d951bb12e5911d70f99719ad8b25fac0c64b",
+  "scope": "RefLog Compare with previous revision and numbered merge-parent menu using native Changed Files, including bare repositories and chooser callback guards. Partial parity; full application port remains incomplete.",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/TortoiseProc/GitDiff.cpp": "df09c3c370bb1f86b3f71e4981a6b1d64892dce7",
+    "src/Resources/TortoiseLoglistCommon.rc2": "a174ae27ca959c289076127e729f58ba37bd2fd6"
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "649479dfc29fe29bd496c79c7458098e764db12d5cc249d8a8a6c8c203e6e0af",
+    "NOTICE": "3b172b56f3e123bb79140dc7d652aee7a9f2e9f027a42854cf90ad8e2d1b4a0a",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "d9880a6e970286a714f2402728e9b2a70e7830402816aa024d3f43a351c55fe2",
+    "docs/PORTING.md": "932e14fe3cb5b8cb465f6e16946222f656f1b163a68e2c1be6e0cd8a5d466664",
+    "docs/REFLOG-PARITY.md": "69ad47e2bca8a8719ac5b6ed9de5a973f8b1babcd6a5da56422fd807100e9148",
+    "docs/qa/reflog-parent-comparisons-native-2026-10-08.swift": "c3a11f7ce0bf43dfc776ccdc82e3f4eab919843b5f277a3ae35d2c344ada47e9",
+    "docs/upstream-files.csv": "322898237d41f6c4ce55322c958709af33078dd29b872d8b2126e7ed193355da",
+    "scripts/test-reflog-parent-comparisons.py": "f89438a3344053609357900086ec6c37c25c0f9745113aedad608d48425d2917"
+  },
+  "all_sources_manifest_sha256": "841d132ac628983efc5b4c4e4356e02120a19d763b5684f8da2b2d8897df0d09",
+  "verification": {
+    "native": "System Git, Git 2.37.1, 2.39.5 and bundled 2.55.0 passed. Production callbacks load actual Changed Files models for ordinary and both merge parents; exact parent-to-selected endpoints and non-UTF8 patch direction checked. Root, stale, multiple/empty selectors, invalid parent numbers, busy, absent callback and invalidated models cannot dispatch. Read-only chooser dispatch requires callback. Bare merge second-parent comparison loads successfully. Ordinary HEAD/refs/index/config/working bytes remain unchanged by reads. Receiver creates no windows or preference domains.",
+    "regression": "Existing unified receiver passed all four Git versions against final Sources, retaining merge modes, non-UTF8 original export, source Shift exception, two-revision/equal-hash comparison, clean-merge information, metadata retention and repository preservation. No visible viewer/external app.",
+    "builds": "Final unsigned Debug and AppStore builds, both bundle audits and exact bundled NOTICE comparisons passed. All 96 original icons verified. Store --require-git audited 11 universal Git Mach-O files and real fixture operations. EditorConfig/IssueRegex audits passed.",
+    "core": "No Core source changed; native receiver uses existing Core parent metadata, comparisons and patch APIs. No additional Core suite run for this native menu/callback checkpoint.",
+    "iterations": "Debug, native and regression four-Git matrices and Store build passed first run; no failed iteration.",
+    "documentation": "RefLog parity, PORTING summary, NOTICE and source inventory updated. Pin check and all 3277 seven-column source rows passed. Local site generated; unpublished.",
+    "ci": "Parent comparison receiver added to macOS workflow. Hosted CI and push unavailable/unverified; no authentication retry.",
+    "processes": "All build/compiler/native/audit sessions terminal. Main GUI never launched; neither receiver displays windows. Final app/native receiver process audit empty; no general clipboard, external app or preference writes.",
+    "limitations": "Physical context menu/parent label/icon rendering, native activation, actual Changed Files reuse/independent close and signed access remain unverified. Broader octopus/missing-parent cases and choosers without callback wiring remain pending. Full RefLog/ref menus, dialog/Finder parity, genuine updated screenshots/manual, hosted publication and signed App Store distribution remain incomplete."
+  },
+  "logs": {
+    "build/qa/reflog-parent-comparisons/debug-audit.log": "2f8e017d76c88011e0451d0ac7c4d10f4edfb1086bf3d0e815cb768c29d5e6eb",
+    "build/qa/reflog-parent-comparisons/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reflog-parent-comparisons/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reflog-parent-comparisons/native.log": "b9a302c71ab67733c41161375a1b6367ce3ebe67cf2bdb1b6d1d34e222f13d21",
+    "build/qa/reflog-parent-comparisons/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/reflog-parent-comparisons/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-parent-comparisons/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/reflog-parent-comparisons/store-audit.log": "365dbc2a29e863d63bf0f9efa838e84bb49dafb5291274720346a19dbf1cf0ef",
+    "build/qa/reflog-parent-comparisons/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/reflog-parent-comparisons/unified-regression.log": "5891d57ed33a1e45273498e49b9c190f3d055eb31805f9b3731f3b08f40e9a59"
+  }
+}

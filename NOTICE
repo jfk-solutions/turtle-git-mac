@@ -493,3 +493,7 @@ range endpoints are validated as commit objects before Git walks the range.
 RefLog unified diffs use GitLogListBase.cpp/GitLogListAction.cpp's merge-parent
 menu choices and Git.cpp's diff-tree/stat modes at the recorded pin, preserving
 raw patch bytes through the shared native/external unified-diff viewer.
+
+RefLog previous-revision and merge-parent comparisons follow
+GitLogListBase.cpp/GitLogListAction.cpp's Compare with previous revision menu,
+parent choices and base-to-selected Changed Files handoff at the recorded pin.
