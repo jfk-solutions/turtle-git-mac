@@ -137,6 +137,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     let repository: GitRepository
     let options: StashSaveOptions
     let followUp: StashSaveFollowUp
+    private let autoClosePolicy: GitProgressAutoClose
     private let access: RepositoryAccessLease?
     private let cancellation = OperationCancellation()
     private var started = false
@@ -149,7 +150,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     var close: () -> Void = {}
     var onFinished: (StashSaveResult?, String) -> Void = { _, _ in }
     var onPostAction: ((StashSavePostAction, StashSaveFollowUp) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp) { self.repository = repository; self.access = access; self.options = options; self.followUp = followUp }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     func start() { Task { await run() } }
     func cancel() { guard busy else { return }; cancellation.cancel() }
     func run() async {
@@ -163,6 +164,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
             if saved.created { postActions += [.pop, .apply] }
         } catch { output = error.localizedDescription; cancelled = cancellation.isCancelled }
         busy = false; onFinished(result, output)
+        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
     }
     func perform(_ action: StashSavePostAction) {
         guard !busy, success, postActions.contains(action), let onPostAction else { return }

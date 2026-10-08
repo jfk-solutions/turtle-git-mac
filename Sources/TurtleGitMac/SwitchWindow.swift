@@ -322,8 +322,9 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     @Published private(set) var postActions: [SwitchPostAction] = []
     var onFinished: (String, Bool) -> Void = { _, _ in }
     var onPostAction: ((SwitchPostAction, String) -> Void)?
+    private let autoClosePolicy: GitProgressAutoClose
     var close: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String) { self.repository = repository; self.access = access; self.reference = reference }
+    init(repository: GitRepository, access: RepositoryAccessLease?, reference: String, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.reference = reference; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     func start() { Task { await run() } }
     func run() async { guard !started else { return }; started = true; await execute(merge: false) }
     func cancel() { guard busy else { return }; cancellation.cancel() }
@@ -363,6 +364,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             if !merge { postActions.append(.switchWithMerge) }
         }
         busy = false; onFinished(output, success)
+        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
     }
 }
 private struct SwitchProgressDialog: View {

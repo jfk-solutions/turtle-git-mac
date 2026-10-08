@@ -217,6 +217,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     private var cancellation = OperationCancellation()
     private var started = false
     private let preferences: UserDefaults
+    private let autoClosePolicy: GitProgressAutoClose
     static let conflictHintPreference = "MergeConflictsNeedsCommit"
     static let conflictHint = """
     While merging, i.e. integrating changes of another (remote) branch into your local branch, a conflict in at least one file occurred. This means that you need to resolve this manually (i.e., you need to integrate your changes into a file which was also modified on another branch).
@@ -242,7 +243,7 @@ enum MergePostAction: String, CaseIterable, Hashable {
     var onChanged: (String) -> Void = { _ in }
     var onPostAction: ((MergePostAction, MergeOptions) -> Void)?
     var confirmDeletion: (String, @escaping (Bool) -> Void) -> Void = { _, choose in choose(false) }
-    init(repository: GitRepository, access: RepositoryAccessLease?, options: MergeOptions, target: CheckoutTarget, showStashPop: Bool, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.target = target; self.showStashPop = showStashPop; self.preferences = preferences }
+    init(repository: GitRepository, access: RepositoryAccessLease?, options: MergeOptions, target: CheckoutTarget, showStashPop: Bool, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.options = options; self.target = target; self.showStashPop = showStashPop; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     func start() { Task { await run() } }
     func run() async { guard !started else { return }; started = true; await execute(options) }
     func cancel() { guard busy, !confirmingConflictHint else { return }; cancellation.cancel() }
@@ -280,7 +281,8 @@ enum MergePostAction: String, CaseIterable, Hashable {
             postActions.append(.stash)
         }
         busy = false; onChanged(output)
-        if cancelled, onAbortRequested != nil { cancelResult() }
+        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
+        else if cancelled, onAbortRequested != nil { cancelResult() }
     }
     func cancelResult() {
         guard !busy, !confirmingConflictHint, !confirmingDeletion, !checkingDismissal else { return }
@@ -417,8 +419,10 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
     var onShowModified: (() -> Void)?
     var onPostAction: ((MergeAbortPostAction) -> Void)?
     var onResize: (Bool) -> Void = { _ in }
+    private let preferences: UserDefaults
+    private var autoClosePolicy = GitProgressAutoClose.manual
     var close: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
     func invalidate() { invalidated = true }
     func showModified() { guard !invalidated, !busy, !showingProgress else { return }; onShowModified?() }
     func abort() {
@@ -426,6 +430,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
         operationMode = mode; showingProgress = true; onResize(true); start()
     }
     private func start() {
+        autoClosePolicy = GitProgressAutoClose(preferences: preferences)
         busy = true; success = false; cancelled = false; output = ""; postActions = []; cancellation = OperationCancellation()
         Task {
             do {
@@ -442,6 +447,7 @@ enum MergeAbortPostAction: String, CaseIterable, Hashable {
                 }
             } catch { output = error.localizedDescription; cancelled = cancellation.isCancelled; postActions = [.retry] }
             busy = false; onChanged(output)
+            if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { close() }
         }
     }
     func cancel() { guard busy else { return }; cancellation.cancel() }

@@ -1406,6 +1406,7 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     let cancellation = OperationCancellation()
     let cancellable: Bool
     private let preferences: UserDefaults
+    private let autoClosePolicy: GitProgressAutoClose
     @Published private(set) var busy = true
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
@@ -1422,12 +1423,13 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { busy && cancellable && !cancelling && !confirmingCancellation }
     init(repository: GitRepository, action: CommitWindowModel.CompletionAction, staging: Bool, paths: Set<String>, options: CommitOptions, preferences: UserDefaults, cancellable: Bool) {
-        self.repository = repository; self.action = action; self.staging = staging; self.paths = paths; self.options = options; self.preferences = preferences; self.cancellable = cancellable
+        self.repository = repository; self.action = action; self.staging = staging; self.paths = paths; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.cancellable = cancellable
     }
     func complete(output: String, success: Bool, cancelled: Bool, postActions: [CommitPostAction]) {
         guard busy else { return }
         self.output = output; self.success = success; self.cancelled = cancelled
         self.postActions = postActions; busy = false; cancelling = false
+        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { choose(nil) }
     }
     func waitForChoice() async -> CommitPostAction? {
         if resolved { return selected }

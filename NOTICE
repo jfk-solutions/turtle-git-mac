@@ -549,3 +549,6 @@ the Windows cancellation implementation for ordinary commit and hook processes.
 
 Commit action persistence adapts CommitDlg.cpp::PrepareOkButton and
 MenuButton.cpp::SetCurrentEntry, retaining the CommitLastAction indices.
+
+Git progress automatic close adapts ProgressDlg.cpp and SetDialogs2.cpp,
+retaining AutoCloseGitProgress values, source labels and success-only decisions.

@@ -1535,3 +1535,8 @@ split-button/menu/default or keyboard acceptance. The upstream m_bAutoClose fiel
 is a caller flag, not a new user-facing setting. Full Commit/dialog persistence,
 progress settings, physical/signed acceptance and full application parity remain
 incomplete; existing screenshots predate the changed dynamic button label.
+
+Settings → Dialogs now exposes AutoCloseGitProgress. Its three source policies
+apply to ordinary Commit results after their post-actions are assembled; failures
+remain open. Footer/Rebase overrides are preserved. See
+[progress close policies](PROGRESS-PARITY.md) for scope and remaining acceptance.

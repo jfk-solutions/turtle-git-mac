@@ -430,6 +430,7 @@ enum PullPostAction: String, CaseIterable, Hashable {
     let followUp: PullFollowUp
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
+    private let autoClosePolicy: GitProgressAutoClose
     private var cancellation = OperationCancellation()
     private var started = false, invalidated = false, dispatched = false
     @Published private(set) var busy = true
@@ -452,10 +453,10 @@ enum PullPostAction: String, CaseIterable, Hashable {
     var closeAfterCancellation = false
     private func completed() {
         busy = false; cancelling = false; confirmingCancellation = false; onCompleted()
-        if cancelled && closeAfterCancellation { close() }
+        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: PullOptions, followUp: PullFollowUp, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.preferences = preferences
+        self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
     func invalidate() { invalidated = true }
     func start() { Task { await run() } }
@@ -640,6 +641,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     let preserveMerges: Bool
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
+    private let autoClosePolicy: GitProgressAutoClose
     private var cancellation = OperationCancellation()
     private var started = false, invalidated = false, dispatched = false
     @Published private(set) var busy = true
@@ -661,7 +663,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     var onRebase: (String, Bool, Bool) -> Void = { _, _, _ in }
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
     init(repository: GitRepository, access: RepositoryAccessLease?, options: FetchOptions, preferences: UserDefaults = .standard, rebaseMode: FetchRebaseMode = .none, preserveMerges: Bool = false) {
-        self.repository = repository; self.access = access; self.options = options; self.preferences = preferences
+        self.repository = repository; self.access = access; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
         self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges
     }
     private func answer(_ prompt: FetchRebasePrompt) async -> Int {
@@ -722,7 +724,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             else { postActions = [.retry]; if options.allRemotes { postActions.append(.log) } }
         }
         busy = false; cancelling = false; confirmingCancellation = false; onCompleted()
-        if cancelled && closeAfterCancellation { close() }
+        if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
     func cancel() {
         guard !invalidated, busy, canCancel else { return }
@@ -817,5 +819,21 @@ private struct FetchProgressDialog: View {
                 else { if !model.success { Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction) }; Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
             }.disabled(model.dispatchingAction)
         }.padding(12)
+    }
+}
+
+/// CProgressDlg's constructor mapping and successful END-message close condition.
+enum GitProgressAutoClose: Int, CaseIterable, Sendable {
+    case manual = 0, noOptions = 1, noErrors = 2
+    init(preferences: UserDefaults = .standard) { self = Self(rawValue: preferences.integer(forKey: "AutoCloseGitProgress")) ?? .manual }
+    var title: String {
+        switch self {
+        case .manual: return "Close manually"
+        case .noOptions: return "Auto-close if no further options are available"
+        case .noErrors: return "Auto-close if no errors"
+        }
+    }
+    func shouldClose(success: Bool, postActionCount: Int) -> Bool {
+        success && (self == .noErrors || self == .noOptions && postActionCount == 0)
     }
 }

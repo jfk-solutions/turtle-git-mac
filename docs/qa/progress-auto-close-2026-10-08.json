@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "797f704068f80c524e4ec7c81d8ed9f0ca1735b8",
+  "scope": "Three upstream Git progress automatic close policies in seven native workflows. Full application and distribution parity remains incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090",
+    "src/TortoiseProc/ProgressDlg.h": "c21856cbed61b28586faaf5f37b9ef051e31bb52",
+    "src/TortoiseProc/Settings/SetDialogs2.cpp": "67abf27cae395ac4a013856199960db6aac3aee6",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "sources_manifest_sha256": "8b3d693db79bba6beb910d489992a1866deaa6589b5aefd485c09e5af4c63d93",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "3148a6f2574281b98f49082461b5e42263ff1193d291b6bc6adf23b729eac9bb",
+    "NOTICE": "b5ab5a607e320a36fef6ddc6e504060765489d55bd94651df6c6c6e780beb2c5",
+    "README.md": "95943d8828756a4f4493aaa447a899ffee513710ec9e07c6912afa3320bab64a",
+    "Sources/TurtleGitMac/CommitWindow.swift": "0bafe78d8da79e031c0bb0e92cec45ce0f1cb686807f7b7a8fa8e544d0f21284",
+    "Sources/TurtleGitMac/FetchWindow.swift": "b1e24f4bc426167bb72ec9a99f3a84cedfe0347164f2a4c087e6b31e06b681b9",
+    "Sources/TurtleGitMac/LogWindow.swift": "92f1f76172c39a362ce7b27c9d25798d3505c497ca21f77fb7df1ebe9fe14d3d",
+    "Sources/TurtleGitMac/MergeWindow.swift": "82c8aa4e483ba648a2693d5cc1f0acbf22dd11ccd6ace3ef51ce566f4aaf8f56",
+    "Sources/TurtleGitMac/StashWindow.swift": "8abce82bac0e0215d4e915a7b83f6525417a0a5c65f334296da1689c378b06a6",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "877601758067b7785247399e9856c0ba49b3dcbb630ada0b8a5888a2d01827a1",
+    "docs/COMMIT-PARITY.md": "daf62e36b4db5d83a70edd787cc26e6d385929960d610bd43b712c84d9d8670f",
+    "docs/upstream-files.csv": "b0046b6432f3563b9e562e1c56e0ce507d2154b75555b6fb99eb27b0491bd534",
+    "docs/PROGRESS-PARITY.md": "903f20bbce4729f864cafbc3585761c37f310a6306122c7625d9050bce87bcf2",
+    "docs/qa/progress-auto-close-native-2026-10-08.swift": "33536bb5cdaa1acd0b2b7b4b6345d09c844d5ff4c94a28b49380f145b166b38b",
+    "scripts/test-progress-auto-close.py": "94ef3662fa17de8755e27280d752a4a02d2683e48368c6624ec65c8e9acb869e"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four-Git real repository receiver passed all three policies across Commit, Fetch, merge Pull, Merge, Abort Merge, Stash Save and express Switch. Zero-action successful Merge/tag, Merge Abort and no-change Stash close in modes 1/2; available actions retain mode 1 and close mode 2 without dispatch. Fetch, Pull, Merge and Switch failures stay open in all modes. Actual Commit hook rejection stays open in mode 2 and retains owner/draft after acknowledgement. Snapshot/reopen preferences and absent/invalid fallback preserve raw values. Hidden settings host lays out in private preferences without a window; no physical picker claim.",
+    "regressions": "Existing Commit progress and Pull progress receivers passed all four Gits, including hook cancellation and result actions, conflict and unrelated-history handling and Stash follow-up chain. Core unchanged; prior Core checks not repeated.",
+    "builds": "Unsigned Debug and AppStore builds and bundle audits passed: Finder extension, licenses, EditorConfig/IssueRegex and 98 upstream icons. NOTICE byte-identical in both. Store Git 2.55.0 universal runtime audit and local fixture operations passed. No signed acceptance claim.",
+    "documentation": "Source pin checker passed; 3277 source rows each seven columns. Four partial mappings updated, README/Commit parity/new Progress parity and native CI step added. Local site build recorded separately; unpublished.",
+    "processes": "All native/Debug compiler sessions terminated before Store build. No main GUI launches or displayed windows. Private prohibited-activation receivers; no standard preferences or clipboard writes. Twelve empty owned UUID preference plists removed after termination; zero nonempty files changed. Process audit empty.",
+    "limitations": "Other progress windows including Push, CLI closeonend override, libgit2 variants, streaming and full controls/layout, physical picker/Close/Escape/default/nested-sheet/theme/accessibility, split cancellation and signed sandbox/Finder/App Store acceptance pending. Native retries reusing a sheet retain captured policy; upstream callbacks may construct a fresh progress instance. Existing source-specific success-close and accepted-cancellation overrides retained. Screenshots predate this setting. Full file/dialog/application port and hosted CI/site/distribution incomplete; GitHub authorization unavailable and not retried."
+  },
+  "logs_sha256": {
+    "build/qa/progress-auto-close/commit-regression.log": "d1fda81bfcc41f63e9a1cf57b3229c03feaf9ed78d8ccc6d0c953a1e1f7232cf",
+    "build/qa/progress-auto-close/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/progress-auto-close/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/progress-auto-close/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/progress-auto-close/native.log": "9b07652d29a539d173b7a9da641e7f5eec26a87b0a049bed479bef9fd93b11b0",
+    "build/qa/progress-auto-close/private-preference-cleanup.log": "fba3fb405fb80d43f104345a8f8fe3fb11aae265d89e7a08d9f99271f5d542e6",
+    "build/qa/progress-auto-close/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/progress-auto-close/pull-regression.log": "17eed5ba8b3f1254ad965e6d3d43f901e2ad29ad8de95b56c0d445147e7c150c",
+    "build/qa/progress-auto-close/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/progress-auto-close/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/progress-auto-close/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/progress-auto-close/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

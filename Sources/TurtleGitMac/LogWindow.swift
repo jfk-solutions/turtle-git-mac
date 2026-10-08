@@ -2070,6 +2070,7 @@ struct LogDialog: View {
 }
 
 struct LogDialogSettings: View {
+    @AppStorage("AutoCloseGitProgress") private var autoCloseGitProgress = 0
     @AppStorage("ConfirmKillProcess") private var confirmKillProcess = false
     @AppStorage("DiffByDoubleClickInLog") private var diffByDoubleClick = false
     @AppStorage("EnableGravatar") private var enableGravatar = false
@@ -2080,6 +2081,9 @@ struct LogDialogSettings: View {
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
     var body: some View {
         Form {
+            Picker("Autoclose Git progress dialog:", selection: Binding(get: { GitProgressAutoClose(rawValue: autoCloseGitProgress) ?? .manual }, set: { autoCloseGitProgress = $0.rawValue })) {
+                ForEach(GitProgressAutoClose.allCases, id: \.self) { policy in Text(policy.title).tag(policy) }
+            }.help("Successful operations close according to this policy. Failed operations stay open.")
             Toggle("Confirm to kill running git process", isOn: $confirmKillProcess)
                 .help("When closing a progress dialog with a running git process, ask for confirmation before killing it")
             GroupBox("Log messages") {
