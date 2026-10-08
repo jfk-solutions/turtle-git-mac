@@ -323,3 +323,21 @@ physical sheets/defaults/menus/keyboard/close/themes/accessibility, actual neste
 follow-up windows and signed sandbox/network/Finder/App Store acceptance remain
 pending. Existing screenshots predate the progress sheet. Full Push/application
 parity remains incomplete.
+
+
+## Refresh after partial or failed transport
+
+Push now emits a transport-result notification after its owned process stops,
+before result acknowledgement, for success, failure and cancellation. The success
+callback stays success-only. Preflight rejection emits no transport result. Root
+uses this completion signal to refresh Log, RefLog, Status, Commit and the current
+repository view, including failed results whose earlier destinations published
+refs, whose branch defaults were saved, or whose count failed after deleting a
+remote ref. Closing/choosing a result does not repeat the notification.
+
+[Refresh QA](qa/push-result-refresh-2026-10-08.json) records actual partial publication
+and tracked refs appearing in reloaded native Log, failed saved-default reads,
+success/failed notification counts, preflight exclusion, and a real deletion whose
+failed count still refreshes Log. The retained-progress regression checks a
+cancelled transport notification without a success callback. Actual displayed
+cross-window refresh and signed/sandbox/network acceptance remain pending.

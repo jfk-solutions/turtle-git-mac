@@ -562,3 +562,6 @@ and macOS editor/mail composition handoff. No message is sent by the Git command
 
 Push result progress and post-actions adapt CAppUtils::DoPush and ProgressDlg.cpp,
 retaining ordered success/rejection actions, captured presets and auto-close policies.
+
+Native Push result notifications refresh repository views after failed or cancelled
+transport, preserving visible completed mutations without reporting success.

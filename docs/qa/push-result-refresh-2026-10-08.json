@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "b0f259dae56e202b421916fa8acb50361bb31762",
+  "scope": "Refresh native repository views after Push transport failure/cancellation as well as success; preserve success-only callback. Full application/distribution incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/PushDlg.cpp": "9fc65e54a987e17aece767b750732f723d97becc",
+    "src/TortoiseProc/ProgressDlg.cpp": "557988a1303dc86b11c9c74d29be4797aa7e6090"
+  },
+  "sources_manifest_sha256": "939a80b923c4535f7482abf1690ca856248e25278e700fd0c4a60da45d011793",
+  "files_sha256": {
+    ".github/workflows/macos.yml": "8d9478eb9a049f87972895d98a00f1718ede1813e7eb90996a338d3c2b3f5c62",
+    "NOTICE": "9a35833461ccd9e1cb3c0b586675c818f9a3a3fae2d8703ef373ce799ada9478",
+    "Sources/TurtleGitMac/PushWindow.swift": "426f93a23bee4ae1608e7997f276575eba33ee641e515bc588c8290a63a0bd36",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "cc5fa6adba671aca335fc01697f5853eb723cfd3a7c898ab6c45699d36483508",
+    "docs/PUSH-PARITY.md": "dc1d3567c165dfb0e8427a59b30c643cc0d01833f55e170379cc155c604b935b",
+    "docs/qa/push-progress-native-2026-10-08.swift": "4cfc1302f0eab6226dfd4873e3c307d010028012786bf767c8fe6f15fb0a27cb",
+    "docs/upstream-files.csv": "64efaf430ff439abd91f09a0f6e3afed61c9fa91defccbc08a39eb5dbb45076e",
+    "docs/qa/push-result-refresh-native-2026-10-08.swift": "1dcdcfef594fae120ba8bbf397a82b715cb571a812d56068e4c29eeb2f63bf53",
+    "scripts/test-push-result-refresh.py": "2d2881586ba569f0ee1b1e08af4c05c2c8f3fbd649dc53db707da9e22bebd3fa"
+  },
+  "git_matrix": {
+    "/usr/bin/git": "git version 2.50.1 (Apple Git-155)",
+    "build/replay-test-git/2.37.1/bin/git": "git version 2.37.1",
+    "build/replay-test-git/2.39.5/bin/git": "git version 2.39.5",
+    "build/git-runtime/Git/bin/git": "git version 2.55.0"
+  },
+  "verification": {
+    "native": "Four-Git real receiver passed once-only failed notification for partial all-remotes publication, preserved completed-output report, actual reloaded Log entry with refs/remotes/a-good/published, remote hash equals local HEAD, no success callback on failure and no acknowledgement repeat. Successful retry produces one result and one success callback. Failed transport saved pushRemote/pushbranch read back through refreshed defaults. Read-only preflight rejection produces no transport notification. Enabled count failure after real remote deletion notifies failure and native Log no longer contains that tracked ref.",
+    "regression": "Four-Git retained Push progress receiver passed all prior success/rejection/hook/missing-URL, close policies, immutable actions, duplicate gates, submodule/presets/presenter cases. Added actual owned No/Yes cancellation assertion: exactly one failed transport-result notification after transportRunning clears, no success callback, retained result and fresh-owner retry. Core unchanged; existing core tests not repeated.",
+    "builds": "Unsigned Debug and AppStore builds and bundle audits passed: Finder extension, licenses, EditorConfig/IssueRegex and 98 original icon resources. NOTICE byte-identical in both. Store Git 2.55.0: 11 universal Mach-O files and local Git fixture operations passed.",
+    "documentation": "Source pin checker and 3277 seven-column inventory rows passed. Three mappings retain partial status. Push parity, NOTICE and native CI step updated. Local site build logs recorded separately, unpublished. Existing screenshots predate result refresh behavior.",
+    "processes": "Debug compiler terminal before two native compilers/receivers; both jobs terminal before Store. No main app or displayed windows. Prohibited activation/private UUID preferences; no standard preference or clipboard writes. Owned helper stopped in regression. Eight empty owned UUID preference plists removed after termination; zero nonempty changed. Owned app/receiver audit empty.",
+    "limitations": "Root refresh wiring for Log, RefLog, Status, Commit/current view compiles; runtime receiver proves actual Log/default read refresh, not displayed cross-window/controller/focus/selection behavior. Physical UI, project hooks, streaming/full controls, actual nested follow-ups and signed sandbox/network/Finder/App Store acceptance pending. Full file/dialog/application port and hosted CI/site/distribution incomplete; GitHub authorization unavailable and not retried."
+  },
+  "logs_sha256": {
+    "build/qa/push-result-refresh/debug-audit.log": "9702ed8c12e2df9d278b656d7af98bc30a2cdbbaec86c88276eb6b1f9f21057b",
+    "build/qa/push-result-refresh/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/push-result-refresh/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/push-result-refresh/native.log": "0286a4eee5f8c1f76543a3e6b55924cbdcca921dcdb0d9952d3ae4dcbbb2a8e8",
+    "build/qa/push-result-refresh/private-preference-cleanup.log": "5dff2d212b0a213882b39f07005d8f5ba685b78127d524445d9b0329e3c80c78",
+    "build/qa/push-result-refresh/process-audit.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "build/qa/push-result-refresh/progress-regression.log": "ac066609f0fd91463463e441b68db8d0f1c818c70b69775036f46860613c4e32",
+    "build/qa/push-result-refresh/store-audit.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
+    "build/qa/push-result-refresh/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056",
+    "build/qa/push-result-refresh/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/push-result-refresh/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

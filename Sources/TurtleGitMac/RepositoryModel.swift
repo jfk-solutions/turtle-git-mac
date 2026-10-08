@@ -1371,8 +1371,8 @@ import TurtleGitCore
         let root = repository.root, key = repository.root.path + ":push:" + UUID().uuidString
         let controller = PushWindowController(repository: repository, access: access)
         controller.onClosed = { [weak self] in self?.pushWindows.removeValue(forKey: key) }
-        controller.model.onPushed = { [weak self] output in
-            self?.refreshRepositoryLogs(root)
+        controller.model.onTransportResult = { [weak self] output, _ in
+            self?.refreshRepositoryLogs(root); self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.referenceLogWindows[root.path]?.model.reload()
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
         controller.model.onPostAction = { [weak self] action, options, superproject in

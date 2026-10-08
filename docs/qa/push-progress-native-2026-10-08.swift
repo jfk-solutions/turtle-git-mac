@@ -89,12 +89,13 @@ import TurtleGitCore
         try Data(script.utf8).write(to:helper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         prefs.set(true,forKey:"ConfirmKillProcess"); prefs.set(2,forKey:"AutoCloseGitProgress")
         let slow = PushWindowModel(repository:GitRepository(root:client,executable:helper),access:nil,preferences:prefs); slow.load(); try await wait { !slow.busy }; slow.options.destination = "retry-after-cancel"; slow.options.setUpstream = false
-        var slowResult:PushProgressWindowModel?, slowCallbacks = 0, slowCloses = 0
+        var slowResult:PushProgressWindowModel?, slowCallbacks = 0, slowCloses = 0, slowResults = 0
+        slow.onTransportResult = { _,success in precondition(!success && !slow.transportRunning); slowResults += 1 }
         slow.onProgress = { slowResult = $0 }; slow.onPushed = { _ in slowCallbacks += 1 }; slow.close = { slowCloses += 1 }; slow.push(); try await wait { FileManager.default.fileExists(atPath:marker.path) }
         let pids = try String(contentsOf:marker).split(separator:" ").compactMap { Int32($0.trimmingCharacters(in:.whitespacesAndNewlines)) }; precondition(pids.count == 2)
         slow.confirmCancellation = { $0(false) }; slow.cancel(); precondition(slow.transportRunning && !slow.cancelling)
         slow.confirmCancellation = { $0(true) }; slow.cancel(); try await wait { slowResult?.busy == false }
-        precondition(slowResult!.cancelled && !slowResult!.success && slowResult!.postActions == [.push] && slow.busy && slowCallbacks == 0 && slowCloses == 0 && slow.error == nil)
+        precondition(slowResult!.cancelled && !slowResult!.success && slowResult!.postActions == [.push] && slow.busy && slowCallbacks == 0 && slowCloses == 0 && slowResults == 1 && slow.error == nil)
         try await wait { kill(pids[0],0) != 0 && kill(pids[1],0) != 0 }; slowResult!.close(); precondition(!slow.busy && slowCloses == 1)
         try Data().write(to:release)
         let retry = PushWindowModel(repository:GitRepository(root:client,executable:helper),access:nil,preferences:prefs); retry.load(); try await wait { !retry.busy }; retry.options = slowResult!.options; retry.onProgress = { _ in }; var retried = 0; retry.onPushed = { _ in retried += 1 }; retry.push(); try await wait { !retry.busy }; precondition(retried == 1 && retry.progress == nil)

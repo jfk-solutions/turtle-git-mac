@@ -111,6 +111,7 @@ import TurtleGitCore
     var clipboardText: () -> String? = { NSPasteboard.general.string(forType: .string) ?? NSPasteboard.general.string(forType: .fileURL) }
     var close: () -> Void = {}
     var onPushed: (String) -> Void = { _ in }
+    var onTransportResult: (String, Bool) -> Void = { _, _ in }
     var pickSourceLog: () -> Void = {}
     var pickSourceRefLog: () -> Void = {}
     private var generation = 0
@@ -283,11 +284,12 @@ import TurtleGitCore
                 let output = try await repository.push(snapshot, cancellation: token)
                 guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
                 cancellation = nil; cancelling = false; confirmingCancellation = false
-                onPushed(output)
+                onTransportResult(output, true); onPushed(output)
                 if let result { result.complete(output: output, success: true, cancelled: false) }
                 else { close() }
                 } catch {
                     cancellation = nil; cancelling = false; confirmingCancellation = false
+                    onTransportResult(error.localizedDescription, false)
                     if let result { result.complete(output: error.localizedDescription, success: false, cancelled: token.isCancelled) }
                     else { self.error = error.localizedDescription }
                 }
