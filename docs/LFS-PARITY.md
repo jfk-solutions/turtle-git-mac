@@ -90,7 +90,17 @@ reply clears ownership instead of presenting unknown files as unlocked; Cancel
 interrupts an in-flight owner query. Existing visibility/order/width preferences
 migrate additively. See [owner-column QA](qa/lfs-owner-column-2026-10-08.json).
 
-Working Tree LFS owner columns, Finder routing, source
+Working Tree now offers a saved **LFS Lock** visibility choice in its native
+header menu. Its default six columns stay visible. The seventh physical column
+is hidden by default and unavailable without an LFS marker. Showing it queries
+ownership; known locked/unlocked/mixed and unknown menu rules share Commit’s
+policy. Owner sorting uses the shared case-insensitive comparison and path tie;
+all seven headers retain native ascending/reverse bindings and one sort column.
+Closing during an owner query cancels it and does not publish a late response.
+LFS batches capture paths in the displayed sort order. See
+[Working Tree owner QA](qa/working-tree-lfs-owner-2026-10-08.json).
+
+Working Tree full shared column layout/clipboard, Finder routing, source
 availability gates, tri-state select-all, full shared column settings and
 locking progress/post-Pull actions remain incomplete. The native list adds an
 explicit Refresh button alongside F5. Physical keyboard/menu/pointer behavior,

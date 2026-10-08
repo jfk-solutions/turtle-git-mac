@@ -73,7 +73,7 @@ import TurtleGitCore
         let defaultsName = "TurtleGit.LFS.StatusQA." + UUID().uuidString
         let defaults = UserDefaults(suiteName: defaultsName)!
         let commit = CommitWindowController(repository: repository, access: nil, defaults: defaults)
-        let status = StatusWindowController(repository: repository, access: nil)
+        let status = StatusWindowController(repository: repository, access: nil, defaults: defaults)
         defer { defaults.removePersistentDomain(forName: defaultsName); commit.window?.close(); status.window?.close() }
         commit.model.reload(); status.model.reload()
         try await settle { !commit.model.busy && !status.model.busy && commit.model.hasLFS && status.model.hasLFS }
@@ -195,6 +195,75 @@ import TurtleGitCore
         try FileManager.default.removeItem(at: root.appendingPathComponent(".git/lfs"))
         commit.model.reload(); try await settle { !commit.model.busy && !commit.model.hasLFS }
         try await settle { ownerProbe().columnMenu().item(withTitle: "LFS Lock") == nil }
+        try FileManager.default.createDirectory(at: root.appendingPathComponent(".git/lfs"), withIntermediateDirectories: true)
+        var statusQueries = 0
+        var statusReply = [LFSLock(id: "status-owner", path: unusual, owner: "")]
+        status.model.queryLFSOwners = { _ in statusQueries += 1; return statusReply }
+        status.model.reload(); try await settle { !status.model.busy && status.model.hasLFS }
+        precondition(statusQueries == 0 && !status.model.ownersVisible)
+        try await settle { descendants(status.window!.contentView!).contains { $0 is WorkingTreeLFSColumn.Probe } }
+        let statusTable = descendants(status.window!.contentView!).compactMap { $0 as? NSTableView }.first!
+        try await settle { statusTable.headerView?.menu?.item(withTitle: "LFS Lock") != nil }
+        let statusOwner = statusTable.tableColumns.first { $0.headerCell.stringValue == "LFS Lock" }!
+        try await settle { statusTable.tableColumns.count == 7 && statusOwner.isHidden }
+        let statusChoice = statusTable.headerView!.menu!.item(withTitle: "LFS Lock")!
+        status.model.selection = [unusual]
+        _ = NSApplication.shared.sendAction(statusChoice.action!, to: statusChoice.target, from: statusChoice)
+        try await settle { !status.model.busy && status.model.lfsOwnershipKnown && !statusOwner.isHidden }
+        let statusLocked = status.model.visibleFiles.first { $0.id == unusual }!, statusFree = status.model.visibleFiles.first { $0.id == "unlocked.bin" }!
+        precondition(statusQueries == 1 && status.model.selection == [unusual] && status.model.lfsOwners[unusual] == "")
+        precondition(status.model.lfsActions([statusLocked]) == [.unlock] && status.model.lfsActions([statusFree]) == [.lock] && status.model.lfsActions([statusLocked,statusFree]).isEmpty)
+        precondition(StatusWindowModel(repository: repository, access: nil, defaults: defaults).showLFSOwners)
+        statusReply = [LFSLock(id: "z", path: unusual, owner: "Zebra"), LFSLock(id: "a", path: "unlocked.bin", owner: "Alice")]
+        status.model.reload(); try await settle { !status.model.busy }
+        precondition(status.model.sortedRows.allSatisfy { $0.fileExtension == ".bin" })
+        let sortColumns: [StatusListColumn] = [.path,.fileExtension,.status,.added,.removed,.lastModified,.lfsOwner]
+        for (index, column) in sortColumns.enumerated() {
+            for ascending in [true,false] {
+                let old = statusTable.sortDescriptors, prototype = statusTable.tableColumns[index].sortDescriptorPrototype!
+                statusTable.sortDescriptors = [prototype.ascending == ascending ? prototype : prototype.reversedSortDescriptor as! NSSortDescriptor]
+                statusTable.dataSource!.tableView?(statusTable, sortDescriptorsDidChange: old)
+                try await settle { status.model.sortOrder.first?.column == column && status.model.sortOrder.first?.order == (ascending ? .forward : .reverse) }
+                if column == .lfsOwner { precondition(status.model.sortedRows.first!.id == (ascending ? "unlocked.bin" : unusual)) }
+                precondition(status.model.selection == [unusual])
+            }
+        }
+        status.model.setSortOrder([StatusFileSort(column: .lfsOwner),StatusFileSort(column: .path)])
+        precondition(status.model.sortOrder.count == 1)
+        status.model.confirmingQuit = true
+        status.model.setSortOrder([StatusFileSort(column: .path)])
+        status.model.setShowLFSOwners(false)
+        precondition(status.model.sortOrder[0].column == .lfsOwner && status.model.showLFSOwners)
+        status.model.confirmingQuit = false
+        // The selected batch must follow the displayed owner sort, rather
+        // than Git's original path order or unordered selection-set iteration.
+        status.model.setLFSLocked([unusual,"unlocked.bin"], locked: false)
+        try await settle { captured?.model.showingProgress == true && captured?.model.busy == false }
+        precondition(operations.last!.0 == ["unlocked.bin",unusual] && !operations.last!.1)
+        captured!.model.finishProgress()
+        try await settle { status.window?.attachedSheet == nil && !status.model.busy }
+        captured = nil
+        let statusFailure = StatusWindowModel(repository: repository, access: nil, defaults: defaults)
+        statusFailure.queryLFSOwners = { _ in throw LFSLocksFailure.selection }
+        statusFailure.reload(); try await settle { !statusFailure.busy }
+        precondition(statusFailure.error != nil && statusFailure.lfsOwners.isEmpty && !statusFailure.lfsOwnershipKnown && statusFailure.lfsActions([statusFree]).isEmpty)
+        var statusQueryActive = false
+        status.model.queryLFSOwners = { token in
+            statusQueryActive = true
+            while !token.isCancelled { try await Task.sleep(nanoseconds: 5_000_000) }
+            return [LFSLock(id: "late", path: unusual, owner: "Late")]
+        }
+        status.model.reload(); try await settle { statusQueryActive && status.model.busy }
+        precondition(!status.windowShouldClose(status.window!))
+        try await settle { !status.model.busy }
+        precondition(status.model.lfsOwners.isEmpty && !status.model.lfsOwnershipKnown)
+        let statusHide = statusTable.headerView!.menu!.item(withTitle: "LFS Lock")!
+        _ = NSApplication.shared.sendAction(statusHide.action!, to: statusHide.target, from: statusHide)
+        try await settle { statusOwner.isHidden }
+        precondition(status.model.lfsActions([statusLocked,statusFree]) == [.lock,.unlock])
+        try FileManager.default.removeItem(at: root.appendingPathComponent(".git/lfs"))
+        status.model.reload(); try await settle { !status.model.busy && !status.model.hasLFS }
+        try await settle { statusTable.headerView?.menu?.item(withTitle: "LFS Lock") == nil }
         commit.window?.close(); status.window?.close()
         let afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))

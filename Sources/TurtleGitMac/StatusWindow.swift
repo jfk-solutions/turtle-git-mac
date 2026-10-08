@@ -8,7 +8,7 @@ struct StatusRow: Identifiable {
     let statistics: CommitFile?
     var id: String { file.id }
     var path: String { file.id }
-    var fileExtension: String { (path as NSString).pathExtension }
+    var fileExtension: String { StatusListClipboard.fileExtension(path, isDirectory: statistics?.isSubmodule == true) }
     var status: String { file.status + (file.entry.staged ? " (staged)" : "") }
     var added: Int? { statistics?.added }
     var removed: Int? { statistics?.removed }
@@ -18,6 +18,7 @@ struct StatusRow: Identifiable {
     var removedText: String { removed.map { String($0) } ?? "–" }
     var modificationDate: Date? { file.modificationDate }
     var sortDate: Date { modificationDate ?? .distantPast }
+    var lfsOwner = ""
 }
 
 @MainActor final class StatusWindowController: NSWindowController, NSWindowDelegate {
@@ -25,8 +26,8 @@ struct StatusRow: Identifiable {
     var onClosed: () -> Void = {}
     private var lfsOperation: LFSFileOperationController?
     var makeLFSOperation: (GitRepository, RepositoryAccessLease?) -> LFSFileOperationController = { LFSFileOperationController(repository: $0, access: $1) }
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = StatusWindowModel(repository: repository, access: access)
+    init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        model = StatusWindowModel(repository: repository, access: access, defaults: defaults)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 630),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Working Tree – TurtleGit"
@@ -60,7 +61,10 @@ struct StatusRow: Identifiable {
             catch { model?.error = error.localizedDescription }
         }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingQuit && !model.unifiedViewerBusy && sender.attachedSheet == nil }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.cancelLFSOwnerQuery() { return false }
+        return !model.busy && !model.confirmingQuit && !model.unifiedViewerBusy && sender.attachedSheet == nil
+    }
     func windowWillClose(_ notification: Notification) { model.unifiedWindow?.close(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -71,10 +75,19 @@ struct StatusRow: Identifiable {
     @Published var conflictRebase = false
     @Published var submodules = Set<String>()
     @Published var hasLFS = false
+    @Published var showLFSOwners: Bool
+    @Published var lfsOwners: [String: String] = [:]
+    @Published var lfsLockedPaths = Set<String>()
+    @Published var lfsOwnershipKnown = false
+    private let defaults: UserDefaults
+    private var ownerCancellation: OperationCancellation?
+    var queryLFSOwners: (OperationCancellation) async throws -> [LFSLock]
+    var ownersVisible: Bool { hasLFS && showLFSOwners }
     var onLFSOperation: ([String], Bool) -> Bool = { _, _ in false }
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: [String: CommitFile] = [:]
     @Published var selection = Set<String>()
+    @Published var sortOrder = [StatusFileSort(column: .path)]
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
     @Published var busy = false
@@ -86,8 +99,27 @@ struct StatusRow: Identifiable {
     var savePatch: (Data) -> Void = { _ in }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onChanged: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?) { self.repository = repository; self.access = access }
+    init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.defaults = defaults
+        showLFSOwners = defaults.bool(forKey: "WorkingTree.LFSOwnerVisible")
+        queryLFSOwners = { try await repository.lfsLocks(cancellation: $0) }
+    }
+    func setSortOrder(_ order: [StatusFileSort]) {
+        guard !busy, !confirmingQuit else { return }
+        sortOrder = Array(order.prefix(1))
+    }
+    func setShowLFSOwners(_ visible: Bool) {
+        guard hasLFS, !busy, !confirmingQuit else { return }
+        showLFSOwners = visible; defaults.set(visible, forKey: "WorkingTree.LFSOwnerVisible")
+        if visible { reload() } else { lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false }
+    }
+    @discardableResult func cancelLFSOwnerQuery() -> Bool {
+        guard let ownerCancellation else { return false }
+        ownerCancellation.cancel(); return true
+    }
+
     var visibleFiles: [WorkingTreeFile] { files.filter { filter.includes($0) } }
+    var sortedRows: [StatusRow] { visibleFiles.map { StatusRow(file: $0, statistics: statistics[$0.id], lfsOwner: lfsOwners[$0.id] ?? "") }.sorted(using: sortOrder) }
     var summary: String {
         let rows = visibleFiles
         return "\(rows.count) files shown, \(rows.filter { $0.entry.staged }.count) staged, \(rows.filter { $0.state == .modified }.count) modified, \(rows.filter { $0.state == .untracked }.count) unversioned"
@@ -97,7 +129,8 @@ struct StatusRow: Identifiable {
         selection = []; reload()
     }
     func reload() {
-        guard !busy else { return }; busy = true
+        guard !busy, !confirmingQuit else { return }; busy = true
+        lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false
         Task {
             defer { busy = false }
             do {
@@ -106,16 +139,30 @@ struct StatusRow: Identifiable {
                 hasLFS = try await repository.hasLFS()
                 statistics = Dictionary(try await repository.workingTreeFiles().map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
                 selection.formIntersection(Set(visibleFiles.map(\.id)))
+                if ownersVisible {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let token = OperationCancellation(); ownerCancellation = token
+                    defer { ownerCancellation = nil }
+                    let locks = try await queryLFSOwners(token)
+                    guard !token.isCancelled else { return }
+                    lfsOwners = Dictionary(locks.map { ($0.path, $0.owner) }, uniquingKeysWith: { first, _ in first })
+                    lfsLockedPaths = Set(locks.map(\.path)); lfsOwnershipKnown = true
+                }
+
             } catch { self.error = error.localizedDescription }
         }
     }
     func canLockLFS(_ selected: [WorkingTreeFile]) -> Bool {
         LFSLockingSelection.isAvailable(selected.map(\.entry), hasLFS: hasLFS, root: repository.root, directories: submodules)
     }
+    func lfsActions(_ selected: [WorkingTreeFile]) -> [LFSLockMenuAction] {
+        guard canLockLFS(selected) else { return [] }
+        return LFSLockMenu.actions(paths: selected.map(\.id), ownersVisible: ownersVisible, lockedPaths: lfsLockedPaths, ownershipKnown: lfsOwnershipKnown)
+    }
     func setLFSLocked(_ ids: Set<String>, locked: Bool) {
         guard !busy, !confirmingQuit else { return }
-        let selected = visibleFiles.filter { ids.contains($0.id) }
-        guard selected.count == ids.count, canLockLFS(selected) else { return }
+        let selected = sortedRows.map(\.file).filter { ids.contains($0.id) }
+        guard selected.count == ids.count, lfsActions(selected).contains(locked ? .lock : .unlock) else { return }
         busy = true
         if !onLFSOperation(selected.map(\.id), locked) { busy = false }
     }
@@ -187,26 +234,27 @@ struct StatusRow: Identifiable {
 
 struct StatusDialog: View {
     @ObservedObject var model: StatusWindowModel
-    @State private var sortOrder = [KeyPathComparator(\StatusRow.path)]
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Button(model.branch.isEmpty ? "Unborn / detached HEAD" : model.branch) { model.onAction(.switchBranch, []) }.buttonStyle(.link)
                 Spacer(); if model.busy { ProgressView().controlSize(.small) }
             }
-            Table(model.visibleFiles.map { StatusRow(file: $0, statistics: model.statistics[$0.id]) }.sorted(using: sortOrder), selection: $model.selection, sortOrder: $sortOrder) {
-                TableColumn("Path", value: \.path) { row in
+            Table(model.sortedRows, selection: $model.selection, sortOrder: Binding(get: { model.sortOrder }, set: { model.setSortOrder($0) })) {
+                TableColumn("Path", sortUsing: StatusFileSort(column: .path)) { row in
                     HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon) }; Text(row.path).foregroundStyle(row.file.state.textColor).lineLimit(1) }
                         .help(row.file.entry.originalPath.map { "Renamed from \($0)" } ?? row.path)
                 }.width(min: 250, ideal: 380)
-                TableColumn("Extension", value: \.fileExtension).width(65)
-                TableColumn("Status", value: \.status) { row in Text(row.status).foregroundStyle(row.file.state.textColor) }.width(min: 110, ideal: 155)
-                TableColumn("Lines added", value: \.sortAdded) { Text($0.addedText) }.width(80)
-                TableColumn("Lines removed", value: \.sortRemoved) { Text($0.removedText) }.width(90)
-                TableColumn("Modification date", value: \.sortDate) { row in
+                TableColumn("Extension", sortUsing: StatusFileSort(column: .fileExtension)) { Text($0.fileExtension) }.width(65)
+                TableColumn("Status", sortUsing: StatusFileSort(column: .status)) { row in Text(row.status).foregroundStyle(row.file.state.textColor) }.width(min: 110, ideal: 155)
+                TableColumn("Lines added", sortUsing: StatusFileSort(column: .added)) { Text($0.addedText) }.width(80)
+                TableColumn("Lines removed", sortUsing: StatusFileSort(column: .removed)) { Text($0.removedText) }.width(90)
+                TableColumn("Modification date", sortUsing: StatusFileSort(column: .lastModified)) { row in
                     if let date = row.modificationDate { Text(date, format: .dateTime.year().month().day().hour().minute()) } else { Text("–") }
                 }.width(min: 150, ideal: 170)
+                TableColumn("LFS Lock", sortUsing: StatusFileSort(column: .lfsOwner)) { Text($0.lfsOwner) }.width(min: 100, ideal: 160)
             }
+            .background(WorkingTreeLFSColumn(model: model))
             .contextMenu(forSelectionType: String.self) { ids in
                 TurtleGitContextMenu {
                     Button { model.diff(ids) } label: { CommandLabel(title: "Diff", icon: .compare) }.disabled(ids.isEmpty)
@@ -220,9 +268,8 @@ struct StatusDialog: View {
                     if !selected.isEmpty && selected.allSatisfy({ ![FileState.normal, .untracked, .ignored].contains($0.state) }) {
                         Button { model.onAction(.revert, selected.map(\.id)) } label: { CommandLabel(title: "Revert…", icon: .revert) }
                     }
-                    if model.canLockLFS(selected) {
-                        Button { model.setLFSLocked(ids, locked: true) } label: { CommandLabel(title: "LFS Lock", icon: .lock) }.disabled(model.busy)
-                        Button { model.setLFSLocked(ids, locked: false) } label: { CommandLabel(title: "LFS Unlock", icon: .unlock) }.disabled(model.busy)
+                    ForEach(model.lfsActions(selected), id: \.self) { action in
+                        Button { model.setLFSLocked(ids, locked: action == .lock) } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)
                     }
                     IndexFlagsMenu(files: selected) { model.setFlags($0, files: selected) }
                     if !selected.isEmpty && selected.allSatisfy({ $0.state == .conflicted }) {
@@ -289,4 +336,55 @@ struct IndexFlagsMenu: View {
     let alert = NSAlert(); alert.messageText = action.confirmation
     alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
     return alert.runModal() == .alertSecondButtonReturn
+}
+
+struct StatusFileSort: SortComparator {
+    var column: StatusListColumn
+    var order: SortOrder = .forward
+    func compare(_ lhs: StatusRow, _ rhs: StatusRow) -> ComparisonResult {
+        var result: ComparisonResult
+        if column == .status {
+            result = lhs.status.compare(rhs.status, options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
+            if result == .orderedSame { result = StatusListSorting.compare(lhs.file.entry, rhs.file.entry, column: .path) }
+        } else {
+            result = StatusListSorting.compare(lhs.file.entry, rhs.file.entry, column: column,
+                lhsStatistics: lhs.statistics, rhsStatistics: rhs.statistics,
+                lhsMetadata: StatusListMetadata(modificationDate: lhs.modificationDate, size: nil, isDirectory: lhs.statistics?.isSubmodule == true),
+                rhsMetadata: StatusListMetadata(modificationDate: rhs.modificationDate, size: nil, isDirectory: rhs.statistics?.isSubmodule == true),
+                lhsLFSOwner: lhs.lfsOwner, rhsLFSOwner: rhs.lfsOwner)
+        }
+        return order == .forward ? result : result == .orderedAscending ? .orderedDescending : result == .orderedDescending ? .orderedAscending : .orderedSame
+    }
+}
+
+/// Public AppKit header integration for the optional Working Tree owner column.
+/// Saved full shared-column layout remains a separate port task.
+struct WorkingTreeLFSColumn: NSViewRepresentable {
+    @ObservedObject var model: StatusWindowModel
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) {
+        view.model = model
+        DispatchQueue.main.async { [weak view] in view?.configure() }
+    }
+    final class Probe: NSView {
+        weak var model: StatusWindowModel?
+        private weak var table: NSTableView?
+        func configure() {
+            guard let content = window?.contentView, let model else { return }
+            func find(_ view: NSView) -> NSTableView? {
+                if let table = view as? NSTableView, table.tableColumns.count == 7 { return table }
+                return view.subviews.lazy.compactMap(find).first
+            }
+            guard let table = find(content), let owner = table.tableColumns.first(where: { $0.headerCell.stringValue == "LFS Lock" }) else { return }
+            self.table = table; owner.isHidden = !model.ownersVisible
+            let menu = NSMenu(); menu.autoenablesItems = false
+            if model.hasLFS {
+                let item = NSMenuItem(title: "LFS Lock", action: #selector(toggleOwner(_:)), keyEquivalent: "")
+                item.target = self; item.state = model.showLFSOwners ? .on : .off
+                item.isEnabled = !model.busy && !model.confirmingQuit; menu.addItem(item)
+            }
+            table.headerView?.menu = menu
+        }
+        @objc func toggleOwner(_ sender: NSMenuItem) { guard let model else { return }; model.setShowLFSOwners(!model.showLFSOwners) }
+    }
 }

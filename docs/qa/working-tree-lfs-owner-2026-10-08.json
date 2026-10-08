@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-08",
+  "parent_checkpoint": "d873eafcb35a853f045bc2e27adeb81cc8933967",
+  "scope": "Working Tree optional saved LFS owner visibility, native header gate, visible-only ownership query, uniform/unknown selection menu, all seven sort bindings, display-order batching and close cancellation. Full port incomplete.",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ChangedDlg.cpp": "6090253d98f92572eb957f9b8d484f378d4db1be",
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/TortoiseProc/GitStatusListCtrlHelpers.cpp": "96130c1e179a071f66f962fab17fd3ab71af9cd3"
+  },
+  "sources_manifest_sha256": "0cb0d45859bd180384a64276c23295e864dcd8e34b03336fe4780f8d81fb1e86",
+  "changed_files_sha256": {
+    "NOTICE": "208e40996cede209ff0e50f294e62c41d80303d298d3383291870aa09b0d375d",
+    "Sources/TurtleGitMac/StatusWindow.swift": "962684a5f3d42f85c7e609e4f94e2a091f5d6cca1e98be624f84732f654afd1b",
+    "docs/LFS-PARITY.md": "33336cfc4468beb274947adea4d332e9824a6d18af85c427cfeb7a81fae107c4",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "8c6c1baea8bf48e9281cc3c53821a8acf4b2ee5acfe9579652f8992a43a22a7a",
+    "docs/upstream-files.csv": "339830199bc0fbb074f25a7a023a3158c58e68680075aa30059b5eb5ed4f8184"
+  },
+  "verification": {
+    "native": "Final receiver passes Apple Git and bundled Git 2.55.0. Actual seven-column Working Tree table/header target dispatch; six default columns plus initially hidden LFS owner; marker-gated choice and visible-only query; saved visibility/model reopening; blank-owner lock remains locked; uniform/mixed ownership menus; highlight retention; native ascending/reverse sort descriptor/data source binding on all seven headers; owner Alice/Zebra order; one-column policy and Quit guards; extension text includes source-style leading dot. Multi-file Unlock captures displayed ascending owner order rather than Git/set order, actual attached progress sheet is closed and owner refreshes. Unhosted query failure remains unknown; real owner window close cancels a token and a deliberately late reply is discarded. Hiding restores both operations and marker removal removes the header choice. Existing Commit/Locks/Working Tree progress/Force/selection checks still execute. HEAD/raw index/tracked working bytes retained. All LFS responses injected; no physical input/authenticated provider proof.",
+    "builds": "Current Debug and sequential unsigned AppStore builds and package audits pass. Exact NOTICE in both packages, 99 original icons, EditorConfig/IssueRegex and Git/Git LFS provenance audited. Sources/NOTICE/receivers frozen during compiler/native handles.",
+    "core": "Core sources unchanged. Existing shared ownership menu/comparator tests from parent d873eaf remain prior evidence; not rerun. Current native receiver exercises the Working Tree wrapper and actual sorting bindings.",
+    "inventory": "3277 seven-field LF rows, upstream pin check and diff checks pass; three source mappings extended and remain partial.",
+    "site": "Local Pages generator includes updated LFS guide and Working Tree ownership QA; no deployment or fresh screenshot claim."
+  },
+  "iterations": [
+    "Initial native receiver passed both engines. Corrected Working Tree extension presentation to reuse source-style dot prefix and reran acceptance.",
+    "That run failed at immediate hidden-column assertion after model refresh, before UI visibility settled. Retained the exact seven-column/hidden condition and awaited it with the existing bounded UI-settle helper. Both engines then passed; no production assertion removed.",
+    "Added and passed explicit two-file displayed-order batch routing.",
+    "Post-exit cleanup removed explicitly named private QA preference domains and remaining empty files; retained failed native log as diagnostic evidence."
+  ],
+  "limitations": [
+    "Working Tree full shared header visibility/order/width fitting/clipboard, shared Locks-list layout, Finder routing, tri-state check-all and complete progress/post-Pull behavior remain pending.",
+    "Physical menu/pointer/keyboard input, visual themes/accessibility/fresh screenshots, authenticated providers and real remote-process cancellation are unverified.",
+    "Signed sandbox/Finder/helper inheritance, App Store eligibility, external GitHub CI/push and complete app parity remain incomplete."
+  ],
+  "cleanup": {
+    "processes": [],
+    "private_fixture_directories": [],
+    "fixture_search_roots": [
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T",
+      "/tmp"
+    ],
+    "private_preference_plists": [],
+    "main_app_launches": 0,
+    "preferences": "Private suite injected into both status owners; removePersistentDomain in receiver defer, post-exit defaults deletion of remaining explicitly named owned QA suites/empty plist files. No main app preferences deleted.",
+    "preference_cleanup_record": "build/qa/working-tree-lfs-owner-2026-10-08/preference-cleanup.json",
+    "preference_cleanup_sha256": "929411296956d2aef4961efce1bb380ad1116f8d8d8bf6c9589d04e6fc3af8e0",
+    "windows": "Final receiver closes owned windows and sheets; process exits. Failed receiver died with SIGTRAP and wrapper removed its private fixture directory. DialogGeometry store unset."
+  },
+  "local_log_sha256": {
+    "build/qa/working-tree-lfs-owner-2026-10-08/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/working-tree-lfs-owner-2026-10-08/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/working-tree-lfs-owner-2026-10-08/debug-extension-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/working-tree-lfs-owner-2026-10-08/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/working-tree-lfs-owner-2026-10-08/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/working-tree-lfs-owner-2026-10-08/native-final.log": "4ce293a4f715b231e5ed57cece49d0715ce82b27c3e82478232946ba63168978",
+    "build/qa/working-tree-lfs-owner-2026-10-08/native-order-final.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/working-tree-lfs-owner-2026-10-08/native-settled-final.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/working-tree-lfs-owner-2026-10-08/native.log": "9668d6636b7a1f9b891acd27be03d135a835440903b83f0b8eadbd32969fbfe9",
+    "build/qa/working-tree-lfs-owner-2026-10-08/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/working-tree-lfs-owner-2026-10-08/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/working-tree-lfs-owner-2026-10-08/store.log": "e9c2704267ac784a13abb2091e203620571858f855b0148f129908a3e1a57eb0",
+    "build/qa/working-tree-lfs-owner-2026-10-08/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}
