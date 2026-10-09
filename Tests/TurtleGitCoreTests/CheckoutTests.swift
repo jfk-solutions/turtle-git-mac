@@ -2,6 +2,18 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CheckoutTests: XCTestCase {
+    func testCancelledValidationAndCheckoutDoNotMutate() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let head = try Data(contentsOf: root.appendingPathComponent(".git/HEAD")), index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config")), file = try Data(contentsOf: root.appendingPathComponent(path))
+        var options = CheckoutOptions(); options.target = .commit; options.revision = "HEAD"; options.createBranch = true; options.branchName = "cancelled"
+        let cancellation = OperationCancellation(); cancellation.cancel()
+        do { try await repo.validateCheckout(options, cancellation: cancellation); XCTFail("Cancelled validation ran") } catch OperationCancellationFailure.cancelled {}
+        do { _ = try await repo.checkout(options, cancellation: cancellation); XCTFail("Cancelled checkout ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(head, try Data(contentsOf: root.appendingPathComponent(".git/HEAD")))
+        XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index")))
+        XCTAssertEqual(config, try Data(contentsOf: root.appendingPathComponent(".git/config")))
+        XCTAssertEqual(file, try Data(contentsOf: root.appendingPathComponent(path)))
+    }
     func testLocalSwitchRetainsIndexAndLaterWorktreeEdits() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

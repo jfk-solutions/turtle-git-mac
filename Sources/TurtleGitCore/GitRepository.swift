@@ -68,8 +68,8 @@ public actor GitRepository {
         // /private/tmp while Foundation spells that same root /tmp on macOS.
         return URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL
     }
-    public func isBare() throws -> Bool { try run(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) == "true" }
-    public func status(refreshIndex: Bool = true) throws -> [StatusEntry] { StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"], environmentOverrides: refreshIndex ? [:] : ["GIT_OPTIONAL_LOCKS": "0"]).stdout) }
+    public func isBare(cancellation: OperationCancellation? = nil) throws -> Bool { try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true" }
+    public func status(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] { StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"], environmentOverrides: refreshIndex ? [:] : ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout) }
     public func trackedPaths() throws -> [String] {
         try run(["ls-files", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
     }

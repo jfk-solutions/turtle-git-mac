@@ -94,7 +94,12 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "SwitchWindowController")
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); pickers.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        model.invalidate(); pickers.invalidate()
+        let controller = progressController; progressController = nil
+        if let child = controller?.window, child.sheetParent === window { window?.endSheet(child) }
+        controller?.close(); onClosed()
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.progress == nil && model.browser == nil && model.pickerTarget == nil && !model.hasPendingTagConflict && sender.attachedSheet == nil }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -106,6 +111,7 @@ import TurtleGitCore
     private let preferences: UserDefaults
     private var invalidated = false, finished = false
     private var initialLoadToken: OperationCancellation?
+    private var checkoutToken: OperationCancellation?
     private var conflictSnapshot: CheckoutOptions?
     var hasPendingTagConflict: Bool { tagConflict || conflictSnapshot != nil }
     @Published private(set) var progress: SwitchProgressWindowModel?
@@ -118,7 +124,11 @@ import TurtleGitCore
         // starting Git or waiting for an acknowledgement from its closed window.
         result.abandonPresentation(); result.invalidate(); progress = nil; busy = false
     }
-    func invalidate() { invalidated = true; if initialLoadToken != nil { initialLoadToken?.cancel(); initialLoadToken = nil; busy = false }; conflictSnapshot = nil; finishPicker(); referenceFocusRequest = 0; progress?.invalidate() }
+    func invalidate() {
+        invalidated = true; initialLoadToken?.cancel(); initialLoadToken = nil
+        checkoutToken?.cancel(); checkoutToken = nil; conflictSnapshot = nil; tagConflict = false
+        finishPicker(); referenceFocusRequest = 0; progress?.invalidate(); progress = nil; busy = false
+    }
     func abortTagConflict() { tagConflict = false; conflictSnapshot = nil }
     func finish(_ result: SwitchProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }
@@ -236,24 +246,25 @@ import TurtleGitCore
         if snapshot.target == .tag { preferences.set(snapshot.createBranch, forKey: "SwitchToTagNewBranch") }
         if snapshot.target == .commit { preferences.set(snapshot.createBranch, forKey: "SwitchToCommitNewBranch") }
         busy = true; error = nil
+        let token = OperationCancellation(); checkoutToken = token
         Task {
-            defer { if progress == nil { busy = false } }
+            defer { if checkoutToken === token { checkoutToken = nil; if progress == nil { busy = false } } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 if let onProgress {
-                    try await repository.validateCheckout(snapshot)
-                    guard !invalidated else { return }
+                    try await repository.validateCheckout(snapshot, cancellation: token)
+                    guard !invalidated, checkoutToken === token, !token.isCancelled else { return }
                     let result = SwitchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences)
-                    result.onFinished = { [weak self] output, _ in self?.onChanged(output) }
-                    result.onPostAction = { [weak self] action, branch in self?.onPostAction?(action, branch) }
+                    result.onFinished = { [weak self, weak result] output, _ in guard let self, let result, !self.invalidated, self.progress === result else { return }; self.onChanged(output) }
+                    result.onPostAction = { [weak self] action, branch in guard let self, !self.invalidated || self.finished else { return }; self.onPostAction?(action, branch) }
                     result.close = { [weak self, weak result] in guard let self, let result else { return }; self.finish(result) }
                     progress = result; onProgress(result); result.start()
                 } else {
-                    let output = try await repository.checkout(snapshot)
-                    guard !invalidated else { return }; busy = false; finished = true; onSwitched(output); close()
+                    let output = try await repository.checkout(snapshot, cancellation: token)
+                    guard !invalidated, checkoutToken === token, !token.isCancelled else { return }; busy = false; finished = true; onSwitched(output); close()
                 }
-            } catch CheckoutFailure.tagNameConflict { conflictSnapshot = snapshot; tagConflict = true }
-            catch { self.error = error.localizedDescription }
+            } catch CheckoutFailure.tagNameConflict { if !invalidated, checkoutToken === token, !token.isCancelled { conflictSnapshot = snapshot; tagConflict = true } }
+            catch { if !invalidated, checkoutToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
 
@@ -486,7 +497,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         guard !model.confirmingCancellation, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); if let window { window.sheetParent?.endSheet(window) }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class SwitchProgressWindowModel: ObservableObject {
@@ -494,6 +505,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     let reference: String
     private let access: RepositoryAccessLease?
     private var cancellation = OperationCancellation()
+    private var inspectionCancellation: OperationCancellation?
     private var started = false, invalidated = false, dispatched = false, abandoned = false
     private var merging = false
     let options: CheckoutOptions
@@ -502,7 +514,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     @Published private(set) var confirmingCancellation = false
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { busy && !cancelling && !confirmingCancellation }
-    func invalidate() { invalidated = true }
+    func invalidate() { invalidated = true; cancellation.cancel(); inspectionCancellation?.cancel(); confirmingCancellation = false; busy = false }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
     @Published private(set) var busy = true
     @Published private(set) var success = false
@@ -549,32 +561,44 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         } else if let onPostAction { dispatched = true; let branch = previousBranch; close(); onPostAction(action, branch) }
     }
     private func execute(merge: Bool) async {
+        guard !invalidated else { return }
         busy = true; success = false; cancelled = false; cancelling = false; postActions = []; output = ""; merging = merge
+        var nextOutput = "", nextPreviousBranch = "", nextActions: [SwitchPostAction] = [], nextSuccess = false
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-            guard try await !repository.isBare() else { throw CheckoutFailure.invalidRevision }
-            previousBranch = try await repository.branch()
+            guard try await !repository.isBare(cancellation: cancellation) else { throw CheckoutFailure.invalidRevision }
+            nextPreviousBranch = try await repository.branch(cancellation: cancellation)
             var options = self.options; options.merge = merge
-            output = try await repository.checkout(options, cancellation: cancellation)
-            let conflicts = try await repository.status(refreshIndex: false).contains { $0.state == .conflicted }
-            if merge && conflicts { output += "\nHas merge conflict" }
+            nextOutput = try await repository.checkout(options, cancellation: cancellation)
+            let conflicts = try await repository.status(refreshIndex: false, cancellation: cancellation).contains { $0.state == .conflicted }
+            if merge && conflicts { nextOutput += "\nHas merge conflict" }
             else {
-                if FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { postActions.append(.submoduleUpdate) }
-                if !previousBranch.isEmpty { postActions.append(.mergePreviousBranch) }
-                if try await !repository.branch().isEmpty { postActions.append(.pull) }
-                postActions.append(.commit)
-                success = true
+                if FileManager.default.fileExists(atPath: repository.root.appendingPathComponent(".gitmodules").path) { nextActions.append(.submoduleUpdate) }
+                if !nextPreviousBranch.isEmpty { nextActions.append(.mergePreviousBranch) }
+                if try await !repository.branch(cancellation: cancellation).isEmpty { nextActions.append(.pull) }
+                nextActions.append(.commit)
+                nextSuccess = true
             }
-        } catch { output += (output.isEmpty ? "" : "\n") + error.localizedDescription }
-        cancelled = cancellation.isCancelled
-        if !success {
-            postActions = []
-            let conflicts = merge ? ((try? await repository.status(refreshIndex: false).contains { $0.state == .conflicted }) == true) : false
-            if conflicts { postActions.append(.resolve) }
-            if !merge { postActions.append(.stash) }
-            postActions.append(.retry)
-            if !merge { postActions.append(.switchWithMerge) }
+        } catch { nextOutput += (nextOutput.isEmpty ? "" : "\n") + error.localizedDescription }
+        guard !invalidated else { return }
+        if !nextSuccess {
+            nextActions = []
+            var conflicts = false
+            if merge {
+                // Normal Cancel still checks for conflicts after the cancelled
+                // attempt. Forced window cleanup also cancels this fresh read.
+                let inspection = OperationCancellation(); inspectionCancellation = inspection
+                conflicts = (try? await repository.status(refreshIndex: false, cancellation: inspection).contains { $0.state == .conflicted }) == true
+                if inspectionCancellation === inspection { inspectionCancellation = nil }
+            }
+            guard !invalidated else { return }
+            if conflicts { nextActions.append(.resolve) }
+            if !merge { nextActions.append(.stash) }
+            nextActions.append(.retry)
+            if !merge { nextActions.append(.switchWithMerge) }
         }
+        guard !invalidated else { return }
+        output = nextOutput; previousBranch = nextPreviousBranch; postActions = nextActions; success = nextSuccess; cancelled = cancellation.isCancelled
         busy = false; onFinished(output, success)
         finishAutomaticClose()
     }

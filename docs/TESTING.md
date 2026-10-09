@@ -294,5 +294,15 @@ acknowledgement/close/Quit locks, a post-action's previous branch, duplicate
 completion, live Current Branch after checkout and rejected progress presentation.
 Owned slow wrappers pause each initial catalog/branch read; forced browser close
 must terminate both recorded processes and leave the closed child's fields/error
-unchanged. Physical sheet presentation and forced close during active checkout
-remain separate unverified gates.
+unchanged. Physical sheet presentation remains unverified. The subsequent
+forced-checkout receiver expansion below covers hidden owner/process cleanup.
+
+`test-reference-switch.py` now pauses every checkout-validation command
+(for-each-ref, revision resolution, branch-name and branch/tag existence probes),
+the progress previous-branch read, Git switch and its follow-up status read.
+Forced browser close must terminate both recorded processes, release controllers
+and suppress late error/conflict/change/post callbacks. A separate forced-progress
+close checks pending cancellation answers, fresh retry and stale completion
+identity. The post-switch pause confirms cancellation retains completed HEAD
+changes. Nine CheckoutTests include pre-cancelled validation and checkout with
+unchanged repository bytes; the native paused commands cover running cancellation.

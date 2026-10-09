@@ -67,14 +67,15 @@ extension GitRepository {
     }
     public func checkout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws -> String {
         try cancellation?.check()
-        return try run(checkoutArguments(options), cancellation: cancellation).text
+        return try run(checkoutArguments(options, cancellation: cancellation), cancellation: cancellation).text
     }
     /// Read-only validation before a native options dialog hands off to progress.
-    public func validateCheckout(_ options: CheckoutOptions) throws { _ = try checkoutArguments(options) }
-    private func checkoutArguments(_ options: CheckoutOptions) throws -> [String] {
+    public func validateCheckout(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws { _ = try checkoutArguments(options, cancellation: cancellation) }
+    private func checkoutArguments(_ options: CheckoutOptions, cancellation: OperationCancellation? = nil) throws -> [String] {
+        try cancellation?.check()
         let revision = options.revision
         guard !revision.isEmpty else { throw CheckoutFailure.invalidRevision }
-        let references = try checkoutReferences()
+        let references = try checkoutReferences(cancellation: cancellation)
         let reference = references.first { GitReferenceName.equal($0.name, revision) }
         if options.target == .branch {
             guard let reference, reference.target == .branch else { throw CheckoutFailure.invalidRevision }
@@ -82,19 +83,23 @@ extension GitRepository {
             guard reference?.target == .tag else { throw CheckoutFailure.invalidRevision }
         }
         let resolved: String
-        do { resolved = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"]).text.trimmingCharacters(in: .newlines) }
-        catch { throw CheckoutFailure.invalidRevision }
+        do { resolved = try run(["rev-parse", "--verify", "--end-of-options", revision + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        catch { try cancellation?.check(); throw CheckoutFailure.invalidRevision }
         var args = ["switch", "--no-guess"]
         if options.overwriteChanges { args.append("--discard-changes") }
         if options.merge { args.append("--merge") }
         if options.createBranch {
             let name = options.branchName.trimmingCharacters(in: .whitespacesAndNewlines)
             do {
-                _ = try run(["check-ref-format", "refs/heads/" + name])
-                _ = try run(["check-ref-format", "--branch", name])
-            } catch { throw CheckoutFailure.invalidBranch }
-            if !options.overrideBranch, (try? run(["show-ref", "--verify", "--quiet", "refs/heads/" + name])) != nil { throw CheckoutFailure.branchExists }
-            if !options.allowTagNameConflict, (try? run(["show-ref", "--verify", "--quiet", "refs/tags/" + name])) != nil { throw CheckoutFailure.tagNameConflict }
+                _ = try run(["check-ref-format", "refs/heads/" + name], cancellation: cancellation)
+                _ = try run(["check-ref-format", "--branch", name], cancellation: cancellation)
+            } catch { try cancellation?.check(); throw CheckoutFailure.invalidBranch }
+            func exists(_ reference: String) throws -> Bool {
+                do { _ = try run(["show-ref", "--verify", "--quiet", reference], cancellation: cancellation); return true }
+                catch { try cancellation?.check(); return false }
+            }
+            if !options.overrideBranch, try exists("refs/heads/" + name) { throw CheckoutFailure.branchExists }
+            if !options.allowTagNameConflict, try exists("refs/tags/" + name) { throw CheckoutFailure.tagNameConflict }
             args += [options.overrideBranch ? "-C" : "-c", name]
             if reference?.remote == true {
                 switch options.tracking {

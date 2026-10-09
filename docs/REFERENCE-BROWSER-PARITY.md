@@ -197,8 +197,8 @@ Switch progress/picker regressions do not establish physical sheets/focus/keyboa
 visual/accessibility/signed behavior. The expanded transaction receiver checks
 real checkout through this owned route, captured options, all three progress-close
 policies, acknowledgement locks and a post-action. Initial metadata reads publish
-together and are cancelled/fenced on close. Forced close during active checkout
-or checkout progress remains unverified. Merge, Fetch, creation/tree/range/deletion commands
+together and are cancelled/fenced on close. Forced checkout cleanup is now covered by the hidden receiver described below;
+physical sheet/window behavior remains unverified. Merge, Fetch, creation/tree/range/deletion commands
 and the full port remain unfinished.
 
 ## Current Branch acceptance correction
@@ -242,3 +242,29 @@ The receiver pauses each actual Git read with an owned wrapper/helper, observes
 the live processes, closes the owning browser and verifies both processes exit
 without publishing a partial catalog. See
 [transaction checkpoint evidence](qa/reference-switch-transaction-2026-10-09.json).
+
+## Forced checkout cleanup
+
+Forced browser/Switch close now cancels checkout validation and the owned
+progress operation, ends/releases its progress window and rejects late errors,
+conflict prompts, change notifications, acknowledgements and post-actions.
+Read-only checkout argument validation uses the same cancellation request as
+the eventual Git switch, including reference resolution, name validation and
+branch/tag existence probes. A cancelled probe remains cancellation rather than
+being converted to an invalid-name/revision result or swallowed as a missing ref.
+
+Progress collects its result locally and publishes only while its model is live.
+Normal Cancel still allows conflict inspection and retry; forced cleanup cancels
+that separate inspection read too. Closing a running progress window directly
+releases its result while leaving the editable Switch owner available for a new
+attempt. A stale completion cannot clear a newer progress controller.
+
+Cancellation stops owned processes; it does not reverse an already completed
+checkout. The receiver checks both sides: pausing before switch preserves main,
+while pausing the follow-up status read leaves HEAD on older. In both cases
+forced close terminates the recorded wrapper/helper and prevents late callbacks.
+It also checks a pending cancellation answer, closed-model actions and a fresh
+retry after forced progress close. See
+[cleanup checkpoint evidence](qa/reference-switch-cleanup-2026-10-09.json).
+Physical sheets, external writers, signed scopes and full source parity remain
+separate unfinished gates.

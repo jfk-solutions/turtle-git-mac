@@ -148,4 +148,24 @@ expanded reference-switch receiver checks a full private checkout transaction
 with captured options, all three close policies, acknowledgement and a post-action,
 then accepts live Current Branch from the unchanged browser catalog. See
 [transaction QA](qa/reference-switch-transaction-2026-10-09.json). Signed scope,
-physical sheets and forced close during active checkout remain unverified.
+physical sheets remain unverified; the forced-checkout lifecycle checks below
+cover hidden owner/process cleanup.
+
+## Forced checkout lifecycle
+
+Closing an owner forcibly now cancels both pre-progress validation and its owned
+checkout/progress, releases the progress controller and prevents late UI or
+operation callbacks. Validation threads cancellation through every Git read;
+normal cancellation/retry and successful post-actions retain their existing
+behavior. Progress outcome fields publish together only while the model is live.
+A direct forced progress close leaves Switch available for a fresh attempt, and
+an old completion cannot release that new controller.
+
+The hidden browser route pauses each validation probe, previous-branch read,
+switch command and post-checkout status read. It verifies live process termination,
+owner/controller release, no late callbacks, pending-answer rejection and a fresh
+retry. Pausing after switch verifies completed HEAD changes are retained: abort
+is process cancellation, not rollback. See
+[cleanup QA](qa/reference-switch-cleanup-2026-10-09.json). Physical and signed
+acceptance, failure variants, external writers and full application parity remain
+incomplete.

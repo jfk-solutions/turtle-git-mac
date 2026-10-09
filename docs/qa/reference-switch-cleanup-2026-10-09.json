@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "e6a8352",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "src/TortoiseProc/GitSwitchDlg.cpp": "db94cbe8bc1c8d4b0e240b327581c5d97339a4ee"
+  },
+  "scope": "Forced owner/progress cleanup during checkout validation, switch and follow-up reads; full port remains incomplete.",
+  "verification": {
+    "native_cleanup": "Expanded real-controller route receiver passes Apple and bundled Git. Eight paused stages/modes per engine: validation for-each-ref, revision resolution, branch format and first existence probe; progress previous-branch read, switch command, post-checkout status; direct forced progress close during switch. Both recorded wrapper/helper PIDs live before forced close and gone afterward. Owner/controller/result release and zero late error/conflict/change/ack/post callbacks checked. Closed result fields unchanged; actions rejected. Pending cancellation answer delivered twice after force close is ignored. Direct progress close leaves editable owner; fresh checkout succeeds and stale old completion cannot release its new controller.",
+    "git_state": "Pre-switch pauses leave main. Post-switch status pause leaves older, proving cancellation does not undo completed checkout. Mutations confined to private transaction repository.",
+    "regressions": "Existing full route transaction (all three auto-close policies, captured options, post callback/live Current Branch), source role/Unicode/gates/ownership and initial read cancellation checks still pass both engines. Existing native Switch progress and full picker receivers pass both engines, including normal cancellation/confirmation/retry, remote tracking/detach/force/override, conflict capture and single post dispatch.",
+    "core": "Nine CheckoutTests pass with each engine; new pre-cancelled validate/checkout test checks unchanged HEAD/config/index/tracked bytes. Native paused tests cover live command cancellation.",
+    "cycles": "Zero AttributeGraph cycle warnings in all three final native logs.",
+    "implementation": "Cancellation threads through validation probes and switch, including probes whose ordinary failures are mapped or ignored. Model close cancels preflight and progress, releases owned progress window and fences late results. Progress stages outcome locally and uses a separate cancellable failure-conflict inspection so ordinary Cancel can still inspect conflicts. Successful normal-close post callbacks remain allowed; forced-close callbacks are rejected.",
+    "debug": "Unsigned Debug build and standalone bundle audit pass.",
+    "inventory": "Pin checker passes; mappings remain partial.",
+    "ci": "Existing workflow invokes expanded receiver; hosted status/execution unverified.",
+    "store": "Unsigned AppStore build and required standalone bundle audit pass: universal Git 2.55.0, LFS 3.8.0, EditorConfig and IssueRegex runtimes, embedded Finder extension, license notices and all 99 upstream icons. Signed execution/App Store acceptance unverified.",
+    "site": "Local Pages rebuild passes; no deployment or new physical captures.",
+    "notice": "Both packaged NOTICE files byte-equal source."
+  },
+  "limitations": [
+    "Hidden injected presenters do not establish physical sheet/window/focus, keyboard/IME, light/dark/accessibility or signed execution.",
+    "Paused wrappers stop before executing the selected Git command, except status pause after completed switch. Mid-filesystem-write cancellation, concurrent external writers, conflict-inspection forced-close variants and standalone express Switch need broader checks.",
+    "Native existence-probe pause covers its first heads probe; separate tag-probe pause and all malformed/error variants not established.",
+    "No main app launches, RepositoryModel/shared Finder preferences, actual Pull/network, push or deployment. Full dialogs/context commands and signed App Store/Finder acceptance remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.ReferenceSwitch.QA.23583AF4-8050-43BB-98A6-57D3D4BC3C8E",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceSwitch.QA.9AF516EF-4337-475D-AFF7-4B40A13F8C96",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.SwitchProgress.QA.5D5AE8A8-8522-4D86-B8CE-DEDD4B82F07B",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.SwitchProgress.QA.6E4D26EE-11CA-404B-811D-AE5CBCF12846",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      }
+    ],
+    "all_handles_terminal": true,
+    "remaining_owned_processes": [],
+    "remaining_current_preference_files": [],
+    "remaining_current_receiver_fixtures": [],
+    "older_worktree_preferences_retained": true
+  },
+  "local_logs": "build/qa/reference-switch-cleanup-2026-10-09",
+  "sha256": {
+    "Sources/TurtleGitCore/Checkout.swift": "c14840c198f661b7dee1d84ba4edec01a747243a2f585eb110917580057a9adf",
+    "Sources/TurtleGitCore/GitRepository.swift": "c230a74080e4f66fdf8d881da79502163b6d045551f1885b9758afa1d9651c1a",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "808d9fd48f84708eb1a04f623be92a848c7c98713746e20619fc763a8582d093",
+    "Tests/TurtleGitCoreTests/CheckoutTests.swift": "131cb37d823e1d3daa07999ce19cff194b95c6dbddc0c79223ee9247617950fb",
+    "docs/REFERENCE-BROWSER-PARITY.md": "d17c3dc55b2a0581945b4d7a19d37a9a7479bf75510762940d0a3cdd2267a368",
+    "docs/SWITCH-PARITY.md": "8c371e98c5bf9234f0ce0f67cb99d1d7d086bfa8b3cea7c626848caa4bc3f1cc",
+    "docs/TESTING.md": "e677a0e6df09925f848f63a14d8cafa6cdc063285dfb97f73267d3427f2a1f81",
+    "docs/upstream-files.csv": "99b69f598b221df45e7dcc0e642c1aec66ebdd0a26e2c6aaede91acc78aa81b6",
+    "docs/qa/reference-switch-native-2026-10-09.swift": "5a275e98db0752c586d6a345719b0ef678e306ba906966bac274b359644e2757"
+  }
+}

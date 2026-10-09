@@ -177,6 +177,77 @@ import TurtleGitCore
             for _ in 0..<30 { try await Task.sleep(nanoseconds: 10_000_000) }
             try require(parent.model.closed && parent.switchDialog == nil && !parent.model.hasChild && !child.model.busy && child.model.references.isEmpty && child.model.error == nil && child.model.commitRevision == draft && child.model.options.target == options.target && child.model.branchRevision.isEmpty, "Closed metadata read published late")
         }
+        print("PHASE: Forced close during checkout validation, switch and post-checkout reads")
+        for (command, ownsProgress, createBranch, closeProgress) in [("for-each-ref", false, false, false), ("rev-parse", false, false, false), ("check-ref-format", false, true, false), ("show-ref", false, true, false), ("branch", true, false, false), ("switch", true, false, false), ("status", true, false, false), ("switch", true, false, true)] {
+            _ = try await transaction.run(["checkout", "main"])
+            let suffix = command + (closeProgress ? "-progress" : "-owner")
+            let helper = root.appendingPathComponent("slow-checkout-" + suffix), marker = URL(fileURLWithPath: helper.path + ".started"), arm = URL(fileURLWithPath: helper.path + ".armed"), release = URL(fileURLWithPath: helper.path + ".release")
+            let quoted = "'" + repo.executable.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+            let script = """
+            #!/bin/sh
+            if [ "${4-}" = \(command) ] && [ -f "$0.armed" ] && [ ! -f "$0.release" ]; then
+              /bin/sleep 30 &
+              task_child=$!
+              trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
+              printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+              wait "$task_child"
+            fi
+            exec \(quoted) "$@"
+            """
+            try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+            let slow = GitRepository(root: transactionRoot, executable: helper)
+            var changes = 0, switched = 0, actions = 0, completed: (() -> Void)?, lateAnswer: ((Bool) -> Void)?
+            let parent = ReferenceBrowserWindowController(repository: slow, access: nil, initial: "refs/heads/older", preferences: prefs) { _ in }; defer { parent.close() }
+            parent.presentSwitch = { owner, _ in owner.makeFirstResponder(nil); return true }
+            parent.model.configureSwitch = { child in
+                child.model.onChanged = { _ in changes += 1 }; child.model.onSwitched = { _ in switched += 1 }; child.model.onPostAction = { _, _ in actions += 1 }
+                child.presentProgress = { owner, progressWindow, finish in
+                    owner.makeFirstResponder(nil)
+                    guard let controller = progressWindow.delegate as? SwitchProgressWindowController else { return false }
+                    controller.onClosed = finish; completed = finish; return true
+                }
+            }
+            parent.model.load(); try await wait([parent.window!]) { !parent.model.busy && parent.model.chosen != nil }
+            parent.showSwitch(); guard let child = parent.switchDialog else { throw Failure(description: "Forced checkout Switch missing") }
+            try await wait([parent.window!, child.window!]) { !child.model.busy && !child.model.references.isEmpty }
+            if createBranch { child.model.options.createBranch = true; child.model.options.branchName = "cancelled-" + suffix }
+            try Data().write(to: arm); child.model.checkout()
+            var pids: [Int32] = []
+            defer { try? Data().write(to: release); for pid in pids where kill(pid, 0) == 0 { _ = kill(pid, SIGTERM) } }
+            try await wait([parent.window!, child.window!]) { FileManager.default.fileExists(atPath: marker.path) }
+            pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
+            let progress = child.progressController, oldCompletion = completed
+            try require(pids.count == 2 && pids.allSatisfy { kill($0, 0) == 0 } && child.model.busy && (progress != nil) == ownsProgress, "Expected checkout stage not live: " + suffix)
+            if let progress, command == "switch" {
+                prefs.set(true, forKey: "ConfirmKillProcess"); progress.model.confirmCancellation = { lateAnswer = $0 }
+                progress.model.cancel(); try require(progress.model.confirmingCancellation, "Cancellation question not pending")
+                prefs.set(false, forKey: "ConfirmKillProcess")
+            }
+            let beforeOutput = progress?.model.output, beforePrevious = progress?.model.previousBranch
+            if closeProgress { progress?.close() } else { parent.close() }
+            lateAnswer?(true); lateAnswer?(true); oldCompletion?()
+            try await wait([child.window!]) { pids.allSatisfy { kill($0, 0) != 0 } }
+            for _ in 0..<30 { try await Task.sleep(nanoseconds: 10_000_000) }
+            try require(!child.model.busy && child.model.progress == nil && child.progressController == nil && child.model.error == nil && !child.model.hasPendingTagConflict && changes == 0 && switched == 0 && actions == 0, "Late owner callback/state: " + suffix)
+            if let progress {
+                try require(!progress.model.busy && !progress.model.confirmingCancellation && progress.model.output == beforeOutput && progress.model.previousBranch == beforePrevious && !progress.model.success && progress.model.postActions.isEmpty, "Closed progress published late: " + suffix)
+                progress.model.perform(.retry); progress.model.perform(.pull)
+                try require(changes == 0 && actions == 0 && !progress.window!.isVisible, "Closed progress dispatched a new action")
+            }
+            let actualBranch = try await transaction.branch()
+            try require(actualBranch == (command == "status" ? "older" : "main"), "Cancellation rolled back or unexpectedly applied checkout: " + suffix)
+            if closeProgress {
+                try require(parent.switchDialog === child && parent.model.hasChild, "Direct progress close lost editable Switch owner")
+                try Data().write(to: release); child.model.checkout()
+                try await wait([child.window!]) { child.progressController?.model.busy == false }
+                guard let retry = child.progressController else { throw Failure(description: "Fresh progress absent") }
+                oldCompletion?(); oldCompletion?()
+                try require(child.progressController === retry && retry.model.success && changes == 1, "Old completion released fresh retry")
+                retry.model.close(); try await wait([parent.window!]) { parent.switchDialog == nil }
+                try require(switched == 1 && !parent.model.hasChild, "Fresh retry acknowledgement failed")
+                parent.close()
+            } else { try require(parent.model.closed && parent.switchDialog == nil && !parent.model.hasChild, "Forced browser kept checkout child") }
+        }
         try require(NSApplication.shared.windows.allSatisfy { !$0.isVisible }, "No displayed windows")
         print("PASS: actual Switch context icon/owned controller, canonical roles/native fields/private defaults/Unicode, bare/type gates, parent/close/Quit/duplicate/cancel/reject/forced nested cleanup; real captured checkout and acknowledgement with all three policies, owned post-action, live Current Branch, rejected progress and cancelled live initial catalog/branch reads. Original open/cancel fixture unchanged; transaction mutations confined to private repository.")
     }
