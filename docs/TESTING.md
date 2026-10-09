@@ -461,3 +461,15 @@ Progress/confirmation presentation is intercepted; no window is ordered. Run
 RemoteTagTests/ReferenceBrowserTests and existing folder/Fetch native regressions.
 Physical confirmation/default focus, all failures/timings, real authentication and
 signed App Store/Finder acceptance remain pending.
+
+### Remote settings backend
+
+Run `swift test --filter 'RemoteSettingsTests|PushTests|ReferenceBrowserTests'`
+with system Git and with `TURTLEGIT_QA_GIT` pointing to the bundled Git executable.
+Private fixtures exercise raw versus alias-expanded URLs, changed-field isolation,
+slash names, tri-state/tag clearing, legacy key preservation, inherited-value
+failure after partial writes, multivalued config refusal, unrelated Push Default,
+own/boundary/SVN/Unicode collision checks, explicit overwrite, rename tracking/ref
+updates, removal and pre-cancellation. This is backend evidence only; the complete
+native Manage Remotes page and OpenSSH identity transport remain pending. See
+[Manage Remotes parity](REMOTE-SETTINGS-PARITY.md).

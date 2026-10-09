@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "48fb355f15edefeddb828b26f61eefa647c9bb50",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Preparatory Manage Remotes Core configuration backend; complete native page and whole application remain incomplete.",
+  "verification": {
+    "source": "CSettingGitRemote changed mask and write order; raw effective config, single-value setters, unset then effective-value check; Git remote add/rename/rm; first destination substring end-or-slash collision checks.",
+    "core": "4 new RemoteSettingsTests pass system and bundled Git. 38 combined RemoteSettingsTests/PushTests/ReferenceBrowserTests pass each engine. Private real Git fixtures cover alias/raw URL, changed-field isolation, slash names, tri-state/tag/key/default settings, inherited unset/partial effects, multivalue refusal, collision boundary/own/SVN/Unicode, explicit overwrite, rename tracking/refs, removal and pre-cancellation.",
+    "debug": "Unsigned Debug build and bundle audit pass.",
+    "inventory": "Two source rows marked partial-native; pin regression passes. Full control inventory remains pending.",
+    "workflow": "Existing swift test step discovers new tests; workflow YAML parses. Hosted CI unverified.",
+    "appstore": "Unsigned AppStore build and --require-git bundle audit pass; universal Git/LFS/helper/Finder extension/licenses/99 original icons checked. Both embedded NOTICE files match source.",
+    "site": "Local website build passes; screenshots remain earlier native captures; hosted deployment unverified."
+  },
+  "limitations": [
+    "Native full Manage Remotes page and Browse References entry are not implemented; old Push/Fetch form is unchanged.",
+    "Legacy PuTTY key preservation does not provide native OpenSSH key use; per-remote transport, conversion/file scope and signed App Store acceptance pending.",
+    "Dirty selection, overwrite/no-tags/remove prompts, suppression, origin prefill, Fetch offer, Sync URL history, property-sheet Apply/Cancel and physical UI verification pending.",
+    "All config/include/regex/whitespace races, byte-distinct rename, bare/linked routes and live forced-process cancellation timings are not independently exercised.",
+    "No main app launch, shared preferences/clipboard/Finder writer, remote network, push, hosted CI or deployment."
+  ],
+  "sha256": {
+    "Sources/TurtleGitCore/RemoteSettings.swift": "e65f57ecddc74c9eef6ea2ff51ec28ea2b97660707f073a109f5acacaf85e576",
+    "Tests/TurtleGitCoreTests/RemoteSettingsTests.swift": "2921a19998db1d906c615550d7067b8eba31c0d7db77003af5903a2e3b2da84d",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "24857995e7416941c567b555784084e363dc080d3f597bfe945eacaf79b20460",
+    "docs/REMOTE-SETTINGS-PARITY.md": "d4c3fa865c8ed4c7e89652a43024387af7b0483842201c09300e4ede9c4b61ad",
+    "docs/TESTING.md": "d169d0a00ec7cdfca8249a4d5ef397fe2156f80d6793acb28c3d526cd24aebcb",
+    "docs/upstream-files.csv": "c13a60cd6581e4663f72bb86769716517b47d1800a423c8bddc2c81a1bfa3228",
+    ".github/workflows/macos.yml": "99433cca72aa8319f83bccea715008b60216f241eee6dff2ec9e50d229d80414"
+  },
+  "logs": "build/qa/remote-settings-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "process_and_reference_fixture_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "shared_preference_domains_created": 0,
+    "fixture_scope": "ReferenceBrowser-prefixed private fixtures checked after terminal audits; fixture defers also remove private UUID repositories from existing Push regressions."
+  }
+}
