@@ -609,13 +609,7 @@ struct LogCommandRequest: Identifiable {
         selectedFiles.formIntersection(Set(visibleFiles.map(\.id)))
     }
     func fileForeground(_ file: CommitFile, selected: Bool) -> Color {
-        if selected { return .primary }
-        if grayFile(file) { return .secondary }
-        if file.action.hasPrefix("U") { return .red }
-        if file.action.hasPrefix("M") { return .blue }
-        if file.action.hasPrefix("A") || file.action.hasPrefix("C") { return .purple }
-        if file.action.hasPrefix("D") || file.action.hasPrefix("R") { return .brown }
-        return .primary
+        file.statusTextColor(selected: selected, gray: grayFile(file), preferences: labelDefaults)
     }
     private var detailCancellation: OperationCancellation?
     private var historyCancellation: OperationCancellation?
@@ -1844,6 +1838,7 @@ extension LogWindowModel {
 }
 
 struct LogDialog: View {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: LogWindowModel
     @AppStorage("LogDateFormat") private var shortDate = true
     @AppStorage("RelativeTimes") private var relativeTimes = false

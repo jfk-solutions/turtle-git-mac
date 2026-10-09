@@ -5,6 +5,7 @@ import TurtleGitCore
 @main struct StatusColorsVerification {
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        NSApp.appearance = NSAppearance(named: .aqua)
         let suite = "TurtleGit.StatusColors.QA." + UUID().uuidString
         let preferences = UserDefaults(suiteName: suite)!
         defer { preferences.removePersistentDomain(forName: suite) }
@@ -29,6 +30,18 @@ import TurtleGitCore
             let entry = StatusEntry.parse(bytes)[0]
             precondition(entry.statusTextRole == expected, "Combined status role mismatch: \(status)")
             precondition(entry.statusTextColor(selected: true) == Color.primary)
+        }
+        for (action,expected) in [("U",StatusTextRole.conflict),("M",.modified),("T",.modified),("A",.added),("C100",.added),("D",.deleted),("K",.deleted),("R087",.renamed)] {
+            let file = CommitFile(path: "file", oldPath: nil, action: action, added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+            precondition(file.statusTextRole == expected)
+            precondition(file.statusTextColor(selected: true, gray: true, preferences: preferences) == .primary)
+            precondition(file.statusTextColor(gray: true, preferences: preferences) == .secondary)
+            let color = NSColor(file.statusTextColor(preferences: preferences)).usingColorSpace(.sRGB)!
+            precondition([color.redComponent,color.greenComponent,color.blueComponent].map { Int(($0 * 255).rounded()) } == reference[expected.rawValue]!["light"]!, "CommitFile RGB \(action): \(color) expected \(reference[expected.rawValue]!["light"]!)")
+        }
+        for action in ["?","!","", "X"] {
+            let file = CommitFile(path: "file", oldPath: nil, action: action, added: nil, removed: nil, hasStatistics: false, isSubmodule: false)
+            precondition(file.statusTextRole == nil && file.statusTextColor(preferences: preferences) == .primary)
         }
         let success = LFSFileResult(path: "file", success: true, output: "Locked")
         let failure = LFSFileResult(path: "file", success: false, output: "Error")

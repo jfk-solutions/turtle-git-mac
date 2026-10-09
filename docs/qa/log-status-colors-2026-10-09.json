@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "644d323",
+  "scope": "Log changed-file status color parity; complete port remains active",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2",
+    "src/TortoiseProc/Colors.cpp": "f83b8e189b041998f4627aa0da31c38f6899394e",
+    "src/Utils/Theme.cpp": "619a0b07219aa0fadefba8692cb35ebda3fd03c3"
+  },
+  "sources_manifest_sha256": "1e72618296a6b7c68103e0ae6707a1940d3eb8e9fdfb0fec09e2cc49b0030e72",
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/Appearance.swift": "3ae681530aac1cfbb49a3d056ade5ccb9f6d091aa47f4f9fcf3353966bbc5997",
+    "Sources/TurtleGitMac/LogWindow.swift": "9b9bcb658a9e3125c7d4a61730adc231fc8d0071767f212fca75c887a92b72d1",
+    "docs/APPEARANCE.md": "94a54d59d6faf2ac88f1c51d6e355172761f219ca7dde82b2b4110af6f082fe7",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "5fefb16f8f3e7185c9a90f651dffdacd563ad3d9a9f34e9b210edbc158962327",
+    "docs/qa/status-colors-native-2026-10-09.swift": "430c80f3d9bb91a409545a121dddfcfcc07e9687a10a85406db52044447db2b4",
+    "docs/upstream-files.csv": "196829e71080a191860b2f89c5bd58fae31e4b4b4d9f88ee3f02cf99b5fa0baf",
+    "scripts/check-cherry-pick-native.py": "9711463dff0845475f078de9456cb48044285d04ee24b5647684d14fd6214412",
+    "docs/LOG-PARITY.md": "a7bc726ea38df6ad4e690103906898fb80966c82c2e2d62eeeb6ba881fcdb4b0"
+  },
+  "verification": {
+    "debug": "Unsigned Debug build and bundle audit pass.",
+    "palette": "Independent pinned C++ RGB/HSL oracle passes all six defaults/custom/endpoints and AppKit dynamic appearances. Added CommitFile action U/M/T/A/C100/D/K/R087 checks; neutral unknown/unversioned records, selected primary and Gray secondary precedence. Actual native settings controls retained.",
+    "log": "Targeted existing real historical/working-tree Log path/filter fixture passes Apple /usr/bin/git and build/git-runtime/Git/bin/git. Historical Modified/Renamed exact RGB defaults and saved custom values; selected/Gray precedence; literal Unicode/newline rename origin and directory boundaries; Hide/Gray/All without history reload; hidden selection/clipboard refusal; Whole Project; busy/invalid guards; hidden hosted Log; working unversioned switch/exemption and unchanged HEAD/raw-index/tracked bytes. Target mode returns before shared receiver main preferences mutation.",
+    "store": "Unsigned AppStore build and required Git/Git LFS bundle audit pass. Current NOTICE verified in both products.",
+    "inventory": "Three partial mappings extended; pinned inventory and diff checks pass.",
+    "site": "Local site generation passes; no screenshots refreshed and no deployment claim."
+  },
+  "iterations": [
+    "First native invocation refused invalid nonexistent bundled Git path before compilation; corrected to actual prepared runtime.",
+    "First two palette runs expected light RGB while SwiftUI color bridge resolved system Dark; diagnostic Modified [94,144,255] is correct dark result. Explicit Aqua now makes light expectations deterministic; independent dynamic dark/high-contrast checks retained. No production assertions relaxed."
+  ],
+  "limitations": [
+    "No physical Log pixels, live rendered repaint/selection contrast, keyboard/gesture/signed sandbox acceptance or new screenshots.",
+    "Graph lane and branch/tag/note label colors and remaining settings need separate source review.",
+    "Targeted fixture scope; full multi-command Cherry Pick/Rebase receiver not rerun.",
+    "Unsigned App Store product does not establish distribution/signing/licensing clearance. GitHub CI/push remain unavailable."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preference_cleanup_sha256": "c06b241e263b1e029c3185c9eef7894ff204452d49b1c2f0aafb95edfd1237bc",
+    "private_preferences_removed": 7,
+    "windows": "Dedicated color receiver closes owned hidden window; Log receiver hosts offscreen view and displays no windows.",
+    "process_audit": "No owned receiver/main application processes, private fixture directories or tested private preference plists remain."
+  },
+  "local_log_sha256": {
+    "build/qa/log-status-colors-2026-10-09/colors-diagnostic.log": "7420ca6b874673a02c5c6688093185f99ea999dd400df5e545c102d764582154",
+    "build/qa/log-status-colors-2026-10-09/colors-final.log": "8c743e1a031197db7fae02478631e5ff0f1e73d9ccb20d8e0ceac97395e4a738",
+    "build/qa/log-status-colors-2026-10-09/colors.log": "7e2fb0ce8d50ce1b74fbd11ec0d4ffdf69663fccfd5c1642544d20af34c72407",
+    "build/qa/log-status-colors-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-status-colors-2026-10-09/debug.log": "bab06d4792dcb19eb65d32250e1d06cec0b41350fbfb4af302c4f6be136bb540",
+    "build/qa/log-status-colors-2026-10-09/native-final.log": "585a4401132fd3d6cc896c37a19f82eb9854ab948a8f36408f970ebbeb5fea8c",
+    "build/qa/log-status-colors-2026-10-09/native.log": "8514fba2cb243b1adb0e2d8855c53428b37d41477df127d0cce4e0e5ab8743fe",
+    "build/qa/log-status-colors-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-status-colors-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-status-colors-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-status-colors-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

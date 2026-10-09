@@ -1284,11 +1284,17 @@ The complete changed-file list is retained. In particular, working-tree details
 no longer discard unrelated tracked paths before Gray/Hide can act. Unversioned
 paths are inserted independently of the unrelated-path mode, as upstream does.
 
-All five file columns now use status colors: modified blue, added/copied purple,
-deleted/renamed brown, conflicted red and unversioned normal text. Gray overrides
-status color for unrelated paths, and selected text uses native primary color.
-Colors adapt through SwiftUI's semantic colors; exact displayed theme colors and
-user-configurable color settings remain pending.
+All five file columns now use the pinned CColors roles and saved preferences:
+Modified (including type changes), Added (including scored copies), Deleted
+(including missing), Renamed (including rename scores) and Conflict. Renamed is
+source blue rather than the former generic brown. Gray overrides action color
+for unrelated paths, and selected text uses native primary color. Native dynamic
+colors follow the source HSL dark conversion; the Log view subscribes to Apply
+notifications. The [Log color QA](qa/log-status-colors-2026-10-09.json) checks
+exact defaults and saved custom Modified/Renamed values in the real historical
+path fixture on Apple and bundled Git, retaining working-tree/filter guards.
+Physical rendered repaint, theme/selection contrast, graph/label colors and
+remaining color settings still need verification.
 
 Core checks exercise literal special/Unicode/newline prefixes, Unicode byte
 inequality, directory-prefix collisions, gitlinks, rename/copy origins, toggle

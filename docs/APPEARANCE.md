@@ -25,7 +25,10 @@ line counts, metadata and the optional owner column. Combined index/worktree
 actions use source priority: conflict, modification/type change, added/copy,
 deletion, rename, then neutral. A renamed file with further modifications is
 therefore modified blue. Selected rows use native semantic primary text across
-all columns. Original icons and status words remain visible. Other FileState
+all columns. Original icons and status words remain visible. The Log changed-file table also reads saved colors for all five text columns,
+including rename/copy scores and type changes. Its Gray unrelated-path mode
+uses native secondary text before action colors; selected rows use primary text.
+The Log view subscribes to Apply notifications. Other FileState
 consumers share the exact default roles, but their complete action/selection
 behavior still needs individual source review. Graph lanes and branch/tag labels
 use multiple colors; the patch view distinguishes additions, removals and hunks.
@@ -79,3 +82,11 @@ Live recoloring across every already-open application window, shared color-panel
 interaction, current pixels/contrast and signed deployment remain unverified.
 Note/OtherRef controls, graph settings and full upstream Colors page parity are
 still pending.
+
+[Log status-color QA](qa/log-status-colors-2026-10-09.json) checks the real
+historical and working-tree path/filter fixtures with Apple and bundled Git,
+saved custom Modified/Renamed colors, gray/selection precedence and unchanged
+HEAD/index/file bytes. The dedicated palette receiver checks action mapping
+including T/K and scored R/C records. These checks do not prove displayed
+Log repaint, physical selection contrast or visual parity; graph and label
+colors remain separate pending work.

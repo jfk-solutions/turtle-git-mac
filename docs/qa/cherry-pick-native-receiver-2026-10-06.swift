@@ -1237,6 +1237,9 @@ import TurtleGitCore
 }
 
 @MainActor func verifyNativeLogUnrelatedPaths(executable: URL) async throws {
+    let savedAppearance = NSApp.appearance
+    NSApp.appearance = NSAppearance(named: .aqua)
+    defer { NSApp.appearance = savedAppearance }
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-path-view-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
     try FileManager.default.createDirectory(at: root.appendingPathComponent("folder-extra"), withIntermediateDirectories: true)
@@ -1252,7 +1255,10 @@ import TurtleGitCore
     _ = try await repo.run(["mv", "--", "folder/old :(glob)* 雪\n", "renamed-outside"])
     try await repo.stage(["folder", "folder-extra", "unrelated"]); _ = try await repo.commit(message: "view all paths")
     let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout
-    let model = LogWindowModel(repository: repo, access: nil, selecting: true); defer { model.invalidate() }
+    let suite = "TurtleGit.LogPathView.QA." + UUID().uuidString
+    let defaults = UserDefaults(suiteName: suite)!
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let model = LogWindowModel(repository: repo, access: nil, selecting: true, labelDefaults: defaults); defer { model.invalidate() }
     func until(_ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -1262,8 +1268,17 @@ import TurtleGitCore
     precondition(model.unrelatedPathMode == .gray && model.visibleFiles.count == 4 && model.pathScopes == [HistoryPathScope(path: "folder", isDirectory: true)])
     let outside = model.files.first { $0.path == "unrelated" }!, inside = model.files.first { $0.path == "folder/file" }!, renamed = model.files.first { $0.path == "renamed-outside" }!
     precondition(renamed.oldPath == "folder/old :(glob)* 雪\n" && !model.grayFile(renamed))
-    precondition(model.grayFile(outside) && model.fileForeground(outside, selected: false) == .secondary && model.fileForeground(inside, selected: false) == .blue)
-    precondition(model.fileForeground(renamed, selected: false) == .brown && model.fileForeground(outside, selected: true) == .primary)
+    func rgb(_ color: Color) -> [Int] {
+        let value = NSColor(color).usingColorSpace(.sRGB)!
+        return [value.redComponent,value.greenComponent,value.blueComponent].map { Int(($0 * 255).rounded()) }
+    }
+    precondition(model.grayFile(outside) && model.fileForeground(outside, selected: false) == .secondary && rgb(model.fileForeground(inside, selected: false)) == [0,50,160])
+    precondition(rgb(model.fileForeground(renamed, selected: false)) == [0,0,255] && model.fileForeground(outside, selected: true) == .primary)
+    let colors = StatusColorSettingsModel(preferences: defaults)
+    colors.set(.modified, rgb: [3,127,249]); colors.set(.renamed, rgb: [10,20,30]); colors.apply()
+    precondition(rgb(model.fileForeground(inside, selected: false)) == [3,127,249])
+    precondition(rgb(model.fileForeground(renamed, selected: false)) == [10,20,30])
+    precondition(model.fileForeground(outside, selected: false) == .secondary && model.fileForeground(inside, selected: true) == .primary)
     let revisions = model.entries.map(\.hash), selection = model.selected
     model.fileTableSelection.wrappedValue = [outside.id]
     precondition(model.fileSelectionMark == outside.id)
@@ -1284,9 +1299,7 @@ import TurtleGitCore
     precondition(afterHead == head && historicalIndex == index)
     try Data("work inside\n".utf8).write(to: root.appendingPathComponent("folder/file")); try Data("work outside\n".utf8).write(to: root.appendingPathComponent("unrelated"))
     try Data("unversioned\n".utf8).write(to: root.appendingPathComponent("unversioned-outside"))
-    let suite = "TurtleGit.LogPathView.QA." + UUID().uuidString
-    let defaults = UserDefaults(suiteName: suite)!; defaults.set(false, forKey: "AddBeforeCommit")
-    defer { defaults.removePersistentDomain(forName: suite) }
+    defaults.set(false, forKey: "AddBeforeCommit")
     let working = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults); defer { working.invalidate() }
     working.setPathScope(["folder"]); try await until { !working.busy && working.selectedWorkingTree && working.files.count == 2 }
     precondition(working.visibleFiles.count == 2 && working.grayFile(working.files.first { $0.path == "unrelated" }!))
@@ -2423,6 +2436,9 @@ import TurtleGitCore
 
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_PATHS_ONLY"] == "1" {
+        try await verifyNativeLogUnrelatedPaths(executable: URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")); return
+    }
     let preference = "CherrypickAddCherryPickedFrom", saved = UserDefaults.standard.object(forKey: "CherrypickAddCherryPickedFrom")
     let savedSquashDate = UserDefaults.standard.object(forKey: "SquashDate")
     UserDefaults.standard.set(false, forKey: preference)

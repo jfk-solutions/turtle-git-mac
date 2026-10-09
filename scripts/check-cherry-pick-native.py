@@ -17,6 +17,7 @@ focus = parser.add_mutually_exclusive_group()
 focus.add_argument("--references-only", action="store_true", help="Run only native Rebase reference-update fixtures.")
 focus.add_argument("--menus-only", action="store_true", help="Run only native Rebase revision-menu fixtures.")
 focus.add_argument("--commit-selection-only", action="store_true", help="Run only native Commit visible-selection and full-index fixtures.")
+focus.add_argument("--log-paths-only", action="store_true", help="Run only native Log path/filter/status-color fixtures.")
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 products = root / 'build/Build/Products/Debug'
@@ -53,6 +54,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-cherry-pick-check-') as tempo
         environment["TURTLEGIT_NATIVE_COMMIT_SELECTION_ONLY"] = "1"
     else:
         environment.pop("TURTLEGIT_NATIVE_COMMIT_SELECTION_ONLY", None)
+    environment["TURTLEGIT_NATIVE_LOG_PATHS_ONLY"] = "1" if args.log_paths_only else "0"
     for git in git_paths:
         print('Checking Git: ' + str(git.resolve()), flush=True)
         environment['TURTLEGIT_TEST_GIT'] = str(git.resolve())

@@ -127,6 +127,26 @@ extension StatusEntry {
     }
 }
 
+extension CommitFile {
+    /// CTGitPath::ParseStatus followed by GitStatusListCtrl's action colors.
+    /// Rename/copy scores do not affect the action; type changes are Modified.
+    var statusTextRole: StatusTextRole? {
+        switch action.first {
+        case "U": return .conflict
+        case "M", "T": return .modified
+        case "A", "C": return .added
+        case "D", "K": return .deleted
+        case "R": return .renamed
+        default: return nil
+        }
+    }
+    func statusTextColor(selected: Bool = false, gray: Bool = false, preferences: UserDefaults = .standard) -> Color {
+        if selected { return .primary }
+        if gray { return .secondary }
+        return statusTextRole.map { Color(nsColor: StatusTextPalette.native($0, preferences: preferences)) } ?? .primary
+    }
+}
+
 extension FileState {
     var textColor: Color { textColor(preferences: .standard) }
     func textColor(preferences: UserDefaults) -> Color {
