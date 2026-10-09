@@ -13,8 +13,8 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
 @MainActor final class SubmoduleUpdateWindowController: NSWindowController, NSWindowDelegate {
     let model: SubmoduleUpdateWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = []) {
-        model = SubmoduleUpdateWindowModel(repository: repository, access: access, scope: scope, selected: selected)
+    init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], preferences: UserDefaults = .standard) {
+        model = SubmoduleUpdateWindowModel(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
         let size = NSSize(width: 760, height: 500)
         let window = SubmoduleUpdateNativeWindow(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Submodule Update – TurtleGit"
@@ -27,7 +27,7 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
         DialogGeometry.attach(window, identifier: "SubmoduleUpdateDialog", legacyName: "SubmoduleUpdateDialog")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -36,54 +36,53 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     private let access: RepositoryAccessLease?
     let scope: [String]
     private let requestedSelection: [String]
-    private var loaded = false
+    private var loaded = false, invalidated = false, submitted = false
+    private let preferences: UserDefaults
+    private var loadToken: OperationCancellation?
     @Published var options = SubmoduleUpdateOptions()
     @Published var paths: [String] = []
     @Published var selection = Set<String>()
     @Published var wholeProject = false
     @Published var busy = false
     @Published var confirmingQuit = false
-    @Published var output = ""
     @Published var error: String?
     var close: () -> Void = {}
-    var onUpdated: (String) -> Void = { _ in }
+    var onSubmit: (([String], SubmoduleUpdateOptions) -> Void)?
     private var key: String { "SubmoduleUpdate." + repository.root.path }
-    var canApply: Bool { !busy && !confirmingQuit && !selection.isEmpty }
+    var canApply: Bool { !busy && !confirmingQuit && !invalidated && !submitted && !selection.isEmpty && onSubmit != nil }
     var canChooseScope: Bool { scope.contains { !$0.isEmpty && $0 != "." } }
-    init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String]) {
-        self.repository = repository; self.access = access; self.scope = scope; requestedSelection = selected
-        wholeProject = UserDefaults.standard.bool(forKey: key + ".wholeProject")
-        if let data = UserDefaults.standard.data(forKey: key + ".options"), let saved = try? JSONDecoder().decode(SubmoduleUpdateOptions.self, from: data) { options = saved }
+    init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String], preferences: UserDefaults = .standard) {
+        self.repository = repository; self.access = access; self.scope = scope; requestedSelection = selected; self.preferences = preferences
+        wholeProject = preferences.bool(forKey: key + ".wholeProject")
+        if let data = preferences.data(forKey: key + ".options"), let saved = try? JSONDecoder().decode(SubmoduleUpdateOptions.self, from: data) { options = saved }
     }
+    func invalidate() { invalidated = true; loadToken?.cancel() }
     func load() {
-        guard !busy, !confirmingQuit else { return }; busy = true
+        guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; busy = true
+        let token = OperationCancellation(); loadToken = token
+        let requestedScope = wholeProject ? [] : scope
         Task {
             defer { busy = false }
             do {
-                let next = try await repository.submoduleUpdatePaths(scope: wholeProject ? [] : scope)
-                let saved = requestedSelection.isEmpty ? UserDefaults.standard.stringArray(forKey: key + ".selection") ?? [] : requestedSelection
+                let next = try await repository.submoduleUpdatePaths(scope: requestedScope, cancellation: token)
+                guard !invalidated, !token.isCancelled else { return }
+                let saved = requestedSelection.isEmpty ? preferences.stringArray(forKey: key + ".selection") ?? [] : requestedSelection
                 let checks = loaded ? selection : Set(saved.isEmpty ? next : saved)
                 paths = next; selection = checks.intersection(next); loaded = true
-            } catch { self.error = error.localizedDescription }
+            } catch { if !invalidated && !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func scopeChanged() { UserDefaults.standard.set(wholeProject, forKey: key + ".wholeProject"); loaded = false; load() }
-    func selectAll() { guard !busy, !confirmingQuit else { return }; selection = selection.isEmpty ? Set(paths) : [] }
+    func scopeChanged() { guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; preferences.set(wholeProject, forKey: key + ".wholeProject"); loaded = false; load() }
+    func selectAll() { guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; selection = selection.isEmpty ? Set(paths) : [] }
     func apply() {
-        guard canApply else { return }; busy = true; output = "Updating submodules…"
+        guard canApply, let onSubmit else { return }
         let selected = paths.filter { selection.contains($0) }, snapshot = options
-        UserDefaults.standard.set(selected, forKey: key + ".selection")
-        if let data = try? JSONEncoder().encode(snapshot) { UserDefaults.standard.set(data, forKey: key + ".options") }
-        Task {
-            defer { busy = false }
-            do {
-                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                output = try await repository.updateSubmodules(paths: selected, options: snapshot)
-                if output.isEmpty { output = "Submodule update completed." }
-                onUpdated(output)
-            } catch { output = error.localizedDescription; self.error = error.localizedDescription }
-        }
+        guard !selected.isEmpty else { return }; submitted = true
+        preferences.set(selected, forKey: key + ".selection")
+        if let data = try? JSONEncoder().encode(snapshot) { preferences.set(data, forKey: key + ".options") }
+        onSubmit(selected, snapshot); close()
     }
+
 }
 
 private struct SubmoduleUpdatePath: Identifiable { let id: String }
@@ -112,7 +111,6 @@ private struct SubmoduleUpdateDialog: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.padding(8)
             }
-            if !model.output.isEmpty { ScrollView { Text(model.output).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading) }.frame(maxHeight: 100) }
             HStack {
                 VStack(alignment: .leading, spacing: 7) {
                     SelectionAllCheckbox(checked: model.selection.count, total: model.paths.count, checkedCount: { model.selection.count }) { _ in model.selectAll() }.frame(width: 190, height: 22)

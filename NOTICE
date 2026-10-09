@@ -1125,3 +1125,8 @@ exit-error continuation, combined status, live output and owned cancellation.
 Original Swift additions are GPL-2.0-or-later. menusync.ico is copied unchanged
 from pinned TortoiseGit src/Resources with the existing GPL icon license choice
 and SHA-256 provenance. Physical/signed/full progress acceptance remains pending.
+
+Submodule Update progress adapts the SubmoduleCommand.cpp Update branch and
+ProgressDlg controls at the pinned TortoiseGit baseline into native Swift/AppKit.
+The original source attribution and GPL-2.0-or-later terms above apply; native
+progress, owned cancellation and scoped handoff code are GPL-2.0-or-later.

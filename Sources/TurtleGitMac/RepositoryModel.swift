@@ -70,6 +70,7 @@ import TurtleGitCore
     private var fileComparisonWindows: [String: FileComparisonWindowController] = [:]
     private var submoduleSyncWindows: [UUID: SubmoduleSyncWindowController] = [:]
     private var submoduleAddWindows: [String: SubmoduleAddWindowController] = [:]
+    private var submoduleUpdateProgressWindows: [UUID: SubmoduleUpdateProgressWindowController] = [:]
     private var submoduleUpdateWindows: [String: SubmoduleUpdateWindowController] = [:]
     private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
     private var deleteConflictWindows: [String: DeleteConflictWindowController] = [:]
@@ -894,14 +895,24 @@ import TurtleGitCore
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
         let controller = submoduleUpdateWindows[key] ?? SubmoduleUpdateWindowController(repository: repository, access: access, scope: scope, selected: selected)
         controller.onClosed = { [weak self] in self?.submoduleUpdateWindows.removeValue(forKey: key) }
+        controller.model.onSubmit = { [weak self] paths, options in
+            self?.showSubmoduleUpdateProgress(repository: repository, access: access, paths: paths, options: options, completion: completion)
+        }
+        submoduleUpdateWindows[key] = controller
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showSubmoduleUpdateProgress(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, completion: (() -> Void)? = nil) {
+        let root = repository.root, id = UUID()
+        let controller = SubmoduleUpdateProgressWindowController(repository: repository, access: access, paths: paths, options: options)
+        controller.onClosed = { [weak self] in self?.submoduleUpdateProgressWindows.removeValue(forKey: id) }
         controller.model.onUpdated = { [weak self] output in
             self?.refreshRepositoryLogs(root)
             self?.statusWindows[root.path]?.model.reload(); self?.commitWindows[root.path]?.model.reload(); self?.rebaseWindows[root.path]?.model.refreshState()
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
             completion?()
         }
-        submoduleUpdateWindows[key] = controller
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+        controller.model.onBisect = { [weak self] operation in self?.showBisect(repository: repository, access: access, operation: operation) }
+        submoduleUpdateProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
         let root = repository.root, id = UUID()

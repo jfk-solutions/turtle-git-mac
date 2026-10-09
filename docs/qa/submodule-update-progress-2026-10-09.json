@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "80bf71b7b82a36518df629f90414115a088251b5",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Submodule Update captured options-to-separate-progress handoff, token-aware validation/checkout, bounded streaming/error output, owned cancellation and close/Quit fences, deferred-question auto-close and successful source-order bisect split actions with original artwork.",
+  "verification": {
+    "source": "Reviewed pinned SubmoduleCommand.cpp Update branch: options dialog then ProgressDlg, seven flags, successful active-bisect Good/Bad/Skip/Reset callback order. Native keeps explicit reviewed paths even if all visible rows selected to preserve scoped selection. Whole-source command splitting and full progress remain partial.",
+    "core_system": "Nine focused cases pass with zero failures in 14.099 seconds: existing SubmoduleUpdate six semantic cases plus three new streaming/failure/cancellation cases. Real selected/no-fetch checkout, Init/Force/Remote/Merge/Rebase/recursive semantics, literal path handling and parent preservation covered. New engine-selecting fixtures verify UTF-8 streaming, ordinary exit 7, pre-cancel no command, live process group cancellation and exactly two owned wrapper/child PIDs reaped.",
+    "core_bundled": "Three new explicitly engine-selecting SubmoduleUpdateProgress cases pass, zero failures, 7.486 seconds. Existing six Update tests explicitly use system Git and are not claimed as bundled-engine tests.",
+    "full_suite_baseline": "Parent 80bf71b had a full 836-case passing suite. This checkpoint uses targeted Update coverage; it does not claim a new full 839-case run.",
+    "native": "Final hidden prohibited-policy receiver passes with system and bundled Git. Actual scoped options controller submits once, saved options reopen privately, separate progress checks selected child HEAD changes with other child retained, parent HEAD/index/gitmodules unchanged before separate bisect setup, captured automatic-close, 3000-line exit-7 output bounded below 20 KiB at 16-KiB setting, live UTF-8, No/Yes/duplicate/deferred response, pending-question completion gating, Quit refusal, forced-close callback fencing and owned two-PID cleanup. Active real bisect metadata yields four original decoded icons in order; reset callback runs actual Core Bisect Reset once. Root native-window Bisect dispatch is code-reviewed/compiled, not exercised through RepositoryModel.",
+    "corrections": "First native run passed behavioral cases, but compiler review exposed an always-true icon-function comparison. Changed to actual image() decoding and reran both engines. Added awaited receiver cleanup before error exit and deferred-answer completion case before final run.",
+    "debug": "Unsigned Debug build passes with new native progress registered by XcodeGen.",
+    "appstore": "Unsigned AppStore build passes; both app audits pass including all 100 upstream icons, Finder, helpers and licenses. AppStore universal Git/LFS, EditorConfig, IssueRegex and private one-use askpass checks pass. Both embedded NOTICE files equal root.",
+    "inventory_site_workflow": "Pinned inventory regression, local site build and safe workflow YAML parse pass; new native Update progress CI step present once. Hosted CI/deployment unverified."
+  },
+  "limitations": [
+    "Full source/dialog/menu/application port remains incomplete; source mappings remain partial.",
+    "Displayed options/progress geometry, Return/Escape/focus, sheets, keyboard/VoiceOver/light-dark, all selection/scope variants and new screenshots remain unverified.",
+    "Full ProgressDlg controls including elapsed time, scrolling, taskbar/Save/context menus, command display and massive-command splitting remain pending.",
+    "Signed Finder activation/URL dispatch, App Group access, parent/child security scopes, App Store runtime/distribution/submission and legal clearance remain pending.",
+    "Fixtures use local file transport only for construction and explicit child fetch; no actual remote transfer/authentication, OpenSSH packaging, Keychain, PPK or host-key/password acceptance established.",
+    "Cancel retains earlier effects; no rollback. Metadata/config/path races and failure variants, forced-close action-log behavior and live Root-to-Bisect window acceptance need further QA.",
+    "Strict Rebase rendered-text acceptance remains UNVERIFIED.",
+    "No main-app launch, user-key/login-agent query, push, hosted CI/deployment or submission."
+  ],
+  "sha256": {
+    ".github/workflows/macos.yml": "4d8ae4f410ec0dcf1531bcd8181ac833a49592b364d4ca5f5bd5740d72371500",
+    "NOTICE": "65d99cdb7d6ce5dbb4ad54d95fa4ce5284591cf93d940301ae00036730fcb1be",
+    "Sources/TurtleGitCore/SubmoduleUpdate.swift": "08bfb3eaf30154f47f6ded16ee12add343d106baf70209a431522117147cc94c",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "c3f067c8323e0606ee0c866fc2efefffed6b314e930ceae329dd8841d8107637",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "7f69888f80b4fb2f338259438ee16126014c419cbbe15ffbcd5e89fc5cf56b19",
+    "Sources/TurtleGitMac/SubmoduleUpdateProgressWindow.swift": "5090cbded34b5671f5aeb1475c82fe7ef36b455b3256eb7332a09d0fe40bceb7",
+    "Sources/TurtleGitMac/SubmoduleUpdateWindow.swift": "d9d6563eb7099b1d77d9a98109b9ebf0a6d96f642512a64c8f2598d4c9d112db",
+    "Tests/TurtleGitCoreTests/SubmoduleUpdateProgressTests.swift": "a21d0658f999801380520ffc0c47124a76536fa565c3c6571531b2fec7b5341a",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "c95a6e2dc58d39a56d6cab25154626f4333fdefeaceaf70690fbb64801db0a8d",
+    "docs/PORTING.md": "befab1687aa564aa723b4a8174b3e3a8fb56c22b2e0c0fc28a06c46ff630b655",
+    "docs/SUBMODULE-UPDATE-PARITY.md": "809955c2153bab961c8b34ab24b7b7bf4f7dc4f840c0b4fa3a44ef96f41278ab",
+    "docs/qa/submodule-update-progress-native-2026-10-09.swift": "acd37aeb1ff69256c130e09d1b62dca87521e33d05f529ab2ec0a496cd181d43",
+    "docs/upstream-files.csv": "843ab17d79d213ca2bc1cac030a53ad4504a006e677b3502b802dcc8634098c6",
+    "scripts/test-submodule-update-progress.py": "9b26c4d8f9b994671bdeebf2ac8cbac75b257280f5795cbe8cc34521f1254394"
+  },
+  "logs": "build/qa/submodule-update-progress-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.D0E969A4-64BA-457E-8489-5AC6869D33D5",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.138F2D61-90DD-492C-998E-D5D37816F877",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.0FA8D25D-5947-4C47-B1A0-251F90C57AA3",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.6252B74F-8144-4147-8F94-CA625FA576A8",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

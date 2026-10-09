@@ -45,14 +45,42 @@ rebasing and recursion. Updates preserve the superproject HEAD and staged
 entries; remote tracking can leave the checkout ahead of its indexed gitlink.
 App Store mutations require the repository's active security-scope lease.
 
-The current native implementation reports command output in the options window
-and supports another attempt after an error. Busy controls, close and application
-Quit are blocked during Git execution. Idle Update controls are also disabled
-while another window's Quit confirmation is pending. This is partial progress
-parity: the upstream separate command-progress window, live output,
-cancellation and bisect post-actions remain to be ported.
+The options window now captures the reviewed paths and all seven options, saves
+those preferences and closes before a separate native progress window runs Git,
+matching the source handoff. Each submission executes once; the Core revalidates
+paths with the owned cancellation token before checkout. Explicit path arguments
+remain a deliberate native scope guard, even when all visible rows are selected.
+
+Progress streams live UTF-8/CR output through the existing bounded Git output
+parser. Ordinary Git errors retain the bounded transcript and exit status; no
+success handoff is published. Cancellation reaches both metadata validation and
+Git's owned process group. The source ConfirmKillProcess Yes/No question has Yes
+as its default; No retains the operation, and duplicate/late replies cannot cancel
+completed work or dispatch twice. Forced close cancels and fences output/results.
+Quit is denied while execution or a cancellation question remains active. Idle
+progress and options freeze during another window's Quit confirmation. The
+repository access lease remains alive until execution ends.
+
+Successful Update checks the current worktree's administrative directory for
+`BISECT_START` and offers source-order Good, Bad, Skip and Reset with original
+icons. The first action is the default button with a dropdown for all four;
+selection dispatches the existing native Bisect route once. No-options auto-close
+keeps a successful result with post-actions open; no-errors follows the shared
+source policy. Action-log writes use the existing application-installed store.
+Private preference injection and cancellation fence options discovery on close.
+
+Complete upstream progress geometry/elapsed-time/scrolling/taskbar/Save/context
+menus, large command-list splitting, real transfer/authentication, displayed and
+signed acceptance remain partial. Cancellation retains earlier checkout/config
+effects; it does not promise rollback.
 
 ## Verification
+
+The current progress checkpoint is recorded in
+[Update progress verification](qa/submodule-update-progress-2026-10-09.json).
+The counts and screenshots below describe the earlier options implementation,
+including its former in-options result panel; they are historical evidence, not
+current separate-progress screenshots.
 
 Six real-Git tests cover scoped literal Unicode/comma/newline paths, Init enabled
 and disabled, selected initialization with another checkout retained, Force and

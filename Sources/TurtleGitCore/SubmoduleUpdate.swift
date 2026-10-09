@@ -47,16 +47,18 @@ extension GitRepository {
         return paths.filter { path in prefixes.isEmpty || prefixes.contains { path == $0 || path.hasPrefix($0 + "/") } }.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
-    public func updateSubmodules(paths: [String], options: SubmoduleUpdateOptions) throws -> String {
-        let available = Set(try submoduleUpdatePaths())
+    public func updateSubmodules(paths: [String], options: SubmoduleUpdateOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+        try cancellation?.check()
+        let available = Set(try submoduleUpdatePaths(cancellation: cancellation))
         guard !paths.isEmpty, Set(paths).count == paths.count, paths.allSatisfy({ available.contains($0) }) else { throw SubmoduleUpdateFailure.selection }
         for path in paths {
+            try cancellation?.check()
             let location = try restoreLocation(path)
             if let type = try? FileManager.default.attributesOfItem(atPath: location.path)[.type] as? FileAttributeType,
                type != .typeDirectory { throw SubmoduleComparisonFailure.unsafeCheckout }
         }
         // Always carry the reviewed selection explicitly. Selecting all within a
         // folder must not update unreviewed submodules elsewhere in the project.
-        return try run(options.arguments(paths: paths)).text
+        return try run(options.arguments(paths: paths), cancellation: cancellation, onOutput: onOutput).text
     }
 }
