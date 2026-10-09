@@ -1,0 +1,42 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "b96eab77e18e6785c81a166afa44c792a23c6a78",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Use shared bounded native ProgressDlg result output and completion styling for Commit, with source Close/Abort controls and explicit Escape routing.",
+  "verification": {
+    "source": "Compared pinned CommitDlg existing three commit actions and ProgressDlg result presentation. Shared native output/completion helpers remain unchanged from parent: source copy-menu/icons, warning/error prefixes, links, colors, timing and locale rules. Commit results now use them; all source mappings remain partial.",
+    "native": "Final Commit progress receiver passes with system and bundled Git. Real checked/staged commits preserve unchecked index/worktree bytes, captured message/paths and exact ordered Push/Pull/ReCommit/Create Tag actions; duplicate/snapshot gates and footer post-actions pass. Hook rejection/new-branch draft retry and pre-cancelled ordinary/index APIs pass. Actual live-hook No/Yes cancellation for ordinary/index/parent-amend commits leaves HEAD unchanged, emits no success callback, kills owned hook/helper and preserves unrelated decoy. New Success/exit-1/User cancelled current-work and completion range/default-timing gates pass. Hidden completed controller verifies source-style bounded 16-KiB result, truncation, exit-7 footer with timings disabled, native link attributes, private copy-all/menu order, Escape and duplicate Close. No physical/signed UI claim.",
+    "cleanup_receiver": "Invariant failures now throw rather than crash; receiver cancels and awaits its owned Commit operations and resolves idle results on both success/error. Geometry/preferences and clipboard checks use private UUID domains/pasteboard; no standard-domain or general-clipboard writes.",
+    "builds": "Unsigned Debug and AppStore builds pass.",
+    "bundles": "Both audits pass including Finder/licenses/all 100 original icons; AppStore universal Git/LFS, EditorConfig, IssueRegex and private one-use askpass checks pass.",
+    "inventory_site": "Pinned inventory regression and local documentation-site build pass. Existing CI test-commit-progress script compiles the expanded receiver; hosted CI/deployment remain unverified.",
+    "core": "No Core implementation changed; no new Core/full-suite run claimed.",
+    "corrections": "Both native runs passed. After the initial pass, the historical printed summary was corrected to describe hidden-controller/private-clipboard checks accurately; final run with that corrected source passes both engines."
+  },
+  "limitations": [
+    "Entire application/dialog/helper/menu/documentation port remains incomplete; mappings remain partial.",
+    "Commit still receives result output at completion; live streaming/percentage and complete ProgressDlg animation/Dock/sound/command behavior remain unfinished. Only displayed output is bounded; original backend/callback result is retained.",
+    "Physical sheet/default-button/Abort/Escape/menu/links/theme/VoiceOver/resize acceptance and current screenshots remain unverified. Hidden controller/component evidence does not prove displayed parity.",
+    "Rebase split cancellation remains disabled; hooks/editors/signing/credentials/network and complete operation/recovery combinations need broader acceptance. Strict Rebase rendered-text gate remains UNVERIFIED.",
+    "Signed Finder/App Group/security-scope/helper inheritance, App Store runtime/OpenSSH packaging/authentication/distribution/submission and legal clearance remain pending.",
+    "No main app launch, displayed window, general clipboard write, actual URL open, user-key/login-agent query, push, hosted CI/deployment or submission."
+  ],
+  "sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "814db3c10cc23657037b4b0e819a33fbddabd38b9a1fcf4bf9cc5791df48868e",
+    "docs/COMMIT-PARITY.md": "dbc601212dcfb210a072a113a665805723fd05f8aa5131a16e0e48a758e4b912",
+    "docs/qa/commit-progress-native-2026-10-08.swift": "94efcb765328006438039598586f395c17541145fff546a7a5c55a393cb7f58f",
+    "docs/upstream-files.csv": "cbddb86dc983a42acfcd70cb5a4afe1f8cd15e5bbbaa9ac4a4c949e179ce613c",
+    "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "c4f8cb4bef6bd74dcefb3edda94e2fdaea8464bea9ec73bef50b0ac1c193df12",
+    "Sources/TurtleGitMac/SubmoduleProgressCompletion.swift": "ca482ff6aa93ea3383fc75c29f70ea10af527ddf2a8e901aa2daba7b371f5a95",
+    "Sources/TurtleGitMac/GitProgressOutputState.swift": "2f48aa6d612aba5381d9bd6eac6eb4febf9c7867c638667eef1a1f4ff9312cff",
+    "scripts/test-commit-progress.py": "c553da0c241b807bc8c57af983e739e9c76b0ba8d1ff0f9be2ebb9ed69e208f6"
+  },
+  "logs": "build/qa/commit-progress-styling-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "matching_processes": [],
+    "current_fixtures": [],
+    "main_app_launches": 0,
+    "removed_current_verified_empty_preference_domains": 4
+  }
+}

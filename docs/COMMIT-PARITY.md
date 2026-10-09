@@ -1738,3 +1738,35 @@ The pinned `OnBnClickedCommitAmend` calls `IDC_LOGMESSAGE->SetFocus()` after ref
 The dialog model owns both request and acknowledgement, so rebuilding the editor does not replay a consumed request. Busy/default reads, Quit confirmation, an outstanding error and an attached sheet defer the handoff. An owned `didEndSheet` notification retries pending focus without requiring an unrelated model update. Removed editors invalidate their coordinator/observers and queued caret publication. Changing the editor's model resets coordinator ownership and invalidates old caret work. The real Commit controller invalidates pending focus when its window closes; late Git replies cannot create a new handoff. Installing Replay Split presets also retires an ordinary pending request. This does not cancel all Git work on close.
 
 `python3 scripts/test-commit-amend-focus.py` uses real unordered native windows with activation prohibited. It verifies both toggle directions, default/refresh completion, ordinary focus/selection/Undo retention, consumed-editor recreation, removed-editor cancellation, editor-only error gates and a late reply after the real controller closes. Sheet ownership is injected into a test window and the real notification path is posted manually; no physical sheet is presented. See [Amend focus QA](qa/commit-amend-focus-2026-10-09.json). Physical checkbox/keyboard/IME, actual error-alert/sheet transitions, signed execution and full dialog/application parity remain incomplete.
+
+
+## Commit progress presentation
+
+Commit progress now uses the shared native ProgressDlg output view: selectable
+read-only text, Copy/separator/Copy All menu with original icons and menu-icon
+preference, source warning/error prefix colors, completed URL/email links and
+success/failure footer colors. Displayed output is bounded by the captured
+GitOutputLimitinKiB preference and shared CR/UTF-8 parser; the original repository
+result remains available to completion callbacks. Git failures display their
+message rather than repeating the command-name wrapper.
+
+The current-work label reports Success, User cancelled, Git exit status or native
+Operation failed. Completion appends monotonic execution milliseconds and local
+date/time unless ShowGitexeTimings is disabled. Locale selection uses the shared
+UseSystemLocaleForDates behavior. The progress bar shows completion and its result
+color; it does not report live percentage before completion yet.
+
+Close is the default button and remains disabled while running or answering a
+question. Abort/Escape cancels a running cancellable operation, closes a failed
+result when idle, and Close/Escape resolves a completed result. Successful Abort
+is disabled. Existing Push/Pull/ReCommit/Create Tag ordering and owned-result
+acknowledgement stay in place; post-action controls are disabled during a pending
+cancellation question. Rebase split cancellation retains its existing restriction.
+
+[Presentation QA](qa/commit-progress-styling-2026-10-09.json) records hidden native
+real-repository checks plus bounded completed text, links, private copy-all,
+completed Escape and duplicate resolution. The receiver now throws on invariant
+failure and cancels/awaits owned Commit operations before exit. This does not
+prove displayed window/sheet/button/menu/theme/VoiceOver parity. Current screenshots
+predate these changes; live output, complete progress behavior and signed/App Store
+acceptance remain unfinished.

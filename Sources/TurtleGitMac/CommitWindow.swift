@@ -1100,7 +1100,7 @@ import UniformTypeIdentifiers
                 let commitError = error.localizedDescription
                 let shownInProgress = progress != nil && onCommitProgress != nil && progress?.dismissWithoutWindow != true
                 if let progress {
-                    progress.complete(output: commitError, success: false, cancelled: progress.cancellation.isCancelled, postActions: [])
+                    progress.complete(output: (error as? GitFailure)?.message ?? commitError, success: false, cancelled: progress.cancellation.isCancelled, postActions: [], exitCode: (error as? GitFailure)?.code)
                     if !shownInProgress || progress.cancelled { progress.choose(nil) }
                     _ = await progress.waitForChoice(); rememberCompletionAction(action); commitProgress = nil
                 }
@@ -1710,12 +1710,16 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     let cancellable: Bool
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
+    private var outputState: GitProgressOutputState
     @Published private(set) var busy = true
     @Published private(set) var success = false
     @Published private(set) var cancelled = false
     @Published private(set) var cancelling = false
     @Published private(set) var confirmingCancellation = false
     @Published private(set) var output = ""
+    @Published private(set) var currentWork = ""
+    @Published private(set) var completionRange: NSRange?
+    private let startedAt = ProcessInfo.processInfo.systemUptime
     @Published private(set) var postActions: [CommitPostAction] = []
     private var resolved = false
     private var selected: CommitPostAction?
@@ -1726,11 +1730,16 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var canCancel: Bool { busy && cancellable && !cancelling && !confirmingCancellation }
     init(repository: GitRepository, action: CommitWindowModel.CompletionAction, staging: Bool, paths: Set<String>, options: CommitOptions, preferences: UserDefaults, cancellable: Bool) {
-        self.repository = repository; self.action = action; self.staging = staging; self.paths = paths; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.cancellable = cancellable
+        self.repository = repository; self.action = action; self.staging = staging; self.paths = paths; self.options = options; self.preferences = preferences; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); self.cancellable = cancellable; outputState = GitProgressOutputState(preferences: preferences)
     }
-    func complete(output: String, success: Bool, cancelled: Bool, postActions: [CommitPostAction]) {
+    func complete(output: String, success: Bool, cancelled: Bool, postActions: [CommitPostAction], exitCode: Int32? = nil) {
         guard busy else { return }
-        self.output = output; self.success = success; self.cancelled = cancelled
+        let parser = GitCliOutputParser(limit: outputState.limit)
+        parser.appendChunk(Data(output.utf8)); outputState.consume(parser.processPending(), parser: parser); outputState.consume(parser.finish(), parser: parser)
+        self.output = outputState.output; self.success = success; self.cancelled = cancelled
+        let completion = SubmoduleProgressCompletion(success: success, cancelled: cancelled, exitCode: exitCode,
+            elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
+        currentWork = completion.currentWork; completionRange = completion.append(to: &self.output)
         self.postActions = postActions; busy = false; cancelling = false
         if autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) { choose(nil) }
     }
@@ -1763,13 +1772,15 @@ enum CommitPostAction: String, CaseIterable, Hashable {
     var onClosed: () -> Void = {}
     init(model: CommitProgressWindowModel) {
         self.model = model
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
+        let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
         window.title = "\(model.repository.root.lastPathComponent) – Commit progress – TurtleGit"; window.minSize = NSSize(width: 620,height: 340); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: CommitProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.onClose = { [weak window] in guard let window else { return }; window.sheetParent?.endSheet(window); window.close() }
+        window.escapeAction = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.choose(nil) } }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
+            window.makeFirstResponder(nil)
             let alert = NSAlert(); alert.alertStyle = .informational; alert.messageText = "The process is still running."; alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No"); yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
             alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn) }
@@ -1789,16 +1800,22 @@ private struct CommitProgressDialog: View {
     @ObservedObject var model: CommitProgressWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ScrollView { Text(model.output).font(.system(.body,design: .monospaced)).textSelection(.enabled).frame(maxWidth: .infinity,alignment: .leading) }.frame(maxWidth: .infinity,maxHeight: .infinity).padding(8).background(Color(nsColor: .textBackgroundColor))
+            Text(model.repository.root.path).font(.caption).textSelection(.enabled)
+            Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
+            ProgressView(value: model.busy ? 0 : 100, total: 100)
+                .tint(model.busy ? .accentColor : model.success ? .blue : .red).accessibilityLabel("Git command progress")
+            SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack { if model.busy { ProgressView().controlSize(.small) }; Text(model.busy ? model.cancelling ? "Cancelling…" : "Committing…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Commit failed").foregroundStyle(model.busy ? Color.primary : model.success ? .green : .red); Spacer() }
             HStack {
                 if let first = model.postActions.first {
-                    Button { model.choose(first) } label: { CommandLabel(title: first.title,icon: first.icon) }
-                    Menu { ForEach(model.postActions,id: \.self) { action in Button { model.choose(action) } label: { CommandLabel(title: action.title,icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Commit post-actions") }.menuStyle(.borderlessButton).fixedSize()
+                    Button { model.choose(first) } label: { CommandLabel(title: first.title,icon: first.icon) }.disabled(model.confirmingCancellation)
+                    Menu { ForEach(model.postActions,id: \.self) { action in Button { model.choose(action) } label: { CommandLabel(title: action.title,icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Commit post-actions") }.menuStyle(.borderlessButton).fixedSize().disabled(model.confirmingCancellation)
                 }
                 Spacer()
-                if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }
-                else { Button("Close") { model.choose(nil) }.keyboardShortcut(.defaultAction).disabled(model.confirmingCancellation) }
+                Button("Close") { model.choose(nil) }.keyboardShortcut(.defaultAction).disabled(model.busy || model.confirmingCancellation)
+                Button("Abort") { if model.busy { model.cancel() } else { model.choose(nil) } }.keyboardShortcut(.cancelAction)
+                    .disabled(model.success || model.confirmingCancellation || model.busy && !model.canCancel)
             }
         }.padding(12)
     }
