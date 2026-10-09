@@ -44,13 +44,14 @@ extension GitRepository {
         let defaults = try pullDefaults(cancellation: cancellation)
         // Upstream routes configured rebase through Fetch + its interactive Rebase dialog.
         guard !defaults.rebase || options.fetch.arbitraryURL else { throw PullFailure.rebaseWorkflow }
-        let fetch = options.fetch, names = try remoteNames()
+        let fetch = options.fetch, names = try remoteNames(cancellation: cancellation)
         guard !fetch.allRemotes, !fetch.remote.isEmpty, !fetch.remote.contains("\0"), fetch.arbitraryURL || names.contains(fetch.remote) else { throw FetchFailure.remote }
         if let depth = fetch.depth, depth <= 0 { throw FetchFailure.depth }
         let branch = fetch.branch.trimmingCharacters(in: .whitespacesAndNewlines)
         if !branch.isEmpty {
             let full = branch.hasPrefix("refs/heads/") ? branch : "refs/heads/" + branch
-            guard (try? run(["check-ref-format", full])) != nil else { throw FetchFailure.branch }
+            do { _ = try run(["check-ref-format", full], cancellation: cancellation) }
+            catch { try cancellation?.check(); throw FetchFailure.branch }
         }
         var args = ["pull", "--progress", "--verbose", "--no-rebase", "--no-edit"]
         if options.allowUnrelatedHistories { args.append("--allow-unrelated-histories") }

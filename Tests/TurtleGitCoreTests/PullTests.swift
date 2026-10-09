@@ -2,6 +2,15 @@ import XCTest
 @testable import TurtleGitCore
 
 final class PullTests: XCTestCase {
+    func testCancelledPullPreservesHeadIndexAndConfig() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let paths = [".git/HEAD", ".git/index", ".git/config"]
+        let before = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        var options = PullOptions(); options.fetch.remote = "origin"; options.fetch.branch = "main"
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.pull(options, cancellation: token); XCTFail("Cancelled Pull ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(before, try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) })
+    }
     func fixture() async throws -> (URL, GitRepository, GitRepository, GitRepository, String) {
         let (root, publisher, remote, consumer, path) = try await FetchTests().fixture()
         _ = try await consumer.run(["config", "user.name", "Pull Tests"])

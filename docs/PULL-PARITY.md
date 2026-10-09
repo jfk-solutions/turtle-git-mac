@@ -172,3 +172,33 @@ Physical scrolling/defaults/focus/keyboard/themes/accessibility, full progress
 controls, source project hooks, real network/authentication, signed folder grants
 and Finder/App Store acceptance remain pending. Screenshots predate streaming;
 full Pull/application parity remains incomplete.
+
+
+## Owned Pull lifetime and forced cleanup
+
+Closing the Pull options owner invalidates and releases its progress controller.
+Progress invalidation cancels both transport/preflight and recovery/Reset metadata
+reads; post-await guards prevent closed output, HEAD snapshots, action lists,
+errors, preference answers and completion callbacks from changing. Plain Pull
+remote and branch validation now receive the operation cancellation token.
+Rejected progress presentation also abandons the operation.
+
+Normal Cancel still inspects recovery with a fresh owned token. A pending Cancel
+answer continues to block close, post-actions and Quit even if the command finishes
+before the answer arrives. Its later answer cannot cancel an already finished
+command; normal acknowledgement and post-action handoff remain available.
+Forced closure aborts owned sheets and ignores late answers or retry requests.
+
+`test-pull-cleanup.py` uses actual hidden Fetch/Pull and progress controllers and
+private preferences/repositories. It pauses owned Git/helper processes during
+initial HEAD, config, remote, branch validation, transport, failure inspection,
+post-success HEAD and Reset-default reads. The success case retains the completed
+Pull's HEAD change; cleanup never attempts to undo completed Git mutations.
+Two additional cases release the held transport while a Cancel answer is pending;
+both No and Yes must retain successful completion and close only after answering.
+Verification results are recorded in `qa/pull-cleanup-2026-10-09.json`.
+
+This covers merge-based Pull. Every read/prompt timing, Fetch-before-Rebase
+preflight, physical sheets/keyboard/focus/accessibility, real authentication and
+signed Finder/AppStore acceptance still need broader work. Full Pull parity
+remains incomplete.

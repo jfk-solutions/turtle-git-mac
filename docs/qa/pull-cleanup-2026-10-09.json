@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "ce34377934fd8e3afb999b7e2fe8688ecb49f60b",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Merge-based Pull owned progress, forced lifetime cleanup and pending Cancel completion. Full port remains incomplete.",
+  "verification": {
+    "core": "24 Pull/Fetch/RequestPull tests pass with Apple and bundled Git. Added pre-cancelled Pull test verifies unchanged HEAD/index/config bytes.",
+    "native_cleanup": "Eight paused process stages pass with both Git engines using actual hidden FetchWindowController and PullProgressWindowController: initial HEAD, config, remote list, branch validation, Pull transport, failure status, post-success HEAD and Reset defaults. Recorded live leader/helper PIDs terminate; closed result state and callbacks stay frozen; late Cancel/retry/post-action/start requests ignored. Completed Pull HEAD mutation retained.",
+    "normal_pending_answer": "Both No and Yes after successful Pull completion pass with both engines. Auto-close waits for held answer; post-actions, window close and Quit remain gated; successful HEAD and one completion retained after answer. Private completion wrapper invokes original production owner callback.",
+    "regressions": "Final-source Fetch/Pull streaming and Pull progress receivers pass both engines: raw diagnostics, Unicode/CR/percentage, owned cancellation, fresh retry, conflict suppression/actions, old/new HEAD views, unchanged/No Commit, unrelated-history retry and Reset metadata without mutation.",
+    "builds": "Unsigned Debug and AppStore builds pass. Both bundle audits pass and both embedded NOTICE files byte-equal source. Universal Git 2.55.0/LFS 3.8.0, EditorConfig/IssueRegex, Finder extension and 99 icons audited.",
+    "cycles": "Zero AttributeGraph cycles in three final native logs.",
+    "inventory": "Pinned inventory checker passes. Four Pull/Fetch source mappings updated; statuses remain partial-native.",
+    "workflow": "Ruby safe YAML parse and exactly one new Pull cleanup receiver step pass. Hosted GitHub CI remains unverified.",
+    "site": "Local Pages rebuild passes; no deployment or refreshed physical screenshots.",
+    "receiver_repair": "First cleanup receiver failed before production code execution: producer folder collided with remote-stage clone destination. Renamed producer fixture, added pending-answer cases and reran both engines successfully; shipping sources unchanged after initial builds."
+  },
+  "limitations": [
+    "Hidden/injected presentation without main app launch or physical sheet/pointer/keyboard/focus/light-dark/VoiceOver acceptance.",
+    "Every metadata/submodule/conflict-hint/prompt timing, rejected-presentation route, Fetch-before-Rebase preflight and external config/ref races not individually exercised here.",
+    "Real network/authentication, signed repository access, Finder activation/badges/background cache and App Store distribution remain incomplete.",
+    "Full upstream dialogs, menus, hooks/result questions and application parity remain incomplete. No push/deployment or hosted CI result claimed."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_processes": [],
+    "current_temporary_directories": [],
+    "current_preference_domains": [],
+    "removed": [
+      {
+        "domain": "TurtleGit.PullCleanup.QA.0DBCD516-064B-4CF3-B2B9-3478A29880DE",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.PullCleanup.QA.BAE1AEB6-572B-4D6E-A9D9-1113A8092902",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.PullCleanup.QA.CD9C54F4-DF08-4B74-BB67-B2645278211D",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.PullProgress.QA.14CF015F-458A-469E-A494-9B94926B62E0",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.PullProgress.QA.CD3AE1AF-11CA-42D4-BAF4-11EFC85025F8",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.FetchPullStream.QA.2F2766C2-5680-429F-A20D-6DD0A3234FC1",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.FetchPullStream.QA.64499DBB-BF1E-4F89-A407-FA3A70AF1489",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      }
+    ],
+    "preserved": [
+      "TurtleGit.FetchPullStream.QA.1DBBD8A3-5F2E-4CD8-9000-D0CA6D45DC7D"
+    ]
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "0e2b5d0583376d88f8143f182447dd7cabbc825096a1a40744f2138e1c69a7e2",
+    "Sources/TurtleGitCore/Pull.swift": "1e99f5082f02fd9113bb7690f7ba79d3929e1a58f65b79e8726b3278996dab40",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "8146f35c46b24b2dc43706c8e7f3cf231ec593b47772c37ec90eae98b1f4ab30",
+    "Sources/TurtleGitMac/FetchWindow.swift": "d3de02167d7810fc645f8b383ced3c9ad7e8111c5f889d01aa48966c370ae99a",
+    "Tests/TurtleGitCoreTests/PullTests.swift": "a0747e1857687445adc018f6b81429afc8a83cb3a9e2a5ab23ae4208f9fecf07",
+    "docs/PULL-PARITY.md": "76313878f06df906106f02fa950f9ecc755cd5b977295ca8397ada943f11ad52",
+    "docs/FETCH-PARITY.md": "c77375f28039db4c9470c8e8d81c7486f930f0633ef102dd0d2a6df02d2b5d37",
+    "docs/TESTING.md": "2426c6a310587e5281e12268d1412df1471d7d33f752ab458cc4ed06fc19e60a",
+    "docs/upstream-files.csv": "228384426ce29f45d918980b603191916c24e4a49afcc79823df4ff9856e98e8",
+    "docs/qa/pull-cleanup-native-2026-10-09.swift": "5e68d9d0226d034ff2fe9bc89546cdb85530abdf05b382a2a0d105615ee95162",
+    "scripts/test-pull-cleanup.py": "c2142755c6b77df2a3e3c08e022873210170a2b4c59125e6c3b0c090be2699f7"
+  },
+  "log_directory": "build/qa/pull-cleanup-2026-10-09"
+}

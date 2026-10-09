@@ -372,7 +372,8 @@ and Reset metadata reads. Late Rebase answers cannot persist preferences after
 closure. Standalone Fetch/progress and pending confirmations now block Quit.
 Normal acknowledgement/post-actions and Cancel remain covered by regressions.
 
-This does not establish complete forced Pull ownership cleanup, all Fetch-for-Rebase
-preflight cancellation, physical prompt/sheet restoration, every metadata/error/
-post-action stage or signed sandbox acceptance. Full Fetch/Pull parity remains
-partial.
+Merge-based Pull forced cleanup now has its own lifetime checks and receiver;
+see [Pull parity](PULL-PARITY.md#owned-pull-lifetime-and-forced-cleanup).
+All Fetch-for-Rebase preflight cancellation, physical prompt/sheet restoration,
+every metadata/error/post-action stage and signed sandbox acceptance remain
+incomplete. Full Fetch/Pull parity remains partial.

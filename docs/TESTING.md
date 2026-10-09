@@ -360,3 +360,19 @@ standalone Quit and recorded live metadata/transport cleanup. It checks unchange
 local HEAD/index/worktree and does not launch the main app or use the network.
 Retain Fetch/Pull streaming, Fetch/Rebase decisions, cancellation and submodule
 defaults as regression gates. Physical/signed acceptance remains separate.
+
+
+### Pull forced lifetime cleanup
+
+After a Debug build, run `python3 scripts/test-pull-cleanup.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The hidden shipping-controller receiver pauses initial HEAD, config, remote,
+branch validation, Pull transport, failure status, post-success HEAD and Reset
+defaults. Forced owner closure must release progress, terminate recorded live
+leader/helper PIDs and freeze result/callback state, including a held late Cancel
+answer. Both late No and Yes answers after successful completion are checked separately
+with automatic close enabled. A completed Pull retains its HEAD mutation. Private fixtures/preferences
+are removed; no main app or ordered windows are used. Keep
+`test-fetch-pull-stream.py` and `test-pull-progress.py` as normal-output,
+cancellation and recovery/post-action regressions. These checks do not establish
+physical sheets or signed/full-dialog acceptance.
