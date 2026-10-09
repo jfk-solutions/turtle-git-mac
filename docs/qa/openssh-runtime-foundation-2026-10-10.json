@@ -1,0 +1,97 @@
+{
+  "checked_at": "2026-10-09T22:09:56.072330+00:00",
+  "parent_commit": "fcff774fb095fe486a9dc70f685a94403c93e7bf",
+  "scope": "Standalone universal OpenSSH/static OpenSSL build foundation; app integration remains pending",
+  "host": {
+    "architecture": "arm64",
+    "macos": "26.5.1"
+  },
+  "pin": {
+    "openssh": {
+      "version": "10.6p1",
+      "url": "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.6p1.tar.gz",
+      "sha256": "a9dc9565dffe8640f64d863cd29a32bc4a3dbdec0566a7fc44c5d6ee767d5f39"
+    },
+    "openssl": {
+      "version": "3.5.9",
+      "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+      "sha256": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a"
+    },
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "deployment_target": "13.0",
+    "binaries": [
+      "ssh",
+      "ssh-agent",
+      "ssh-add",
+      "ssh-keygen",
+      "ssh-keyscan"
+    ],
+    "openssl_options": [
+      "no-shared",
+      "no-module",
+      "no-dso",
+      "no-tests",
+      "no-autoload-config"
+    ],
+    "verification_sources": [
+      "https://www.openssh.org/txt/release-10.6",
+      "https://mirror.openssl-library.org/source/"
+    ]
+  },
+  "provenance_sha256": "d49fc147ff6dccef4a9a019e98239b9323fc80a7d345705b3e98791dac053c9f",
+  "binary_sha256": {
+    "ssh": "1a55dd80fb411c0114cfa52ad4c34a9757d9dc3da580fa29f8a6a6f7d9fa640f",
+    "ssh-agent": "acfa3ac046cd49d54bef323c77f6fa71bde1c06b73e17488f09ea06fff160281",
+    "ssh-add": "43813a36eeb186f6da1f81a15b9febb91f498b593bcaf67aac22f3fbf6a01451",
+    "ssh-keygen": "688cbf07465989e975a072dabfa0f1ba0a51ed871a067988f78e58b6435e66fa",
+    "ssh-keyscan": "a413b59f14581d6adbbaaea7d47799e941cb0df94145d6961b9edfc7783745fa"
+  },
+  "checks": {
+    "fresh_build_exit": 0,
+    "automatic_pre_publish_audit_exit": 0,
+    "independent_runtime_audit_exit": 0,
+    "inventory_tamper_rejections": {
+      "tamper_rejections": [
+        "unexpected runtime file",
+        "manifest-only missing file",
+        "source archive corruption",
+        "resource symlink escape",
+        "source pin mismatch"
+      ],
+      "private_copy_removed": true
+    },
+    "both_binary_slices": "arm64 and x86_64 verified by lipo",
+    "minimum_os": "13.0 load commands in both slices",
+    "dynamic_dependencies": "Only /usr/lib/ and /System/Library/",
+    "native_runtime": "Private HOME and agent: Ed25519/ECDSA/RSA loading, fingerprints, removal, encrypted noninteractive refusal; foreground agent reaped",
+    "source_archives": "Publisher SHA-256 matched; original archives and licenses retained",
+    "reconstruction": "Retained build/validator scripts and pin hashes/layout verified; complete reconstructed build not run",
+    "site_build_exit": 0,
+    "inventory_pin_regression_exit": 0,
+    "python_compile_exit": 0,
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "limitations": [
+    "No app embedding, transport PATH change or signing in this checkpoint",
+    "No Intel runtime, macOS 13 runtime or signed sandbox acceptance",
+    "No SSH server/network/password/host-key/Keychain authentication testing",
+    "Built-in FIDO, PAM, Kerberos and libedit disabled; hardware/provider helper packaging pending",
+    "No publisher PGP signature verification",
+    "Shipping application unchanged; no main app launched; GitHub CI not checked"
+  ],
+  "logs": "build/qa/openssh-runtime-2026-10-09/ (ignored local logs)",
+  "source_sha256": {
+    "Configuration/OpenSSHRuntime.json": "21230f2c7a554fa5c2dc755cdef91c52bdf6bca205649ffb6f7b62abff0f8a7c",
+    "scripts/build-openssh-runtime.py": "b4da5e4de13e8b5c449c2cffcf0f9768c522075e38e2b2a2350e719092740ff1",
+    "scripts/validate-openssh-runtime.py": "dc238a9f23767ca4453141aa4f8d105e2c14e690286536c7b3997f83affc50b6",
+    "docs/OPENSSH-RUNTIME.md": "a5a13ce26f2985de0846157c244c36ec2d18e425f7e466dc331350fd2056dfd8",
+    "docs/SSH-AGENT-PARITY.md": "23f666eae07c1b452c43a5697c191cc838da2587e427f1cad6ffa3a9c4b5c483",
+    "docs/DISTRIBUTION.md": "0e014a2fbd3fad5a25fce6f0d34333731be9202bb58fce1cea37aed0a12a7543"
+  }
+}

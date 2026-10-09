@@ -29,7 +29,9 @@ it. Socket path length is checked against macOS's Unix-domain socket limit.
 
 Development resolves system OpenSSH tools when bundled helpers are absent. The
 App Store resolver requires both bundled agent/add helpers and refuses fallback.
-Those helpers are not packaged yet. The app now embeds an original Swift askpass
+Those helpers are not embedded in the app yet. A standalone pinned universal
+build and audit foundation is tracked in
+[OpenSSH runtime preparation](OPENSSH-RUNTIME.md). The app now embeds an original Swift askpass
 CLI. A supplied response can load an encrypted key through a private one-use
 channel; without a response, the headless loader rejects interactive prompting.
 The native secure response dialog now connects to configured-key loading in

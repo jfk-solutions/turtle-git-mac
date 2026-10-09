@@ -1,0 +1,35 @@
+{
+  "openssh": {
+    "version": "10.6p1",
+    "url": "https://cdn.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-10.6p1.tar.gz",
+    "sha256": "a9dc9565dffe8640f64d863cd29a32bc4a3dbdec0566a7fc44c5d6ee767d5f39"
+  },
+  "openssl": {
+    "version": "3.5.9",
+    "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+    "sha256": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a"
+  },
+  "architectures": [
+    "arm64",
+    "x86_64"
+  ],
+  "deployment_target": "13.0",
+  "binaries": [
+    "ssh",
+    "ssh-agent",
+    "ssh-add",
+    "ssh-keygen",
+    "ssh-keyscan"
+  ],
+  "openssl_options": [
+    "no-shared",
+    "no-module",
+    "no-dso",
+    "no-tests",
+    "no-autoload-config"
+  ],
+  "verification_sources": [
+    "https://www.openssh.org/txt/release-10.6",
+    "https://mirror.openssl-library.org/source/"
+  ]
+}

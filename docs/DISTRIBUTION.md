@@ -224,3 +224,12 @@ in app-private storage. Git config receives only the native key path, never the
 bookmark. Mock-provider tests are not evidence of real signed grants; signed
 selection, stale renewal and loading from the sandbox remain acceptance gates.
 See [identity selection](SSH-IDENTITY-PARITY.md).
+
+## OpenSSH runtime foundation
+
+A standalone pinned universal OpenSSH/static OpenSSL build retains source
+archives, original licenses, reconstruction tools and file hashes. See
+[OpenSSH runtime preparation](OPENSSH-RUNTIME.md) for build/audit commands and
+explicit feature gaps. It is not yet embedded or selected by packaged Git.
+Signing, inherited sandbox invocation, real authentication and complete
+SSH behavior remain release gates.
