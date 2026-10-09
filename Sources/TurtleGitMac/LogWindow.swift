@@ -1055,6 +1055,7 @@ struct LogCommandRequest: Identifiable {
         var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
         options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
         options.includeBoundaryCommits = includeBoundaryCommits
+        options.retainFilteredRows = true
         let referenceVisibility = referenceVisibility, rollupStates = rollupStates
         let scope = historyPaths
         if !showWholeProject { options.paths = historyPaths }
@@ -2162,7 +2163,7 @@ struct RevisionTable: NSViewRepresentable {
         for definition in LogRevisionColumns.definitions {
             let id = definition.id
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = definition.title; column.width = definition.width
-            column.isHidden = !LogRevisionColumns.visible(id) || id == "bugs" && !model.issueProperties.showsBugIDColumn
+            column.isHidden = !LogRevisionColumns.visible(id) || id == "graph" && model.historyWalk.followRenames || id == "bugs" && !model.issueProperties.showsBugIDColumn
             column.minWidth = id == "graph" ? 38 : 70; table.addTableColumn(column)
         }
         table.allowsColumnReordering = true; table.allowsColumnResizing = true
@@ -2192,12 +2193,14 @@ struct RevisionTable: NSViewRepresentable {
         let fontChanged = coordinator.logFont != font; coordinator.logFont = font
         table.rowHeight = font.map { max(24, ceil($0.ascender - $0.descender + $0.leading) + 4) } ?? 24
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
+        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = !LogRevisionColumns.visible("graph") || model.historyWalk.followRenames
+        let graphChanged = coordinator.graph != model.graph; coordinator.graph = model.graph
         let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility
         coordinator.referenceVisibility = model.referenceVisibility
         let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
         coordinator.highlightedRevision = model.highlightedRevision
-        if signature != coordinator.signature || datesChanged || highlightChanged || labelsChanged || fontChanged || colorsChanged {
+        if signature != coordinator.signature || graphChanged || datesChanged || highlightChanged || labelsChanged || fontChanged || colorsChanged {
             coordinator.signature = signature
             table.reloadData()
             if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
@@ -2227,6 +2230,7 @@ struct RevisionTable: NSViewRepresentable {
         var updating = false
         var signature: [String] = []
         var logFont: NSFont?
+        var graph: [CommitGraphRow] = []
         var dateSettings = HistoryDateSettings.load()
         var highlightedRevision: String?
         var referenceVisibility = HistoryReferenceVisibility.all
@@ -2311,6 +2315,7 @@ struct RevisionTable: NSViewRepresentable {
                     if definition.id == "bugs" && !model.issueProperties.showsBugIDColumn { continue }
                     let item = NSMenuItem(title: definition.title, action: #selector(toggleColumn), keyEquivalent: "")
                     item.representedObject = definition.id; item.target = self
+                    item.isEnabled = definition.id != "graph" || !model.historyWalk.followRenames
                     item.state = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(definition.id))?.isHidden == false ? .on : .off
                     menu.addItem(item)
                 }
@@ -2408,7 +2413,7 @@ struct RevisionTable: NSViewRepresentable {
         @objc func toggleColumn(_ sender: NSMenuItem) {
             guard let id = sender.representedObject as? String,
                 let column = table?.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier(id)) else { return }
-            if id == "bugs" && !model.issueProperties.showsBugIDColumn { return }
+            if id == "bugs" && !model.issueProperties.showsBugIDColumn || id == "graph" && model.historyWalk.followRenames { return }
             column.isHidden.toggle()
             UserDefaults.standard.set(!column.isHidden, forKey: "Log.Column.Visible." + id)
         }
@@ -2427,7 +2432,7 @@ struct RevisionTable: NSViewRepresentable {
                 UserDefaults.standard.removeObject(forKey: "Log.Column.Visible." + definition.id)
                 let id = NSUserInterfaceItemIdentifier(definition.id)
                 guard let column = table.tableColumn(withIdentifier: id) else { continue }
-                column.isHidden = !definition.visible || definition.id == "bugs" && !model.issueProperties.showsBugIDColumn
+                column.isHidden = !definition.visible || definition.id == "graph" && model.historyWalk.followRenames || definition.id == "bugs" && !model.issueProperties.showsBugIDColumn
                 column.width = definition.width
                 let current = table.column(withIdentifier: id)
                 if current != index { table.moveColumn(current, toColumn: index) }

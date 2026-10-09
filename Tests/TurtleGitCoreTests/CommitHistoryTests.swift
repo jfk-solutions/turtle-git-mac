@@ -2,6 +2,56 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testRawHistorySearchPreservesHiddenLanesRollupAndRawBatchLimit() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        var hashes = [try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)]
+        for number in 1...5 {
+            try Data("raw search \(number)\n".utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "c\(number)")
+            hashes.append(try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines))
+        }
+        _ = try await repo.run(["tag", "raw-search-label", hashes[2]])
+        let tracked = [".git/HEAD", ".git/index", ".git/config", path]
+        let before = try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        var options = HistoryOptions(); options.limit = 4
+        let unfiltered = try await repo.history(options: options)
+        options.retainFilteredRows = true; options.search = "c3"
+        let raw = try await repo.history(options: options)
+        XCTAssertEqual(raw.map(\.hash), unfiltered.map(\.hash))
+        XCTAssertEqual(raw.map(\.matchesHistoryFilter), [false,false,true,false])
+        let projected = CommitGraph.project(raw, walk: options.walk)
+        XCTAssertEqual(projected.entries.map(\.hash), [hashes[3]])
+        XCTAssertEqual(projected.graph[0].lanes, CommitGraph.layout(unfiltered)[2].lanes)
+        XCTAssertEqual(projected.entries[0].parents, [hashes[2]])
+        let files = try await repo.files(in: projected.entries[0]); XCTAssertEqual(files.map(\.path), [path])
+        options.walk.graphMode = .compressed
+        let expanded = CommitGraph.project(raw, walk: options.walk, rollupStates: [hashes[5]: .expand])
+        XCTAssertEqual(expanded.entries.map(\.hash), [hashes[3]], "Search-hidden HEAD must still propagate its forced expansion")
+        XCTAssertTrue(CommitGraph.project(raw, walk: options.walk).entries.isEmpty)
+        options.walk.graphMode = .all; options.limit = 2; options.search = "base"
+        let limited = try await repo.history(options: options)
+        XCTAssertEqual(limited.map(\.hash), [hashes[5],hashes[4]]); XCTAssertFalse(limited.contains { $0.matchesHistoryFilter })
+        options.retainFilteredRows = false
+        let matchesOnly = try await repo.history(options: options); XCTAssertEqual(matchesOnly.map(\.hash), [hashes[0]], "Match-only API retains its existing count behavior")
+        options.retainFilteredRows = true; options.limit = 4; options.searchRegex = true; options.search = "^c[35]"
+        options.regexExecutable = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("build/issue-regex-runtime/IssueRegex/issue-regex")
+        let regex = try await repo.history(options: options)
+        XCTAssertEqual(regex.map(\.matchesHistoryFilter), [true,false,true,false])
+        XCTAssertEqual(CommitGraph.project(regex, walk: options.walk).entries.map(\.hash), [hashes[5],hashes[3]])
+        options.search = "["
+        let invalid = try await repo.history(options: options); XCTAssertTrue(invalid.allSatisfy { $0.matchesHistoryFilter })
+        options.searchRegex = false; options.searchFields = []; options.search = "missing"
+        let missing = try await repo.history(options: options); XCTAssertEqual(missing.count, 4); XCTAssertTrue(CommitGraph.project(missing, walk: options.walk).entries.isEmpty)
+        options.searchFields = .messages; options.search = "c2"; options.limit = 200; options.includeBoundaryCommits = true
+        options.revisionRange = HistoryRevisionRange(from: hashes[2], to: hashes[5])
+        let range = try await repo.history(options: options), boundary = CommitGraph.project(range, walk: options.walk)
+        XCTAssertEqual(range.count, 4); XCTAssertEqual(boundary.entries.map(\.hash), [hashes[2]])
+        XCTAssertTrue(boundary.entries[0].isBoundary); XCTAssertEqual(boundary.entries[0].parents, [hashes[1]])
+        XCTAssertTrue(boundary.graph[0].lanes.contains { $0.isBoundary })
+        options.limit = 0; let empty = try await repo.history(options: options); XCTAssertTrue(empty.isEmpty)
+        let after = try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }; XCTAssertEqual(before, after)
+    }
     func testHistoryBoundarySettingLoadsRangeEndpointsWithoutChangingActionParents() async throws {
         let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

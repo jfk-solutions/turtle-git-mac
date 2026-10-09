@@ -945,3 +945,9 @@ share the configured log font, including font-aware sizing. Working-tree Log
 visibility follows LogDlg's LogIncludeWorkingTreeChanges default true combined
 with a working checkout and the caller's ShowWorkingTreeChanges flag. These
 consumers refer to the pinned TortoiseGit revision above.
+
+Log text-search graph projection now preserves the raw walked commits and
+applies match flags after source visibility/forced-rollup calculation, before
+visible append, matching GitLogListBase's filter/append ordering. Native Follow
+renames graph hiding follows its ShowGraphColumn call at end of loading. This
+continues the pinned TortoiseGit source adaptation described above.

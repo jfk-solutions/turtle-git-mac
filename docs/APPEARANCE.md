@@ -118,7 +118,7 @@ slots, colors by lane index and routes join/tail arc gradients from the active
 merge lane. Source horizontal/vertical line and circle/square/rolled/boundary
 shapes are adapted to Core Graphics. Compressed/labeled visibility now preserves each raw row's lane snapshot,
 advancing through hidden commits as upstream append does. Physical
-raster/Retina/gradient parity and Git search/path metadata equivalence remain
+raster/Retina/gradient parity and full Git path/walker metadata equivalence remain
 pending. LogIncludeBoundaryCommits now loads excluded endpoints and carries
 their minus marks into the source boundary lane states. The revision table reloads existing cells after Apply while retaining
 selection and scroll state through the existing update logic.
@@ -166,3 +166,10 @@ revision-table font flag. The shared log font resolver, live SwiftUI environment
 and native Add row sizing keep the selected family/size consistent. Shared file
 column autosizing measures that font. Native Log/Commit/Add acceptance and
 remaining scope are recorded in [list preference QA](qa/log-list-preferences-2026-10-09.json).
+
+
+Native Log text search now keeps hidden raw rows for source lane/rollup state,
+and same-identity graph changes reload existing cells. Follow renames hides the
+graph column and restores the saved choice on exit. See
+[search-walk QA](qa/log-search-walk-2026-10-09.json) for the compiled source masks,
+real Git/native checks and remaining physical/scope limitations.

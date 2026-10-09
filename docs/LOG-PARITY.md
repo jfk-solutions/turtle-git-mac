@@ -198,16 +198,18 @@ streaming remain unfinished. See [the Paths record](qa/log-path-search-2026-10-0
 The menu also offers the upstream Case-sensitive toggle, default off. It applies
 to every selected field and is saved under FilterCaseSensitively for subsequent
 Log windows. Plain text uses the upstream term query rules described below; a single positive
-message term keeps Git's fixed-string matching with the chosen case mode. Empty search shows
+message term uses the source display matcher in native Log; the match-only Core
+API retains its Git fixed-string fast path. Empty search shows
 unfiltered history regardless of field selection; an active positive query with no fields returns no matches; an inverted query
 can match that empty selected-field text. Search/Return preserves the selected field set. Existing date, path, branch and pinned-end-revision scopes
 still apply.
 
-Non-message searches walk the scoped history before applying the result limit,
-so Load more counts matching commits and older matches remain discoverable.
-This currently materializes the scoped log output in memory; incremental filtering
-for large histories remain unfinished. A single positive message term still uses Git's result limit; compound queries
-are filtered before the matching-result limit. Returned rows now retain committer name/email
+Native Log now limits the raw scoped walk, then keeps search-hidden rows for
+graph/rollup state before display filtering. Show next 200 expands that raw batch,
+so its count is no longer a matching-result count. The match-only Core API still
+provides its prior matching-result limit contract. Both reads currently materialize
+their output; incremental filtering and full source count/date controls remain
+unfinished. Returned rows retain committer name/email
 metadata as well as author identity. The native Search in layout and interaction,
 match highlighting and the complete upstream default field set remain pending. This is partial upstream filter parity; see
 [the verification record](qa/log-search-2026-10-06.json). Subject/case follow-up
@@ -234,9 +236,10 @@ remain separate searchable lines; upstream cached `path|oldPath` concatenation
 and highlighting remain pending.
 
 The search field now describes term syntax in its tooltip. Single positive
-message terms retain Git grep's bounded fast path. Compound/inverted and
-multi-field queries walk the scoped history and apply the result limit after
-matching, so older qualifying commits remain discoverable. Match highlighting, incremental loading and native displayed search acceptance
+message terms use the source matcher in native Log, with the same raw batch as
+compound/inverted and multi-field queries. The match-only Core API retains the
+older Git-grep/matching-result limit contract. Expanding the native raw batch
+can reveal older qualifying commits. Match highlighting, incremental loading and native displayed search acceptance
 remain unfinished. See [the query record](qa/log-query-2026-10-06.json).
 
 ## Regular-expression search
@@ -1224,8 +1227,9 @@ working-row/graph alignment, literal rename following, mutually exclusive modes,
 All Branches/Whole Project transitions, scope reset and busy/closed guards, with
 an actual hidden hosted Log view. See [the walk QA record](qa/log-history-walk-2026-10-07.json).
 
-Compressed search combinations, graph gaps not rewritten by Git (including Follow renames
-and the synthetic working row above a hidden HEAD), displayed
+Compressed search now retains raw rows and forced state propagation; see the
+search-hidden walk section below. Follow renames hides the native graph, as
+upstream does. The synthetic working row above a hidden HEAD and displayed
 light/dark/keyboard/VoiceOver acceptance and signed
 sandbox behavior remain pending. Compression currently applies to the loaded
 revision batch, so Show next 200 can reveal more retained nodes. This is progress
@@ -1576,8 +1580,8 @@ and accessibility display revisions for Log and Blame.
 
 Compressed/labeled visibility now preserves full-walk lane snapshots,
 including hidden records, and its forced-rollup logic is compared with the
-pinned source filter block. Git search/path-simplified walk metadata remains
-a separate parity task.
+pinned source filter block. Native text search now carries match flags over the
+raw walk. Path-simplified Git metadata remains a separate parity task.
 Boundary metadata loading now follows the source advanced setting and minus
 mark; see the boundary history section below. Source drawing coordinates/gradients are adapted to Core
 Graphics; physical raster, selected-row contrast, Retina, scroll/clipping and
@@ -1655,3 +1659,42 @@ font-aware Commit column sizing, and enabled/disabled/picker/bare working-row
 gates on both Git engines. Other consumers are wired through the shared modifier
 and checked by compilation/source review. Physical raster, all-dialog interaction,
 header font equivalence, extreme font sizes and signed sandbox remain unverified.
+
+
+## Search-hidden raw walk and Follow graph visibility
+
+The source worker computes compressed/forced visibility first, applies its text
+filter next, then calls LogDataVector::append even for hidden records. Native
+Log now requests retained raw rows, applies its raw batch limit in Git, and
+carries matchesHistoryFilter separately from commit identity and parents. It
+uses the same display matcher for literal, compound and regex search rather
+than removing literal matches through Git grep before graph construction.
+CommitGraph updates rollup/children/lanes across all raw records, then combines
+source visibility with the match flag. The source synthetic working row stays
+outside the text filter, as it is added before the worker's commit loop.
+
+Search-hidden HEAD can therefore still expand ordinary ancestors; a hidden
+collapsed label still suppresses its segment. A displayed match keeps the raw
+walk's active lane instead of becoming a new branch solely because earlier rows
+were filtered. Invalid regex activity and original action/detail parents remain
+unchanged. The public match-only Core history API keeps its prior behavior;
+retainFilteredRows is the native Log's explicit raw-walk contract.
+
+RevisionTable also reloads graph cells when snapshots change while displayed
+hashes remain identical. Follow renames hides the graph column as the source
+end-of-loading ShowGraphColumn call does; disabling Follow restores the saved
+column visibility. The graph header choice is disabled while Follow forces it
+hidden, and column reset respects that state.
+
+The compiled pinned C++ visibility/rollup/filter-order/lane oracle adds all,
+alternating and no-match masks to boundary/first-parent/reference/forced cases.
+Real Core and native Git fixtures check raw count limits, literal/compound/regex/
+invalid modes, forced inheritance, boundary/action/file preservation, existing
+menu guards, same-identity graph refresh and Follow hide/restore. See
+[search-walk QA](qa/log-search-walk-2026-10-09.json).
+
+Native Log still starts with 200 raw records and Show next 200, rather than all
+of the source count/date-scope controls. Streaming, match highlighting, physical
+Windows/macOS raster/Retina/scroll/keyboard, all search/path combinations and
+signed sandbox acceptance remain pending. This does not establish full Log or
+application parity.

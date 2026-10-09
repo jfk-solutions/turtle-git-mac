@@ -94,6 +94,45 @@ import TurtleGitCore
         ordinary.showWorkingTree = false; ordinary.search = ""; ordinary.searchRegex = false
         ordinary.revisionRange = boundaries.revisionRange; ordinary.reload(); try await wait(ordinary)
         precondition(ordinary.entries.map(\.hash) == [hashes[5],hashes[4]] && !ordinary.entries.contains { $0.isBoundary })
+        let searched = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults, historyRegexExecutable: helper)
+        defer { searched.invalidate() }; searched.showWorkingTree = false; searched.searchFields = .messages; searched.searchRegex = false; searched.search = "c3"
+        searched.reload(); try await wait(searched)
+        let fullOptions = HistoryOptions(); let full = try await repo.history(options: fullOptions)
+        precondition(searched.entries.map(\.hash) == [hashes[3]] && searched.entries[0].parents == [hashes[2]])
+        precondition(searched.graph[0].lanes == CommitGraph.layout(full)[2].lanes && !searched.canToggleRollup)
+        searched.search = ""; searched.reload(); try await wait(searched); searched.toggleHistoryWalk(.compressed); try await wait(searched)
+        searched.select([hashes[5]]); searched.toggleRollup(); try await wait(searched)
+        searched.search = "c3 +c1"; searched.reload(); try await wait(searched)
+        precondition(searched.entries.map(\.hash) == [hashes[3]], "Search-hidden HEAD expansion must still reveal its ordinary matching ancestor; collapsed label must still hide its parent")
+        searched.search = "^c[13]"; searched.searchRegex = true; searched.reload(); try await wait(searched)
+        precondition(searched.entries.map(\.hash) == [hashes[3]] && !searched.canToggleRollup)
+        searched.search = "["; searched.reload(); try await wait(searched)
+        precondition(searched.entries.map(\.hash) == [hashes[5],hashes[4],hashes[3],hashes[2],hashes[0]] && searched.canToggleRollup)
+        searched.search = ""; searched.searchRegex = false; searched.toggleHistoryWalk(.compressed); try await wait(searched)
+        let graphHost = NSHostingView(rootView: RevisionTable(model: searched, savesColumnLayout: false).defaultAppStorage(defaults))
+        let graphWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        graphWindow.isReleasedWhenClosed = false; graphWindow.contentView = graphHost; defer { graphWindow.close() }
+        for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        let graphTable = Self.table(in: graphHost)!, graphColumn = graphTable.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))!
+        let graphIndex = graphTable.tableColumns.firstIndex(of: graphColumn)!
+        let oldCell = graphTable.view(atColumn: graphIndex, row: 0, makeIfNecessary: true) as! GraphCell
+        var boundaryEntries = searched.entries; boundaryEntries[0].isBoundary = true
+        let newGraph = CommitGraph.layout(boundaryEntries); precondition(newGraph[0] != oldCell.graph)
+        searched.graph = newGraph
+        for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        let updatedCell = graphTable.view(atColumn: graphIndex, row: 0, makeIfNecessary: true) as! GraphCell
+        precondition(updatedCell.graph == newGraph[0], "Same visible identities must still reload changed native graph snapshots")
+        searched.setPathScope(["file"]); try await wait(searched); precondition(searched.canFollowRenames)
+        let originalHidden = graphColumn.isHidden
+        searched.toggleHistoryWalk(.followRenames); try await wait(searched)
+        for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(graphColumn.isHidden)
+        let header = graphTable.headerView!.menu!; header.delegate?.menuNeedsUpdate?(header)
+        precondition(!header.item(withTitle: "Graph")!.isEnabled)
+        searched.toggleHistoryWalk(.followRenames); try await wait(searched)
+        for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(graphColumn.isHidden == originalHidden)
+        print("Native search retains hidden lanes and rollup inheritance, literal/regex/invalid activity guards, same-identity graph refresh and Follow graph hide/restore; parent and repository preservation passed")
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
         print("Native boundary setting and graph metadata, rollup: actual full-view Collapse/Expand and forced label-mask reload, plus compressed Expand/Collapse menu routing, linear label boundaries, mid-segment forced collapse, hollow state, parent preservation, multiple/busy/closed/search guards and invalid regex passed; repository unchanged")
     }

@@ -346,6 +346,9 @@ public struct HistoryOptions: Sendable {
     public var walk = HistoryWalkOptions()
     public var allBranches = false
     public var includeBoundaryCommits = false
+    /// Log projection needs hidden search rows for lane/rollup state. Limit the
+    /// raw Git walk and carry match flags instead of returning only matches.
+    public var retainFilteredRows = false
     public var endRevision: String?
     public var revisionRange: HistoryRevisionRange?
     public var limit = 200
@@ -461,8 +464,8 @@ public enum HistorySearchActivity {
     }
 }
 
-public struct CommitGraphRow: Sendable {
-    public struct Edge: Sendable {
+public struct CommitGraphRow: Equatable, Sendable {
+    public struct Edge: Equatable, Sendable {
         public let from: Int
         public let to: Int
         public let color: Int
@@ -508,7 +511,7 @@ public enum CommitGraph {
                 if rolled { collapsed.insert(entry.hash) } else { expanded.insert(entry.hash) }
             }
             rollups[entry.hash] = HistoryRollupInfo(collapsed: rolled, forced: rolled != defaultCollapse)
-            return show
+            return show && entry.matchesHistoryFilter
         }
         let visibleHashes = Set(visible.map(\.hash))
         let records = Dictionary(uniqueKeysWithValues: entries.map { ($0.hash, $0) })
@@ -768,7 +771,7 @@ extension GitRepository {
         let filtering = !options.search.isEmpty
         let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
         // Git fixed-string grep is equivalent only for one positive message term.
-        let filterInMemory = filtering && (options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
+        let filterInMemory = filtering && (options.retainFilteredRows || options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
         var args = ["log", "--encoding=UTF-8", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00%m%x00"]
         // Match GetLogCmd: parent rewriting for normal walks, raw full history.
         let rewritesParents = !options.walk.fullHistory
@@ -778,7 +781,7 @@ extension GitRepository {
         if options.walk.noMerges { args.append("--no-merges") }
         if options.walk.followRenames { args.append("--follow") }
         if options.walk.fullHistory { args.append("--full-history") }
-        if !filterInMemory { args.append("-\(options.limit)") }
+        if options.retainFilteredRows || !filterInMemory { args.append("-\(options.limit)") }
         if let range = options.revisionRange {
             let from = try historyRun(["rev-parse", "--verify", "--end-of-options", range.from + "^{commit}"]).text.trimmingCharacters(in: .newlines)
             let to = try historyRun(["rev-parse", "--verify", "--end-of-options", range.to + "^{commit}"]).text.trimmingCharacters(in: .newlines)
@@ -884,6 +887,7 @@ extension GitRepository {
             guard !hash.isEmpty else { continue }
             let walkedParents = fields[1].split(separator: " ").map(String.init)
             let parents = actualParents[hash] ?? walkedParents
+            var matchesFilter = true
             if filterInMemory {
                 var searchable: [String] = []
                 if !options.searchFields.intersection([.subject, .messages]).isEmpty { searchable.append(fields[5]) }
@@ -904,21 +908,26 @@ extension GitRepository {
                 if options.searchFields.contains(.paths) { searchable += try changedPaths(hash, parents: parents) }
                 let text = searchable.isEmpty ? "" : searchable.joined(separator: "\n") + "\n"
                 if options.searchRegex { regexTexts.append(text) }
-                else { guard query.matches(text) else { continue } }
+                else { matchesFilter = query.matches(text); if !matchesFilter && !options.retainFilteredRows { continue } }
             }
             var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
                 parents: parents, email: fields[3], message: fields[6],
                 committer: fields[7], committerEmail: fields[8], committerDate: fields[9])
+            entry.matchesHistoryFilter = matchesFilter
             entry.isBoundary = options.includeBoundaryCommits && fields[10] == "-"
             if rewritesParents { entry.graphParents = walkedParents }
             entry.issueIDs = try issueIDs(hash, message: fields[6])
             entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)
-            if filtering && !options.searchRegex && options.limit > 0 && entries.count >= options.limit { break }
+            if filtering && !options.retainFilteredRows && !options.searchRegex && options.limit > 0 && entries.count >= options.limit { break }
         }
         if filtering && options.searchRegex {
             let matches = try IssueRegexRuntime.logMatches(regexTexts, pattern: options.search, caseSensitive: options.searchCaseSensitive, executable: options.regexExecutable, cancellation: cancellation)
-            entries = zip(entries, matches).filter { $0.1 }.map { $0.0 }
-            if options.limit > 0 { entries = Array(entries.prefix(options.limit)) }
+            if options.retainFilteredRows {
+                entries = zip(entries, matches).map { entry, matches in var entry = entry; entry.matchesHistoryFilter = matches; return entry }
+            } else {
+                entries = zip(entries, matches).filter { $0.1 }.map { $0.0 }
+                if options.limit > 0 { entries = Array(entries.prefix(options.limit)) }
+            }
         }
         let head = try? historyRun(["rev-parse", "--verify", "HEAD"]).text.trimmingCharacters(in: .whitespacesAndNewlines)
         let currentRef = try? historyRun(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
