@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "c90c6ba",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ResetDlg.cpp": "b4bb451612a87b300c9439c39b644335b24c92e1"
+  },
+  "scope": "Reset Show modified files now owns a HEAD-to-working-tree Changed Files comparison. Whole port incomplete.",
+  "verification": {
+    "source": "CResetDlg::OnBnClickedShowModifiedFiles constructs CFileDiffDlg, SetDiff(nullptr, HEAD, WorkingCopyRef), then DoModal; this range does not use the Reset target.",
+    "native": "Final hidden actual Reset/Changed Files controllers pass Apple Git and bundled AppStore Git: tracked staged/unstaged/mixed/add/delete and Unicode-tab-newline paths; untracked and older-target-only exclusions; full resolved HEAD and working-tree endpoints; unchanged selected Reset target; reset/apply/close and duplicate locks, child close/reopen and stale callback identity, rejected presentation release, injected bare/busy guards, forced parent cleanup and rejection after parent close. HEAD, staged tree, config and working bytes unchanged after setup; raw index stat-cache bytes are not asserted.",
+    "interactions": "Owned comparison callback configurator is invoked once. Test callbacks capture Log and file-history dispatch. Production factors Log/file-history/submodule callbacks into the same helper used by standalone comparisons. Real Log/file/submodule window handoff, submodule fixture and file-editor launch are not exercised by this receiver.",
+    "quit": "Actual application delegate returns terminateCancel while owned comparison open, terminateNow after child close in the isolated receiver. Added source guards also cover active Reset/chooser, Hard confirmation, pending result and busy/cancellation progress; those other Quit states are not individually exercised here.",
+    "progress_regression": "Existing real Reset progress receiver passes both engines: Soft/Mixed/Hard effects across close policies; Hard No/Yes callback, delayed success acknowledgement, stale branch Retry rejection/recovery, ordered submodule/bisect actions, owned cancellation and fresh Retry. This receiver mutates only its disposable repository.",
+    "debug": "Final unsigned Debug build and bundle audit pass.",
+    "store": "Final unsigned AppStore build and required bundle audit pass, including bundled universal Git/Git LFS, Finder extension, original icons, EditorConfig and IssueRegex runtimes.",
+    "notice": "Both bundled NOTICE files byte-equal source.",
+    "inventory": "Pinned inventory checker passes after Reset mapping note updated; Reset source row remains partial.",
+    "site": "Local GitHub Pages site rebuild passes; no new physical screenshots or deployment."
+  },
+  "limitations": [
+    "Presentation is injected without ordering windows; no actual sheet/alert/keyboard/default-button/focus/theme/accessibility acceptance is claimed. Existing Reset screenshots predate this route.",
+    "General comparison close/query cancellation and full FileDiff controls/commands remain separate work.",
+    "Unsigned builds do not prove signing, security-scope operation, Finder activation or App Store acceptance. Whole-app parity, refreshed screenshots, deployment and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "remaining": {
+      "preferences": [],
+      "fixtures": [],
+      "processes": [],
+      "notice_byte_equal": [
+        "Debug",
+        "AppStore"
+      ]
+    },
+    "removed_verified_empty_private_domains": [
+      {
+        "domain": "TurtleGit.ResetProgress.QA.4923BBB1-FBFD-43A3-930F-DE6F8C8FDBD0",
+        "verified_empty": true,
+        "defaults_delete_exit": 1
+      },
+      {
+        "domain": "TurtleGit.ResetProgress.QA.370B9A78-10B8-424F-8997-70905C99DABD",
+        "verified_empty": true,
+        "defaults_delete_exit": 1
+      }
+    ],
+    "windows": "All owned windows unordered; activation prohibited. Native receivers and compiler/build handles terminal; scripts clean temporary directories. No general pasteboard writes."
+  },
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/ResetWindow.swift": "d7d37904e2ec846708e79bd551fb323de81507e37d59c2152dc6831b1f4eba17",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "5ea71ef9cf280ecd84108bbe3901fdf21486690351bd540f63715e06109dae86",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "8098a15f4a60ed8a5a336531a695b0672473493c03a41e3ad7f0b9f4b21d6d56",
+    "docs/RESET-PARITY.md": "c6a1ed55fc06989279f60386fd302615d3664ae7da73da306db51df35f1ace5e",
+    "docs/TESTING.md": "d468e674d79b1d25de874d4fd04b3623b71e01745e9ff46fd8e08e3c7829d224",
+    "docs/upstream-files.csv": "befeee9f36a59bedf3db659343f4c5a52516a141ef417db0705c1d0c7b3fc11a",
+    "docs/qa/reset-modified-files-native-2026-10-09.swift": "4e5b0196d48baabf41a5d01c22e49038cd7d37f7cf45babcbaa1bad2310859ae",
+    "scripts/test-reset-modified-files.py": "d2c6633ad7fa824833af736068689b4c0193d05ac2ca0d7ba4f613d8cfc7d0bc"
+  },
+  "local_log_sha256": {
+    "build/qa/reset-modified-files-2026-10-09/cleanup.json": "0f4b29948580b2ddff5212debb3a9477f385e936fd62d2b634124e5bbe55d779",
+    "build/qa/reset-modified-files-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/reset-modified-files-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/reset-modified-files-2026-10-09/native.log": "6058da8c281f4f400a8826bda5fe6f4dcbd66b5fff31aba1e535513aee2a9f98",
+    "build/qa/reset-modified-files-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/reset-modified-files-2026-10-09/progress-regression.log": "9f88d60b612df4923506dce86a66bd3d97dcefe10fbf286294fb463ced82f87f",
+    "build/qa/reset-modified-files-2026-10-09/removed-preferences.json": "922188fee1a404b2b46d36f4ec33cd369d4691eaf8e8fef30d80082ea3373129",
+    "build/qa/reset-modified-files-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/reset-modified-files-2026-10-09/store.log": "9cb624a36a2072b6302defa877265a43f4ee189e19e03dec4c180a27fe990b9d",
+    "build/qa/reset-modified-files-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f"
+  }
+}

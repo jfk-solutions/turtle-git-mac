@@ -523,7 +523,9 @@ import TurtleGitCore
         let controller = ResetWindowController(repository: repository, access: access, revision: revision)
         if let mode { controller.model.mode = mode }
         controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
-        controller.model.onStatus = { [weak self] in self?.showStatus(repository: repository, access: access, paths: []) }
+        controller.configureModifiedComparison = { [weak self] model in
+            self?.configureRevisionComparisonInteractions(model, repository: repository, access: access)
+        }
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload(); self?.statusWindows[root.path]?.model.reload()
             self?.refreshRepositoryLogs(root); self?.commitWindows[root.path]?.model.reload()
@@ -729,16 +731,19 @@ import TurtleGitCore
         let key = reusable?.key ?? (revisionComparisonWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? RevisionComparisonWindowController(repository: repository, access: access, from: from, to: to)
         controller.onClosed = { [weak self] in self?.revisionComparisonWindows.removeValue(forKey: key) }
-        controller.model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
-        controller.model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
-        controller.model.onSubmoduleCompare = { [weak self] path, old, new in
+        configureRevisionComparisonInteractions(controller.model, repository: repository, access: access)
+        revisionComparisonWindows[key] = controller
+        controller.model.load()
+        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func configureRevisionComparisonInteractions(_ model: RevisionComparisonWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onLog = { [weak self] hash in self?.showLog(repository: repository, access: access, paths: [], endRevision: hash) }
+        model.onFileLog = { [weak self] path, hash in self?.showLog(repository: repository, access: access, paths: [path], endRevision: hash) }
+        model.onSubmoduleCompare = { [weak self] path, old, new in
             let from = old == .emptyTree ? "" : old == .workingTree ? "Working tree" : old.label
             let to = new == .emptyTree ? "" : new == .workingTree ? nil : new.label
             self?.showSubmoduleDiff(repository: repository, access: access, path: path, from: from, to: to)
         }
-        revisionComparisonWindows[key] = controller
-        controller.model.load()
-        controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func showWorkingFiles(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], amendToParent: Bool = false) {
         guard !busy, !confirmingQuit else { return }; busy = true

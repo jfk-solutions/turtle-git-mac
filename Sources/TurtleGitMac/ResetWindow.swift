@@ -6,6 +6,13 @@ import TurtleGitCore
     let model: ResetWindowModel
     var onClosed: () -> Void = {}
     private var progressController: ResetProgressWindowController?
+    private(set) var modifiedComparison: RevisionComparisonWindowController?
+    private var closed = false
+    var configureModifiedComparison: (RevisionComparisonWindowModel) -> Void = { _ in }
+    var presentModifiedComparison: (NSWindow, NSWindow) -> Bool = { owner, child in
+        guard owner.attachedSheet == nil else { return false }
+        owner.beginSheet(child); return true
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
         model = ResetWindowModel(repository: repository, access: access, revision: revision)
         let size = NSSize(width: 690, height: 405)
@@ -15,7 +22,8 @@ import TurtleGitCore
         window.contentViewController = NSHostingController(rootView: ResetDialog(model: model, chooser: model.chooser))
         super.init(window: window); window.delegate = self
         window.setContentSize(size); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.showingModifiedFiles, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.onShowModified = { [weak self] in self?.showModifiedFiles() }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
             let controller = ResetProgressWindowController(model: result)
@@ -33,13 +41,32 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "ResetDialog", legacyName: "ResetDialog")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    private func showModifiedFiles() {
+        guard !closed, let owner = window, owner.attachedSheet == nil,
+              modifiedComparison == nil, model.beginModifiedFiles() else { return }
+        let controller = RevisionComparisonWindowController(repository: model.chooser.repository, access: model.access, from: .revision("HEAD"), to: .workingTree)
+        modifiedComparison = controller
+        configureModifiedComparison(controller.model)
+        controller.onClosed = { [weak self, weak controller] in
+            guard let self, let controller, self.modifiedComparison === controller else { return }
+            if let child = controller.window, child.sheetParent === self.window { self.window?.endSheet(child) }
+            self.modifiedComparison = nil; self.model.finishModifiedFiles()
+        }
+        guard let child = controller.window, presentModifiedComparison(owner, child) else {
+            controller.close(); modifiedComparison = nil; model.finishModifiedFiles(); return
+        }
+        controller.model.load()
+    }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.showingModifiedFiles && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) {
+        closed = true; modifiedComparison?.close(); modifiedComparison = nil
+        model.finishModifiedFiles(); onClosed()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ResetWindowModel: ObservableObject {
     let chooser: SwitchWindowModel
-    private let access: RepositoryAccessLease?
+    let access: RepositoryAccessLease?
     private let initialRevision: String?
     private let preferences: UserDefaults
     @Published var currentBranch = ""
@@ -60,12 +87,17 @@ import TurtleGitCore
     var close: () -> Void = {}
     var confirmHard: (ResetPlan, @escaping (Bool) -> Void) -> Void = { _, choose in choose(false) }
     var onReset: (String) -> Void = { _ in }
-    var onStatus: () -> Void = {}
+    @Published private(set) var showingModifiedFiles = false
+    var onShowModified: () -> Void = {}
+    var canShowModifiedFiles: Bool { !bare && !busy && !chooser.busy && !confirmingHard && progress == nil && !showingModifiedFiles }
+    func showModifiedFiles() { guard canShowModifiedFiles else { return }; onShowModified() }
+    func beginModifiedFiles() -> Bool { guard canShowModifiedFiles else { return false }; showingModifiedFiles = true; return true }
+    func finishModifiedFiles() { showingModifiedFiles = false }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String?, preferences: UserDefaults = .standard) {
         chooser = SwitchWindowModel(repository: repository, access: access); self.access = access; initialRevision = revision; self.preferences = preferences
     }
     func load() {
-        guard !busy else { return }; busy = true; chooser.load(revision: initialRevision)
+        guard !busy, !showingModifiedFiles else { return }; busy = true; chooser.load(revision: initialRevision)
         Task {
             defer { busy = false }
             do { currentBranch = try await chooser.repository.branch(); bare = try await chooser.repository.isBare(); if bare { mode = .soft } }
@@ -76,7 +108,7 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func reset() {
-        guard !busy, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
+        guard !busy, !showingModifiedFiles, !confirmingHard, progress == nil, !chooser.busy else { return }; busy = true
         let revision = chooser.revision, mode = mode
         Task {
             do {
@@ -91,7 +123,7 @@ import TurtleGitCore
         }
     }
     func apply(_ plan: ResetPlan) {
-        guard !busy, !confirmingHard, progress == nil else { return }; busy = true; error = nil
+        guard !busy, !showingModifiedFiles, !confirmingHard, progress == nil else { return }; busy = true; error = nil
         do { try validateAccess() } catch { self.error = error.localizedDescription; busy = false; return }
         if let onProgress {
             let result = ResetProgressWindowModel(repository: chooser.repository, plan: plan, preferences: preferences)
@@ -136,13 +168,13 @@ private struct ResetDialog: View {
                     ResetRadio(title: "Hard: Reset working tree and index (discard all local changes)", value: .hard, selection: $model.mode).frame(height: 22).disabled(model.bare)
                 }.padding(8).frame(maxWidth: .infinity, alignment: .leading)
             }
-            Button { model.onStatus() } label: { CommandLabel(title: "Show modified files in working tree", icon: .status).frame(maxWidth: .infinity) }.disabled(model.bare)
+            Button { model.showModifiedFiles() } label: { CommandLabel(title: "Show modified files in working tree", icon: .compare).frame(maxWidth: .infinity) }.disabled(model.bare)
             HStack { if model.busy || chooser.busy { ProgressView().controlSize(.small) }; Spacer()
                 Button("OK") { model.reset() }.keyboardShortcut(.defaultAction).disabled(chooser.revision.isEmpty)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-reset.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }
-        }.padding(12).disabled(model.busy || model.confirmingHard || chooser.busy).onAppear { model.load() }
+        }.padding(12).disabled(model.busy || model.showingModifiedFiles || model.confirmingHard || chooser.busy).onAppear { model.load() }
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }
         .alert("Reset failed", isPresented: Binding(get: { model.error != nil || chooser.error != nil }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
     }

@@ -24,9 +24,14 @@ Reset requests retain the existing window and append required completion callbac
 The app keeps the captured repository access lease alive for this operation.
 
 The browse controls reuse the current reference and commit choosers; their full
-upstream tree/search/log parity remains pending. Show modified files opens the
-native Working Tree dialog rather than upstream FileDiffDlg; full diff-list parity
-is still required. Frame position is saved. Help opens the upstream reset manual.
+upstream tree/search/log parity remains pending. Show modified files now opens an
+owned Changed Files comparison sheet of HEAD against the working tree, matching
+ResetDlg::OnBnClickedShowModifiedFiles. This range is independent of the selected
+Reset revision and leaves that selection intact. Reset/Apply/Cancel and parent
+close stay locked until the child closes. Quit also waits while the preview, Reset
+operation, confirmation or result acknowledgement remains active. The comparison keeps ordinary Log, file
+history, submodule and file-diff actions; duplicate requests reuse the modal lock.
+Frame position is saved. Help opens the upstream reset manual.
 
 ## Git behavior and safeguards
 
@@ -115,3 +120,17 @@ Streaming/full progress controls, libgit2 variants, metadata-query error recover
 physical nested sheets/defaults/keyboard/menus/close/focus/themes/accessibility,
 actual follow-up controller/Resolve handoff and signed sandbox/Finder/App Store
 acceptance remain pending. Existing screenshots predate the owned result.
+
+## Modified-files comparison follow-up
+
+[Owned comparison QA](qa/reset-modified-files-2026-10-09.json) covers the real
+HEAD-to-working-tree file list with staged and unstaged changes, staged additions
+and deletions, and a Unicode/tab/newline path. Untracked files and differences
+existing only against the selected older Reset target are excluded. Hidden native
+controllers verify duplicate/reset/apply/close gates, child release/reopen, stale
+close callbacks, rejected presentation, bare/busy guards, Quit locking and release,
+forced parent cleanup
+and unchanged HEAD, staged tree, configuration and working contents. The test
+injects presentation without displaying a sheet; actual sheet interaction,
+keyboard/default buttons, focus restoration, visual layout and signed sandbox
+behavior still require acceptance. Existing Reset screenshots predate this route.
