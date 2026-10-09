@@ -1953,3 +1953,32 @@ full upstream hit/context actions, other shared-list consumers, complete Setting
 lifecycle and signed distribution remain pending. No physical screenshot is
 claimed. The earlier flat-background/tracking/annotated-shape notes are historical
 checkpoints, superseded for this Log painter only.
+
+
+Reference label context targeting (2026-10-09)
+---------------------------------------------
+
+The native History table now resolves context clicks against the painted label's
+clipped, half-open rectangle and canonical reference name. Shared-upstream
+duplicates retain only the last rectangle for that name, matching the source map.
+Keyboard/non-mouse invocation clears label targeting. Menu targets capture both
+the selected commit hash and canonical ref; ref lookup and hit-map uniqueness
+compare UTF-8 bytes so canonically equivalent Unicode names stay distinct in
+this layer. Actions reject targets after the
+selection or loaded ref list changes. Menu closure clears the transient hit.
+
+Push and Switch/Checkout pass the pointed-at canonical name through the existing
+dialog callbacks; row-background actions preserve their commit-hash fallback.
+Local branch/tag Push labels include the source short name, while remote/other
+labels retain Push. The icon-bearing **Tag/branch names** clipboard action (the pinned English
+resource caption) copies the
+pointed label with source tag/StripRefName shortening, or all canonical refs with
+CRLF terminators from the row background. Symbolized text is never the command
+target. See [reference menu QA](qa/log-reference-menus-2026-10-09.json).
+
+This is the target-binding layer, not full menu parity. Source availability masks,
+Shift extended-menu gates, express branch switching/progress, ref deletion/All,
+Merge targeting, Create Branch remote-ref targeting, other shared-list consumers
+and physical/accessibility/signed acceptance remain pending.
+
+Reference-menu Unicode acceptance uses synthetic NFC/NFD ref metadata to avoid loose-ref filesystem normalization. Broader Core tracking/current-ref normalization and invalid-ref encoding equivalence remain unverified.

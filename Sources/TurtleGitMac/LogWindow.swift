@@ -1232,6 +1232,37 @@ struct LogCommandRequest: Identifiable {
         if command == .reset { onReset(revision.hash); return }
         commandRequest = LogCommandRequest(command: command, revision: revision)
     }
+    func reference(for target: LogReferenceMenuTarget) -> RevisionReference? {
+        guard !isInvalidated, let revision, revision.hash == target.revisionHash else { return nil }
+        return revision.references.first { $0.name.utf8.elementsEqual(target.name.utf8) }
+    }
+    func requestReference(_ command: LogRevisionCommand, target: LogReferenceMenuTarget?) {
+        guard !isInvalidated else { return }
+        guard let target else { request(command); return }
+        guard !busy, let reference = reference(for: target) else { return }
+        if command == .push { onPush(reference.name) }
+        if command == .checkout && !bare { onCheckout(reference.name) }
+    }
+    func copyReferenceNames(target: LogReferenceMenuTarget?) {
+        guard !busy, !isInvalidated, let revision else { return }
+        if let target {
+            guard let reference = reference(for: target) else { return }
+            var name = reference.name
+            if name.hasPrefix("refs/tags/") {
+                name = String(name.dropFirst(10)); if name.hasSuffix("^{}") { name = String(name.dropLast(3)) }
+            } else {
+                if name.hasPrefix("refs/heads/") { name = String(name.dropFirst(11)) }
+                else if name.hasPrefix("refs/") { name = String(name.dropFirst(5)) }
+                name = String(name.reversed().drop(while: { $0.isWhitespace }).reversed())
+            }
+            copy(name)
+        } else {
+            copy(revision.references.map { reference in
+                let name = reference.name
+                return (name.hasPrefix("refs/tags/") && name.hasSuffix("^{}") ? String(name.dropLast(3)) : name) + "\r\n"
+            }.joined())
+        }
+    }
     func execute(_ request: LogCommandRequest, value: String) {
         guard !busy else { return }
         if bare && [LogRevisionCommand.checkout, .cherryPick, .revert].contains(request.command) {
@@ -2505,9 +2536,15 @@ struct RevisionTable: NSViewRepresentable {
                 }
                 return
             }
-            func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) {
+            @discardableResult func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) -> NSMenuItem {
                 let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(); item.target = self; item.isEnabled = enabled; menu.addItem(item)
+                return item
             }
+            let pointed: LogReferenceMenuTarget? = {
+                guard let hit = (table as? HistoryTableView)?.contextReference, model.entries.indices.contains(hit.row), let chosen = model.revision,
+                    model.entries[hit.row].hash == chosen.hash, chosen.references.contains(where: { $0.name.utf8.elementsEqual(hit.name.utf8) }) else { return nil }
+                return LogReferenceMenuTarget(hash: chosen.hash, name: hit.name)
+            }()
             menu.autoenablesItems = false
             if model.selectedWorkingTree {
                 item("Commit…", #selector(commitWorkingTree), icon: .commit, enabled: !model.busy)
@@ -2545,10 +2582,14 @@ struct RevisionTable: NSViewRepresentable {
                 item(model.integrationTitle(.merge), #selector(mergeRevision), icon: .merge, enabled: model.canIntegrate(.merge))
             }
             item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
-            item("Switch/Checkout to this…", #selector(checkout), icon: .checkout, enabled: one && !model.busy && !model.bare)
+            item("Switch/Checkout to this…", #selector(checkoutReference(_:)), icon: .checkout, enabled: one && !model.busy && !model.bare).representedObject = pointed
             item("Create branch at this version…", #selector(branch), icon: .branch, enabled: one && !model.busy)
             item("Create tag at this version…", #selector(tag), icon: .tag, enabled: one && !model.busy)
-            item("Push…", #selector(push), icon: .push, enabled: one && !model.busy)
+            let pushLabel = pointed.flatMap { model.reference(for: $0) }.flatMap { ref -> String? in
+                let kind = ref.kind ?? HistoryReferenceLabel.shortName(ref.name).kind
+                return [.localBranch, .tag, .annotatedTag].contains(kind) ? "Push \"" + HistoryReferenceLabel.shortName(ref.name).text + "\"…" : nil
+            } ?? "Push…"
+            item(pushLabel, #selector(pushReference(_:)), icon: .push, enabled: one && !model.busy).representedObject = pointed
             if model.integrationAvailable {
                 item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase))
             }
@@ -2591,8 +2632,17 @@ struct RevisionTable: NSViewRepresentable {
                 clipboard.addItem(child)
             }
             let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
+            if one, model.revision?.references.isEmpty == false {
+                let refs = NSMenuItem(title: "Tag/branch names", action: #selector(copyReferenceNames(_:)), keyEquivalent: "")
+                refs.target = self; refs.image = MenuIcon.copy.contextImage(); refs.representedObject = pointed; refs.isEnabled = !model.busy
+                clipboard.addItem(refs)
+            }
             parent.image = MenuIcon.copy.contextImage(); parent.submenu = clipboard; menu.addItem(parent)
         }
+        func menuDidClose(_ menu: NSMenu) { if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
+        @objc func pushReference(_ sender: NSMenuItem) { model.requestReference(.push, target: sender.representedObject as? LogReferenceMenuTarget) }
+        @objc func checkoutReference(_ sender: NSMenuItem) { model.requestReference(.checkout, target: sender.representedObject as? LogReferenceMenuTarget) }
+        @objc func copyReferenceNames(_ sender: NSMenuItem) { model.copyReferenceNames(target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func toggleRollup() { model.toggleRollup() }
         @objc func toggleColumn(_ sender: NSMenuItem) {
             guard let id = sender.representedObject as? String,
@@ -2667,9 +2717,20 @@ struct RevisionTable: NSViewRepresentable {
 }
 
 final class HistoryTableView: NSTableView {
+    var contextReference: (row: Int, name: String)?
+    func reference(at point: NSPoint) -> (row: Int, name: String)? {
+        let row = row(at: point)
+        guard row >= 0, let column = tableColumns.firstIndex(where: { $0.identifier.rawValue == "message" }),
+            let field = (view(atColumn: column, row: row, makeIfNecessary: true) as? NSTableCellView)?.textField,
+            let cell = field.cell as? LogReferenceTextCell,
+            let ref = cell.reference(at: field.convert(point, from: self)) else { return nil }
+        return (row, ref.name)
+    }
     override func menu(for event: NSEvent) -> NSMenu? {
-        let row = row(at: convert(event.locationInWindow, from: nil))
-        if row >= 0, !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
+        let point = convert(event.locationInWindow, from: nil), row = row(at: point)
+        let mouse = event.type == .rightMouseDown || event.type == .leftMouseDown
+        contextReference = mouse ? reference(at: point) : nil
+        if mouse, row >= 0, !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
         menu?.update()
         return menu
     }

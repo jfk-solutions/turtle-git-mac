@@ -354,11 +354,105 @@ final class MessageLineOffscreenWindow: NSWindow {
         try await checkReferenceLayout(repo: repo, prefs: prefs)
         try await checkDialogPreferenceControls(prefs: prefs)
         try await checkReferenceKinds(repo: repo, prefs: prefs)
+        try await checkReferenceMenus(repo: repo, prefs: prefs)
         let after = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }; precondition(before == after)
         if CommandLine.arguments.contains("--log-blame-only") {
             print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard, real reload literal/regex highlight cells and reference/full-message gates verified, left/right label order and symbolization attachments/captured choices and label-mask highlight redraw verified; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
         } else {
             print("PASS: offscreen native Log/Blame/Rebase message text and source captured preferences; unchanged repository bytes, all owned windows closed, no main app or replay operation")
         }
+    }
+    @MainActor static func checkReferenceMenus(repo: GitRepository, prefs: UserDefaults) async throws {
+        prefs.set(HistoryReferenceVisibility.all.rawValue, forKey: "LogDialog.ReferenceVisibility." + repo.root.standardizedFileURL.path)
+        let entries = try await repo.history(), entry = entries[0]
+        let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
+        model.busy = true; model.entries = entries; model.graph = CommitGraph.layout(entries); model.selected = [entry.hash]
+        model.bare = try await repo.isBare(); precondition(!model.bare)
+        for row in entries { model.revisionActions[row.hash] = [] }
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("TurtleGit.RefMenu.QA." + UUID().uuidString)); model.clipboard = pasteboard
+        var pushed: [String] = [], checkedOut: [String] = []
+        model.onPush = { pushed.append($0) }; model.onCheckout = { checkedOut.append($0) }
+        let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+        window.setContentSize(NSSize(width: 3000, height: 400))
+        defer { window.close(); model.invalidate(); pasteboard.releaseGlobally() }
+        try await settle(window.contentView!); model.busy = false
+        let table = descendants(window.contentView!).compactMap { $0 as? HistoryTableView }.first!
+        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("message"))!.width = 2200
+        try await settle(window.contentView!)
+        let field = message(window)
+        let cell = field.cell as! LogReferenceTextCell
+        let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 3000, pixelsHigh: 60, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
+        let context = NSGraphicsContext(bitmapImageRep: bitmap)!
+        NSGraphicsContext.saveGraphicsState()
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context.cgContext, flipped: true)
+        cell.drawInterior(withFrame: field.bounds, in: field)
+        NSGraphicsContext.restoreGraphicsState()
+        let remote = cell.badgeFrames.first { $0.name == "refs/remotes/origin/main" }!
+        let point = NSPoint(x: remote.rect.midX, y: remote.rect.midY)
+        precondition(cell.reference(at: point)?.name == remote.name)
+        let tablePoint = table.convert(point, from: field)
+        precondition(table.reference(at: tablePoint)?.name == remote.name)
+        func send(_ item: NSMenuItem) { precondition(item.isEnabled && item.image != nil, "Menu \(item.title): enabled=\(item.isEnabled), image=\(item.image != nil), busy=\(model.busy), bare=\(model.bare), selection=\(model.selected.count)"); precondition(NSApp.sendAction(item.action!, to: item.target, from: item), "Selector for \(item.title)") }
+        let menu = table.menu!
+        for (name, expectedCopy, pushTitle) in [("refs/heads/main", "main", "Push \"main\"…"), ("refs/remotes/origin/main", "remotes/origin/main", "Push…"), ("refs/tags/annotated", "annotated", "Push \"annotated\"…")] {
+            table.contextReference = (0, name); menu.delegate?.menuNeedsUpdate?(menu)
+            send(menu.items.first { $0.title == pushTitle }!)
+            send(menu.items.first { $0.title == "Switch/Checkout to this…" }!)
+            let copy = menu.items.first { $0.title == "Copy to clipboard" }!.submenu!.items.first { $0.title == "Tag/branch names" }!
+            send(copy); precondition(pasteboard.string(forType: .string) == expectedCopy)
+            precondition(pushed.last == name && checkedOut.last == name)
+        }
+        let stale = menu.items.first { $0.title.hasPrefix("Push") }!
+        model.selected = [entries[1].hash]; send(stale); precondition(pushed.count == 3)
+        model.selected = [entry.hash]; menu.delegate?.menuDidClose?(menu); precondition(table.contextReference == nil)
+        table.contextReference = (0, remote.name)
+        let keyboard = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 0)!
+        _ = table.menu(for: keyboard); precondition(table.contextReference == nil && model.selected == [entry.hash])
+        menu.delegate?.menuNeedsUpdate?(menu)
+        send(menu.items.first { $0.title == "Push…" }!); precondition(pushed.last == entry.hash)
+        send(menu.items.first { $0.title == "Switch/Checkout to this…" }!); precondition(checkedOut.last == entry.hash)
+        let refs = menu.items.first { $0.title == "Copy to clipboard" }!.submenu!.items.first { $0.title == "Tag/branch names" }!
+        send(refs); precondition(pasteboard.string(forType: .string) == entry.references.map { $0.name + "\r\n" }.joined())
+        precondition(cell.reference(at: NSPoint(x: -1, y: -1)) == nil)
+        let duplicate = NSMutableAttributedString()
+        for _ in 0..<2 {
+            let label = HistoryReferenceLabel(reference: entry.references.first { $0.name == remote.name }!)
+            duplicate.append(NSAttributedString(string: " origin/main ", attributes: [.font: NSFont.systemFont(ofSize: 11), .logReference: LogReferenceStyle(label, color: .yellow)]))
+        }
+        cell.attributedStringValue = duplicate
+        NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(cgContext: context.cgContext, flipped: true)
+        cell.drawInterior(withFrame: field.bounds, in: field); NSGraphicsContext.restoreGraphicsState()
+        precondition(cell.badgeFrames.count == 2)
+        let first = cell.badgeFrames[0].rect, last = cell.badgeFrames[1].rect
+        precondition(cell.reference(at: NSPoint(x: first.midX, y: first.midY)) == nil)
+        precondition(cell.reference(at: NSPoint(x: last.midX, y: last.midY))?.name == remote.name)
+        precondition(cell.reference(at: NSPoint(x: last.maxX, y: last.midY)) == nil)
+        precondition(cell.reference(at: NSPoint(x: last.midX, y: last.maxY)) == nil)
+        // Synthetic ref metadata avoids filesystem normalization of loose ref
+        // filenames; validate this UI layer's byte identity independently.
+        let names = ["refs/heads/caf\u{e9}", "refs/heads/cafe\u{301}"]
+        var unicodeEntry = entry; unicodeEntry.references = names.map { RevisionReference(name: $0, kind: .localBranch) }
+        model.entries = [unicodeEntry]; model.selected = [entry.hash]; model.graph = CommitGraph.layout([unicodeEntry])
+        let unicodeLabels = NSMutableAttributedString()
+        for reference in unicodeEntry.references {
+            unicodeLabels.append(NSAttributedString(string: " " + String(reference.name.dropFirst(11)) + " ", attributes: [.font: NSFont.systemFont(ofSize: 11), .logReference: LogReferenceStyle(HistoryReferenceLabel(reference: reference), color: .yellow)]))
+        }
+        cell.attributedStringValue = unicodeLabels
+        NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(cgContext: context.cgContext, flipped: true)
+        cell.drawInterior(withFrame: field.bounds, in: field); NSGraphicsContext.restoreGraphicsState()
+        precondition(cell.badgeFrames.count == 2)
+        for (index, name) in names.enumerated() {
+            let rect = cell.badgeFrames[index].rect
+            precondition(cell.reference(at: NSPoint(x: rect.midX, y: rect.midY))!.name.utf8.elementsEqual(name.utf8))
+            table.contextReference = (0, name); menu.delegate?.menuNeedsUpdate?(menu)
+            send(menu.items.first { $0.title.hasPrefix("Push ") }!)
+            precondition(pushed.last!.utf8.elementsEqual(name.utf8))
+            send(menu.items.first { $0.title == "Switch/Checkout to this…" }!)
+            precondition(checkedOut.last!.utf8.elementsEqual(name.utf8))
+            send(menu.items.first { $0.title == "Copy to clipboard" }!.submenu!.items.first { $0.title == "Tag/branch names" }!)
+            precondition(pasteboard.string(forType: .string)!.utf8.elementsEqual(String(name.dropFirst(11)).utf8))
+        }
+        menu.delegate?.menuDidClose?(menu); menu.delegate?.menuNeedsUpdate?(menu)
+        let calls = pushed.count; model.invalidate(); send(menu.items.first { $0.title == "Push…" }!); precondition(pushed.count == calls)
     }
 }

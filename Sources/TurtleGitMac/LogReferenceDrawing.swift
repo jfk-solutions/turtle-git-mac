@@ -15,6 +15,11 @@ final class LogReferenceStyle: NSObject {
     var pointed: Bool { label.kind == .annotatedTag }
 }
 
+final class LogReferenceMenuTarget: NSObject {
+    let revisionHash: String, name: String
+    init(hash: String, name: String) { self.revisionHash = hash; self.name = name }
+}
+
 enum LogReferenceDrawing {
     struct Geometry {
         let body: CGRect
@@ -75,6 +80,16 @@ enum LogReferenceDrawing {
 final class LogReferenceTextCell: NSTextFieldCell {
     struct BadgeFrame { let name: String; let range: NSRange; let rect: CGRect; let style: LogReferenceStyle }
     private(set) var badgeFrames: [BadgeFrame] = []
+    func reference(at point: NSPoint) -> RevisionReference? {
+        // Source m_RefLabelPosMap retains the last rectangle for a canonical
+        // name (a shared upstream can be painted beside several local refs).
+        var seen = Set<Data>()
+        for frame in badgeFrames.reversed() where seen.insert(Data(frame.name.utf8)).inserted {
+            let r = frame.rect
+            if point.x >= r.minX && point.x < r.maxX && point.y >= r.minY && point.y < r.maxY { return frame.style.label.reference }
+        }
+        return nil
+    }
 
     override func drawInterior(withFrame cellFrame: NSRect, in controlView: NSView) {
         let value = NSMutableAttributedString(attributedString: attributedStringValue)

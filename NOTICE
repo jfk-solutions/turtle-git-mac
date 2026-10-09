@@ -994,3 +994,8 @@ DrawTagBranch/DrawTrackingRoundRect double bevels, rounded tracking shadows,
 annotated-tag triangle and spacing, and Colors.cpp CColors::MixColors arithmetic
 to native AppKit TextKit glyph drawing. Text and canonical reference metadata
 remain in the accessible native message cell.
+
+Log label context targeting adapts GitLogListBase::IsMouseOnRefLabel and
+menu data binding for Push/Switch/clipboard, including last canonical label
+rectangles and clipped half-open hit bounds. Branches/Tags clipboard text
+adapts GitLogListAction.cpp ID_COPYCLIPBOARDBRANCHTAG and CGit::StripRefName.

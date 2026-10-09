@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "b7d31be",
+  "scope": "Log label hit resolution, canonical Push/Checkout targeting and Branches/Tags clipboard formatting; full menu/app parity incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/Resources/TortoiseLoglistCommon.rc2": "a174ae27ca959c289076127e729f58ba37bd2fd6"
+  },
+  "verification": {
+    "core": "No Core changes; prior focused Core evidence not rerun.",
+    "debug": "Final Unicode-safe source builds unsigned Debug and passes bundle audit.",
+    "native": "Final native-keyboard receiver passes Apple and bundled Git. Owned actual Log cell hit tests preserve canonical upstream identity, last duplicate rectangle and half-open boundaries. Actual menu selectors capture canonical branch/remote/annotated-tag Push/Checkout arguments; local/tag Push captions and private Tag/branch names output checked. Background actions retain hash fallback/all refs CRLF. Changed selection and closed-model actions rejected; menu closure and private keyboard-event context call clear targeting without changing selection. Existing message/highlight/label/order/preferences/clipboard checks pass and private HEAD/index/config/refs/files retain bytes. No actual push/checkout; Rebase rendered text remains UNVERIFIED. Final native-unicode receiver additionally passes both engines with exact UTF-8 comparison for synthetic NFC/NFD labels, command targets and private clipboard payloads. Core producer/filesystem normalization is not covered.",
+    "store": "Final Unicode-safe unsigned AppStore build and required universal packaged Git/Git LFS bundle audit pass after all Debug/native handles terminated. Signed sandbox/App Store acceptance not claimed.",
+    "notice": "Current NOTICE matches both Debug and AppStore packaged resources.",
+    "inventory": "Three partial mappings updated; inventory pin check passes.",
+    "site": "Local site generator succeeds; no physical screenshots or deployment claimed."
+  },
+  "iterations": [
+    "Initial Debug compilation rejected a String property named hash because NSObject defines Int hash; renamed payload property revisionHash. Final Debug passes.",
+    "Initial native menu assertion failed on disabled Checkout. Diagnostic retry showed the manually assembled model retained its default bare=true, despite the private fixture being a working tree. Fixture now reads repo.isBare(); both-engine target/hit/clipboard checks pass in native-final.log.",
+    "Pinned resource caption is Tag/branch names; new item now uses that exact English caption. Non-mouse context invocation also retains row selection; final keyboard receiver is recorded separately.",
+    "Final review found Swift String canonical-equivalence identity in the new hit-map Set and target lookup. These now compare ref UTF-8 bytes; synthetic NFC/NFD reference metadata checks both hit locations and exact Push/Checkout/private clipboard bytes. Current final native-unicode receiver is recorded separately."
+  ],
+  "limitations": [
+    "Native callback capture does not establish Push/Checkout dialog runtime behavior, network push or actual checkout execution.",
+    "Full source context-menu mask/Shift gates, express branch switching/progress, delete-ref/All, Merge and Create Branch target handling, other shared lists, physical/accessibility/Retina/signed and App Store acceptance remain incomplete.",
+    "No source hit-testing/clipboard compiled oracle or Windows TrimRight locale equivalence claimed.",
+    "Full Rebase rendered text, all-dialog/Finder parity, screenshots/publication and hosted GitHub CI remain unverified.",
+    "Unicode byte-identity checks cover the new UI layer using synthetic NFC/NFD refs; broader Core current-ref/tracking normalization, loose/packed ref filesystem behavior and invalid UTF-8 refs remain unverified."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_domains": [
+      "TurtleGit.MessageLine.Native.QA.C512451A-F3D6-44BF-92C7-BB8D4B4E7398",
+      "TurtleGit.MessageLine.Native.QA.0AB17BFB-9090-4ABA-835D-DCA4D6EEC952",
+      "TurtleGit.MessageLine.Native.QA.3CA673A7-A3F8-4CA9-A219-E5F7053DC4AF",
+      "TurtleGit.MessageLine.Native.QA.F24205B0-DF0B-4A1A-895B-53FF13995696",
+      "TurtleGit.MessageLine.Native.QA.7B09DEF3-EC12-461C-83FF-12AF264C4B2D",
+      "TurtleGit.MessageLine.Native.QA.26F50D91-4FC9-43CC-9442-2084D5F1961A",
+      "TurtleGit.MessageLine.Native.QA.EB7AC3A7-F0DE-43C6-B409-B698B79777C1",
+      "TurtleGit.MessageLine.Native.QA.76D35603-E28D-4731-A677-F71B06D69A17"
+    ],
+    "remaining_processes": [],
+    "remaining_fixtures": [],
+    "remaining_preferences": [],
+    "windows": "Passing hidden owned windows closed and models invalidated; failed receiver processes terminated before retry. Private pasteboards released in passing checks; no system clipboard writes or Push/Checkout dialog launches."
+  },
+  "git_engines": {
+    "apple": "git version 2.50.1 (Apple Git-155)",
+    "bundled": "git version 2.55.0"
+  },
+  "sources_manifest_sha256": "8fb5c3c6860f0def1fe25faf402b0f1d1d3a234df913f03384810d696cbbac51",
+  "changed_files_sha256": {
+    "NOTICE": "29177f45a85124927d2f92cba7bcf6e553c26fd3d3de84d5e129d21795dd9839",
+    "Sources/TurtleGitMac/LogReferenceDrawing.swift": "5e67d88ec8fc5bf0333ed7055f74f9636b1b745b31cbf451268b6fd54d516775",
+    "Sources/TurtleGitMac/LogWindow.swift": "e857aaab95256af26927a3b62c819e4ff7ce749785b3c9eed7f6cf1d95180587",
+    "docs/LOG-PARITY.md": "6bbfa5a6eadb6a64044b342e8a064cb44d3bc0412e2b9aebf02f6bd5415d6fea",
+    "docs/TESTING.md": "fe221c5382f30f05a85fa6f60ff2b190fe5590d83b0402539c3fab403de8a6ec",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "cff8bd50c7b390ac3330aa309b2d108f9d0456d95579d9f87e9737b4bda2cd01",
+    "docs/upstream-files.csv": "7e54ee546fd7ba162db99e040e6f80b52c390df26a874c543a0979f9b924cbcc"
+  },
+  "local_log_sha256": {
+    "build/qa/log-reference-menus-2026-10-09/cleanup.json": "a059a87ccab4bb2fb0e5af633e280560edd21457577456bdcd6ea7b02e3dbc8b",
+    "build/qa/log-reference-menus-2026-10-09/debug-audit-guard.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-menus-2026-10-09/debug-audit-keyboard.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-menus-2026-10-09/debug-audit-unicode.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-menus-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-menus-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-menus-2026-10-09/debug-guard.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-menus-2026-10-09/debug-keyboard.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-menus-2026-10-09/debug-unicode.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-menus-2026-10-09/debug.log": "1979b5bfd53a35d0ac32896f671379ae7bda0129b83864821e1da780874e71f0",
+    "build/qa/log-reference-menus-2026-10-09/native-diagnostic.log": "8933319919cdb8bbef51155095394434dd6d0b6e0b1142421feb0db206ad2aca",
+    "build/qa/log-reference-menus-2026-10-09/native-final.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-menus-2026-10-09/native-keyboard.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-menus-2026-10-09/native-unicode.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-menus-2026-10-09/native.log": "6c8727d3e42d42b6c979e068d5431c4b29bcd5b07d5d0fb5996b6ebe4c5fc01c",
+    "build/qa/log-reference-menus-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-reference-menus-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-reference-menus-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-reference-menus-2026-10-09/store-unicode.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/log-reference-menus-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}
