@@ -10,7 +10,7 @@ change the behavior of other remotes and cannot represent this workflow.
 
 OpenSSH documents its foreground agent and multiple-identity behavior in the
 [agent manual](https://man.openbsd.org/ssh-agent), and key loading in the
-[ssh-add manual](https://man.openbsd.org/ssh-add). Host macOS tools are exercised
+[ssh-add manual](https://man.openbsd.org/ssh-add). System and embedded tools are exercised
 locally; these upstream manuals do not establish signed macOS acceptance.
 
 `SSHAgentSession` is a preparatory Core transport primitive. Core Fetch/Pull/Push
@@ -58,3 +58,23 @@ forced closure. They do not contact an SSH server or exercise the application.
 
 Submodule Sync is a local configuration operation and does not require SSH
 preparation. Its native port is documented in SUBMODULE-SYNC-PARITY.md.
+
+## Bundled encrypted-key and abandonment checks
+
+Unsigned native receivers load each Debug/AppStore bundle's actual Core image
+and resolve its bundled agent, key loader and response helper. Disposable
+OpenSSH-generated keys exercise missing, wrong and correct responses, preserve
+earlier identities, reject pre-cancelled loading and leave no response/output
+files. Unicode and shell punctuation remain literal key paths. A monitor execs
+the real agent in its owned PID/group for cleanup observation.
+
+A controlled loader wrapper holds a pending response while an owned child waits.
+Closing the session reaps agent, loader and child and removes the private
+directory. An injected failure checks the same cleanup through deferred closure.
+The driver checks every registered PID and directory before deleting the fixture;
+emergency cleanup targets only positively identified fixture-owned groups and
+fails the test if needed. See the
+[bundled-agent audit](qa/bundled-ssh-agent-2026-10-10.json). These checks launch no
+app window, use no user key/login agent and contact no server. Signed sandbox
+invocation, real authentication and physical response-window acceptance remain
+unverified.

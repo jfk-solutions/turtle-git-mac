@@ -52,7 +52,8 @@ from the retained reconstruction package has not yet been exercised.
   now receive configured signing and static entitlement checks.
 - Verify signed transports retain the selected client, operation-owned agent and
   identity security scopes. Explicit SSH commands retain Git precedence.
-- Exercise encrypted-key loading through the existing one-use askpass channel.
+- Verify signed encrypted-key loading through the one-use askpass channel;
+  unsigned bundled-agent native fixtures now exercise that complete local chain.
 - Test actual authentication, host-key decisions, passwords, Keychain, connection
   failures, cancellation, both CPU architectures and signed app/Finder routes.
 - Audit hardware-key/provider support and PuTTY-key conversion.
@@ -97,3 +98,8 @@ The Git operation ends with the expected failed remote exchange after SSH exits
 without connecting. This verifies lookup through the built Core; it does not
 verify authentication. The receiver compiles against matching build-product
 module metadata because Xcode strips modules from embedded frameworks.
+
+[Bundled-agent native checks](qa/bundled-ssh-agent-2026-10-10.json) exercise the
+real embedded key loader/response helper and monitor the real agent's PID.
+A private controlled loader delays loading to verify closure and failure cleanup.
+Both unsigned configurations pass; this does not prove signed execution.

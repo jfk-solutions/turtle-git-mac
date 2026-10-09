@@ -38,5 +38,13 @@ keys, inspect the login agent, contact an SSH server or launch the main app.
 Key picker/bookmarks, scope leases and native auto-load/retry orchestration now
 exist; see the linked identity and transport audits for scope and limitations.
 Remaining: physical response-window acceptance, Keychain choices, PPK conversion/support,
-bundled OpenSSH agent/add, host-key/password authentication, signed Finder/App
+signed bundled OpenSSH invocation, host-key/password authentication, signed Finder/App
 Store acceptance and complete native UI comparison. See [agent parity](SSH-AGENT-PARITY.md).
+
+The [bundled-agent native audit](qa/bundled-ssh-agent-2026-10-10.json) now exercises
+the embedded OpenSSH key loader with the embedded one-use response CLI through
+the actual Core framework in both unsigned app configurations. Correct responses
+load encrypted fixture keys; wrong/missing responses preserve earlier identities.
+Pre-cancellation, live loader closure and injected failures remove private files
+and reap owned processes. This verifies the packaged response chain, not the
+physical secure field, signed access, Keychain or server authentication.

@@ -1,0 +1,74 @@
+{
+  "checked_at": "2026-10-09T22:45:07.184610+00:00",
+  "parent_commit": "8300b1d86ca772e4942d01f1e187def50d101c6f",
+  "scope": "Unsigned native bundled encrypted-key chain and private agent/loader process cleanup",
+  "host": {
+    "architecture": "arm64",
+    "macos": "26.5.1"
+  },
+  "checks": {
+    "Debug": {
+      "native_exit": 0,
+      "normal_fixture": "passed",
+      "injected_live_failure_fixture": "expected exit 1; owner cleanup passed"
+    },
+    "AppStore": {
+      "native_exit": 0,
+      "normal_fixture": "passed",
+      "injected_live_failure_fixture": "expected exit 1; owner cleanup passed"
+    },
+    "embedded_core": "dyld image path verified against each actual embedded framework",
+    "key_type": "Ed25519, unencrypted and OpenSSH-encrypted disposable keys created by bundled ssh-keygen",
+    "response_cases": [
+      "Missing response rejected",
+      "Wrong response rejected",
+      "Earlier loaded identity survives both failures",
+      "Correct one-use response loads encrypted key; exact public key lines match",
+      "Pre-cancelled load preserves identities"
+    ],
+    "literal_paths": "Unicode, spaces, single quote, semicolon and shell substitution syntax; receiver cwd is fixture; no sentinel created",
+    "private_channel": "Agent directory mode 0700; no credential/command files remain after calls",
+    "live_abandonment": "Controlled loader holds pending envelope while its child waits; session close kills/reaps actual bundled agent and loader group, awaits receiver worker and removes response directory",
+    "fault_injection": "Throw after loader starts; deferred session close and worker await complete; driver verifies registered agent/loader/child PIDs and absence of tg-agent directories before deleting root",
+    "cleanup_driver": "Emergency signals only positively identified fixture-owned groups, including registered loader child; any required emergency cleanup fails the test",
+    "python_compile_exit": 0,
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "worker_completion": "Deferred closure awaits the DispatchGroup on normal and injected-failure paths; timeout exits nonzero"
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "bd058b94a66b24f093940f0817344a7b911ac8f56c507767dd4383ec5c9dfcac",
+    "docs/OPENSSH-RUNTIME.md": "8eaa178492a6cc73f2a0b1d4b18e33d55dc7998a2116567570ff8f29a43f5a31",
+    "docs/SSH-AGENT-PARITY.md": "391b796724605f5211150aca9136742545fdfe004e35e27a0b08c684b41682b4",
+    "docs/SSH-PASSPHRASE-PARITY.md": "d01e3a6fb58525fceb10b31cd01504119ee2580ebe06eb0e3e7008f51b973763",
+    "docs/qa/bundled-ssh-agent-2026-10-10.swift": "390dc2c77b840add582695597b515e6dfafce9ca452324d10f87ee5f3b2229b6",
+    "scripts/test-bundled-ssh-agent.py": "962c000731dd2e58e5178fbbdd8b06be95112a88d5c5f0da25764b21f1b81ed9"
+  },
+  "tested_binary_sha256": {
+    "Debug": {
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "6628e4177879104a3e53e829343eb5ecebe1164416ba91b5ffdf25ed735dc252",
+      "Contents/Helpers/OpenSSH/bin/ssh-agent": "acfa3ac046cd49d54bef323c77f6fa71bde1c06b73e17488f09ea06fff160281",
+      "Contents/Helpers/OpenSSH/bin/ssh-add": "43813a36eeb186f6da1f81a15b9febb91f498b593bcaf67aac22f3fbf6a01451",
+      "Contents/Helpers/OpenSSH/bin/ssh-keygen": "688cbf07465989e975a072dabfa0f1ba0a51ed871a067988f78e58b6435e66fa",
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": "9771c71a24092ff69194ec1652aa68d223aa79ea1803f709b185a1c93fe7caf3"
+    },
+    "AppStore": {
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": "038683bc15f382bb1ef3f39af5cb6367efa73e32e783e1ca960d1f697ace9d82",
+      "Contents/Helpers/OpenSSH/bin/ssh-agent": "acfa3ac046cd49d54bef323c77f6fa71bde1c06b73e17488f09ea06fff160281",
+      "Contents/Helpers/OpenSSH/bin/ssh-add": "43813a36eeb186f6da1f81a15b9febb91f498b593bcaf67aac22f3fbf6a01451",
+      "Contents/Helpers/OpenSSH/bin/ssh-keygen": "688cbf07465989e975a072dabfa0f1ba0a51ed871a067988f78e58b6435e66fa",
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": "c7e64470b85ebedea4358cc2141902e49139446488f0fa42083c2e33932345f1"
+    }
+  },
+  "limitations": [
+    "No new shipping source changes or app builds in this checkpoint; native checks use the existing verified unsigned bundles",
+    "No main app window, physical passphrase sheet or real signed identity grant acceptance",
+    "No SSH server, network authentication, host-key/password handling, Keychain or PPK/hardware-key acceptance",
+    "No signed sandbox invocation, Intel runtime or macOS 13 runtime verification",
+    "No user keys or login-agent interaction; fixture passphrases omitted from output and records",
+    "Hosted GitHub CI unverified; complete TortoiseGit parity remains incomplete"
+  ],
+  "logs": "build/qa/bundled-ssh-agent-2026-10-10/ (ignored local logs)"
+}
