@@ -674,8 +674,11 @@ struct LogCommandRequest: Identifiable {
         let branch = currentBranch.isEmpty ? "HEAD" : currentBranch
         return command == .merge ? "Merge to \"\(branch)\"…" : "Rebase \"\(branch)\" onto this…"
     }
-    func requestIntegration(_ command: LogIntegrationCommand) {
-        guard canIntegrate(command), let chosen = revision else { return }
+    func requestIntegration(_ command: LogIntegrationCommand, target: LogReferenceMenuTarget? = nil) {
+        guard !isInvalidated, canIntegrate(command), let chosen = revision else { return }
+        let pointedReference: RevisionReference?
+        if let target { guard command == .merge, let reference = reference(for: target) else { return }; pointedReference = reference }
+        else { pointedReference = nil }
         let request = generation; busy = true; error = nil
         Task {
             defer { busy = false }
@@ -688,14 +691,15 @@ struct LogCommandRequest: Identifiable {
                 guard !isBare else { throw LogIntegrationFailure.worktree }
                 guard !merging, !rebasing else { throw LogIntegrationFailure.active }
                 guard head != chosen.hash else { throw LogIntegrationFailure.head }
-                var references = chosen.references.map(\.name).filter { $0.hasPrefix("refs/") && !$0.hasPrefix("refs/stash") }
+                var references = (pointedReference.map { [$0] } ?? chosen.references).map(\.name).filter { $0.utf8.starts(with: "refs/".utf8) && !$0.utf8.starts(with: "refs/stash".utf8) }
                 if command == .rebase { references = references.filter { $0.hasPrefix("refs/heads/") } + references.filter { !$0.hasPrefix("refs/heads/") } }
                 var target = chosen.hash
                 for reference in references {
                     let resolved = try await repository.run(["rev-parse", "--verify", "--end-of-options", reference + "^{commit}"], successfulExitCodes: 0...128)
                     if resolved.exitCode == 0 && resolved.text.trimmingCharacters(in: .newlines) == chosen.hash { target = command == .rebase && reference.hasPrefix("refs/heads/") ? String(reference.dropFirst("refs/heads/".count)) : reference; break }
                 }
-                guard request == generation, revision?.hash == chosen.hash, selected.count == 1 else { return }
+                if pointedReference != nil, target == chosen.hash { throw CheckoutFailure.invalidRevision }
+                guard !isInvalidated, request == generation, revision?.hash == chosen.hash, selected.count == 1 else { return }
                 busy = false
                 if command == .merge { onMergeRevision?(target) } else { onRebaseRevision?(target) }
             } catch { if request == generation { self.error = error.localizedDescription } }
@@ -1239,10 +1243,19 @@ struct LogCommandRequest: Identifiable {
     }
     func requestReference(_ command: LogRevisionCommand, target: LogReferenceMenuTarget?) {
         guard !isInvalidated else { return }
-        guard let target else { request(command); return }
-        guard !busy, let reference = reference(for: target) else { return }
-        if command == .push { onPush(reference.name) }
-        if command == .checkout && !bare { onCheckout(reference.name) }
+        guard !busy, let revision else { return }
+        let pointed: RevisionReference?
+        if let target { guard let reference = reference(for: target) else { return }; pointed = reference }
+        else { pointed = nil }
+        if command == .push { onPush(pointed?.name ?? revision.hash); return }
+        guard [.checkout, .branch, .tag].contains(command), !selectedIsStash else { return }
+        let remote = revision.references.first { $0.name.utf8.starts(with: "refs/remotes/".utf8) }?.name
+        if command == .checkout, !bare { onCheckout(pointed?.name ?? remote ?? revision.hash) }
+        if command == .branch {
+            let pointedRemote = pointed.flatMap { $0.name.utf8.starts(with: "refs/remotes/".utf8) ? $0.name : nil }
+            onCreateReference(false, pointedRemote ?? remote ?? revision.hash)
+        }
+        if command == .tag { onCreateReference(true, remote ?? revision.hash) }
     }
     func switchBranchCandidates(target: LogReferenceMenuTarget?) -> [RevisionReference] {
         guard !isInvalidated, !bare, !selectedIsStash, let revision else { return [] }
@@ -2590,7 +2603,7 @@ struct RevisionTable: NSViewRepresentable {
             if one && model.bisectAvailable(.skip) { menu.addItem(.separator()) }
             item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: one && !model.busy && model.onBrowseRepository != nil)
             if model.integrationAvailable {
-                item(model.integrationTitle(.merge), #selector(mergeRevision), icon: .merge, enabled: model.canIntegrate(.merge))
+                item(model.integrationTitle(.merge), #selector(mergeReference(_:)), icon: .merge, enabled: model.canIntegrate(.merge)).representedObject = pointed
             }
             item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
             let switchBranches = model.switchBranchCandidates(target: pointed)
@@ -2608,9 +2621,9 @@ struct RevisionTable: NSViewRepresentable {
                     }
                 }
             }
-            item("Switch/Checkout to this…", #selector(checkoutReference(_:)), icon: .checkout, enabled: one && !model.busy && !model.bare).representedObject = pointed
-            item("Create branch at this version…", #selector(branch), icon: .branch, enabled: one && !model.busy)
-            item("Create tag at this version…", #selector(tag), icon: .tag, enabled: one && !model.busy)
+            item("Switch/Checkout to this…", #selector(checkoutReference(_:)), icon: .checkout, enabled: one && !model.busy && !model.bare && !model.selectedIsStash).representedObject = pointed
+            item("Create branch at this version…", #selector(branchReference(_:)), icon: .branch, enabled: one && !model.busy && !model.selectedIsStash).representedObject = pointed
+            item("Create tag at this version…", #selector(tagReference(_:)), icon: .tag, enabled: one && !model.busy && !model.selectedIsStash)
             let pushLabel = pointed.flatMap { model.reference(for: $0) }.flatMap { ref -> String? in
                 let kind = ref.kind ?? HistoryReferenceLabel.shortName(ref.name).kind
                 return [.localBranch, .tag, .annotatedTag].contains(kind) ? "Push \"" + HistoryReferenceLabel.shortName(ref.name).text + "\"…" : nil
@@ -2668,6 +2681,9 @@ struct RevisionTable: NSViewRepresentable {
         func menuDidClose(_ menu: NSMenu) { if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
         @objc func pushReference(_ sender: NSMenuItem) { model.requestReference(.push, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func switchBranchReference(_ sender: NSMenuItem) { if let target = sender.representedObject as? LogReferenceMenuTarget { model.switchBranch(target: target) } }
+        @objc func mergeReference(_ sender: NSMenuItem) { model.requestIntegration(.merge, target: sender.representedObject as? LogReferenceMenuTarget) }
+        @objc func branchReference(_ sender: NSMenuItem) { model.requestReference(.branch, target: sender.representedObject as? LogReferenceMenuTarget) }
+        @objc func tagReference(_ sender: NSMenuItem) { model.requestReference(.tag, target: nil) }
         @objc func checkoutReference(_ sender: NSMenuItem) { model.requestReference(.checkout, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func copyReferenceNames(_ sender: NSMenuItem) { model.copyReferenceNames(target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func toggleRollup() { model.toggleRollup() }

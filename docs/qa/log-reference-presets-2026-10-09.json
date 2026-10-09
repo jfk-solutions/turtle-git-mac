@@ -1,0 +1,63 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "eac90b6",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a"
+  },
+  "scope": "Pointed Log reference presets and remote guessing; whole port incomplete",
+  "verification": {
+    "core": "No Core logic changes; prior tests not rerun.",
+    "debug": "Final unsigned Debug build and bundle audit pass; NOTICE packaged.",
+    "native": "Final focused receiver passes Apple and bundled Git: actual native menu selectors capture remote-only Create Branch, Create Tag first-remote, pointed/background Checkout, and canonical pointed Merge after real asynchronous repository validation. Changed selection rejects pointed creation targets. Private real non-HEAD repo HEAD/config/local/remote/tag ref bytes preserved; no create/merge/checkout mutation. Existing message/highlight/ref/clipboard checks pass. Rebase rendered text remains UNVERIFIED.",
+    "store": "Unsigned AppStore build and required bundle audit pass, including universal Git 2.55.0/Git LFS 3.8.0 runtime audit. Signed sandbox/App Store acceptance remains unverified.",
+    "notice": "Both packaged NOTICE files match source.",
+    "inventory": "Two partial mappings updated; pin check passes.",
+    "site": "Local site generator passes; no deployment or physical screenshots claimed."
+  },
+  "limitations": [
+    "Physical dialog routing, signed sandbox/App Store acceptance and complete menu masks/order/Shift eligibility remain unverified.",
+    "Background Merge keeps existing first-resolving-ref fallback rather than upstream first-ref selection. Pointed moved-ref mismatches reject instead of following the moved name; complete concurrent-ref semantics remain partial.",
+    "Other dialogs/Finder, Rebase rendered text, screenshots/site deployment and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_empty_owned_preference_domains": [
+      "TurtleGit.MessageLine.Native.QA.B6E1BBC5-AF11-41F1-AD8D-D8E5FD33A032",
+      "TurtleGit.MessageLine.Native.QA.C4A7CFFB-D788-491B-913A-0FFB24D2F9CC"
+    ],
+    "remaining_processes": [],
+    "remaining_fixtures": [],
+    "remaining_preferences": [],
+    "windows": "Passing hidden windows closed/models invalidated; private pasteboards released. Failed receiver processes exited; owned failed domains/fixture provenance recorded in local cleanup logs."
+  },
+  "iterations": [
+    "First receiver failed because an edit mistakenly removed refs/stash from the label-kind fixture. Restored that fixture and applied the removal only to ordinary menu metadata. Failed owned preference domain verified by its private fixture-path key and removed; empty plist left by defaults also removed.",
+    "Second receiver fixture omitted CommitGraph.layout metadata, causing native table drawing to index an empty graph. Added normal graph/action metadata and isolated new repo under the Python-owned temporary tree. Failed external preset repo verified by Preset QA config, two commits and topic ref before removal."
+  ],
+  "sources_manifest_sha256": "ea660a0e3453be098b855926cdfed97f1ecdb58829b832dd3663e227cbccf900",
+  "changed_files_sha256": {
+    "NOTICE": "56e16e4aeb40931b5050334972442d65ec7d66016746ebb5a233d13a57a4793b",
+    "Sources/TurtleGitMac/LogWindow.swift": "e3560eba343d5a36fcc728525c4090f0fa3b436be9873b98dd31be80c7fe9ec3",
+    "docs/LOG-PARITY.md": "661b36a9ce4fa3f9ca33ce7fdf5c2a97fdef08e812299c2d0a9e533775030ba1",
+    "docs/TESTING.md": "0fe464d2ca0dd04a8e573ce879c5c77ca93d1e2214ea824d5a0b521553b2c603",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "331cb44cb55fde15967101f3a8c0d7ee2317ce67364f1c9073fe26dbad92db58",
+    "docs/upstream-files.csv": "fe79725e33a0d33d7117962960b65b1e684e9ed36921a9197a7030e8e4d69385"
+  },
+  "local_log_sha256": {
+    "build/qa/log-reference-presets-2026-10-09/cleanup.json": "97eb1ed0d77ba178a7c223183ad88c21e522d73b796627979d70170e1f59e775",
+    "build/qa/log-reference-presets-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-presets-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-presets-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-presets-2026-10-09/failed-cleanup.json": "0d06f2a19f9f744241870deaaeb6cc20b3970a6fbe15aa1493e48d212af84ebc",
+    "build/qa/log-reference-presets-2026-10-09/failed-fixture-cleanup.json": "fd67d0b01d4f220472e4b1b220d9fbdecaa42c9e06db207c2661de830c050e9f",
+    "build/qa/log-reference-presets-2026-10-09/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-reference-presets-2026-10-09/native-final.log": "5580f5127969dba185912c746bb521631e1ced5fbeefdc5e06c03226d4728ce7",
+    "build/qa/log-reference-presets-2026-10-09/native-graph.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-presets-2026-10-09/native.log": "53b0d4041fd6db09dc101c021b141d5cbd629e6bef244a1f165e3bab4e721954",
+    "build/qa/log-reference-presets-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-reference-presets-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-reference-presets-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

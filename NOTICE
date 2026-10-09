@@ -1008,3 +1008,7 @@ combining marks, and native Log repaint signatures retain the same byte identity
 Log express branch menus adapt GitLogListBase.cpp ID_SWITCHBRANCH candidate
 selection and GitLogListAction.cpp immediate PerformSwitch handoff, using
 native owned Switch Progress sheets and byte-exact ref targets.
+
+Log dialog presets adapt GitLogListBase.cpp remote-only Create Branch label
+binding and GitLogListAction.cpp branch/tag/checkout remote guessing and
+pointed Merge ref handoff to native dialog models.

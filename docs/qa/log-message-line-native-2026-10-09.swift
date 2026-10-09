@@ -356,6 +356,7 @@ final class MessageLineOffscreenWindow: NSWindow {
         try await checkReferenceKinds(repo: repo, prefs: prefs)
         try await checkReferenceMenus(repo: repo, prefs: prefs)
         try await checkReferenceByteRefresh(repo: repo, prefs: prefs)
+        try await checkPointedPresets(git: URL(fileURLWithPath: CommandLine.arguments[2]), prefs: prefs)
         let after = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }; precondition(before == after)
         if CommandLine.arguments.contains("--log-blame-only") {
             print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard, real reload literal/regex highlight cells and reference/full-message gates verified, left/right label order and symbolization attachments/captured choices and label-mask highlight redraw verified; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
@@ -365,7 +366,8 @@ final class MessageLineOffscreenWindow: NSWindow {
     }
     @MainActor static func checkReferenceMenus(repo: GitRepository, prefs: UserDefaults) async throws {
         prefs.set(HistoryReferenceVisibility.all.rawValue, forKey: "LogDialog.ReferenceVisibility." + repo.root.standardizedFileURL.path)
-        let entries = try await repo.history(), entry = entries[0]
+        var entries = try await repo.history(); var entry = entries[0]
+        entry.references.removeAll { $0.name == "refs/stash" }; entries[0] = entry
         let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
         model.busy = true; model.entries = entries; model.graph = CommitGraph.layout(entries); model.selected = [entry.hash]
         model.bare = try await repo.isBare(); precondition(!model.bare)
@@ -411,7 +413,7 @@ final class MessageLineOffscreenWindow: NSWindow {
         _ = table.menu(for: keyboard); precondition(table.contextReference == nil && model.selected == [entry.hash])
         menu.delegate?.menuNeedsUpdate?(menu)
         send(menu.items.first { $0.title == "Push…" }!); precondition(pushed.last == entry.hash)
-        send(menu.items.first { $0.title == "Switch/Checkout to this…" }!); precondition(checkedOut.last == entry.hash)
+        send(menu.items.first { $0.title == "Switch/Checkout to this…" }!); precondition(checkedOut.last == "refs/remotes/origin/main")
         let refs = menu.items.first { $0.title == "Copy to clipboard" }!.submenu!.items.first { $0.title == "Tag/branch names" }!
         send(refs); precondition(pasteboard.string(forType: .string) == entry.references.map { $0.name + "\r\n" }.joined())
         precondition(cell.reference(at: NSPoint(x: -1, y: -1)) == nil)
@@ -519,4 +521,53 @@ final class MessageLineOffscreenWindow: NSWindow {
         model.copyReferenceNames(target: LogReferenceMenuTarget(hash: entry.hash, name: reference.name))
         precondition(clipboard.string(forType: .string)!.utf8.elementsEqual(leading.utf8))
     }
+    @MainActor static func checkPointedPresets(git: URL, prefs: UserDefaults) async throws {
+        let root = URL(fileURLWithPath: CommandLine.arguments[1]).deletingLastPathComponent().appendingPathComponent("turtlegit-log-presets-" + UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: git)
+        _ = try await repo.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "Preset QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "base"])
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        for name in ["refs/heads/topic", "refs/remotes/origin/a", "refs/remotes/origin/b", "refs/tags/base"] { _ = try await repo.run(["update-ref", name, base]) }
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "next"])
+        let paths = [".git/HEAD", ".git/config", ".git/refs/heads/main", ".git/refs/heads/topic", ".git/refs/remotes/origin/a", ".git/refs/remotes/origin/b", ".git/refs/tags/base"]
+        let before = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
+        model.busy = true; model.entries = try await repo.history(); model.graph = CommitGraph.layout(model.entries); model.selected = [base]; model.bare = false
+        for entry in model.entries { model.revisionActions[entry.hash] = [] }
+        var created: [(Bool, String)] = [], merges: [String] = [], checkout: [String] = []
+        model.onCreateReference = { created.append(($0, $1)) }; model.onMergeRevision = { merges.append($0) }; model.onCheckout = { checkout.append($0) }
+        let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+        defer { window.close(); model.invalidate() }
+        try await settle(window.contentView!)
+        let table = descendants(window.contentView!).compactMap { $0 as? HistoryTableView }.first!, menu = table.menu!
+        model.busy = false; let row = model.entries.firstIndex { $0.hash == base }!
+        func send(_ title: String) {
+            menu.delegate?.menuNeedsUpdate?(menu)
+            let item = menu.items.first { $0.title == title }!; precondition(item.isEnabled && item.image != nil)
+            precondition(NSApp.sendAction(item.action!, to: item.target, from: item))
+        }
+        table.contextReference = (row, "refs/remotes/origin/b")
+        send("Create branch at this version…"); precondition(created.last!.0 == false && created.last!.1 == "refs/remotes/origin/b")
+        send("Create tag at this version…"); precondition(created.last!.0 && created.last!.1 == "refs/remotes/origin/a")
+        send("Switch/Checkout to this…"); precondition(checkout.last == "refs/remotes/origin/b")
+        table.contextReference = (row, "refs/heads/topic")
+        send("Create branch at this version…"); precondition(created.last!.1 == "refs/remotes/origin/a")
+        send(model.integrationTitle(.merge))
+        let deadline = Date().addingTimeInterval(30)
+        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!model.busy && model.error == nil && merges == ["refs/heads/topic"])
+        table.contextReference = nil; send("Switch/Checkout to this…"); precondition(checkout.last == "refs/remotes/origin/a")
+        send("Create branch at this version…"); precondition(created.last!.1 == "refs/remotes/origin/a")
+        let stale = menu.items.first { $0.title == "Create branch at this version…" }!
+        model.selected = [model.entries[0].hash]; precondition(NSApp.sendAction(stale.action!, to: stale.target, from: stale))
+        // A background menu has no immutable pointed target; test a pointed stale item.
+        model.selected = [base]; table.contextReference = (row, "refs/remotes/origin/b"); menu.delegate?.menuNeedsUpdate?(menu)
+        let pointed = menu.items.first { $0.title == "Create branch at this version…" }!, count = created.count
+        model.selected = [model.entries[0].hash]; precondition(NSApp.sendAction(pointed.action!, to: pointed.target, from: pointed)); precondition(created.count == count)
+        let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
+    }
+
 }
