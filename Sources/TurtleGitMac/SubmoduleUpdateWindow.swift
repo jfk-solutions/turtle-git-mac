@@ -73,6 +73,9 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
         }
     }
     func scopeChanged() { guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; preferences.set(wholeProject, forKey: key + ".wholeProject"); loaded = false; load() }
+    func setSelectedPaths(_ selected: Set<String>) {
+        guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; selection = selected.intersection(paths)
+    }
     func selectAll() { guard !busy, !confirmingQuit, !invalidated, !submitted else { return }; selection = selection.isEmpty ? Set(paths) : [] }
     func apply() {
         guard canApply, let onSubmit else { return }
@@ -85,16 +88,13 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
 
 }
 
-private struct SubmoduleUpdatePath: Identifiable { let id: String }
 private struct SubmoduleUpdateDialog: View {
     @ObservedObject var model: SubmoduleUpdateWindowModel
     var body: some View {
         VStack(spacing: 10) {
             HStack(alignment: .top) {
                 Text("Path:").frame(width: 55, alignment: .leading).padding(.top, 8)
-                List(model.paths.map { SubmoduleUpdatePath(id: $0) }, selection: $model.selection) { row in
-                    Text(row.id).lineLimit(1).help(row.id).tag(row.id)
-                }.border(Color.secondary.opacity(0.35))
+                SubmoduleUpdatePathList(model:model)
             }
             GroupBox("Submodule Update Options") {
                 HStack(alignment: .top, spacing: 25) {

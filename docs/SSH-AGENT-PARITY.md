@@ -46,8 +46,10 @@ signed sandbox acceptance.
 - Verify signed identity selection, renewal and loading; add permission management. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
 - Verify physical encrypted-key response sheets and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.
-- Extend existing auto-load to submodule Update and the broader SyncDlg transport window, preserving destination
-  and failure ordering.
+- Verify inherited-agent compatibility for submodule Update initialization and
+  recursion. The pinned Update command has no LaunchPAgent call or autoload
+  checkbox; preserve that dialog. Extend source-appropriate auto-load to broader
+  SyncDlg transports, preserving destination and failure ordering.
 - Test actual SSH authentication/host-key handling, saved and expired grants,
   connection errors, both architectures and signed App Store/Finder routes.
 

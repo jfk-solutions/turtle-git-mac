@@ -149,6 +149,7 @@
 		B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */; };
 		B172FF1DD6076D00FCEB58D7 /* CommitAmend.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2D91605384F213DBC8C3C9F /* CommitAmend.swift */; };
 		B18ABD76861A1AE220FD07B0 /* LogStatisticsGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03B0C481296918B051C77841 /* LogStatisticsGraph.swift */; };
+		B2D56472618D638864C27DEE /* SubmoduleUpdatePathList.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCBF9D9C1C9D5D627003C7C5 /* SubmoduleUpdatePathList.swift */; };
 		B325035DE8116D7F3CCCC3FD /* NOTICE in Resources */ = {isa = PBXBuildFile; fileRef = 11C14DF0DFBA0B8AC513278E /* NOTICE */; };
 		B37762B44078ECEA7539D02D /* ConflictResolution.swift in Sources */ = {isa = PBXBuildFile; fileRef = 102D31C868ED7CEE8FB72699 /* ConflictResolution.swift */; };
 		B46406E18DBC3B1E7292BD5A /* MessageCodeScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28A4137E7CE7A36F8A8E6F58 /* MessageCodeScanner.swift */; };
@@ -471,6 +472,7 @@
 		DAA057A2776BAA8F4BE538EE /* Ignore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ignore.swift; sourceTree = "<group>"; };
 		DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionAllCheckbox.swift; sourceTree = "<group>"; };
 		DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMenuCommands.swift; sourceTree = "<group>"; };
+		DCBF9D9C1C9D5D627003C7C5 /* SubmoduleUpdatePathList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdatePathList.swift; sourceTree = "<group>"; };
 		DE3C7BF5278D5807BDDF4B21 /* Reset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reset.swift; sourceTree = "<group>"; };
 		DF6352B22FB03878FC59F470 /* CommitHistory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitHistory.swift; sourceTree = "<group>"; };
 		DF9C567B7E6EFBE7EE4F0B69 /* PatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchWindow.swift; sourceTree = "<group>"; };
@@ -606,6 +608,7 @@
 				F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */,
 				74246B3AB7101AD7A469BA2E /* SubmoduleProgressOutputView.swift */,
 				0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */,
+				DCBF9D9C1C9D5D627003C7C5 /* SubmoduleUpdatePathList.swift */,
 				A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */,
 				B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */,
 				977DAB97DBBB903654C73A78 /* SwitchWindow.swift */,
@@ -1247,6 +1250,7 @@
 				56B94B831C0F93189FCA10AB /* SubmoduleProgressCompletion.swift in Sources */,
 				63D02F46529D370BDE7F4F66 /* SubmoduleProgressOutputView.swift in Sources */,
 				1C3518D6A25C8AF5ED0B0B29 /* SubmoduleSyncWindow.swift in Sources */,
+				B2D56472618D638864C27DEE /* SubmoduleUpdatePathList.swift in Sources */,
 				7164C7C2217E6ABE41A1A1F5 /* SubmoduleUpdateProgressWindow.swift in Sources */,
 				6B9238091F271707632595BC /* SubmoduleUpdateWindow.swift in Sources */,
 				A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */,

@@ -1,0 +1,98 @@
+{
+  "checked_at": "2026-10-09T23:03:58.757085+00:00",
+  "parent_commit": "d7be120433e8531303b116ad7ec04971c546e8f9",
+  "scope": "Submodule Update list interaction parity and correction of unsupported autoload backlog",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/Commands/SubmoduleCommand.cpp": "980a93d00a0301e9f487e75a950c9d74ba31cba475089ad4fd25a10c103ec333",
+    "src/TortoiseProc/SubmoduleUpdateDlg.cpp": "91a6013da4e0ca1a267c9cc3dfebc1e3bd757bc82c42ea017b46bc248742bf24",
+    "src/Resources/TortoiseProcENG.rc": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6"
+  },
+  "checks": {
+    "native_selection_exit": 0,
+    "native_selection": [
+      "Ordinary clicks toggle paths without modifier keys",
+      "Click count does not replace unrelated selection",
+      "Arrow navigation preserves selection; Space toggles focused row",
+      "Mixed all control clears; empty all control selects all",
+      "Full path width exceeds viewport and is not column-capped",
+      "Short paths fill resized viewport",
+      "Newline display marker and raw tooltip/selection remain distinct",
+      "Disabled table ignores events; busy/submitted models fence late callbacks",
+      "Literal ordered paths are submitted once"
+    ],
+    "progress_regression": {
+      "system_git_exit": 0,
+      "packaged_git_exit": 0,
+      "cases": "Existing options/progress capture, checkout, saved options, errors/live output, confirmation/cancellation, forced close/Quit ownership and bisect actions passed"
+    },
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "bundled_icons": 100,
+    "python_compile_exit": 0,
+    "preferences_cleanup": {
+      "removed": [
+        {
+          "domain": "turtlegit-submodule-update-selection-9F5049D5-E09E-40EB-BE57-5668B0DE1EB2",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.SubmoduleUpdateProgress.QA.E5453E53-2A35-46FB-AA5B-4EE01A0962D3",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "TurtleGit.SubmoduleUpdateProgress.QA.9B771401-B3E0-4D56-9410-BE85CC02B40D",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "turtlegit-submodule-update-selection-AE754213-EEA5-4F20-830B-2527766573D5",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        },
+        {
+          "domain": "turtlegit-submodule-update-selection-CC46B707-E5C9-42B8-A649-F6A13A8AA6EE",
+          "defaults_delete_exit": 1,
+          "verified_empty": true,
+          "file_absent": true
+        }
+      ],
+      "preserved_nonempty": []
+    },
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "correction": "Pinned SubmoduleUpdateCommand has no LaunchPAgent call and IDD_SUBMODULE_UPDATE has no key-autoload checkbox. Preserve that dialog; signed inherited-agent transport compatibility remains pending.",
+  "source_sha256": {
+    ".github/workflows/macos.yml": "ab5d3d1b139b85a01b63c854bbda884a5eba7c332fc4629666ed140027b6fdff",
+    "Sources/TurtleGitMac/SubmoduleUpdateWindow.swift": "e9e9b9b5e0e54764aa536617b9d40ca7889ba7a7dcd9b6b74bcf548967295db6",
+    "Sources/TurtleGitMac/SubmoduleUpdatePathList.swift": "698e655a0287c33de95ac528e5d7f8dfe59670450c8ee3ecdf16f67f5f7248eb",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "81636386889e97a885e0bcc97848448cd9fee78a51aad65a81f2db7ea8223636",
+    "scripts/test-submodule-update-selection.py": "b72443486bd95bfc57bf94899ff5e1cceee1b9d204899ea109c0bbe38e8084c0",
+    "docs/qa/submodule-update-selection-2026-10-10.swift": "69aa033a1239d6b1eafd1fe2122dc59dcadd48ab976d338657c037342f011727",
+    "docs/SUBMODULE-UPDATE-PARITY.md": "654ad70c30bbb51089c0559e67b2a7db4165678845227bb8e59ea17818efb741",
+    "docs/SSH-AGENT-PARITY.md": "32b9c55c6b8291b7d45cfbe97e2bc7e3983cf8a111c8a02d43b897c4ca2f2a42",
+    "docs/SSH-TRANSPORT-PARITY.md": "a8ac98ca3311d3753d8c43d1f3aa4afa3711b425c4e0c74f213a67072a3298c3"
+  },
+  "app_binary_sha256": {
+    "Debug": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "AppStore": "96ad8bae4c1af6d5b4421a52ddf176e937adc338463dc15feae8131bc5e5ee39"
+  },
+  "limitations": [
+    "Hidden unordered AppKit window with synthetic events; physical gesture, rendered light/dark and VoiceOver acceptance unverified",
+    "Unsigned builds; no signed AppStore/Finder/network acceptance",
+    "No new SSH preparation or checkbox in Update",
+    "Hosted GitHub CI unverified; complete TortoiseGit parity remains incomplete"
+  ],
+  "logs": "build/qa/submodule-update-selection-2026-10-10/ (ignored local logs)"
+}

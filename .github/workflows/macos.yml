@@ -36,6 +36,8 @@ jobs:
         run: python3 scripts/validate-app-bundle.py build/Build/Products/Debug/TurtleGitMac.app
       - name: Native bundled SSH encrypted-key loading and process cleanup
         run: python3 scripts/test-bundled-ssh-agent.py --app build/Build/Products/Debug/TurtleGitMac.app
+      - name: Native Submodule Update selection gestures without visible windows
+        run: python3 scripts/test-submodule-update-selection.py
       - name: Native worktree dialog models and Git integration
         run: python3 scripts/test-worktree-dialog.py
       - name: Native RefLog browser, branch, tag and export handoffs

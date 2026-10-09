@@ -15,8 +15,14 @@ The window follows the resource arrangement: selected paths above two columns of
 options, followed by Select/deselect all, Whole Project and OK/Cancel/Help.
 Initialize submodules starts enabled; Recursive, Force, No fetch, Merge, Rebase
 and Remote tracking branch start disabled. All seven options are retained per
-repository after acceptance. The selection is a native multiple-selection list,
-not per-file checkboxes. The native three-state all control clears a mixed
+repository after acceptance. The selection is a native AppKit multiple-selection list, not per-file
+checkboxes. Its ordinary clicks toggle individual rows without modifier keys,
+matching the resource's LBS_MULTIPLESEL style. Arrow navigation moves the focused
+row independently; Space toggles it. Full-width columns and horizontal scrolling
+retain long paths, and literal newline characters receive readable display
+markers while selection/acceptance retain the original strings. Native system
+colors and a focus outline support light/dark appearance; physical visual and
+VoiceOver acceptance remain pending. The native three-state all control clears a mixed
 selection, and selects all from the empty state. OK is disabled without selected
 paths. Whole Project expands a scoped folder request; an unscoped request disables
 that redundant toggle. F5 refresh preserves the current selection.
@@ -146,3 +152,17 @@ The shared visible output state now enforces the cumulative byte limit across
 streamed batches, rather than allowing a last full batch past the cap. A cut
 does not leave an incomplete valid UTF-8 scalar. The source truncation marker
 and final completion line remain visible; raw Git recovery output is unchanged.
+
+## Selection interaction audit
+
+The [selection receiver record](qa/submodule-update-selection-2026-10-10.json)
+checks actual unordered AppKit mouse/key events, mixed/all/empty state, long-path
+width and viewport resizing, disabled input, busy/submitted callback fencing,
+and literal single submission. It launches no main app window and uses a private
+preference domain. These are backend/control checks, not displayed UI acceptance.
+
+[Microsoft's list-box style definition](https://learn.microsoft.com/en-us/windows/win32/controls/list-box-styles)
+documents per-click toggling for LBS_MULTIPLESEL. The pinned Update command and
+dialog contain no LaunchPAgent call or key-autoload checkbox; the command inherits
+the current agent. No extra SSH control was added. Inherited-agent compatibility
+in signed submodule initialization/recursive transports remains unverified.
