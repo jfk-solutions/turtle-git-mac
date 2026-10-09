@@ -79,14 +79,14 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         let script = """
         #!/bin/sh
         operation=
-        for argument in "$@"; do case "$argument" in push|fetch|pull|ls-remote) operation="$argument";; esac; done
+        for argument in "$@"; do case "$argument" in push|fetch|pull|ls-remote|clone) operation="$argument";; esac; done
         if [ -n "$operation" ]; then
           case "${SSH_AUTH_SOCK:-}" in \(quote(root.path))/tg-agent-*/s) ;; *) exit 74;; esac
           /usr/bin/ssh-add -L > "$0.public" || exit 75
           /usr/bin/grep -q native-coordinator-fixture "$0.public" || exit 76
           printf '%s\\n' "$operation" >> "$0.calls"
         fi
-        exec \(quote(git.path)) "$@"
+        exec \(quote(git.path)) -c \(quote("url." + root.path + ".insteadOf=ssh://clone-fixture.invalid/source")) "$@"
         """
         try Data(script.utf8).write(to:wrapper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:wrapper.path)
         let transportRepo = GitRepository(root:root,executable:wrapper)
@@ -193,8 +193,55 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         pendingControllerPrompt?.submit()
         try require(closedCallbacks == 1 && resultCallbacks == 0 && controller.model.error == nil && pendingControllerPrompt?.finished == true, "Controller close allowed a late result or live prompt")
         try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls, "Closed prompt launched transport")
+        var clonePrompts = 0
+        let cloneFactory: SSHCloneTransportFactory = { runner in
+            let value = SSHTransportCoordinator(repository: runner, identities: identities, temporaryRoot: root, runtime: { tools })
+            value.present = { prompt in clonePrompts += 1; prompt.passphrase.stringValue = phrase; prompt.submit(); return true }; coordinators.append(value); return value
+        }
+        for streamed in [false, true] {
+            let destination = root.appendingPathComponent(streamed ? "clone-streamed" : "clone-direct")
+            let clone = CloneWindowModel(directory: root, access: RepositoryAccessLease(url: root), preferences: preferences, executable: wrapper)
+            clone.identities = identities; clone.makeSSHCoordinator = cloneFactory
+            clone.source = "ssh://clone-fixture.invalid/source"; clone.sourceChanged(); clone.directory = destination.path
+            clone.useOrigin = true; clone.origin = "custom"; clone.acceptKeySelection(encrypted)
+            var results = 0, progress: CloneProgressWindowModel?
+            clone.onCloned = { _, _, keyAccess, _, _ in results += 1; if keyAccess != nil { results += 100 } }
+            if streamed { clone.onProgress = { progress = $0 } }
+            clone.clone()
+            if streamed {
+                try await wait("Streamed SSH clone") { progress?.busy == false }
+                try require(progress?.success == true, "Streamed SSH clone failed")
+                if let progress { clone.finish(progress) }
+            } else { try await wait("Direct SSH clone") { !clone.busy } }
+            try require(results == 1 && clone.error == nil && clone.completed?.standardizedFileURL.path == destination.standardizedFileURL.path, "Native clone result or legacy bookmark callback: streamed=\(streamed), results=\(results), error=\(clone.error ?? "none"), completed=\(clone.completed?.path ?? "none"), destination=\(destination.path)")
+            let cloned = GitRepository(root: destination, executable: git)
+            let settings = try await cloned.remoteSettings(name: "custom")
+            let clonedHead = try await cloned.run(["rev-parse", "HEAD"]), sourceHead = try await repo.run(["rev-parse", "HEAD"])
+            try require(clonedHead.text == sourceHead.text, "Native clone HEAD differs from fixture source")
+            let legacy = try await cloned.run(["config", "--get", "core.sshCommand"], successfulExitCodes: 0...1)
+            try require(settings.sshKeyFile == encrypted.path && settings.puttyKeyFile.isEmpty && legacy.exitCode == 1, "Clone did not save independent native remote key")
+            clone.invalidate(); progress = nil
+        }
+        try require(clonePrompts == 2, "Clone did not prepare one private key per submission")
+        let pendingClone = CloneWindowController(directory: root, access: RepositoryAccessLease(url: root), preferences: preferences, executable: wrapper)
+        defer { pendingClone.close() }
+        var clonePrompt: SSHKeyPassphraseWindowController?, cloneCoordinator: SSHTransportCoordinator?, clonedAfterClose = 0
+        pendingClone.model.identities = identities; pendingClone.model.makeSSHCoordinator = { runner in
+            let value = SSHTransportCoordinator(repository: runner, identities: identities, temporaryRoot: root, runtime: { tools })
+            value.present = { clonePrompt = $0; return true }; cloneCoordinator = value; coordinators.append(value); return value
+        }
+        pendingClone.model.source = "ssh://clone-fixture.invalid/source"; pendingClone.model.sourceChanged()
+        let cancelledDestination = root.appendingPathComponent("clone-cancelled")
+        pendingClone.model.directory = cancelledDestination.path; pendingClone.model.acceptKeySelection(encrypted)
+        pendingClone.model.onProgress = nil; pendingClone.model.onCloned = { _, _, _, _, _ in clonedAfterClose += 1 }
+        pendingClone.model.clone(); try await wait("Clone pending key") { clonePrompt != nil }
+        pendingClone.close(); try await wait("Clone closed cleanup") { cloneCoordinator?.closed == true && !pendingClone.model.busy }; clonePrompt?.submit()
+        let savedGrants = try Data(contentsOf: identities.storageURL); pendingClone.model.acceptKeySelection(crlfKey)
+        try require(try Data(contentsOf: identities.storageURL) == savedGrants, "Closed Clone saved a late key selection")
+        try require(clonedAfterClose == 0 && pendingClone.model.error == nil && !FileManager.default.fileExists(atPath: cancelledDestination.path) && clonePrompt?.finished == true, "Closed Clone allowed late transport/result")
+        try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls + "clone\nclone\n", "Clone did not stop at key cancellation")
         try require(coordinators.allSatisfy { $0.closed } && provider.starts == provider.stops,"Finished transport coordinator or file lease remains")
         try require(!NSApplication.shared.windows.contains { $0.isVisible },"Receiver displayed UI")
-        print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Log remote deletion and Push/tag/Log controller close fences")
+        print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Log remote deletion and Push/tag/Log/Clone controller close fences; direct and streamed native SSH Clone with remote-key config")
     }
 }

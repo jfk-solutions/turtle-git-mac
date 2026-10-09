@@ -37,12 +37,28 @@ are saved to recents. Bare repositories now open in the workspace and Log with
 worktree actions disabled; see [Create Repository parity](INIT-PARITY.md). Native
 bare-clone adoption and signed recent-permission renewal remain unverified.
 
-The Windows Pageant/Putty key row is adapted to an OpenSSH private key. Git uses
-`GIT_SSH_COMMAND` during clone and stores a shell-quoted `core.sshCommand` for later
-operations. Folder/source/key access leases remain held during execution. The app
-retains the selected key lease and saves a security-scoped bookmark per cloned
-repository, renewing it on reopen. These paths require signed sandbox verification;
-encrypted keys, agent prompts and external SSH helpers remain incomplete.
+The Windows Pageant/PuTTY row is adapted to **Auto-load SSH key** using OpenSSH.
+Like pinned CloneCommand, native Clone loads the selected identity before cloning
+and saves its path on the resulting remote before offering Log. A private agent
+receives a read-only app-private key grant; Git receives its socket, not the key
+path in a shell command. Successful clones save
+`remote.<origin>.turtlegitsshkeyfile` (default origin), preserving Windows PuTTY
+settings. Native Clone does not write `core.sshCommand`. The public Core legacy
+SSH-command mode and old per-clone bookmarks remain compatibility paths.
+
+The checkbox follows SSH URLs (including svn+ssh), saved Clone.UseSSHKey and
+runtime availability; its default is on when supported, matching source's saved
+true default with a native runtime gate. Key history selects its first item.
+Browse remembers a read-only key grant; typing a path alone does not grant access.
+Each progress retry creates a fresh coordinator. Encrypted-key responses use the
+owned native response window; closure cancels preparation and rejects late answers.
+Key configuration failure after Git completes reports failure while retaining the
+cloned destination. Upstream shows a StorePuttyKey error and continues to the result actions; native
+Clone instead retains a failed result for review.
+App Store auto-load remains unavailable without bundled OpenSSH agent/add.
+Source/destination leases remain held during execution. Signed grants, real SSH
+servers, physical picker/sheet interactions and recursive SSH authentication remain
+unverified.
 
 SVN controls build the pinned `git svn clone` arguments, including an optional empty
 origin prefix and local-source file URL conversion. Execution preflights `git svn
@@ -83,7 +99,7 @@ timed out. Cancel, picker interaction and further native checks remain unverifie
   execution, Show in Finder, minimum-width and dark appearance QA.
 - Detailed libgit2 transfer rows, physical progress/cancellation and
   full upstream progress/interactive authentication acceptance.
-- Authentication, encrypted-key/agent UI, key use after restart, signed multi-folder
+- Real SSH authentication, physical encrypted-key/agent UI, key use after restart, signed multi-folder
   sandbox grants, out-of-scope submodules and independent helper permissions.
 - Git-SVN runtime/dependencies and real SVN cloning, LFS capability/runtime handling,
   clipboard defaults, URL-handler/exact-path input and complete saved preferences.
@@ -156,3 +172,15 @@ remote percentages before a wait boundary; this proves live delivery and parsing
 not remote-server transfer timing. Physical auto-scroll/percentage/theme/accessibility
 and signed acceptance remain unverified. Other dialogs have not yet adopted the
 streaming callback. This is not full progress or application parity.
+
+## Private-agent Clone verification
+
+The [SSH Clone record](qa/ssh-clone-2026-10-09.json) distinguishes Core command
+verification from hidden native receivers. Controlled local transport checks key
+loading, regular/custom-origin and bare/default-origin key storage, absence of
+native shell overrides, late cancellation and missing-runtime rejection. Native
+receivers exercise direct/progress Clone and forced closure while a response is
+pending. These checks use generated fixture keys and invocation-only local URL
+rewrites; they do not prove network authentication or displayed UI acceptance.
+Post-clone metadata discovery cancellation and modal browse-panel ownership still
+need broader acceptance. Earlier progress/screenshot records remain historical.

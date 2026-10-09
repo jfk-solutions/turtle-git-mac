@@ -134,7 +134,32 @@ The existing source All-label behavior remains: reported remote/stash errors can
 continue, ordinary/local-tracking errors stop, and Cancel stops the sequence.
 Signed access, physical sheet interactions and all races remain unverified.
 
-Remaining: other SSH consumers (Clone, submodules and Sync), bundled
+Remaining: other SSH consumers (submodules and Sync), bundled
 OpenSSH, Keychain, host-key/password prompts, physical UI/sheet acceptance,
 signed App Store/Finder and real network authentication. Concurrent config/ref changes across suspended preparation
 and complete source failure equivalence remain unverified.
+
+
+## Clone selected identity
+
+Pinned CloneDlg restores the auto-load preference/key history; CloneCommand loads
+that explicit key before a repository/remote exists and stores it before Log.
+Native Clone supplies an explicit-key coordinator preparation with an empty remote
+list. Validation precedes preparation, and preparation/cancellation failure cannot
+start Clone. Both direct and captured-progress paths own a fresh coordinator;
+Retry creates another. The read-only identity store supplies the selected grant.
+
+After success, native Core writes remote.<origin>.turtlegitsshkeyfile using the
+literal key path and precomposeunicode=false, including bare/default-origin clones.
+It leaves core.sshCommand and Windows puttykeyfile unset. Legacy Core sshKey callers
+retain the previous shell-command mode unless loadSSHKeyWithAgent is selected.
+The native mode requires a returned session; missing runtime fails before cloning.
+Post-clone key-config write failure retains the destination and reports failure,
+an explicit difference from source's StorePuttyKey error box followed by continued
+result actions.
+
+Hidden receiver coverage includes direct/progress effects and forced options-window
+closure during an encrypted-key response, no late adoption/error/permission changes,
+and private agent/grant cleanup. Actual server, modal picker ownership, displayed
+sheets, recursive SSH/SVN, signed scope and post-clone metadata cancellation remain
+unverified. See CLONE-PARITY.md and qa/ssh-clone-2026-10-09.json.

@@ -43,7 +43,7 @@ final class SSHTransportPreparationTests: XCTestCase {
             #!/bin/sh
             operation=
             for argument in "$@"; do
-              case "$argument" in fetch|pull|push|ls-remote) operation="$argument";; esac
+              case "$argument" in fetch|pull|push|ls-remote|clone) operation="$argument";; esac
             done
             if [ -n "$operation" ]; then
               # Refuse before invoking ssh-add unless this is our private socket.
@@ -160,6 +160,34 @@ final class SSHTransportPreparationTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: f.log), "push\n")
         let refs = try await f.source.checkoutReferences(); XCTAssertTrue(refs.contains { $0.name == "refs/heads/topic" })
         let final = await events.snapshot(); XCTAssertTrue(final.1.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+    }
+    func testCloneSelectedAgentStoresNativeRemoteKeyWithoutShellOverride() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }
+        let before = try await f.source.run(["rev-parse", "HEAD"]).stdout, events = TransportEvents()
+        for bare in [false, true] {
+            var options = CloneOptions(); options.source = f.source.root.path; options.bare = bare
+            options.origin = bare ? nil : "custom"; options.sshKey = f.key; options.loadSSHKeyWithAgent = true
+            let destination = f.root.appendingPathComponent(bare ? "bare-clone.git" : "native-clone")
+            XCTAssertNil(try options.sshCommand()); XCTAssertFalse(try options.arguments(destination: destination).contains { $0.hasPrefix("core.sshCommand=") })
+            _ = try await f.repo.clone(options, to: destination, prepareTransport: { names, token in
+                let session = try f.agent(token); await events.record(names, session.directory); return session
+            })
+            let cloned = GitRepository(root: destination, executable: f.realGit)
+            let settings = try await cloned.remoteSettings(name: options.origin ?? "origin")
+            XCTAssertEqual(settings.sshKeyFile, f.key.path); XCTAssertTrue(settings.puttyKeyFile.isEmpty)
+            let command = try await cloned.run(["config", "--get", "core.sshCommand"], successfulExitCodes: 0...1); XCTAssertEqual(command.exitCode, 1)
+            let head = try await cloned.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(head, before)
+        }
+        let result = await events.snapshot(); XCTAssertEqual(result.0, [[], []]); XCTAssertTrue(result.1.allSatisfy { !FileManager.default.fileExists(atPath: $0.path) })
+        XCTAssertEqual(try String(contentsOf: f.log), "clone\nclone\n")
+        let destination = f.root.appendingPathComponent("cancelled-clone")
+        var options = CloneOptions(); options.source = f.source.root.path; options.sshKey = f.key; options.loadSSHKeyWithAgent = true
+        let token = OperationCancellation()
+        do { _ = try await f.repo.clone(options, to: destination, cancellation: token, prepareTransport: { _, token in token.cancel(); return nil }); XCTFail("Canceled clone ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+        do { _ = try await f.repo.clone(options, to: destination); XCTFail("Missing native loader cloned") } catch CloneFailure.keyRuntime {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+        let after = try await f.source.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(after, before)
     }
     func testFetchAllPreparesEveryRemoteOnceBeforeTransport() async throws {
         let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.root) }

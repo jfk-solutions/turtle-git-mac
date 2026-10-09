@@ -60,7 +60,9 @@ These decisions follow Apple's [sandbox entitlement guidance](https://developer.
 A linked worktree can refer to a Git directory outside the selected folder.
 Submodules, local clone sources and external object stores can also need additional
 folder grants. Clone now requests separate destination/source/key grants, holds
-their leases and persists a key bookmark for the cloned repository. Signed Clone
+their leases and remembers a read-only key bookmark in the app-private identity
+store. Successful native clones save the key path on the remote; old per-clone
+bookmarks remain legacy compatibility paths. Signed Clone
 grant inheritance and key renewal remain unverified. Init retains its destination
 lease; normal and bare repositories save the resolved root to recents. Bare opening
 is verified in a development preview, but signed Init grants, adoption and recent

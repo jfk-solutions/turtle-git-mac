@@ -16,7 +16,9 @@ locally; these upstream manuals do not establish signed macOS acceptance.
 `SSHAgentSession` is a preparatory Core transport primitive. Core Fetch/Pull/Push
 now accept awaited preparation and retain a returned agent through transport;
 [transport boundaries](SSH-TRANSPORT-PARITY.md) documents the tested channel.
-The application's Fetch/Push still do not supply this callback. Native key selection and file grants are implemented separately in [identity selection](SSH-IDENTITY-PARITY.md). It starts a foreground OpenSSH agent
+Native Clone/Fetch/Pull/Push and configured remote browsing/deletion routes now
+supply this callback. Native key selection and file grants are documented in
+[identity selection](SSH-IDENTITY-PARITY.md). The session starts a foreground OpenSSH agent
 in an owned process group, with an atomically-created mode-0700 directory and
 private socket. It never changes the login agent. Command arguments remain
 literal byte-preserving arrays. Loading multiple identities uses
@@ -31,7 +33,7 @@ Those helpers are not packaged yet. The app now embeds an original Swift askpass
 CLI. A supplied response can load an encrypted key through a private one-use
 channel; without a response, the headless loader rejects interactive prompting.
 The native secure response dialog now connects to configured-key loading in
-Fetch/Pull/Push, remote branch browsing, remote tags, BrowseRefs remote deletion and Log server deletion. Keychain integration is pending. See
+Clone/Fetch/Pull/Push, remote branch browsing, remote tags, BrowseRefs remote deletion and Log server deletion. Keychain integration is pending. See
 [SSH passphrase parity](SSH-PASSPHRASE-PARITY.md). This is not authentication or
 signed sandbox acceptance.
 
@@ -42,7 +44,7 @@ signed sandbox acceptance.
 - Verify signed identity selection, renewal and loading; add permission management. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
 - Verify physical encrypted-key response sheets and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.
-- Extend existing auto-load to Clone/submodules and Sync, preserving destination
+- Extend existing auto-load to submodules and Sync, preserving destination
   and failure ordering.
 - Test actual SSH authentication/host-key handling, saved and expired grants,
   connection errors, both architectures and signed App Store/Finder routes.

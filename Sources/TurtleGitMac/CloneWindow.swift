@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportCoordinator
+
 @MainActor final class CloneWindowController: NSWindowController, NSWindowDelegate {
     let model: CloneWindowModel
     var onClosed: () -> Void = {}
@@ -25,10 +27,14 @@ import TurtleGitCore
             else { self.progressController = nil; result.abandonPresentation() }
         }
 
+        model.presentSSH = { [weak self] prompt in
+            guard let owner = self?.progressController?.window ?? self?.window, owner.attachedSheet == nil, let child = prompt.window else { return false }
+            owner.makeFirstResponder(nil); owner.beginSheet(child); return true
+        }
         DialogGeometry.attach(window, identifier: "CloneWindowController")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.activeOperation && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); progressController?.close(); progressController = nil; if let window, let child = window.attachedSheet { window.endSheet(child, returnCode: .abort); child.close() }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -61,6 +67,11 @@ import TurtleGitCore
     @Published var output: String?
     @Published var completed: URL?
     @Published var error: String?
+    var identities = SSHIdentityAccessStore()
+    var makeSSHCoordinator: SSHCloneTransportFactory?
+    var presentSSH: (SSHKeyPassphraseWindowController) -> Bool = { _ in false }
+    var sshAvailable: Bool { makeSSHCoordinator != nil || (try? SSHAgentRuntime.resolve())?.askpass != nil }
+    private var operationCancellation: OperationCancellation?
     private let preferences: UserDefaults
     private let executable: URL?
     private var invalidated = false, finished = false
@@ -69,7 +80,7 @@ import TurtleGitCore
     var activeOperation: Bool { busy || granting || progress != nil }
     var onProgress: ((CloneProgressWindowModel) -> Void)?
     var onExplore: (URL) -> Void = { _ in }
-    func invalidate() { invalidated = true; progress?.invalidate() }
+    func invalidate() { invalidated = true; operationCancellation?.cancel(); progress?.invalidate(); keyAccess = nil }
     func finish(_ result: CloneProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }
         progress = nil; result.invalidate(); busy = false
@@ -93,10 +104,11 @@ import TurtleGitCore
         urls = defaults.stringArray(forKey: "Clone.URLHistory") ?? []
         keys = defaults.stringArray(forKey: "Clone.KeyHistory") ?? []
         destinationAccess = access
+        key = keys.first ?? ""; useKey = sshAvailable && (defaults.object(forKey: "Clone.UseSSHKey") as? Bool ?? true)
     }
     var supportsKey: Bool {
         let url = source.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return url.hasPrefix("ssh://") || (!url.contains("://") && !url.hasPrefix("/") && url.contains(":"))
+        return url.hasPrefix("svn+ssh://") || url.hasPrefix("ssh://") || (!url.contains("://") && !url.hasPrefix("/") && url.contains(":"))
     }
     func sourceChanged() {
         let value = source.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/\\"))
@@ -111,7 +123,7 @@ import TurtleGitCore
                 automaticDirectory = directory
             }
         }
-        if !supportsKey { useKey = false }
+        useKey = supportsKey && sshAvailable && (preferences.object(forKey: "Clone.UseSSHKey") as? Bool ?? true)
     }
     func svnChanged() {
         if svn {
@@ -134,7 +146,17 @@ import TurtleGitCore
     func browseKey() {
         guard !activeOperation, !invalidated, !finished else { return }; granting = true; defer { granting = false }
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.canChooseFiles = true; panel.prompt = "Select OpenSSH key"
-        if panel.runModal() == .OK, let url = panel.url { keyAccess = RepositoryAccessLease(url: url); key = url.path }
+        if panel.runModal() == .OK, let url = panel.url { acceptKeySelection(url) }
+    }
+    func acceptKeySelection(_ url: URL) {
+        guard !invalidated, !finished, !busy, progress == nil else { return }
+        do { try identities.remember(url, requireSecurityScope: GitRuntime.isAppStoreBuild); key = url.path; error = nil }
+        catch { self.error = error.localizedDescription }
+    }
+    private func captureSSHFactory() -> SSHCloneTransportFactory {
+        if let makeSSHCoordinator { return makeSSHCoordinator }
+        let identities = identities, present = presentSSH
+        return { repo in let value = SSHTransportCoordinator(repository: repo, identities: identities); value.present = present; return value }
     }
     private func grant(_ target: URL, current: RepositoryAccessLease?, message: String, file: Bool = false) -> RepositoryAccessLease? {
         if let current, current.contains(target), !GitRuntime.isAppStoreBuild || current.hasSecurityScope { return current }
@@ -163,7 +185,7 @@ import TurtleGitCore
                 options.username = useUsername ? username : nil
                 if useFrom { guard let value = Int(from), value >= 0 else { throw CloneFailure.number }; options.fromRevision = value }
             }
-            if useKey { guard key.hasPrefix("/"), supportsKey else { throw CloneFailure.value }; options.sshKey = URL(fileURLWithPath: key) }
+            if useKey { guard key.hasPrefix("/"), supportsKey else { throw CloneFailure.value }; guard sshAvailable else { throw CloneFailure.keyRuntime }; options.sshKey = URL(fileURLWithPath: key); options.loadSSHKeyWithAgent = true }
             _ = try options.arguments(destination: destination)
             guard let access = grant(cwd, current: destinationAccess, message: "Authorize the destination or an existing parent folder so TurtleGit can create the clone.") else { return }
             guard access.contains(destination) else { throw RepositoryAccessFailure.repositoryRootOutsidePermission(destination.path) }
@@ -173,30 +195,34 @@ import TurtleGitCore
                 guard let lease = grant(localSource, current: sourceAccess, message: "Authorize the local source repository.") else { return }; sourceAccess = lease
             }
             if let key = options.sshKey {
-                guard FileManager.default.fileExists(atPath: key.path) else { throw CloneFailure.value }
-                guard let lease = grant(key, current: keyAccess, message: "Authorize this OpenSSH private key.", file: true) else { return }; keyAccess = lease
+                keyAccess = try identities.acquire(path: key.path, requireSecurityScope: GitRuntime.isAppStoreBuild).permission
             }
             let executable = try self.executable ?? GitRuntime.executable(), snapshot = options
             let capturedSourceAccess = sourceAccess, capturedKeyAccess = keyAccess
+            let sshFactory = options.loadSSHKeyWithAgent ? captureSSHFactory() : nil
+            preferences.set(useKey, forKey: "Clone.UseSSHKey")
             busy = true; output = nil; error = nil
             if let onProgress {
                 let result = CloneProgressWindowModel(options: snapshot, destination: destination, executable: executable, destinationAccess: access, sourceAccess: capturedSourceAccess, keyAccess: capturedKeyAccess, preferences: preferences)
+                result.makeSSHCoordinator = sshFactory
                 result.onCloned = { [weak self] repo, output in self?.recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess) }
                 result.onPostAction = { [weak self] action, repo in guard let self else { return }; if action == .log { self.onLog(repo, access) } else if action == .explore { self.onExplore(repo.root) } }
                 result.close = { [weak self, weak result] in guard let self, let result else { return }; self.finish(result) }
                 progress = result; onProgress(result); result.start()
             } else {
+                let token = OperationCancellation(); operationCancellation = token
                 Task {
-                    defer { busy = false }
+                    defer { if operationCancellation === token { operationCancellation = nil; busy = false } }
                     do {
                         let runner = GitRepository(root: cwd, executable: executable)
-                        if snapshot.svn { _ = try await runner.run(["svn", "--version"]) }
-                        let output = try await runner.clone(snapshot, to: destination)
+                        let coordinator = sshFactory?(runner); defer { coordinator?.close() }
+                        if snapshot.svn { _ = try await runner.run(["svn", "--version"], cancellation: token) }
+                        let output = try await runner.clone(snapshot, to: destination, cancellation: token, prepareTransport: snapshot.sshKey.flatMap { coordinator?.explicitPreparation(path: $0.path) })
                         let candidate = GitRepository(root: destination, executable: executable)
                         let repo = snapshot.bare ? candidate : GitRepository(root: try await candidate.discoverRoot(), executable: executable)
                         guard !invalidated else { return }
                         recordClone(repo, output: output, options: snapshot, destination: destination, access: access, keyAccess: capturedKeyAccess)
-                    } catch { self.output = error.localizedDescription; self.error = error.localizedDescription }
+                    } catch { if !invalidated, !token.isCancelled { self.output = error.localizedDescription; self.error = error.localizedDescription } }
                 }
             }
         } catch { self.error = error.localizedDescription }
@@ -208,7 +234,7 @@ import TurtleGitCore
         preferences.set(options.recursive, forKey: "Clone.Recursive")
         preferences.set(([options.source] + urls.filter { $0 != options.source }).prefix(25).map { $0 }, forKey: "Clone.URLHistory")
         if let key = options.sshKey { preferences.set(([key.path] + keys.filter { $0 != key.path }).prefix(25).map { $0 }, forKey: "Clone.KeyHistory") }
-        onCloned(repo, access, keyAccess, options.bare, output)
+        onCloned(repo, access, options.loadSSHKeyWithAgent ? nil : keyAccess, options.bare, output)
     }
     func showLog() { if let repo = clonedRepository, let access = destinationAccess { onLog(repo, access) } }
 }
@@ -251,9 +277,9 @@ struct CloneDialog: View {
                     }.padding(8)
                 }
                 HStack {
-                    Toggle("Use SSH key", isOn: $model.useKey).disabled(!model.supportsKey)
-                    CloneHistoryCombo(value: $model.key, choices: model.keys, label: "OpenSSH private key").disabled(!model.useKey)
-                    Button("…") { model.browseKey() }.disabled(!model.useKey).help("Select an OpenSSH private key.")
+                    Toggle("Auto-load SSH key", isOn: $model.useKey).disabled(!model.supportsKey || !model.sshAvailable).help(model.sshAvailable ? "Load an OpenSSH key into a private agent for this clone." : "SSH key loading is unavailable in this build.")
+                    CloneHistoryCombo(value: $model.key, choices: model.keys, label: "OpenSSH private key").disabled(!model.useKey || !model.supportsKey || !model.sshAvailable)
+                    Button("…") { model.browseKey() }.disabled(!model.useKey || !model.supportsKey || !model.sshAvailable).help("Select an OpenSSH private key.")
                 }
                 GroupBox("From SVN Repository") {
                     VStack(alignment: .leading, spacing: 12) {
@@ -344,7 +370,8 @@ enum ClonePostAction: String, Hashable {
     init(options: CloneOptions, destination: URL, executable: URL, destinationAccess: RepositoryAccessLease, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         self.options = options; self.destination = destination; self.executable = executable; self.destinationAccess = destinationAccess; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess; self.preferences = preferences; autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputLimit = max(16, min(preferences.object(forKey: "GitOutputLimitinKiB") as? Int ?? 2048, 100 * 1024)) * 1024
     }
-    func invalidate() { invalidated = true }
+    var makeSSHCoordinator: SSHCloneTransportFactory?
+    func invalidate() { invalidated = true; cancellation.cancel() }
     func abandonPresentation() { abandoned = true; cancellation.cancel() }
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
@@ -359,12 +386,14 @@ enum ClonePostAction: String, Hashable {
                 if let key = options.sshKey { guard keyAccess?.hasSecurityScope == true, keyAccess?.contains(key) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
             }
             let runner = GitRepository(root: cwd, executable: executable)
+            let coordinator = makeSSHCoordinator?(runner); defer { coordinator?.close() }
+            let preparation = options.sshKey.flatMap { coordinator?.explicitPreparation(path: $0.path) }
             if options.svn { _ = try await runner.run(["svn", "--version"], cancellation: cancellation) }
             let parser = GitCliOutputParser(limit: outputLimit)
             let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
             let operation = Task {
                 defer { continuation.finish() }
-                return try await runner.clone(options, to: destination, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+                return try await runner.clone(options, to: destination, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: preparation)
             }
             for await _ in updates { if !invalidated { consume(parser.processPending(), parser: parser) } }
             consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
@@ -374,8 +403,10 @@ enum ClonePostAction: String, Hashable {
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             if GitRuntime.isAppStoreBuild && !destinationAccess.contains(repo.root) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path) }
             repository = repo; success = true; postActions = [.log, .explore]
-            if !invalidated { onCloned(repo, resultOutput) }
+            guard !invalidated else { busy = false; cancelling = false; return }
+            onCloned(repo, resultOutput)
         } catch {
+            guard !invalidated else { busy = false; cancelling = false; return }
             let message: String
             if let failure = error as? GitFailure, !displayedBytes.isEmpty, (failure.arguments.first == "clone" || failure.arguments.starts(with: ["svn", "clone"])) { message = "Git command failed (\(failure.code))." }
             else { message = error.localizedDescription }

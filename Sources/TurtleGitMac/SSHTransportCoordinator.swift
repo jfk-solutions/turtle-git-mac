@@ -64,33 +64,46 @@ struct SSHAutoloadToggle: View {
             guard configured.contains(where: { GitReferenceName.equal($0,name) }) else { continue }
             let settings = try await repository.remoteSettings(name: name, cancellation: token); try check(token)
             guard !settings.sshKeyFile.isEmpty else { continue }
-            let access = try identities.acquire(path: settings.sshKeyFile, requireSecurityScope: GitRuntime.isAppStoreBuild)
-            defer { withExtendedLifetime(access) {} }
-            var info = stat()
-            guard stat(access.file.path, &info) == 0 else { throw SSHIdentityAccessFailure.file }
-            let identity = IdentityRevision(path: Data(access.file.path.utf8), device: Int64(info.st_dev), inode: UInt64(info.st_ino), size: info.st_size, seconds: Int64(info.st_mtimespec.tv_sec), nanoseconds: Int64(info.st_mtimespec.tv_nsec))
-            if loaded.contains(identity) { continue }
-            if session == nil {
-                let tools = try runtime(), root = temporaryRoot
-                let created = try await Task.detached { try SSHAgentSession(runtime: tools, temporaryRoot: root, cancellation: token) }.value
-                do { try check(token); session = created } catch { created.close(); throw error }
-            }
-            guard let session else { throw SSHAgentFailure.closed }
-            var response: String?, retry = false
-            while true {
-                try check(token)
-                do {
-                    let file = access.file, capturedResponse = response
-                    try await Task.detached { try session.add(keys: [file], passphrase: capturedResponse, cancellation: token) }.value
-                    try check(token); loaded.insert(identity); break
-                } catch {
-                    response = nil; try check(token)
-                    guard Self.needsPassphrase(error, encrypted: try Self.encryptedHeader(access.file)) else { throw error }
-                    response = try await ask(key: access.file.lastPathComponent, retry: retry, cancellation: token); retry = true
-                }
-            }
+            try await loadKey(path: settings.sshKeyFile, cancellation: token)
         }
         try check(token); return session
+    }
+    /// Clone/Submodule Add select a key before a remote config exists.
+    func explicitPreparation(path: String) -> SSHTransportPreparation {
+        { [self] _, token in try await prepareKey(path: path, cancellation: token) }
+    }
+    func prepareKey(path: String, cancellation token: OperationCancellation) async throws -> SSHAgentSession {
+        try check(token); guard active == nil else { throw SSHAgentFailure.closed }
+        active = token; defer { active = nil }
+        try await loadKey(path: path, cancellation: token); try check(token)
+        guard let session else { throw SSHAgentFailure.closed }; return session
+    }
+    private func loadKey(path: String, cancellation token: OperationCancellation) async throws {
+        let access = try identities.acquire(path: path, requireSecurityScope: GitRuntime.isAppStoreBuild)
+        defer { withExtendedLifetime(access) {} }
+        var info = stat()
+        guard stat(access.file.path, &info) == 0 else { throw SSHIdentityAccessFailure.file }
+        let identity = IdentityRevision(path: Data(access.file.path.utf8), device: Int64(info.st_dev), inode: UInt64(info.st_ino), size: info.st_size, seconds: Int64(info.st_mtimespec.tv_sec), nanoseconds: Int64(info.st_mtimespec.tv_nsec))
+        if loaded.contains(identity) { return }
+        if session == nil {
+            let tools = try runtime(), root = temporaryRoot
+            let created = try await Task.detached { try SSHAgentSession(runtime: tools, temporaryRoot: root, cancellation: token) }.value
+            do { try check(token); session = created } catch { created.close(); throw error }
+        }
+        guard let session else { throw SSHAgentFailure.closed }
+        var response: String?, retry = false
+        while true {
+            try check(token)
+            do {
+                let file = access.file, capturedResponse = response
+                try await Task.detached { try session.add(keys: [file], passphrase: capturedResponse, cancellation: token) }.value
+                try check(token); loaded.insert(identity); break
+            } catch {
+                response = nil; try check(token)
+                guard Self.needsPassphrase(error, encrypted: try Self.encryptedHeader(access.file)) else { throw error }
+                response = try await ask(key: access.file.lastPathComponent, retry: retry, cancellation: token); retry = true
+            }
+        }
     }
     static func needsPassphrase(_ error: Error, encrypted: Bool) -> Bool {
         guard case SSHAgentFailure.command(let code, let details) = error, code == 1 else { return false }

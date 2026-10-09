@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "3a8f24cd59b3a2a09f63a8549b2c17408224afcb",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Clone explicit SSH key auto-load before a remote exists, native read-only identity grant and remote key storage, encrypted response/cancellation and owned coordinator lifetime in direct and captured-progress native routes.",
+  "verification": {
+    "source": "Pinned CloneDlg restores saved true auto-load default and first key-history entry; CloneCommand loads Pageant before Clone and stores key on selected/default origin before Log. Native private-agent/read-only grants replace Pageant. Source StorePuttyKey displays an error then continues; native post-clone config failure retains destination and reports failed result.",
+    "core_system": "16 focused cases passed: CloneTests 6 and SSHTransportPreparationTests 10. New native-mode test checks actual regular/custom-origin and bare/default-origin clones, matching HEAD, literal native remote key setting, no core.sshCommand/PuTTY setting, empty preparation remote list, private socket/identity, inherited PID clearing, agent release, late cancellation and missing-runtime rejection.",
+    "core_bundled": "10 engine-selecting SSHTransportPreparationTests passed with bundled Git. Legacy 6 CloneTests are not claimed as bundled-engine coverage.",
+    "native_ssh": "Final expanded hidden receiver passed with system and bundled Git. Direct/progress native Clone loads an encrypted fixture through its private agent, adopts exactly once with no legacy key bookmark callback, saves native custom-remote key, matches source HEAD and leaves core.sshCommand/PuTTY absent. Actual Clone controller closure during pending response cancels key loading, closes agent, refuses late key selection and prevents late Clone/result/error. Existing Push/Fetch/Pull/browse/tags/BrowseRefs/Log, retry/CRLF/replacement-key and balanced mock leases pass.",
+    "correction": "Initial native assertion compared URL objects with different directory representation despite identical paths, one successful callback and no error. Diagnostic confirmed result; fixture now compares standardized paths and additionally verifies real Git HEAD. Shipping code unchanged by this correction. Initial compile error from catch error shadowing was fixed to self.error before final builds.",
+    "native_clone_regressions": "Existing hidden progress and stream receivers passed with both engines: shallow branch/custom origin, bare/no-checkout, captured options/history/adoption/policies, occupied-destination preservation, retry, No/Yes process cancellation, partial-file preservation, live UTF-8/CR/percentage output and hidden ownership. No displayed UI or real remote transfer claim.",
+    "debug": "Unsigned Debug build passed.",
+    "appstore": "Final unsigned AppStore build passed for both architectures; bundled agent/add are still absent so native auto-load remains unavailable in that runtime.",
+    "bundles": "Both audits passed: Git/LFS where configured, EditorConfig, IssueRegex, one-use askpass/provenance/linkage, Finder embedding, licenses and all 99 original icons. Both embedded NOTICE files match root. Signed acceptance unverified.",
+    "inventory": "Pinned inventory regression passed; Clone source mappings remain partial.",
+    "site_workflow": "Local site build and safe YAML parse passed; Clone progress/stream/SSH receiver steps occur once each. No new screenshot or hosted CI/deployment verification."
+  },
+  "limitations": [
+    "Full application/source/dialog/menu parity remains incomplete; this is a Clone SSH subset.",
+    "Other SSH consumers (submodules/Sync), bundled OpenSSH, Keychain, PPK, host-key/password handling and actual SSH server authentication remain pending.",
+    "Signed bookmarks/helper inheritance, App Store/Finder acceptance, physical nested sheets/pickers, light/dark/keyboard/VoiceOver and new screenshots remain unverified.",
+    "Core tests/local URL rewrites verify private agent channel and real local Git effects; no actual SSH network/server connection is exercised.",
+    "Recursive SSH, real SVN/LFS Clone, post-clone metadata discovery cancellation and modal browse-panel ownership remain unverified.",
+    "Legacy public Core SSH command mode/per-clone bookmarks remain; native Clone writes only the native remote key setting. Typed key path does not authorize a file.",
+    "No main app launch, user key/login-agent query, push, hosted CI/deployment or distribution submission."
+  ],
+  "sha256": {
+    "NOTICE": "ed271a224ba59c58076082deb4fa6027a5106461671ecfdf33d6abc083822954",
+    "README.md": "2f3177fe349517c59fd83a7c7a5f5473c76dde28e11ce740cb7ee5b585b93bfd",
+    "Sources/TurtleGitCore/Clone.swift": "ace0bc164aa61c47e0176aa5b682f43df342689f89eaa7b125991030f30ac78d",
+    "Sources/TurtleGitMac/CloneWindow.swift": "aac4ec76e6777329d0d88bb1dca1ad670b39c21e3a08dc57cd7f906919310b32",
+    "Sources/TurtleGitMac/SSHTransportCoordinator.swift": "5802b07ade8530c15bc8ecdba9ddfd99fd5c8b8647aacd04f75be31e2925d90e",
+    "Tests/TurtleGitCoreTests/SSHTransportPreparationTests.swift": "9bf115b390a35d242106cb4ee866c39e8bf3d6dafb7d21206d18006c5a629113",
+    "docs/CLONE-PARITY.md": "3e2c4ffdfb10b02bdd221b1ef7cc9f6f0ea764abe0827c34f55b5f9945e5d985",
+    "docs/DISTRIBUTION.md": "36e6cdae20148ef6b57caa7ead643625edf3c7f1a5623d32f9ae63581187a993",
+    "docs/PORTING.md": "47fb472939424a4af09275e96290a5adf25a1e2a41d6f4a5004d2fed618fd4a1",
+    "docs/SSH-AGENT-PARITY.md": "758e1dfed67eef8f0d087214277a0661d30222fea2a8240d7a5d3c7ca478794e",
+    "docs/SSH-IDENTITY-PARITY.md": "6eca2e165df73c2a95c1a47c624e0245d988927e6ff564591824489350280af9",
+    "docs/SSH-PASSPHRASE-PARITY.md": "e5b51b62c26619efed2603acdce6a35523f0d1c9f8afe7c3ff6fd2692751079a",
+    "docs/SSH-TRANSPORT-PARITY.md": "4c01fe30c8e90961b610a12562ad9e4387f96d0f2b758f13295ce144d86bfce9",
+    "docs/qa/ssh-coordinator-native-2026-10-09.swift": "d2a9785d1cc6711db325bf983a0b04dc491cbf0f646e266656e4c625f0a0ab5a",
+    "docs/upstream-files.csv": "3a06cb040f0153afcc2e5322f690e813d5f2490863edd66accb9c5c238e3db85"
+  },
+  "logs": "build/qa/ssh-clone-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.EF64BA88-3ADE-4DCC-87C3-1D92BE4AECAF",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.0A00C249-42F0-4496-A6BB-A0769145354C",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.CloneProgress.QA.EEF4F145-4A53-4564-AC10-E8945B3AED43",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.B7BA7C8D-1C0A-49C1-A4E9-B19B0EF58A58",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.CloneProgress.QA.DA8F03DF-C3A5-41D5-9CC4-C673A7606312",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.CloneStream.QA.FC23B66A-06DF-427C-8CAE-73002F6E8048",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.CloneStream.QA.A6966951-C22A-4B3E-85AD-3D9C0713D13A",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.E6A200E3-98A6-40EF-81CC-F2535F4E21C5",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

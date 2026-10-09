@@ -19,7 +19,7 @@ inspection. No Keychain persistence or secure-memory erasure is claimed.
 
 The native AppKit response window has a secure field, key filename, OK/Cancel,
 Return/Escape configuration and one-shot response. Cancel/forced closure clears
-the field; late actions cannot return another response. It is connected to Fetch/Pull/Push and remote browsing through the
+the field; late actions cannot return another response. It is connected to Clone/Fetch/Pull/Push and remote browsing through the
 [native coordinator](SSH-TRANSPORT-PARITY.md). Hidden tests verify control configuration and callbacks; physical
 focus, key presses, sheet appearance, long filenames, light/dark and VoiceOver
 acceptance remain unverified. No Windows visual equivalence is claimed.

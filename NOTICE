@@ -1106,3 +1106,9 @@ remote Pageant preparation to native identity grants and an owned private agent.
 Cancellation is propagated through history metadata and stash/reflog deletion
 commands. Original Swift additions are GPL-2.0-or-later; complete displayed UI,
 signed sandbox and source failure-policy acceptance remain pending.
+
+Clone.swift, CloneWindow.swift and explicit-key SSHTransportCoordinator loading
+adapt CloneDlg/CloneCommand's Pageant load-before-clone and remote key setting to
+read-only native identity grants and an operation-owned OpenSSH agent. Original
+Swift additions are GPL-2.0-or-later. Windows PuTTY configuration and legacy Core
+sshCommand callers remain separate; real network and signed acceptance pending.
