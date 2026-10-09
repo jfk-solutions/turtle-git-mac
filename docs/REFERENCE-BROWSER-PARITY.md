@@ -194,9 +194,11 @@ in source while dialog configuration is captured in the native test.
 See [reference Switch QA](qa/reference-switch-2026-10-09.json) and
 `scripts/test-reference-switch.py`. Hidden route checks and existing real-Git
 Switch progress/picker regressions do not establish physical sheets/focus/keyboard,
-visual/accessibility/signed behavior or a complete new-route checkout transaction.
-Forced close during active checkout/progress and late initial Switch metadata
-publication remain unverified. Merge, Fetch, creation/tree/range/deletion commands
+visual/accessibility/signed behavior. The expanded transaction receiver checks
+real checkout through this owned route, captured options, all three progress-close
+policies, acknowledgement locks and a post-action. Initial metadata reads publish
+together and are cancelled/fenced on close. Forced close during active checkout
+or checkout progress remains unverified. Merge, Fetch, creation/tree/range/deletion commands
 and the full port remain unfinished.
 
 ## Current Branch acceptance correction
@@ -216,3 +218,27 @@ button interaction, sheet focus restoration or concurrent external HEAD writes.
 
 See [Current Branch checkpoint evidence](qa/reference-current-branch-2026-10-09.json)
 for the tested cases and remaining limits.
+
+## Owned checkout transaction and initial load lifecycle
+
+The reference browser retains Switch while its progress controller is open,
+including successful operations awaiting acknowledgement. The submitted checkout
+options are captured before asynchronous validation; later draft changes do not
+change the running checkout. Closing progress acknowledges once, releases Switch
+and its browser owner, and retains the source browser catalog until explicit F5.
+Current Branch then reads live HEAD, including a branch changed by that checkout.
+The existing configured post-action callback receives the previous branch.
+
+The progress presentation entry point preserves the normal native sheet path and
+allows a hidden receiver to exercise the shipping controller's ownership callback.
+A rejected presentation invalidates the unstarted progress model and releases its
+owner without launching Git. Completion callbacks check controller identity before
+clearing ownership. This does not establish physical sheet behavior.
+
+Switch's initial catalog and branch reads now share a cancellable request, with
+App Store security-scope checks and publication only after both reads finish.
+Forced browser/child close cancels that request and prevents late fields or errors.
+The receiver pauses each actual Git read with an owned wrapper/helper, observes
+the live processes, closes the owning browser and verifies both processes exit
+without publishing a partial catalog. See
+[transaction checkpoint evidence](qa/reference-switch-transaction-2026-10-09.json).

@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "6df9076",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "src/TortoiseProc/GitSwitchDlg.cpp": "db94cbe8bc1c8d4b0e240b327581c5d97339a4ee"
+  },
+  "scope": "Complete private checkout through existing browser-owned Switch/progress, and cancellable atomic initial metadata publication. Full port remains incomplete.",
+  "verification": {
+    "native_route": "Expanded shipping-controller receiver passes Apple and bundled Git. Real checkout of an older branch changes HEAD and tracked file despite later draft revision/force edits. All three progress-close policies, successful progress acknowledgement/parent/close/Quit locks, single change/ack and duplicate completion checked. Pull post-action dispatch captured with previous branch; no Pull operation/network performed. Browser retains cached current branch as source Switch case does; Current Branch accepts live changed branch afterward. Rejected shipping-controller progress presentation releases its unstarted result without checkout.",
+    "metadata_lifecycle": "Both actual initial Git reads (for-each-ref and branch --show-current) independently paused by private wrapper/helper after parent browser load. Receiver observes both recorded PIDs live and unpublished child catalog, forces browser close, verifies both processes exit, and rejects late references/fields/error. Metadata cancellation and App Store scope check share a request; both values publish after completion.",
+    "route_regression": "Existing source commit-object/bare gates, original menu icon, canonical local/remote/symbolic HEAD/light-tag/notes and packed NFC/NFD native presets/defaults, parent/competing/cancel/reject/forced nested picker locks and unchanged original open/cancel fixture still pass both engines.",
+    "progress_regression": "Existing Switch progress receiver passes both engines: real remote tracking, detach, force/override, captured options, cross-name conflict capture, failed retry, all close policies, .gitmodules/once post actions, owned cancellation/fresh retry, deferred completion, missing presentation and hidden close/Quit.",
+    "picker_regression": "Existing Switch full reference/Log picker receiver passes both engines: native fields/focus, canonical byte-distinct refs, role/default/draft retention, F5 fresh catalog, typed revision history graph, ownership/cancel/stale/reject/closed gates.",
+    "core": "Eight CheckoutTests pass with both Git engines.",
+    "cycles": "Zero AttributeGraph cycle warnings in all three final native logs.",
+    "debug": "Unsigned Debug build and standalone bundle audit pass.",
+    "inventory": "Pin checker passes; mappings remain partial.",
+    "site": "Local Pages rebuild passes; no deployment or updated screenshots.",
+    "ci": "Existing workflow invokes expanded script; hosted CI status/execution unverified.",
+    "store": "Unsigned AppStore build and required standalone bundle audit pass: universal bundled Git 2.55.0, LFS 3.8.0, EditorConfig and IssueRegex runtimes, embedded Finder extension, license notices and all 99 upstream icons. Signed execution/App Store acceptance unverified.",
+    "notice": "Both packaged NOTICE files byte-equal source."
+  },
+  "limitations": [
+    "Physical sheets, focus restoration, actual mouse/keyboard/IME, light/dark/accessibility and signed security scope behavior remain unverified.",
+    "Forced close during checkout validation or active checkout/progress, external ref/HEAD races and other shared chooser consumers lifecycle need broader checks.",
+    "Receiver captures configured post-action callback; it does not instantiate RepositoryModel or perform Pull/network.",
+    "Signed Finder integration/App Store acceptance, remaining source commands/dialogs and whole app port remain incomplete. No main app launches, push or deployment."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.ReferenceSwitch.QA.91EC4DDA-7AAA-4B97-924E-12EF5BC2010A",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceSwitch.QA.D128A3B1-16C7-41F0-86FB-0700E8CADA81",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.SwitchProgress.QA.60E926A3-016B-4F46-901F-D3B8A96BF444",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.SwitchProgress.QA.FDDBA95C-94FE-4B54-9F87-789D3ABF2D23",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      }
+    ],
+    "all_handles_terminal": true,
+    "remaining_owned_processes": [],
+    "remaining_current_preference_files": [],
+    "remaining_current_receiver_fixtures": [],
+    "older_worktree_preferences_retained": true
+  },
+  "local_logs": "build/qa/reference-switch-transaction-2026-10-09",
+  "sha256": {
+    "Sources/TurtleGitCore/GitRepository.swift": "2237ed6a7bfb436da64245f6df13b8898fe6da55a1a171e9ec0b37d38797d498",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "d9872a84fafe204171664f67412e2118fefb3b147e5053dcadfc7db921f8af1f",
+    "docs/REFERENCE-BROWSER-PARITY.md": "3f4864e884ae78e1cee8ead96dada8bb46c3e29e5b144e0d63a57c17862626c1",
+    "docs/SWITCH-PARITY.md": "60086bf69d14f376b6cf50df03ff63a137472c3f34095137e302e9d1270289c0",
+    "docs/TESTING.md": "ef9069af17ec66a811c49967db5bfa65e9f6bd75ca35fdc0c83d7741a8f86836",
+    "docs/upstream-files.csv": "45e3b94d974584972553c4f79e922539d128b6ddd70b3c4f7aa29263497d777a",
+    "docs/qa/reference-switch-native-2026-10-09.swift": "7b5861f06fbcbe8a2fc0875e43f8aa0f642c7eb93062f1787b0fb5fcb3177390"
+  }
+}

@@ -131,3 +131,21 @@ release parent keyboard focus without ordering windows or showing real sheets.
 Physical keyboard/default buttons, sheet focus restoration, error/close-during-load
 recovery, visual/theme/accessibility comparison and signed security-scope/Finder
 acceptance remain unverified. Existing Switch screenshots predate these routes.
+
+## Initial metadata lifetime and browser-owned transaction
+
+Initial reference and current-branch reads share one cancellation request and
+publish their values together after both complete. Closing Switch cancels that
+request; closed dialogs cannot publish metadata or errors. App Store reads enforce
+the retained repository security scope. This covers the shared chooser used by
+Switch, Branch/Tag and New Worktree; hidden lifecycle checks here exercise the
+browser-owned Switch route.
+
+The owned progress controller retains the existing native sheet completion path.
+Rejected presentation releases an unstarted result without launching checkout;
+completion validates the controller identity before releasing ownership. The
+expanded reference-switch receiver checks a full private checkout transaction
+with captured options, all three close policies, acknowledgement and a post-action,
+then accepts live Current Branch from the unchanged browser catalog. See
+[transaction QA](qa/reference-switch-transaction-2026-10-09.json). Signed scope,
+physical sheets and forced close during active checkout remain unverified.

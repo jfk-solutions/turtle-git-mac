@@ -73,7 +73,7 @@ public actor GitRepository {
     public func trackedPaths() throws -> [String] {
         try run(["ls-files", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
     }
-    public func branch() throws -> String { try run(["branch", "--show-current"]).text.trimmingCharacters(in: .newlines) }
+    public func branch(cancellation: OperationCancellation? = nil) throws -> String { try run(["branch", "--show-current"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
     public func log() throws -> [LogEntry] {
         try history()
     }

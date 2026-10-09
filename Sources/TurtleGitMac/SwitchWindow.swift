@@ -57,7 +57,11 @@ import TurtleGitCore
 @MainActor final class SwitchWindowController: NSWindowController, NSWindowDelegate {
     let model: SwitchWindowModel
     var onClosed: () -> Void = {}
-    private var progressController: SwitchProgressWindowController?
+    private(set) var progressController: SwitchProgressWindowController?
+    var presentProgress: (NSWindow, NSWindow, @escaping () -> Void) -> Bool = { owner, child, completed in
+        guard owner.attachedSheet == nil else { return false }
+        owner.beginSheet(child) { _ in completed() }; return true
+    }
     private var pickers: VersionPickerCoordinator!
     var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
     var commitPicker: LogWindowController? { pickers.commitPicker }
@@ -76,12 +80,16 @@ import TurtleGitCore
         window.setContentSize(NSSize(width: 620, height: 370)); window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, !self.model.hasPendingTagConflict, self.model.browser == nil, self.model.pickerTarget == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
-            guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
+            guard let self else { result.abandonPresentation(); return }
+            guard let window = self.window, window.attachedSheet == nil else { self.model.abandonProgressPresentation(result); return }
             let controller = SwitchProgressWindowController(model: result)
             self.progressController = controller
-            if let child = controller.window {
-                window.beginSheet(child) { [weak self, weak result] _ in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) }
-            } else { self.progressController = nil; result.abandonPresentation() }
+            if let child = controller.window, self.presentProgress(window, child, { [weak self, weak result, weak controller] in
+                guard let self, let result, let controller, self.progressController === controller else { return }
+                self.progressController = nil; self.model.finish(result)
+            }) { return }
+            self.progressController = nil; self.model.abandonProgressPresentation(result)
+            controller.close()
         }
 
         DialogGeometry.attach(window, identifier: "SwitchWindowController")
@@ -97,13 +105,20 @@ import TurtleGitCore
     private let initialRevision: String?
     private let preferences: UserDefaults
     private var invalidated = false, finished = false
+    private var initialLoadToken: OperationCancellation?
     private var conflictSnapshot: CheckoutOptions?
     var hasPendingTagConflict: Bool { tagConflict || conflictSnapshot != nil }
     @Published private(set) var progress: SwitchProgressWindowModel?
     var onProgress: ((SwitchProgressWindowModel) -> Void)?
     var onChanged: (String) -> Void = { _ in }
     var onPostAction: ((SwitchPostAction, String) -> Void)?
-    func invalidate() { invalidated = true; conflictSnapshot = nil; finishPicker(); referenceFocusRequest = 0; progress?.invalidate() }
+    func abandonProgressPresentation(_ result: SwitchProgressWindowModel) {
+        guard progress === result else { return }
+        // A controller that was never presented must release its owner without
+        // starting Git or waiting for an acknowledgement from its closed window.
+        result.abandonPresentation(); result.invalidate(); progress = nil; busy = false
+    }
+    func invalidate() { invalidated = true; if initialLoadToken != nil { initialLoadToken?.cancel(); initialLoadToken = nil; busy = false }; conflictSnapshot = nil; finishPicker(); referenceFocusRequest = 0; progress?.invalidate() }
     func abortTagConflict() { tagConflict = false; conflictSnapshot = nil }
     func finish(_ result: SwitchProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }
@@ -168,12 +183,16 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; initialRevision = revision; self.preferences = preferences }
     func load(revision preset: String? = nil) {
         guard !busy, pickerTarget == nil, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; busy = true
+        let token = OperationCancellation(); initialLoadToken = token
         let revision = preset ?? initialRevision
         Task {
-            defer { busy = false }
+            defer { if initialLoadToken === token { initialLoadToken = nil; busy = false } }
             do {
-                references = try await repository.checkoutReferences()
-                let current = try await repository.branch()
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let catalog = try await repository.checkoutReferences(cancellation: token)
+                let current = try await repository.branch(cancellation: token)
+                guard !invalidated, !finished, initialLoadToken === token, !token.isCancelled else { return }
+                references = catalog
                 branchRevision = branches.first { GitReferenceName.equal($0.name, "refs/heads/" + current) }?.name ?? branches.first?.name ?? ""
                 tagRevision = tags.first?.name ?? ""
                 commitRevision = revision ?? "HEAD"; options = CheckoutOptions()
@@ -182,7 +201,7 @@ import TurtleGitCore
                     else { options.target = .branch; branchRevision = revision }
                 } else { options.target = revision == nil ? .branch : .commit }
                 defaults()
-            } catch { self.error = error.localizedDescription }
+            } catch { if !invalidated, initialLoadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func defaults() {

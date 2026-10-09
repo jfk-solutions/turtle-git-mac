@@ -286,3 +286,13 @@ detached/unborn/bare HEAD, duplicate/refresh/close/owned-child gates, forced clo
 before query execution and a non-remote Current Branch result from the owned
 tracking picker. Core tests include linked worktrees and exact Unicode HEAD
 spelling. This is hidden controller coverage, not physical button/sheet acceptance.
+
+The expanded `scripts/test-reference-switch.py` receiver also performs real
+checkout through the browser-owned Switch and native progress controllers in a
+separate private repository. It checks captured options, all three close policies,
+acknowledgement/close/Quit locks, a post-action's previous branch, duplicate
+completion, live Current Branch after checkout and rejected progress presentation.
+Owned slow wrappers pause each initial catalog/branch read; forced browser close
+must terminate both recorded processes and leave the closed child's fields/error
+unchanged. Physical sheet presentation and forced close during active checkout
+remain separate unverified gates.
