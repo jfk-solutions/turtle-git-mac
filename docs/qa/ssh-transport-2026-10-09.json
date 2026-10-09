@@ -1,0 +1,69 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "7e6a3da338a0a349ab0194545c0bf83178f5c564",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Awaited Core SSH preparation boundaries and retained private-agent transport context. Native auto-load/response coordinator remains pending.",
+  "verification": {
+    "source": "Reviewed DoFetch/DoPull/DoPush and LaunchPAgent: Fetch All batches preparations; Push loads per remote before each remote command. Source ignores LaunchPAgent return; complete native error-policy equivalence is not claimed.",
+    "core": "Final 44 system-Git tests pass: Fetch 14, Pull 7, Push 14, output/cancellation 3, new preparation 6. Six new preparation cases also pass with bundled Git. Existing legacy fixture classes do not select bundled Git through TURTLEGIT_QA_GIT; broad second-engine coverage is from native tests, not claimed for all 44 cases.",
+    "channel": "Private fixture agent and generated identity are checked by a controlled wrapper before real local Git. Preparation can reenter its repository actor. Fetch/branch lookup/Rebase/Pull, Fetch All batch, ordered Push partial success, shared branches/tags session, invalid/pre-cancel/late-cancel and live Git/helper/child/agent cleanup pass. Sentinel SSH_AGENT_PID=999999 is scoped to the test process and cleared for private transport. No login-agent query or SSH server authentication.",
+    "native": "Existing hidden Fetch/Pull/Rebase and Push cancellation regressions pass with both system and bundled Git. Owned helper termination, unrelated process preservation, confirmation No/Yes, no late success/Rebase callbacks, partial remotes/branches-before-tags retained, fresh-token retries and idle Cancel remain verified. New preparation hook is not supplied by these native callers yet.",
+    "build": "Final unsigned Debug and AppStore builds pass; both embedded NOTICE files match source. Existing unrelated compiler warnings remain.",
+    "bundles": "Both app audits pass: pinned Git/LFS, EditorConfig, IssueRegex, universal/static askpass, Finder, licenses and 99 original icons. Signed inheritance acceptance not verified.",
+    "inventory": "Pin regression passes; AppUtils retains partial mapping with new preparation scope.",
+    "site": "Local website build passes; no hosted deployment verification."
+  },
+  "limitations": [
+    "Native auto-load checkbox/preferences, grant/key/response coordinator and prompt ownership are not yet connected. Existing callers use nil preparation.",
+    "Other consumers (Clone, submodules, tags/deletions, Sync) are not wired to preparation by this checkpoint.",
+    "Preparation failures abort a transport; complete source ignored-Pageant-return failure/retry policy is pending. Earlier pushes and saved config remain, not rolled back.",
+    "Concurrent config/ref changes during suspended preparation, all timing races, other key types and OS/architecture combinations remain unverified.",
+    "No real SSH server, signed App Store/Finder runtime, OpenSSH packaging, Keychain or host-key/password acceptance.",
+    "No main app launch, user key/private credential/login-agent access, push, hosted CI or deployment."
+  ],
+  "sha256": {
+    "NOTICE": "f182fa9bb4cb94cbd14bf66cf4f252240211126df4a5c964d1d2409ffae10e70",
+    "Sources/TurtleGitCore/Fetch.swift": "26674ded9e6a4fb40e3194a39e94668e21bfbfc949e54d9b7f6f0788f18f8c31",
+    "Sources/TurtleGitCore/Pull.swift": "95d711454f289dcce338c79bee9707fb2f23b06d8f348b6d6d34bac8d9ab84f9",
+    "Sources/TurtleGitCore/Push.swift": "e3a406dca1ab747c4fcac900f06cd36ca1b2d06a5b3678ed932025d66da7098f",
+    "Sources/TurtleGitCore/SSHTransportPreparation.swift": "bbc0b3afd462fa834b1b4fb7a73f38259016091f914db2f007636b3ed752c7f2",
+    "Tests/TurtleGitCoreTests/SSHTransportPreparationTests.swift": "b0d7fa6b7280002c4f373c5cea44a7b66aa3ca6239cf8d5f4e7d06af63ee52c4",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "3183aeafc7c6b49b2371efe3bed433e10bd3d3f380b5c3b33c3419277a9f31b0",
+    "docs/README.md": "67a26bc26c4221713d081bd7502f1f633ea7db42266c52e6421598d54a294b82",
+    "docs/SSH-AGENT-PARITY.md": "37efa4ad5234b2188f5b009893bc62725f7f5927a86ac5f5cbdd4f5652e96085",
+    "docs/SSH-TRANSPORT-PARITY.md": "b217767a76573af4314e3921af35c017ae745294889ddaae820f15225b2f6e42",
+    "docs/TESTING.md": "75af87957d9105b1eb330d233c17da7f16c15799d0109a79ec32cc0901486399",
+    "docs/upstream-files.csv": "9709614c736e48de6a116c90be9b7d650758f7dcf09d8c18c1795fb3ffbfe0e5"
+  },
+  "logs": "build/qa/ssh-transport-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.PushCancellation.QA.7AAB4B5B-895E-45B1-968F-A9C8C72E71BE",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.PushCancellation.QA.4D315B16-BE02-461D-A104-81841C15D234",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.TransportCancellation.QA.1E5B4A9F-CE7A-42E8-A1BC-378D7375F47D",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.TransportCancellation.QA.2FD19E31-E182-4C31-98F3-972C73764AF2",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

@@ -129,8 +129,9 @@ extension GitRepository {
     public func branchRevisionNumber(_ revision: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try run(["rev-list", "--count", "--first-parent", "--end-of-options", revision, "--"], cancellation: cancellation, onOutput: onOutput).text.trimmingCharacters(in: .newlines)
     }
-    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
-        let plan = try validatedPush(options, cancellation: cancellation)
+    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
+        let token = cancellation ?? OperationCancellation(); try token.check()
+        let plan = try validatedPush(options, cancellation: token)
         let source = plan.source, destination = plan.destination, remotes = plan.remotes, destinationRef = plan.destinationRef
         if options.savePushRemote || options.savePushBranch {
             guard !options.arbitraryURL, !options.allRemotes, !options.allBranches, !options.setUpstream, let branch = plan.localBranch else { throw PushValidationFailure.combination }
@@ -149,18 +150,20 @@ extension GitRepository {
         var output = "", completed: [String] = []
         for remote in remotes {
             do {
-                try cancellation?.check()
+                let session = try await prepareSSHTransport([remote], cancellation: token, preparation: prepareTransport)
+                defer { withExtendedLifetime(session) {} }
+                let environment = session?.transportEnvironment ?? [:]
                 if options.allBranches {
-                    output += try run(["push", "--all"] + flags + ["--", remote], cancellation: cancellation, onOutput: onOutput).text
+                    output += try run(["push", "--all"] + flags + ["--", remote], environmentOverrides: environment, cancellation: token, onOutput: onOutput).text
                     completed.append(remote + " (branches)")
-                    if options.includeTags { output += try run(["push", "--tags"] + flags + ["--", remote], cancellation: cancellation, onOutput: onOutput).text; completed.append(remote + " (tags)") }
+                    if options.includeTags { output += try run(["push", "--tags"] + flags + ["--", remote], environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote + " (tags)") }
                 } else {
                     var args = ["push"] + flags
                     if options.includeTags { args.append("--tags") }
                     args += ["--", remote]
                     if !source.isEmpty || !destination.isEmpty { args.append(source + (destinationRef.isEmpty ? "" : ":" + destinationRef)) }
-                    output += try run(args, cancellation: cancellation, onOutput: onOutput).text; completed.append(remote)
-                    if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: cancellation, onOutput: onOutput) + "\n" }
+                    output += try run(args, environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote)
+                    if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: token, onOutput: onOutput) + "\n" }
                 }
             } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription, output: output, commandFailure: error as? GitFailure) }
         }

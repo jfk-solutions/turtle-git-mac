@@ -13,8 +13,10 @@ OpenSSH documents its foreground agent and multiple-identity behavior in the
 [ssh-add manual](https://man.openbsd.org/ssh-add). Host macOS tools are exercised
 locally; these upstream manuals do not establish signed macOS acceptance.
 
-`SSHAgentSession` is a preparatory Core transport primitive, not yet called by
-the application's Fetch/Push. Native key selection and file grants are implemented separately in [identity selection](SSH-IDENTITY-PARITY.md). It starts a foreground OpenSSH agent
+`SSHAgentSession` is a preparatory Core transport primitive. Core Fetch/Pull/Push
+now accept awaited preparation and retain a returned agent through transport;
+[transport boundaries](SSH-TRANSPORT-PARITY.md) documents the tested channel.
+The application's Fetch/Push still do not supply this callback. Native key selection and file grants are implemented separately in [identity selection](SSH-IDENTITY-PARITY.md). It starts a foreground OpenSSH agent
 in an owned process group, with an atomically-created mode-0700 directory and
 private socket. It never changes the login agent. Command arguments remain
 literal byte-preserving arrays. Loading multiple identities uses

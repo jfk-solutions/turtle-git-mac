@@ -38,8 +38,8 @@ extension GitRepository {
         return PullDefaults(trackedRemote: remote, trackedBranch: merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : merge,
                             rebase: ["true", "yes", "on", "1", "merges", "interactive", "preserve"].contains(rebase), preserveMerges: ["merges", "preserve"].contains(rebase))
     }
-    public func pull(_ options: PullOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
-        try cancellation?.check()
+    public func pull(_ options: PullOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
+        let token = cancellation ?? OperationCancellation(); try token.check()
         guard !(options.noFastForward && options.fastForwardOnly) else { throw PullFailure.combination }
         let defaults = try pullDefaults(cancellation: cancellation)
         // Upstream routes configured rebase through Fetch + its interactive Rebase dialog.
@@ -65,6 +65,8 @@ extension GitRepository {
         args += ["--", fetch.remote]
         let configuredTracking = !fetch.arbitraryURL && fetch.namedRemoteFetchAll && fetch.remote == defaults.trackedRemote && branch == defaults.trackedBranch
         if !branch.isEmpty && !configuredTracking { args.append(branch) }
-        return try run(args, cancellation: cancellation, onOutput: onOutput).text
+        let session = try await prepareSSHTransport([fetch.remote], cancellation: token, preparation: prepareTransport)
+        defer { withExtendedLifetime(session) {} }
+        return try run(args, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput).text
     }
 }

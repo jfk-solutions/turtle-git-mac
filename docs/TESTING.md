@@ -516,3 +516,12 @@ selection callback, separate Windows/native paths, saved grant, PPK refusal,
 typed-path nonauthorization, busy/child controls and late close fences using
 private fixture grants. These are not displayed picker or signed sandbox tests.
 See [native identity parity](SSH-IDENTITY-PARITY.md).
+
+### SSH transport preparation
+
+Run `SSH_AGENT_PID=999999 swift test --filter
+'SSHTransportPreparationTests|FetchTests|PullTests|PushTests'`. The sentinel is
+scoped to the test process; it does not modify a login agent. Six private-agent
+preparation tests verify actual local Git effects, callback order, agent lifetime,
+actor reentry, late cancellation and live process-group cleanup. They use no SSH
+server. See [transport parity](SSH-TRANSPORT-PARITY.md).

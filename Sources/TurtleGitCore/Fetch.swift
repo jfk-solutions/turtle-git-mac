@@ -58,7 +58,7 @@ public enum FetchRebaseFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func fetchForRebase(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> FetchRebaseResult {
+    public func fetchForRebase(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> FetchRebaseResult {
         try cancellation?.check()
         guard !(try rebaseState()).active else { throw FetchRebaseFailure.active }
         guard !options.allRemotes, !options.branch.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FetchRebaseFailure.destination }
@@ -69,7 +69,7 @@ extension GitRepository {
         let conventional = "refs/remotes/" + options.remote + "/" + (branch.hasPrefix("refs/heads/") ? String(branch.dropFirst(11)) : branch)
         let oldUpstream = options.arbitraryURL ? "" : ((try? run(["rev-parse", "--verify", "--end-of-options", conventional + "^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)) ?? "")
         var selected = options; selected.namedRemoteFetchAll = false
-        let output = try fetch(selected, cancellation: cancellation, onOutput: onOutput)
+        let output = try await fetch(selected, cancellation: cancellation, onOutput: onOutput, prepareTransport: prepareTransport)
         do {
             let upstream = try run(["rev-parse", "--verify", "FETCH_HEAD^{commit}"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             try cancellation?.check()
@@ -124,16 +124,19 @@ extension GitRepository {
         }
         return ""
     }
-    public func remoteBranches(remote: String, cancellation: OperationCancellation? = nil) throws -> [String] {
+    public func remoteBranches(remote: String, cancellation: OperationCancellation? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> [String] {
+        let token = cancellation ?? OperationCancellation(); try token.check()
         guard !remote.isEmpty, !remote.contains("\0") else { throw FetchFailure.remote }
-        return try run(["ls-remote", "--heads", "--", remote], cancellation: cancellation).text.split(separator: "\n").compactMap { line in
+        let session = try await prepareSSHTransport([remote], cancellation: token, preparation: prepareTransport)
+        defer { withExtendedLifetime(session) {} }
+        return try run(["ls-remote", "--heads", "--", remote], environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token).text.split(separator: "\n").compactMap { line in
             let fields = line.split(separator: "\t", maxSplits: 1)
             guard fields.count == 2, fields[1].hasPrefix("refs/heads/") else { return nil }
             return String(fields[1].dropFirst(11))
         }.sorted()
     }
-    public func fetch(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
-        try cancellation?.check()
+    public func fetch(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
+        let token = cancellation ?? OperationCancellation(); try token.check()
         let names = try remoteNames(cancellation: cancellation)
         guard !(options.allRemotes && options.arbitraryURL), options.allRemotes ? !names.isEmpty : (!options.remote.isEmpty && !options.remote.contains("\0") && (options.arbitraryURL || names.contains(options.remote))) else { throw FetchFailure.remote }
         if let depth = options.depth, depth <= 0 { throw FetchFailure.depth }
@@ -150,7 +153,9 @@ extension GitRepository {
         if options.prune != .configured { args.append(options.prune == .enabled ? "--prune" : "--no-prune") }
         if options.allRemotes { args.append("--all") }
         else { args += ["--", options.remote]; if useBranch { args.append(branch) } }
-        return try run(args, cancellation: cancellation, onOutput: onOutput).text
+        let session = try await prepareSSHTransport(options.allRemotes ? names : [options.remote], cancellation: token, preparation: prepareTransport)
+        defer { withExtendedLifetime(session) {} }
+        return try run(args, environmentOverrides: session?.transportEnvironment ?? [:], cancellation: token, onOutput: onOutput).text
     }
 }
 
