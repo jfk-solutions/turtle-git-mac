@@ -370,3 +370,44 @@ cancellation and submodule-default receivers are regression gates. Physical
 sheets/focus/gestures/light-dark/VoiceOver, signed Finder/AppStore acceptance,
 every slow metadata/failure/prompt variant and external remote-config races remain
 unverified; full menus/application parity remain incomplete.
+
+
+## Single-reference deletion
+
+The single-selection browser now offers source **Delete branch**, **Delete tag**
+and **Delete remote branch** commands after the existing namespace actions, with
+original Delete artwork. These depend on namespace, not working-tree or commit
+object type. The current branch still receives the source command; Git rejects
+deleting a checked-out branch. Notes/custom namespaces do not receive deletion.
+
+The owned native Yes/No confirmation uses the selected canonical name. Branches
+are checked for full merge into HEAD; an unmerged or unreadable relationship adds
+the source warning. Tags omit that check. Remote branches also warn that the
+branch will be removed on the remote. Local branches use force deletion, tags
+use tag deletion, and remote branches use deletion Push refspecs against the
+first matching configured remote, following source order/prefix semantics. An
+unconfigured remote reference performs no deletion, matching source's empty batch.
+Git argv precomposition is disabled for canonical reference operations so
+canonically equivalent names remain distinct. Both deletion APIs select the
+POSIX argv process path even when a caller omits a cancellation token; this
+avoids Foundation Process spelling conversion for composed reference arguments.
+
+The browser stays busy through preflight, confirmation and mutation. F5 cannot
+supersede a deletion; selection, competing actions, normal close and Quit are
+blocked. Yes, No and failures all refresh the catalog; failures retain diagnostics.
+Forced close cancels owned Git work, aborts an attached confirmation and ignores
+late answers/results. Completed Git mutations are not rolled back. Store builds
+validate retained repository scope before beginning this workflow.
+
+`test-reference-delete.py` checks hidden shipping menus/icons and captured
+confirmations, No/Yes, unmerged branch/tag/local-remote deletion and Refresh,
+namespace and parent/close/Quit/late-answer gates. It also pauses and terminates
+recorded preflight, local deletion and Push leader/helper processes. Core tests
+cover checked-out failure, bare repositories, packed canonical-equivalent names,
+remote namespace effects and cancellation. See `qa/reference-delete-2026-10-09.json`
+for results and limits.
+
+Multi-selection/batch deletion, physical Yes/No/default/Escape/error sheets, every
+validation timing, real remote authentication/progress, linked-worktree deletion
+failures and signed sandbox/Finder acceptance still need work. Full browser and
+application parity remain incomplete.

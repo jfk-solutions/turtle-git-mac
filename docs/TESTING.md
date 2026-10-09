@@ -376,3 +376,18 @@ are removed; no main app or ordered windows are used. Keep
 `test-fetch-pull-stream.py` and `test-pull-progress.py` as normal-output,
 cancellation and recovery/post-action regressions. These checks do not establish
 physical sheets or signed/full-dialog acceptance.
+
+
+### Reference-browser deletion
+
+After an unsigned Debug build, run `python3 scripts/test-reference-delete.py
+--git /usr/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The receiver invokes actual hidden native menus, captures Yes/No confirmations
+and uses private repositories/preferences. It verifies original Delete icons,
+unmerged/tag/remote warning semantics, real local and local-remote deletion,
+Refresh, parent/close/Quit and late-answer gates, and forced preflight/local/Push
+leader-helper termination. HEAD/index/worktree remain unchanged. Core
+`ReferenceBrowserTests` additionally cover checked-out failure, bare repositories,
+packed canonical-equivalent refs and cancellation. Run existing browser and
+tracking receivers as regressions. These checks do not establish physical sheets,
+batch commands, real authentication or signed acceptance.

@@ -253,3 +253,67 @@ final class ReferenceBrowserTests: XCTestCase {
     }
 
 }
+
+extension ReferenceBrowserTests {
+    func testBrowserDeletionWarningsForceDeleteAndCheckedOutFailure() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let base = try await repo.run(["rev-parse", "HEAD"]).stdout
+        _ = try await repo.run(["branch", "merged"])
+        _ = try await repo.run(["switch", "-c", "unmerged"])
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "branch only"])
+        _ = try await repo.run(["switch", "main"])
+        let merged = try await repo.browserDeletionConfirmation("refs/heads/merged")
+        let unmerged = try await repo.browserDeletionConfirmation("refs/heads/unmerged")
+        XCTAssertFalse(merged.warning); XCTAssertTrue(unmerged.unmerged)
+        XCTAssertEqual(unmerged.message, "Do you really want to delete \"unmerged\"?\n\nThis branch is not fully merged into HEAD.")
+        try await repo.deleteBrowserReference("refs/heads/unmerged")
+        do { try await repo.deleteBrowserReference("refs/heads/main"); XCTFail("Checked-out branch deleted") } catch is GitFailure {}
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(base, after)
+        let refs = try await repo.referenceBrowser(); XCTAssertFalse(refs.references.contains { $0.name == "refs/heads/unmerged" }); XCTAssertTrue(refs.references.contains { $0.name == "refs/heads/main" })
+    }
+    func testBrowserDeletionTagsBareAndExactUnicodePackedNames() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let decomposed = "Cafe\u{301}", composed = "Caf\u{e9}"
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let names = ["refs/heads/main", "refs/heads/" + decomposed, "refs/heads/" + composed].sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }
+        try Data(("# pack-refs with: sorted\n" + names.map { hash + " " + $0 + "\n" }.joined()).utf8).write(to: root.appendingPathComponent(".git/packed-refs"))
+        _ = try await repo.run(["tag", "-a", "release", "-m", "release"])
+        _ = try await repo.run(["pack-refs", "--all"])
+        _ = try await repo.run(["config", "core.precomposeunicode", "true"])
+        let tag = try await repo.browserDeletionConfirmation("refs/tags/release"); XCTAssertFalse(tag.warning)
+        try await repo.deleteBrowserReference(GitReferenceName("refs/heads/" + decomposed))
+        try await repo.deleteBrowserReference("refs/tags/release")
+        let refs = try await repo.referenceBrowser(); XCTAssertFalse(refs.references.contains { $0.name == GitReferenceName("refs/heads/" + decomposed) }); XCTAssertTrue(refs.references.contains { $0.name == GitReferenceName("refs/heads/" + composed) }); XCTAssertFalse(refs.references.contains { $0.name == "refs/tags/release" })
+        let bareRoot = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        let bare = GitRepository(root: bareRoot, executable: repo.executable)
+        try await bare.deleteBrowserReference(GitReferenceName("refs/heads/" + composed))
+        let bareRefs = try await bare.referenceBrowser(); XCTAssertFalse(bareRefs.references.contains { $0.name == GitReferenceName("refs/heads/" + composed) })
+    }
+    func testBrowserRemoteDeletionUsesPushAndPreservesLocalBranchAndTag() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["branch", "topic/nested"]); _ = try await repo.run(["tag", "topic/nested"])
+        let bareRoot = root.appendingPathComponent("remote.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        _ = try await repo.run(["remote", "add", "origin", bareRoot.path]); _ = try await repo.run(["fetch", "origin"])
+        let confirmation = try await repo.browserDeletionConfirmation("refs/remotes/origin/topic/nested")
+        XCTAssertTrue(confirmation.warning); XCTAssertFalse(confirmation.unmerged); XCTAssertTrue(confirmation.message.hasSuffix("This action will remove the branches on the remote."))
+        try await repo.deleteBrowserReference("refs/remotes/origin/topic/nested")
+        let remote = try await GitRepository(root: bareRoot, executable: repo.executable).referenceBrowser()
+        XCTAssertFalse(remote.references.contains { $0.name == "refs/heads/topic/nested" }); XCTAssertTrue(remote.references.contains { $0.name == "refs/tags/topic/nested" })
+        let local = try await repo.referenceBrowser(); XCTAssertTrue(local.references.contains { $0.name == "refs/heads/topic/nested" }); XCTAssertTrue(local.references.contains { $0.name == "refs/tags/topic/nested" })
+    }
+    func testBrowserDeletionRejectsNamespaceAndCancelledRequestsWithoutMutation() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["tag", "keep"])
+        _ = try await repo.run(["update-ref", "refs/remotes/unconfigured/topic", "HEAD"])
+        try await repo.deleteBrowserReference("refs/remotes/unconfigured/topic")
+        let unknown = try await repo.referenceBrowser(); XCTAssertTrue(unknown.references.contains { $0.name == "refs/remotes/unconfigured/topic" })
+        let before = try await repo.run(["show-ref"]).stdout
+        for name in ["refs/notes/custom", "HEAD", "refs/heads/", "--all"] {
+            do { try await repo.deleteBrowserReference(GitReferenceName(name)); XCTFail("Unsupported namespace accepted") } catch ReferenceBrowserDeletionFailure.namespace {}
+        }
+        let token = OperationCancellation(); token.cancel()
+        do { _ = try await repo.browserDeletionConfirmation("refs/tags/keep", cancellation: token); XCTFail("Cancelled preflight ran") } catch OperationCancellationFailure.cancelled {}
+        do { try await repo.deleteBrowserReference("refs/tags/keep", cancellation: token); XCTFail("Cancelled deletion ran") } catch OperationCancellationFailure.cancelled {}
+        let after = try await repo.run(["show-ref"]).stdout; XCTAssertEqual(before, after)
+    }
+}

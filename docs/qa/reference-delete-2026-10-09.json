@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "4be0d31474b87e68872705e542d706159aa810c5",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Single-reference BrowseRefs branch/tag/remote deletion with owned confirmation, mutation and Refresh. Full browser/application port incomplete.",
+  "verification": {
+    "source": "BrowseRefsDlg single selection offers Delete branch/tag/remote by namespace independently of working tree/object type/current branch. ConfirmDeleteRef names selected ref, warns on non-fast-forward/unreadable branch and remote removal. Local DeleteRef uses branch -D or tag -d; remote DeleteRemoteRefs pushes deletion against first configured prefix. Yes/No/error refresh source browser.",
+    "core": "14 ReferenceBrowserTests pass Apple and bundled Git on final source. Added warning/forced unmerged deletion/checked-out rejection, tag/bare/packed canonical-equivalent names, real local-remote Push namespace effects, unknown remote no-op, unsupported namespace and pre-cancellation checks.",
+    "unicode": "Explicit packed refs retain both canonical-equivalent names. New APIs always use cancellable POSIX argv, including omitted caller token, and disable Git argv precomposition. This corrects Foundation Process spelling conversion demonstrated by the composed-name deletion failure; final core checks pass both engines.",
+    "native": "Final shipping-controller deletion receiver passes both engines: actual menus/icons and selected canonical name, No preserves branch, Yes deletes unmerged branch/tag/branch on local remote, catalog refresh, notes gate and current-branch menu presence, duplicate/F5/competing/current-branch/accept/close/Quit locks, forced owner close ignores held late Yes. Paused merge-base/branch/Push live leader-helper PIDs terminate with frozen closed results and unchanged refs. HEAD/index/worktree unchanged.",
+    "regressions": "Existing native browser (tree/table/filter/focus/menus/bare/current-branch/Reset handoff) and tracking-picker receivers pass both engines. They precede the isolated Core omitted-token POSIX fix; provided-token behavior and shipping Mac sources unchanged, final deletion receiver covers final Core.",
+    "builds": "Final unsigned Debug and AppStore builds and both bundle audits pass. Both embedded NOTICE files byte-equal source. Universal Git 2.55.0/LFS 3.8.0, EditorConfig/IssueRegex helpers, Finder extension and all 99 icons audited.",
+    "cycles": "Zero AttributeGraph cycles in final deletion and browser/tracking regression logs.",
+    "inventory": "Pin checker passes; two source mapping notes updated and remain partial-native.",
+    "ci": "Ruby safe YAML parse/exactly one deletion receiver step pass. Hosted CI unverified.",
+    "site": "Local Pages build passes. No deployment or refreshed physical screenshots.",
+    "repairs": "Initial Unicode fixture created colliding filesystem names and later packing normalized them; switched to explicit byte-exact packed refs. Further core failure exposed omitted-token Foundation argv conversion, corrected in API. No started compiler/Core/native handles remained live during edits."
+  },
+  "limitations": [
+    "Single-selection chooser routes only; standalone/multi-selection and batch deletion plus remaining browser commands not complete.",
+    "Confirmations injected in hidden unordered windows. Actual Yes/No/default/Escape/error/force-abort sheet input, physical focus/themes/VoiceOver and screenshots not verified.",
+    "Every validation/metadata timing, completed-mutation race, linked-worktree rejection and external config/ref races not individually exercised here. No rollback of completed Git changes.",
+    "Remote tests use local bare repository, not network/authentication/custom transport or installed remote progress. Signed scope/Finder/App Store acceptance incomplete.",
+    "No main app launch, RepositoryModel/shared Finder-settings writer, external network deletion/push, deployment or hosted CI claim. Full port remains incomplete."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_processes": [],
+    "current_temporary_directories": [],
+    "current_preference_domains": [],
+    "removed": [
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.41C126D0-03F3-49CD-9D08-A49B2D6B00B3",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.966F659E-0C8D-4C3D-8774-ABD6B10A4043",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      }
+    ],
+    "preserved": []
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "d6dd027df806e0ec1a00f1ec4922c9c0a37e181f91577da19e79f327f4775cc7",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "1ae2e37ce8b0c12af05506a24ee4887cbe08d0cb58357cd0dfe7534de6ed0f44",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "44d487c350e6c7c40770f8cdda8bc58e4c36cbb328c488be7337f2155a61aa4b",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "a7464da65379b448026a6ca9b1c66ef536e63cee52534a332ea68d497f70b4e4",
+    "docs/REFERENCE-BROWSER-PARITY.md": "b7fb6a6eddadeb029e8b016ababe92149533bff17f8225ba417587f31a69f35f",
+    "docs/TESTING.md": "b8692174ad3ef8495ac37ed9ee29a91461fcff5fa724bd9c2706ac4ed9ddaf33",
+    "docs/upstream-files.csv": "0d28a07f538e47e9f5a70e77d454373225de93642127319a716c5b5a551be40e",
+    "scripts/test-reference-delete.py": "889271406f69b7f5aea4d2ad90945edf28fc771b0a07484193ac1e75f5e8d12f",
+    "docs/qa/reference-delete-native-2026-10-09.swift": "c821649963f6004d7522d62e2c20d190c7dcc6a783a42dc9804190b87ed99378"
+  },
+  "log_directory": "build/qa/reference-delete-2026-10-09"
+}

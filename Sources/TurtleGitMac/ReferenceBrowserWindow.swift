@@ -33,6 +33,16 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         window.contentViewController = NSHostingController(rootView: ReferenceBrowserDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
         window.refresh = { [weak model] in model?.load() }
+        model.confirmDeletion = { [weak window] confirmation in
+            guard let window, window.attachedSheet == nil else { return false }
+            return await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.messageText = "TurtleGit"; alert.informativeText = confirmation.message
+                alert.alertStyle = confirmation.warning ? .warning : .informational
+                let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+                yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
+                alert.beginSheetModal(for: window) { continuation.resume(returning: $0 == .alertFirstButtonReturn) }
+            }
+        }
         model.onReflog = { [weak self] name in self?.showReflog(name) }
         model.onEditDescription = { [weak self] in self?.editDescription() }
         model.onSelectTracking = { [weak self] in self?.selectTracking() }
@@ -151,7 +161,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
@@ -162,6 +172,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     let scope: ReferenceBrowserScope
     private var token: OperationCancellation?
     private var invalidated = false
+    private(set) var deletingReference = false
     private(set) var changingTracking = false
     private var resolvingCurrentBranch = false
     private(set) var initialFocusPending = true
@@ -184,6 +195,26 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published var sortColumn = "name"
     @Published var descending = false
     var finish: (String?) -> Void = { _ in }
+    var confirmDeletion: ((ReferenceBrowserDeletionConfirmation) async -> Bool)?
+    var deletionKind: ReferenceBrowserDeletionKind? { chosen.flatMap { ReferenceBrowserDeletionKind(reference: $0.name) } }
+    var canDelete: Bool { canAccept && deletionKind != nil }
+    func deleteChosen() {
+        guard canDelete, let reference = chosen?.name, let confirmDeletion else { return }
+        let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil
+        Task {
+            var failure: String?
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let confirmation = try await repository.browserDeletionConfirmation(reference, cancellation: request)
+                guard !invalidated, token === request, !request.isCancelled else { return }
+                let accepted = await confirmDeletion(confirmation)
+                guard !invalidated, token === request, !request.isCancelled else { return }
+                if accepted { try await repository.deleteBrowserReference(reference, cancellation: request) }
+            } catch { guard !invalidated, token === request, !request.isCancelled else { return }; failure = error.localizedDescription }
+            guard !invalidated, token === request, !request.isCancelled else { return }
+            token = nil; deletingReference = false; busy = false; load(preservingError: failure)
+        }
+    }
     var onFetch: (() -> Void)?
     var configureFetch: (FetchWindowController) -> Void = { _ in }
     var fetchRemote: String? { chosen.flatMap { snapshot?.remote(for: $0.name) } }
@@ -284,7 +315,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     func load(preservingError: String? = nil) {
-        guard !invalidated, !hasChild, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
+        guard !invalidated, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
         let filter = mergeFilter
@@ -299,7 +330,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func invalidate() { invalidated = true; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
+    func invalidate() { invalidated = true; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
     func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
     func refilter() { if let selected, !rows.contains(where: { $0.reference.name == selected }) { self.selected = nil } }
     func nestedChanged() { preferences.set(nested, forKey: "RefBrowserIncludeNestedRefs"); load() }
@@ -511,8 +542,10 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 if !chosen.upstream.isEmpty { item("Unset tracked branch", #selector(unsetTracking), .remove, true) }
                 item("Select tracked branch", #selector(selectTracking), .branch, model.onSelectTracking != nil)
             }
+            if model.canDelete, let kind = model.deletionKind { menu.addItem(.separator()); item(kind.title, #selector(deleteReference), .remove, model.confirmDeletion != nil) }
             menu.addItem(.separator()); item("Copy reference name", #selector(copyName), .copy, true)
         }
+        @objc func deleteReference() { model.deleteChosen() }
         @objc func fetch() { if model.canFetch { model.onFetch?() } }
         @objc func createBranch() { if model.canCreateBranch { model.onCreateBranch?() } }
         @objc func mergeRevision() { if model.canMerge { model.onMerge?() } }
