@@ -129,7 +129,7 @@ final class MessageLineOffscreenWindow: NSWindow {
             precondition(heading.location != NSNotFound)
             let entry = model.entries[0]
             let ranges = model.searchHighlights[entry.hash]?["message"] ?? []
-            if expectedTerm.isEmpty { precondition(ranges.isEmpty) }
+            if expectedTerm.isEmpty { precondition(!model.shouldHighlightMessage(entry) || ranges.isEmpty) }
             else {
                 let term = (value.string as NSString).range(of: expectedTerm, options: [], range: NSRange(location: heading.location, length: value.length - heading.location))
                 precondition(term.location != NSNotFound)
@@ -178,6 +178,77 @@ final class MessageLineOffscreenWindow: NSWindow {
         colors.set(.filterMatch, rgb: [40,80,120]); colors.apply(); precondition(LogColorPreferences.load(prefs).rgb(.filterMatch) == [40,80,120])
         colors.restoreDefaults(); colors.apply(); precondition(LogColorPreferences.load(prefs).rgb(.filterMatch) == [200,0,0])
     }
+    @MainActor static func checkReferenceLayout(repo: GitRepository, prefs: UserDefaults) async throws {
+        let entries = try await repo.history(), context = try await repo.historyReferenceContext()
+        for (right, symbolize) in [(false, false), (true, false), (false, true), (true, true)] {
+            prefs.set(right, forKey: "DrawTagsBranchesOnRightSide"); prefs.set(symbolize, forKey: "SymbolizeRefNames")
+            prefs.set(false, forKey: "FullCommitMessageOnLogLine")
+            let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
+            model.busy = true; model.entries = entries; model.graph = CommitGraph.layout(entries); model.referenceContext = context
+            for entry in entries { model.revisionActions[entry.hash] = [] }
+            let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+            defer { window.close(); model.invalidate() }
+            try await settle(window.contentView!)
+            let field = message(window), value = field.attributedStringValue, text = value.string as NSString
+            let heading = text.range(of: "first line"), main = text.range(of: "main")
+            precondition(heading.location != NSNotFound && main.location != NSNotFound)
+            precondition(right ? heading.location < main.location : main.location < heading.location)
+            precondition(value.attribute(.backgroundColor, at: main.location, effectiveRange: nil) is NSColor)
+            precondition(value.attribute(.backgroundColor, at: heading.location, effectiveRange: nil) == nil)
+            precondition(right ? field.toolTip == nil : field.toolTip == "first line")
+            if symbolize {
+                precondition(text.range(of: "/≡").location != NSNotFound && text.range(of: "origin/main").location == NSNotFound)
+                let marker = text.range(of: "\u{FFFC}")
+                precondition(marker.location != NSNotFound)
+                precondition((value.attribute(.attachment, at: marker.location, effectiveRange: nil) as? NSTextAttachment)?.image != nil)
+            } else { precondition(text.range(of: "origin/main").location != NSNotFound) }
+            precondition(model.visibleReferenceLabels(for: entries[0]).map { $0.reference.name } == entries[0].references.map(\.name))
+            prefs.set(!right, forKey: "DrawTagsBranchesOnRightSide"); prefs.set(!symbolize, forKey: "SymbolizeRefNames")
+            precondition(model.drawTagsBranchesOnRightSide == right && model.symbolizeRefNames == symbolize)
+        }
+        prefs.set(false, forKey: "DrawTagsBranchesOnRightSide"); prefs.set(false, forKey: "SymbolizeRefNames")
+        // Source HandleShowLabels redraws ordinary history without re-reading Git.
+        prefs.set(true, forKey: "FullCommitMessageOnLogLine")
+        let regexHelper = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_QA_REGEX"]!)
+        let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs, historyRegexExecutable: regexHelper)
+        model.showWorkingTree = false; model.search = "body"; model.searchFields = .messages; model.searchRegex = false; model.reload()
+        for _ in 0..<1500 { if !model.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+        precondition(!model.busy && model.error == nil)
+        let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+        defer { window.close(); model.invalidate() }
+        try await settle(window.contentView!)
+        let before = message(window).attributedStringValue
+        let body = (before.string as NSString).range(of: "body")
+        precondition(before.attribute(.foregroundColor, at: body.location, effectiveRange: nil) is NSColor)
+        model.toggleHistoryLabel(.localBranches); model.toggleHistoryLabel(.remoteBranches)
+        precondition(!model.busy); try await settle(window.contentView!)
+        let hidden = message(window).attributedStringValue, hiddenBody = (hidden.string as NSString).range(of: "body")
+        precondition(hidden.attribute(.foregroundColor, at: hiddenBody.location, effectiveRange: nil) == nil)
+        model.toggleHistoryLabel(.localBranches); try await settle(window.contentView!)
+        let restored = message(window).attributedStringValue, restoredBody = (restored.string as NSString).range(of: "body")
+        precondition(restored.attribute(.foregroundColor, at: restoredBody.location, effectiveRange: nil) is NSColor)
+    }
+    @MainActor static func checkDialogPreferenceControls(prefs: UserDefaults) async throws {
+        let controls = [("Symbolize ref names", "SymbolizeRefNames"), ("Draw tag/branch labels on right side", "DrawTagsBranchesOnRightSide"), ("Display subject and body of commit messages", "FullCommitMessageOnLogLine")]
+        for (_, key) in controls { prefs.set(false, forKey: key) }
+        let window = host(LogDialogSettings().defaultAppStorage(prefs), ordered: false)
+        window.setContentSize(NSSize(width: 1200, height: 1800))
+        defer { window.close() }
+        try await settle(window.contentView!)
+        for (title, key) in controls {
+            let buttons = descendants(window.contentView!).compactMap { $0 as? NSButton }
+            guard let button = buttons.first(where: { $0.title == title || $0.accessibilityLabel() == title }) else {
+                let diagnostic = try JSONSerialization.data(withJSONObject: ["missing": title, "buttons": buttons.map { [$0.title, $0.accessibilityLabel() ?? ""] }, "fields": descendants(window.contentView!).compactMap { ($0 as? NSTextField)?.stringValue }])
+                FileHandle.standardOutput.write(diagnostic); FileHandle.standardOutput.write(Data("\n".utf8))
+                preconditionFailure("Actual source preference checkbox must be exposed")
+            }
+            precondition(button.isEnabled && button.state == .off)
+            button.performClick(nil); try await settle(window.contentView!)
+            precondition(prefs.bool(forKey: key) && button.state == .on)
+            button.performClick(nil); try await settle(window.contentView!)
+            precondition(!prefs.bool(forKey: key) && button.state == .off)
+        }
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let suite = "TurtleGit.MessageLine.Native.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
@@ -187,16 +258,22 @@ final class MessageLineOffscreenWindow: NSWindow {
         for (key, value) in [("user.name", "Message QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
         try Data("fixture\n".utf8).write(to: repo.root.appendingPathComponent("file.txt")); try await repo.stage(["file.txt"]); _ = try await repo.commit(message: "root")
         _ = try await repo.run(["commit", "--allow-empty", "-m", "first line\ncontinued heading\n\nbody 雪\nsecond body line\n"])
+        _ = try await repo.run(["remote", "add", "origin", repo.root.path])
+        _ = try await repo.run(["config", "branch.main.remote", "origin"])
+        _ = try await repo.run(["config", "branch.main.merge", "refs/heads/main"])
+        _ = try await repo.run(["update-ref", "refs/remotes/origin/main", "HEAD"])
         let entries = try await repo.history()
         var options = RebaseOptions(); options.upstream = "HEAD^"; options.force = true
         let plan = try await repo.rebasePlan(options); precondition(plan.entries.count == 1)
-        let paths = [".git/HEAD", ".git/index", ".git/config", ".git/refs/heads/main", "file.txt"], before = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }
+        let paths = [".git/HEAD", ".git/index", ".git/config", ".git/refs/heads/main", ".git/refs/remotes/origin/main", "file.txt"], before = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }
         for enabled in [nil, false, true] as [Bool?] { try await check(enabled, repo: repo, entries: entries, plan: plan, prefs: prefs) }
         try await checkHighlights(repo: repo, prefs: prefs)
         try await checkHighlightColumns(repo: repo, prefs: prefs)
+        try await checkReferenceLayout(repo: repo, prefs: prefs)
+        try await checkDialogPreferenceControls(prefs: prefs)
         let after = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }; precondition(before == after)
         if CommandLine.arguments.contains("--log-blame-only") {
-            print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard, real reload literal/regex highlight cells and reference/full-message gates verified; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
+            print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard, real reload literal/regex highlight cells and reference/full-message gates verified, left/right label order and symbolization attachments/captured choices and label-mask highlight redraw verified; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
         } else {
             print("PASS: offscreen native Log/Blame/Rebase message text and source captured preferences; unchanged repository bytes, all owned windows closed, no main app or replay operation")
         }

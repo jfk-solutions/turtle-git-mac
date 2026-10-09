@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "d1508ad",
+  "scope": "Log reference tracking/name projection, captured right-side labels and three normal Dialogs controls; whole port remains incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/TortoiseProc/Settings/SetDialogs.cpp": "14912ad2447b6a5e2828d0f0f1bfa035fcaf0298",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f",
+    "src/TortoiseProc/LogDlg.cpp": "d456ae8d668767195f464ad8d850a15c034127f5"
+  },
+  "sources_manifest_sha256": "eff11f5130e274a163d04aa82f40bbfc4744eac250fdca880effb11b4238f19b",
+  "changed_files_sha256": {
+    "NOTICE": "60d4b3f7594f39710f1a9b7221ab20faa2b84466ed9c06ff5411ab102c6300ab",
+    "Sources/TurtleGitCore/HistoryReferenceLabels.swift": "040a803bd7fdcf590044438cad6b69fcbf49f51991f0eaf700d6782e4e8b1a8b",
+    "Sources/TurtleGitMac/LogAppearance.swift": "e9b02b8270bb528810d32278b6a28befa23f1b123945d64abd3416c5a3c7d988",
+    "Sources/TurtleGitMac/LogSearchHighlights.swift": "a315798201f0f169943e4a2882a2f421d738a4c5e706a486b2f7c850f6658a76",
+    "Sources/TurtleGitMac/LogWindow.swift": "12e5bf898f287d1f145cf5ca7c7837057a42b4bb01aae6cee2dd44add3da60f7",
+    "Tests/TurtleGitCoreTests/HistoryReferenceLabelTests.swift": "d0503a86a4f81531ad7b71881578c85fb32ca338e8aaaeaf2592d0ce309fe280",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "2cd8cb145f4bfe61315405e0f1b79bbfc39544ea28797964784e5313517a095c",
+    "docs/ADVANCED-SETTINGS-PARITY.md": "6b9f183a95bca3f54acd8954063f35bbee3167a456b3600d04f9ce55b95df098",
+    "docs/APPEARANCE.md": "07ada80af434005ab5986e287f281410ce29a53deeb8dded8db742b08c5afd1b",
+    "docs/LOG-PARITY.md": "f8a86a2896f3b07bec7cae7ec5d50dbeefe424d21e45d7a03fffb74922c86852",
+    "docs/TESTING.md": "f22281248b8ad3cb1771f8aec650b35a8d133d5ea3331972ba6640abfa6b4be8",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "72762df928b8e813b9a926470f66870de4d4c1f82c07f2afed1c659399dce2d7",
+    "docs/upstream-files.csv": "85c94c1e9f2a523a1fec854fc5b6620e626d7baf7d62d5fca480a18f0dcdb11e"
+  },
+  "git_engines": {
+    "apple": "git version 2.50.1 (Apple Git-155)",
+    "bundled": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "57 focused tests pass: 4 HistoryReferenceLabelTests, 2 HistoryHighlightTests, 48 CommitHistoryTests and 3 LogMessageLineTests. Covers co-located/later refs, shared-upstream duplicate pairing, missing/incomplete/dot tracking, single/multiple remotes and masks, canonical identity preservation, Unicode/slash branch configuration, source StripRefName and repository bytes. Final native-only checkbox style/marker width changes happen afterwards; no full suite claim.",
+    "native": "Final AppKit receiver passes Apple and bundled Git. Actual hidden Log cells verify left/right order, opaque badge styles, full canonical identity, single-remote /\u2261 text/attachment, captured preference state and source tooltip condition. Actual label-mask toggles remove/restore message foreground without a Git reload. Actual three NSButton checkboxes in owned LogDialogSettings Form toggle private preference values both directions. Existing native message/copy/highlight checks pass; exact HEAD/index/config/local and remote branch refs/file bytes preserved after private remote/ref setup. No network fetch or main app. Rebase rendered text remains UNVERIFIED; focused flag does not establish full native acceptance.",
+    "debug": "Final native-AppKit-checkbox unsigned Debug build and bundle audit pass. Current NOTICE matches packaged NOTICE.",
+    "store": "Final unsigned AppStore build and required universal Git/Git LFS bundle audit pass; packaged NOTICE matches current source. All earlier Core/Debug/native handles terminal before Store. Signed sandbox/App Store acceptance not claimed.",
+    "inventory": "Four partial mappings updated; pin check passes.",
+    "site": "Local site generator succeeds; no current screenshots or deployment claimed."
+  },
+  "iterations": [
+    "Initial Swift test build failed because HistorySearchFields has no all member; use existing LogSearchSelection.all. Final 57 tests pass.",
+    "Earlier runtime-only description of FullCommitMessageOnLogLine was wrong: the source SetDialogs/ENG resource contains a standard Dialogs checkbox. Current docs and UI are corrected; historical QA records retain their original evidence.",
+    "Initial native receiver completed label/captured preference/visibility checks, then could not find a preference by NSButton.title. Explicit SwiftUI checkbox style and accessibility label lookup still exposed no NSButton; failure logs retained. Production controls now use AppKit NSButton representables with the existing AppStorage bindings, matching native checkbox components elsewhere. Final actual Form checkbox actions pass with both Git engines.",
+    "Cached highlight ranges now prepare without label-mask gates and apply source gates live at painting, preserving ordinary HandleShowLabels redraw without a history re-read."
+  ],
+  "limitations": [
+    "Final GetShortName source read found additional unported nonbranch display handling: stash, bisect terms, notes/unknown refs and peeled-tag label kinds. This checkpoint preserves existing nonbranch labels and proves branch/upstream projection only. Full GetShortName and annotated-tag metadata are next available source gaps.",
+    "Tracking rounded/shadow and double borders, same-name connector joins, annotated-tag polygons, label hit rectangles and label-specific context actions remain pending. Canonical data/shortened name projection does not establish full painter parity.",
+    "Existing native Dialogs AppStorage controls persist immediately; full upstream Settings Apply/Cancel/property-page lifecycle remains pending.",
+    "No compiled Windows ref-loop oracle or physical screenshot claimed. Windows whitespace/case/CRT behavior, raster/clipping/dark/selected-row/Retina/accessibility and other list consumers remain unverified.",
+    "Rebase rendered-text acceptance, complete all-dialog/Finder/signed distribution/App Store and current screenshots/docs publishing/GitHub push/hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 4,
+    "removed_domains": [
+      "TurtleGit.MessageLine.Native.QA.305CBB1A-6E16-4F27-8F46-FDFF51BB4BA0",
+      "TurtleGit.MessageLine.Native.QA.98B0BFDB-E8AA-426E-8316-85303D28BDA0",
+      "TurtleGit.MessageLine.Native.QA.FE33B64F-8A7D-40EC-BE69-EF5C12D6120F",
+      "TurtleGit.MessageLine.Native.QA.E8065BEE-FB92-4D48-8944-6204413AC0DB"
+    ],
+    "remaining_processes": [],
+    "remaining_fixtures": [],
+    "windows": "Passing owned windows close; failed receivers terminated and their windows removed. Owned pasteboards released in completed checks; system clipboard not touched."
+  },
+  "local_log_sha256": {
+    "build/qa/log-reference-labels-2026-10-09/cleanup.json": "0960392b49e2e6924bc66ed54ed8c7ae88c39d72fec211b28add087f4b778941",
+    "build/qa/log-reference-labels-2026-10-09/core-final.log": "7efc533199dea430460096fc3f66d55fea7127d43367eacc202bd19cc55b2cd2",
+    "build/qa/log-reference-labels-2026-10-09/core.log": "af44b89df1f0f17b8c809b85a4b0299a8aa5fd6a1b527c69259b4a2ab33ba207",
+    "build/qa/log-reference-labels-2026-10-09/debug-appkit.log": "bab06d4792dcb19eb65d32250e1d06cec0b41350fbfb4af302c4f6be136bb540",
+    "build/qa/log-reference-labels-2026-10-09/debug-audit-appkit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-labels-2026-10-09/debug-audit-checkbox.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-labels-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-labels-2026-10-09/debug-checkbox.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-reference-labels-2026-10-09/debug.log": "64a9f1ea0dd567f4c5f39216b6da43acde8ab969cf9473593f7c35a1af3b4067",
+    "build/qa/log-reference-labels-2026-10-09/native-appkit.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-labels-2026-10-09/native-checkbox.log": "9414ea50abfe4a793889274a54535cbe3d254cfecaa2f435fa318d7aeb6b2925",
+    "build/qa/log-reference-labels-2026-10-09/native.log": "aa9ce1f64d9693db71a147c3d98beb48df26f77d38891deea134deb504137e4e",
+    "build/qa/log-reference-labels-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-reference-labels-2026-10-09/project.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/log-reference-labels-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-reference-labels-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-reference-labels-2026-10-09/store.log": "52fea30572077652efda7f6dfd611692e10cfa654369dab32abbf2606c3c89ca"
+  }
+}

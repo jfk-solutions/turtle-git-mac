@@ -167,3 +167,25 @@ struct LogColorsSettings: View {
         }.padding(8)
     }
 }
+
+
+/// Source DrawUpstream glyph, drawn independently of the shortened reference text.
+enum LogUpstreamMarker {
+    static func attachment(foreground: NSColor, font: NSFont, isHead: Bool) -> NSTextAttachment {
+        let height = max(14, ceil(font.ascender - font.descender))
+        let bold: CGFloat = isHead ? 2 : 1
+        let image = NSImage(size: NSSize(width: 9, height: height), flipped: false) { rect in
+            foreground.setStroke()
+            let path = NSBezierPath(); path.lineWidth = bold
+            // DrawUpstream's shaft and fork, adapted to AppKit's upward Y axis.
+            path.move(to: NSPoint(x: 2 + bold, y: 3)); path.line(to: NSPoint(x: 2 + bold, y: rect.height - 3))
+            path.move(to: NSPoint(x: 3, y: rect.height - 2)); path.line(to: NSPoint(x: 0, y: rect.height - 5))
+            path.move(to: NSPoint(x: 2 + bold, y: rect.height - 2)); path.line(to: NSPoint(x: 6 + bold, y: rect.height - 5))
+            path.move(to: NSPoint(x: 1, y: rect.height - 3 - bold)); path.line(to: NSPoint(x: 6 + bold, y: rect.height - 3 - bold))
+            path.stroke(); return true
+        }
+        let attachment = NSTextAttachment(); attachment.image = image
+        attachment.bounds = NSRect(x: 0, y: font.descender, width: 9, height: height)
+        return attachment
+    }
+}

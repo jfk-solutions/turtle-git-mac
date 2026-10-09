@@ -182,7 +182,7 @@ and a macOS sheet. Count/date behavior, native controls and remaining physical
 acceptance are described in [Log parity](LOG-PARITY.md#default-history-limits-and-fromto-controls).
 
 
-The runtime FullCommitMessageOnLogLine preference now affects native Log, Blame
+The FullCommitMessageOnLogLine Dialogs preference now affects native Log, Blame
 history and Rebase rows. Their shared renderer uses the raw first line for short
 mode and source CR/LF-to-space folding for full mode, preserving original
 reference-label styling and one-line truncation. The setting is captured when
@@ -193,3 +193,9 @@ source RGB(200,0,0), keeping badge backgrounds and the single-line message
 layout. The same source HSL appearance transform handles light/dark/contrast
 colors. See [Log highlighting](LOG-PARITY.md#search-match-foregrounds) for column
 gates and acceptance limits; no new physical screenshot is implied.
+
+Native Log also follows captured left/right label placement and source ref-name
+symbolization, including a drawn upstream attachment. Settings → Dialogs exposes
+these choices and the full-message checkbox found in upstream SetDialogs.
+See [reference labels](LOG-PARITY.md#reference-placement-and-symbolization) for
+metadata, source gates and remaining border/shape/physical acceptance scope.

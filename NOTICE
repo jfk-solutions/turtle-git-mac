@@ -976,3 +976,10 @@ and GitLogListBase's display-column gates/DrawListItemWithMatchesRect, including
 positive-term overlapping/adjacent merging, ECMAScript UTF-16 whole matches and
 CColors::FilterMatch RGB(200,0,0), at the pinned revision above. Native rendering
 uses attributed text and keeps reference labels outside matched spans.
+
+Log reference-label pairing/symbolization adapts GitLogListBase's ref loop,
+FetchRemoteList/GetTrackingBranch and Git::GetRemoteTrackedBranch/StripRefName;
+DrawTagsBranchesOnRightSide placement and DrawUpstream mark geometry adapt the
+pinned shared list source. SetDialogs exposes all three native Log choices:
+SymbolizeRefNames, DrawTagsBranchesOnRightSide and FullCommitMessageOnLogLine.
+Canonical refs remain separate from shortened display names.

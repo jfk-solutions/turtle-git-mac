@@ -186,3 +186,14 @@ range refresh. Build the updated IssueRegex runtime before Core/Debug checks:
 `swift test --filter 'HistoryHighlightTests|IssueRegexTests|CommitHistoryTests|LogMessageLineTests'`.
 See [highlight QA](qa/log-match-highlights-2026-10-09.json); these checks do not
 replace the pending physical or signed acceptance gates.
+
+Reference-label coverage adds
+`swift test --filter 'HistoryReferenceLabelTests|HistoryHighlightTests|CommitHistoryTests|LogMessageLineTests'`.
+The existing focused native receiver creates only a private remote/config/ref
+fixture (no fetch/network operation), verifies actual left/right message-cell
+order, shortened names/marker attachments, captured preference state and label
+visibility match repaint without an extra history read. It also invokes actual
+AppKit preference checkbox actions on the owned Dialogs page and verifies their
+private UserDefaults values in both directions. Private repository bytes
+remain unchanged after setup. See
+[reference-label QA](qa/log-reference-labels-2026-10-09.json).

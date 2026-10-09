@@ -1743,12 +1743,15 @@ keyboard/VoiceOver/Retina behavior and signed sandbox acceptance remain pending.
 
 ## Full commit message on each Log line
 
-The runtime preference FullCommitMessageOnLogLine is now consumed by native Log,
+The preference FullCommitMessageOnLogLine is now consumed by native Log,
 Blame history and Rebase's commit list, matching their shared upstream
 GitLogListBase constructor. It defaults to false and is captured when each
 model is constructed. Existing windows retain their choice; reopen the window
 after changing the preference. This key is not one of the source's 52 registered
-Advanced Settings entries, so the native catalogue is unchanged.
+Advanced Settings entries, so that catalogue is unchanged. The source SetDialogs
+page exposes it as **Display subject and body of commit messages**; native
+Settings → Dialogs now exposes the same checkbox. Earlier runtime-only notes
+missed this ordinary Dialogs setting.
 
 The display renderer uses GitRev/gitdll's raw first-LF subject/body split. Short
 mode displays that first line. Full mode appends one space and the remaining
@@ -1847,3 +1850,53 @@ source regex-library equivalence, selected-row physical contrast, drawing,
 Retina, accessibility and signed sandbox acceptance remain unverified. This
 updates the pending Log match-highlighting notes above; it does not establish
 all consumers of the shared Windows list implementation.
+
+
+## Reference placement and symbolization
+
+Native Settings → Dialogs now includes the source **Symbolize ref names**,
+**Draw tag/branch labels on right side**, and **Display subject and body of
+commit messages** controls, implemented with native AppKit checkboxes and two-way preference
+bindings. All three default to false and are captured when a
+Log is constructed; reopen history windows after changing them. The full-message
+choice also applies to new Blame/Rebase models. These are ordinary SetDialogs
+controls, separate from Advanced settings.
+
+Right-side mode places the message before reference labels, as the source does;
+labels follow the message's measured/text-flow width rather than being pinned
+to the far edge of the column. Long text can therefore hide the following
+labels. Left mode keeps the labels before the message. Match offsets remain
+relative to message text in both orders. Message tooltips now follow the source
+left-label condition and raw first-line subject; right mode has no message-cell
+tooltip.
+
+The native label projection reads branch remote/merge configuration independently
+of whether an upstream ref currently exists. Co-located upstream labels pair
+immediately after their local branch and their later standalone duplicate is
+suppressed. Multiple locals can each pair the same upstream, matching the source
+loop. Pairing requires visible local/remote categories. Tracking metadata remains
+present for missing/diverged or hidden upstream refs; canonical reference names
+and commit operation identities are never replaced by shortened label text.
+
+When symbolization is enabled, a single configured remote is omitted from its
+labels; its source upstream marker is drawn as a text attachment. A tracking
+pair with the same branch name uses `/≡` for a single remote, or `remote/≡` with
+multiple remotes. Different-name pairs use the upstream branch, and unrelated
+remote labels shorten only at the complete remote-name prefix. Native Log reads
+this context during reload and updates label projections even if the revision
+hashes remain unchanged.
+
+Ordinary label visibility toggles still redraw without re-reading Git. Cached
+match ranges are now independent of label visibility, with the source painting
+gate applied live; hiding all labels suppresses custom message matches and
+restoring a label restores the foreground. Compressed/labeled and rolled graphs
+keep their existing reload behavior.
+
+[Reference-label QA](qa/log-reference-labels-2026-10-09.json) records focused
+scope. Complete GetShortName handling for stash/bisect/notes/unknown and peeled-tag
+labels remains a separate source gap; this checkpoint covers branch/upstream
+projection. Exact tracking rounded/double-border joins, annotated-tag polygon shape,
+label hit rectangles and upstream context interactions, remaining Settings
+property-sheet lifecycle, all shared-list consumers, physical clipping/Retina/
+selected-row contrast and signed acceptance remain pending. The native marker
+adapts source geometry; no raster-equivalence screenshot is claimed.

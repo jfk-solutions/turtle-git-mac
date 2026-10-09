@@ -115,11 +115,14 @@ See [list preference QA](qa/log-list-preferences-2026-10-09.json). Other consume
 physical font/raster/keyboard/VoiceOver and full settings acceptance remain pending.
 
 
-## Runtime-only full-message preference
+## Full-message preference belongs to Dialogs settings
 
 FullCommitMessageOnLogLine is read by GitLogListBase but is absent from the
 pinned 52-entry Advanced Settings catalogue. Native Log, Blame history and
 Rebase now capture its default-false value and share the source line renderer.
-The catalogue is not extended with an extra checkbox. See
+The Advanced catalogue is unchanged. SetDialogs does expose a normal Dialogs
+checkbox, now mirrored as **Display subject and body of commit messages** in
+native Settings → Dialogs. Earlier runtime-only descriptions missed that
+SetDialogs control and are corrected here. See
 [Log message-line configuration](LOG-PARITY.md#full-commit-message-on-each-log-line)
 for the native defaults command, exact whitespace behavior and remaining scope.

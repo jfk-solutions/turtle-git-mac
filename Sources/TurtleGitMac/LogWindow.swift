@@ -572,10 +572,20 @@ struct LogCommandRequest: Identifiable {
 
     private let includeWorkingTreeChanges: Bool
     let fullCommitMessageOnLogLine: Bool
+    let drawTagsBranchesOnRightSide: Bool, symbolizeRefNames: Bool
+    @Published var referenceContext = HistoryReferenceContext()
+    private var loadedHighlightFields: HistorySearchFields = LogSearchSelection.all
     var canShowWorkingTree: Bool { includeWorkingTreeChanges && !selecting && !bare }
     private let includeBoundaryCommits: Bool
     private let labelDefaults: UserDefaults
     private var labelDefaultsKey: String { "LogDialog.ReferenceVisibility." + repository.root.standardizedFileURL.path }
+    func visibleReferenceLabels(for entry: LogEntry) -> [HistoryReferenceLabel] { referenceContext.labels(entry.references, visibility: referenceVisibility, symbolize: symbolizeRefNames) }
+    func shouldHighlightMessage(_ entry: LogEntry) -> Bool {
+        let labels = visibleReferenceLabels(for: entry)
+        if !entry.references.isEmpty && labels.isEmpty { return false }
+        let fields: HistorySearchFields = !labels.isEmpty && !fullCommitMessageOnLogLine ? .subject : [.subject, .messages]
+        return !loadedHighlightFields.intersection(fields).isEmpty
+    }
     func visibleReferences(for entry: LogEntry) -> [RevisionReference] { entry.references.filter { referenceVisibility.shows($0) } }
     func toggleHistoryLabel(_ command: HistoryLabelCommand) {
         guard !busy, !isInvalidated else { return }
@@ -965,6 +975,8 @@ struct LogCommandRequest: Identifiable {
         let limits = HistoryLimitDefaults.load(defaults: labelDefaults)
         self.historyLimit = HistoryLimitScope(defaults: limits, from: limits.scale == .selectedDate ? HistoryLimitDefaults.savedFrom(root: repository.root, defaults: labelDefaults) : nil)
         self.fullCommitMessageOnLogLine = labelDefaults.bool(forKey: "FullCommitMessageOnLogLine")
+        self.drawTagsBranchesOnRightSide = labelDefaults.bool(forKey: "DrawTagsBranchesOnRightSide")
+        self.symbolizeRefNames = labelDefaults.bool(forKey: "SymbolizeRefNames")
         self.includeWorkingTreeChanges = labelDefaults.object(forKey: "LogIncludeWorkingTreeChanges") == nil || labelDefaults.bool(forKey: "LogIncludeWorkingTreeChanges")
         self.includeBoundaryCommits = labelDefaults.bool(forKey: "LogIncludeBoundaryCommits")
         self.historyRegexExecutable = historyRegexExecutable
@@ -1102,6 +1114,7 @@ struct LogCommandRequest: Identifiable {
                 let bisect = bisectActive ? try await repository.bisectState() : nil
                 let conflictRebase: Bool
                 if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase() }
+                let referenceContext = try await repository.historyReferenceContext(cancellation: cancellation)
                 let currentBranch = try await repository.branch()
                 let issueProperties = try await repository.issueTrackerProperties(cancellation: cancellation)
                 let followAllowed = try await repository.canFollowHistory(paths: scope, revision: options.revisionRange?.to ?? options.endRevision, cancellation: cancellation)
@@ -1130,14 +1143,16 @@ struct LogCommandRequest: Identifiable {
                 let filterActive = try await Task.detached { try HistorySearchActivity.isActive(options.search, regex: options.searchRegex, caseSensitive: options.searchCaseSensitive, executable: options.regexExecutable, cancellation: cancellation) }.value
                 guard request == generation else { return }
                 let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility, rollupStates: rollupStates)
+                self.referenceContext = referenceContext
                 let highlightEntries = projection.entries
                 let labeledHashes = Set(highlightEntries.filter { !visibleReferences(for: $0).isEmpty }.map(\.hash))
                 let fullMessage = fullCommitMessageOnLogLine
                 let highlights = try await Task.detached {
                     guard filterActive else { return [String: [String: [NSRange]]]() }
-                    return try LogSearchHighlights.prepare(highlightEntries, query: options.search, regex: options.searchRegex, caseSensitive: options.searchCaseSensitive, fields: options.searchFields, fullMessage: fullMessage, labeled: labeledHashes, executable: options.regexExecutable, cancellation: cancellation)
+                    return try LogSearchHighlights.prepare(highlightEntries, query: options.search, regex: options.searchRegex, caseSensitive: options.searchCaseSensitive, fields: options.searchFields, fullMessage: fullMessage, labeled: labeledHashes, executable: options.regexExecutable, cancellation: cancellation, applyLabelGates: false)
                 }.value
                 guard request == generation else { return }
+                loadedHighlightFields = options.searchFields
                 searchHighlights = highlights
                 historyFilterActive = filterActive; rollupInfo = projection.rollups
                 entries = projection.entries; graph = projection.graph
@@ -2146,6 +2161,25 @@ struct LogDialog: View {
 
 }
 
+/// Native settings checkbox with the same two-way preference binding as the Dialogs page.
+struct LogPreferenceCheckbox: NSViewRepresentable {
+    let title: String
+    @Binding var value: Bool
+    @Environment(\.isEnabled) private var enabled
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSButton {
+        NSButton(checkboxWithTitle: title, target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
+    }
+    func updateNSView(_ button: NSButton, context: Context) {
+        button.title = title; button.state = value ? .on : .off; button.isEnabled = enabled
+        context.coordinator.change = { value = $0 }
+    }
+    final class Coordinator: NSObject {
+        var change: (Bool) -> Void = { _ in }
+        @objc func clicked(_ sender: NSButton) { change(sender.state == .on) }
+    }
+}
+
 struct LogDialogSettings: View {
     @AppStorage("ShowBranchRevisionNumber") private var showBranchRevisionNumber = false
     @AppStorage("AutoCloseGitProgress") private var autoCloseGitProgress = 0
@@ -2157,6 +2191,9 @@ struct LogDialogSettings: View {
     @AppStorage("LogDateFormat") private var shortDate = true
     @AppStorage("RelativeTimes") private var relative = false
     @AppStorage("UseSystemLocaleForDates") private var useSystemLocale = true
+    @AppStorage("DrawTagsBranchesOnRightSide") private var labelsOnRight = false
+    @AppStorage("SymbolizeRefNames") private var symbolizeRefs = false
+    @AppStorage("FullCommitMessageOnLogLine") private var fullMessage = false
     var body: some View {
         Form {
             MessageEditorFontSettings()
@@ -2175,6 +2212,10 @@ struct LogDialogSettings: View {
                     Toggle("Short date/time format in log messages", isOn: $shortDate).disabled(!useSystemLocale)
                     Toggle("Relative Times in log", isOn: $relative)
                     Toggle("Use system locale for date/time", isOn: $useSystemLocale)
+                    LogPreferenceCheckbox(title: "Symbolize ref names", value: $symbolizeRefs).fixedSize(horizontal: false, vertical: true)
+                    LogPreferenceCheckbox(title: "Draw tag/branch labels on right side", value: $labelsOnRight).fixedSize(horizontal: false, vertical: true)
+                    LogPreferenceCheckbox(title: "Display subject and body of commit messages", value: $fullMessage).fixedSize(horizontal: false, vertical: true)
+                    Text("Reopen history windows to apply reference-label and full-message choices.").font(.caption).foregroundStyle(.secondary)
                     Toggle("Enable Gravatar", isOn: $enableGravatar).help("Enable showing Gravatar image in Log Dialog")
                     TextField("Gravatar URL", text: $gravatarURL).disabled(!enableGravatar).help("Allow to use custom Gravatar URL; %HASH% is replaced by the author email hash")
                     Toggle("Use MD5 for Gravatar", isOn: $gravatarMD5).disabled(!enableGravatar)
@@ -2295,8 +2336,9 @@ struct RevisionTable: NSViewRepresentable {
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = !LogRevisionColumns.visible("graph") || model.historyWalk.followRenames
         let graphChanged = coordinator.graph != model.graph; coordinator.graph = model.graph
         let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
-        let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility
+        let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility || coordinator.referenceContext != model.referenceContext
         coordinator.referenceVisibility = model.referenceVisibility
+        coordinator.referenceContext = model.referenceContext
         let searchHighlightsChanged = coordinator.searchHighlights != model.searchHighlights
         coordinator.searchHighlights = model.searchHighlights
         let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
@@ -2336,6 +2378,7 @@ struct RevisionTable: NSViewRepresentable {
         var searchHighlights: [String: [String: [NSRange]]] = [:]
         var highlightedRevision: String?
         var referenceVisibility = HistoryReferenceVisibility.all
+        var referenceContext = HistoryReferenceContext()
         var scrollRequest = 0
         var colorRevision = -1
         init(model: LogWindowModel) { self.model = model }
@@ -2385,15 +2428,27 @@ struct RevisionTable: NSViewRepresentable {
             case "date": text.stringValue = dateSettings.format(entry.date)
             default:
                 let label = NSMutableAttributedString()
-                for reference in model.visibleReferences(for: entry) {
+                let badges = NSMutableAttributedString()
+                for badge in model.visibleReferenceLabels(for: entry) {
+                    let reference = badge.reference
                     let color = LogPalette.native(LogColorRole.reference(reference, goodTerm: model.bisectGoodTerm, badTerm: model.bisectBadTerm), preferences: model.colorPreferences)
                     let foreground = NSColor(name: nil) { _ in LogPalette.foreground(background: color) }
-                    label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color, .foregroundColor: foreground, .font: logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)]))
-                    label.append(NSAttributedString(string: " "))
+                    let badgeFont = logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)
+                    let attributes: [NSAttributedString.Key: Any] = [.backgroundColor: color, .foregroundColor: foreground, .font: badgeFont]
+                    badges.append(NSAttributedString(string: " ", attributes: attributes))
+                    if badge.singleRemote {
+                        let marker = NSMutableAttributedString(attachment: LogUpstreamMarker.attachment(foreground: foreground, font: badgeFont, isHead: entry.isHead))
+                        marker.addAttributes(attributes, range: NSRange(location: 0, length: marker.length)); badges.append(marker)
+                    }
+                    badges.append(NSAttributedString(string: badge.text + " ", attributes: attributes))
+                    badges.append(NSAttributedString(string: " "))
                 }
                 let message = NSMutableAttributedString(string: entry.logLine(fullMessage: model.fullCommitMessageOnLogLine), attributes: [.font: text.font!])
-                applySearchHighlights(message, hash: entry.hash, column: "message")
-                label.append(message)
+                if model.shouldHighlightMessage(entry) { applySearchHighlights(message, hash: entry.hash, column: "message") }
+                if model.drawTagsBranchesOnRightSide {
+                    label.append(message)
+                    if badges.length > 0 { label.append(NSAttributedString(string: " ", attributes: [.font: text.font!])); label.append(badges) }
+                } else { label.append(badges); label.append(message) }
                 text.attributedStringValue = label
             }
             if let column = column?.identifier.rawValue, column != "message", let ranges = searchHighlights[entry.hash]?[column], !ranges.isEmpty {
@@ -2401,7 +2456,8 @@ struct RevisionTable: NSViewRepresentable {
                 applySearchHighlights(value, hash: entry.hash, column: column)
                 text.attributedStringValue = value
             }
-            if column?.identifier.rawValue == "date" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.date, absolute: true) : nil }
+            if column?.identifier.rawValue == "message" { text.toolTip = !model.drawTagsBranchesOnRightSide && !entry.references.isEmpty ? entry.historySubject : nil }
+            else if column?.identifier.rawValue == "date" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.date, absolute: true) : nil }
             else if column?.identifier.rawValue == "committerDate" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.committerDate, absolute: true) : nil }
             else { text.toolTip = entry.subject + "\n" + entry.hash }
             let cell = NSTableCellView(); cell.addSubview(text); cell.textField = text
