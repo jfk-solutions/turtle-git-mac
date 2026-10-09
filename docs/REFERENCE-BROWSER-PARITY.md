@@ -434,8 +434,9 @@ Two selected references now offer source `..` and `...` Log ranges. The last new
 selected reference is the right endpoint, independently of displayed sorting.
 Labels strip source namespaces; callbacks pass canonical typed HistoryRevisionRange
 values through the shared Log factory to avoid branch/tag ambiguity and the
-single-revision field rejecting range expressions. Copy reference names exports all selected canonical names in displayed
-order using native LF. Filtering discards hidden selections and keeps visible
+single-revision field rejecting range expressions. Copy ref names exports all selected source-short names in displayed
+order using native LF. Local branches omit `refs/heads/`; other namespaces omit
+`refs/`. Canonical names remain unchanged for backend operations. Filtering discards hidden selections and keeps visible
 ones. Single-reference actions remain available only with one selected row.
 
 `test-reference-standalone.py` checks hidden actual table/menu actions, last-selected
@@ -445,7 +446,7 @@ The existing browser, deletion and actual Finder menu receivers are regressions.
 See `qa/reference-standalone-2026-10-09.json` for results and remaining limits.
 
 Two-reference Compare/Unified Diff and batch deletion are recorded below.
-Folder context menus remain pending. This checkpoint does not establish complete
+Branch/tag folder commands are recorded below; remote folder dialogs remain pending. This checkpoint does not establish complete
 standalone menus, physical app/Finder activation, range Log window rendering,
 screenshots, signed sandbox or full application parity.
 
@@ -510,5 +511,44 @@ Final results and limits are recorded in `qa/reference-comparison-2026-10-09.jso
 
 Physical sheets, full Changed Files dialog parity, every patch/child-editor cleanup
 timing, external viewer launch, Unicode/config races and signed Finder/App Store
-acceptance are not established by hidden checks. Folder menus and full app parity
+acceptance are not established by hidden checks. Remote folder menus and full app parity
 remain unfinished.
+
+
+## Branch and tag folder menus
+
+The native namespace outline now has context menus; an empty list selection uses
+the same folder commands. Branch folders and descendants offer **Create Branch…**
+with Copy artwork. Tag folders and descendants offer **Create Tag…** with Tag
+artwork and **Delete all tags** with Delete artwork. Both end with source **Copy
+ref names**; folder Copy writes an empty value, independently of selected leaves,
+matching the source's empty folder-command leaf vector. Prefix boundaries are
+checked, so `refs/headsh` cannot become a branch namespace.
+
+Folder creation uses the shared browser-owned Branch/Tag dialog with HEAD selected
+and no guessed name or row base. Source folder commands do not require a working
+tree; bare creation remains available. Existing creation configuration/transaction,
+picker, close and refresh behavior is shared with the remote-row creation route.
+A rejected presenter releases the child and refreshes the catalog.
+
+Delete all tags selects and captures the currently displayed rows, including the
+folder scope, nested setting and text filter. It uses existing cancellable tag
+confirmation/deletion/Refresh behavior. A single-selection chooser can still run
+this folder command against all displayed tags. Empty results disable deletion
+instead of passing an empty vector to source confirmation. Pending confirmation
+blocks duplicate/F5/close/Quit; forced close rejects late Yes. Undisplayed tags
+remain intact. Remote management, remote Fetch/tag folder commands and remote tag
+dialogs are still pending; this is not complete folder or whole-app parity.
+
+The source review also corrected copied leaf names from canonical to source-short
+spelling, and the menu title to **Copy ref names**. The existing standalone native
+receiver now checks `left\nright`, while backend Log/selection references stay
+canonical. Core checks preserve namespace boundaries and byte-exact Unicode names.
+
+`test-reference-folders.py` checks hidden actual outline menus/icons, real branch
+and tag creation from HEAD, filtered/scoped deletion No/Yes/Refresh, parent gates,
+rejected creation, late confirmation, single-picker deletion and bare tag creation.
+Standalone, batch deletion and comparison receivers remain regressions. Final
+results and limits are in `qa/reference-folders-2026-10-09.json`. Physical tree
+right-click/hit-testing/focus/light-dark/VoiceOver, all mutation/creation error
+variants, Unicode whitespace trimming and signed acceptance remain unverified.

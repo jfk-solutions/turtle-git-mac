@@ -1,0 +1,71 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "04a16450b596713190a717357613b5ba4c81707f",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Branch/tag folder menus, owned HEAD creation, displayed-list tag deletion and corrected source-short copied names. Remote folders and full app parity remain unfinished.",
+  "verification": {
+    "source": "BrowseRefs tree context passes an empty leaf vector and selects the clicked folder. Heads/tags descendants use IsFrom namespace boundaries; CreateBranch/Tag use no initial reference (HEAD), DeleteAllTags selects displayed list rows, and Copy iterates the empty folder vector. StripRefName removes refs/heads/ or refs/; source Copy ref names title replaces previous native title. Existing leaf clipboard exports now use source namespace shortening and native LF.",
+    "core": "42 ReferenceBrowserTests/ReferenceCreationTests/RevisionComparisonTests pass both Git engines. Added namespace boundary and byte-exact short-name checks; existing creation/comparison/reference mutation regressions pass.",
+    "native": "Hidden actual native outline menu/title/icon checks pass both engines. Real branch/tag creation uses HEAD even from a nested folder/selected old branch; shared configured owned dialog and defaults. Scoped/filtered Delete all tags captures displayed rows, verifies No/Yes/Refresh and undisplayed preservation, duplicate/F5/close/Quit/empty-result gates, rejected creation and ignored late Yes. Single-picker displayed multi-row deletion and bare tag creation pass. No shared clipboard is used.",
+    "regressions": "Standalone native receiver now expects source-short copied names. Standalone, batch deletion, two-reference comparison and remote Create Branch receivers pass both engines on final code, including existing captured-hash and recorded forced-process cleanup.",
+    "builds": "Unsigned Debug/AppStore builds and both bundle audits pass. Embedded NOTICE files byte-equal source. Universal Git/LFS, helpers, Finder extension, licenses and 99 original icons audited.",
+    "cycles": "Zero AttributeGraph cycles in all five native receiver logs.",
+    "inventory_ci_docs": "Upstream pin check and safe workflow YAML parse/exact new folder step pass. Local documentation site build follows manifest creation. Hosted CI remains unverified."
+  },
+  "limitations": [
+    "Remote management, remote Fetch/tag folder entries and Delete Remote Tag dialog remain pending; branch/tag menus with configured remotes still lack those remote commands.",
+    "Full browser/application dialog functionality/layout parity, physical tree hit-testing/focus/keyboard/light-dark/VoiceOver and refreshed screenshots remain unfinished.",
+    "Not every creation/deletion metadata/error/process timing, Unicode whitespace TrimRight behavior or external config/ref race is individually verified. Existing token-backed mutation regressions do not establish every folder-specific cleanup timing.",
+    "No signed Finder activation/App Store acceptance, real authentication/network, push, hosted CI or deployment claimed."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_processes": [],
+    "current_temporary_directories": [],
+    "current_preference_domains": []
+  },
+  "preference_cleanup": {
+    "removed": [
+      {
+        "domain": "TurtleGit.ReferenceCreateBranch.QA.21B07022-EA27-4CC8-96EA-DAE76EF895E5",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceFolders.QA.6D1843D7-AD1C-4841-B5F5-A2DA9B0EB417",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceCreateBranch.QA.E1985348-4A76-46AA-A8A0-3305F45912EB",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceFolders.QA.AA512260-9588-40DC-8EA7-A068B4CD2F7E",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      }
+    ],
+    "preserved": []
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "d45a832a229daf694cbe01b716ad2b70796b48b2b25e5f91c86f515ee38707a8",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "b193672adc605f2eff4c52edc1918127187a8d8d5f03bf995caa53804ee0f8ba",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "a1a01d2b7ef3c13fd8999a698ef4418056d709f11e9e34bf81612fa32580056e",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "5bf8e9556884c309b53b3ad717062e15ce0605605472604165078d85c3ba3803",
+    "docs/GETTING-STARTED.md": "f24bd9574ca0a934ac20e27bf92b658dcd714de3547f00f8c328b89f5a7ecf42",
+    "docs/REFERENCE-BROWSER-PARITY.md": "2dfeaa45c2770fe05be0b97db9993868d8751c5920029eda388e4a9e8dd8ae69",
+    "docs/TESTING.md": "a161e8aeeeeabcef283910656b084523be61e4618d4d0f6869c1c1350314b153",
+    "docs/upstream-files.csv": "509826325d432a0ad495f9947a9c66d31c8e52e7353cd4cfbced8b70c219157f",
+    "docs/qa/reference-standalone-native-2026-10-09.swift": "4ca54e8311d7757d698ec737597f0be29125847b083dbd2060c3aa2e120d7d2c",
+    "docs/qa/reference-folders-native-2026-10-09.swift": "52160c92f78e17ac99c6327e020d64f81d36d1feaa3a7860ca0cbed757c17135",
+    "scripts/test-reference-folders.py": "b019d2cdba38526441cc12061cf9c1467a9aab99ff891dd6f01e6c3a8989dbec"
+  },
+  "log_directory": "build/qa/reference-folders-2026-10-09"
+}

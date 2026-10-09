@@ -306,10 +306,7 @@ public struct ReferenceBrowserRange: Sendable {
     public func history(symmetric: Bool = false) -> HistoryRevisionRange { HistoryRevisionRange(from: from.rawValue, to: to.rawValue, kind: symmetric ? .symmetricDifference : .difference) }
     public func revision(symmetric: Bool = false) -> String { from.rawValue + (symmetric ? "..." : "..") + to.rawValue }
     public func label(symmetric: Bool = false) -> String {
-        func short(_ name: GitReferenceName) -> String {
-            GitReferenceName.removingPrefix("refs/heads/", from: name.rawValue) ?? GitReferenceName.removingPrefix("refs/", from: name.rawValue) ?? name.rawValue
-        }
-        return short(from) + (symmetric ? "..." : "..") + short(to)
+        from.browserShortName + (symmetric ? "..." : "..") + to.browserShortName
     }
 }
 
@@ -336,5 +333,15 @@ extension GitRepository {
             guard [40, 64].contains(hash.utf8.count), hash.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }) else { throw RevisionComparisonFailure.range }
         }
         return try run(["diff-tree", "-r", "-p", "--stat", "--no-ext-diff", "--no-textconv", "--no-color", "--end-of-options", comparison.fromHash, comparison.toHash, "--"], cancellation: token).stdout
+    }
+}
+
+public extension GitReferenceName {
+    /// CGit::StripRefName used by BrowseRefs labels and copied names.
+    var browserShortName: String {
+        Self.removingPrefix("refs/heads/", from: rawValue) ?? Self.removingPrefix("refs/", from: rawValue) ?? rawValue
+    }
+    func browserIsFrom(_ namespace: String) -> Bool {
+        Self.equal(rawValue, namespace) || Self.removingPrefix(namespace + "/", from: rawValue) != nil
     }
 }

@@ -42,7 +42,7 @@ import TurtleGitCore
         try invoke("Show log of left..right");try invoke("Show log of left...right")
         try require(logs==["refs/heads/left..refs/heads/right","refs/heads/left...refs/heads/right"],"Canonical source range order")
         var options=HistoryOptions();options.revisionRange=owner.model.range!.history();let actual=try await repo.history(options:options);try require(actual.count==1 && actual.first?.subject=="right","Actual history range query")
-        try invoke("Copy reference names");try require(copies.last=="refs/heads/left\nrefs/heads/right","Copy displayed canonical order")
+        try invoke("Copy ref names");try require(copies.last=="left\nright","Copy displayed source-short order")
         refreshMenu();try require(!menu.items.contains{$0.title=="Select" || $0.title=="Rename" || $0.title=="Delete branch"},"Multi selection leaked single-ref action")
         owner.model.descending=true;try await wait([owner.window!]){table.selectedRowIndexes.count==2 && (table.view(atColumn:0,row:0,makeIfNecessary:true) as? NSTableCellView)?.textField?.stringValue==owner.model.rows.first?.name}
         try require(owner.model.range?.revision()==logs[0],"Sort changed range orientation")

@@ -419,4 +419,11 @@ extension ReferenceBrowserTests {
         XCTAssertEqual(head, try Data(contentsOf: root.appendingPathComponent(".git/HEAD"))); XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index"))); XCTAssertEqual(file, try Data(contentsOf: root.appendingPathComponent("file")))
     }
 
+    func testSourceBrowserNamespaceAndShortNamesPreserveBytes() {
+        let cases = [("refs/heads/topic", "topic"), ("refs/tags/v1", "tags/v1"), ("refs/remotes/origin/topic", "remotes/origin/topic"), ("refs/custom/x", "custom/x"), ("HEAD", "HEAD"), ("refs/heads/Cafe\u{301}", "Cafe\u{301}")]
+        for (raw, short) in cases { XCTAssertTrue(GitReferenceName(raw).browserShortName.utf8.elementsEqual(short.utf8)) }
+        for raw in ["refs/heads", "refs/heads/topic", "refs/heads/Cafe\u{301}"] { XCTAssertTrue(GitReferenceName(raw).browserIsFrom("refs/heads")) }
+        for raw in ["refs/headsh", "refs/heads-other/topic", "refs/tags/heads"] { XCTAssertFalse(GitReferenceName(raw).browserIsFrom("refs/heads")) }
+    }
+
 }

@@ -432,3 +432,18 @@ revision/patch process-group termination on forced browser close. Viewer launch
 is intercepted; no main app or external application opens. Run ReferenceBrowserTests
 and RevisionComparisonTests plus standalone/batch receiver regressions. Complete
 physical comparison/viewer/child-editor and signed acceptance remain pending.
+
+
+### Reference folder commands
+
+After a Debug build run `python3 scripts/test-reference-folders.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+This hidden shipping-controller receiver checks heads/tag folder menu order and
+original icons, empty folder clipboard interception, actual HEAD branch/tag
+creation with owned defaults, filtered/scoped Delete all tags No/Yes/Refresh,
+empty result/duplicate/F5/close/Quit and late-answer gates, rejected creation,
+single-picker multi-row deletion and bare tag creation. It never orders a window,
+constructs RepositoryModel or uses a shared clipboard. Run ReferenceBrowser,
+ReferenceCreation and RevisionComparison Core tests, plus standalone/batch and
+comparison native regressions. Standalone Copy now expects source-short names.
+Remote folder dialogs and physical/signed/complete creation variants remain pending.

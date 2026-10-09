@@ -80,8 +80,8 @@ Choose **Browse References** in the TurtleGit menu or sidebar to inspect branche
 tags and other reference namespaces. The standalone window supports multiple
 selection. Select two references and use their context menu to open a Log range;
 the last selected reference is the right endpoint. Double-click opens Log, or
-Repo-browser for a tree object. Copy reference names copies selected canonical
-names in displayed order. Revision pickers in other dialogs remain single-selection.
+Repo-browser for a tree object. Copy ref names copies selected shortened
+names in displayed order (branch names, or tags/remotes with their namespace). Revision pickers in other dialogs remain single-selection.
 
 Single-reference menus include Fetch, Merge, Switch, creation, rename, tracking and
 deletion where applicable. Some standalone and batch menus remain unfinished; see
@@ -98,3 +98,8 @@ or **Show changes as unified diff** for a patch. Comparisons follow the displaye
 list order; Log ranges put the last-selected reference on the right. Unified Diff
 uses the displayed object IDs even if a branch moves afterward. Hold Shift to
 reverse the configured built-in/external unified viewer choice.
+
+Right-click a branch or tag folder in Browse References to create a branch or tag
+from HEAD. **Delete all tags** applies to the tag rows currently displayed in that
+folder and filter. Tags outside the displayed list remain intact. Remote folder
+management and remote-tag dialogs are still being ported.

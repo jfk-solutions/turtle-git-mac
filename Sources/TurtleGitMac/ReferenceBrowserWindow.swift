@@ -53,6 +53,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         model.onEditDescription = { [weak self] in self?.editDescription() }
         model.onSelectTracking = { [weak self] in self?.selectTracking() }
         model.onFetch = { [weak self] in self?.showFetch() }
+        model.onCreateFolder = { [weak self] isTag in self?.showCreateFolder(isTag: isTag) }
         model.onCreateBranch = { [weak self] in self?.showCreateBranch() }
         model.onMerge = { [weak self] in self?.showMerge() }
         model.onSwitch = { [weak self] in self?.showSwitch() }
@@ -160,9 +161,17 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         child.model.load(remote: remote)
     }
     func showCreateBranch() {
-        guard let owner = window, owner.attachedSheet == nil, model.canCreateBranch, let hash = model.chosen?.hash else { return }
-        model.hasChild = true
-        let child = BranchTagWindowController(repository: model.repository, access: model.access, isTag: false, preferences: model.preferences)
+        guard model.canCreateBranch, let hash = model.chosen?.hash else { return }
+        showCreation(isTag: false, revision: hash)
+    }
+    func showCreateFolder(isTag: Bool) {
+        guard model.canCreateFolder(isTag: isTag) else { return }
+        showCreation(isTag: isTag, revision: nil)
+    }
+    private func showCreation(isTag: Bool, revision: String?) {
+        guard let owner = window, owner.attachedSheet == nil, !model.busy, !model.hasChild, !model.closed, model.renameReference == nil else { return }
+        owner.makeFirstResponder(nil); model.hasChild = true
+        let child = BranchTagWindowController(repository: model.repository, access: model.access, isTag: isTag, preferences: model.preferences)
         branchDialog = child; model.configureBranch(child)
         child.onClosed = { [weak self, weak child] in
             guard let self, let child, self.branchDialog === child else { return }
@@ -170,7 +179,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             self.branchDialog = nil; self.model.hasChild = false; if !self.model.closed { self.model.load() }
         }
         guard let window = child.window, presentBranch(owner, window) else { child.close(); return }
-        child.model.load(revision: hash)
+        child.model.load(revision: revision)
     }
     func showMerge() {
         guard let owner = window, owner.attachedSheet == nil, model.canMerge, let reference = model.chosen?.name.rawValue else { return }
@@ -232,7 +241,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var selectedRows: [ReferenceBrowserRow] { rows.filter { selection.contains($0.reference.name) } }
     var range: ReferenceBrowserRange? { ReferenceBrowserRange(references: selectedRows.map { $0.reference.name }, lastSelected: lastSelected) }
     var copyReferences: (String) -> Void = { text in NSPasteboard.general.clearContents(); NSPasteboard.general.setString(text, forType: .string) }
-    func copySelection() { guard !invalidated, !busy, !hasChild, renameReference == nil else { return }; copyReferences(selectedRows.map { $0.reference.name.rawValue }.joined(separator: "\n")) }
+    func copySelection() { guard !invalidated, !busy, !hasChild, renameReference == nil else { return }; copyReferences(selectedRows.map { $0.reference.name.browserShortName }.joined(separator: "\n")) }
     func logRange(symmetric: Bool) { guard !invalidated, !busy, !hasChild, renameReference == nil, let range else { return }; onLogRange?(range.history(symmetric: symmetric)) }
     func activateSelection() {
         if picking { accept(); return }
@@ -254,8 +263,23 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     var canDelete: Bool { !invalidated && !busy && !hasChild && renameReference == nil && deletionKind != nil }
     func deleteChosen() {
-        guard canDelete, let confirmDeletion else { return }
-        let references = selectedRows.map { $0.reference.name }
+        guard canDelete else { return }
+        deleteReferences(selectedRows.map { $0.reference.name })
+    }
+    var canUseFolder: Bool { !invalidated && !busy && !hasChild && renameReference == nil && folders.contains(folder) }
+    var onCreateFolder: ((Bool) -> Void)?
+    func canCreateFolder(isTag: Bool) -> Bool { canUseFolder && folder.browserIsFrom(isTag ? "refs/tags" : "refs/heads") }
+    var canDeleteAllTags: Bool { canUseFolder && folder.browserIsFrom("refs/tags") && !rows.isEmpty }
+    func deleteAllTags() {
+        guard canDeleteAllTags else { return }
+        let references = rows.map { $0.reference.name }
+        guard references.allSatisfy({ $0.browserIsFrom("refs/tags") }) else { return }
+        // Source selects every currently displayed row, even in a single picker.
+        selection = Set(references); lastSelected = references.last
+        deleteReferences(references)
+    }
+    private func deleteReferences(_ references: [GitReferenceName]) {
+        guard !invalidated, !busy, !hasChild, renameReference == nil, !references.isEmpty, let confirmDeletion else { return }
         let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil
         Task {
             var failure: String?
@@ -500,6 +524,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         tree.delegate = context.coordinator; tree.dataSource = context.coordinator; table.delegate = context.coordinator; table.dataSource = context.coordinator
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.activateSelection)
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
+        let folderMenu = NSMenu(); folderMenu.delegate = context.coordinator; tree.menu = folderMenu
         for view in [tree, table] { let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true; scroll.borderType = .bezelBorder; scroll.documentView = view; split.addArrangedSubview(scroll) }
         context.coordinator.tree = tree; context.coordinator.table = table
         split.setPosition(190, ofDividerAt: 0)
@@ -509,7 +534,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let coordinator = context.coordinator; coordinator.model = model; coordinator.update()
         DispatchQueue.main.async { [weak coordinator, weak table = coordinator.table, weak split] in guard let coordinator, let table else { return }; if let split, !coordinator.positioned, split.bounds.width > 0 { split.setPosition(190, ofDividerAt: 0); coordinator.positioned = true }; coordinator.model.focusIfReady(table) }
     }
-    static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil }
+    static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.tree?.menu?.delegate = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil }
     @MainActor final class Folder: NSObject { let key: GitReferenceName; var children: [Folder] = []; weak var parent: Folder?; init(_ key: GitReferenceName) { self.key = key } }
     @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate, NSMenuDelegate, NSSplitViewDelegate {
         var model: ReferenceBrowserWindowModel
@@ -606,10 +631,23 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         @objc func activateSelection() { model.activateSelection() }
         @objc func accept() { model.accept() }
         func menuNeedsUpdate(_ menu: NSMenu) {
-            menu.removeAllItems(); guard !model.busy, !model.hasChild, model.renameReference == nil, let table else { return }
-            if visible.indices.contains(table.clickedRow), !table.selectedRowIndexes.contains(table.clickedRow) { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
-            guard !model.selectedRows.isEmpty else { return }; menu.autoenablesItems = false
+            menu.removeAllItems(); guard !model.closed, !model.busy, !model.hasChild, model.renameReference == nil, let table else { return }
+            let fromTree = menu === tree?.menu
+            if fromTree, let tree, let clicked = tree.item(atRow: tree.clickedRow) as? Folder, clicked.key != model.folder { model.setFolder(clicked.key) }
+            if !fromTree, visible.indices.contains(table.clickedRow), !table.selectedRowIndexes.contains(table.clickedRow) { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
+            menu.autoenablesItems = false
             func item(_ title: String, _ action: Selector, _ icon: MenuIcon, _ enabled: Bool) { let entry = NSMenuItem(title: title, action: action, keyEquivalent: ""); entry.target = self; entry.image = icon.contextImage(defaults: model.preferences); entry.isEnabled = enabled; menu.addItem(entry) }
+            if fromTree || model.selectedRows.isEmpty {
+                guard model.canUseFolder else { return }
+                if model.canCreateFolder(isTag: false) { item("Create Branch…", #selector(createFolderBranch), .branch, model.onCreateFolder != nil) }
+                if model.canCreateFolder(isTag: true) {
+                    item("Create Tag…", #selector(createFolderTag), .tag, model.onCreateFolder != nil)
+                    item("Delete all tags", #selector(deleteAllTags), .remove, model.canDeleteAllTags && model.confirmDeletion != nil)
+                }
+                // Remote management/tag dialogs are not yet ported here.
+                if !menu.items.isEmpty { menu.addItem(.separator()) }
+                item("Copy ref names", #selector(copyFolder), .copy, true); return
+            }
             func deletion() {
                 if model.canDelete, let kind = model.deletionKind { if !menu.items.isEmpty { menu.addItem(.separator()) }; item(kind.title(count: model.selectedRows.count), #selector(deleteReference), .remove, model.confirmDeletion != nil) }
             }
@@ -618,9 +656,9 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 item("Show changes as unified diff", #selector(unifiedPair), .unifiedDiff, model.onUnifiedPair != nil)
                 item("Show log of " + range.label(), #selector(logRange), .log, model.onLogRange != nil)
                 item("Show log of " + range.label(symmetric: true), #selector(logSymmetricRange), .log, model.onLogRange != nil)
-                deletion(); menu.addItem(.separator()); item("Copy reference names", #selector(copyName), .copy, true); return
+                deletion(); menu.addItem(.separator()); item("Copy ref names", #selector(copyName), .copy, true); return
             }
-            guard let chosen = model.chosen else { deletion(); if !menu.items.isEmpty { menu.addItem(.separator()) }; item("Copy reference names", #selector(copyName), .copy, true); return }
+            guard let chosen = model.chosen else { deletion(); if !menu.items.isEmpty { menu.addItem(.separator()) }; item("Copy ref names", #selector(copyName), .copy, true); return }
             if model.picking { item("Select", #selector(accept), .checkout, model.canAccept); menu.addItem(.separator()) }
             if chosen.objectType == "commit" { item("Show log", #selector(log), .log, model.onLog != nil) }
             item("Browse repository", #selector(browse), .repositoryBrowser, model.onBrowse != nil)
@@ -640,8 +678,12 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 item("Select tracked branch", #selector(selectTracking), .branch, model.onSelectTracking != nil)
             }
             deletion()
-            menu.addItem(.separator()); item("Copy reference name", #selector(copyName), .copy, true)
+            menu.addItem(.separator()); item("Copy ref names", #selector(copyName), .copy, true)
         }
+        @objc func createFolderBranch() { if model.canCreateFolder(isTag: false) { model.onCreateFolder?(false) } }
+        @objc func createFolderTag() { if model.canCreateFolder(isTag: true) { model.onCreateFolder?(true) } }
+        @objc func deleteAllTags() { model.deleteAllTags() }
+        @objc func copyFolder() { if model.canUseFolder { model.copyReferences("") } }
         @objc func deleteReference() { model.deleteChosen() }
         @objc func logRange() { model.logRange(symmetric: false) }
         @objc func logSymmetricRange() { model.logRange(symmetric: true) }
