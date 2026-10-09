@@ -54,6 +54,10 @@ jobs:
         run: python3 scripts/test-clone-progress.py
       - name: Native Switch options and progress recovery
         run: python3 scripts/test-switch-progress.py
+      - name: Native all-reference browser and Reset handoff
+        run: python3 scripts/test-reference-browser.py
+      - name: Native Switch full reference and commit pickers
+        run: python3 scripts/test-switch-pickers.py
       - name: Native Branch and Tag creation handoffs
         run: python3 scripts/test-branch-tag-handoff.py
       - name: Native Export progress and ZIP cancellation

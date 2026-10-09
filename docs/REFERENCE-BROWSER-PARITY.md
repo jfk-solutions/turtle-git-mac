@@ -1,6 +1,6 @@
 # Reference browser parity
 
-TurtleGit's Reset Branch browse route uses a native reference browser based on
+TurtleGit's Reset and Switch Branch browse routes uses a native reference browser based on
 TortoiseGit `BrowseRefsDlg`, `BrowseRefsDlgFilter`, `GitRevRefBrowser` and
 `CChooseVersion` at commit `7338078f8ddd924b8cddee35f512f2286072136d`.
 This is a partial port. It is not full BrowseRefs or whole-app acceptance.
@@ -54,8 +54,8 @@ and remote branches, and working-tree comparison is suppressed in bare repos.
 Reflog is owned by the browser and blocks parent selection/close until released.
 Other context callbacks retain canonical names. Remote/local deletion, rename,
 tracking edits, description edits, fetch/push, range selection/commands, tree
-context commands and complete source menu parity remain unfinished. This browser
-has not yet replaced the choosers in all other dialogs.
+context commands and complete source menu parity remain unfinished. Reset and Switch use this browser; it has not yet replaced the choosers in
+all other dialogs.
 
 ## Verification and limits
 

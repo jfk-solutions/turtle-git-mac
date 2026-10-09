@@ -30,9 +30,12 @@ status/log views; a successful result closes the options after acknowledgement.
 App and Finder Switch commands, the status branch link, and the log revision
 checkout action share this native dialog. A log checkout preselects its exact
 commit, while retaining the repository access lease even if the workspace changes.
-The reference browse sheet searches branch names; the commit chooser searches the
-latest 200 revisions across branches. These are partial replacements for upstream
-Browse References and selection-mode Log, rather than complete chooser ports.
+Branch browse now owns the native all-reference namespace browser, including
+tags, remotes, notes/custom refs, metadata columns and filters. Commit browse owns
+the full Log in single-selection mode at the typed revision, with graph/details
+and no Working Tree row. Both follow CChooseVersion and preserve modal ownership.
+The reusable browser and Log themselves remain partial ports; other chooser
+consumers still use the earlier flat chooser.
 
 ## Verification
 
@@ -51,8 +54,11 @@ of the actual native dialog; no mockup or synthetic image was used.
 
 ## Remaining differences
 
-- Complete Browse References tree, tag/ref categories, filtering and context menus.
-- Selection-mode Log with graph, pagination, all revision controls and history combo.
+- Complete Browse References mutation/range/tree context commands, sort policies
+  and physical tree/filter/menu acceptance; the native namespace/table/filter subset
+  is now used by Switch. See [reference browser parity](REFERENCE-BROWSER-PARITY.md).
+- Full Log commands/revision controls, history combos and physical selection-mode
+  graph/pagination/keyboard acceptance. The full native Log picker route is wired.
 - Native UI verification of remote three-state tracking, tag warning/abort, force,
   merge conflict recovery and the log/Finder entry points; backend tests cover their
   checkout effects, but do not establish native UI parity.
@@ -100,3 +106,26 @@ receivers for express Switch and Branch/Tag. Hidden hosting/controller checks do
 not prove physical nested sheets, default buttons, Root factory routing, signing,
 Finder activation or signed sandbox acceptance. The existing Switch screenshot
 predates shared result ownership. Full Switch/application parity remains partial.
+
+## Owned full chooser checkpoint
+
+The reference browser returns canonical names and refreshes the catalog before
+selecting the Branch/Tag/Commit row. Cancel refreshes the original branch selection.
+Branch/tag choices preserve the unused commit draft. A late-created tag is
+refreshed through the native window's F5 dispatch and selected through a fresh
+parent return catalog in the receiver. Switch defaults are reapplied
+for the selected namespace: existing local branches, remote new-branch/tracking
+suggestions and remembered tag/commit new-branch behavior; force and Merge remain
+unchanged. Native revision controls receive a once-only focus request after a
+successful handoff. Commit Log selection returns a full hash; cancellation preserves
+the typed draft. Duplicate/cross-target requests, Checkout/reload/parent close/Quit
+are gated while the picker or reference refresh is pending. Rejected presentation
+and forced parent close release owned children, cancel reference refresh and reject
+late results.
+
+[Switch picker QA](qa/switch-pickers-2026-10-09.json) records private hidden native
+receivers and the real Switch progress regression on both Git engines. Presenters
+release parent keyboard focus without ordering windows or showing real sheets.
+Physical keyboard/default buttons, sheet focus restoration, error/close-during-load
+recovery, visual/theme/accessibility comparison and signed security-scope/Finder
+acceptance remain unverified. Existing Switch screenshots predate these routes.

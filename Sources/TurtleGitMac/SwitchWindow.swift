@@ -6,16 +6,25 @@ import TurtleGitCore
     let model: SwitchWindowModel
     var onClosed: () -> Void = {}
     private var progressController: SwitchProgressWindowController?
+    private(set) var referencePicker: ReferenceBrowserWindowController?
+    private(set) var commitPicker: LogWindowController?
+    private var pickerRequest: UUID?
+    var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
+    var presentPicker: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController = { repository, access, choose, preferences in
+        LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences)
+    }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
         model = SwitchWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
             styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Switch/Checkout – TurtleGit"
         window.minSize = NSSize(width: 600, height: 390); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: SwitchDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: SwitchDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
+        model.onBrowsePicker = { [weak self] target in self?.showPicker(target, access: access, preferences: preferences) }
         window.setContentSize(NSSize(width: 620, height: 370)); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, !self.model.hasPendingTagConflict, self.model.browser == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, !self.model.hasPendingTagConflict, self.model.browser == nil, self.model.pickerTarget == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
             let controller = SwitchProgressWindowController(model: result)
@@ -27,8 +36,37 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "SwitchWindowController")
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.progress == nil && model.browser == nil && !model.hasPendingTagConflict && sender.attachedSheet == nil }
+    private func showPicker(_ target: CheckoutTarget, access: RepositoryAccessLease?, preferences: UserDefaults) {
+        guard let owner = window, owner.attachedSheet == nil, referencePicker == nil, commitPicker == nil, model.beginPicker(target) else { return }
+        let request = UUID(); pickerRequest = request
+        if target == .branch {
+            let child = ReferenceBrowserWindowController(repository: model.repository, access: access, initial: model.revision, preferences: preferences) { [weak self] name in
+                guard let self, self.pickerRequest == request else { return }
+                self.model.acceptReferenceSelection(name) { [weak self] in if self?.pickerRequest == request { self?.pickerRequest = nil } }
+            }
+            referencePicker = child; configureReferencePicker(child.model)
+            child.onClosed = { [weak self, weak child] in
+                guard let self, let child, self.referencePicker === child else { return }
+                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.referencePicker = nil
+            }
+            guard let window = child.window, presentPicker(owner, window) else { child.abandonPresentation(); referencePicker = nil; pickerRequest = nil; model.finishPicker(); return }
+            child.model.load()
+        } else {
+            let child = makeCommitPicker(model.repository, access, { [weak self] entry in
+                guard let self, self.pickerRequest == request else { return }; self.pickerRequest = nil; self.model.acceptCommitSelection(entry)
+            }, preferences)
+            commitPicker = child
+            child.onClosed = { [weak self, weak child] in
+                guard let self, let child, self.commitPicker === child else { return }
+                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.commitPicker = nil
+            }
+            child.model.endRevision = model.commitRevision.isEmpty ? nil : model.commitRevision
+            guard let window = child.window, presentPicker(owner, window) else { child.close(); commitPicker = nil; pickerRequest = nil; model.finishPicker(); return }
+            child.model.reload()
+        }
+    }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); pickerRequest = nil; referencePicker?.close(); referencePicker = nil; commitPicker?.close(); commitPicker = nil; onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.progress == nil && model.browser == nil && model.pickerTarget == nil && !model.hasPendingTagConflict && sender.attachedSheet == nil }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -44,7 +82,7 @@ import TurtleGitCore
     var onProgress: ((SwitchProgressWindowModel) -> Void)?
     var onChanged: (String) -> Void = { _ in }
     var onPostAction: ((SwitchPostAction, String) -> Void)?
-    func invalidate() { invalidated = true; conflictSnapshot = nil; progress?.invalidate() }
+    func invalidate() { invalidated = true; conflictSnapshot = nil; finishPicker(); referenceFocusRequest = 0; progress?.invalidate() }
     func abortTagConflict() { tagConflict = false; conflictSnapshot = nil }
     func finish(_ result: SwitchProgressWindowModel) {
         guard progress === result, !result.busy, !result.confirmingCancellation else { return }
@@ -62,6 +100,44 @@ import TurtleGitCore
     @Published var tagConflict = false
     @Published var browser: CheckoutTarget?
     @Published var commits: [LogEntry] = []
+    @Published private(set) var pickerTarget: CheckoutTarget?
+    @Published private(set) var referenceFocusRequest = 0
+    private var appliedReferenceFocusRequest = 0
+    private var referenceSelectionToken: OperationCancellation?
+    var onBrowsePicker: ((CheckoutTarget) -> Void)?
+    func canBrowse(_ target: CheckoutTarget) -> Bool { !busy && progress == nil && !hasPendingTagConflict && browser == nil && pickerTarget == nil && !invalidated && !finished && options.target == target && target != .tag }
+    func beginPicker(_ target: CheckoutTarget) -> Bool { guard canBrowse(target) else { return false }; pickerTarget = target; return true }
+    func finishPicker() { if referenceSelectionToken != nil { referenceSelectionToken?.cancel(); referenceSelectionToken = nil; busy = false }; pickerTarget = nil }
+    func focusReference(_ control: NSControl, target: CheckoutTarget) {
+        guard !invalidated, !finished, referenceFocusRequest > appliedReferenceFocusRequest, options.target == target,
+              !busy, pickerTarget == nil, browser == nil, progress == nil, !hasPendingTagConflict, error == nil,
+              control.isEnabled, let window = control.window, window.attachedSheet == nil else { return }
+        if window.makeFirstResponder(control) { appliedReferenceFocusRequest = referenceFocusRequest }
+    }
+    func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
+        guard !invalidated, !finished, pickerTarget == .branch else { return }
+        referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token; busy = true
+        let requested = name ?? revision, draft = commitRevision
+        Task {
+            var applied = false
+            defer { if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let catalog = try await repository.checkoutReferences(cancellation: token)
+                guard !invalidated, !finished, referenceSelectionToken === token, !token.isCancelled else { return }
+                references = catalog
+                if let reference = catalog.first(where: { GitReferenceName.equal($0.name, requested) }), let target = reference.target {
+                    options.target = target
+                    if target == .branch { branchRevision = requested } else { tagRevision = requested }; commitRevision = draft
+                } else { options.target = .commit; commitRevision = requested }
+                defaults(); applied = true
+            } catch { if !invalidated, referenceSelectionToken === token, !token.isCancelled { self.error = error.localizedDescription } }
+        }
+    }
+    func acceptCommitSelection(_ entry: LogEntry?) {
+        guard !invalidated, !finished, pickerTarget == .commit else { return }
+        if let entry { commitRevision = entry.hash; defaults(); referenceFocusRequest += 1 }; finishPicker()
+    }
     var close: () -> Void = {}
     var onSwitched: (String) -> Void = { _ in }
     var branches: [CheckoutReference] { references.filter { $0.target == .branch && ($0.symbolicTarget == nil || GitReferenceName.equal($0.name, branchRevision)) } }
@@ -70,7 +146,7 @@ import TurtleGitCore
     var remote: Bool { options.target == .branch && references.first { $0.name.utf8.elementsEqual(branchRevision.utf8) }?.remote == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; initialRevision = revision; self.preferences = preferences }
     func load(revision preset: String? = nil) {
-        guard !busy, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; busy = true
+        guard !busy, pickerTarget == nil, progress == nil, !hasPendingTagConflict, !invalidated, !finished else { return }; busy = true
         let revision = preset ?? initialRevision
         Task {
             defer { busy = false }
@@ -100,6 +176,7 @@ import TurtleGitCore
         }
     }
     func browse(_ target: CheckoutTarget) {
+        if let onBrowsePicker { guard canBrowse(target) else { return }; onBrowsePicker(target); return }
         guard !busy else { return }
         if target != .commit { browser = target; return }
         busy = true
@@ -111,7 +188,7 @@ import TurtleGitCore
         }
     }
     func checkout(allowTagConflict: Bool = false) {
-        guard !busy, progress == nil, browser == nil, !invalidated, !finished else { return }
+        guard !busy, pickerTarget == nil, progress == nil, browser == nil, !invalidated, !finished else { return }
         var snapshot = options; snapshot.revision = revision; snapshot.allowTagNameConflict = allowTagConflict
         if allowTagConflict, let captured = conflictSnapshot { snapshot = captured; snapshot.allowTagNameConflict = true }
         else if hasPendingTagConflict { return }
@@ -150,17 +227,17 @@ struct SwitchDialog: View {
                 VStack(spacing: 6) {
                     HStack {
                         SwitchRadio(title: "Branch", target: .branch, selection: $model.options.target).frame(width: 100)
-                        ReferencePopup(references: model.branches, selection: $model.branchRevision).disabled(model.options.target != .branch)
+                        ReferencePopup(references: model.branches, selection: $model.branchRevision, accessibilityLabel: "Switch branch revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .branch) }).disabled(model.options.target != .branch)
                         Button("…") { model.browse(.branch) }.accessibilityLabel("Browse references").disabled(model.options.target != .branch)
                     }.frame(height: 26)
                     HStack {
                         SwitchRadio(title: "Tag", target: .tag, selection: $model.options.target).frame(width: 100)
-                        ReferencePopup(references: model.tags, selection: $model.tagRevision).disabled(model.options.target != .tag)
+                        ReferencePopup(references: model.tags, selection: $model.tagRevision, accessibilityLabel: "Switch tag revision", focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .tag) }).disabled(model.options.target != .tag)
                         Color.clear.frame(width: 29)
                     }.frame(height: 26)
                     HStack {
                         SwitchRadio(title: "Commit", target: .commit, selection: $model.options.target).frame(width: 100)
-                        TextField("Commit", text: $model.commitRevision).disabled(model.options.target != .commit)
+                        SwitchRevisionField(text: $model.commitRevision, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.options.target != .commit)
                         Button("…") { model.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
@@ -188,7 +265,7 @@ struct SwitchDialog: View {
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-switch.html")!) }
             }
-        }.padding(16).disabled(model.busy)
+        }.padding(16).disabled(model.busy || model.pickerTarget != nil)
         .onChange(of: model.options.target) { _ in model.defaults() }
         .onChange(of: model.branchRevision) { _ in if model.options.target == .branch { model.defaults() } }
         .onChange(of: model.tagRevision) { _ in if model.options.target == .tag { model.defaults() } }
@@ -485,5 +562,28 @@ struct SwitchProgressDialog: View {
                 else { Button("Close") { model.close() }.keyboardShortcut(.defaultAction) }
             }.disabled(model.confirmingCancellation)
         }.padding(12)
+    }
+}
+
+private struct SwitchRevisionField: NSViewRepresentable {
+    @Binding var text: String
+    let focusRequest: Int
+    let onFocus: (NSTextField) -> Void
+    @Environment(\.isEnabled) private var enabled
+    func makeCoordinator() -> Coordinator { Coordinator() }
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField(); field.isBezeled = true; field.bezelStyle = .squareBezel; field.drawsBackground = true
+        field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel("Switch commit revision")
+        field.delegate = context.coordinator; return field
+    }
+    func updateNSView(_ field: NSTextField, context: Context) {
+        if !field.stringValue.utf8.elementsEqual(text.utf8) { field.stringValue = text }
+        field.isEnabled = enabled; context.coordinator.change = { text = $0 }
+        if focusRequest > 0 { DispatchQueue.main.async { [weak field] in if let field { onFocus(field) } } }
+    }
+    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) { field.delegate = nil; coordinator.change = { _ in } }
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var change: (String) -> Void = { _ in }
+        func controlTextDidChange(_ notification: Notification) { if let field = notification.object as? NSTextField, field.isEnabled { change(field.stringValue) } }
     }
 }

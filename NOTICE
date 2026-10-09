@@ -1048,3 +1048,7 @@ BrowseRefsDlgFilter, CChooseVersion and GitRevRefBrowser from the pinned
 TortoiseGit source to native AppKit namespace/tree and metadata-list selection.
 The source metadata, nested-reference and merged-reference filters and canonical
 reference handoff remain GPL-2.0-or-later under the TortoiseGit notices above.
+
+SwitchWindow.swift also adapts CChooseVersion's all-reference browser and full
+single-commit Log selection handoff for the native Switch/Checkout window,
+under the same pinned TortoiseGit GPL-2.0-or-later notices above.

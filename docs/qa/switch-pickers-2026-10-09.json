@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "ab86d90",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ChooseVersion.h": "9bc3080bd557ba11f814e6d9221aa322b1414f1c",
+    "src/TortoiseProc/GitSwitchDlg.cpp": "db94cbe8bc1c8d4b0e240b327581c5d97339a4ee",
+    "src/TortoiseProc/GitSwitchDlg.h": "a0f3d62963d50ba2f1c714dbfdcf1f5d0d9b079b"
+  },
+  "scope": "Switch/Checkout owned full reference browser and single-commit Log routes. Complete app/browser/Log parity remains unfinished.",
+  "verification": {
+    "source": "CChooseVersion Branch browse uses PickRef all namespaces, reloads original selection on Cancel and chosen canonical ref on OK, then focuses selected combo. Commit browse uses typed revision Log SetParams, select/single-selection enabled and Working Tree suppressed. GitSwitchDlg OnVersionChanged reapplies new branch/tracking defaults.",
+    "native": "Final hidden native Switch receiver passes both Apple and bundled Git: actual all-reference browser includes tags/notes; local nested branch, tag, symbolic remote and notes handoffs retain canonical names and select correct Branch/Tag/Commit control. Strict popup/nonnil field-editor first responder checked; local/remote/tag/commit new-branch/tracking defaults and symbolic remote suggestion checked; unused commit draft and force/Merge retained.",
+    "refresh": "Late-created tag absent from parent catalog is discovered by actual native window performKeyEquivalent(F5 NSEvent) dispatch, then selected through a refreshed parent catalog. This does not prove physical key delivery.",
+    "log": "Actual full Log controller anchored at typed prior revision excludes newer HEAD and sibling commits; model graph and actual single-selection HistoryTableView match ancestry and no Working Tree row. Accept returns full hash and actual parent commit field-editor focus; Cancel preserves draft.",
+    "ownership": "Duplicate/cross-target/Checkout/reload/parent close/Quit locks, stale closed-reference and Log callbacks, rejected presentations, forced-parent cleanup for each picker and late callbacks/closed-parent reopening rejection are checked. HEAD/staged tree/config unchanged after fixture setup; no checkout is performed by picker receiver.",
+    "context": "Controller configuration delivers original-icon Log/Browse/Compare native menu actions with canonical selected reference; production RepositoryModel factory wires these to ordinary dialogs using retained repository/access. Tests capture callbacks rather than displaying follow-up windows.",
+    "progress_regression": "Existing real Switch progress receiver passes both Git engines: captured full options, three owner acknowledgement policies, remote tracking/detach/force/override, cross-name Continue capture, failed Retry, .gitmodules/once actions, owned No/Yes cancellation/fresh Retry, deferred completion, duplicate answers, missing presentation and hidden close/Quit. This receiver performs checkout only inside its private fixtures.",
+    "reference_regression": "Existing actual reference browser/Reset/Reflog native receiver passes both engines against final source, including packed exact Unicode choices, filters, context icons, owned Reflog and Reset locks/focus. No AttributeGraph cycles in final picker/reference receivers.",
+    "repairs": "Final review found absent production Switch factory context callbacks; added them and native configuration/action assertions. A guarded edit initially matched two distinct Switch factories and stopped before edits, then was scoped to the regular Switch factory. No native/compiler failures in final checks. Receiver strengthened with late-ref/F5/fresh-catalog and forced Log close cases; prior passing receiver log retained.",
+    "debug": "Unsigned Debug build and bundle audit pass.",
+    "store": "Unsigned AppStore build and required bundle audit pass: packaged universal Git 2.55.0, embedded Finder extension, all 99 original icons and runtime/license audits.",
+    "notice": "Debug and AppStore NOTICE byte-equal source.",
+    "inventory": "Pinned source inventory checker passes, mappings remain partial.",
+    "site": "Local Pages build passes; no refreshed physical screenshots or deployment.",
+    "ci": "Reference browser/Reset and Switch picker commands added once to macOS workflow. Ruby safe YAML parse and step lookup pass. Hosted execution/authentication/CI status remains unverified."
+  },
+  "limitations": [
+    "Other chooser consumers still use the earlier flat branch/commit chooser. Complete browser mutation/range/tree menus, complete Log controls/commands, history combos, sorting policies and full app port remain pending.",
+    "Receivers prohibit activation and never order windows or physically present sheets. Physical mouse/keyboard/IME/default buttons, sheet restoration, error/close-during-load recovery, visual/theme/accessibility comparison and signed security-scope/Finder/App Store acceptance remain unverified.",
+    "Accepted Log results request revision field focus; source explicitly requests combo focus for reference handoffs and BringWindowToTop after Log. This does not establish exact physical Windows/macOS focus equivalence.",
+    "No new physical screenshots, site deployment, remote push or hosted CI acceptance. Core source unchanged; no new full-suite claim."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.SwitchProgress.QA.010148A2-3A29-4A0F-A238-97670E992290",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.SwitchProgress.QA.BD026731-F0FD-4B35-A820-8579EFF5BB48",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.7F1DF15E-6985-49B9-A1E9-5FDD03ED1A38",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.559B1B9C-5269-4939-B24A-6C35DC77075D",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      }
+    ],
+    "remaining": {
+      "preferences": [],
+      "fixtures": [],
+      "owned_processes_and_compilers": [],
+      "notice_byte_equal": [
+        "Debug",
+        "AppStore"
+      ]
+    },
+    "windows": "All receiver windows unordered, activation prohibited; injected presenters release disabled parent focus and show no actual sheets. Private Log defaults/column autosave disabled. No general pasteboard writes."
+  },
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "6c87c2e8948e00abeda4d8c4082ea4db424e2a8299b8ee58bedf4ff72209e90a",
+    "NOTICE": "d284ef9497dbb21f378aaa5f806503e2ade81f1ff3c61c8c90be4c7e39c94357",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "8c9ae082c28944cc5b03ecd509fe6b0f38498c42bb0e5cb72b990560d682d752",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "77e87e559136648f6420f15458a189265685abbced3a958f177fd44e8d84b0cb",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "645091943877262107775fbcc8d748691be1da5b9f50d218e37561d51c44c635",
+    "docs/REFERENCE-BROWSER-PARITY.md": "55d413a893fd978058c7b73580536abe38e62bc8b938ba339b1928fcc7ebcef5",
+    "docs/SWITCH-PARITY.md": "bf8a962e88bbae34a3ee351c24283a0a250a516e4b19b228878dd0996c132070",
+    "docs/TESTING.md": "022e502ee5aa51593c69b252d3cc653e2b71c1c7b3283f6669cc0089ecac84bd",
+    "docs/upstream-files.csv": "2a8f0d8db632a9d066ff254867e9b0277ee851b7c86efc5250e655216a924780",
+    "docs/qa/switch-pickers-native-2026-10-09.swift": "dd2c092d0778f81e372c481e37838cd39b0e5a197c4b2fb82a6bb111b3f169eb",
+    "scripts/test-switch-pickers.py": "e6319a37fd652952c8db3267ae228a447fa2a1a502f8316bd6e60dfde9f77d25"
+  },
+  "local_evidence_sha256": {
+    "build/qa/switch-pickers-2026-10-09/cleanup.json": "24db1281b98edd6f2d696e9b714befb695a7341cc43de0b4a021f110f78153d2",
+    "build/qa/switch-pickers-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/switch-pickers-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/switch-pickers-2026-10-09/native-initial.log": "aa16dabac18c9e8718bddbd2d3e39a077d871ffe8a92e80abaf24d0848cbf578",
+    "build/qa/switch-pickers-2026-10-09/native.log": "b1898786bde6df8eea40ddb6f4ca7ca51e072b63ceb20003f0a912df42d69314",
+    "build/qa/switch-pickers-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/switch-pickers-2026-10-09/progress-regression.log": "7f663821ab07f0000ea72508de45e036cd948c624dc63d48b4b67f61d380844e",
+    "build/qa/switch-pickers-2026-10-09/reference-regression.log": "34a67430c2836a84305d78bd8c2779af2cd1abd5e84e6aeb3e8ef11bd136ed20",
+    "build/qa/switch-pickers-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/switch-pickers-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/switch-pickers-2026-10-09/store.log": "9cb624a36a2072b6302defa877265a43f4ee189e19e03dec4c180a27fe990b9d",
+    "build/qa/switch-pickers-2026-10-09/workflow.log": "c8e204a194e02e39bf82d493890b3894ea66ee23a21e94d3e0b70c45d99e0f4d"
+  }
+}
