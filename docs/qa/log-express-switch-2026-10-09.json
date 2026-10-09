@@ -1,0 +1,67 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "f43b232",
+  "scope": "Log express local branch menu and owned progress handoff; whole port incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/GitLogListAction.cpp": "88c255c4c80578c099bbcd4604f6e088f2f9d40a"
+  },
+  "verification": {
+    "core": "No Core logic changes; focused Core tests from f43b232 not rerun.",
+    "debug": "Unsigned Debug builds pass, including final NOTICE packaging; bundle audit passes.",
+    "native": "Focused hidden Log/Blame receiver passes Apple and bundled Git. Actual express menu selectors validate two distinct Unicode branch choices, single pointed choice, current/tag exclusion, busy/bare gating, changed selection and closed-model rejection. Canonical callback bytes are retained for native typed CheckoutOptions validation; no actual switch in this receiver and no repository mutations. Existing checks pass; Rebase rendered text UNVERIFIED. Final canonical receiver also accepts the captured existing real local ref through production read-only CheckoutOptions validation.",
+    "progress": "Existing Switch Progress receiver passes both Git engines: real checkout options, owner policies, remote tracking, retries, cancellation and cleanup. These are separate progress-model checks, not a physical Log sheet routing proof.",
+    "store": "Final unsigned AppStore build and required bundle audit pass, including universal Git 2.55.0/Git LFS 3.8.0 runtimes. No signed sandbox/App Store acceptance claim.",
+    "notice": "Both Debug and AppStore bundled NOTICE bytes match source.",
+    "inventory": "Two partial mappings updated; inventory pin check passes.",
+    "site": "Local site generator succeeds; no deployment or physical screenshot claim."
+  },
+  "limitations": [
+    "Native menu callback capture and the separately tested existing progress model do not establish physical main/picker sheet routing.",
+    "Source menu masks/Shift, complete ordinary Switch/Checkout eligibility and remote-name guessing, full menus/dialogs/Finder, signed sandbox/App Store acceptance, physical screenshots/deployment and hosted CI remain incomplete.",
+    "General Unicode argv precomposition remains unverified; Unicode menu tests use synthetic metadata."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_empty_owned_preference_domains": [
+      "TurtleGit.MessageLine.Native.QA.BA5A1C61-E5BE-4ABD-A43A-2242FC23EA44",
+      "TurtleGit.MessageLine.Native.QA.CC6FB8C7-4F66-4766-8498-E16922731DA0",
+      "TurtleGit.MessageLine.Native.QA.B5DEB6CA-80FF-46B7-B5CD-3BF983BCD283",
+      "TurtleGit.SwitchProgress.QA.F8B84FCF-611C-43F9-B2F3-DDA1F604F95A",
+      "TurtleGit.SwitchProgress.QA.4618024D-01A1-42C4-8F5C-777D3D43AFC4",
+      "TurtleGit.MessageLine.Native.QA.5B683218-6A70-4E7F-A8E5-3DE82B90DFE6"
+    ],
+    "remaining_preferences": [],
+    "remaining_fixtures": [],
+    "remaining_processes": [],
+    "windows": "Receivers use prohibited activation and close owned windows; private pasteboards released."
+  },
+  "iterations": [
+    "First menu receiver passed short-name captures, but source review found typed CheckoutOptions requires a canonical ref. Callback now retains full refs/heads name. Final receiver additionally validates the captured real main ref through production read-only checkout validation; final canonical receiver passes both engines."
+  ],
+  "sources_manifest_sha256": "a1976b300521a7cbea78601bee5b7cd7638a3ca9e5b9a446efa4dc689ed3621a",
+  "changed_files_sha256": {
+    "NOTICE": "5f4940d5285a239b8787695dffa6abada68fb74d966b9e295342bffe6d4836b6",
+    "Sources/TurtleGitMac/LogWindow.swift": "875ae079bb5b6dd241c2946c7d41b48fd5a857b1206df1446549ffa288b32509",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6b401eb96edb6fbcb40ed50f071016f4cd1e4ff604b50f3f9119bceec4636491",
+    "docs/LOG-PARITY.md": "83dfda5ef5f513f82fb35d845223359832b92b8477327a07277d1a010eed5c12",
+    "docs/TESTING.md": "52193c6112cdb806fe85d555dd8d9793881f27b924816210195f74ed6953e585",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "e713934b3db9802e9e6fdcd2320c449a7a80ddb7dfff0fe23d173c1e87f62c2f",
+    "docs/upstream-files.csv": "5cf90f656e4069c42beaac4e329a2bfcb563722474cdaa516d70a19dab69c7fb"
+  },
+  "local_log_sha256": {
+    "build/qa/log-express-switch-2026-10-09/cleanup.json": "5f4ff2ac07bab6b06e760f83d56c325af1e5f7a542fa27fc19153d14bb54fd10",
+    "build/qa/log-express-switch-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-express-switch-2026-10-09/debug-canonical.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-express-switch-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-express-switch-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-express-switch-2026-10-09/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-express-switch-2026-10-09/native-canonical.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-express-switch-2026-10-09/native.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-express-switch-2026-10-09/progress.log": "63e0260183bd9c2df94327cc56efe3432d70d67bb0a8b570595dd4fad88fd64b",
+    "build/qa/log-express-switch-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-express-switch-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-express-switch-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

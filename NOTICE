@@ -1004,3 +1004,7 @@ History ref/current-ref/peeled-tag and tracking identity adapts the pinned
 GitLogListBase.cpp CString comparisons and CGit ref/config lookup semantics
 using byte-exact valid UTF-8 value keys. Prefix removal preserves leading
 combining marks, and native Log repaint signatures retain the same byte identity.
+
+Log express branch menus adapt GitLogListBase.cpp ID_SWITCHBRANCH candidate
+selection and GitLogListAction.cpp immediate PerformSwitch handoff, using
+native owned Switch Progress sheets and byte-exact ref targets.

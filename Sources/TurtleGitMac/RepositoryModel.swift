@@ -1084,6 +1084,7 @@ import TurtleGitCore
         controller.model.onFormatPatch = { [weak self] preset in self?.showFormatPatch(repository: repository, access: access, preset: preset) }
         controller.model.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
         controller.model.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+        configureLogSwitch(controller.model, repository: repository, access: access)
         controller.model.onCherryPick = { [weak self] commits in self?.showRebase(repository: repository, access: access, cherryPick: commits) }
         controller.model.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision, paths: paths) }
         controller.model.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
@@ -1154,6 +1155,12 @@ import TurtleGitCore
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
 
+    private func configureLogSwitch(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onSwitchBranch = { [weak self, weak model] reference in
+            guard let parent = model?.window, parent.attachedSheet == nil else { return }
+            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent)
+        }
+    }
     private func configureLogBisect(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?, refreshPicker: Bool = false) {
         model.onBisect = { [weak self, weak model] request in
             self?.showBisect(repository: repository, access: access, good: request.good, bad: request.bad, operation: request.operation, revisions: request.revisions, requireStart: request.operation == nil, sourceLog: refreshPicker ? model : nil)
@@ -1222,6 +1229,7 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            self?.configureLogSwitch(log, repository: repository, access: access)
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
@@ -1297,6 +1305,7 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            self?.configureLogSwitch(log, repository: repository, access: access)
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }
@@ -1345,6 +1354,7 @@ import TurtleGitCore
             log.onPush = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
             log.onCreateReference = { [weak self] isTag, revision in self?.showReference(repository: repository, access: access, isTag: isTag, revision: revision) }
             log.onCheckout = { [weak self] revision in self?.showSwitch(repository: repository, access: access, revision: revision) }
+            self?.configureLogSwitch(log, repository: repository, access: access)
             log.onExportRevision = { [weak self] revision in self?.showExport(repository: repository, access: access, revision: revision) }
             log.onMergeRevision = { [weak self] revision in self?.showMerge(repository: repository, access: access, revision: revision) }
             log.onRebaseRevision = { [weak self] revision in self?.showRebase(repository: repository, access: access, upstream: revision, fromLog: true) }

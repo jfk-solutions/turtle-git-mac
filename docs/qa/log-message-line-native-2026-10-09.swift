@@ -453,8 +453,43 @@ final class MessageLineOffscreenWindow: NSWindow {
             send(menu.items.first { $0.title == "Copy to clipboard" }!.submenu!.items.first { $0.title == "Tag/branch names" }!)
             precondition(pasteboard.string(forType: .string)!.utf8.elementsEqual(String(name.dropFirst(11)).utf8))
         }
+        var switched: [String] = []; model.onSwitchBranch = { switched.append($0) }
+        unicodeEntry.references.append(RevisionReference(name: "refs/heads/current", isCurrent: true))
+        unicodeEntry.references.append(RevisionReference(name: "refs/tags/tag"))
+        model.entries = [unicodeEntry]; table.contextReference = nil; menu.delegate?.menuNeedsUpdate?(menu)
+        let branchMenu = menu.items.first { $0.title == "Switch branch" }!.submenu!
+        precondition(branchMenu.items.count == 2)
+        for (index, choice) in branchMenu.items.enumerated() {
+            send(choice); precondition(switched.last!.utf8.elementsEqual(names[index].utf8))
+        }
+        let staleSwitch = branchMenu.items[0]
+        model.selected = [entries[1].hash]; send(staleSwitch); precondition(switched.count == 2)
+        model.selected = [entry.hash]
+        for name in ["refs/heads/current", "refs/tags/tag"] {
+            table.contextReference = (0, name); menu.delegate?.menuNeedsUpdate?(menu)
+            precondition(!menu.items.contains { $0.title.hasPrefix("Switch branch") })
+        }
+        table.contextReference = (0, names[1]); menu.delegate?.menuNeedsUpdate?(menu)
+        let direct = menu.items.first { $0.title.hasPrefix("Switch branch ") }!
+        precondition(direct.submenu == nil); send(direct)
+        precondition(switched.last!.utf8.elementsEqual(names[1].utf8))
+        model.busy = true; menu.delegate?.menuNeedsUpdate?(menu)
+        precondition(menu.items.first { $0.title.hasPrefix("Switch branch ") }!.isEnabled == false)
+        model.switchBranch(target: LogReferenceMenuTarget(hash: entry.hash, name: names[1])); precondition(switched.count == 3)
+        model.busy = false; model.bare = true; menu.delegate?.menuNeedsUpdate?(menu)
+        precondition(!menu.items.contains { $0.title.hasPrefix("Switch branch") }); model.bare = false
+        // Check the captured canonical handoff against production read-only
+        // CheckoutOptions validation using an existing real local branch.
+        var validationEntry = entry; validationEntry.references = [RevisionReference(name: "refs/heads/main")]
+        model.entries = [validationEntry]; table.contextReference = nil; menu.delegate?.menuNeedsUpdate?(menu)
+        send(menu.items.first { $0.title == "Switch branch \"main\"" }!)
+        var options = CheckoutOptions(); options.revision = switched.last!
+        try await repo.validateCheckout(options)
+        precondition(options.revision == "refs/heads/main")
+        model.entries = [unicodeEntry]
         menu.delegate?.menuDidClose?(menu); menu.delegate?.menuNeedsUpdate?(menu)
         let calls = pushed.count; model.invalidate(); send(menu.items.first { $0.title == "Push…" }!); precondition(pushed.count == calls)
+        send(staleSwitch); precondition(switched.count == 4)
     }
     @MainActor static func checkReferenceByteRefresh(repo: GitRepository, prefs: UserDefaults) async throws {
         let entries = try await repo.history(), a = "caf\u{e9}", b = "cafe\u{301}"

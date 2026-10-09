@@ -930,6 +930,7 @@ struct LogCommandRequest: Identifiable {
     var onCreateReference: (Bool, String) -> Void = { _, _ in }
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
+    var onSwitchBranch: ((String) -> Void)?
     var onCherryPick: (([String]) -> Void)?
     var onBrowseRepository: ((String) -> Void)?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
@@ -1242,6 +1243,17 @@ struct LogCommandRequest: Identifiable {
         guard !busy, let reference = reference(for: target) else { return }
         if command == .push { onPush(reference.name) }
         if command == .checkout && !bare { onCheckout(reference.name) }
+    }
+    func switchBranchCandidates(target: LogReferenceMenuTarget?) -> [RevisionReference] {
+        guard !isInvalidated, !bare, !selectedIsStash, let revision else { return [] }
+        let references: [RevisionReference]
+        if let target { guard let reference = reference(for: target) else { return [] }; references = [reference] }
+        else { references = revision.references }
+        return references.filter { $0.name.utf8.starts(with: "refs/heads/".utf8) && !$0.isCurrent }
+    }
+    func switchBranch(target: LogReferenceMenuTarget) {
+        guard !busy, switchBranchCandidates(target: target).count == 1 else { return }
+        onSwitchBranch?(target.name)
     }
     func copyReferenceNames(target: LogReferenceMenuTarget?) {
         guard !busy, !isInvalidated, let revision else { return }
@@ -2581,6 +2593,21 @@ struct RevisionTable: NSViewRepresentable {
                 item(model.integrationTitle(.merge), #selector(mergeRevision), icon: .merge, enabled: model.canIntegrate(.merge))
             }
             item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: one && !model.busy)
+            let switchBranches = model.switchBranchCandidates(target: pointed)
+            if let revision = model.revision, !switchBranches.isEmpty {
+                if switchBranches.count == 1 {
+                    let reference = switchBranches[0]
+                    item("Switch branch \"" + reference.label + "\"", #selector(switchBranchReference(_:)), icon: .checkout, enabled: !model.busy && model.onSwitchBranch != nil).representedObject = LogReferenceMenuTarget(hash: revision.hash, name: reference.name)
+                } else {
+                    let parent = item("Switch branch", #selector(switchBranchReference(_:)), icon: .checkout, enabled: !model.busy && model.onSwitchBranch != nil)
+                    let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
+                    for reference in switchBranches {
+                        let choice = NSMenuItem(title: reference.label, action: #selector(switchBranchReference(_:)), keyEquivalent: "")
+                        choice.target = self; choice.image = MenuIcon.checkout.contextImage(); choice.isEnabled = parent.isEnabled
+                        choice.representedObject = LogReferenceMenuTarget(hash: revision.hash, name: reference.name); submenu.addItem(choice)
+                    }
+                }
+            }
             item("Switch/Checkout to this…", #selector(checkoutReference(_:)), icon: .checkout, enabled: one && !model.busy && !model.bare).representedObject = pointed
             item("Create branch at this version…", #selector(branch), icon: .branch, enabled: one && !model.busy)
             item("Create tag at this version…", #selector(tag), icon: .tag, enabled: one && !model.busy)
@@ -2640,6 +2667,7 @@ struct RevisionTable: NSViewRepresentable {
         }
         func menuDidClose(_ menu: NSMenu) { if menu !== headerMenu { (table as? HistoryTableView)?.contextReference = nil } }
         @objc func pushReference(_ sender: NSMenuItem) { model.requestReference(.push, target: sender.representedObject as? LogReferenceMenuTarget) }
+        @objc func switchBranchReference(_ sender: NSMenuItem) { if let target = sender.representedObject as? LogReferenceMenuTarget { model.switchBranch(target: target) } }
         @objc func checkoutReference(_ sender: NSMenuItem) { model.requestReference(.checkout, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func copyReferenceNames(_ sender: NSMenuItem) { model.copyReferenceNames(target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func toggleRollup() { model.toggleRollup() }

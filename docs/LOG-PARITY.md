@@ -2009,3 +2009,9 @@ normalization or using loose ref filenames. General named-operation argv handlin
 other ref/path APIs, invalid UTF-8 refs and Windows locale/CRT equivalence remain
 unverified. These checks do not establish full Unicode support or whole-port
 completion.
+
+### Log express branch switch
+
+The pinned `GitLogListBase.cpp` `ID_SWITCHBRANCH` path offers immediate switching to non-current local branches at the selected commit. A pointed ref label narrows candidates to that ref; a row background uses all local refs in source order. One candidate has a named menu item, multiple candidates have a submenu, and current/remote/tag refs do not qualify. TurtleGit now mirrors those choices with the original checkout icon and byte-exact canonical targets. The selector rechecks selection, model lifetime, busy/bare/stash state and current-branch marking before handing off the canonical local ref. Upstream strips the namespace before PerformSwitch; TurtleGit retains it for its typed CheckoutOptions validation, which resolves the same local branch.
+
+Ordinary Log and its three configured picker flows route this separate action to the existing owned Switch Progress sheet, retaining repository access and refresh/post-action handling. The ordinary Switch/Checkout dialog remains a separate action. Source menu masks/Shift availability and its complete eligibility/order are still incomplete. Physical sheet routing and signed sandbox acceptance are not established by hidden native checks.
