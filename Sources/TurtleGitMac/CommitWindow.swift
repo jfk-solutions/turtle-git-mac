@@ -1152,6 +1152,41 @@ struct CommitNewBranchField: NSViewRepresentable {
     }
 }
 
+struct CommitAuthorField: NSViewRepresentable {
+    @Binding var author: String
+    var editable: Bool
+    func makeCoordinator() -> Coordinator { Coordinator(author: $author) }
+    func makeNSView(context: Context) -> NSTextField {
+        let field = NSTextField()
+        field.isBezeled = true; field.bezelStyle = .roundedBezel
+        field.drawsBackground = true; field.font = .systemFont(ofSize: NSFont.systemFontSize)
+        field.placeholderString = "Name <email>"
+        field.setAccessibilityLabel("Author identity")
+        field.delegate = context.coordinator
+        return field
+    }
+    func updateNSView(_ field: NSTextField, context: Context) {
+        context.coordinator.author = $author
+        if !field.stringValue.utf8.elementsEqual(author.utf8) { field.stringValue = author }
+        field.isEnabled = context.environment.isEnabled
+        field.isEditable = editable && field.isEnabled
+        // EM_SETREADONLY in CommitDlg preserves selection and copy access.
+        field.isSelectable = true
+        if let editor = field.currentEditor() as? NSTextView {
+            editor.isEditable = field.isEditable
+        }
+    }
+    static func dismantleNSView(_ field: NSTextField, coordinator: Coordinator) { field.delegate = nil }
+    final class Coordinator: NSObject, NSTextFieldDelegate {
+        var author: Binding<String>
+        init(author: Binding<String>) { self.author = author }
+        func controlTextDidChange(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField, field.isEnabled, field.isEditable else { return }
+            author.wrappedValue = field.stringValue
+        }
+    }
+}
+
 struct CommitDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: CommitWindowModel
@@ -1269,7 +1304,7 @@ GroupBox("Message:") {
                     }
                     HStack {
                         Toggle("Set author", isOn: $model.setAuthor).toggleStyle(.checkbox).frame(width: 170, alignment: .leading)
-                        TextField("Name <email>", text: $model.author).textFieldStyle(.roundedBorder).disabled(!model.setAuthor)
+                        CommitAuthorField(author: $model.author, editable: model.setAuthor)
                         Button("Add Signed-off-by") { model.addSignOff() }
                     }
                 }.padding(4)

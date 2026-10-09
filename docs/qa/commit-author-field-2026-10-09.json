@@ -1,0 +1,57 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "a3623a4",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/CommitDlg.cpp": "3f4f032637786bef7e5943d0e7ea0bd4ea701de3",
+    "src/Resources/TortoiseProcENG.rc": "c14c10664826999d31fcba652a0ea2157377a19f"
+  },
+  "scope": "Native selectable read-only author field matching EM_SETREADONLY behavior; whole port incomplete.",
+  "verification": {
+    "source": "OnBnClickedCommitSetauthor sends EM_SETREADONLY according to m_bSetAuthor and refreshes configured/HEAD identity; source resource is an edit control with ES_AUTOHSCROLL.",
+    "native": "Final throwing-requirement receiver passes Apple Git and bundled AppStore Git. Actual full hidden Commit field/editor is enabled, read-only and selectable when unchecked; Unicode identity copies to a private pasteboard using native writable type negotiation. Checked field editing updates model; unrelated updates preserve selection; unchecking reseeds configured identity and returns editor to read-only; busy disables editing. New-branch native focus/select-all and subsequent read-only author copy coexist.",
+    "debug": "Unsigned Debug build and bundle audit pass.",
+    "store": "Unsigned AppStore build and required bundle audit pass, including universal Git 2.55.0/Git LFS 3.8.0, parser/matcher provenance, embedded Finder extension and upstream icons.",
+    "notice": "Debug and AppStore bundled NOTICE bytes equal source.",
+    "inventory": "CommitDlg.cpp remains partial-native-replacement; source pin/idempotence check passes.",
+    "site": "Final local static documentation site generator passes; no new screenshot or deployed site claim.",
+    "initial_tests": "Two initial native copy assertions failed because writeSelection(to:type:.string) was not an advertised raw field-editor pasteboard type, even after declaring .string. Isolated exact production helper diagnostic showed NSStringPboardType advertised, direct .string false, writablePasteboardTypes negotiation true with exact identity bytes. Corrected full receiver passes both engines, then rerun with throwing cleanup requirements also passes. Production field required no change after this diagnostic."
+  },
+  "limitations": [
+    "Physical Cmd-C/keyboard context menus, Tab/Shift-Tab, IME and accessibility navigation remain unverified.",
+    "HEAD/amend identity reseeding and asynchronous load races were not newly exercised by this receiver.",
+    "Unsigned builds do not prove signed sandbox execution, App Store acceptance or legal distribution clearance.",
+    "Full application/dialog/Finder parity, updated physical screenshots, site deployment and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "remaining_preferences": [],
+    "remaining_fixtures": [],
+    "remaining_processes": [],
+    "windows": "Both successful full-dialog receiver runs close their owned hidden Commit window; isolated native diagnostic closes its own hidden window.",
+    "pasteboards": "All copy calls target private named boards; final successful receiver and diagnostic call releaseGlobally on normal exit. Two failed single-type assertions aborted before deferred board release; no system pasteboard enumeration or blanket pasteboard-cleanup claim. General pasteboard untouched.",
+    "receiver_failure_cleanup": "Final receiver uses throwing requirements and a verify() scope so deferred cleanup executes before its main catches failure and exits. Final normal-return receiver rerun passes both engines; deliberate failure injection not performed."
+  },
+  "changed_files_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "ad0599e31482deae838b8f37448b5c47092d7c5bfa4ac1f39fcecd3fc56f4a74",
+    "docs/COMMIT-PARITY.md": "62a8812e5906d448654353ed45ed88f7d9969926efecfe269d23824f8bf3d1c2",
+    "docs/TESTING.md": "42c0e4b5eef1ac653d48244f717f6d48fdb741fb6839459e9f4d88ea43af5f16",
+    "docs/upstream-files.csv": "12da68579f152f0ba3d3586b0b8ddf8d698540c6f1de6575c0dd487595363639",
+    "docs/qa/commit-author-field-native-2026-10-09.swift": "c0b2e21788cdec4ff2efe0aba7f86ccd1b189e2735e62351cd07371156d9b1ad",
+    "scripts/test-commit-author-field.py": "bd1a3591a1395e66ee3bc2948d5288299a685b59bc1482c771b536ef79b621aa"
+  },
+  "local_log_sha256": {
+    "build/qa/commit-author-field-2026-10-09/cleanup.json": "a25346abde2af59cf73e78796e00a2d93fcb3ccd2feb8ad3fffe5d3cc24814e3",
+    "build/qa/commit-author-field-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/commit-author-field-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/commit-author-field-2026-10-09/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/commit-author-field-2026-10-09/native-cleanup.log": "74e147d6aef1e050474158e704ced4c1d3de46e93d32e0165446e70f67565f2e",
+    "build/qa/commit-author-field-2026-10-09/native-declared-type.log": "e100e3cc2b28b6b9c4d259f02c7a800ecc74777280f9eb923681dbbbb4e29321",
+    "build/qa/commit-author-field-2026-10-09/native-initial.log": "e6f9ee504c58d379f209f2c619415cafb59fc823b27d88c0627687760b6e0962",
+    "build/qa/commit-author-field-2026-10-09/native.log": "74e147d6aef1e050474158e704ced4c1d3de46e93d32e0165446e70f67565f2e",
+    "build/qa/commit-author-field-2026-10-09/site-final.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-author-field-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/commit-author-field-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/commit-author-field-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}
