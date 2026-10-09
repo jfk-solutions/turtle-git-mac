@@ -1118,3 +1118,10 @@ SubmoduleAddDlg/SubmoduleCommand layout, histories, branch/Force precedence and
 load-before-add/child-remote key behavior to native AppKit/SwiftUI, read-only
 identity grants and an owned private OpenSSH agent. Original Swift additions
 are GPL-2.0-or-later. Full displayed, progress and signed acceptance pending.
+
+SubmoduleSync.swift and SubmoduleSyncWindow.swift adapt pinned SubmoduleCommand's
+Sync branch and ProgressDlg RunCmdList: non-recursive directory commands, ordinary
+exit-error continuation, combined status, live output and owned cancellation.
+Original Swift additions are GPL-2.0-or-later. menusync.ico is copied unchanged
+from pinned TortoiseGit src/Resources with the existing GPL icon license choice
+and SHA-256 provenance. Physical/signed/full progress acceptance remains pending.

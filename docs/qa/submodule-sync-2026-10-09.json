@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "c285f5bac090548a42e368728207c8e6ccaea347",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Submodule Sync native progress, literal selected-directory sequence, local URL synchronization, failure continuation, owned cancellation, original icon and app/Finder routing; correct source menu order, condition snapshot and shared-icon regression expectations.",
+  "verification": {
+    "source": "Pinned SubmoduleCommand Sync branch, ProgressDlg RunCmdList and MenuInfo clauses/order reviewed. Non-recursive commands and bitwise-OR ordinary-error continuation retained. menusync.ico unchanged pinned blob ec05d4f1a2c07bd39f749cb8719df450788c1462. Native validation rejects unsafe directory/config scopes.",
+    "core_system": "Final full Swift suite passes 836 tests with zero failures, 456.977 seconds. Sync three cases cover scoped/root URL effects, literal quoted Unicode/newline paths, uninitialized/nested non-recursion, HEAD/index/gitmodules preservation, parent routing, invalid scopes, ordinary-error continuation and live owned-group cancellation.",
+    "core_bundled": "Three explicitly engine-selecting SubmoduleSync tests pass, zero failures, 8.295 seconds. No claim that every full-suite test used bundled Git.",
+    "native": "Hidden prohibited-policy receiver passes with system and bundled Git: actual scoped controller/model and partial-error continuation, captured automatic-close policies, UTF-8 streaming, Yes/No/duplicate cancellation, Quit and forced-close ownership, exactly two owned wrapper/child PIDs reaped, parent HEAD/index/gitmodules preserved. No main-app launch.",
+    "finder": "Actual extension menu builder passes: all 44 implemented root entries match pinned MenuInfo order/groups, Add ordinary-folder/Sync submodule-container conditions, original images, selector/captured folder/URL round trip and existing projection/cache cases. No installed or signed Finder activation.",
+    "corrections": "Initial focused icon check exposed stale assumptions about shared Add and Browse artwork; source reuse asserted explicitly. First full suite ran 836 cases with one outdated 42-entry Finder snapshot failure; regenerated independent pinned-source fixture with Add/Sync (44), corrected Finder placement and reran full suite successfully.",
+    "debug": "Final unsigned Debug build passes.",
+    "appstore": "Final unsigned AppStore build passes. Both packaged apps audit successfully; AppStore universal Git/LFS, EditorConfig, IssueRegex, askpass, Finder and all 100 original icons verified. Both embedded NOTICE files equal root.",
+    "inventory_site_workflow": "Pinned inventory regression, local documentation site build and safe workflow YAML parse pass. Native Submodule Sync CI step present exactly once; hosted CI and deployment not verified."
+  },
+  "limitations": [
+    "Full app/source/dialog/menu parity remains incomplete; inventory mappings remain partial.",
+    "Displayed window/sheet/keyboard/VoiceOver/light-dark and exact source layout, complete progress scrolling/elapsed/taskbar/Save/context menus and new screenshots remain unverified.",
+    "Signed Finder dispatch, App Group/security-scope inheritance, signed App Store runtime/submission and distribution clearance remain pending.",
+    "Core tests synchronize dummy SSH URLs without network connections; no real SSH authentication or network transfer verified.",
+    "Broader SyncDlg, Update progress/cancellation and remaining SSH consumers/OpenSSH packaging/Keychain/host-key/password handling remain pending.",
+    "Filesystem/config races and all selection/path/failure variants require broader acceptance. Strict Rebase rendered-text acceptance remains UNVERIFIED.",
+    "No main app launch, user key/login-agent query, push, hosted CI/deployment or submission."
+  ],
+  "sha256": {
+    ".github/workflows/macos.yml": "e050e2a865ef638a216fe6e41fc16ae0b73719e47cd2dd97e9424eca9547d54f",
+    "FinderSync/FinderSync.swift": "db1e5e6c483078bebc4713c723e6ede429026360cca1aadc5b1545da0c7e53a3",
+    "NOTICE": "c5906db3058e635016fb1df0eac27e64aa25c45310654d0c18afb4fb247ebea3",
+    "README.md": "0cf8a2ddeb1417f4453b2cbce8705875fb54fd8e719fb1bf37935b2a2fa72e67",
+    "Sources/TurtleGitCore/ConflictResolution.swift": "4538cd71a5539e08dc21559dca87df3644bb32e35a3721e74868584d9fb5bf79",
+    "Sources/TurtleGitCore/FinderCache.swift": "a5b11bd97cebe92958399955caebeaef4f6c8a9165f5c7555bfac0993867c151",
+    "Sources/TurtleGitCore/MenuIcons.swift": "e5c0fd96ed564ef5796df4280a3a9f805472dca5a72f7d3f0e7e487689cb16aa",
+    "Sources/TurtleGitCore/Resources/Icons/menusync.ico": "9c8fedb32ae301f834b5169cca128c7843aaf41b7abb943768e5633752df128f",
+    "Sources/TurtleGitCore/Resources/Icons/provenance.json": "655e3ecc220a182f6509d7e8eb492966f79f57c44cb03b921abbe84e38a6a06c",
+    "Sources/TurtleGitCore/SubmoduleSync.swift": "fe59157a27e9388988a2c735ee187893a91a4de31e8a50193046914722fd547d",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "b1dffa23261a6d943fce8b2bf33e517ca93371133e2721d36389b684c054d2ce",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "dd32f3b7ab70ec260be0ad7b6b11dd080a4731ec22f58add4c7d529675cdcfda",
+    "Sources/TurtleGitMac/SubmoduleSyncWindow.swift": "ccd6f10c8d8b482a5fe7e362d617515105e7a713b2a0101e381fb09fef04491b",
+    "Tests/TurtleGitCoreTests/FinderRepositoryMetadataTests.swift": "5167b4ff1d03184a3ade99f93539b7187b858dd49f2a47e6e604d0b881537abc",
+    "Tests/TurtleGitCoreTests/FinderShellRulesTests.swift": "bdd7e74d476cd05f25e5fcf66fde8c44a63de7b0178b34188a3eba952f30e233",
+    "Tests/TurtleGitCoreTests/MenuIconTests.swift": "ce54d5e5a26d77fc246541e3219c698beb47a5f661bc5e8b4b052f093f022127",
+    "Tests/TurtleGitCoreTests/SubmoduleSyncTests.swift": "51e8080beabd9fae9b534d32aa4ed106b32f00794b9741e2911776ad0ca2d189",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "009f3e746493667334626ed0e6740bd800d35495ade3fb06db31cd8231412489",
+    "docs/PORTING.md": "0ffe558a360db98b1dc35233c1dfec799bafa47aa3ea7045b1342288a67f35c8",
+    "docs/SSH-AGENT-PARITY.md": "fc627c239c54b630be315df30edd91a29b4da1ef9933a46cc0f220affbec8924",
+    "docs/SSH-TRANSPORT-PARITY.md": "8d699edd72305ef2462d22d7f4371b528f0365d1df2b97baf019f082f32000fa",
+    "docs/SUBMODULE-SYNC-PARITY.md": "42067c127cbd04d26e5b3afa04389cc8cc54005df1fc2ccf5396e83ef5800d0b",
+    "docs/SUBMODULE-UPDATE-PARITY.md": "9a2a1c7f9363807ca9bed44e26f67a748f5f1c94d33b2264db257ae26e63d7d4",
+    "docs/qa/submodule-sync-native-2026-10-09.swift": "7d9a32154df3f9e85f8f6aa99351c5297ab3c2e5edca916a396bca854a5565f6",
+    "docs/upstream-files.csv": "93edbb04570bd1ee413fe7382537e4a265fd706ffab16331a2f7206776e1db80",
+    "docs/upstream-shell-menu-conditions.json": "cfc25cae0c4f98e113e1cf2d6836d8ff1dfa0b6eeabee7b2450c8841fde24bf9",
+    "scripts/test-finder-menu.py": "5b72cb8b6343d0a6b5c161f490f3fcf36385ec979283d7fd21fd30d79c94a398",
+    "scripts/test-submodule-sync.py": "9cc0a0b9cb405cf39c8c5a62adcd421eaff72e155382b052f6c7cd46e1249b74"
+  },
+  "logs": "build/qa/submodule-sync-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.B3112268-B60C-40FA-A127-E3819851FEFF",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.2C609A71-986E-4713-A7C3-7CA16864E24E",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

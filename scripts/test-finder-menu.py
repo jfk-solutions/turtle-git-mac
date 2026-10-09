@@ -29,7 +29,7 @@ import TurtleGitCore
             .remove: "Remove", .removeKeep: "RemoveKeep", .revert: "Revert", .clean: "Cleanup", .switchBranch: "Switch",
             .merge: "Merge", .branch: "Branch", .tag: "Tag", .export: "Export", .initialize: "CreateRepo",
             .ignore: "IgnoreSub", .ignoreDelete: "DeleteIgnoreSub", .worktreeList: "Worktree",
-            .submoduleUpdate: "SubmoduleUpdate", .formatPatch: "FormatPatch", .importPatch: "ImportPatch"
+            .submoduleAdd: "SubmoduleAdd", .submoduleUpdate: "SubmoduleUpdate", .submoduleSync: "SubmoduleSync", .formatPatch: "FormatPatch", .importPatch: "ImportPatch"
         ]
         let nativeBySource = Dictionary(uniqueKeysWithValues: mapping.map { ($0.value, $0.key) })
         let projected = sourceOrder.groups.map { $0.compactMap { nativeBySource[$0] } }.filter { !$0.isEmpty }
@@ -191,6 +191,15 @@ import TurtleGitCore
         let complete = metadataMenu(FinderRepositoryMetadata(hasStash: true, hasSubmoduleConfig: true))
         verifyOrder(complete)
         precondition([RepositoryAction.stashApply, .stashPop, .stashList, .submoduleUpdate].allSatisfy(rootActions(complete).contains))
+        enum SubmoduleVerificationFailure: Error { case eligibility, routing }
+        guard rootActions(ordinary).contains(.submoduleAdd), !rootActions(ordinary).contains(.submoduleSync), rootActions(complete).contains(.submoduleSync) else { throw SubmoduleVerificationFailure.eligibility }
+        for action in [RepositoryAction.submoduleAdd, .submoduleSync] {
+            guard let item = items(complete).first(where: { FinderShellMenuLayout.action($0) == action }),
+                  let command = item.representedObject as? FinderMenuCommand, item.isEnabled, item.image != nil,
+                  item.target === target, item.action == selector, command.request.paths == [folder],
+                  command.url().flatMap(FinderRequest.init(url:))?.action == action else { throw SubmoduleVerificationFailure.routing }
+        }
+        print("Actual Finder Submodule Add/Sync: pinned group/order, one-folder/container eligibility, original artwork and captured selector/URL routing passed. Signed dispatch remains pending.")
         let merging = metadataMenu(FinderRepositoryMetadata(mergeActive: true, hasStash: true, hasSubmoduleConfig: true))
         verifyOrder(merging)
         precondition([RepositoryAction.pull, .merge, .rebase, .stash].allSatisfy { !rootActions(merging).contains($0) })

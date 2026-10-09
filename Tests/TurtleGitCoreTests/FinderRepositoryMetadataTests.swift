@@ -8,6 +8,8 @@ final class FinderRepositoryMetadataTests: XCTestCase {
             XCTAssertFalse(FinderShellRules.allows(.submoduleAdd, flags: flags))
         }
         XCTAssertEqual(RepositoryAction.submoduleAdd.icon, .add)
+        XCTAssertTrue(FinderShellRules.allows(.submoduleSync, flags: [.folderInGit, .submoduleContainer]))
+        XCTAssertFalse(FinderShellRules.allows(.submoduleSync, flags: [.folderInGit, .onlyOne]))
     }
     func testSnapshotCompatibilityAndRootSelection() throws {
         let info = FinderRepositoryMetadata(bare: true, bisectActive: true, hasStash: true)
@@ -31,9 +33,9 @@ final class FinderRepositoryMetadataTests: XCTestCase {
         let ordinary = FinderRepositoryMetadata()
         XCTAssertTrue(ordinary.allows(.submoduleAdd), "Add does not require an existing .gitmodules")
         XCTAssertTrue(ordinary.allows(.stash))
-        for action in [RepositoryAction.stashApply, .stashPop, .stashList, .submoduleUpdate] { XCTAssertFalse(ordinary.allows(action)) }
+        for action in [RepositoryAction.stashApply, .stashPop, .stashList, .submoduleUpdate, .submoduleSync] { XCTAssertFalse(ordinary.allows(action)) }
         let available = FinderRepositoryMetadata(hasStash: true, hasSubmoduleConfig: true)
-        for action in [RepositoryAction.stashApply, .stashPop, .stashList, .submoduleUpdate] { XCTAssertTrue(available.allows(action)) }
+        for action in [RepositoryAction.stashApply, .stashPop, .stashList, .submoduleUpdate, .submoduleSync] { XCTAssertTrue(available.allows(action)) }
         for info in [FinderRepositoryMetadata(bisectActive: true), FinderRepositoryMetadata(mergeActive: true)] {
             for action in [RepositoryAction.pull, .merge, .rebase] { XCTAssertFalse(info.allows(action)) }
             XCTAssertTrue(info.allows(.fetch)); XCTAssertTrue(info.allows(.commit))

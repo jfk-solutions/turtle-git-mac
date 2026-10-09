@@ -44,7 +44,7 @@ signed sandbox acceptance.
 - Verify signed identity selection, renewal and loading; add permission management. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
 - Verify physical encrypted-key response sheets and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.
-- Extend existing auto-load to submodule Update and Sync, preserving destination
+- Extend existing auto-load to submodule Update and the broader SyncDlg transport window, preserving destination
   and failure ordering.
 - Test actual SSH authentication/host-key handling, saved and expired grants,
   connection errors, both architectures and signed App Store/Finder routes.
@@ -53,3 +53,6 @@ Local tests generate private fixture keys, load two real identities into a priva
 agent, reject an encrypted fixture without prompting, preserve earlier additions,
 check literal punctuation paths, and verify live helper/child termination during
 forced closure. They do not contact an SSH server or exercise the application.
+
+Submodule Sync is a local configuration operation and does not require SSH
+preparation. Its native port is documented in SUBMODULE-SYNC-PARITY.md.

@@ -23,7 +23,7 @@ public enum MenuIcon: String, CaseIterable {
     case rebasePick = "menupick", rebaseSkip = "menuskip", rebaseEdit = "menuedit", rebaseSquash = "menusquash", reverse = "switch"
     case stash = "menushelve", stashPop = "menuunshelve", clone = "menucheckout", initialize = "menucreaterepos"
     case graphBar = "graph-bar", graphStackedBar = "graph-bar-stacked", graphLine = "graph-line", graphStackedLine = "graph-line-stacked", graphPie = "graph-pie"
-    case clean = "menucleanup"
+    case clean = "menucleanup", sync = "menusync"
     case add = "menuadd", revert = "menurevert", reset = "reset", cherryPick = "cherry-pick", copy = "copy"
     case help = "menuhelp", settings = "menusettings", saveAs = "saveas"
     case open = "open", explore = "explorer", export = "menuexport", editor = "notepad"
@@ -112,6 +112,7 @@ extension RepositoryAction {
         case .diff, .diffLater, .clearComparisonMark: return .compare
         case .pull: return .pull
         case .push: return .push
+        case .submoduleSync: return .sync
         case .fetch, .submoduleUpdate: return .fetch
         case .branch, .worktreeCreate, .worktreeList: return .branch
         case .tag: return .tag

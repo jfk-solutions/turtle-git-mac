@@ -6,7 +6,8 @@ and `.h`, `IDD_SUBMODULE_UPDATE`, and the Update branch of
 [SubmoduleCommand.cpp](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseProc/Commands/SubmoduleCommand.cpp).
 All three source blobs were verified against the file inventory. The
 [official Submodules manual](https://tortoisegit.org/docs/tortoisegit/tgit-dug-submodules.html)
-was also reviewed. This work does not port Submodule Add or Sync.
+was also reviewed. This Update checkpoint does not establish Add or Sync parity; current separate
+ports are documented in SUBMODULE-ADD-PARITY.md and SUBMODULE-SYNC-PARITY.md.
 
 ## Native options and selection
 
@@ -80,6 +81,6 @@ Unsigned Debug and App Store builds passed with the embedded Finder extension,
 licenses, all 59 artwork resources and the pinned universal Git runtime audit.
 Signed Finder activation, sandbox/network authentication, native Force/Merge/
 Rebase/error/busy-Quit variants, resize and multi-display frame restoration,
-ordinary-file request scope normalization, full list context commands, Add/Sync
-and comparison-window integration remain
-pending. Inventory entries remain partial and this is not App Store approval.
+ordinary-file request scope normalization, full list context commands and
+comparison-window integration remain pending. Separate Add and Sync ports have
+their own partial verification records; they do not complete Update parity. Inventory entries remain partial and this is not App Store approval.

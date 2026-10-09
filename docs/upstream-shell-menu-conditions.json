@@ -1145,6 +1145,54 @@
           "no": []
         }
       ]
+    },
+    "submoduleAdd": {
+      "command": "SubmoduleAdd",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_ONLYONE"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
+    },
+    "submoduleSync": {
+      "command": "SubmoduleSync",
+      "clauses": [
+        {
+          "yes": [
+            "ITEMIS_FOLDERINGIT",
+            "ITEMIS_SUBMODULECONTAINER"
+          ],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        },
+        {
+          "yes": [],
+          "no": []
+        }
+      ]
     }
   }
 }

@@ -134,7 +134,7 @@ The existing source All-label behavior remains: reported remote/stash errors can
 continue, ordinary/local-tracking errors stop, and Cancel stops the sequence.
 Signed access, physical sheet interactions and all races remain unverified.
 
-Remaining: other SSH consumers (submodule Update and Sync), bundled
+Remaining: other SSH consumers (submodule Update and broader SyncDlg), bundled
 OpenSSH, Keychain, host-key/password prompts, physical UI/sheet acceptance,
 signed App Store/Finder and real network authentication. Concurrent config/ref changes across suspended preparation
 and complete source failure equivalence remain unverified.

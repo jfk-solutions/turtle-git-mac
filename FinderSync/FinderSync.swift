@@ -78,7 +78,7 @@ enum FinderShellMenuLayout {
         [.resolve, .mergeAbort, .rename, .remove, .removeKeep, .revert, .clean],
         [.switchBranch, .merge, .branch, .tag, .export],
         [.initialize, .add, .ignore, .ignoreDelete],
-        [.worktreeList, .submoduleUpdate],
+        [.worktreeList, .submoduleAdd, .submoduleUpdate, .submoduleSync],
         [.formatPatch, .importPatch]
     ]
     static func action(_ item: NSMenuItem) -> RepositoryAction? {

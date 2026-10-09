@@ -45,7 +45,10 @@ final class MenuIconTests: XCTestCase {
         XCTAssertEqual(RepositoryAction.bisectStart.icon, RepositoryAction.bisect.icon)
         XCTAssertEqual(RepositoryAction.bisectSkip.icon, RepositoryAction.bisect.icon)
         XCTAssertEqual(RepositoryAction.requestPull.icon, RepositoryAction.formatPatch.icon)
-        let distinctActions = RepositoryAction.allCases.filter { ![.requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
+        XCTAssertEqual(RepositoryAction.referenceBrowser.icon, RepositoryAction.repositoryBrowser.icon)
+        XCTAssertEqual(RepositoryAction.submoduleAdd.icon, RepositoryAction.add.icon)
+        XCTAssertEqual(RepositoryAction.submoduleSync.icon, .sync)
+        let distinctActions = RepositoryAction.allCases.filter { ![.referenceBrowser, .submoduleAdd, .requestPull, .bisectStart, .bisectSkip, .worktreeCreate, .worktreeList, .diffLater, .clearComparisonMark, .submoduleUpdate, .stashApply, .stashList, .reflog, .removeKeep, .ignoreMask, .ignoreDelete, .ignoreDeleteMask, .resolveCurrent, .resolveMine, .resolveTheirs].contains($0) }
         XCTAssertEqual(Set(distinctActions.map { $0.icon.rawValue }).count, distinctActions.count)
     }
 }

@@ -68,6 +68,7 @@ import TurtleGitCore
     private var submoduleDiffWindows: [String: SubmoduleDiffWindowController] = [:]
     private var revisionComparisonWindows: [String: RevisionComparisonWindowController] = [:]
     private var fileComparisonWindows: [String: FileComparisonWindowController] = [:]
+    private var submoduleSyncWindows: [UUID: SubmoduleSyncWindowController] = [:]
     private var submoduleAddWindows: [String: SubmoduleAddWindowController] = [:]
     private var submoduleUpdateWindows: [String: SubmoduleUpdateWindowController] = [:]
     private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
@@ -296,6 +297,9 @@ import TurtleGitCore
         case .remove, .removeKeep:
             guard let repository else { return }
             showRemove(repository: repository, access: activeAccess, paths: paths.isEmpty ? selectedPaths : paths, keepLocal: action == .removeKeep)
+        case .submoduleSync:
+            guard let repository else { return }
+            showSubmoduleSync(repository: repository, access: activeAccess, scope: paths)
         case .submoduleAdd:
             guard let repository else { return }
             showSubmoduleAdd(repository: repository, access: activeAccess, path: paths.first ?? "")
@@ -865,6 +869,16 @@ import TurtleGitCore
             controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
         }
     }
+    private func showSubmoduleSync(repository: GitRepository, access: RepositoryAccessLease?, scope: [String]) {
+        guard !submoduleSyncWindows.values.contains(where: { $0.model.repository.root == repository.root && $0.model.activeOperation }) else { return }
+        let id = UUID(), controller = SubmoduleSyncWindowController(repository: repository, access: access, scope: scope)
+        controller.onClosed = { [weak self] in self?.submoduleSyncWindows.removeValue(forKey: id) }
+        controller.model.onSynced = { [weak self] _ in
+            self?.refreshRepositoryLogs(repository.root)
+            if let self, self.root == repository.root { Task { await self.refresh() } }
+        }
+        submoduleSyncWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
+    }
     private func showSubmoduleAdd(repository: GitRepository, access: RepositoryAccessLease?, path: String) {
         let key = repository.root.path
         let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path)
@@ -919,7 +933,7 @@ import TurtleGitCore
                 self.openSession(access, action: action, actionPaths: paths); return
             }
             self.activate(action, paths: paths)
-            if action != .clean && action != .add && action != .diff && action != .submoduleAdd && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
+            if action != .clean && action != .add && action != .diff && action != .submoduleSync && action != .submoduleAdd && action != .submoduleUpdate && action != .commit && action != .revert && action != .log && action != .switchBranch && action != .branch && action != .tag && action != .push && action != .fetch && action != .pull && action != .rebase && action != .merge && action != .mergeAbort && action != .export && action != .bisect && action != .bisectStart && action.bisectOperation == nil && action != .stash && action != .stashApply && action != .stashPop && action != .stashList && action != .reflog && action != .rename && !action.isIgnore && !action.isResolve && action != .reset { self.workspaceWindow?.makeKeyAndOrderFront(nil) }
         }
         controller.model.onChanged = { [weak self] in Task { await self?.refresh() } }
         statusWindows[root.path] = controller
@@ -1683,7 +1697,7 @@ import TurtleGitCore
         if action == .diff && request.paths.count == 2 { handleFilePair(paths: request.paths); return }
         let candidate = request.paths[0]
         var permissionTargets = request.paths
-        if action == .rename || action == .remove,
+        if action == .rename || action == .remove || action == .submoduleSync,
            let parent = FinderSnapshot.read()?.repositories[candidate.standardizedFileURL.path]?.submoduleParentRoot {
             let parentURL = URL(fileURLWithPath: parent, isDirectory: true)
             if parentURL.path != candidate.path && candidate.standardizedFileURL.path.hasPrefix(parentURL.path.hasSuffix("/") ? parentURL.path : parentURL.path + "/") {

@@ -497,6 +497,11 @@
       "asset": "Paste.bmp",
       "source": "src/Resources/ribbon/Paste.bmp",
       "sha256": "edb85e6a7f3d095d7e47640a7607efd4c7d97946cfbad1ed7d49ae02d8421781"
+    },
+    {
+      "asset": "menusync.ico",
+      "source": "src/Resources/menusync.ico",
+      "sha256": "9c8fedb32ae301f834b5169cca128c7843aaf41b7abb943768e5633752df128f"
     }
   ]
 }

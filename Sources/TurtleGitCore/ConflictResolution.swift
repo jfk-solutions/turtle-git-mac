@@ -46,7 +46,7 @@ extension GitRepository {
     /// continue to use the child repository.
     public func discoverSelectionRoot(for action: RepositoryAction, selected: URL) async throws -> URL {
         let resolved = try discoverRoot()
-        guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .diff || action == .rename || action == .remove, selected.standardizedFileURL == resolved else { return resolved }
+        guard action.isResolve || action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .remove, selected.standardizedFileURL == resolved else { return resolved }
         let parent = GitRepository(root: resolved.deletingLastPathComponent(), executable: executable)
         guard let containing = try? await parent.discoverRoot(), containing != resolved,
               RepositoryAccessLease.pathIsContained(resolved, by: containing) else { return resolved }
@@ -55,7 +55,7 @@ extension GitRepository {
         if action == .rename || action == .remove {
             guard try await GitRepository(root: resolved, executable: executable).registeredSubmoduleParent() == containing else { return resolved }
         }
-        if action == .revert || action == .submoduleUpdate || action == .diff || action == .rename || action == .remove {
+        if action == .revert || action == .submoduleUpdate || action == .submoduleSync || action == .diff || action == .rename || action == .remove {
             let indexed = try? await owner.run(["ls-files", "--stage", "-z", "--", path]).stdout
             if indexed?.split(separator: 0).contains(where: { record in
                 let fields = record.split(separator: 9, maxSplits: 1)
