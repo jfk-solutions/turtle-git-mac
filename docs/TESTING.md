@@ -256,3 +256,10 @@ with repeated `--git` for Apple and bundled Git. This receiver prohibits activat
 and uses private repositories/preferences; it does not display windows or establish
 physical sheet/layout or App Store acceptance. Core description coverage is in
 `ReferenceBrowserTests` and existing `ReferenceCreationTests`.
+
+Inline branch rename: `python3 scripts/test-reference-rename.py` after Debug,
+optionally with repeated `--git` arguments. It hosts actual menu/F2/native
+field-editor command routes in private repositories/preferences, without displayed
+windows. Core `ReferenceBrowserTests` includes config/reflog/current HEAD, bare,
+invalid/collision/cancellation and packed NFC/NFD source-identity cases. No
+physical keyboard/focus-change/IME or signed acceptance is established.

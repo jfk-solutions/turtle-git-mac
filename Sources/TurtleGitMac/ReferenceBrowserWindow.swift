@@ -27,7 +27,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         DialogGeometry.attach(window, identifier: "BrowseRefs", legacyName: "BrowseRefs")
     }
     private func showReflog(_ reference: String) {
-        guard let owner = window, owner.attachedSheet == nil, !model.busy, !model.hasChild, !model.closed else { return }
+        guard let owner = window, owner.attachedSheet == nil, !model.busy, !model.hasChild, model.renameReference == nil, !model.closed else { return }
         model.hasChild = true
         let child = ReferenceLogWindowController(repository: model.repository, access: model.access, reference: reference, preferences: model.preferences)
         reflog = child
@@ -60,10 +60,10 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     }
     func abandonPresentation() { completion = nil; close() }
     private func finish(_ reference: String?) {
-        guard let completion, !model.hasChild, window?.attachedSheet == nil else { return }; self.completion = nil
+        guard let completion, !model.busy, !model.hasChild, model.renameReference == nil, window?.attachedSheet == nil else { return }; self.completion = nil
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, sender.attachedSheet == nil else { return false }; finish(nil); return false }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
     func windowWillClose(_ notification: Notification) { model.invalidate(); descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -76,6 +76,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private var invalidated = false
     private(set) var initialFocusPending = true
     var closed: Bool { invalidated }
+    @Published private(set) var renameReference: GitReferenceName?
+    private var renameFolder: GitReferenceName?
     @Published var hasChild = false
     @Published private(set) var bare = false
     private(set) var folders: [GitReferenceName] = ["refs"]
@@ -116,7 +118,29 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     var chosen: BrowserReference? { guard let selected else { return nil }; return rows.first { $0.reference.name == selected }?.reference }
-    var canAccept: Bool { !busy && !hasChild && !invalidated && chosen != nil }
+    var canAccept: Bool { !busy && !hasChild && !invalidated && renameReference == nil && chosen != nil }
+    var canRename: Bool { canAccept && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
+    func beginRename() -> String? {
+        guard canRename, let chosen, let row = rows.first(where: { $0.reference.name == chosen.name }) else { return nil }
+        renameFolder = folder; renameReference = chosen.name; initialFocusPending = false; error = nil
+        return row.name
+    }
+    func cancelRename() { guard !busy else { return }; renameReference = nil; renameFolder = nil }
+    func commitRename(_ label: String) {
+        guard !invalidated, !busy, !hasChild, let reference = renameReference, let folder = renameFolder else { return }
+        let request = OperationCancellation(); token = request; busy = true; error = nil
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                try await repository.renameBrowserBranch(reference, folder: folder, label: label, cancellation: request)
+                guard !invalidated, token === request else { return }
+                token = nil; busy = false; renameReference = nil; renameFolder = nil; load()
+            } catch {
+                guard !invalidated, token === request else { return }
+                token = nil; busy = false; renameReference = nil; renameFolder = nil; self.error = error.localizedDescription
+            }
+        }
+    }
     func text(_ row: ReferenceBrowserRow, column: String) -> String {
         let ref = row.reference
         switch column {
@@ -134,7 +158,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     func load() {
-        guard !invalidated, !hasChild else { return }
+        guard !invalidated, !hasChild, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = nil
         let filter = mergeFilter
@@ -149,11 +173,11 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func invalidate() { invalidated = true; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
-    func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
+    func invalidate() { invalidated = true; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
+    func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
     func refilter() { if let selected, !rows.contains(where: { $0.reference.name == selected }) { self.selected = nil } }
     func nestedChanged() { preferences.set(nested, forKey: "RefBrowserIncludeNestedRefs"); load() }
-    func currentBranch() { guard !busy, !hasChild, let snapshot, let branch = snapshot.currentBranch else { return }; let choice = snapshot.initialSelection(branch.rawValue); folder = choice.folder; selected = choice.reference; refilter() }
+    func currentBranch() { guard !busy, !hasChild, renameReference == nil, let snapshot, let branch = snapshot.currentBranch else { return }; let choice = snapshot.initialSelection(branch.rawValue); folder = choice.folder; selected = choice.reference; refilter() }
     func accept() { guard canAccept, let chosen else { return }; finish(chosen.name.rawValue) }
     func cancel() { finish(nil) }
     func focusIfReady(_ table: NSTableView) {
@@ -174,15 +198,15 @@ struct ReferenceBrowserDialog: View {
                 }; Divider(); Button("Toggle filters") { model.fields = ReferenceBrowserWindowModel.allFields.subtracting(model.fields); model.refilter() }
                 } label: { CommandLabel(title: "Filter by", icon: .log) }
                 Picker("Branch filter", selection: $model.mergeFilter) { ForEach(ReferenceBrowserMergeFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.labelsHidden().frame(width: 170).onChange(of: model.mergeFilter) { _ in model.load() }
-            }.disabled(model.busy)
+            }.disabled(model.busy || model.renameReference != nil)
             ReferenceBrowserNativeView(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
-                Toggle("Show nested refs", isOn: $model.nested).onChange(of: model.nested) { _ in model.nestedChanged() }.disabled(model.busy)
+                Toggle("Show nested refs", isOn: $model.nested).onChange(of: model.nested) { _ in model.nestedChanged() }.disabled(model.busy || model.renameReference != nil)
                 Text("Showing \(model.rows.count) ref(s), \(model.chosen == nil ? 0 : 1) ref(s) selected").font(.system(size: 11)).foregroundStyle(.secondary)
                 if model.busy { ProgressView().controlSize(.small) }; Spacer()
-                Button("Current Branch") { model.currentBranch() }.disabled(model.busy || model.snapshot?.currentBranch == nil)
+                Button("Current Branch") { model.currentBranch() }.disabled(model.busy || model.renameReference != nil || model.snapshot?.currentBranch == nil)
                 Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canAccept)
-                Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction)
+                Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.busy || model.renameReference != nil)
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-browse-ref.html")!) } label: { CommandLabel(title: "Help", icon: .help) }
             }
         }.padding(10).disabled(model.hasChild).onAppear { model.load() }
@@ -212,7 +236,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         let split = NSSplitView(); split.delegate = context.coordinator; split.isVertical = true; split.dividerStyle = .thin
         let tree = NSOutlineView(); tree.headerView = nil; tree.setAccessibilityLabel("Reference namespaces")
         let folder = NSTableColumn(identifier: .init("folder")); folder.width = 185; tree.addTableColumn(folder); tree.outlineTableColumn = folder; tree.rowHeight = 22
-        let table = NSTableView(); table.rowHeight = 23; table.allowsMultipleSelection = false; table.setAccessibilityLabel("References")
+        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename() }; table.rowHeight = 23; table.allowsMultipleSelection = false; table.setAccessibilityLabel("References")
         for (id, title, width) in [("name", "Branch Name", 210.0), ("upstream", "Tracked branch", 150), ("authorDate", "Last Author Date", 140), ("subject", "Last Commit", 280), ("author", "Last Author", 130), ("committerDate", "Date Last Commit", 140), ("committer", "Last Committer", 130), ("hash", "SHA-1", 170), ("description", "Description", 180)] {
             let column = NSTableColumn(identifier: .init(id)); column.title = title; column.width = width; column.minWidth = 70; table.addTableColumn(column)
         }
@@ -230,16 +254,20 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
     }
     static func dismantleNSView(_ split: NSSplitView, coordinator: Coordinator) { split.delegate = nil; coordinator.tree?.delegate = nil; coordinator.tree?.dataSource = nil; coordinator.table?.delegate = nil; coordinator.table?.dataSource = nil; coordinator.table?.menu?.delegate = nil }
     @MainActor final class Folder: NSObject { let key: GitReferenceName; var children: [Folder] = []; weak var parent: Folder?; init(_ key: GitReferenceName) { self.key = key } }
-    @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSTableViewDataSource, NSTableViewDelegate, NSMenuDelegate, NSSplitViewDelegate {
+    @MainActor final class Coordinator: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate, NSMenuDelegate, NSSplitViewDelegate {
         var model: ReferenceBrowserWindowModel
         weak var tree: NSOutlineView?; weak var table: NSTableView?
         private var paths: [GitReferenceName] = [], folders: [GitReferenceName: Folder] = [:], visible: [ReferenceBrowserRow] = []
         var positioned = false
         private var updating = false
+        private weak var renameField: NSTextField?
         init(model: ReferenceBrowserWindowModel) { self.model = model }
         func splitView(_ splitView: NSSplitView, shouldAdjustSizeOfSubview view: NSView) -> Bool { view === splitView.subviews.last }
         func update() {
-            guard let tree, let table else { return }; updating = true; defer { updating = false }
+            guard let tree, let table else { return }
+            if model.renameReference != nil { tree.isEnabled = false; renameField?.isEditable = !model.busy; return }
+            if renameField != nil { renameField?.delegate = nil; table.window?.makeFirstResponder(table); renameField = nil }
+            updating = true; defer { updating = false }
             let paths = model.folders
             if paths != self.paths {
                 self.paths = paths; folders = Dictionary(uniqueKeysWithValues: paths.map { ($0, Folder($0)) })
@@ -283,13 +311,42 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             let item = visible[row]; let text = NSTextField(labelWithString: model.text(item, column: column.identifier.rawValue)); text.lineBreakMode = .byTruncatingTail
             text.toolTip = item.reference.name.rawValue
             if item.reference.name == model.snapshot?.currentBranch { text.font = .boldSystemFont(ofSize: NSFont.systemFontSize) }
+            if column.identifier.rawValue == "name" {
+                let cell = NSTableCellView(); text.frame = .init(x: 2, y: 2, width: column.width - 4, height: 19); text.autoresizingMask = [.width]
+                cell.addSubview(text); cell.textField = text; return cell
+            }
             return text
         }
-        func tableViewSelectionDidChange(_ notification: Notification) { guard !updating, let table else { return }; model.selected = visible.indices.contains(table.selectedRow) ? visible[table.selectedRow].reference.name : nil }
-        func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) { let id = tableColumn.identifier.rawValue; if model.sortColumn == id { model.descending.toggle() } else { model.sortColumn = id; model.descending = false } }
+        func beginRename() {
+            guard let table, let label = model.beginRename(), let reference = model.renameReference,
+                  let row = visible.firstIndex(where: { $0.reference.name == reference }),
+                  let cell = table.view(atColumn: table.column(withIdentifier: .init("name")), row: row, makeIfNecessary: true) as? NSTableCellView,
+                  let field = cell.textField else { model.cancelRename(); return }
+            renameField = field; field.stringValue = label; field.isEditable = true; field.isSelectable = true; field.isBordered = true; field.drawsBackground = true; field.backgroundColor = .textBackgroundColor; field.delegate = self
+            field.setAccessibilityLabel("Rename branch")
+            if table.window?.makeFirstResponder(field) == true { field.currentEditor()?.selectAll(nil) }
+        }
+        func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+            guard control === renameField else { return false }
+            if commandSelector == NSSelectorFromString("cancelOperation:") {
+                renameField?.delegate = nil; model.cancelRename(); update(); return true
+            }
+            if commandSelector == NSSelectorFromString("insertNewline:") {
+                let label = renameField?.stringValue ?? ""; renameField?.delegate = nil; model.commitRename(label); return true
+            }
+            return false
+        }
+        func controlTextDidEndEditing(_ notification: Notification) {
+            guard let field = notification.object as? NSTextField, field === renameField, model.renameReference != nil, !model.busy else { return }
+            field.delegate = nil; model.commitRename(field.stringValue)
+        }
+        func selectionShouldChange(in tableView: NSTableView) -> Bool { !model.busy && !model.hasChild && model.renameReference == nil }
+        func outlineView(_ outlineView: NSOutlineView, shouldSelectItem item: Any) -> Bool { !model.busy && !model.hasChild && model.renameReference == nil }
+        func tableViewSelectionDidChange(_ notification: Notification) { guard !updating, model.renameReference == nil, let table else { return }; model.selected = visible.indices.contains(table.selectedRow) ? visible[table.selectedRow].reference.name : nil }
+        func tableView(_ tableView: NSTableView, didClick tableColumn: NSTableColumn) { guard model.renameReference == nil, !model.busy else { return }; let id = tableColumn.identifier.rawValue; if model.sortColumn == id { model.descending.toggle() } else { model.sortColumn = id; model.descending = false } }
         @objc func accept() { model.accept() }
         func menuNeedsUpdate(_ menu: NSMenu) {
-            menu.removeAllItems(); guard !model.busy, !model.hasChild, let table else { return }
+            menu.removeAllItems(); guard !model.busy, !model.hasChild, model.renameReference == nil, let table else { return }
             if visible.indices.contains(table.clickedRow), table.selectedRow != table.clickedRow { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
             guard model.chosen != nil else { return }; menu.autoenablesItems = false
             func item(_ title: String, _ action: Selector, _ icon: MenuIcon, _ enabled: Bool) { let entry = NSMenuItem(title: title, action: action, keyEquivalent: ""); entry.target = self; entry.image = icon.contextImage(defaults: model.preferences); entry.isEnabled = enabled; menu.addItem(entry) }
@@ -298,11 +355,13 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if chosen.objectType == "commit" { item("Show log", #selector(log), .log, model.onLog != nil) }
             let branch = GitReferenceName.removingPrefix("refs/heads/", from: chosen.name.rawValue) != nil || GitReferenceName.removingPrefix("refs/remotes/", from: chosen.name.rawValue) != nil
             if branch { item("Show Reflog", #selector(reflog), .log, model.onReflog != nil) }
+            if model.canRename { item("Rename", #selector(rename), .rename, true) }
             if model.canEditDescription { item("Edit description", #selector(editDescription), .rename, model.onEditDescription != nil) }
             item("Browse repository", #selector(browse), .repositoryBrowser, model.onBrowse != nil)
             if !model.bare && chosen.objectType == "commit" { item("Compare with working tree", #selector(compare), .compare, model.onCompare != nil) }
             menu.addItem(.separator()); item("Copy reference name", #selector(copyName), .copy, true)
         }
+        @objc func rename() { beginRename() }
         @objc func editDescription() { if model.canEditDescription { model.onEditDescription?() } }
         @objc func log() { if let chosen = model.chosen { model.onLog?(chosen.name.rawValue) } }
         @objc func reflog() { if let chosen = model.chosen { model.onReflog?(chosen.name.rawValue) } }
@@ -397,4 +456,12 @@ private final class ReferenceDescriptionTextView: NSTextView {
         if let window { window.sheetParent?.endSheet(window) }; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+}
+
+private final class ReferenceBrowserRenameTable: NSTableView {
+    var rename: () -> Void = {}
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 120 { rename(); return }
+        super.keyDown(with: event)
+    }
 }

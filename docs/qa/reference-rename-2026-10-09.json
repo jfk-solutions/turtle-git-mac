@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "0d6b4f5",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "src/TortoiseProc/BrowseRefsDlg.h": "8b70d06e007dfee40874b104619cedc80a690412"
+  },
+  "scope": "Native local branch inline Rename/F2 and exact canonical refresh behavior; full reference browser and whole port remain incomplete.",
+  "verification": {
+    "source": "BrowseRefsDlg local-head gate without commit-only/bare exclusion, IDI_RENAME and F2 EditLabel. End edit combines current tree namespace with untrimmed label, forbids ref-type change, invokes non-forcing branch -m old -- new and Refresh with previous selection. SelectRef/GetTreeNode retains deepest surviving namespace for removed canonical ref; short names use GetFullRefName suffix lookup.",
+    "core": "6 ReferenceBrowserTests pass for Apple and bundled Git. Real nonforcing rename moves description/upstream config and reflog; current symbolic HEAD changes without object/index/tracked-file checkout; invalid names/collisions/type changes fail without config mutation; pre-cancelled no mutation and bare current-branch rename; packed NFC/NFD source distinction preserves sibling metadata. Initial selection of removed canonical ref retains surviving ancestor and does not select unrelated canonical-suffix lookalike.",
+    "native": "Actual hidden reference browser menu/icon/F2, in-place native NSTextField and nonnil field editor with relative label/select-all; Return/Escape delegate routes, actual makeFirstResponder-generated end-edit notification acceptance, edit/write/refresh/close/Quit gates, current HEAD refresh, collision/type gates, namespace fallback with surviving sibling and unrelated suffix-lookalike, invariant HEAD object/index/working bytes and forced edit cleanup pass both engines. F2 NSEvent is delivered directly to table; Return/Escape invoke native field-editor command delegate, not physical key delivery.",
+    "browser_regression": "Final source full browser/Reset native receiver passes both engines: native tree/nine-column table/logical sorting/filters/nested/merge/current/focus, Unicode/type/bare icon gates, callbacks/Reflog ownership, Reset namespace/fresh catalog/focus/draft/cancel/stale/reject/locks and unchanged private repository invariants.",
+    "description_regression": "Description receiver passes both engines after inline control/model/ownership changes, before final missing-canonical fallback refinement; existing description path selects valid canonical refs. Description implementation unchanged. Cancel/Ctrl+Return/save/refresh/clear/type/retry/bare/cleanup checked.",
+    "cycles": "Zero AttributeGraph cycle warnings in final rename, browser and description logs.",
+    "debug": "Unsigned Debug build and standalone bundle audit pass.",
+    "store": "Unsigned AppStore build and required bundle audit pass: embedded Finder extension, universal bundled Git 2.55.0 runtime smoke checks, licenses and all 99 upstream icon resources. Signed execution and App Store acceptance unverified.",
+    "ci": "Receiver added once; Ruby safe YAML parse/command count pass. Hosted CI execution unverified.",
+    "inventory": "Pin checker passes, mappings remain partial.",
+    "site": "Local Pages rebuild passes; no deployment or new physical screenshots.",
+    "notice": "Both packaged NOTICE files byte-equal source."
+  },
+  "limitations": [
+    "Complete deletion/tracking/range/tree/fetch/push menus, standalone multi-selection browser and whole app parity remain unfinished.",
+    "No physical inline mouse/keyboard/F2/Return/Escape/focus-change delivery, IME, accessibility, visual light/dark or actual sheet acceptance; hidden receivers do not establish these.",
+    "Git errors use the existing native inline browser error surface; full source modal error presentation remains pending.",
+    "Concurrent external branch/ref mutations and rollback of already completed rename are not established. Forced cleanup cancels pending work and suppresses late publication only.",
+    "Bare rename proven through Core; final native browser regression verifies bare menu behavior, not an actual bare inline rename. Destination NFD filesystem behavior and all case-only/linked-worktree restrictions remain pending.",
+    "Signing, real security-scope/Finder activation, App Store acceptance, screenshots, push/deployment and hosted failing-job status unverified. Older WorktreeColumns.Test preference files retained."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.ReferenceDescription.QA.55FC5F1C-048C-4B61-B3E7-27EF2BB0ECCA",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceDescription.QA.4A9A9C54-9E40-474A-8FBE-EC165739CEC2",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.926D56B4-C96A-42AE-B80F-C8C2AD562EB0",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.A644B41C-A626-433A-8A23-95BDD56E2E6A",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.011EC619-E450-4D90-8EA4-4A2A0C746940",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.C0245677-6C45-4DA8-91D8-63EBB2A224CE",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      }
+    ],
+    "all_handles_terminal": true,
+    "remaining_current_receiver_fixtures": [],
+    "remaining_current_preference_files": []
+  },
+  "local_logs": "build/qa/reference-rename-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "6a16d77adfa925c1e56e07ad9dcf5d4c93b822b1bfb0d3f7ea5b5042f216f3f6",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "b4724f21b7626bd3f00dfc76ebc70e6b4c4bfbebe8a33ae75a2d15ce40991240",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "0976365d110e90da8c6894c79461103165b7ce75fd186b9350c8eeaf5582c9ff",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "f24c20a2be20ae1189c6a2f84a0c157fde741af586958f04a2ea703709b5c65b",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "68d6992db50a84fd5196239cfaba44b3117832672145f5b9460228e97bd6bffd",
+    "docs/REFERENCE-BROWSER-PARITY.md": "947cf763de09eaebb0b50cb9d68e7d3e7b411306124b7aadce61cd675db56c39",
+    "docs/TESTING.md": "2fd25402d4b2a2bd8cde7027a3de3ec6b210cd2ea77fd9b96298775d7a7c4e46",
+    "docs/upstream-files.csv": "6198b046fa94224dc126d6cece4dfd874c03b2b114ac5502deba59eee08ceb27",
+    "docs/qa/reference-rename-native-2026-10-09.swift": "ae45c6d53fcfcbf179ea7705e264235cf1c85df70fd6e4bc9f2ec941e631c823",
+    "scripts/test-reference-rename.py": "7e416dd2bc66b275550451ba6533e79b370a4cb9550ecedf00b0a880d32663bf"
+  }
+}

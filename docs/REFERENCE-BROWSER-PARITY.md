@@ -52,7 +52,7 @@ Show Reflog, Browse repository, Compare with working tree and Copy reference nam
 Log and working-tree comparison are offered for commit objects, Reflog for local
 and remote branches, and working-tree comparison is suppressed in bare repos.
 Reflog is owned by the browser and blocks parent selection/close until released.
-Other context callbacks retain canonical names. Remote/local deletion, rename,
+Other context callbacks retain canonical names. Remote/local deletion,
 tracking edits, fetch/push, range selection/commands, tree
 context commands and complete source menu parity remain unfinished. Reset, Switch, Branch/Tag and New Worktree use this browser; complete behavior
 and other chooser consumers remain pending.
@@ -98,3 +98,31 @@ See `scripts/test-reference-description.py` and
 [checkpoint evidence](qa/reference-description-2026-10-09.json). Physical sheets,
 keyboard/IME/accessibility, visual light/dark comparison and complete Scintilla
 input features remain unverified or incomplete.
+
+## Inline branch rename
+
+Local branches now offer **Rename** with the original rename icon and F2 in the
+native reference list. The branch-name cell becomes editable in place, with its
+folder-relative label selected. Escape cancels, Return accepts, and ending the
+edit by moving focus also accepts, as the upstream label-edit notification does.
+The selected namespace prefixes the entered label: in `refs/heads`, entering
+`other/topic` renames to that branch; in `refs`, the label must begin `heads/`.
+The command is available in bare repositories and is not limited to commit object
+rows. Remote refs and tags cannot be renamed by this command.
+
+Git performs a non-forcing `branch -m`, preserving branch configuration and
+reflog history and updating symbolic HEAD when renaming the current branch.
+Invalid names, existing destinations and Git lock errors are surfaced. Success
+reloads the catalog using the previous selection, matching source Refresh after
+label editing: when the old reference disappears, selection falls back to the
+deepest surviving namespace instead of silently accepting the new reference in the picker.
+Failures retain the original catalog row. Parent acceptance, refresh, namespace
+changes, competing children, close and Quit are locked during the edit/write.
+Forced cleanup cancels pending work and suppresses late UI publication; it cannot
+roll back an already completed Git rename.
+
+Core and hidden native checks are recorded in
+[rename QA](qa/reference-rename-2026-10-09.json). Physical inline mouse editing,
+focus-change acceptance, F2 keyboard delivery, IME, visual/accessibility comparison,
+concurrent external ref changes and signed/security-scope acceptance remain
+unverified. The full browser command set and whole port remain unfinished.

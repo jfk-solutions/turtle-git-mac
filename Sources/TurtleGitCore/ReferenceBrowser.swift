@@ -45,10 +45,22 @@ public struct ReferenceBrowserSnapshot: Sendable {
     public func initialSelection(_ requested: String) -> (folder: GitReferenceName, reference: GitReferenceName?) {
         let candidate = requested.isEmpty || requested == "HEAD" ? currentBranch?.rawValue ?? "refs/heads" : requested
         if let folder = folders.first(where: { GitReferenceName.equal($0.rawValue, candidate) }) { return (folder, nil) }
-        let found = references.first { $0.name == GitReferenceName(candidate) } ?? references.first { GitReferenceName.removingSuffix("/" + candidate, from: $0.name.rawValue) != nil }
+        let canonical = candidate == "refs" || GitReferenceName.removingPrefix("refs/", from: candidate) != nil
+        let found = references.first { $0.name == GitReferenceName(candidate) }
+            ?? (canonical ? nil : references.first { GitReferenceName.removingSuffix("/" + candidate, from: $0.name.rawValue) != nil })
         if let found {
             let bytes = Array(found.name.rawValue.utf8); let slash = bytes.lastIndex(of: 47)!
             return (GitReferenceName(String(decoding: bytes[..<slash], as: UTF8.self)), found.name)
+        }
+        // SelectRef/GetTreeNode keeps the deepest surviving namespace when a
+        // canonical reference disappears (for example after inline rename).
+        if GitReferenceName.removingPrefix("refs/", from: candidate) != nil {
+            var bytes = Array(candidate.utf8)
+            while let slash = bytes.lastIndex(of: 47) {
+                bytes = Array(bytes[..<slash])
+                let ancestor = GitReferenceName(String(decoding: bytes, as: UTF8.self))
+                if folders.contains(ancestor) { return (ancestor, nil) }
+            }
         }
         return (folders.contains("refs/heads") ? "refs/heads" : "refs", nil)
     }
@@ -117,5 +129,26 @@ extension GitRepository {
         }
         let head = try run(["symbolic-ref", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: cancellation)
         return ReferenceBrowserSnapshot(references: references, currentBranch: head.exitCode == 0 ? GitReferenceName(head.text.trimmingCharacters(in: .newlines)) : nil)
+    }
+}
+
+// BrowseRefsDlg's inline label editor composes the new canonical name from the
+// selected tree folder, and delegates non-forcing rename semantics to Git.
+extension GitRepository {
+    public func renameBrowserBranch(_ reference: GitReferenceName, folder: GitReferenceName, label: String, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        guard let old = GitReferenceName.removingPrefix("refs/heads/", from: reference.rawValue) else { throw ReferenceBrowserRenameFailure.localBranchOnly }
+        let canonical = folder.rawValue + "/" + label
+        guard let new = GitReferenceName.removingPrefix("refs/heads/", from: canonical) else { throw ReferenceBrowserRenameFailure.namespaceChange }
+        _ = try run(["-c", "core.precomposeunicode=false", "branch", "-m", old, "--", new], cancellation: cancellation)
+    }
+}
+public enum ReferenceBrowserRenameFailure: LocalizedError {
+    case localBranchOnly, namespaceChange
+    public var errorDescription: String? {
+        switch self {
+        case .localBranchOnly: return "Only local branches can be renamed."
+        case .namespaceChange: return "The reference type cannot be changed. Keep the new name within refs/heads/."
+        }
     }
 }

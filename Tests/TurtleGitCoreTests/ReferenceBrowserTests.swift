@@ -118,4 +118,53 @@ final class ReferenceBrowserTests: XCTestCase {
         let snapshot = try await bare.referenceBrowser(); XCTAssertEqual(snapshot.references.first { $0.name == "refs/heads/main" }?.description, "bare description")
     }
 
+    func testBrowserBranchRenameMovesConfigReflogAndCurrentBranchWithoutCheckout() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        _ = try await repo.run(["branch", "nested/topic"])
+        _ = try await repo.run(["branch", "nested/neighbor"])
+        _ = try await repo.run(["branch", "else/refs/heads/nested/topic"])
+        _ = try await repo.run(["config", "branch.nested/topic.description", "description\nsecond"])
+        _ = try await repo.run(["config", "branch.nested/topic.remote", "origin"])
+        _ = try await repo.run(["config", "branch.nested/topic.merge", "refs/heads/main"])
+        let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent("file"))
+        try await repo.renameBrowserBranch("refs/heads/nested/topic", folder: "refs/heads", label: "other/renamed", cancellation: OperationCancellation())
+        let snapshot = try await repo.referenceBrowser()
+        XCTAssertFalse(snapshot.references.contains { $0.name == "refs/heads/nested/topic" })
+        XCTAssertEqual(snapshot.initialSelection("refs/heads/nested/topic").folder, "refs/heads/nested")
+        XCTAssertNil(snapshot.initialSelection("refs/heads/nested/topic").reference)
+        let moved = try XCTUnwrap(snapshot.references.first { $0.name == "refs/heads/other/renamed" }); XCTAssertEqual(moved.description, "description\nsecond")
+        let remote = try await repo.run(["config", "--get", "branch.other/renamed.remote"]).text; XCTAssertEqual(remote, "origin\n")
+        let log = try await repo.run(["reflog", "show", "refs/heads/other/renamed"]).text; XCTAssertTrue(log.contains("renamed refs/heads/nested/topic to refs/heads/other/renamed"))
+        try await repo.renameBrowserBranch("refs/heads/main", folder: "refs", label: "heads/current")
+        let branch = try await repo.run(["symbolic-ref", "HEAD"]).text; XCTAssertEqual(branch, "refs/heads/current\n")
+        let after = try await repo.run(["rev-parse", "HEAD"]).stdout; XCTAssertEqual(head, after)
+        XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index"))); XCTAssertEqual(file, try Data(contentsOf: root.appendingPathComponent("file")))
+        let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        for (ref, folder, label) in [("refs/tags/release", "refs/tags", "other"), ("refs/heads/current", "refs", "tags/current"), ("refs/heads/current", "refs/heads", "other/renamed"), ("refs/heads/current", "refs/heads", "bad name"), ("refs/heads/current", "refs/heads", "-dash")] {
+            do { try await repo.renameBrowserBranch(GitReferenceName(ref), folder: GitReferenceName(folder), label: label); XCTFail("Invalid/conflicting rename ran") } catch {}
+        }
+        XCTAssertEqual(config, try Data(contentsOf: root.appendingPathComponent(".git/config")))
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { try await repo.renameBrowserBranch("refs/heads/current", folder: "refs/heads", label: "cancelled", cancellation: cancelled); XCTFail("Cancelled rename ran") } catch OperationCancellationFailure.cancelled {}
+        let bareRoot = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        let bare = GitRepository(root: bareRoot, executable: repo.executable)
+        try await bare.renameBrowserBranch("refs/heads/current", folder: "refs/heads", label: "bare-renamed")
+        let bareHead = try await bare.run(["symbolic-ref", "HEAD"]).text; XCTAssertEqual(bareHead, "refs/heads/bare-renamed\n")
+    }
+
+    func testRenameDistinguishesPackedCanonicalEquivalentBranches() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let nfc = "Café", nfd = "Cafe\u{301}"
+        try Data(("# pack-refs with: sorted\n" + ["refs/heads/main", "refs/heads/" + nfc, "refs/heads/" + nfd].sorted { $0.utf8.lexicographicallyPrecedes($1.utf8) }.map { hash + " " + $0 + "\n" }.joined()).utf8).write(to: root.appendingPathComponent(".git/packed-refs"))
+        let configURL = root.appendingPathComponent(".git/config"); var config = try Data(contentsOf: configURL)
+        config.append(Data(("\n[branch \"" + nfc + "\"]\n description = NFC\n[branch \"" + nfd + "\"]\n description = NFD\n").utf8)); try config.write(to: configURL)
+        try await repo.renameBrowserBranch(GitReferenceName("refs/heads/" + nfd), folder: "refs/heads", label: "unicode-renamed", cancellation: OperationCancellation())
+        let snapshot = try await repo.referenceBrowser()
+        XCTAssertTrue(snapshot.references.contains { $0.name == GitReferenceName("refs/heads/" + nfc) })
+        XCTAssertFalse(snapshot.references.contains { $0.name == GitReferenceName("refs/heads/" + nfd) })
+        XCTAssertEqual(snapshot.references.first { $0.name == "refs/heads/unicode-renamed" }?.description, "NFD")
+        XCTAssertEqual(snapshot.references.first { $0.name == GitReferenceName("refs/heads/" + nfc) }?.description, "NFC")
+    }
+
 }
