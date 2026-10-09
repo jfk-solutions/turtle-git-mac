@@ -16,7 +16,9 @@ public struct RemoteSettingsFields: OptionSet, Sendable {
     public static let prune = Self(rawValue: 0x10)
     public static let pushDefault = Self(rawValue: 0x40)
     public static let pushURL = Self(rawValue: 0x80)
-    public static let all: Self = [.name, .url, .puttyKeyFile, .tags, .prune, .pushDefault, .pushURL]
+    /// Native adaptation: separate from the interoperable Windows PuTTY path.
+    public static let sshKeyFile = Self(rawValue: 0x100)
+    public static let all: Self = [.name, .url, .puttyKeyFile, .tags, .prune, .pushDefault, .pushURL, .sshKeyFile]
 }
 public struct RemoteSettings: Sendable {
     public var name: String
@@ -24,6 +26,7 @@ public struct RemoteSettings: Sendable {
     public var pushURL = ""
     /// Interoperable Windows configuration only; this is not an OpenSSH identity.
     public var puttyKeyFile = ""
+    public var sshKeyFile = ""
     public var tags: RemoteTagPolicy = .reachable
     public var prune: FetchOverride = .configured
     public var pushDefault = false
@@ -43,7 +46,7 @@ public enum RemoteSettingsFailure: LocalizedError {
 }
 extension GitRepository {
     private func remoteSettingValue(_ key: String, token: OperationCancellation) throws -> String {
-        let result = try run(["config", "--null", "--get", key], successfulExitCodes: 0...1, cancellation: token)
+        let result = try run(["-c", "core.precomposeunicode=false", "config", "--null", "--get", key], successfulExitCodes: 0...1, cancellation: token)
         if result.exitCode == 1 { return "" }
         guard result.stdout.last == 0, let value = String(data: result.stdout.dropLast(), encoding: .utf8) else { throw RemoteSettingsFailure.output }
         return value
@@ -57,6 +60,7 @@ extension GitRepository {
         settings.url = try remoteSettingValue(prefix + "url", token: token)
         settings.pushURL = try remoteSettingValue(prefix + "pushurl", token: token)
         settings.puttyKeyFile = try remoteSettingValue(prefix + "puttykeyfile", token: token)
+        settings.sshKeyFile = try remoteSettingValue(prefix + "turtlegitsshkeyfile", token: token)
         settings.tags = RemoteTagPolicy(rawValue: try remoteSettingValue(prefix + "tagopt", token: token)) ?? .reachable
         let prune = try remoteSettingValue(prefix + "prune", token: token)
         settings.prune = prune == "true" ? .enabled : prune == "false" ? .disabled : .configured
@@ -67,11 +71,11 @@ extension GitRepository {
         if value.isEmpty {
             // Source ignores unset's failure but checks the effective value. Inherited
             // config and multiple values therefore cannot silently become "cleared".
-            do { _ = try run(["config", "--local", "--unset", "--end-of-options", key], cancellation: token) }
+            do { _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", "--unset", "--end-of-options", key], cancellation: token) }
             catch { try token.check() }
             if try !remoteSettingValue(key, token: token).isEmpty { throw RemoteSettingsFailure.inheritedValue(key: key, value: value) }
         } else {
-            _ = try run(["config", "--local", "--end-of-options", key, value], cancellation: token)
+            _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", "--end-of-options", key, value], cancellation: token)
         }
     }
     /// Apply only edited fields, in source order. Successful earlier writes remain
@@ -79,7 +83,7 @@ extension GitRepository {
     /// No warning consent or fetch is implied by this backend operation.
     public func applyRemoteSettings(_ settings: RemoteSettings, changed: RemoteSettingsFields, cancellation: OperationCancellation? = nil) throws {
         let token = cancellation ?? OperationCancellation(); try token.check()
-        guard [settings.name, settings.url, settings.pushURL, settings.puttyKeyFile].allSatisfy({ !$0.utf8.contains(0) }) else { throw RemoteSettingsFailure.invalidValue }
+        guard [settings.name, settings.url, settings.pushURL, settings.puttyKeyFile, settings.sshKeyFile].allSatisfy({ !$0.utf8.contains(0) }) else { throw RemoteSettingsFailure.invalidValue }
         let trimmedName = settings.name.trimmingCharacters(in: .whitespacesAndNewlines)
         if changed.contains(.pushDefault), !trimmedName.isEmpty {
             if settings.pushDefault { try saveRemoteSetting("remote.pushdefault", value: trimmedName, token: token) }
@@ -91,7 +95,7 @@ extension GitRepository {
         var remaining = changed
         if changed.contains(.name) {
             guard !settings.url.isEmpty else { throw RemoteSettingsFailure.url }
-            _ = try run(["remote", "add", "--", trimmedName, settings.url], cancellation: token)
+            _ = try run(["-c", "core.precomposeunicode=false", "remote", "add", "--", trimmedName, settings.url], cancellation: token)
             remaining.remove(.url)
         }
         let prefix = "remote." + trimmedName + "."
@@ -100,25 +104,26 @@ extension GitRepository {
         if remaining.contains(.tags) { try saveRemoteSetting(prefix + "tagopt", value: settings.tags.rawValue, token: token) }
         if remaining.contains(.prune) { try saveRemoteSetting(prefix + "prune", value: settings.prune == .enabled ? "true" : settings.prune == .disabled ? "false" : "", token: token) }
         if remaining.contains(.pushURL) { try saveRemoteSetting(prefix + "pushurl", value: settings.pushURL.replacingOccurrences(of: "\\", with: "/"), token: token) }
+        if remaining.contains(.sshKeyFile) { try saveRemoteSetting(prefix + "turtlegitsshkeyfile", value: settings.sshKeyFile, token: token) }
     }
     public func renameRemote(from oldName: String, to newName: String, cancellation: OperationCancellation? = nil) throws {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !oldName.isEmpty, !newName.isEmpty else { throw RemoteSettingsFailure.name }
         guard !oldName.utf8.contains(0), !newName.utf8.contains(0) else { throw RemoteSettingsFailure.invalidValue }
-        _ = try run(["remote", "rename", "--", oldName, newName], cancellation: token)
+        _ = try run(["-c", "core.precomposeunicode=false", "remote", "rename", "--", oldName, newName], cancellation: token)
     }
     public func removeRemote(name: String, cancellation: OperationCancellation? = nil) throws {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !name.isEmpty else { throw RemoteSettingsFailure.name }
         guard !name.utf8.contains(0) else { throw RemoteSettingsFailure.invalidValue }
-        _ = try run(["remote", "rm", "--", name], cancellation: token)
+        _ = try run(["-c", "core.precomposeunicode=false", "remote", "rm", "--", name], cancellation: token)
     }
     /// Advisory only: source checks the first byte-exact destination occurrence
     /// and ignores this remote's own fetch mapping.
     public func remoteNameCollidesWithRefspec(_ name: String, cancellation: OperationCancellation? = nil) throws -> Bool {
         let token = cancellation ?? OperationCancellation(); try token.check()
         guard !name.utf8.contains(0) else { throw RemoteSettingsFailure.invalidValue }
-        let result = try run(["config", "--local", "--includes", "--null", "--get-regexp", "^(remote\\..*\\.fetch|svn-remote\\..*\\.(fetch|branches|tags))$"], successfulExitCodes: 0...1, cancellation: token)
+        let result = try run(["-c", "core.precomposeunicode=false", "config", "--local", "--includes", "--null", "--get-regexp", "^(remote\\..*\\.fetch|svn-remote\\..*\\.(fetch|branches|tags))$"], successfulExitCodes: 0...1, cancellation: token)
         let own = Data(("remote." + name + ".fetch").utf8), match = Data((":refs/remotes/" + name).utf8)
         for record in result.stdout.split(separator: 0) {
             try token.check()

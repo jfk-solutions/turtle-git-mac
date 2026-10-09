@@ -1078,3 +1078,8 @@ or later. Their response contract replaces the Pageant ask_passphrase callback
 referenced in the pinned TortoisePlink/pageant.h. No PuTTY or OpenSSH source is
 copied into these components. Bundled OpenSSH agent/add and complete native
 authentication integration remain pending.
+
+SSHIdentityAccess.swift implements original app-private read-only key bookmark
+storage under GPL version 2 or later. Native Manage Remotes adds a separate
+OpenSSH key path while retaining the Windows PuTTY path; OpenSSH format/key
+loading, complete transport wiring and signed access remain separate gates.

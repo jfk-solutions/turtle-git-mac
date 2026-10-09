@@ -20,6 +20,7 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     let preferences: UserDefaults
     let noFetch: Bool
+    let identityAccess: SSHIdentityAccessStore
     @Published private(set) var names: [GitReferenceName] = []
     @Published private(set) var selected: GitReferenceName?
     @Published private(set) var draft = RemoteSettings()
@@ -39,8 +40,13 @@ import TurtleGitCore
     private var collisionToken: OperationCancellation?
     private var pendingClose = false
     private var pendingFetch: String?
-    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, noFetch: Bool = false) {
-        self.repository = repository; self.access = access; self.preferences = preferences; self.noFetch = noFetch
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, noFetch: Bool = false, identityAccess: SSHIdentityAccessStore = SSHIdentityAccessStore()) {
+        self.repository = repository; self.access = access; self.preferences = preferences; self.noFetch = noFetch; self.identityAccess = identityAccess
+    }
+    func selectIdentity(_ url: URL) {
+        guard !closed, !busy, !hasChild else { return }
+        do { try identityAccess.remember(url, requireSecurityScope: GitRuntime.isAppStoreBuild); error = nil; edit(.sshKeyFile) { $0.sshKeyFile = url.path } }
+        catch { self.error = error.localizedDescription; updated() }
     }
     var canSave: Bool { !closed && !busy && !hasChild && !draft.name.isEmpty && !draft.url.isEmpty }
     var canRename: Bool { !closed && !busy && !hasChild && selected != nil }
@@ -154,8 +160,8 @@ import TurtleGitCore
     var presentFetch: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, noFetch: Bool = false) {
         model = RemoteSettingsWindowModel(repository: repository, access: access, preferences: preferences, noFetch: noFetch)
-        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 730, height: 410), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Remote – TurtleGit"; window.contentMinSize = .init(width: 680, height: 390); window.isReleasedWhenClosed = false
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 730, height: 440), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "Remote – TurtleGit"; window.contentMinSize = .init(width: 680, height: 420); window.isReleasedWhenClosed = false
         window.contentView = RemoteSettingsNativeView(model: model)
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, !self.model.hasChild, self.window?.attachedSheet == nil else { return }; self.close() }
@@ -176,7 +182,8 @@ import TurtleGitCore
 @MainActor final class RemoteSettingsNativeView: NSView, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
     let model: RemoteSettingsWindowModel
     let table = NSTableView()
-    let remote = NSTextField(), url = NSTextField(), pushURL = NSTextField(), key = NSTextField()
+    let remote = NSTextField(), url = NSTextField(), pushURL = NSTextField(), key = NSTextField(), sshKey = NSTextField()
+    let browse = NSButton(title: "…", target: nil, action: nil), browseSSH = NSButton(title: "…", target: nil, action: nil)
     let tags = NSPopUpButton(frame: .zero, pullsDown: false)
     let prune = NSButton(checkboxWithTitle: "Prune", target: nil, action: nil), pushDefault = NSButton(checkboxWithTitle: "Push Default", target: nil, action: nil)
     let warning = NSTextField(wrappingLabelWithString: "")
@@ -190,17 +197,19 @@ import TurtleGitCore
         let scroll = NSScrollView(); scroll.documentView = table; scroll.hasVerticalScroller = true; scroll.hasHorizontalScroller = true
         let list = NSStackView(views: [NSTextField(labelWithString: "Remote:"), scroll]); list.orientation = .vertical; list.alignment = .leading
         list.widthAnchor.constraint(equalToConstant: 180).isActive = true; scroll.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true
-        for (field, label) in [(remote,"Remote"),(url,"URL"),(pushURL,"Push URL"),(key,"PuTTY Key (Windows)")] { field.delegate = self; field.setAccessibilityLabel(label); field.setContentHuggingPriority(.defaultLow, for: .horizontal) }
-        key.toolTip = "Preserves remote.<name>.puttykeyfile for Windows interoperability. Native OpenSSH identity transport is not yet available."
+        for (field, label) in [(remote,"Remote"),(url,"URL"),(pushURL,"Push URL"),(key,"PuTTY Key (Windows)"),(sshKey,"SSH Key (macOS)")] { field.delegate = self; field.setAccessibilityLabel(label); field.setContentHuggingPriority(.defaultLow, for: .horizontal) }
+        key.toolTip = "Preserves remote.<name>.puttykeyfile for Windows interoperability. PuTTY keys cannot be loaded by OpenSSH."
+        sshKey.toolTip = "OpenSSH key for macOS. Use Browse to grant access. Automatic loading for Fetch/Push is not connected yet."
         tags.addItems(withTitles: ["Reachable", "None", "All"]); tags.target = self; tags.action = #selector(tagChanged); tags.toolTip = "remote.<name>.tagopt"
         prune.allowsMixedState = true; prune.toolTip = "remote.<name>.prune: mixed inherits the configured global policy."; pushDefault.toolTip = "remote.pushdefault"
         for (button, action) in [(prune,#selector(pruneChanged)),(pushDefault,#selector(defaultChanged)),(rename,#selector(renameClicked)),(add,#selector(saveClicked)),(remove,#selector(removeClicked)),(apply,#selector(applyClicked)),(ok,#selector(okClicked)),(cancel,#selector(cancelClicked))] { button.target = self; button.action = action; button.bezelStyle = .rounded }
         ok.keyEquivalent = "\r"; cancel.keyEquivalent = "\u{1b}"
-        let browse = NSButton(title: "…", target: self, action: #selector(browseKey)); browse.bezelStyle = .rounded; browse.setAccessibilityLabel("Browse PuTTY key file")
+        browse.target = self; browse.action = #selector(browseKey); browse.bezelStyle = .rounded; browse.setAccessibilityLabel("Browse PuTTY key file")
+        browseSSH.target = self; browseSSH.action = #selector(browseSSHKey); browseSSH.bezelStyle = .rounded; browseSSH.setAccessibilityLabel("Browse OpenSSH private key file")
         func row(_ label: String, _ views: [NSView]) -> NSStackView { let title = NSTextField(labelWithString: label); title.widthAnchor.constraint(equalToConstant: 90).isActive = true; let stack = NSStackView(views: [title] + views); stack.orientation = .horizontal; stack.spacing = 8; return stack }
         warning.textColor = .systemOrange; warning.setAccessibilityLabel("Remote name warning")
-        let form = NSStackView(views: [row("Remote:",[remote,rename]),row("URL:",[url]),row("Push URL:",[pushURL]),row("PuTTY Key:",[key,browse]),row("Tags:",[tags,pushDefault]),prune,warning,NSView(),add,remove]); form.orientation = .vertical; form.alignment = .leading; form.spacing = 10
-        for view in form.arrangedSubviews.prefix(5) { view.widthAnchor.constraint(equalTo: form.widthAnchor).isActive = true }
+        let form = NSStackView(views: [row("Remote:",[remote,rename]),row("URL:",[url]),row("Push URL:",[pushURL]),row("PuTTY Key:",[key,browse]),row("SSH Key:",[sshKey,browseSSH]),row("Tags:",[tags,pushDefault]),prune,warning,NSView(),add,remove]); form.orientation = .vertical; form.alignment = .leading; form.spacing = 10
+        for view in form.arrangedSubviews.prefix(6) { view.widthAnchor.constraint(equalTo: form.widthAnchor).isActive = true }
         let body = NSStackView(views: [list,form]); body.orientation = .horizontal; body.alignment = .top; body.spacing = 20
         list.heightAnchor.constraint(equalTo: body.heightAnchor).isActive = true; form.heightAnchor.constraint(equalTo: body.heightAnchor).isActive = true
         let help = NSButton(title: "Help", target: self, action: #selector(helpClicked)); help.bezelStyle = .rounded
@@ -231,7 +240,8 @@ import TurtleGitCore
     }
     func render() {
         updating = true; defer { updating = false }
-        for (field,value) in [(remote,model.draft.name),(url,model.draft.url),(pushURL,model.draft.pushURL),(key,model.draft.puttyKeyFile)] { if field.stringValue != value { field.stringValue = value }; field.isEnabled = !model.busy && !model.closed && !model.hasChild }
+        for (field,value) in [(remote,model.draft.name),(url,model.draft.url),(pushURL,model.draft.pushURL),(key,model.draft.puttyKeyFile),(sshKey,model.draft.sshKeyFile)] { if field.stringValue != value { field.stringValue = value }; field.isEnabled = !model.busy && !model.closed && !model.hasChild }
+        browse.isEnabled = key.isEnabled; browseSSH.isEnabled = sshKey.isEnabled
         table.reloadData(); table.selectRowIndexes(IndexSet(model.names.indices.filter { model.names[$0] == model.selected }), byExtendingSelection: false); table.isEnabled = !model.busy && !model.closed && !model.hasChild
         tags.selectItem(at: model.draft.tags == .none ? 1 : model.draft.tags == .all ? 2 : 0); tags.isEnabled = !model.busy && !model.closed && !model.hasChild
         prune.state = model.draft.prune == .enabled ? .on : model.draft.prune == .disabled ? .off : .mixed; pushDefault.state = model.draft.pushDefault ? .on : .off
@@ -245,6 +255,7 @@ import TurtleGitCore
     func controlTextDidChange(_ notification: Notification) {
         guard !updating, let field = notification.object as? NSTextField else { return }; let value = field.stringValue
         if field === remote { model.edit(.name) { $0.name = value } }; if field === url { model.edit(.url) { $0.url = value } }; if field === pushURL { model.edit(.pushURL) { $0.pushURL = value } }; if field === key { model.edit(.puttyKeyFile) { $0.puttyKeyFile = value } }
+        if field === sshKey { model.edit(.sshKeyFile) { $0.sshKeyFile = value } }
     }
     @objc func tagChanged() { let value: RemoteTagPolicy = tags.indexOfSelectedItem == 1 ? .none : tags.indexOfSelectedItem == 2 ? .all : .reachable; model.edit(.tags) { $0.tags = value } }
     @objc func pruneChanged() { let value: FetchOverride = prune.state == .mixed ? .configured : prune.state == .on ? .enabled : .disabled; model.edit(.prune) { $0.prune = value } }
@@ -257,9 +268,24 @@ import TurtleGitCore
     @objc func cancelClicked() { if !model.busy { model.close() } }
     @objc func helpClicked() { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-settings.html#tgit-dug-settings-remote")!) }
     @objc func browseKey() {
-        guard !model.busy, !model.closed, let window, window.attachedSheet == nil else { return }
+        guard !model.busy, !model.closed, !model.hasChild, let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false; panel.title = "Select PuTTY key file for Windows interoperability"
-        panel.beginSheetModal(for: window) { [weak self] response in guard let self, !self.model.closed, response == .OK, let url = panel.url else { return }; self.model.edit(.puttyKeyFile) { $0.puttyKeyFile = url.path } }
+        model.setChild(true)
+        panel.beginSheetModal(for: window) { [weak self] response in guard let self, !self.model.closed else { return }; self.model.setChild(false); guard response == .OK, let url = panel.url else { return }; self.model.edit(.puttyKeyFile) { $0.puttyKeyFile = url.path } }
+    }
+    static func identityPanel(path: String) -> NSOpenPanel {
+        let panel = NSOpenPanel(); panel.canChooseFiles = true; panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
+        panel.title = "Select OpenSSH private key"; panel.prompt = "Select"
+        if path.hasPrefix("/"), FileManager.default.fileExists(atPath: path) { let url = URL(fileURLWithPath: path); panel.directoryURL = url.deletingLastPathComponent(); panel.nameFieldStringValue = url.lastPathComponent }
+        return panel
+    }
+    @objc func browseSSHKey() {
+        guard !model.busy, !model.closed, !model.hasChild, let window, window.attachedSheet == nil else { return }
+        let panel = Self.identityPanel(path: model.draft.sshKeyFile); model.setChild(true)
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard let self, !self.model.closed else { return }; self.model.setChild(false)
+            guard response == .OK, let url = panel.url else { return }; self.model.selectIdentity(url)
+        }
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -279,7 +305,7 @@ struct PushRemoteSettings: View {
         _settings = StateObject(wrappedValue: RemoteSettingsWindowModel(repository: model.repository, access: model.repositoryAccess, preferences: model.settingsPreferences, noFetch: true))
     }
     var body: some View {
-        RemoteSettingsEmbeddedPage(model: settings).frame(minWidth: 730, minHeight: 410)
+        RemoteSettingsEmbeddedPage(model: settings).frame(minWidth: 730, minHeight: 440)
             .onAppear { settings.close = { if let onClose { onClose() } else { model.managingRemotes = false } }; settings.onRemotesChanged = { model.remotes = $0; if !model.remotes.contains(model.options.remote) { model.options.remote = model.remotes.first ?? "" } }; settings.onReferencesChanged = { model.references = $0 }; settings.load() }
             .onDisappear { settings.invalidate() }
     }

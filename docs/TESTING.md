@@ -506,3 +506,13 @@ and one-shot OK/Cancel/forced-close checks. Bundle audits include the response
 CLI provenance, architecture/linkage and replay probe. Real authentication,
 physical UI and signed sandbox acceptance remain pending; see
 [SSH response parity](SSH-PASSPHRASE-PARITY.md).
+
+### Native SSH identity grants
+
+Run `swift test --filter 'SSHIdentityAccessTests|RemoteSettingsTests'` for private
+bookmark-provider and actual Git configuration tests. The existing
+`python3 scripts/test-remote-settings.py` receiver now checks the native identity
+selection callback, separate Windows/native paths, saved grant, PPK refusal,
+typed-path nonauthorization, busy/child controls and late close fences using
+private fixture grants. These are not displayed picker or signed sandbox tests.
+See [native identity parity](SSH-IDENTITY-PARITY.md).

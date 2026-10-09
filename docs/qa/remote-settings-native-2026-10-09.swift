@@ -3,6 +3,13 @@ import SwiftUI
 import TurtleGitCore
 import Darwin
 
+private final class IdentityFixtureBookmarks: RepositoryBookmarkProvider {
+    var starts = 0, stops = 0
+    func create(for url: URL) throws -> Data { Data(url.path.utf8) }
+    func resolve(_ data: Data) throws -> ResolvedBookmark { ResolvedBookmark(url: URL(fileURLWithPath: String(decoding: data, as: UTF8.self)), stale: false) }
+    func startAccessing(_ url: URL) -> Bool { starts += 1; return true }
+    func stopAccessing(_ url: URL) { stops += 1 }
+}
 @main struct RemoteSettingsReceiver {
     struct Failure: Error { let message: String }
     @MainActor static func require(_ value: @autoclosure () throws -> Bool, _ message: String) throws { if try !value() { throw Failure(message: message) } }
@@ -18,6 +25,7 @@ import Darwin
         let repo = GitRepository(root: root, executable: git)
         _ = try await repo.run(["init", "-b", "main"]); _ = try await repo.run(["config", "user.name", "QA"]); _ = try await repo.run(["config", "user.email", "qa@example.invalid"]); _ = try await repo.run(["config", "commit.gpgsign", "false"]); _ = try await repo.run(["config", "core.hooksPath", "/dev/null"])
         try Data("fixture\n".utf8).write(to: root.appendingPathComponent("file")); _ = try await repo.run(["add", "file"]); _ = try await repo.run(["commit", "-m", "fixture"])
+        try await identitySelection(root: root, repo: repo, preferences: prefs)
         _ = try await repo.run(["update-ref", "refs/remotes/stale/main", "HEAD"])
         let owner = ReferenceBrowserWindowController(repository: repo, access: nil, initial: "", preferences: prefs, picking: false, onChoose: { _ in }); defer { owner.close() }
         owner.model.load(); try await wait { !owner.model.busy }; owner.model.setFolder("refs/remotes")
@@ -100,5 +108,32 @@ import Darwin
         offer.fetchDialog?.close(); try require(offer.fetchDialog == nil, "Fetch child not released")
         try require(!NSApplication.shared.windows.contains { $0.isVisible }, "Receiver displayed windows")
         print("PASS native Remote fields, tri-state/options, origin prefill, Add/Save, Rename, dirty Save/Discard, overwrite No/Yes, captured Remove, Fetch offer, actual browser route/ownership, Close/Quit and late confirmation")
+    }
+    @MainActor static func identitySelection(root: URL, repo: GitRepository, preferences: UserDefaults) async throws {
+        let key = root.appendingPathComponent("private-fixture-key"), putty = root.appendingPathComponent("fixture.ppk")
+        try Data("opaque fixture key content".utf8).write(to: key); try Data("PuTTY-User-Key-File-3: ssh-ed25519\n".utf8).write(to: putty)
+        let provider = IdentityFixtureBookmarks(), storage = root.appendingPathComponent("private-grants/grants.json")
+        let store = SSHIdentityAccessStore(storageURL: storage, provider: provider)
+        let model = RemoteSettingsWindowModel(repository: repo, access: nil, preferences: preferences, noFetch: true, identityAccess: store)
+        let view = RemoteSettingsNativeView(model: model); defer { model.invalidate() }
+        model.edit(.name) { $0.name = "identity-fixture" }; model.edit(.url) { $0.url = root.path }; model.edit(.puttyKeyFile) { $0.puttyKeyFile = "C:\\fixture.ppk" }
+        model.selectIdentity(key)
+        try require(model.draft.sshKeyFile == key.path && view.sshKey.stringValue == key.path && model.changed.contains(.sshKeyFile), "Native key selection/draft field")
+        model.save(); try await wait { !model.busy }
+        let saved = try await repo.remoteSettings(name: "identity-fixture")
+        try require(saved.sshKeyFile == key.path && saved.puttyKeyFile == "C:\\fixture.ppk" && model.error == nil, "Separate native/Windows key configuration")
+        do { let grant = try store.acquire(path: saved.sshKeyFile, requireSecurityScope: true); try require(grant.file == key, "Saved key grant") }
+        try require(provider.starts == provider.stops, "Key scope leaked")
+        let bytes = try Data(contentsOf: storage)
+        model.setChild(true); try require(!view.sshKey.isEnabled && !view.browseSSH.isEnabled && !view.browse.isEnabled && !model.canApply, "Picker child does not gate edits")
+        model.selectIdentity(putty); try require(model.draft.sshKeyFile == key.path, "Selection accepted while child owned"); model.setChild(false)
+        model.selectIdentity(putty); try require(model.error != nil && model.draft.sshKeyFile == key.path && (try Data(contentsOf: storage)) == bytes, "PuTTY content accepted as native key")
+        view.sshKey.stringValue = root.appendingPathComponent("typed-key").path; view.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: view.sshKey))
+        try require(model.changed.contains(.sshKeyFile), "Typed identity change missing")
+        do { _ = try store.acquire(path: model.draft.sshKeyFile); throw Failure(message: "Typed path granted access") } catch SSHIdentityAccessFailure.missingGrant {}
+        model.invalidate(); model.selectIdentity(key); try require(!view.sshKey.isEnabled && (try Data(contentsOf: storage)) == bytes, "Late closed identity selection changed grants")
+        let unchanged = try await repo.remoteSettings(name: "identity-fixture"); try require(unchanged.sshKeyFile == key.path, "Discarded key draft saved")
+        try await repo.removeRemote(name: "identity-fixture")
+        print("PASS native SSH key selection/save, legacy preservation, private grants, PPK refusal, typed-path nonauthorization and child/late fences")
     }
 }

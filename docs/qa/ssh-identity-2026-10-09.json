@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "3a23900ab59691fc71c089e66f323beae14f170d",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Manage Remotes OpenSSH key selection, separate config and app-private file grants; automatic transport loading remains pending.",
+  "verification": {
+    "source": "Reviewed SettingGitRemote Browse draft/changed-field behavior and Pageant selected/all-remote loading. OpenSSH key row is a native platform adaptation; Windows PuTTY field retained. SDK read-only bookmark option checked and compiled.",
+    "core": "Final 15 cases pass with both system and bundled Git: 5 RemoteSettings, 3 SSHIdentityAccess, 4 SSHAgentSession and 3 SSHAskpass. Real config separate-key/raw-path/changed-only/rename/clear/cancellation; mock bookmark persistence, moved/stale renewal, lease balancing, denied access, malformed storage, regular-file and PPK/symlink refusal, exact-byte lookup. Existing actual private-agent/encrypted-key tests pass.",
+    "corrections": "Initial runs caught macOS Git argv normalization. Settings commands now use invocation-only core.precomposeunicode=false. Raw selected URL paths are retained. A canonical-equivalent file-URL convenience fixture was not byte-distinct; explicit escaped URLs corrected it and assertions prove distinct input. Final reruns pass.",
+    "native": "Actual existing hidden Manage Remotes shipping receiver passes with both Git engines. Added selected identity callback/save, Windows setting preservation, granted access, scope balancing, PPK refusal, typed-path nonauthorization, child controls and late closed selection. Existing Save/Discard/rename/removal/Fetch ownership and live forced config/add/rename/remove process-group tests pass. No panel was displayed.",
+    "build": "Final unsigned Debug and AppStore builds pass; both embedded NOTICE files equal root. Existing unrelated compiler warnings remain.",
+    "bundles": "Both bundle audits pass, including Git/LFS/EditorConfig/IssueRegex/askpass, embedded Finder, licenses and 99 original icon resources. Askpass universal/static AppStore audit passes; signed runtime remains unverified.",
+    "inventory": "Pinned inventory regression passes. SettingGitRemote.cpp retains partial status with native identity scope note.",
+    "site": "Local website build passes; hosted deployment not verified."
+  },
+  "limitations": [
+    "No Fetch/Push/Pull/Clone/submodule/deletion SSH coordinator or automatic identity loading added.",
+    "No real key selection gestures, physical UI comparison, keyboard/VoiceOver, new-row minimum-size/light-dark acceptance or signed sandbox file access verified.",
+    "Bookmarks use an injected mock in tests; real stale/revoked/moved signed access remains pending. Native store only reads a bounded PuTTY marker, not a full key parser.",
+    "Final symlinks are rejected; parent-path races and all same-user adversarial changes are not exhaustively protected/tested.",
+    "Grant remains after settings Cancel; remote removal does not revoke a reusable grant. Core forget exists but user-facing grant management remains pending.",
+    "Bundled OpenSSH agent/add, Keychain, PPK conversion, host-key/password prompts, real SSH authentication and signed distribution remain pending.",
+    "No main app launch, user keys/private credentials/login-agent query, network authentication, push, hosted CI or deployment."
+  ],
+  "sha256": {
+    "NOTICE": "b17e729750c8f61cbd66a6a8c56dda9cffa14eb4c7b9e217f9acd2ae2d54b3d1",
+    "Sources/TurtleGitCore/RemoteSettings.swift": "364d14d71a56f53b060aea710fe178f5bf449014371eea6c3872b402f28bc454",
+    "Sources/TurtleGitCore/SSHIdentityAccess.swift": "605347117f6fcd9651d9c4da494c85655afdbb46b6330766335177efba11b97a",
+    "Sources/TurtleGitMac/RemoteSettingsWindow.swift": "e2b0e1353f6789180ff77c2fa81ba3d8babafa5c8d70aa37d0dc8b6cb0b3eeab",
+    "Tests/TurtleGitCoreTests/RemoteSettingsTests.swift": "b790d6537fb7606b07cc7bfd16dd60ff0bd6aa0ad2e8ab34b01cde9c8fa99676",
+    "Tests/TurtleGitCoreTests/SSHIdentityAccessTests.swift": "9136ff0a3efe56d1f150093a24fdc8e4338bb8f7e9c12a29494123bf1fd668c7",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "d467bb79e63086567e5b1d1e65e3230ee0c752f398a5f30b2e19554a7f8457ef",
+    "docs/DISTRIBUTION.md": "764a2a2a1de5a8f6806707bd6d8c617e118c53e50427594c3bf5230a0fb39071",
+    "docs/PORTING.md": "18733dd9a65486455a9b7b4829ac304251dab6c9122ad3b589ffc47d8facda4c",
+    "docs/README.md": "31be208af83d6d9c321ff62d82824bcbec2dab3b2c74899ee02c26a9c5ca786d",
+    "docs/REMOTE-SETTINGS-PARITY.md": "82480adf83ab5fbb8f3588dae2d92f6689e126e2af8effb91edaad6a1dc1aa1c",
+    "docs/SSH-AGENT-PARITY.md": "bf435df26f24c2741d8a1036ffb235070779d7f5cc333a7ff4b5289aa5741da9",
+    "docs/SSH-IDENTITY-PARITY.md": "9f00bdd2107135057bcb3459d3e9eed12fb156267c5118b9fa8909358cafc896",
+    "docs/TESTING.md": "2f4a3fb16021d645db999c75cdf721627dcb2d012a3fcc8b7285c9daff46c584",
+    "docs/UI-PARITY.md": "3f22ba04dc70227ceeabe98c4627977aa09490b9a6bf832bce1b71322ff7461d",
+    "docs/qa/remote-settings-native-2026-10-09.swift": "7f54ad61d26f5644e91699dfb78fc2b17a0e2ae9bc568495d6d1b613723e15dc",
+    "docs/upstream-files.csv": "fd9482a320bfe614c671e0a57a62e76ce9f9cda2f0976d055615b4b78a1299e7"
+  },
+  "logs": "build/qa/ssh-identity-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "matching": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preference_cleanup": []
+  }
+}

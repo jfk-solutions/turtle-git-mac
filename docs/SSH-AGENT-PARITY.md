@@ -14,7 +14,7 @@ OpenSSH documents its foreground agent and multiple-identity behavior in the
 locally; these upstream manuals do not establish signed macOS acceptance.
 
 `SSHAgentSession` is a preparatory Core transport primitive, not yet called by
-the application's Fetch/Push or key picker. It starts a foreground OpenSSH agent
+the application's Fetch/Push. Native key selection and file grants are implemented separately in [identity selection](SSH-IDENTITY-PARITY.md). It starts a foreground OpenSSH agent
 in an owned process group, with an atomically-created mode-0700 directory and
 private socket. It never changes the login agent. Command arguments remain
 literal byte-preserving arrays. Loading multiple identities uses
@@ -37,9 +37,7 @@ signed sandbox acceptance.
 
 - Package pinned universal OpenSSH helpers, notices/reconstruction material and
   signed sandbox inheritance; audit their own dependencies and runtime behavior.
-- Add native identity selection, app-private file bookmarks, renewal and scope
-  leases held through key loading; preserve Windows PuTTY configuration without
-  treating `.ppk` as an OpenSSH key. Conversion or native PPK support is pending.
+- Connect native identity selection/bookmark leases through key loading, verify signed renewal and add permission management; preserve Windows PuTTY configuration. Conversion or native PPK support remains pending.
 - Connect the native encrypted-key response dialog and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.
 - Wire source Auto-load behavior into Fetch/Pull/Push, remote tags, remote-branch

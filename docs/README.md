@@ -81,6 +81,7 @@ for baseline and update rules.
 - [Manage Remotes parity](REMOTE-SETTINGS-PARITY.md)
 - [SSH agent and identity port](SSH-AGENT-PARITY.md)
 - [Encrypted SSH key response port](SSH-PASSPHRASE-PARITY.md)
+- [Native SSH key selection and permissions](SSH-IDENTITY-PARITY.md)
 - [Merge dialog parity](MERGE-PARITY.md)
 - [Stash Save parity](STASH-PARITY.md)
 - [Reset parity](RESET-PARITY.md)

@@ -13,13 +13,13 @@ identity transport and physical/signed acceptance are verified.
 ## Configuration behavior
 
 `RemoteSettings` reads raw effective URL, Push URL, legacy PuTTY key file, tag
-policy, literal true/false/inherited Prune and byte-exact Push Default identity.
+policy, native SSH key path, literal true/false/inherited Prune and byte-exact Push Default identity.
 URL aliases are not expanded in the settings editor. Empty and unknown tag
 policies map to reachable; nonliteral Prune values map to inherited, as upstream.
 
 `RemoteSettingsFields` retains the source changed-mask values. Apply writes Push
 Default first, then adds a remote when the name bit is set, then writes URL, key,
-tags, Prune and Push URL in source order. A new remote uses its raw URL; subsequent
+tags, Prune and Push URL in source order, then the native SSH key adaptation. A new remote uses its raw URL; subsequent
 URL edits convert backslashes to slashes. Earlier successful writes remain after
 a later failure. Only edited fields are written. Git's single-value config setter
 does not replace all multivalued settings. Unset failures are followed by an
@@ -55,16 +55,15 @@ Quit are blocked during busy requests/attached children. Closing a page forcibly
 cancels its requests. Cancel discards unsaved fields; earlier Apply/Save operations
 remain. Errors appear in the native footer; the key tooltip identifies the Windows
 interop limitation. Sync URL history cleanup, the timed origin hint balloon,
-complete enclosing Settings tree and native OpenSSH identity are not yet ported.
+complete enclosing Settings tree and native OpenSSH transport loading remain pending.
 
-`puttyKeyFile` preserves Windows configuration for interoperability only. It does
-not make PuTTY keys usable by OpenSSH. A native identity picker requires real
-per-remote transport support, conversion/format decisions, security-scoped file
-access and signed App Store verification. A global SSH command cannot implement
-different identities for different remotes in Fetch All. The source actually loads
-keys into Pageant; the preparatory owned OpenSSH agent primitive is documented in
-[SSH agent parity](SSH-AGENT-PARITY.md). It is not yet wired into this page or Git
-transport.
+`puttyKeyFile` preserves Windows configuration for interoperability only. A
+separate native SSH Key row selects a file and remembers a private read-only
+bookmark. Typed paths do not authorize key access. The native setting preserves
+Windows paths rather than interpreting `.ppk` as OpenSSH. See
+[identity selection](SSH-IDENTITY-PARITY.md). A global SSH command cannot implement
+multiple identities for Fetch All; source loads keys into Pageant. The private
+[agent primitive](SSH-AGENT-PARITY.md) is not yet wired into Git transport.
 
 Physical layout, light/dark, keyboard, accessibility, signed Finder/App Store,
 authentication, live forced-process cancellation timing and broad config races

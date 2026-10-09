@@ -3,6 +3,22 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RemoteSettingsTests: XCTestCase {
+    func testNativeIdentityIsSeparateLiteralChangedOnlyAndFollowsRename() async throws {
+        let (root, repo) = try await ReferenceBrowserTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        var settings = RemoteSettings(name: "identity/team"); settings.url = root.path; settings.puttyKeyFile = "C:\\Windows\\key.ppk"; settings.sshKeyFile = root.appendingPathComponent("key ' Cafe\u{301} ☃").path
+        try await repo.applyRemoteSettings(settings, changed: .all)
+        var read = try await repo.remoteSettings(name: settings.name)
+        XCTAssertEqual(Data(read.sshKeyFile.utf8), Data(settings.sshKeyFile.utf8)); XCTAssertEqual(read.puttyKeyFile, settings.puttyKeyFile)
+        settings.sshKeyFile = "different"; settings.puttyKeyFile = "different"
+        try await repo.applyRemoteSettings(settings, changed: [.tags]); read = try await repo.remoteSettings(name: settings.name)
+        XCTAssertNotEqual(read.sshKeyFile, settings.sshKeyFile); XCTAssertNotEqual(read.puttyKeyFile, settings.puttyKeyFile)
+        try await repo.renameRemote(from: settings.name, to: "renamed")
+        let renamed = try await repo.remoteSettings(name: "renamed"); XCTAssertEqual(renamed.sshKeyFile, read.sshKeyFile); XCTAssertEqual(renamed.puttyKeyFile, read.puttyKeyFile)
+        settings.name = "renamed"; settings.sshKeyFile = ""
+        let cancelled = OperationCancellation(); cancelled.cancel(); do { try await repo.applyRemoteSettings(settings, changed: [.sshKeyFile], cancellation: cancelled); XCTFail("Canceled key save ran") } catch OperationCancellationFailure.cancelled {}
+        try await repo.applyRemoteSettings(settings, changed: [.sshKeyFile]); let cleared = try await repo.remoteSettings(name: "renamed"); XCTAssertEqual(cleared.sshKeyFile, ""); XCTAssertEqual(cleared.puttyKeyFile, read.puttyKeyFile)
+        settings.sshKeyFile = "invalid\0key"; do { try await repo.applyRemoteSettings(settings, changed: [.sshKeyFile]); XCTFail("NUL key path saved") } catch RemoteSettingsFailure.invalidValue {}
+    }
     func testRawConfigurationChangedFieldsAndTriState() async throws {
         let (root, repo) = try await ReferenceBrowserTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         var settings = RemoteSettings(name: "team/nested"); settings.url = "alias:repository"; settings.pushURL = "C:\\push\\repository"; settings.tags = .all; settings.prune = .enabled; settings.pushDefault = true; settings.puttyKeyFile = "C:\\identity.ppk"

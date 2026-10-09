@@ -32,6 +32,7 @@
 		1C9F0C456E3788CF9D80C5FC /* ProgressActionLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */; };
 		1CB7F6B1BB3F2584AD6F9547 /* DeleteConflictWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8B2EE97B70CCF7AC78ABAA /* DeleteConflictWindow.swift */; };
 		1CF4C1812C13221DE3927E15 /* UnifiedDiffViewerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */; };
+		1D5A237BEB1F04360AA51C3B /* SSHIdentityAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */; };
 		1E72435F8842C227747192C5 /* ConflictPrompts.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4DD237526A9AB5C51C92B2B /* ConflictPrompts.swift */; };
 		1EE5D062EF745705C82D9271 /* ReferenceCreation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 244AD68D8412684F520E64AC /* ReferenceCreation.swift */; };
 		2006DACDA67B90A4E15DCE8A /* MergeMessageHistory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D6B27BE15EAF8BC2A39D565 /* MergeMessageHistory.swift */; };
@@ -474,6 +475,7 @@
 		FBE98FBF5981527BD422EDFB /* StatisticsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsWindow.swift; sourceTree = "<group>"; };
 		FD325E61874E68F270271CC9 /* FileComparisonEditing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonEditing.swift; sourceTree = "<group>"; };
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
+		FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHIdentityAccess.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -716,6 +718,7 @@
 				870D95A7EC384863F1C04342 /* RevisionComparison.swift */,
 				814E543BEB0736B84A50B21B /* SavedData.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
+				FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */,
 				83395323FFA0860A52795F9F /* Stash.swift */,
 				29605EFD52B28BA58CD44AA0 /* StatusListClipboard.swift */,
 				DA1D2D9DD08218C53951382F /* StatusListGroups.swift */,
@@ -1069,6 +1072,7 @@
 				413428D2C4D300D242747556 /* RevisionArchive.swift in Sources */,
 				510A90BB7F5A0D39A72C1778 /* RevisionComparison.swift in Sources */,
 				FC70E4ECEA3F0C2EFA442E19 /* SSHAgentSession.swift in Sources */,
+				1D5A237BEB1F04360AA51C3B /* SSHIdentityAccess.swift in Sources */,
 				768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
