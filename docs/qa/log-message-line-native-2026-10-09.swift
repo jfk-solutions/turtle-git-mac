@@ -357,6 +357,7 @@ final class MessageLineOffscreenWindow: NSWindow {
         try await checkReferenceMenus(repo: repo, prefs: prefs)
         try await checkReferenceByteRefresh(repo: repo, prefs: prefs)
         try await checkPointedPresets(git: URL(fileURLWithPath: CommandLine.arguments[2]), prefs: prefs)
+        try await checkReferenceDeletion(git: URL(fileURLWithPath: CommandLine.arguments[2]), prefs: prefs)
         let after = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }; precondition(before == after)
         if CommandLine.arguments.contains("--log-blame-only") {
             print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard, real reload literal/regex highlight cells and reference/full-message gates verified, left/right label order and symbolization attachments/captured choices and label-mask highlight redraw verified; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
@@ -568,6 +569,64 @@ final class MessageLineOffscreenWindow: NSWindow {
         let pointed = menu.items.first { $0.title == "Create branch at this version…" }!, count = created.count
         model.selected = [model.entries[0].hash]; precondition(NSApp.sendAction(pointed.action!, to: pointed.target, from: pointed)); precondition(created.count == count)
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
+    }
+
+    @MainActor static func checkReferenceDeletion(git: URL, prefs: UserDefaults) async throws {
+        let root = URL(fileURLWithPath: CommandLine.arguments[1]).deletingLastPathComponent().appendingPathComponent("deletion-fixture")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: git)
+        _ = try await repo.run(["init", "-b", "main"])
+        for (key, value) in [("user.name", "Deletion Native QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        _ = try await repo.run(["commit", "--allow-empty", "-m", "base"])
+        _ = try await repo.run(["branch", "topic"])
+        for tag in ["v1", "v2"] { _ = try await repo.run(["-c", "tag.gpgsign=false", "tag", tag]) }
+        let head = try Data(contentsOf: root.appendingPathComponent(".git/HEAD")), main = try Data(contentsOf: root.appendingPathComponent(".git/refs/heads/main"))
+        let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
+        model.entries = try await repo.history(); model.graph = CommitGraph.layout(model.entries); model.selected = [model.entries[0].hash]
+        let hash = model.entries[0].hash; model.revisionActions[hash] = []
+        let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+        defer { window.close(); model.invalidate() }
+        try await settle(window.contentView!); model.busy = false
+        let table = descendants(window.contentView!).compactMap { $0 as? HistoryTableView }.first!, menu = table.menu!
+        func rebuild(_ ref: String?) { table.contextReference = ref.map { (model.entries.firstIndex { $0.hash == hash }!, $0) }; menu.delegate?.menuNeedsUpdate?(menu) }
+        func send(_ item: NSMenuItem) { precondition(item.isEnabled && item.image != nil); precondition(NSApp.sendAction(item.action!, to: item.target, from: item)) }
+        func wait() async throws { let end = Date().addingTimeInterval(30); while model.busy && Date() < end { try await Task.sleep(nanoseconds: 10_000_000) }; precondition(!model.busy) }
+        rebuild("refs/heads/main"); precondition(!menu.items.contains { $0.title.hasPrefix("Delete") })
+        rebuild(nil)
+        let all = menu.items.first { $0.title == "Delete branch/tag" }!.submenu!
+        precondition(all.items.map(\.title) == ["refs/heads/topic", "refs/tags/v1", "refs/tags/v2", "All"])
+        var prompted: [String] = []
+        model.confirmReferenceDeletion = { request in prompted.append(request.name); return .abort }
+        send(all.items.last!); try await wait(); precondition(prompted == ["refs/heads/topic"])
+        let retained = try await repo.run(["show-ref", "--verify", "refs/heads/topic"]); precondition(retained.exitCode == 0)
+        prompted = []; model.confirmReferenceDeletion = { request in prompted.append(request.name); return .delete }
+        rebuild("refs/tags/v1"); let single = menu.items.first { $0.title == "Delete refs/tags/v1" }!; send(single); try await wait()
+        precondition(prompted == ["refs/tags/v1"] && model.error == nil)
+        let removed = try await repo.run(["show-ref", "--verify", "--quiet", "refs/tags/v1"], successfulExitCodes: 0...1); precondition(removed.exitCode == 1)
+        prompted = []; model.confirmReferenceDeletion = { request in prompted.append(request.name); return request.name == "refs/heads/topic" ? .delete : .abort }
+        rebuild(nil); send(menu.items.first { $0.title == "Delete branch/tag" }!.submenu!.items.last!); try await wait()
+        precondition(prompted == ["refs/heads/topic", "refs/tags/v2"])
+        let branchRemoved = try await repo.run(["show-ref", "--verify", "--quiet", "refs/heads/topic"], successfulExitCodes: 0...1); precondition(branchRemoved.exitCode == 1)
+        let tagRetained = try await repo.run(["show-ref", "--verify", "refs/tags/v2"]); precondition(tagRetained.exitCode == 0)
+        // Real lock failure after one success must stop All before the tag,
+        // acknowledge once, and reload the partial result.
+        for name in ["refs/heads/a", "refs/heads/b"] { _ = try await repo.run(["update-ref", name, "HEAD"]) }
+        model.reload(); try await wait()
+        let lock = root.appendingPathComponent(".git/refs/heads/b.lock"); try Data("owned lock\n".utf8).write(to: lock)
+        prompted = []; var failures: [String] = []
+        model.confirmReferenceDeletion = { request in prompted.append(request.name); return .delete }
+        model.acknowledgeReferenceDeletionFailure = { failures.append($0) }
+        rebuild(nil); send(menu.items.first { $0.title == "Delete branch/tag" }!.submenu!.items.last!); try await wait()
+        precondition(prompted == ["refs/heads/a", "refs/heads/b"] && failures.count == 1)
+        let firstRemoved = try await repo.run(["show-ref", "--verify", "--quiet", "refs/heads/a"], successfulExitCodes: 0...1)
+        let secondRetained = try await repo.run(["show-ref", "--verify", "refs/heads/b"])
+        precondition(firstRemoved.exitCode == 1 && secondRetained.exitCode == 0 && model.entries.first { $0.hash == hash }!.references.contains { $0.name == "refs/heads/b" })
+        try FileManager.default.removeItem(at: lock)
+        rebuild("refs/tags/v2"); let closedItem = menu.items.first { $0.title == "Delete refs/tags/v2" }!
+        let count = prompted.count; model.invalidate(); send(closedItem); try await wait(); precondition(prompted.count == count)
+        let headAfter = try Data(contentsOf: root.appendingPathComponent(".git/HEAD")), mainAfter = try Data(contentsOf: root.appendingPathComponent(".git/refs/heads/main"))
+        precondition(headAfter == head && mainAfter == main)
     }
 
 }

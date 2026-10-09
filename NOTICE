@@ -1012,3 +1012,8 @@ native owned Switch Progress sheets and byte-exact ref targets.
 Log dialog presets adapt GitLogListBase.cpp remote-only Create Branch label
 binding and GitLogListAction.cpp branch/tag/checkout remote guessing and
 pointed Merge ref handoff to native dialog models.
+
+Log reference deletion adapts GitLogListBase.cpp ID_DELETE single/All menus,
+GitLogListAction.cpp sequential abort/refresh behavior, AppUtils.cpp DeleteRef
+confirmation choices and CGit branch/tag/remote deletion commands to native
+AppKit sheets and the command-line Git backend.

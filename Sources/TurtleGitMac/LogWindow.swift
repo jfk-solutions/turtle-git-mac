@@ -123,6 +123,25 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
             guard let self else { return }
             if self.model.selecting { self.finishSelection(nil) } else { self.window?.performClose(nil) }
         }
+        model.confirmReferenceDeletion = { [weak window] request in
+            guard let window, window.attachedSheet == nil else { return .abort }
+            return await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = request.message
+                for option in request.choices { alert.addButton(withTitle: option.title).keyEquivalent = "" }
+                let abort = alert.buttons.last!; abort.keyEquivalent = "\r"; alert.window.defaultButtonCell = abort.cell as? NSButtonCell
+                alert.beginSheetModal(for: window) { response in
+                    let index = response.rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+                    continuation.resume(returning: request.choices.indices.contains(index) ? request.choices[index].choice : .abort)
+                }
+            }
+        }
+        model.acknowledgeReferenceDeletionFailure = { [weak window] message in
+            guard let window, window.attachedSheet == nil else { return }
+            await withCheckedContinuation { continuation in
+                let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "Could not delete reference."; alert.informativeText = message; alert.addButton(withTitle: "OK")
+                alert.beginSheetModal(for: window) { _ in continuation.resume() }
+            }
+        }
         model.confirmRevert = { [weak self] request in
             guard let window = self?.window, window.attachedSheet == nil else { return false }
             return await withCheckedContinuation { continuation in
@@ -935,6 +954,9 @@ struct LogCommandRequest: Identifiable {
     var onPush: (String) -> Void = { _ in }
     var onCheckout: (String) -> Void = { _ in }
     var onSwitchBranch: ((String) -> Void)?
+    var confirmReferenceDeletion: (HistoryReferenceDeletion) async -> HistoryReferenceDeleteChoice = { _ in .abort }
+    var acknowledgeReferenceDeletionFailure: (String) async -> Void = { _ in }
+
     var onCherryPick: (([String]) -> Void)?
     var onBrowseRepository: ((String) -> Void)?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
@@ -1267,6 +1289,39 @@ struct LogCommandRequest: Identifiable {
     func switchBranch(target: LogReferenceMenuTarget) {
         guard !busy, switchBranchCandidates(target: target).count == 1 else { return }
         onSwitchBranch?(target.name)
+    }
+    func deletionCandidates(target: LogReferenceMenuTarget?) -> [RevisionReference] {
+        guard !isInvalidated, let revision else { return [] }
+        if let target { guard let ref = reference(for: target), !ref.isCurrent else { return [] }; return [ref] }
+        return revision.references.filter { !$0.isCurrent }
+    }
+    func deleteReferences(_ targets: [LogReferenceMenuTarget]) {
+        guard !isInvalidated, !busy, !targets.isEmpty, let chosen = revision,
+              targets.allSatisfy({ deletionCandidates(target: $0).count == 1 }) else { return }
+        let request = generation; busy = true; error = nil
+        Task {
+            var refresh = false
+            defer { busy = false; if refresh && !isInvalidated { reload() } }
+            for target in targets {
+                guard !isInvalidated, generation == request, revision?.hash == chosen.hash else { break }
+                var choice = HistoryReferenceDeleteChoice.abort
+                do {
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                    let snapshot = try await repository.prepareHistoryReferenceDeletion(target.name)
+                    choice = await confirmReferenceDeletion(snapshot)
+                    guard choice != .abort, !isInvalidated, generation == request, revision?.hash == chosen.hash else { break }
+                    _ = try await repository.deleteHistoryReference(snapshot, choice: choice); refresh = true
+                } catch {
+                    if isInvalidated { break }
+                    self.error = error.localizedDescription
+                    await acknowledgeReferenceDeletionFailure(error.localizedDescription)
+                    // Upstream remote-push/stash paths return true after reporting
+                    // failures; ordinary/local remote deletion aborts All.
+                    if [.remoteAndLocal, .stashAll, .stashOne].contains(choice) { refresh = true }
+                    else { break }
+                }
+            }
+        }
     }
     func copyReferenceNames(target: LogReferenceMenuTarget?) {
         guard !busy, !isInvalidated, let revision else { return }
@@ -2633,6 +2688,20 @@ struct RevisionTable: NSViewRepresentable {
                 item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase))
             }
             if one && !model.selectedIsStash { item("Export this version…", #selector(exportRevision), icon: .export, enabled: model.canExportRevision) }
+            let deletable = model.deletionCandidates(target: pointed)
+            if let revision = model.revision, !deletable.isEmpty {
+                func target(_ ref: RevisionReference) -> LogReferenceMenuTarget { LogReferenceMenuTarget(hash: revision.hash, name: ref.name) }
+                if deletable.count == 1 {
+                    item("Delete " + deletable[0].name, #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy).representedObject = [target(deletable[0])]
+                } else {
+                    let parent = item("Delete branch/tag", #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy)
+                    let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
+                    for ref in deletable {
+                        let child = NSMenuItem(title: ref.name, action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); child.target = self; child.image = MenuIcon.remove.contextImage(); child.isEnabled = parent.isEnabled; child.representedObject = [target(ref)]; submenu.addItem(child)
+                    }
+                    let all = NSMenuItem(title: "All", action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); all.target = self; all.image = MenuIcon.remove.contextImage(); all.isEnabled = parent.isEnabled; all.representedObject = deletable.map(target); submenu.addItem(all)
+                }
+            }
             menu.addItem(.separator())
             if model.revertAvailable {
                 if let revision = model.revision, revision.parents.count > 1 {
@@ -2684,6 +2753,7 @@ struct RevisionTable: NSViewRepresentable {
         @objc func mergeReference(_ sender: NSMenuItem) { model.requestIntegration(.merge, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func branchReference(_ sender: NSMenuItem) { model.requestReference(.branch, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func tagReference(_ sender: NSMenuItem) { model.requestReference(.tag, target: nil) }
+        @objc func deleteReferenceItems(_ sender: NSMenuItem) { if let targets = sender.representedObject as? [LogReferenceMenuTarget] { model.deleteReferences(targets) } }
         @objc func checkoutReference(_ sender: NSMenuItem) { model.requestReference(.checkout, target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func copyReferenceNames(_ sender: NSMenuItem) { model.copyReferenceNames(target: sender.representedObject as? LogReferenceMenuTarget) }
         @objc func toggleRollup() { model.toggleRollup() }
