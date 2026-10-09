@@ -1056,3 +1056,8 @@ under the same pinned TortoiseGit GPL-2.0-or-later notices above.
 VersionPickerCoordinator in SwitchWindow.swift supplies the same pinned
 CChooseVersion picker handoff to native Create Branch, Create Tag and New
 Worktree windows, under the TortoiseGit GPL-2.0-or-later notices above.
+
+ReferenceDescriptionWindowController in ReferenceBrowserWindow.swift and the
+branch-description config adapter in ReferenceCreation.swift adapt BrowseRefsDlg,
+InputDlg and CAppUtils::UpdateBranchDescription from the same pinned TortoiseGit
+source under its GPL-2.0-or-later notices above.

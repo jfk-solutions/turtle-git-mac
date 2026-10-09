@@ -62,13 +62,16 @@ extension GitRepository {
     }
     /// Source CreateBranchTag writes the description after PerformSwitch returns,
     /// even when checkout failed. Keep this phase separable for native ownership.
-    public func updateBranchDescription(_ name: String, message: String) throws {
-        do { _ = try run(["check-ref-format", "refs/heads/" + name]) } catch { throw ReferenceCreationFailure.invalidName }
+    public func updateBranchDescription(_ name: String, message: String, cancellation: OperationCancellation? = nil) throws {
+        try cancellation?.check()
+        do { _ = try run(["check-ref-format", "refs/heads/" + name], cancellation: cancellation) }
+        catch OperationCancellationFailure.cancelled { throw OperationCancellationFailure.cancelled }
+        catch { throw ReferenceCreationFailure.invalidName }
         let value = message.replacingOccurrences(of: "\r", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
         let key = "branch." + name + ".description"
         if value.isEmpty {
-            do { _ = try run(["config", "--local", "--unset-all", key]) }
+            do { _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", "--unset-all", key], cancellation: cancellation) }
             catch let failure as GitFailure where failure.code == 5 { /* Already absent. */ }
-        } else { _ = try run(["config", "--local", key, value]) }
+        } else { _ = try run(["-c", "core.precomposeunicode=false", "config", "--local", key, value], cancellation: cancellation) }
     }
 }

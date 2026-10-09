@@ -249,3 +249,10 @@ After an unsigned Debug build, run `python3 scripts/test-switch-pickers.py --git
 ### Branch, Tag and Worktree full revision pickers
 
 After an unsigned Debug build, run `python3 scripts/test-creation-pickers.py --git /usr/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`. Private hidden native Branch/Tag/Worktree controllers exercise full browser and typed Log routes, graph/single selection, canonical/Unicode base handoff and strict control focus, option/draft retention, Worktree suggestions and parent locks/lifecycle. Picker read-only invariants precede real private creation at the Log-selected base. Presenters release parent focus without ordering windows or actual sheets. Use the same Git arguments with `scripts/test-worktree-dialog.py` for real worktree/list/scope-policy/cancellation regression; it now compiles all Mac sources in shipping Swift 5 mode. `scripts/test-branch-tag-handoff.py` and `scripts/test-switch-pickers.py` remain relevant regressions. Physical and signed/full-dialog acceptance remain unverified.
+
+Branch-description input and browser ownership: run
+`python3 scripts/test-reference-description.py` after the Debug build, optionally
+with repeated `--git` for Apple and bundled Git. This receiver prohibits activation
+and uses private repositories/preferences; it does not display windows or establish
+physical sheet/layout or App Store acceptance. Core description coverage is in
+`ReferenceBrowserTests` and existing `ReferenceCreationTests`.

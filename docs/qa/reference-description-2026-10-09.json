@@ -1,0 +1,87 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "6cb5721",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "src/TortoiseProc/InputDlg.cpp": "5cb2f222f134800944a0b5ba18a918e32a4b451b",
+    "src/TortoiseProc/InputDlg.h": "4fb34ead0d2b16c516efa50aede4001e6e430bb5"
+  },
+  "scope": "Local commit-branch Edit description command and owned native multiline input; full app port remains incomplete.",
+  "verification": {
+    "source": "BrowseRefsDlg local heads/commit gate, including bare repositories; IDI_RENAME; CInputDlg title/hint/prefill/use-log-width with no project properties; end caret, Ctrl+Return, InputDlg geometry; CAppUtils removes CR, trims and sets/unsets local config.",
+    "core": "10 ReferenceBrowserTests/ReferenceCreationTests pass for Apple and bundled Git. Raw NUL-delimited configuration records establish exact NFC/NFD sibling preservation under core.precomposeunicode=true for both ordinary and cancellable writes; whitespace/CR normalization, absent removal, pre-cancelled no mutation, HEAD/index and bare catalog checked.",
+    "native": "Hidden actual reference browser menu/controller/editor passes both Git engines: original icon, multiline prefill/title, shared font, nonnil editor focus/end caret/clean Undo, Cancel invariant, Ctrl+Return, save/parent locks, selected catalog refresh, empty removal, nonlocal gates, rejected presentation, forced parent cleanup, bare save/refresh and retained error retry. Synthetic sheet presenter releases disabled-parent focus; no actual sheets or ordered windows.",
+    "regression": "Existing BranchTag handoff native receiver passes both engines, including real Switch then description write, failed-checkout recovery, foreign config lock/description-only retry and close/Quit. All final native logs have zero AttributeGraph cycles.",
+    "debug": "Unsigned Debug build and bundle audit pass.",
+    "store": "Unsigned AppStore build and required bundle audit pass: embedded Finder extension, universal Git 2.55.0 and all 99 upstream icon resources, runtime smoke checks and licenses. Signed execution/App Store acceptance not established.",
+    "ci": "Receiver added once; Ruby safe YAML parsing and command-count check pass. Hosted execution unverified.",
+    "inventory": "Pin checker passes. InputDlg/BrowseRefs/AppUtils mappings remain partial.",
+    "site": "Local Pages build passes; no deployment or current physical screenshots.",
+    "notice": "Both packaged NOTICE files byte-equal source."
+  },
+  "limitations": [
+    "Full reference-browser rename/delete/tracking/range/tree/fetch/push commands and whole-app parity remain incomplete.",
+    "Full Scintilla features, physical mouse/keyboard/IME/default buttons/sheets/focus restoration, light/dark appearance and accessibility remain unverified or incomplete.",
+    "Another process can rename/delete a branch during editing; config write is not a transactional ref fence. Forced cleanup cancels pending work and suppresses late publication but is not rollback of a completed config write.",
+    "Initial individual-key Unicode read oracle returned the canonical sibling while persisted raw config bytes preserved the intended key. Final writer evidence uses exact enumerated records; general keyed-read argument behavior is not established.",
+    "No signed security-scope/Finder/App Store acceptance, refreshed screenshot, remote push or hosted CI status claimed. Older WorktreeColumns.Test preference files predating this run were retained."
+  ],
+  "corrections": [
+    "Initial build failed on ambiguous greatestFiniteMagnitude; explicitly typed CGFloat fixed it.",
+    "Initial native receiver found NSOutlineView as an NSTableView and reported absent menu; excluding the outline view fixed the receiver lookup.",
+    "Initial keyed-read Unicode oracle replaced with exact raw-key enumeration after inspecting persisted bytes; production writer still uses core.precomposeunicode=false."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.ReferenceDescription.QA.99F60ED3-A441-453C-87FA-A4D9AC910630",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceDescription.QA.5001C508-ED7F-4009-BD5D-9FB49857DB40",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceDescription.QA.1676E62E-3C52-47CF-8DFA-A1EB685DC816",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.BranchTagHandoff.QA.043BCF51-69CE-4DD0-B807-CDC99417BB06",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.BranchTagHandoff.QA.67F9E58F-7C3D-4AA3-8ACC-26F69C947DBF",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      }
+    ],
+    "all_current_handles_terminal": true,
+    "remaining_current_receiver_fixtures": []
+  },
+  "local_logs": "build/qa/reference-description-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "18c477832ba60f0b3ddcdebdc9df947dce2f00eb065f6f61e496a0cce50ee46e",
+    "NOTICE": "e61e3b2049639417e6d4e83235e3b4af9d09c7f4caa64e01b583fa6d0d6ef126",
+    "Sources/TurtleGitCore/ReferenceCreation.swift": "a0e26ee12a482ecc78aa3a8691ffeeda0211b14bdd0c3246d80312425286e2ab",
+    "Sources/TurtleGitMac/MessageEditorFont.swift": "e981a3f5202aba17ae61736d8d3f6f9c2356f876700c7373902c996e03871469",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "028f90d01f202ab6fe627b36a7e13beb77ae9246551fd3d6b4d8d916ddda93f4",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "61fd24055ba79356ea28bca218bcc3bc79657d71f21c521dd50622058b24cc4b",
+    "docs/REFERENCE-BROWSER-PARITY.md": "eda4a970fdb09911f925d569187640ee769a41b2333d8f97daf61579b11e3db0",
+    "docs/TESTING.md": "165691f543add5b00865cd92fdbaec71e12ff9e502b39589b638225ac45e5992",
+    "docs/upstream-files.csv": "a3f79993212ad85463a047232bddef8376392f171829f2571c45e6dc1b57eb33",
+    "docs/qa/reference-description-native-2026-10-09.swift": "bfd4042848daba0d049e6d83ec4757fd64b50b59c088e3c60176522b99a82cd7",
+    "scripts/test-reference-description.py": "f610d3b66c84fc4eebad4313278c2c9f48ab567edc57abeb7fe78f6c567bd65c"
+  }
+}

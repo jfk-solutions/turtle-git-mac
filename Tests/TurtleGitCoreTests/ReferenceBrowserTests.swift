@@ -82,4 +82,40 @@ final class ReferenceBrowserTests: XCTestCase {
         let emptyRoot = root.appendingPathComponent("empty.git"); _ = try await repo.run(["init", "--bare", "-b", "main", emptyRoot.path])
         let empty = try await GitRepository(root: emptyRoot, executable: repo.executable).referenceBrowser(); XCTAssertTrue(empty.references.isEmpty); XCTAssertEqual(empty.folders, ["refs"])
     }
+    func testDescriptionWriteClearCancellationAndExactUnicodeKeys() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
+        let head = try await repo.run(["rev-parse", "HEAD"]).text
+        _ = try await repo.run(["config", "core.precomposeunicode", "true"])
+        let nfc = "Café", nfd = "Cafe\u{301}"
+        let configURL = root.appendingPathComponent(".git/config")
+        var raw = try Data(contentsOf: configURL)
+        raw.append(Data(("\n[branch \"" + nfc + "\"]\n\tdescription = NFC\n[branch \"" + nfd + "\"]\n\tdescription = NFD\n").utf8))
+        try raw.write(to: configURL)
+        try await repo.updateBranchDescription(nfd, message: "  first\r\nsecond  ")
+        // Enumerate raw keys: individual config lookup argument normalization is
+        // separate from verifying the exact bytes persisted by this writer.
+        let values = try await repo.run(["config", "--local", "--null", "--list"]).stdout
+        XCTAssertNotNil(values.range(of: Data(("branch." + nfc + ".description\nNFC\0").utf8)))
+        XCTAssertNotNil(values.range(of: Data(("branch." + nfd + ".description\nfirst\nsecond\0").utf8)))
+        try await repo.updateBranchDescription(nfd, message: "cancellable", cancellation: OperationCancellation())
+        let cancellable = try await repo.run(["config", "--local", "--null", "--list"]).stdout
+        XCTAssertNotNil(cancellable.range(of: Data(("branch." + nfd + ".description\ncancellable\0").utf8)))
+        XCTAssertNotNil(cancellable.range(of: Data(("branch." + nfc + ".description\nNFC\0").utf8)))
+        try await repo.updateBranchDescription(nfd, message: " \r\n ")
+        let cleared = try await repo.run(["config", "--local", "--null", "--list"]).stdout
+        XCTAssertNil(cleared.range(of: Data(("branch." + nfd + ".description\n").utf8)))
+        XCTAssertNotNil(cleared.range(of: Data(("branch." + nfc + ".description\nNFC\0").utf8)))
+        try await repo.updateBranchDescription(nfd, message: "") // already absent
+        let config = try Data(contentsOf: configURL), cancelled = OperationCancellation(); cancelled.cancel()
+        do { try await repo.updateBranchDescription(nfc, message: "bad", cancellation: cancelled); XCTFail("Cancelled write ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(config, try Data(contentsOf: configURL))
+        XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index")))
+        let afterHead = try await repo.run(["rev-parse", "HEAD"]).text; XCTAssertEqual(head, afterHead)
+        let bareRoot = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        let bare = GitRepository(root: bareRoot, executable: repo.executable)
+        try await bare.updateBranchDescription("main", message: "bare description")
+        let snapshot = try await bare.referenceBrowser(); XCTAssertEqual(snapshot.references.first { $0.name == "refs/heads/main" }?.description, "bare description")
+    }
+
 }

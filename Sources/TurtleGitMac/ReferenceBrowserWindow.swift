@@ -10,6 +10,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     let model: ReferenceBrowserWindowModel
     var onClosed: () -> Void = {}
     private(set) var reflog: ReferenceLogWindowController?
+    private(set) var descriptionEditor: ReferenceDescriptionWindowController?
+    var presentDescription: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     var presentReflog: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private var completion: ((String?) -> Void)?
     init(repository: GitRepository, access: RepositoryAccessLease?, initial: String, preferences: UserDefaults = .standard, onChoose: @escaping (String?) -> Void) {
@@ -20,6 +22,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         super.init(window: window); window.delegate = self; window.center()
         window.refresh = { [weak model] in model?.load() }
         model.onReflog = { [weak self] name in self?.showReflog(name) }
+        model.onEditDescription = { [weak self] in self?.editDescription() }
         model.finish = { [weak self] reference in self?.finish(reference) }
         DialogGeometry.attach(window, identifier: "BrowseRefs", legacyName: "BrowseRefs")
     }
@@ -35,13 +38,33 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
         guard let window = child.window, presentReflog(owner, window) else { child.close(); reflog = nil; model.hasChild = false; return }
     }
+    func editDescription() {
+        guard let owner = window, owner.attachedSheet == nil, model.canEditDescription,
+              let chosen = model.chosen,
+              let branch = GitReferenceName.removingPrefix("refs/heads/", from: chosen.name.rawValue) else { return }
+        model.hasChild = true
+        let repository = model.repository, access = model.access
+        let child = ReferenceDescriptionWindowController(text: chosen.description, preferences: model.preferences) { text, cancellation in
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            try await repository.updateBranchDescription(branch, message: text, cancellation: cancellation)
+        }
+        descriptionEditor = child
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.descriptionEditor === child else { return }
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            self.descriptionEditor = nil; self.model.hasChild = false
+            if child.saved && !self.model.closed { self.model.load() }
+        }
+        guard let window = child.window, presentDescription(owner, window) else { child.close(); return }
+        child.focusEditor()
+    }
     func abandonPresentation() { completion = nil; close() }
     private func finish(_ reference: String?) {
         guard let completion, !model.hasChild, window?.attachedSheet == nil else { return }; self.completion = nil
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
@@ -69,6 +92,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published var sortColumn = "name"
     @Published var descending = false
     var finish: (String?) -> Void = { _ in }
+    var onEditDescription: (() -> Void)?
+    var canEditDescription: Bool { canAccept && chosen?.objectType == "commit" && chosen.flatMap { GitReferenceName.removingPrefix("refs/heads/", from: $0.name.rawValue) } != nil }
     var onLog: ((String) -> Void)?
     var onReflog: ((String) -> Void)?
     var onBrowse: ((String) -> Void)?
@@ -273,14 +298,103 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if chosen.objectType == "commit" { item("Show log", #selector(log), .log, model.onLog != nil) }
             let branch = GitReferenceName.removingPrefix("refs/heads/", from: chosen.name.rawValue) != nil || GitReferenceName.removingPrefix("refs/remotes/", from: chosen.name.rawValue) != nil
             if branch { item("Show Reflog", #selector(reflog), .log, model.onReflog != nil) }
+            if model.canEditDescription { item("Edit description", #selector(editDescription), .rename, model.onEditDescription != nil) }
             item("Browse repository", #selector(browse), .repositoryBrowser, model.onBrowse != nil)
             if !model.bare && chosen.objectType == "commit" { item("Compare with working tree", #selector(compare), .compare, model.onCompare != nil) }
             menu.addItem(.separator()); item("Copy reference name", #selector(copyName), .copy, true)
         }
+        @objc func editDescription() { if model.canEditDescription { model.onEditDescription?() } }
         @objc func log() { if let chosen = model.chosen { model.onLog?(chosen.name.rawValue) } }
         @objc func reflog() { if let chosen = model.chosen { model.onReflog?(chosen.name.rawValue) } }
         @objc func browse() { if let chosen = model.chosen { model.onBrowse?(chosen.name.rawValue) } }
         @objc func compare() { if let chosen = model.chosen { model.onCompare?(chosen.name.rawValue) } }
         @objc func copyName() { if let chosen = model.chosen { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(chosen.name.rawValue, forType: .string) } }
     }
+}
+
+// CInputDlg's branch-description use: multiline input, end caret, Ctrl+Return,
+// shared log font and InputDlg geometry. See NOTICE for upstream provenance.
+private final class ReferenceDescriptionTextView: NSTextView {
+    var accept: () -> Void = {}
+    override func keyDown(with event: NSEvent) {
+        if event.modifierFlags.contains(.control), event.keyCode == 36 || event.keyCode == 76 { accept(); return }
+        super.keyDown(with: event)
+    }
+}
+@MainActor final class ReferenceDescriptionWindowController: NSWindowController, NSWindowDelegate {
+    let editor: NSTextView
+    let ok = NSButton(title: "OK", target: nil, action: nil)
+    let cancelButton = NSButton(title: "Cancel", target: nil, action: nil)
+    let errorLabel = NSTextField(wrappingLabelWithString: "")
+    private(set) var busy = false
+    private(set) var saved = false
+    private var closed = false
+    private var token: OperationCancellation?
+    private var fontObserver: NSObjectProtocol?
+    private let preferences: UserDefaults
+    private let write: (String, OperationCancellation) async throws -> Void
+    var onClosed: () -> Void = {}
+    init(text: String, preferences: UserDefaults, write: @escaping (String, OperationCancellation) async throws -> Void) {
+        self.preferences = preferences; self.write = write
+        let input = ReferenceDescriptionTextView(frame: .zero); editor = input
+        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 510, height: 255), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        window.title = "Edit description"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 360, height: 210)
+        super.init(window: window); window.delegate = self
+        let content = NSView(); window.contentView = content
+        let hint = NSTextField(labelWithString: "Edit description")
+        let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.borderType = .bezelBorder; scroll.documentView = input
+        input.isRichText = false; input.allowsUndo = true; input.isVerticallyResizable = true; input.isHorizontallyResizable = false
+        input.autoresizingMask = [.width]; input.textContainer?.widthTracksTextView = true
+        input.textContainer?.containerSize = .init(width: 0, height: CGFloat.greatestFiniteMagnitude)
+        input.maxSize = .init(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+        input.textContainerInset = .init(width: 5, height: 5); input.string = text
+        input.setAccessibilityLabel("Branch description"); input.undoManager?.removeAllActions()
+        errorLabel.textColor = .systemRed
+        ok.bezelStyle = .rounded; cancelButton.bezelStyle = .rounded
+        ok.target = self; ok.action = #selector(save); cancelButton.target = self; cancelButton.action = #selector(cancel)
+        cancelButton.keyEquivalent = "\u{1b}"; input.accept = { [weak self] in self?.save() }
+        for view in [hint, scroll, errorLabel, ok, cancelButton] { view.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(view) }
+        NSLayoutConstraint.activate([
+            hint.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 12), hint.topAnchor.constraint(equalTo: content.topAnchor, constant: 10),
+            scroll.leadingAnchor.constraint(equalTo: hint.leadingAnchor), scroll.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -12), scroll.topAnchor.constraint(equalTo: hint.bottomAnchor, constant: 6),
+            scroll.bottomAnchor.constraint(equalTo: errorLabel.topAnchor, constant: -5),
+            errorLabel.leadingAnchor.constraint(equalTo: hint.leadingAnchor), errorLabel.trailingAnchor.constraint(equalTo: scroll.trailingAnchor), errorLabel.bottomAnchor.constraint(equalTo: ok.topAnchor, constant: -6),
+            cancelButton.trailingAnchor.constraint(equalTo: scroll.trailingAnchor), cancelButton.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -10), cancelButton.widthAnchor.constraint(equalToConstant: 80),
+            ok.trailingAnchor.constraint(equalTo: cancelButton.leadingAnchor, constant: -8), ok.bottomAnchor.constraint(equalTo: cancelButton.bottomAnchor), ok.widthAnchor.constraint(equalToConstant: 80)
+        ])
+        updateFont(); window.center(); DialogGeometry.attach(window, identifier: "InputDlg", legacyName: "InputDlg")
+        fontObserver = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: preferences, queue: .main) { [weak self] _ in Task { @MainActor in self?.updateFont() } }
+    }
+    private func updateFont() {
+        guard !closed else { return }
+        let ranges = editor.selectedRanges
+        editor.undoManager?.disableUndoRegistration()
+        editor.font = MessageEditorFont.resolve(name: preferences.string(forKey: "LogFontName") ?? MessageEditorFont.defaultName, size: preferences.object(forKey: "LogFontSize") as? Int ?? MessageEditorFont.defaultSize)
+        editor.undoManager?.enableUndoRegistration(); editor.selectedRanges = ranges
+    }
+    func focusEditor() { guard !closed, !busy, let window else { return }; window.makeFirstResponder(editor); editor.setSelectedRange(.init(location: editor.string.utf16.count, length: 0)) }
+    @objc func save() {
+        guard !busy, !closed else { return }
+        busy = true; editor.isEditable = false; ok.isEnabled = false; cancelButton.isEnabled = false; errorLabel.stringValue = ""
+        let request = OperationCancellation(); token = request; let text = editor.string
+        Task {
+            do {
+                try await write(text, request)
+                guard !closed, token === request else { return }
+                saved = true; close()
+            } catch {
+                guard !closed, token === request else { return }
+                token = nil; busy = false; editor.isEditable = true; ok.isEnabled = true; cancelButton.isEnabled = true
+                errorLabel.stringValue = error.localizedDescription; window?.makeFirstResponder(editor)
+            }
+        }
+    }
+    @objc func cancel() { guard !busy, !closed else { return }; close() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !busy }
+    func windowWillClose(_ notification: Notification) {
+        guard !closed else { return }; closed = true; token?.cancel(); token = nil
+        if let fontObserver { NotificationCenter.default.removeObserver(fontObserver) }; fontObserver = nil
+        if let window { window.sheetParent?.endSheet(window) }; onClosed()
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

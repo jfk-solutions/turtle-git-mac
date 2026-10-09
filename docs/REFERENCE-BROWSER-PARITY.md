@@ -53,7 +53,7 @@ Log and working-tree comparison are offered for commit objects, Reflog for local
 and remote branches, and working-tree comparison is suppressed in bare repos.
 Reflog is owned by the browser and blocks parent selection/close until released.
 Other context callbacks retain canonical names. Remote/local deletion, rename,
-tracking edits, description edits, fetch/push, range selection/commands, tree
+tracking edits, fetch/push, range selection/commands, tree
 context commands and complete source menu parity remain unfinished. Reset, Switch, Branch/Tag and New Worktree use this browser; complete behavior
 and other chooser consumers remain pending.
 
@@ -73,3 +73,28 @@ or IME behavior, default buttons, accessibility, light/dark layout comparison,
 error/close-during-load recovery, signed security scopes or App Store acceptance.
 No current screenshots or site deployment are claimed. The whole port remains
 incomplete.
+
+## Branch descriptions
+
+The local-branch commit context menu now includes **Edit description** with the
+original rename icon, including in bare repositories. Its owned resizable native
+multiline input follows the pinned BrowseRefsDlg/InputDlg call: title and hint,
+existing text, shared log font, initial end caret, clean Undo history, Cancel,
+Ctrl+Return to accept and InputDlg geometry. Plain Return remains multiline.
+There is no optional checkbox or project log-width/minimum-length requirement at
+this upstream call site. Empty text is accepted.
+
+The write removes carriage returns and trims surrounding whitespace; empty text
+unsets the branch description. Successful writes reload the browser's catalog
+and retain its canonical selection. Cancel leaves config unchanged. Parent
+selection, refresh and close are locked while the editor is owned. Writes lock
+the editor; failures retain the draft for retry. Forced parent cleanup cancels
+pending work and prevents late UI publication. Core config writes explicitly
+disable Git argument Unicode precomposition to keep byte-distinct branch keys
+separate. This is not a transactional fence against another process renaming or
+deleting the branch concurrently.
+
+See `scripts/test-reference-description.py` and
+[checkpoint evidence](qa/reference-description-2026-10-09.json). Physical sheets,
+keyboard/IME/accessibility, visual light/dark comparison and complete Scintilla
+input features remain unverified or incomplete.
