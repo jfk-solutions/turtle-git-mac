@@ -1982,3 +1982,30 @@ Merge targeting, Create Branch remote-ref targeting, other shared-list consumers
 and physical/accessibility/signed acceptance remain pending.
 
 Reference-menu Unicode acceptance uses synthetic NFC/NFD ref metadata to avoid loose-ref filesystem normalization. Broader Core tracking/current-ref normalization and invalid-ref encoding equivalence remain unverified.
+
+
+Core reference byte identity (2026-10-09)
+----------------------------------------
+
+History reference values and tracking maps now retain valid UTF-8 byte identity
+using GitReferenceName keys instead of Swift's normalized String equality.
+Current-ref marking, peeled-tag kind lookup, upstream pairing/consumption,
+remote/same-name symbolization, context equality and bisect-term matching follow
+the same rule. Tracking keys are now typed GitReferenceName values; literal keys
+still work, and dynamic keys require an explicit constructor.
+
+Prefix/suffix removal operates on encoded bytes, preserving combining marks at
+the start of a branch/tag name or after a remote slash. The native Log signature
+uses byte data, so changing only an NFC/NFD spelling on the same commit refreshes
+the message cell. Native branch color classification and pointed-ref clipboard
+shortening use the same prefix rule.
+
+[Reference identity QA](qa/log-reference-identity-2026-10-09.json) records real
+packed refs and raw configuration reads, current-ref/tag distinctions and native
+cache refresh. The initial fixture exposed Git's precomposeunicode argv behavior;
+config setters had collapsed its intended distinct names. The corrected fixture
+stores valid raw section bytes and checks Git's read output, rather than disabling
+normalization or using loose ref filenames. General named-operation argv handling,
+other ref/path APIs, invalid UTF-8 refs and Windows locale/CRT equivalence remain
+unverified. These checks do not establish full Unicode support or whole-port
+completion.

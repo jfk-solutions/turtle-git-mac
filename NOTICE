@@ -999,3 +999,8 @@ Log label context targeting adapts GitLogListBase::IsMouseOnRefLabel and
 menu data binding for Push/Switch/clipboard, including last canonical label
 rectangles and clipped half-open hit bounds. Branches/Tags clipboard text
 adapts GitLogListAction.cpp ID_COPYCLIPBOARDBRANCHTAG and CGit::StripRefName.
+
+History ref/current-ref/peeled-tag and tracking identity adapts the pinned
+GitLogListBase.cpp CString comparisons and CGit ref/config lookup semantics
+using byte-exact valid UTF-8 value keys. Prefix removal preserves leading
+combining marks, and native Log repaint signatures retain the same byte identity.

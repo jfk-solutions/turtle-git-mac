@@ -1248,11 +1248,10 @@ struct LogCommandRequest: Identifiable {
         if let target {
             guard let reference = reference(for: target) else { return }
             var name = reference.name
-            if name.hasPrefix("refs/tags/") {
-                name = String(name.dropFirst(10)); if name.hasSuffix("^{}") { name = String(name.dropLast(3)) }
+            if let tag = GitReferenceName.removingPrefix("refs/tags/", from: name) {
+                name = GitReferenceName.removingSuffix("^{}", from: tag) ?? tag
             } else {
-                if name.hasPrefix("refs/heads/") { name = String(name.dropFirst(11)) }
-                else if name.hasPrefix("refs/") { name = String(name.dropFirst(5)) }
+                name = GitReferenceName.removingPrefix("refs/heads/", from: name) ?? GitReferenceName.removingPrefix("refs/", from: name) ?? name
                 name = String(name.reversed().drop(while: { $0.isWhitespace }).reversed())
             }
             copy(name)
@@ -2366,7 +2365,7 @@ struct RevisionTable: NSViewRepresentable {
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = !LogRevisionColumns.visible("graph") || model.historyWalk.followRenames
         let graphChanged = coordinator.graph != model.graph; coordinator.graph = model.graph
-        let signature = model.entries.map { $0.hash + $0.references.map { $0.name + ($0.kind?.rawValue ?? "") + ($0.displayName ?? "") }.joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
+        let signature = model.entries.map { $0.hash + $0.references.map { $0.name + ($0.kind?.rawValue ?? "") + ($0.displayName ?? "") }.joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }.map { Data($0.utf8) }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility || coordinator.referenceContext != model.referenceContext
         coordinator.referenceVisibility = model.referenceVisibility
         coordinator.referenceContext = model.referenceContext
@@ -2402,7 +2401,7 @@ struct RevisionTable: NSViewRepresentable {
         weak var table: NSTableView?
         var headerMenu: NSMenu?
         var updating = false
-        var signature: [String] = []
+        var signature: [Data] = []
         var logFont: NSFont?
         var graph: [CommitGraphRow] = []
         var dateSettings = HistoryDateSettings.load()

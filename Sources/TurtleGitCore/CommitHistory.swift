@@ -6,9 +6,17 @@ public struct RevisionReference: Hashable, Sendable {
     public var kind: HistoryReferenceKind?
     public var displayName: String?
     public init(name: String, isCurrent: Bool = false, kind: HistoryReferenceKind? = nil, displayName: String? = nil) { self.name = name; self.isCurrent = isCurrent; self.kind = kind; self.displayName = displayName }
+    public static func == (lhs: Self, rhs: Self) -> Bool {
+        GitReferenceName.equal(lhs.name, rhs.name) && lhs.isCurrent == rhs.isCurrent && lhs.kind == rhs.kind
+            && lhs.displayName.map { GitReferenceName($0) } == rhs.displayName.map { GitReferenceName($0) }
+    }
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(GitReferenceName(name)); hasher.combine(isCurrent); hasher.combine(kind)
+        hasher.combine(displayName.map { GitReferenceName($0) })
+    }
     public var label: String {
-        for prefix in ["refs/heads/", "refs/remotes/", "refs/tags/"] where name.hasPrefix(prefix) {
-            return String(name.dropFirst(prefix.count))
+        for prefix in ["refs/heads/", "refs/remotes/", "refs/tags/"] {
+            if let short = GitReferenceName.removingPrefix(prefix, from: name) { return short }
         }
         return name
     }
@@ -1037,10 +1045,10 @@ extension GitRepository {
         let currentRef = try? historyRun(["symbolic-ref", "--quiet", "HEAD"]).text.trimmingCharacters(in: .newlines)
         for index in entries.indices {
             entries[index].references = (references[entries[index].hash] ?? []).map { value in
-                var reference = value; reference.isCurrent = value.name == currentRef
+                var reference = value; reference.isCurrent = currentRef.map { GitReferenceName.equal(value.name, $0) } ?? false
                 let short = HistoryReferenceLabel.shortName(value.name, terms: bisectTerms)
                 reference.kind = short.kind; reference.displayName = short.text
-                if value.name.hasPrefix("refs/tags/"), (peeledReferenceNames[entries[index].hash] ?? []).contains(value.name + "^{}") { reference.kind = .annotatedTag }
+                if value.name.utf8.starts(with: "refs/tags/".utf8), (peeledReferenceNames[entries[index].hash] ?? []).contains(where: { GitReferenceName.equal($0, value.name + "^{}") }) { reference.kind = .annotatedTag }
                 return reference
             }
             entries[index].isHead = entries[index].hash == head

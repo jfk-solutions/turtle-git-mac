@@ -71,7 +71,7 @@ final class HistoryReferenceLabelTests: XCTestCase {
     func testRealAnnotatedTagsAndCustomBisectNamesPreserveRefs() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
-        _ = try await repo.run(["tag", "-a", "annotated", "-m", "tag message"])
+        _ = try await repo.run(["-c", "tag.gpgsign=false", "tag", "-a", "annotated", "-m", "tag message"])
         _ = try await repo.run(["tag", "light"])
         for name in ["refs/bisect/old-" + hash, "refs/bisect/new", "refs/bisect/unknown", "refs/notes/custom", "refs/custom/extra"] { _ = try await repo.run(["update-ref", name, hash]) }
         try Data("new\nold\n".utf8).write(to: root.appendingPathComponent(".git/BISECT_TERMS"))
@@ -95,6 +95,63 @@ final class HistoryReferenceLabelTests: XCTestCase {
         XCTAssertEqual(context.tracking["main"], .init(remote: "origin", branch: "main"))
         XCTAssertEqual(context.tracking["雪/topic"], .init(remote: "origin", branch: "other"))
         XCTAssertEqual(context.tracking["local"], .init(remote: ".", branch: "tags/tag"))
+        XCTAssertEqual(try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }, before)
+    }
+    func testByteExactValueIdentityAndBisectTerms() {
+        let a = "caf\u{e9}", b = "cafe\u{301}"
+        XCTAssertEqual(a, b, "Swift itself normalizes equality; ref identity must not")
+        XCTAssertNotEqual(GitReferenceName(a), GitReferenceName(b))
+        XCTAssertEqual(Set([RevisionReference(name: a), RevisionReference(name: b)]).count, 2)
+        XCTAssertNotEqual(HistoryBranchTracking(remote: a, branch: "main"), .init(remote: b, branch: "main"))
+        XCTAssertNotEqual(HistoryReferenceContext(remotes: [a]), .init(remotes: [b]))
+        let term = HistoryBisectTerms(good: a, bad: "bad")
+        XCTAssertEqual(HistoryReferenceLabel.shortName("refs/bisect/" + a + "-123", terms: term).kind, .bisectGood)
+        XCTAssertEqual(HistoryReferenceLabel.shortName("refs/bisect/" + b + "-123", terms: term).kind, .unknown)
+        let context = HistoryReferenceContext(remotes: [a], tracking: [GitReferenceName(a): .init(remote: a, branch: a)])
+        let refs = [RevisionReference(name: "refs/heads/" + a), RevisionReference(name: "refs/remotes/" + b + "/" + a), RevisionReference(name: "refs/remotes/" + a + "/" + b), RevisionReference(name: "refs/remotes/" + a + "/" + a)]
+        let labels = context.labels(refs, symbolize: true)
+        XCTAssertEqual(labels.count, 4)
+        XCTAssertTrue(labels[1].reference.name.utf8.elementsEqual(refs[3].name.utf8))
+        XCTAssertTrue(labels[1].sameName)
+        XCTAssertTrue(labels[2].reference.name.utf8.elementsEqual(refs[1].name.utf8)); XCTAssertFalse(labels[2].singleRemote)
+        XCTAssertTrue(labels[3].reference.name.utf8.elementsEqual(refs[2].name.utf8)); XCTAssertFalse(labels[3].sameName)
+        let leading = "\u{301}topic"
+        XCTAssertTrue(HistoryReferenceLabel.shortName("refs/heads/" + leading).text.utf8.elementsEqual(leading.utf8))
+        XCTAssertTrue(RevisionReference(name: "refs/heads/" + leading).label.utf8.elementsEqual(leading.utf8))
+    }
+    func testPackedUnicodeRefsAndTrackingRetainByteIdentity() async throws {
+        let (root, repo, path) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let a = "caf\u{e9}", b = "cafe\u{301}", leading = "\u{301}topic"
+        let hash = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["-c", "tag.gpgsign=false", "tag", "-a", "fixture-tag", "-m", "fixture"])
+        let tag = try await repo.run(["rev-parse", "refs/tags/fixture-tag"]).text.trimmingCharacters(in: .newlines)
+        let names = [a, b, leading].map { "refs/heads/" + $0 } + [a, b, leading].map { "refs/remotes/origin/" + $0 }
+        let packed = "# pack-refs with: peeled\n" + names.map { hash + " " + $0 + "\n" }.joined() + tag + " refs/tags/" + a + "\n^" + hash + "\n" + hash + " refs/tags/" + b + "\n"
+        try Data(packed.utf8).write(to: root.appendingPathComponent(".git/packed-refs"))
+        try Data(("ref: refs/heads/" + b + "\n").utf8).write(to: root.appendingPathComponent(".git/HEAD"))
+        _ = try await repo.run(["remote", "add", "origin", root.path])
+        // Apple Git's precomposeunicode can normalize command argv, including
+        // config setters. Write valid distinct section bytes before read checks.
+        let config = root.appendingPathComponent(".git/config")
+        var configBytes = try Data(contentsOf: config)
+        for name in [a, b, leading] { configBytes.append(Data(("\n[branch \"" + name + "\"]\n\tremote = origin\n\tmerge = refs/heads/" + name + "\n").utf8)) }
+        try configBytes.write(to: config)
+        let paths = [".git/HEAD", ".git/index", ".git/config", ".git/packed-refs", path], before = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        let context = try await repo.historyReferenceContext()
+        XCTAssertEqual(context.tracking.count, 3)
+        XCTAssertTrue(try XCTUnwrap(context.tracking[GitReferenceName(a)]).branch.utf8.elementsEqual(a.utf8))
+        XCTAssertTrue(try XCTUnwrap(context.tracking[GitReferenceName(b)]).branch.utf8.elementsEqual(b.utf8))
+        XCTAssertTrue(try XCTUnwrap(context.tracking[GitReferenceName(leading)]).branch.utf8.elementsEqual(leading.utf8))
+        let history = try await repo.history(), entry = try XCTUnwrap(history.first { $0.hash == hash })
+        func ref(_ name: String) throws -> RevisionReference { try XCTUnwrap(entry.references.first { $0.name.utf8.elementsEqual(name.utf8) }) }
+        XCTAssertFalse(try ref(names[0]).isCurrent); XCTAssertTrue(try ref(names[1]).isCurrent)
+        XCTAssertEqual(try ref(names[2]).kind, .localBranch)
+        XCTAssertEqual(try ref("refs/tags/" + a).kind, .annotatedTag)
+        XCTAssertEqual(try ref("refs/tags/" + b).kind, .tag)
+        let labels = context.labels(entry.references, symbolize: true)
+        let paired = labels.filter { $0.singleRemote && $0.hasTracking }
+        XCTAssertEqual(paired.count, 3); XCTAssertTrue(paired.allSatisfy(\.sameName))
+        XCTAssertEqual(Set(paired.map { GitReferenceName($0.reference.name) }), Set(names.suffix(3).map { GitReferenceName($0) }))
         XCTAssertEqual(try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }, before)
     }
 }

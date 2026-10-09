@@ -89,6 +89,7 @@
 		768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 814E543BEB0736B84A50B21B /* SavedData.swift */; };
 		78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */; };
 		79FAF64D9B79A6283E286D5A /* LogAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 392877DE7F6A7F5BB1CC3391 /* LogAppearance.swift */; };
+		7C22243E2D3DB838AC0604B3 /* GitReferenceName.swift in Sources */ = {isa = PBXBuildFile; fileRef = B733277271B0769B1CB05397 /* GitReferenceName.swift */; };
 		7C3A58D7BEF989C5FE0D1C4D /* StashWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC73279697B4174BE7ED4D66 /* StashWindow.swift */; };
 		7CBA6AA078D63A8935313B51 /* RevisionComparisonWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C08CE65957F3F0D4164400 /* RevisionComparisonWindow.swift */; };
 		7D8AA5904CE9BB1EBE312F07 /* BranchTagWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */; };
@@ -397,6 +398,7 @@
 		B16F443B326FDAB1414D334B /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		B20E461B2D9629D0293A80EB /* WorkingTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTree.swift; sourceTree = "<group>"; };
 		B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IgnoreWindow.swift; sourceTree = "<group>"; };
+		B733277271B0769B1CB05397 /* GitReferenceName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitReferenceName.swift; sourceTree = "<group>"; };
 		B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdateWindow.swift; sourceTree = "<group>"; };
 		BA121F2E317F86B146016B4E /* Rename.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rename.swift; sourceTree = "<group>"; };
 		BA3DD76CCC2D1B2E7E5BEA21 /* FetchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FetchWindow.swift; sourceTree = "<group>"; };
@@ -615,6 +617,7 @@
 				05D106E240B26C603304CF20 /* GitCliOutputParser.swift */,
 				D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */,
 				0657423D5C68D66703C2BB5C /* GitPatch.swift */,
+				B733277271B0769B1CB05397 /* GitReferenceName.swift */,
 				F2E43773297420C7FDAE9748 /* GitRepository.swift */,
 				E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */,
 				50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */,
@@ -920,6 +923,7 @@
 				F4EFA7E104D7F5B9615C331C /* GitCliOutputParser.swift in Sources */,
 				A9FF0A885E44AF8F4261B5DA /* GitModels.swift in Sources */,
 				4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */,
+				7C22243E2D3DB838AC0604B3 /* GitReferenceName.swift in Sources */,
 				E92971BFB0588C2287D36944 /* GitRepository.swift in Sources */,
 				BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */,
 				135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */,

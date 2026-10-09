@@ -48,10 +48,10 @@ enum LogColorRole: String, CaseIterable {
     }
     static func reference(_ reference: RevisionReference, goodTerm: String = "good", badTerm: String = "bad") -> Self {
         let name = reference.name
-        if name.hasPrefix("refs/heads/") { return reference.isCurrent ? .currentBranch : .localBranch }
-        if name.hasPrefix("refs/remotes/") { return .remoteBranch }
-        if name.hasPrefix("refs/tags/") { return .tag }
-        if name.hasPrefix("refs/stash") { return .stash }
+        if name.utf8.starts(with: "refs/heads/".utf8) { return reference.isCurrent ? .currentBranch : .localBranch }
+        if name.utf8.starts(with: "refs/remotes/".utf8) { return .remoteBranch }
+        if name.utf8.starts(with: "refs/tags/".utf8) { return .tag }
+        if name.utf8.starts(with: "refs/stash".utf8) { return .stash }
         let kind = reference.kind ?? HistoryReferenceLabel.shortName(name, terms: HistoryBisectTerms(good: goodTerm, bad: badTerm)).kind
         if kind == .bisectGood { return .bisectGood }
         if kind == .bisectSkip { return .bisectSkip }

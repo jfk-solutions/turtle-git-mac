@@ -1,0 +1,73 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "31fb6a4",
+  "scope": "Core history reference/tracking byte identity and native same-commit repaint; whole port incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/Git/Git.h": "493a1e5511c8a4e874caa887d1361a6af9088fe6",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187"
+  },
+  "verification": {
+    "core": "65 focused tests pass: 9 HistoryReferenceLabelTests, 48 CommitHistoryTests, 5 BisectTests, 3 LogMessageLineTests. Packed NFC/NFD local/remote refs and annotated vs lightweight tags, raw config sections, exact current-ref marking, leading combining marks, co-located tracking/symbolization and byte-preserving reads checked. Final SPDX comment only added afterward; no full-suite claim.",
+    "debug": "Unsigned Debug build and bundle audit pass after new Core file registered by XcodeGen.",
+    "native": "Final focused receiver passes Apple and bundled Git. Actual native same-commit tag cell changes from NFC to NFD retain new canonical metadata, verifying byte-based repaint signatures. Leading-mark local-branch color, label and private pointed-ref clipboard bytes checked. Existing label hit/menu/Unicode/clipboard/highlight/layout/preferences checks pass with unchanged private repository bytes. Core packed-ref test uses default engine; native Unicode cache cases use synthetic metadata. Rebase rendered text remains UNVERIFIED.",
+    "store": "Unsigned AppStore build and bundle audit pass, including universal arm64/x86_64 Git 2.55.0 and Git LFS 3.8.0 runtime checks. No signed sandbox/App Store acceptance claim.",
+    "notice": "Both Debug and AppStore bundled NOTICE bytes match source.",
+    "inventory": "Three partial mappings updated; inventory pin check passes.",
+    "site": "Local site generator passes; no deployment or physical screenshots claimed."
+  },
+  "iterations": [
+    "Initial fixture used Git config setters, whose argv processing under core.precomposeunicode=true collapsed intended NFC/NFD sections. A forced unwrap of the missing key crashed xctest; owned fixture provenance confirmed and cleaned. Fixtures now write valid distinct raw config bytes and use XCTUnwrap for diagnostics.",
+    "Byte-based prefix/suffix removal also preserves leading combining marks; packed-ref tests expanded to include a leading-mark branch and upstream.",
+    "Same-hash native repaint signature now uses Data to avoid canonical-equivalence suppression."
+  ],
+  "limitations": [
+    "Valid UTF-8 reference identity is covered in history/tracking; general named-operation argv precomposition, other Core ref/path APIs, invalid UTF-8 and Windows locale/CRT equivalence remain unverified.",
+    "No compiled CString identity/complete short-name oracle or physical screenshot claim.",
+    "Full menu availability/express switch/delete/merge/create-branch behavior, other dialogs/Finder, signed sandbox/App Store acceptance, full Rebase rendered text, screenshots/publishing and hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_domains": [
+      "TurtleGit.MessageLine.Native.QA.43706C78-D599-432F-8254-6A7EB70AFD75",
+      "TurtleGit.MessageLine.Native.QA.CDBC249E-025D-451C-AF73-83C119EAC85E"
+    ],
+    "remaining_processes": [],
+    "remaining_fixtures": [],
+    "remaining_preferences": [],
+    "crashed_core_fixture": "Owned initial packed-ref fixture verified by HEAD/config/tag provenance and removed; failed-fixture-cleanup.json records path. Subsequent Core fixtures removed by defer.",
+    "windows": "Passing owned hidden windows closed/models invalidated and private pasteboards released. No Push/Checkout/network/dialog launch or system clipboard writes."
+  },
+  "sources_manifest_sha256": "731a0f3bbc50e94fd4fc3cbb4d8efdee2d4c00e9c713d48be4523da28a95ae4b",
+  "changed_files_sha256": {
+    "NOTICE": "e1ded05c43431bc39f31902d4beb900a12ff57e58f468c1ec69bd663c299a838",
+    "Sources/TurtleGitCore/CommitHistory.swift": "d80e13fe0177975f1d9a76b1896613ab5254537ba913c016ecf8a94be5dba3e3",
+    "Sources/TurtleGitCore/GitReferenceName.swift": "af7f6bc38ca6eb0a3c59f1e8b6a5a55d895ecee52c98773f08e27daecfa61cda",
+    "Sources/TurtleGitCore/HistoryReferenceLabels.swift": "c057361d348dda23f78995a3e0a7a94b53ac91c58998146a6b1b3b83ee796a2f",
+    "Sources/TurtleGitMac/LogAppearance.swift": "401270260c41ef3e1be552b6c1f2e6298d143de667b7c833b58667e3085d63e0",
+    "Sources/TurtleGitMac/LogWindow.swift": "737e388427819e07dbde4c45e1f3125b730f7cdc0be7b061cdec41c77f6dcc95",
+    "Tests/TurtleGitCoreTests/HistoryReferenceLabelTests.swift": "06649434b4d30988cfa319cfb1af33cb385f34889e39ffa22d1a8cf01b5f7b2b",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "68c798dd900801cbb835fe246209f86f9314e6f404974f1c2fe18c3851ac471c",
+    "docs/LOG-PARITY.md": "2b94f714353e31013d8f560bf9249a4bb25d4a9135901ed5d58b6b95918766ca",
+    "docs/TESTING.md": "c4e18bb8c0d3a334dc22718a2fe1e44e0d77ada995bc93fd4b80be39f04f5277",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "58c97290a1a9ab1a35b7c0fa6dd6a4b22d9dae09c5929530513d34d1a6f3d112",
+    "docs/upstream-files.csv": "614ab8e133e5327af45f5c3356c5413946c4cdad97c3948fd4ec5f50f8c59ae0"
+  },
+  "local_log_sha256": {
+    "build/qa/log-reference-identity-2026-10-09/cleanup.json": "10c6f9af4a0627a1dea5848f642d51a0d0ba15bb51b76b64d989c49c3d44f444",
+    "build/qa/log-reference-identity-2026-10-09/core-final.log": "4595f3260828df7be12fd129a40be0801fe93eb097dc8fd3baaad32d2cd69b82",
+    "build/qa/log-reference-identity-2026-10-09/core-leading.log": "f37d7eee239a1da3cec0fc682fa71c45ce9a5d83a007157534c20f583e677f92",
+    "build/qa/log-reference-identity-2026-10-09/core.log": "78538d33eb10707304e8294101501b499759b5c95f367534c439a8dface171cf",
+    "build/qa/log-reference-identity-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-reference-identity-2026-10-09/debug.log": "0336ec9f592045beae00d56b90fad3ce26a2bdf98b150a16e3f6a067a63efc2e",
+    "build/qa/log-reference-identity-2026-10-09/failed-fixture-cleanup.json": "4fa0a0512132e3a785336fcac7f3b16f8585c1cce6bcd78f4037fe0b3bb422fa",
+    "build/qa/log-reference-identity-2026-10-09/inventory.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-reference-identity-2026-10-09/native.log": "eb557ab598c0c16f7bede2ea2aa1aa151808732ca4090838c941dbc48f8a7d4d",
+    "build/qa/log-reference-identity-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-reference-identity-2026-10-09/project.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/log-reference-identity-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-reference-identity-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-reference-identity-2026-10-09/store.log": "52fea30572077652efda7f6dfd611692e10cfa654369dab32abbf2606c3c89ca"
+  }
+}

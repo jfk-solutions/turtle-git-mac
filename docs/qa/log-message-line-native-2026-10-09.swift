@@ -355,6 +355,7 @@ final class MessageLineOffscreenWindow: NSWindow {
         try await checkDialogPreferenceControls(prefs: prefs)
         try await checkReferenceKinds(repo: repo, prefs: prefs)
         try await checkReferenceMenus(repo: repo, prefs: prefs)
+        try await checkReferenceByteRefresh(repo: repo, prefs: prefs)
         let after = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }; precondition(before == after)
         if CommandLine.arguments.contains("--log-blame-only") {
             print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard, real reload literal/regex highlight cells and reference/full-message gates verified, left/right label order and symbolization attachments/captured choices and label-mask highlight redraw verified; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
@@ -454,5 +455,33 @@ final class MessageLineOffscreenWindow: NSWindow {
         }
         menu.delegate?.menuDidClose?(menu); menu.delegate?.menuNeedsUpdate?(menu)
         let calls = pushed.count; model.invalidate(); send(menu.items.first { $0.title == "Push…" }!); precondition(pushed.count == calls)
+    }
+    @MainActor static func checkReferenceByteRefresh(repo: GitRepository, prefs: UserDefaults) async throws {
+        let entries = try await repo.history(), a = "caf\u{e9}", b = "cafe\u{301}"
+        var entry = entries[0]; entry.references = [RevisionReference(name: "refs/tags/" + a, kind: .tag, displayName: a)]
+        let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
+        model.busy = true; model.entries = [entry]; model.graph = CommitGraph.layout([entry]); model.revisionActions[entry.hash] = []
+        let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+        defer { window.close(); model.invalidate() }
+        try await settle(window.contentView!)
+        func name() -> String {
+            let text = message(window).attributedStringValue
+            var name: String?
+            text.enumerateAttribute(.logReference, in: NSRange(location: 0, length: text.length)) { style, _, _ in
+                if let style = style as? LogReferenceStyle { name = style.label.reference.name }
+            }
+            return name!
+        }
+        precondition(name().utf8.elementsEqual(("refs/tags/" + a).utf8))
+        entry.references = [RevisionReference(name: "refs/tags/" + b, kind: .tag, displayName: b)]
+        model.entries = [entry]; try await settle(window.contentView!)
+        precondition(name().utf8.elementsEqual(("refs/tags/" + b).utf8), "Same-hash NFC to NFD changes must reload the actual native message cell")
+        let leading = "\u{301}topic", reference = RevisionReference(name: "refs/heads/" + leading)
+        precondition(LogColorRole.reference(reference) == .localBranch)
+        precondition(HistoryReferenceLabel(reference: reference).text.utf8.elementsEqual(leading.utf8))
+        let clipboard = NSPasteboard(name: NSPasteboard.Name("TurtleGit.RefIdentity.QA." + UUID().uuidString)); defer { clipboard.releaseGlobally() }
+        model.clipboard = clipboard; entry.references = [reference]; model.entries = [entry]; model.selected = [entry.hash]; model.busy = false
+        model.copyReferenceNames(target: LogReferenceMenuTarget(hash: entry.hash, name: reference.name))
+        precondition(clipboard.string(forType: .string)!.utf8.elementsEqual(leading.utf8))
     }
 }
