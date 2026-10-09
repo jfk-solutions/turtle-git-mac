@@ -1225,10 +1225,8 @@ import TurtleGitCore
         }
         mergeAbortWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false) {
-        let root = repository.root, key = repository.root.path + "\0" + UUID().uuidString
-        let controller = MergeWindowController(repository: repository, access: access)
-        controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
+    private func configureMergeInteractions(_ controller: MergeWindowController, repository: GitRepository, access: RepositoryAccessLease?, showStashPop: Bool = false) {
+        let root = repository.root
         controller.model.onChanged = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.statusWindows[root.path]?.model.reload(); self?.refreshRepositoryLogs(root)
@@ -1262,6 +1260,12 @@ import TurtleGitCore
             case .mergeUnrelated, .removeBranch: break
             }
         }
+    }
+    private func showMerge(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, showStashPop: Bool = false) {
+        let key = repository.root.path + "\0" + UUID().uuidString
+        let controller = MergeWindowController(repository: repository, access: access)
+        controller.onClosed = { [weak self] in self?.mergeWindows.removeValue(forKey: key) }
+        configureMergeInteractions(controller, repository: repository, access: access, showStashPop: showStashPop)
         mergeWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -1516,6 +1520,7 @@ import TurtleGitCore
         model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
         model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
         model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+        model.configureMerge = { [weak self] controller in self?.configureMergeInteractions(controller, repository: repository, access: access) }
         model.configureSwitch = { [weak self] controller in self?.configureSwitchInteractions(controller, repository: repository, access: access) }
     }
     private func configureSwitchInteractions(_ controller: SwitchWindowController, repository: GitRepository, access: RepositoryAccessLease?) {

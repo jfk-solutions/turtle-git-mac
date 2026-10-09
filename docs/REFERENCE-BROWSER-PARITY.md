@@ -198,7 +198,7 @@ visual/accessibility/signed behavior. The expanded transaction receiver checks
 real checkout through this owned route, captured options, all three progress-close
 policies, acknowledgement locks and a post-action. Initial metadata reads publish
 together and are cancelled/fenced on close. Forced checkout cleanup is now covered by the hidden receiver described below;
-physical sheet/window behavior remains unverified. Merge, Fetch, creation/tree/range/deletion commands
+physical sheet/window behavior remains unverified. Complete Merge parity, Fetch, creation/tree/range/deletion commands
 and the full port remain unfinished.
 
 ## Current Branch acceptance correction
@@ -268,3 +268,37 @@ retry after forced progress close. See
 [cleanup checkpoint evidence](qa/reference-switch-cleanup-2026-10-09.json).
 Physical sheets, external writers, signed scopes and full source parity remain
 separate unfinished gates.
+
+## Merge context command
+
+The commit-object/working-tree context group now includes **Merge to "branch"…**
+with the original Merge icon before Switch. The current local branch is omitted;
+remote branches, symbolic remote HEAD, lightweight tags and custom commit refs
+qualify. Annotated tag objects and blobs do not qualify, matching BrowseRefsDlg's
+object-type gate. The menu label and current-branch gate read live HEAD using its
+Git-resolved admin path, including linked worktrees; detached HEAD follows the
+source `(no branch)` label. The action rechecks the gate before presenting.
+
+The browser owns the existing native Merge dialog and passes the canonical ref.
+Native branch/tag popups and the commit field preserve exact UTF-8 names; a
+symbolic remote preset remains selectable. The owner blocks selection, competing
+dialogs, refresh, close and Quit through the Merge/progress acknowledgement.
+Cancel and rejected presentation release ownership. Initial branch/reference reads
+are cancellable and closed dialogs reject late metadata publication. The browser
+retains its catalog after Merge, as the pinned handler does.
+
+RepositoryModel shares the existing standalone Merge status/log/message-picker,
+Abort and post-action configuration with the owned route; remote-only tracking
+pickers inherit that configuration. The hidden receiver captures this hook without
+constructing RepositoryModel or writing shared Finder settings. Merge now passes
+its selected preference store to progress and hosting, so private receiver policies
+and message history stay isolated.
+
+The route receiver checks the actual menu/icon/order, live and linked HEAD gates,
+canonical native presets including packed NFC/NFD names, ownership/rejection/close
+and a real captured fast-forward merge through native progress and acknowledgement.
+See [Merge route QA](qa/reference-merge-2026-10-09.json) and
+`scripts/test-reference-merge.py`. Source CAppUtils user-data/rebase preflight,
+full Merge chooser parity, force-close during active Merge, physical sheets,
+light/dark/accessibility and signed execution remain incomplete or unverified.
+Fetch, creation/tree/range/deletion commands and the full port remain unfinished.

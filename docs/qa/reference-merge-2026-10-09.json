@@ -1,0 +1,92 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "0e2f23b",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/ChooseVersion.h": "9bc3080bd557ba11f814e6d9221aa322b1414f1c",
+    "src/TortoiseProc/MergeDlg.cpp": "52095311feae10566902c8046bd1b606a1af3773"
+  },
+  "scope": "BrowseRefs owned canonical Merge dialog/context command and real transaction; full app/source Merge parity remains incomplete.",
+  "verification": {
+    "source": "BrowseRefs offers Merge with original icon before Switch for working-tree commit objects, excluding current local branch, and passes selected canonical ref to CAppUtils::Merge. Merge handler does not Refresh afterward. Menu title reads live HEAD; native Git-resolved HEAD path follows source direct admin HEAD read, including linked worktrees and detached (no branch) label. CChooseVersion maps local/remote to branch, tags to tag and other refs to commit; canonical native representation retained.",
+    "native_route": "New private hidden shipping-controller receiver passes Apple and bundled Git: original menu/icon/Merge-before-Switch, exact native local/remote/symbolic HEAD/light tag/notes and packed NFC/NFD presets, same repository/config hook, live moved HEAD/current/detached/linked/type/bare gates, parent/close/Quit/competing/cancel/rejected/forced-initial-load cleanup. Real fast-forward merge captures selected feature despite later draft edit, changes HEAD/index/file, retains owner through native progress acknowledgement and releases once.",
+    "factory": "Standalone Merge callbacks extracted unchanged to configureMergeInteractions; browser factory and inherited remote-only tracking configuration use it. Receiver captures hook but does not construct RepositoryModel because it writes shared Finder settings. Merge hosting/message history/progress inherit private preference store.",
+    "core": "Fifteen ReferenceBrowserTests/MergeTests pass with both Git engines.",
+    "history_regression": "Existing private native Merge history/menu/editor/failure/default/no-commit/Saved Data receiver passes both engines.",
+    "switch_regression": "Existing browser-owned Switch route/transaction/policy/cancellation/forced stage receiver passes both engines after browser menu and HEAD-path changes.",
+    "cycles": "Zero AttributeGraph cycle warnings in all three final native logs.",
+    "debug": "Unsigned Debug build and standalone bundle audit pass.",
+    "inventory": "Pin checker passes; mapping remains partial.",
+    "ci": "New receiver added once; Ruby safe YAML parse/count pass. Hosted status/execution unverified.",
+    "store": "Unsigned AppStore build and required standalone bundle audit pass: universal Git 2.55.0, LFS 3.8.0, EditorConfig and IssueRegex runtimes, embedded Finder extension, licenses and all 99 upstream icons. Signed execution/App Store acceptance unverified.",
+    "notice": "Both packaged NOTICE files byte-equal source.",
+    "site": "Local Pages rebuild passes; no deployment or refreshed physical captures."
+  },
+  "limitations": [
+    "Source CAppUtils user-data and active-rebase preflight, full Merge reference/Log picker parity, all menu commands and full port remain incomplete.",
+    "Active Merge force-close/progress/confirmation cleanup, slow push-default/count metadata cancellation, source error variants and external ref races require broader work.",
+    "No physical sheet/focus restoration, actual mouse/keyboard/IME, visual light/dark/accessibility, signed scope/Finder/App Store acceptance established.",
+    "No main app launches, RepositoryModel/shared Finder settings writer, network/post-action execution, push, refreshed physical screenshots or deployment."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.MergeHistory.QA.E290A8BB-E1D7-4CAC-8B07-47F5A77D8EC8",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.MergeHistory.QA.F5E6002E-D9B2-4907-8AD1-FCFD0A448AA6",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceMerge.QA.340F6B02-D6A4-406E-B354-7D951EF0F0CD",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceMerge.QA.CFE3AF54-05F1-4ADD-8E0B-B3AF3EF4A0DC",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceSwitch.QA.3D408E21-1A38-45AB-B1AD-97C3C7B26DC9",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceSwitch.QA.92C0AB90-AE5D-4D30-B7CA-903FD75E87E1",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      }
+    ],
+    "all_handles_terminal": true,
+    "remaining_owned_processes": [],
+    "remaining_current_preference_files": [],
+    "remaining_current_receiver_fixtures": [],
+    "older_worktree_preferences_retained": true
+  },
+  "local_logs": "build/qa/reference-merge-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "491907fff1a76ba801bf0af048e7034aa5fec60d9647da5d589f94109c166b00",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "1176e672fe7e2ef0fda3992df5fb5ebf04e0f4ea3be6b0b3cf13310276121e46",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "509c8f70d45b984dda8553d619083587a1d64194ef61761fcb37b072f8e36d67",
+    "Sources/TurtleGitMac/MergeWindow.swift": "b44c16b0e83e86a176852de15e48822745bc2b64c937557164d89090a4bc1938",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "7b21275e32057b20e177441d48d7caece445ac480732c7795c76510b6ecc1091",
+    "docs/REFERENCE-BROWSER-PARITY.md": "73b74a431a78ea01a167e116ebb6cb644991786ea64c674c48adc3c0db381365",
+    "docs/TESTING.md": "07f26622d0cc3f8cf265cf117ed8940da8617fc1cfa1acdb58296f23bf0c333e",
+    "docs/upstream-files.csv": "83287f0df16828f53cd2f5bea92d7b26c31970127236c3255d12f03ab26a2d1d",
+    "docs/qa/reference-merge-native-2026-10-09.swift": "ed3c9c4fc5bd9b4c48e4a11c17e0571c60de6beb9768013ecd636b4deb8cdf50",
+    "scripts/test-reference-merge.py": "aa8a6f31d211cdf1446a42a6d4e903b2555a3618666bf0f63a59565dadfe09c1"
+  }
+}

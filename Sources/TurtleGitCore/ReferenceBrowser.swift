@@ -23,6 +23,7 @@ public struct ReferenceBrowserRow: Sendable {
 public struct ReferenceBrowserSnapshot: Sendable {
     public let references: [BrowserReference]
     public let currentBranch: GitReferenceName?
+    public let headFile: URL
     public var folders: [GitReferenceName] {
         var paths: Set<GitReferenceName> = ["refs"]
         for reference in references {
@@ -141,7 +142,9 @@ extension GitRepository {
             return BrowserReference(name: name, hash: record[1], objectType: record[2], symbolicTarget: record[3].isEmpty ? nil : record[3], upstream: upstreamLabel, subject: clean(record[5]), author: display(author), authorDate: author.2, committer: display(committer), committerDate: committer.2, description: descriptions[name] ?? "")
         }
         let head = try run(["symbolic-ref", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: cancellation)
-        return ReferenceBrowserSnapshot(references: references, currentBranch: head.exitCode == 0 ? GitReferenceName(head.text.trimmingCharacters(in: .newlines)) : nil)
+        let path = try run(["rev-parse", "--git-path", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+        let headFile = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
+        return ReferenceBrowserSnapshot(references: references, currentBranch: head.exitCode == 0 ? GitReferenceName(head.text.trimmingCharacters(in: .newlines)) : nil, headFile: headFile)
     }
 }
 

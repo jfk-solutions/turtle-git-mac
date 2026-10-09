@@ -306,3 +306,13 @@ close checks pending cancellation answers, fresh retry and stale completion
 identity. The post-switch pause confirms cancellation retains completed HEAD
 changes. Nine CheckoutTests include pre-cancelled validation and checkout with
 unchanged repository bytes; the native paused commands cover running cancellation.
+
+After Debug build, `python3 scripts/test-reference-merge.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`
+checks the actual reference-browser Merge menu/icon/order, live HEAD/current/type/
+bare/linked-worktree gates, exact native canonical local/remote/symbolic/tag/notes/
+Unicode presets, owned close/Quit/competing/cancel/reject/forced-load cleanup and
+a real fast-forward merge/progress acknowledgement. Private preferences are passed
+through Merge hosting/history/progress; all windows remain unordered. Production
+RepositoryModel configuration is inspected without constructing its shared-Finder
+settings writer. Full source preflight, picker/physical/signed parity remain pending.

@@ -7,13 +7,14 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     private var picker: LogWindowController?
     private var historyWindow: NSWindow?
-    private var progressController: MergeProgressWindowController?
+    private(set) var progressController: MergeProgressWindowController?
+    var presentProgress: (NSWindow, NSWindow) -> Void = { owner, child in owner.beginSheet(child) }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
         model = MergeWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 680, height: 570), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Merge – TurtleGit"
         window.minSize = NSSize(width: 660, height: 540); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: MergeDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: MergeDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
         window.setContentSize(NSSize(width: 680, height: 570)); window.center()
         model.close = { [weak self] in
@@ -23,12 +24,12 @@ import TurtleGitCore
         model.onProgress = { [weak self] progress in
             guard let self, let window = self.window, window.attachedSheet == nil else { progress.cancel(); return }
             let controller = MergeProgressWindowController(model: progress)
-            controller.onClosed = { [weak self, weak progress] in
-                guard let self, let progress else { return }
+            controller.onClosed = { [weak self, weak progress, weak controller] in
+                guard let self, let progress, let controller, self.progressController === controller else { return }
                 self.progressController = nil; self.model.finish(progress)
             }
             self.progressController = controller
-            if let child = controller.window { window.beginSheet(child) }
+            if let child = controller.window { self.presentProgress(window, child) }
         }
         model.pickCommit = { [weak self] in
             guard let self, let window = self.window, self.picker == nil else { return }
@@ -87,13 +88,15 @@ import TurtleGitCore
     @Published private(set) var progress: MergeProgressWindowModel?
     var onProgress: ((MergeProgressWindowModel) -> Void)?
     var onPostAction: ((MergePostAction, MergeOptions) -> Void)?
+    private let preferences: UserDefaults
+    private var loadToken: OperationCancellation?
     private var invalidated = false
     private var historyHandled = false
-    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && $0.symbolicTarget == nil && $0.name != "refs/heads/" + currentBranch } }
+    var branches: [CheckoutReference] { references.filter { ($0.name.hasPrefix("refs/heads/") || $0.remote) && ($0.symbolicTarget == nil || GitReferenceName.equal($0.name, branchRevision)) && !GitReferenceName.equal($0.name, "refs/heads/" + currentBranch) } }
     var tags: [CheckoutReference] { references.filter { $0.name.hasPrefix("refs/tags/") } }
     var revision: String { switch target { case .branch: return branchRevision; case .tag: return tagRevision; case .commit: return commitRevision } }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
-        self.repository = repository; self.access = access; messageHistory = MergeMessageHistory(defaults: preferences)
+        self.repository = repository; self.access = access; self.preferences = preferences; messageHistory = MergeMessageHistory(defaults: preferences)
     }
     func saveMessageHistoryForClose() {
         guard !historyHandled else { return }
@@ -101,22 +104,28 @@ import TurtleGitCore
         if !options.noCommit, message != Self.defaultMessage { messageHistory.add(message) }
     }
     func load(revision preset: String? = nil) {
-        guard !busy else { return }; busy = true
+        guard !busy, !invalidated else { return }; busy = true
+        let token = OperationCancellation(); loadToken = token
         Task {
-            defer { busy = false }
+            defer { if loadToken === token { loadToken = nil; busy = false } }
             do {
-                currentBranch = try await repository.branch(); references = try await repository.checkoutReferences()
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let current = try await repository.branch(cancellation: token), catalog = try await repository.checkoutReferences(cancellation: token)
                 let defaults = try await repository.pushDefaults(source: "HEAD")
                 let destination = defaults.destination.hasPrefix("refs/heads/") ? String(defaults.destination.dropFirst(11)) : defaults.destination
                 let tracked = "refs/remotes/" + defaults.remote + "/" + destination
-                branchRevision = branches.first { $0.name == tracked }?.name ?? branches.first?.name ?? ""
-                tagRevision = tags.first?.name ?? ""; messageCount = String(await repository.mergeMessageCount())
+                let count = await repository.mergeMessageCount()
+                guard !invalidated, loadToken === token, !token.isCancelled else { return }
+                currentBranch = current; references = catalog
+                branchRevision = preset ?? ""
+                branchRevision = branches.first { GitReferenceName.equal($0.name, tracked) }?.name ?? branches.first?.name ?? ""
+                tagRevision = tags.first?.name ?? ""; messageCount = String(count)
                 if let preset {
-                    if branches.contains(where: { $0.name == preset }) { target = .branch; branchRevision = preset }
-                    else if tags.contains(where: { $0.name == preset }) { target = .tag; tagRevision = preset }
+                    if catalog.contains(where: { GitReferenceName.equal($0.name, preset) && $0.target == .branch }) { target = .branch; branchRevision = preset }
+                    else if tags.contains(where: { GitReferenceName.equal($0.name, preset) }) { target = .tag; tagRevision = preset }
                     else { target = .commit; commitRevision = preset }
                 }
-            } catch { self.error = error.localizedDescription }
+            } catch { if !invalidated, loadToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func merge() {
@@ -129,13 +138,13 @@ import TurtleGitCore
         snapshot.message = message == Self.defaultMessage ? "" : message
         saveMessageHistoryForClose()
         busy = true
-        let progress = MergeProgressWindowModel(repository: repository, access: access, options: snapshot, target: target, showStashPop: showStashPop)
+        let progress = MergeProgressWindowModel(repository: repository, access: access, options: snapshot, target: target, showStashPop: showStashPop, preferences: preferences)
         self.progress = progress
         progress.onChanged = onChanged; progress.onPostAction = onPostAction; progress.onAbortRequested = onAbortRequested
         progress.close = { [weak self, weak progress] in if let progress { self?.finish(progress) } }
         onProgress?(progress); progress.start()
     }
-    func invalidate() { invalidated = true }
+    func invalidate() { invalidated = true; loadToken?.cancel(); loadToken = nil; if progress == nil { busy = false } }
     func finish(_ progress: MergeProgressWindowModel) {
         guard self.progress === progress, !progress.busy, !progress.confirmingCancellation, !progress.confirmingDeletion else { return }
         self.progress = nil; busy = false; close()
@@ -151,17 +160,17 @@ private struct MergeDialog: View {
                 VStack(spacing: 8) {
                     HStack {
                         SwitchRadio(title: "Branch", target: .branch, selection: $model.target).frame(width: 95)
-                        ReferencePopup(references: model.branches, selection: $model.branchRevision).disabled(model.target != .branch)
+                        ReferencePopup(references: model.branches, selection: $model.branchRevision, accessibilityLabel: "Merge branch revision").disabled(model.target != .branch)
                         Button("…") { model.browseReferences = true }.accessibilityLabel("Browse references").disabled(model.target != .branch)
                     }
                     HStack {
                         SwitchRadio(title: "Tag", target: .tag, selection: $model.target).frame(width: 95)
-                        ReferencePopup(references: model.tags, selection: $model.tagRevision).disabled(model.target != .tag)
+                        ReferencePopup(references: model.tags, selection: $model.tagRevision, accessibilityLabel: "Merge tag revision").disabled(model.target != .tag)
                         Color.clear.frame(width: 29)
                     }
                     HStack {
                         SwitchRadio(title: "Commit", target: .commit, selection: $model.target).frame(width: 95)
-                        TextField("Commit", text: $model.commitRevision).disabled(model.target != .commit)
+                        VersionRevisionField(text: $model.commitRevision, accessibilityLabel: "Merge commit revision", focusRequest: 0, onFocus: { _ in }).disabled(model.target != .commit)
                         Button("…") { model.pickCommit() }.accessibilityLabel("Choose commit").disabled(model.target != .commit)
                     }
                 }.padding(8)

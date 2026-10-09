@@ -58,6 +58,8 @@ jobs:
         run: python3 scripts/test-reference-browser.py
       - name: Native reference-browser Switch dialog route
         run: python3 scripts/test-reference-switch.py
+      - name: Native reference-browser Merge dialog route
+        run: python3 scripts/test-reference-merge.py
       - name: Native tracked branch commands and remote-only picker
         run: python3 scripts/test-reference-tracking.py
       - name: Native reference browser inline branch rename
