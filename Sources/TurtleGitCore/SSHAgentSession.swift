@@ -115,6 +115,7 @@ public final class SSHAgentSession: @unchecked Sendable {
         var environment = ProcessInfo.processInfo.environment; environment.merge(self.environment) { _, value in value }; environment.removeValue(forKey: "SSH_AGENT_PID")
         environment["SSH_ASKPASS_REQUIRE"] = "force"; environment["SSH_ASKPASS"] = "/usr/bin/false"; environment["DISPLAY"] = "TurtleGit-headless"
         environment.removeValue(forKey: "TURTLEGIT_SSH_CREDENTIAL_FILE")
+        environment["LC_ALL"] = "C" // Stable loader diagnostics for native passphrase decisions.
         var credentialFile: URL?
         defer { if let credentialFile { try? FileManager.default.removeItem(at: credentialFile) } }
         if let passphrase {

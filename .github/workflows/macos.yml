@@ -64,6 +64,8 @@ jobs:
         run: python3 scripts/test-remote-settings.py
       - name: Native SSH passphrase response
         run: python3 scripts/test-ssh-passphrase.py
+      - name: Native SSH transport coordinator
+        run: python3 scripts/test-ssh-coordinator.py
       - name: Native reference-browser folders
         run: python3 scripts/test-reference-folders.py
       - name: Native reference-browser comparisons

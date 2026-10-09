@@ -525,3 +525,13 @@ scoped to the test process; it does not modify a login agent. Six private-agent
 preparation tests verify actual local Git effects, callback order, agent lifetime,
 actor reentry, late cancellation and live process-group cleanup. They use no SSH
 server. See [transport parity](SSH-TRANSPORT-PARITY.md).
+
+### Native SSH coordinator
+
+After the Debug build, run `python3 scripts/test-ssh-coordinator.py`. Repeat
+`--git /usr/bin/git --git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`
+for both engines. The hidden receiver uses private preferences, generated
+encrypted keys and owned agents. It checks prompt retry/cancellation, changed-key
+reload, CRLF headers, shipping Fetch/Pull/Push/browse auto-load and forced Push
+controller closure. It executes local Git effects; it does not prove network SSH,
+physical sheet interaction or signed security-scoped bookmark acceptance.

@@ -45,7 +45,7 @@ require review; a dialog count is not a count of all upstream UI.
 | TortoiseGitBlame | Historical annotation reader and native annotated source window | Partial columns, age colors, Find/Go To Line and origin-aware Log; full menus, syntax, encodings and signed acceptance pending. See BLAME-PARITY.md |
 | TortoiseIDiff | Native image comparison window | Pending |
 | TortoiseUDiff | Native patch window with highlighted text, find, appearance settings and printing | Partial File/View/menu behavior; full parity and signed acceptance pending |
-| SshAskPass / TortoisePlink | Git helpers, Keychain and OpenSSH | Private agent, encrypted response and native key/file-grant primitives; transport wiring and OpenSSH packaging pending |
+| SshAskPass / TortoisePlink | Git helpers, Keychain and OpenSSH | Private agent, encrypted response, key/file grants and Fetch/Pull/Push/browse auto-load; remaining consumers, OpenSSH packaging and signed acceptance pending |
 | GitWCRev / COM | Portable revision/template CLI and macOS automation | Pending; COM must be replaced |
 | TortoiseGitSetup | Signed app, extension registration, notarized distribution | Pinned universal Git build/embedding added; signed runtime and distribution acceptance pending |
 | Languages / ResText | String catalogs and native localized resources | Pending |

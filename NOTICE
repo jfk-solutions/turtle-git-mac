@@ -1088,3 +1088,9 @@ SSHTransportPreparation.swift is original Swift preparation coordination under
 GPL version 2 or later. Fetch/Pull and Push place awaited key preparation at the
 transport boundary, following the Pageant loading points in pinned AppUtils.cpp.
 The native prompt/auto-load coordinator and signed authentication remain pending.
+
+SSHTransportCoordinator.swift implements original native key-grant, private-agent
+and secure response orchestration under GPL version 2 or later. Fetch/Pull/Push
+auto-load controls adapt the pinned PullFetchDlg and PushDlg preferences and
+loading points; Windows PuTTY configuration remains separate. Signed access,
+OpenSSH packaging and complete network authentication remain release gates.

@@ -9,7 +9,8 @@ Manage Remotes adds an SSH Key row with a native single-file picker. The existin
 PuTTY Key row retains `remote.<name>.puttykeyfile` for Windows interoperability;
 the native path uses `remote.<name>.turtlegitsshkeyfile`. These are independent.
 The native row is an explicit platform adaptation, not an upstream extra control.
-It is not yet connected to automatic transport loading; its tooltip says so.
+Fetch/Pull/Push and remote branch browsing now consume this setting when
+Auto-load SSH key is enabled; see [transport parity](SSH-TRANSPORT-PARITY.md).
 
 Only edited fields are written; native key writes follow the source fields.
 Remote rename moves the native setting with Git's section; clearing it leaves
@@ -46,6 +47,8 @@ mocks do not establish real sandbox access. Hidden native tests exercise the
 shipping selection callback, field/save and config effects, legacy preservation,
 typed-path nonauthorization, child gates and late selection refusal. Actual
 picker gestures, physical appearance/keyboard/VoiceOver, signed file grants,
-transport authentication and automatic loading remain pending.
+real transport authentication remain pending. Hidden coordinator fixtures now
+verify automatic loading with balanced mock scope leases; signed loading remains
+unverified.
 
 See [SSH agent](SSH-AGENT-PARITY.md) and [encrypted response](SSH-PASSPHRASE-PARITY.md).

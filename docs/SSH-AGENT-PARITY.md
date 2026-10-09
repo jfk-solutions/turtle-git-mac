@@ -30,8 +30,8 @@ App Store resolver requires both bundled agent/add helpers and refuses fallback.
 Those helpers are not packaged yet. The app now embeds an original Swift askpass
 CLI. A supplied response can load an encrypted key through a private one-use
 channel; without a response, the headless loader rejects interactive prompting.
-The native secure response dialog is implemented and tested in isolation, but
-not connected to key loading or Fetch/Push. Keychain integration is pending. See
+The native secure response dialog now connects to configured-key loading in
+Fetch/Pull/Push and remote branch browsing. Keychain integration is pending. See
 [SSH passphrase parity](SSH-PASSPHRASE-PARITY.md). This is not authentication or
 signed sandbox acceptance.
 
@@ -39,11 +39,11 @@ signed sandbox acceptance.
 
 - Package pinned universal OpenSSH helpers, notices/reconstruction material and
   signed sandbox inheritance; audit their own dependencies and runtime behavior.
-- Connect native identity selection/bookmark leases through key loading, verify signed renewal and add permission management; preserve Windows PuTTY configuration. Conversion or native PPK support remains pending.
-- Connect the native encrypted-key response dialog and add Keychain decisions with owned
+- Verify signed identity selection, renewal and loading; add permission management. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
+- Verify physical encrypted-key response sheets and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.
-- Wire source Auto-load behavior into Fetch/Pull/Push, remote tags, remote-branch
-  deletion, Clone/submodules and Sync, including all-remotes and failure ordering.
+- Extend existing Fetch/Pull/Push auto-load to remote tags, remote-branch
+  deletion, Clone/submodules and Sync, preserving destination and failure ordering.
 - Test actual SSH authentication/host-key handling, saved and expired grants,
   connection errors, both architectures and signed App Store/Finder routes.
 

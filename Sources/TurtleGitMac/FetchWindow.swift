@@ -40,6 +40,11 @@ import TurtleGitCore
                 self.fetchProgressController = nil; self.model.abandonFetchPresentation(progress); controller.close(); return
             }
         }
+        model.sshSettings.present = { [weak self] controller in
+            guard let self, let owner = self.fetchProgressController?.window ?? self.progressController?.window ?? self.window,
+                  owner.attachedSheet == nil, let child = controller.window else { return false }
+            owner.makeFirstResponder(nil); owner.beginSheet(child); return true
+        }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             let alert = NSAlert(); alert.alertStyle = .informational
@@ -69,6 +74,7 @@ import TurtleGitCore
 @MainActor final class FetchWindowModel: ObservableObject {
     let repository: GitRepository
     let isPull: Bool
+    let sshSettings: SSHTransportSettings
     let remoteSettings: PushWindowModel
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
@@ -137,7 +143,7 @@ import TurtleGitCore
     var configuredRebase: Bool { isPull && rebaseRequired && !options.arbitraryURL }
     var canChooseBranch: Bool { launchRebase || isPull || options.arbitraryURL || (!options.namedRemoteFetchAll && !options.allRemotes) }
     init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool, preferences: UserDefaults = .standard) {
-        self.isPull = isPull; self.repository = repository; self.access = access; self.preferences = preferences; remoteSettings = PushWindowModel(repository: repository, access: access)
+        self.isPull = isPull; self.repository = repository; self.access = access; self.preferences = preferences; sshSettings = SSHTransportSettings(repository: repository); remoteSettings = PushWindowModel(repository: repository, access: access, preferences: preferences)
     }
     private func validateRepositoryAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -154,6 +160,7 @@ import TurtleGitCore
                 urls = FetchDialogHistory.load(preferences, key: "History.PullURLS", caseSensitive: true)
                 branchHistory = FetchDialogHistory.load(preferences, key: "History.PullRemoteBranch", caseSensitive: false)
                 options = FetchOptions(); options.remote = defaults.remote
+                sshSettings.load(preferences, key: key + ".autoload")
                 options.branch = branchHistory.first ?? ""
                 selectBranch(defaults.branch, atFront: false)
                 options.allRemotes = !isPull && defaults.remote.isEmpty && remotes.count > 1
@@ -217,7 +224,7 @@ import TurtleGitCore
         let destination = options.arbitraryURL ? url : options.remote, token = OperationCancellation(); metadataToken = token
         Task {
             defer { if metadataToken === token { metadataToken = nil; busy = false } }
-            do { try validateRepositoryAccess(); let values = try await repository.remoteBranches(remote: destination, cancellation: token); guard !invalidated, metadataToken === token, !token.isCancelled else { return }; branches = values; browsing = true }
+            do { let coordinator = sshSettings.capture()?(); defer { coordinator?.close() }; try validateRepositoryAccess(); let values = try await repository.remoteBranches(remote: destination, cancellation: token, prepareTransport: coordinator?.preparation); guard !invalidated, metadataToken === token, !token.isCancelled else { return }; branches = values; browsing = true }
             catch { if !invalidated, metadataToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
@@ -251,11 +258,13 @@ import TurtleGitCore
         branchHistory = FetchDialogHistory.save(options.branch, entries: branchHistory, preferences: preferences, key: "History.PullRemoteBranch", caseSensitive: false)
         error = nil
         busy = true
+        let sshFactory = sshSettings.capture(); sshSettings.save(preferences, key: key + ".autoload")
         preferences.set(wantsRebase, forKey: key + ".rebase")
         if isPull { preferences.set(fastForwardOnly, forKey: key + ".ffonly") }
         if !options.arbitraryURL && !options.allRemotes { preferences.set(options.remote, forKey: key + ".remote") }
         if isPull && !wantsRebase {
             let progress = PullProgressWindowModel(repository: repository, access: access, options: pullOptions, followUp: followUp, preferences: preferences)
+            progress.makeSSHCoordinator = sshFactory
             self.progress = progress
             progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
             progress.onPostAction = onPullPostAction
@@ -269,6 +278,7 @@ import TurtleGitCore
             onProgress?(progress); progress.start(); return
         }
         let progress = FetchProgressWindowModel(repository: repository, access: access, options: snapshot, preferences: preferences, rebaseMode: wantsRebase ? (autoStart ? .automatic : .manual) : .none, preserveMerges: keepMerges)
+        progress.makeSSHCoordinator = sshFactory
         fetchProgress = progress
         progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
         progress.onPostAction = onFetchPostAction
@@ -307,7 +317,7 @@ private struct FetchDialog: View {
                 HStack { FetchOverrideCheckbox(title: "Tags", value: $model.options.tags).frame(width: 140, alignment: .leading); Text(model.options.allRemotes || model.options.arbitraryURL ? "Use each destination's configured default" : "Default: " + model.tagsDefault).foregroundStyle(.secondary) }
                 HStack { FetchOverrideCheckbox(title: "Prune", value: $model.options.prune).frame(width: 140, alignment: .leading); Text(model.options.allRemotes || model.options.arbitraryURL ? "Use each destination's configured default" : model.pruneDefault.isEmpty ? "" : "Default: " + model.pruneDefault).foregroundStyle(.secondary) }
             }.padding(8) }
-            HStack { Text("SSH uses configured Git credential helpers and SSH agent.").font(.caption).foregroundStyle(.secondary); Spacer(); Button("Manage Remotes") { model.managing = true } }
+            HStack { SSHAutoloadToggle(settings: model.sshSettings); Spacer(); Button("Manage Remotes") { model.managing = true } }
             Toggle("Launch Rebase After Fetch", isOn: $model.launchRebase).disabled(model.bare || model.options.allRemotes || model.options.arbitraryURL || model.configuredRebase).help("Fetch the selected branch and open its native Rebase plan.")
             if model.rebaseRequired && !model.options.arbitraryURL { Text("Git configuration requires Rebase. Fetch will open and start its native Rebase plan.").font(.caption).foregroundStyle(.secondary) }
             }.disabled(model.operationActive)
@@ -590,12 +600,14 @@ enum PullPostAction: String, CaseIterable, Hashable {
         }
         guard !invalidated else { return }; postActions = actions; completed()
     }
+    var makeSSHCoordinator: SSHTransportFactory?
     private func streamPull(_ snapshot: PullOptions) async throws -> String {
+        let coordinator = makeSSHCoordinator?(); defer { coordinator?.close() }; let preparation = coordinator?.preparation
         let parser = GitCliOutputParser(limit: outputState.limit)
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let operation = Task {
             defer { continuation.finish() }
-            return try await repository.pull(snapshot, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
+            return try await repository.pull(snapshot, cancellation: cancellation, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }, prepareTransport: preparation)
         }
         for await _ in updates { consume(parser.processPending(), parser: parser) }
         consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser)
@@ -873,14 +885,16 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         guard !invalidated else { return }
         busy = false; cancelling = false; onCompleted(); finishCompletion()
     }
+    var makeSSHCoordinator: SSHTransportFactory?
     private func streamFetch() async throws -> (String, FetchRebaseResult?) {
+        let coordinator = makeSSHCoordinator?(); defer { coordinator?.close() }; let preparation = coordinator?.preparation
         let parser = GitCliOutputParser(limit: outputState.limit)
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let operation = Task<(String, FetchRebaseResult?), Error> {
             defer { continuation.finish() }
             let observer: @Sendable (GitOutputChunk) -> Void = { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }
-            if rebaseMode == .none { return (try await repository.fetch(options, cancellation: cancellation, onOutput: observer), nil) }
-            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer)
+            if rebaseMode == .none { return (try await repository.fetch(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation), nil) }
+            let result = try await repository.fetchForRebase(options, cancellation: cancellation, onOutput: observer, prepareTransport: preparation)
             return (result.output, result)
         }
         for await _ in updates { consume(parser.processPending(), parser: parser) }

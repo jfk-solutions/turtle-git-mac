@@ -12,12 +12,12 @@ import TurtleGitCore
     private var response: ((String?) -> Void)?
     private(set) var finished = false
     var onClosed: () -> Void = {}
-    init(keyName: String, response: @escaping (String?) -> Void) {
+    init(keyName: String, retry: Bool = false, response: @escaping (String?) -> Void) {
         self.keyName = keyName; self.response = response
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 480, height: 155), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "SSH key passphrase – TurtleGit"; window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self
-        let label = NSTextField(wrappingLabelWithString: "Enter the passphrase for \"" + keyName + "\":")
+        let label = NSTextField(wrappingLabelWithString: (retry ? "Incorrect passphrase. Try again.\n" : "") + "Enter the passphrase for \"" + keyName + "\":")
         passphrase.setAccessibilityLabel("SSH key passphrase"); passphrase.placeholderString = "Passphrase"
         accept.target = self; accept.action = #selector(submit); accept.bezelStyle = .rounded; accept.keyEquivalent = "\r"
         cancel.target = self; cancel.action = #selector(abort); cancel.bezelStyle = .rounded; cancel.keyEquivalent = "\u{1b}"

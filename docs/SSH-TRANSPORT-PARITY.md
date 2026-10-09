@@ -8,9 +8,9 @@ from source LaunchPAgent is ignored by these callers. Complete native error and
 retry decisions remain a coordinator responsibility, not proven source parity.
 
 Core Fetch, Fetch for Rebase, Pull, Push and remote-branch lookup now accept an
-optional awaited `SSHTransportPreparation` callback. Existing callers use nil
-and retain normal Git environment behavior. This checkpoint does not wire native
-auto-load controls or present the new key/passphrase dialogs during transport.
+optional awaited `SSHTransportPreparation` callback. Callers without a callback
+retain normal Git environment behavior. Fetch/Pull/Push and Fetch branch browsing
+now supply an operation-owned native coordinator when Auto-load SSH key is enabled.
 
 Fetch validates its options, then supplies either the selected destination or
 all remote names once before running Git. Fetch for Rebase forwards the callback
@@ -47,8 +47,50 @@ and live Git helper/child plus agent reaping. No SSH server is contacted: local
 Git effects and Unix-agent access prove the preparation channel, not network
 SSH authentication. Nil-callback Fetch/Pull/Push regression tests also run.
 
-Remaining: native auto-load controls/preferences, owned prompt/coordinator wiring,
-bookmark loading and retry/cancel policy, all other SSH consumers, bundled
-OpenSSH, Keychain, host-key/password prompts, signed App Store/Finder and real
-network authentication. Concurrent config/ref changes across suspended preparation
+## Native auto-load coordinator
+
+Fetch/Pull and Push expose **Auto-load SSH key**, available only when the private
+agent, loader and response helper resolve. It defaults on for an available runtime
+and is saved per repository and dialog mode. Each submission captures a factory;
+subsequent checkbox changes cannot change that operation. Each retry creates a
+fresh coordinator. Remote branch browsing also prepares its selected remote.
+Arbitrary URLs without a configured remote key do not select an identity.
+
+The coordinator reads the native `remote.<name>.turtlegitsshkeyfile` setting and
+holds the private read-only bookmark lease through loading. It creates a private
+agent lazily, batches Fetch All identities, and accumulates Push identities in
+remote order. A successfully loaded file is deduplicated by byte-exact path,
+device, inode, size and nanosecond modification time. Replacing/modifying a key
+reloads it; this is not a cryptographic fingerprint or proof against all races.
+
+Loading first refuses interactive askpass. macOS OpenSSH can report that refusal
+with status 1 and no diagnostic. A bounded 256-byte header check recognizes
+encrypted OpenSSH (including CRLF), encrypted PKCS#8 and traditional encrypted
+PEM before requesting a response in that case. Recognized incorrect-passphrase
+diagnostics also request a retry. The loader uses invocation-local `LC_ALL=C`.
+Unrecognized headers and other loader errors remain errors; this is not a complete
+key-format parser. A native secure response window owns one response, clears on
+Cancel/closure and shows a retry explanation after an incorrect response.
+
+Prompt Cancel, operation cancellation and parent invalidation stop preparation;
+late responses cannot launch Git. The private agent closes when transport ends.
+Invalid grants/keys and loader failures abort instead of silently continuing as
+the source callers can after ignoring Pageant's return. Earlier successful pushes
+and saved config remain retained. This is an explicit macOS adaptation.
+
+Hidden native fixtures exercise real encrypted keys, wrong/correct responses,
+replacement-key reload, balanced mock bookmark leases, token/forced closure,
+shipping model Fetch/Pull/Push/browse effects and checkbox snapshots with system
+and bundled Git. A shipping Push controller is closed while awaiting a response:
+no transport or late success callback may follow. Windows are not ordered or
+shown; sheet focus, physical keyboard behavior and signed bookmark access remain
+unverified. No login agent, user key or real SSH server is used.
+
+App Store runtime resolution still refuses missing bundled OpenSSH agent/add;
+auto-load is disabled there until packaging is complete. Unsigned Debug uses the
+system OpenSSH tools plus the embedded response helper.
+
+Remaining: other SSH consumers (Clone, submodules, tags/deletions and Sync), bundled
+OpenSSH, Keychain, host-key/password prompts, physical UI/sheet acceptance,
+signed App Store/Finder and real network authentication. Concurrent config/ref changes across suspended preparation
 and complete source failure equivalence remain unverified.

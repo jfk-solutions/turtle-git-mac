@@ -19,8 +19,8 @@ inspection. No Keychain persistence or secure-memory erasure is claimed.
 
 The native AppKit response window has a secure field, key filename, OK/Cancel,
 Return/Escape configuration and one-shot response. Cancel/forced closure clears
-the field; late actions cannot return another response. It is not yet presented
-by Fetch/Push. Hidden tests verify control configuration and callbacks; physical
+the field; late actions cannot return another response. It is connected to Fetch/Pull/Push and remote browsing through the
+[native coordinator](SSH-TRANSPORT-PARITY.md). Hidden tests verify control configuration and callbacks; physical
 focus, key presses, sheet appearance, long filenames, light/dark and VoiceOver
 acceptance remain unverified. No Windows visual equivalence is claimed.
 
@@ -35,7 +35,8 @@ retained earlier identities, malformed responses, permissions, symlinks, replay,
 and live loader/child cancellation with envelope removal. They do not use user
 keys, inspect the login agent, contact an SSH server or launch the main app.
 
-Remaining: key picker/bookmarks and scope leases, source auto-load orchestration,
-response retry and parent ownership, Keychain choices, PPK conversion/support,
+Key picker/bookmarks, scope leases and native auto-load/retry orchestration now
+exist; see the linked identity and transport audits for scope and limitations.
+Remaining: physical response-window acceptance, Keychain choices, PPK conversion/support,
 bundled OpenSSH agent/add, host-key/password authentication, signed Finder/App
 Store acceptance and complete native UI comparison. See [agent parity](SSH-AGENT-PARITY.md).

@@ -213,8 +213,9 @@ with the configured identity; AppStore uses inherited-sandbox helper entitlement
 Provenance retains shipping source and post-sign binary hashes. The unsigned
 bundle audit exercises a private dummy response and replay refusal, and checks
 macOS 13/system linkage and both AppStore architectures. This does not verify
-signed inherited invocation. OpenSSH agent/add packaging and native transport
-wiring are still required before this enables App Store SSH authentication.
+signed inherited invocation. Native Fetch/Pull/Push/browse transport wiring now
+exists, but OpenSSH agent/add packaging, real authentication and signed access
+are still required before this enables App Store SSH authentication.
 
 Native SSH identity bookmarks are created with read-only security scope and kept
 in app-private storage. Git config receives only the native key path, never the

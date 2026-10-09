@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "a0ace6dc164c82aac968e0ccc7ec47c0043e06cb",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native configured-key auto-load for Fetch/Pull/Push and remote browsing, encrypted response retry and owned cancellation/agent cleanup.",
+  "verification": {
+    "source": "Pinned PullFetchDlg/PushDlg auto-load defaults and repository/mode preferences, AppUtils selected/all-remote loading reviewed. Private OpenSSH agent replaces Pageant; native key config remains separate from Windows PuTTY.",
+    "core": "13 targeted SSHAgentSession (4), SSHAskpass (3), SSHTransportPreparation (6) tests pass with system Git. Earlier checkpoints cover bundled Core preparation; no broad new second-engine Core claim.",
+    "native": "Hidden actual models pass with system and bundled Git: wrong/correct encrypted responses, same-key dedup, replaced-key reload, mock scope balancing, Cancel/token/coordinator forced closure, CRLF encryption headers, ordinary invalid-header classification, Fetch/Pull/Push/browse auto-load snapshots and real local Git effects. Actual Push controller closes while awaiting a prompt: no transport or late result; prompt cleared and coordinator closed.",
+    "regressions": "Existing native Fetch/Pull/Fetch-before-Rebase and Push cancellation receivers pass with both Git versions, including optional No/Yes, owned helper/process termination, unrelated-process survival, retained HEAD/index and partial publication, fresh-token retries and idle Cancel.",
+    "debug": "Final unsigned Debug build passed. Existing unrelated Swift warnings remain.",
+    "appstore": "Final unsigned AppStore build passed; both embedded NOTICE files match root. Missing bundled OpenSSH remains a runtime feature gate, not build failure.",
+    "bundles": "Both audits pass: embedded Finder, Git/LFS where configured, EditorConfig, IssueRegex, askpass provenance/system linkage and 99 original icons. Signed helper inheritance remains unverified.",
+    "inventory": "Pinned inventory regression passed; partial mappings updated for AppUtils/PullFetchDlg/PushDlg.",
+    "workflow": "Safe YAML parse and exactly one new native coordinator step passed; hosted CI unavailable/unverified.",
+    "site": "Local static site build passed; no new screenshots or hosted deployment verification."
+  },
+  "limitations": [
+    "AppStore auto-load remains disabled without bundled OpenSSH agent/add. Signed sandbox inheritance, real bookmarks and real network authentication are not verified.",
+    "Keychain, PPK conversion, host-key/password prompts and remaining SSH consumers (Clone/submodules/tags/deletions/Sync) remain pending.",
+    "Hidden receivers do not prove displayed sheets, focus, keyboard, long filenames, light/dark, VoiceOver or all-dialog parity.",
+    "Blank OpenSSH askpass failures use a bounded encrypted-header recognizer, not a complete key parser. Loader diagnostics use invocation-local LC_ALL=C.",
+    "Dedup uses file metadata, not a cryptographic fingerprint; metadata-preserving changes, parent-path races and all suspended config/ref races are not exhaustively verified.",
+    "Source Pageant return values can be ignored; native grant/key/load errors and Cancel abort transport. Earlier pushes and saved config remain retained.",
+    "No main app launch, user-key/login-agent access, real server, GitHub push, hosted CI/deployment or distribution submission."
+  ],
+  "sha256": {
+    ".github/workflows/macos.yml": "1ba40dc239e82eef8fb5b20f73ae4859904a0005dc41d5df89fada15aedce51e",
+    "NOTICE": "45edaa3903bcaf669e647aa6f2b5e428b8dd507b1d3da74c7745ec5c4e68d004",
+    "README.md": "ca574568a5a092adf5139b8773f8d877e6eccb3fbaf6fa9a76e65536b438e31e",
+    "Sources/TurtleGitCore/SSHAgentSession.swift": "de72449a0510e98f3f1af86b6f329d6d9f48d2edaed118f7aef25a2417e10dbd",
+    "Sources/TurtleGitMac/FetchWindow.swift": "65f20990c1464c8ea8aa94561d1d90a2ebf62d624d164b0f83313a815a8a5106",
+    "Sources/TurtleGitMac/PushWindow.swift": "c47b0bc77d29dda59dd1f351856d46d68138e8e864377a2e8b894ab5ebae8a13",
+    "Sources/TurtleGitMac/RemoteSettingsWindow.swift": "110596521632f2f92f5f46e37b034e34a98d3a044fff66e3a0287df5b54682d1",
+    "Sources/TurtleGitMac/SSHKeyPassphraseWindow.swift": "1819e5b226dfd98d57cb77b43cb82517e47b6dde4b6dc3e9f330a5f89d42efec",
+    "Sources/TurtleGitMac/SSHTransportCoordinator.swift": "fdda273480828f67fb91d3c2cfc7ec28a5cb8ab2b8a5e988f14f23347bf38d75",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "85e38632b40217ea45630099d12cfff664cb3a04e5ca151700455b3d9be6e93b",
+    "docs/DISTRIBUTION.md": "0ceb78929cb9f92c43b2b06994518b9258ef7b84ae4dad2d3c05a5471e42b20e",
+    "docs/PORTING.md": "4e8e7496dc6609acd80d51114ba155810f268c285ef47a2971a4a7c8a70720cb",
+    "docs/SSH-AGENT-PARITY.md": "e54488b7173b625b69c0f11b4ed83a5d2b1d6682564ec78f694c869e113139f2",
+    "docs/SSH-IDENTITY-PARITY.md": "b17e6f92d834a4b2b2b65cf02a3ab37d9c8c777c696e044884e3772f1e7b7979",
+    "docs/SSH-PASSPHRASE-PARITY.md": "f0370e142a406d93fee44163e20a73bb0c9f8c2813918f1833905fd176f817ff",
+    "docs/SSH-TRANSPORT-PARITY.md": "b8cc239a3bcfe72a6b2d3488ffa0d6cccd1b6b04e3795c09a9a9bd861506e747",
+    "docs/TESTING.md": "13f91609957904b2a013f642b21805fbd107d16ece01c24be3ad9a5951bf27e3",
+    "docs/qa/ssh-coordinator-native-2026-10-09.swift": "f400e9953d7f0ef7aa07a3a497f845168f3ffacffbca4e3bc0986219564c0837",
+    "docs/upstream-files.csv": "74933f534111d4263294094c9d12792062e596c5200f278d34bbb9704a5a1827",
+    "scripts/test-ssh-coordinator.py": "5884a6c973eb028bcc1e5ffbfbbf6a26bcb14c4085575ec263232c76a623e0e6"
+  },
+  "logs": "build/qa/ssh-coordinator-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.4C50079D-766F-4A6D-875A-E1CD1B6B1653",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.2B06488D-9B02-4B0A-BA74-4AA82655A49E",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.7935D63F-83C2-43DF-B71C-0E50198D8C59",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SSHCoordinator.QA.5545066D-A6DF-4394-AEDD-7DF03F901D2F",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.TransportCancellation.QA.A2F8EFAF-D049-4B94-9F48-B27933007629",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.TransportCancellation.QA.A9373892-1A4B-44F2-BADA-EACF60E444AC",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.PushCancellation.QA.C62714EF-AEF6-42B9-AA28-6D535A4D845F",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.PushCancellation.QA.9EF399D0-7AAF-407E-88D9-9E3FEDC44994",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

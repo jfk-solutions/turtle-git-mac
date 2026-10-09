@@ -199,7 +199,7 @@ import TurtleGitCore
         list.widthAnchor.constraint(equalToConstant: 180).isActive = true; scroll.widthAnchor.constraint(equalTo: list.widthAnchor).isActive = true
         for (field, label) in [(remote,"Remote"),(url,"URL"),(pushURL,"Push URL"),(key,"PuTTY Key (Windows)"),(sshKey,"SSH Key (macOS)")] { field.delegate = self; field.setAccessibilityLabel(label); field.setContentHuggingPriority(.defaultLow, for: .horizontal) }
         key.toolTip = "Preserves remote.<name>.puttykeyfile for Windows interoperability. PuTTY keys cannot be loaded by OpenSSH."
-        sshKey.toolTip = "OpenSSH key for macOS. Use Browse to grant access. Automatic loading for Fetch/Push is not connected yet."
+        sshKey.toolTip = "OpenSSH key for macOS. Use Browse to grant access, then enable Auto-load SSH key in Fetch/Push."
         tags.addItems(withTitles: ["Reachable", "None", "All"]); tags.target = self; tags.action = #selector(tagChanged); tags.toolTip = "remote.<name>.tagopt"
         prune.allowsMixedState = true; prune.toolTip = "remote.<name>.prune: mixed inherits the configured global policy."; pushDefault.toolTip = "remote.pushdefault"
         for (button, action) in [(prune,#selector(pruneChanged)),(pushDefault,#selector(defaultChanged)),(rename,#selector(renameClicked)),(add,#selector(saveClicked)),(remove,#selector(removeClicked)),(apply,#selector(applyClicked)),(ok,#selector(okClicked)),(cancel,#selector(cancelClicked))] { button.target = self; button.action = action; button.bezelStyle = .rounded }
