@@ -524,9 +524,7 @@ import TurtleGitCore
         if let mode { controller.model.mode = mode }
         controller.onClosed = { [weak self] in self?.resetWindows.removeValue(forKey: key) }
         controller.configureReferencePicker = { [weak self] model in
-            model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
-            model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
-            model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+            self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
         controller.configureModifiedComparison = { [weak self] model in
             self?.configureRevisionComparisonInteractions(model, repository: repository, access: access)
@@ -970,9 +968,7 @@ import TurtleGitCore
             self?.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [])
         }
         controller.configureReferencePicker = { [weak self] model in
-            model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
-            model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
-            model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+            self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
         worktreeCreateWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -1484,9 +1480,7 @@ import TurtleGitCore
         }
         controller.model.onPushTag = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
         controller.configureReferencePicker = { [weak self] model in
-            model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
-            model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
-            model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+            self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
         referenceWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
@@ -1518,11 +1512,14 @@ import TurtleGitCore
         case .retry, .switchWithMerge: break
         }
     }
-    private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
+    func configureReferenceBrowser(_ model: ReferenceBrowserWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
+        model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
+        model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
+        model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+        model.configureSwitch = { [weak self] controller in self?.configureSwitchInteractions(controller, repository: repository, access: access) }
+    }
+    private func configureSwitchInteractions(_ controller: SwitchWindowController, repository: GitRepository, access: RepositoryAccessLease?) {
         let root = repository.root
-        let key = root.path + ":switch:" + UUID().uuidString
-        let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision)
-        controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: key) }
         controller.model.onSwitched = { [weak self] output in
             self?.referenceLogWindows[root.path]?.model.reload()
             self?.commitWindows[root.path]?.model.reload()
@@ -1537,10 +1534,15 @@ import TurtleGitCore
         }
         controller.model.onPostAction = { [weak self] action, branch in self?.performSwitchPostAction(action, previousBranch: branch, repository: repository, access: access) }
         controller.configureReferencePicker = { [weak self] model in
-            model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
-            model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
-            model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+            self?.configureReferenceBrowser(model, repository: repository, access: access)
         }
+    }
+    private func showSwitch(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil) {
+        let root = repository.root
+        let key = root.path + ":switch:" + UUID().uuidString
+        let controller = switchWindows[key] ?? SwitchWindowController(repository: repository, access: access, revision: revision)
+        controller.onClosed = { [weak self] in self?.switchWindows.removeValue(forKey: key) }
+        configureSwitchInteractions(controller, repository: repository, access: access)
         switchWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

@@ -159,3 +159,36 @@ native checks. Full remote picker mutation/tree/range/network menus, physical
 sheet/keyboard/focus/IME/layout/accessibility, signed security scopes and App Store
 acceptance remain pending. No fetch or network operation is performed by setting
 tracking. The whole port remains incomplete.
+
+## Switch from a reference
+
+Commit-object rows in working-tree repositories now offer **Switch/Checkout to
+this…** with the original Switch icon. This includes local and remote branches,
+symbolic remote HEAD, lightweight tags and commit-valued custom namespaces.
+Annotated tag objects, blobs and bare repositories omit the command, matching
+BrowseRefsDlg's object/working-tree gate.
+
+The browser owns the existing native Switch window as a modal child and passes
+the canonical reference as its initial revision. The Switch window retains its
+branch/tag/commit classification, private preferences, native revision controls,
+new-branch/tracking defaults, full reference/Log pickers, checkout progress and
+post-actions. Parent selection, competing dialogs, refresh, close and Quit are
+locked while it is open. Cancel and rejected presentation release ownership;
+forced parent cleanup also closes the Switch window's nested selection picker.
+The browser does not automatically reload after this dialog closes, following the
+source Switch action; F5 remains available afterward.
+
+RepositoryModel now configures all four browser consumers through one helper and
+shares the existing standalone Switch change/status/log/post-action callbacks
+with this owned route. The remote-only tracking picker inherits that configuration.
+No RepositoryModel is instantiated by the hidden receiver, because its normal
+constructor writes shared Finder settings; production factory wiring is inspected
+in source while dialog configuration is captured in the native test.
+
+See [reference Switch QA](qa/reference-switch-2026-10-09.json) and
+`scripts/test-reference-switch.py`. Hidden route checks and existing real-Git
+Switch progress/picker regressions do not establish physical sheets/focus/keyboard,
+visual/accessibility/signed behavior or a complete new-route checkout transaction.
+Forced close during active checkout/progress and late initial Switch metadata
+publication remain unverified. Merge, Fetch, creation/tree/range/deletion commands
+and the full port remain unfinished.

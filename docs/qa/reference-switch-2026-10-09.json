@@ -1,0 +1,75 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "72a04ee",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/AppUtils.cpp": "ad5cf29edc933f6469fb9a961b84e8251f5fc563",
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51",
+    "src/TortoiseProc/BrowseRefsDlg.h": "8b70d06e007dfee40874b104619cedc80a690412"
+  },
+  "scope": "BrowseRefs canonical Switch action to owned existing native Switch dialog; whole browser/app remains incomplete.",
+  "verification": {
+    "source": "BrowseRefsDlg single commit-object/working-tree gate and original Switch icon; CAppUtils::Switch passes canonical initialRefName to modal SwitchDlg. Browser case does not Refresh afterward. Existing Switch Core adapts branch qualification/checkout behavior.",
+    "native": "New hidden route receiver passes Apple and bundled Git: actual current menu/original icon, owned Switch controllers, native branch/tag popup or commit field, source canonical local/remote/symbolic HEAD/light-tag/notes and packed NFC/NFD presets, role/new-branch defaults from private prefs, same repository and captured configuration hook. Parent acceptance/competing/refresh/close/Quit gates, cancel, annotated-tag/blob/bare rejection, rejected presentation and forced parent cleanup with actual nested full browser checked. HEAD object/config/index/tracked file unchanged while opening/cancelling; no checkout command performed in this new receiver.",
+    "factory": "RepositoryModel extracts unchanged shipping Switch onSwitched/onChanged/status/log/post-action interactions into shared configureSwitchInteractions, used by standalone and browser-owned Switch. All four parent configureReferencePicker blocks call configureReferenceBrowser; nested Switch pickers use it recursively and tracking remote-only child inherits configureSwitch. Inspected source; receiver does not construct RepositoryModel because its normal initializer writes shared Finder settings.",
+    "progress_regression": "Existing native Switch progress receiver passes both engines: real private checkout remote tracking/detach/force/override, captured full options and source acknowledgements/post policies, failed retry, .gitmodules once actions, cancellation/fresh retry/duplicate/missing presentation/hidden close/Quit. This is existing progress coverage, not a full checkout through the new browser-owned route.",
+    "picker_regression": "Existing Switch full reference/Log picker receiver passes both engines: native exact Unicode/namespace roles/focus, F5 late-ref/catalog, defaults/draft retention, typed ancestry/graph/single-selection Log and cancellation/stale/reject/ownership gates.",
+    "cycles": "Zero AttributeGraph cycle warnings in all three final native logs.",
+    "debug": "Unsigned Debug build and standalone bundle audit pass.",
+    "store": "Unsigned AppStore build and required bundle audit pass: bundled universal Git 2.55.0 runtime smoke checks, embedded Finder extension, licenses and all 99 upstream icon resources. Signed execution/App Store acceptance unverified.",
+    "ci": "Receiver added once; Ruby safe YAML parse and command count pass. Hosted execution/status unverified.",
+    "inventory": "Pin checker passes; mappings remain partial.",
+    "site": "Local Pages rebuild passes; no deployment or new physical captures.",
+    "notice": "Both packaged NOTICE files byte-equal source."
+  },
+  "limitations": [
+    "Merge/Fetch/creation/tree/range/deletion commands, standalone multiselection browser and whole port remain incomplete.",
+    "No physical sheets/focus restoration/mouse/keyboard/IME, light/dark/layout/accessibility, signed scope/Finder activation or App Store acceptance established. Hidden presenters release disabled-parent focus without attaching actual sheets.",
+    "Complete new-route checkout/progress transaction, forced parent close during active checkout/progress, initial Switch metadata late publication and all external ref races remain unverified.",
+    "No standard Finder settings/RepositoryModel constructor side effects, main app launches, network, refreshed screenshots, remote push or Pages deployment. Older WorktreeColumns.Test preferences retained."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.ReferenceSwitch.QA.2E330B9C-B4F0-48FF-9E3B-FCF22D0F813D",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceSwitch.QA.9A5F3E2B-02CE-480D-9C63-98B6CA734C54",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.SwitchProgress.QA.B1B1B408-1B0D-456F-B6DC-DCC0E71FB4B9",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.SwitchProgress.QA.2060BE38-763C-4599-906E-CBE90F0A9672",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      }
+    ],
+    "retained_older_scoped_domains": [],
+    "all_handles_terminal": true,
+    "remaining_current_preference_files": [],
+    "remaining_current_receiver_fixtures": []
+  },
+  "local_logs": "build/qa/reference-switch-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "45beaf75ef4b1b6a6ec481efe16b5110c3b72abd4774d594efa3f1f4734591a0",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "750d3101aed9347ede930bca084db05d21f45bdea1798fbcca1f90a1bd63d457",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "18e84200bebfede507f545869604a143e522caae5b960769c6ac6ef90f1c4108",
+    "docs/REFERENCE-BROWSER-PARITY.md": "0ee2861c5081cf23f48bded5953936b4c681da4fa1d6d72f2b07cbb23af0500b",
+    "docs/TESTING.md": "160100e6b64923cfe4a5fc3b23c6f3444f1d0ec0be62474cbbf982662168e633",
+    "docs/upstream-files.csv": "ce9eed3bc7366c3024b250ca4047e4a82405a9555e721d2d911679852885f166",
+    "docs/qa/reference-switch-native-2026-10-09.swift": "bb905b8df706b364403dacb4d923b46f5a986d9da277b2aad52bcead524a8fc6",
+    "scripts/test-reference-switch.py": "c668cbe2c285e0baae1f695c0f7a8da69d5bb3b44b02180413727001439940ea"
+  }
+}

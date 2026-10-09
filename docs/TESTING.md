@@ -271,3 +271,11 @@ checks canonical set/unset, fetch mapping, retained branch settings, cancel,
 parent/Quit/type/bare/reject/stale/forced-close gates without ordering windows.
 Core coverage is in `ReferenceBrowserTests`. No physical/signed or network
 tracking/fetch acceptance is claimed.
+
+Reference-browser Switch route: `python3 scripts/test-reference-switch.py` after
+Debug, optionally with repeated `--git`. It checks owned native Switch presets,
+actual revision controls, private defaults, canonical Unicode, bare/type gates,
+Cancel/reject/parent/Quit locks and forced nested picker cleanup without ordered
+windows. Keep `test-switch-progress.py` and `test-switch-pickers.py` regressions
+for real checkout/progress and full chooser behavior. No physical/signed acceptance
+or production RepositoryModel construction is claimed by the route receiver.
