@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "1892ff6",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Reference-browser configured-remote Fetch, owned native transport/result and lifetime cleanup. Full app parity incomplete.",
+  "verification": {
+    "source": "BrowseRefsDlg SplitRemoteBranchName scans configured names in returned order with exact or name/slash prefix, and offers IDI_UPDATE Fetch from matched remote before Merge/Switch without working-tree/object-type gate. eCmd_Fetch calls CAppUtils::Fetch(remoteName), then Refresh. Native snapshot and handoff follow this.",
+    "core": "Forty Fetch/Pull/reference-browser/Finder repository/submodule metadata tests pass both Git engines. Added cancellation propagation/no config mutation and exact configured-prefix order tests.",
+    "native_route": "Final both-engine shipping-controller receiver: actual menu/icon/order/remote preset, real local transport, held progress acknowledgement and refreshed catalog, competing/cancel/reject/close/Quit, forced metadata and transport leader/helper exit, ignored late Cancel answer, no late owner callback/closed raw-output update. Standalone Fetch result Quit guard and acknowledgement verified. Local HEAD/index/worktree retained.",
+    "regressions": "Fetch/Pull streaming and Fetch/Rebase decisions pass both engines after lifetime/default/factory changes. These precede isolated AppStore metadata-access/Quit/confirmation guard additions. Final cancellation and submodule-default receivers plus route pass both engines on final shipping sources.",
+    "cycles": "Zero AttributeGraph cycles across all five final native logs.",
+    "factory": "Standalone Fetch interactions extracted unchanged and shared with browser/tracking route. Receiver captures configuration without constructing RepositoryModel/Finder settings writer.",
+    "builds": "Final unsigned Debug/AppStore builds and standalone bundle audits pass; both NOTICE files byte-equal source. Universal Git 2.55.0/LFS 3.8.0, EditorConfig/IssueRegex helpers, Finder extension and 99 icons audited.",
+    "inventory": "Pinned inventory checks pass; mapping remains partial.",
+    "ci": "New receiver added once; Ruby safe YAML parse/count pass. Hosted CI unverified.",
+    "site": "Local Pages rebuild passes; no deployment/refreshed physical captures."
+  },
+  "limitations": [
+    "Physical sheets/focus/gestures/light-dark/VoiceOver, signed Finder/AppStore and full menu/dialog/source parity remain incomplete.",
+    "Full forced Pull cleanup and Fetch-for-Rebase preflight cancellation, every slow metadata/failure/prompt/post-action stage and external remote-config/ref races require broader work.",
+    "Bare/non-commit remote Fetch gate follows inspected source but is not separately exercised in the new native receiver.",
+    "No network, main app launch, RepositoryModel/shared Finder-settings writer, push or external post-action execution used."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_owned_processes": [],
+    "removed_current_empty_domains": [
+      {
+        "domain": "TurtleGit.ReferenceFetch.QA.C7692087-E78B-48F7-9548-1297A624CE1E",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceFetch.QA.4D07782C-E13A-45C6-B09A-6A9D0B53D914",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.TransportCancellation.QA.8023363D-799E-4B5A-9852-A142E808C035",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.FetchPullStream.QA.EB592F80-D7A3-46C7-85D9-05F6B0C2823D",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceFetch.QA.42AE78C1-05D7-4FB4-A130-7611F9BEA644",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.TransportCancellation.QA.C0EB7E5F-7687-4176-BBB4-D25BC207E54C",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.FetchPullStream.QA.8F65F1AD-AE52-4D50-83B2-B1974A009ADE",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceFetch.QA.52735000-726F-4CB3-BC7A-C4816BBB6137",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.FetchRebaseDecisions.QA.CBEF20BD-37D3-4A8B-BFC9-8FB538E2B5CB",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.SubmoduleDefaults.QA.91BFE8B6-F24B-4C45-A3C1-42247710D4E0",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.SubmoduleDefaults.QA.F27AE1C2-3325-44F8-909D-248DFF8FA247",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.FetchRebaseDecisions.QA.CC0C9C2E-8E04-4DC3-B645-2222F6162BB1",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "remaining": false
+      }
+    ],
+    "older_preferences_retained": true,
+    "fixtures": "Native TemporaryDirectory script contexts exited successfully; owned PID checks and removal completed."
+  },
+  "local_logs": "build/qa/reference-fetch-2026-10-09",
+  "sha256": {
+    ".github/workflows/macos.yml": "0aa4c43eecb7fc7bc7fa913a4bfd1818acd0cce38587889e41e9efdf496e3734",
+    "Sources/TurtleGitCore/Fetch.swift": "d5126513c7262e51586e9be47ad81ea68e4c9820571a62a03902464a5f9616ac",
+    "Sources/TurtleGitCore/FinderCache.swift": "d6adc2669d57d28bb10b94708f92f6dfaf934d522e45059d53b4a21b0a0c8a1d",
+    "Sources/TurtleGitCore/Pull.swift": "6fabe52dd8b7ef8c0972c133d7a8cc2f9be71c3578133fa926d5ac180cb947bd",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "518f6d28f37e14ea5374ce643ff18aec52b721fff5f26acda21ecd7c6a8ce667",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "cb62b40971b6a32d886ee6a8565140f1f76bc60b35f778881d34f631b2743c30",
+    "Sources/TurtleGitMac/FetchWindow.swift": "9606b1f6d54bd2f1e86a0a30628d419e4b18eec37c47816d84fe763c580a2a1a",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "509d005e16bb55ed9290e0f7208860570286c51b07f8cacd801f9667678e610c",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "efe4d367838ad82c9e3e9a02357fcdb1ea5a130ddf7e69fe3dde9523515ac1a6",
+    "Tests/TurtleGitCoreTests/FetchTests.swift": "f12ad9eb8404cc12ef7f915d5aeb0abd1d2daebbeabe4f8ed091d63b0b1fc0ec",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "cff1172db96dd7e336872c19eadf9d1d4c07aaaaa8d39367c51db354b4226849",
+    "docs/FETCH-PARITY.md": "16199d4e3f4009a0b925a42cad1ab62697d06252f9adda0eb75d51fb6aebd9d9",
+    "docs/REFERENCE-BROWSER-PARITY.md": "9c269cef721373d9cc0b6c4a2b90c38aa7563431c1ebaad17c53c731926dbda6",
+    "docs/TESTING.md": "58209e0b412c8a7447aacbf5a1614d650ab658ca5a4df251d0b8211b506db3d2",
+    "docs/upstream-files.csv": "ced94cea6e641be77ee30d2d71c71d7d689d074232eef7d49eb34d47b28511d9",
+    "docs/qa/reference-fetch-native-2026-10-09.swift": "0f2bcec7aa694bbca702fab2578145cb61208a37b1e063ba52e0bf2070a326f3",
+    "scripts/test-reference-fetch.py": "f9f3d6e20515c403ca8049ea1e89fd313a69735cbdbfd3af7d76840a1f7c5039"
+  }
+}

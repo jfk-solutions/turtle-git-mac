@@ -2,6 +2,15 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ReferenceBrowserTests: XCTestCase {
+    func testRemoteResolutionUsesConfiguredOrderAndExactNamespaces() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["team", "team/nested", "origin"] { _ = try await repo.run(["remote", "add", name, root.path]) }
+        let snapshot = try await repo.referenceBrowser()
+        XCTAssertEqual(snapshot.remote(for: GitReferenceName("refs/remotes/team/nested/topic")), "team")
+        XCTAssertEqual(snapshot.remote(for: GitReferenceName("refs/remotes/origin/HEAD")), "origin")
+        XCTAssertNil(snapshot.remote(for: GitReferenceName("refs/remotes/origin-other/topic")))
+        XCTAssertNil(snapshot.remote(for: GitReferenceName("refs/heads/origin/topic")))
+    }
     func testCurrentBranchReadsLiveHeadUnbornDetachedBareWorktreeAndCancellation() async throws {
         let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)

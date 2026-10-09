@@ -474,17 +474,23 @@ public enum FinderShellRules {
 extension GitRepository {
     /// Source registration rule: nearest parent worktree's .gitmodules path match.
     /// Missing/inaccessible parent metadata leaves this optional fact unavailable.
-    public func registeredSubmoduleParent() throws -> URL? {
-        guard root.path != "/", let result = try? run(["-C", root.deletingLastPathComponent().path, "rev-parse", "--show-toplevel"]) else { return nil }
+    public func registeredSubmoduleParent(cancellation: OperationCancellation? = nil) throws -> URL? {
+        try cancellation?.check()
+        guard root.path != "/" else { return nil }
+        let result: GitResult
+        do { result = try run(["-C", root.deletingLastPathComponent().path, "rev-parse", "--show-toplevel"], cancellation: cancellation) }
+        catch { try cancellation?.check(); return nil }
         var bytes = result.stdout; if bytes.last == 10 { bytes.removeLast() }
         let parent = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self), isDirectory: true).standardizedFileURL
         guard parent != root, RepositoryAccessLease.pathIsContained(root, by: parent) else { return nil }
         let modules = parent.appendingPathComponent(".gitmodules")
         guard (try? FileManager.default.attributesOfItem(atPath: modules.path)[.type] as? FileAttributeType) == .typeRegular else { return nil }
         let relative = String(root.path.dropFirst(parent.path.count + 1))
-        guard let names = try? run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1).stdout.split(separator: 0) else { return nil }
+        let names: [Data.SubSequence]
+        do { names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1, cancellation: cancellation).stdout.split(separator: 0) }
+        catch { try cancellation?.check(); return nil }
         for name in names {
-            let values = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", String(decoding: name, as: UTF8.self)], successfulExitCodes: 0...1).stdout.split(separator: 0)
+            let values = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", String(decoding: name, as: UTF8.self)], successfulExitCodes: 0...1, cancellation: cancellation).stdout.split(separator: 0)
             if values.contains(where: { String(decoding: $0, as: UTF8.self) == relative }) { return parent }
         }
         return nil

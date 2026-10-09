@@ -301,7 +301,7 @@ See [Merge route QA](qa/reference-merge-2026-10-09.json) and
 `scripts/test-reference-merge.py`. Source CAppUtils user-data/rebase preflight,
 full Merge chooser parity and physical sheets,
 light/dark/accessibility and signed execution remain incomplete or unverified.
-Fetch, creation/tree/range/deletion commands and the full port remain unfinished.
+Tree creation, range/deletion commands and the full port remain unfinished.
 
 Merge now uses the owned full reference browser and typed-revision Log picker.
 Its forced lifetime cleanup is checked separately in
@@ -334,4 +334,39 @@ competing/close/Quit and live creation-process termination with unchanged refs.
 Existing creation-picker and browser-Merge receivers remain regression gates.
 Physical sheets/focus, bare/non-commit acceptance, every slow validation/metadata
 stage, routed post-creation checkout/description recovery and signed scope remain
-pending. Fetch and the remaining source browser commands are still incomplete.
+pending. Remaining source browser commands and full parity are still incomplete.
+
+## Fetch from a remote reference
+
+Remote references with a matching configured remote now offer **Fetch from
+"remote"**, with upstream Update artwork before Merge/Switch. The source helper
+`SplitRemoteBranchName` matches configured names in returned order, using an exact
+name or name-plus-slash prefix. The native snapshot captures those names and uses
+byte-exact matching; overlapping remote names therefore follow the source's first
+match rather than a longest-prefix rule. Local and unconfigured remote refs do
+not receive this action. Bare/other-object remote refs retain the source gate.
+
+The browser owns native Fetch, presets the matched remote (not the selected branch
+suffix), and shares standalone status/log/Rebase/post-action configuration. It
+blocks competing commands, normal close and Quit through progress acknowledgement,
+then refreshes the catalog, including after Cancel/rejected presentation. Tracking
+pickers inherit configuration. Identity checks and invalidated-owner checks protect
+child release/refresh. Forced closure cancels Fetch metadata/transport and closes
+owned progress; late output, confirmation answers and callbacks are discarded.
+
+Core Fetch/Pull defaults, parent-submodule metadata, remote branch browsing and
+plain Fetch validation now accept owned cancellation. Fetch settings/browse reads
+also validate AppStore repository access. Independent remote reads are superseded
+by generation/token identity. Fetch progress cancels its process on invalidation,
+fences post-await results and owns recovery/reset metadata tokens. Pending
+confirmation and standalone Fetch/result windows now participate in Quit guards.
+
+`test-reference-fetch.py` checks shipping menu/icon/order, matched remote preset,
+actual local transport, held result/acknowledgement/catalog refresh, competing and
+Cancel/rejected/close/Quit gates, forced metadata/transport leader/helper exit and
+ignored late Cancel answers, plus standalone result Quit/acknowledgement. HEAD,
+index and working tree remain unchanged. Streaming, Fetch/Rebase decisions,
+cancellation and submodule-default receivers are regression gates. Physical
+sheets/focus/gestures/light-dark/VoiceOver, signed Finder/AppStore acceptance,
+every slow metadata/failure/prompt variant and external remote-config races remain
+unverified; full menus/application parity remain incomplete.

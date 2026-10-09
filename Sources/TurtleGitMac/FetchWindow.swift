@@ -6,12 +6,13 @@ import TurtleGitCore
     let model: FetchWindowModel
     var onClosed: () -> Void = {}
     private var progressController: PullProgressWindowController?
-    private var fetchProgressController: FetchProgressWindowController?
+    var presentFetchProgress: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
+    private(set) var fetchProgressController: FetchProgressWindowController?
     init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, preferences: UserDefaults = .standard) {
         model = FetchWindowModel(repository: repository, access: access, isPull: isPull, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 700, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – \(isPull ? "Pull" : "Fetch") – TurtleGit"; window.minSize = NSSize(width: 660, height: 450); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: FetchDialog(model: model))
+        window.contentViewController = NSHostingController(rootView: FetchDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.operationActive, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] progress in
@@ -22,11 +23,17 @@ import TurtleGitCore
             if let child = controller.window { window.beginSheet(child) }
         }
         model.onFetchProgress = { [weak self] progress in
-            guard let self, let window = self.window, window.attachedSheet == nil else { progress.cancel(); return }
+            guard let self else { progress.invalidate(); return }
+            guard let window = self.window, window.attachedSheet == nil else { self.model.abandonFetchPresentation(progress); return }
             let controller = FetchProgressWindowController(model: progress)
-            controller.onClosed = { [weak self, weak progress] in guard let self, let progress else { return }; self.fetchProgressController = nil; self.model.finishFetch(progress) }
+            controller.onClosed = { [weak self, weak progress, weak controller] in
+                guard let self, let progress, let controller, self.fetchProgressController === controller else { return }
+                self.fetchProgressController = nil; self.model.finishFetch(progress)
+            }
             self.fetchProgressController = controller
-            if let child = controller.window { window.beginSheet(child) }
+            guard let child = controller.window, self.presentFetchProgress(window, child) else {
+                self.fetchProgressController = nil; self.model.abandonFetchPresentation(progress); controller.close(); return
+            }
         }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
@@ -40,7 +47,13 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "FetchWindowController")
     }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        model.invalidate()
+        let fetch = fetchProgressController; fetchProgressController = nil; fetch?.close()
+        let pull = progressController; progressController = nil; pull?.close()
+        if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
+        onClosed()
+    }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.progress != nil || model.fetchProgress != nil { if model.transportRunning { model.cancel() }; return false }
         guard model.transportRunning else { return !model.busy && sender.attachedSheet == nil }
@@ -84,15 +97,22 @@ import TurtleGitCore
     var onProgress: ((PullProgressWindowModel) -> Void)?
     var onPullPostAction: ((PullPostAction, PullProgressContext) -> Void)?
     var onChanged: (String) -> Void = { _ in }
+    private var metadataToken: OperationCancellation?
+    private var remoteToken: OperationCancellation?
     private var invalidated = false
+    var closed: Bool { invalidated }
     var operationActive: Bool { busy || progress != nil || fetchProgress != nil }
-    func invalidate() { invalidated = true }
+    func invalidate() {
+        invalidated = true; generation += 1; metadataToken?.cancel(); metadataToken = nil; remoteToken?.cancel(); remoteToken = nil
+        fetchProgress?.invalidate(); fetchProgress = nil; progress?.invalidate(); progress = nil; busy = false; browsing = false; managing = false
+    }
+    func abandonFetchPresentation(_ result: FetchProgressWindowModel) { guard fetchProgress === result else { return }; result.invalidate(); fetchProgress = nil; busy = false }
     func finish(_ result: PullProgressWindowModel) {
-        guard progress === result, !result.busy, !result.confirmingConflictHint, !result.confirmingCancellation, !result.dispatchingAction else { return }
+        guard !invalidated, progress === result, !result.busy, !result.confirmingConflictHint, !result.confirmingCancellation, !result.dispatchingAction else { return }
         progress = nil; error = nil; result.invalidate(); close()
     }
     func finishFetch(_ result: FetchProgressWindowModel) {
-        guard fetchProgress === result, !result.busy, !result.confirmingCancellation, !result.confirmingRebaseDecision, !result.dispatchingAction else { return }
+        guard !invalidated, fetchProgress === result, !result.busy, !result.confirmingCancellation, !result.confirmingRebaseDecision, !result.dispatchingAction else { return }
         fetchProgress = nil; error = nil; result.invalidate(); close()
     }
     var transportRunning: Bool { progress?.busy ?? fetchProgress?.busy ?? false }
@@ -113,12 +133,18 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool, preferences: UserDefaults = .standard) {
         self.isPull = isPull; self.repository = repository; self.access = access; self.preferences = preferences; remoteSettings = PushWindowModel(repository: repository, access: access)
     }
+    private func validateRepositoryAccess() throws {
+        if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+    }
     func load(remote presetRemote: String? = nil, allRemotes presetAllRemotes: Bool? = nil) {
-        guard !invalidated, !operationActive else { return }; busy = true
+        guard !invalidated, !operationActive else { return }; busy = true; let token = OperationCancellation(); metadataToken = token
         Task {
-            defer { busy = false }
+            defer { if metadataToken === token { metadataToken = nil; busy = false } }
             do {
-                remotes = try await repository.remoteNames(); let defaults = try await repository.fetchDefaults()
+                try validateRepositoryAccess()
+                let names = try await repository.remoteNames(cancellation: token), defaults = try await repository.fetchDefaults(cancellation: token)
+                guard !invalidated, metadataToken === token, !token.isCancelled else { return }
+                remotes = names
                 urls = FetchDialogHistory.load(preferences, key: "History.PullURLS", caseSensitive: true)
                 branchHistory = FetchDialogHistory.load(preferences, key: "History.PullRemoteBranch", caseSensitive: false)
                 options = FetchOptions(); options.remote = defaults.remote
@@ -130,7 +156,8 @@ import TurtleGitCore
                 if let saved = preferences.string(forKey: key + ".remote"), remotes.contains(saved), defaults.remote.isEmpty { options.remote = saved; options.allRemotes = false }
                 shallow = defaults.shallow; bare = defaults.bare; depthEnabled = shallow
                 tagsDefault = defaults.tags; pruneDefault = defaults.prune
-                let pullDefaults = try await repository.pullDefaults()
+                let pullDefaults = try await repository.pullDefaults(cancellation: token)
+                guard !invalidated, metadataToken === token, !token.isCancelled else { return }
                 rebaseRequired = isPull && pullDefaults.rebase
                 preserveMerges = isPull && pullDefaults.preserveMerges
                 launchRebase = !bare && !options.allRemotes && (rebaseRequired || preferences.bool(forKey: key + ".rebase"))
@@ -139,13 +166,14 @@ import TurtleGitCore
                 if let presetRemote, !presetRemote.isEmpty {
                     if remotes.contains(presetRemote) {
                         options.remote = presetRemote; options.arbitraryURL = false; options.allRemotes = false
-                        let preset = try await repository.fetchDefaults(remote: presetRemote)
+                        let preset = try await repository.fetchDefaults(remote: presetRemote, cancellation: token)
+                        guard !invalidated, metadataToken === token, !token.isCancelled else { return }
                         tagsDefault = preset.tags; pruneDefault = preset.prune
                     } else { options.arbitraryURL = true; options.allRemotes = false; url = presetRemote; launchRebase = false }
                 }
                 if !isPull, let presetAllRemotes { options.allRemotes = presetAllRemotes; if presetAllRemotes { options.arbitraryURL = false; launchRebase = false } }
                 remoteSettings.remotes = remotes
-            } catch { self.error = error.localizedDescription }
+            } catch { if !invalidated, metadataToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func selectBranch(_ branch: String, atFront: Bool = true) {
@@ -169,19 +197,22 @@ import TurtleGitCore
         if let branch = selection?.branch { options.branch = branch }
     }
     func remoteChanged() {
+        guard !invalidated, !operationActive else { return }
         generation += 1; let request = generation, remote = options.remote
+        remoteToken?.cancel(); let token = OperationCancellation(); remoteToken = token
         Task {
-            do { let defaults = try await repository.fetchDefaults(remote: remote); guard request == generation else { return }; tagsDefault = defaults.tags; pruneDefault = defaults.prune }
-            catch { if request == generation { self.error = error.localizedDescription } }
+            defer { if remoteToken === token { remoteToken = nil } }
+            do { try validateRepositoryAccess(); let defaults = try await repository.fetchDefaults(remote: remote, cancellation: token); guard !invalidated, remoteToken === token, !token.isCancelled, request == generation else { return }; tagsDefault = defaults.tags; pruneDefault = defaults.prune }
+            catch { if !invalidated, remoteToken === token, !token.isCancelled, request == generation { self.error = error.localizedDescription } }
         }
     }
     func browse() {
         guard !invalidated, !operationActive else { return }; busy = true
-        let destination = options.arbitraryURL ? url : options.remote
+        let destination = options.arbitraryURL ? url : options.remote, token = OperationCancellation(); metadataToken = token
         Task {
-            defer { busy = false }
-            do { branches = try await repository.remoteBranches(remote: destination); browsing = true }
-            catch { self.error = error.localizedDescription }
+            defer { if metadataToken === token { metadataToken = nil; busy = false } }
+            do { try validateRepositoryAccess(); let values = try await repository.remoteBranches(remote: destination, cancellation: token); guard !invalidated, metadataToken === token, !token.isCancelled else { return }; branches = values; browsing = true }
+            catch { if !invalidated, metadataToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }
     func reloadRemotes() {
@@ -223,7 +254,7 @@ import TurtleGitCore
             progress.confirmCancellation = { [weak self] choose in self?.confirmCancellation(choose) }
             progress.onPostAction = onPullPostAction
             progress.onCompleted = { [weak self, weak progress] in
-                guard let self, let progress else { return }; self.busy = false
+                guard let self, let progress, !self.invalidated, self.progress === progress else { return }; self.busy = false
                 self.error = progress.success ? nil : progress.output
                 self.onChanged(progress.output)
                 if progress.success { self.onFetched(progress.output) }
@@ -237,7 +268,7 @@ import TurtleGitCore
         progress.onPostAction = onFetchPostAction
         progress.onRebase = onRebase
         progress.onCompleted = { [weak self, weak progress] in
-            guard let self, let progress else { return }; self.busy = false
+            guard let self, let progress, !self.invalidated, self.fetchProgress === progress else { return }; self.busy = false
             self.error = progress.success ? nil : progress.output; self.onChanged(progress.rawOutput)
             if progress.success { self.onFetched(progress.output) }
         }
@@ -695,6 +726,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     private let preferences: UserDefaults
     private let autoClosePolicy: GitProgressAutoClose
     private var cancellation = OperationCancellation()
+    private var inspectionToken: OperationCancellation?
     private var started = false, invalidated = false, dispatched = false
     private var explicitCloseRequested = false
     private var deferredRebase: (() -> Void)?
@@ -743,9 +775,11 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         self.rebaseMode = rebaseMode; self.preserveMerges = preserveMerges
     }
     private func answer(_ prompt: FetchRebasePrompt) async -> Int {
+        guard !invalidated else { return prompt.answers[prompt.defaultIndex] }
         if let saved = preferences.object(forKey: prompt.rawValue) as? Int, prompt.answers.contains(saved) { return saved }
         confirmingRebaseDecision = true
         let result = await presentRebasePrompt(prompt)
+        guard !invalidated else { return prompt.answers[prompt.defaultIndex] }
         confirmingRebaseDecision = false
         let value = prompt.answers.contains(result.value) ? result.value : prompt.answers[prompt.defaultIndex]
         if result.suppress { preferences.set(value, forKey: prompt.rawValue) }
@@ -756,33 +790,37 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         if let deferredRebase { self.deferredRebase = nil; deferredRebase(); return }
         if explicitCloseRequested || autoClosePolicy.shouldClose(success: success, postActionCount: postActions.count) || cancelled && closeAfterCancellation { close() }
     }
-    func invalidate() { invalidated = true; deferredRebase = nil }
+    func invalidate() { invalidated = true; cancellation.cancel(); inspectionToken?.cancel(); inspectionToken = nil; deferredRebase = nil; busy = false; confirmingCancellation = false; confirmingRebaseDecision = false; dispatchingAction = false }
     func start() { Task { await run() } }
     func run() async { guard !started, !invalidated else { return }; started = true; await execute() }
     private func validateAccess() throws {
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private func execute() async {
+        guard !invalidated else { return }
         busy = true; success = false; cancelled = false; cancelling = false; merging = false; explicitCloseRequested = false; deferredRebase = nil; resetOutput(); postActions = []
         do {
             try validateAccess()
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             let transport = try await streamFetch()
+            guard !invalidated else { return }
             let fetched = transport.1; rawOutput = transport.0
             if !outputState.hasOutput { output = rawOutput }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             if let fetched {
                 var openRebase = true
                 if rebaseMode == .manual {
-                    if fetched.currentIsUpToDate { if await answer(.upToDate) == 7 { openRebase = false } }
-                    if openRebase && fetched.unchangedAtHEAD { if await answer(.unchanged) == 7 { openRebase = false } }
+                    if fetched.currentIsUpToDate { if await answer(.upToDate) == 7 { openRebase = false }; guard !invalidated else { return } }
+                    if openRebase && fetched.unchangedAtHEAD { if await answer(.unchanged) == 7 { openRebase = false }; guard !invalidated else { return } }
                     if openRebase && fetched.canFastForward {
                         let choice = await answer(.fastForward)
+                        guard !invalidated else { return }
                         if choice == 3 { openRebase = false }
                         if choice == 1 {
                             merging = true; percentage = nil; currentWork = ""
                             var merge = MergeOptions(); merge.revision = fetched.upstream; merge.fastForwardOnly = true
                             let mergeOutput = try await streamMerge(merge)
+                            guard !invalidated else { return }
                             rawOutput += "\n" + mergeOutput
                             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
                             success = true; busy = false; explicitCloseRequested = true; onCompleted(); finishCompletion(); return
@@ -798,14 +836,20 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
             }
             success = true
             postActions = [.log, .reset, .fetch]
-            if rebaseMode == .none { if (try? await repository.isBare()) == false { postActions.append(.rebase) } }
+            if rebaseMode == .none { if (try? await repository.isBare(cancellation: cancellation)) == false { postActions.append(.rebase) } }
             if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
             postActions.append(.switchBranch)
         } catch {
+            guard !invalidated else { return }
             displayFailure(error, transport: merging ? "merge" : "fetch"); cancelled = cancellation.isCancelled; success = false
-            if merging { postActions = ((try? await repository.status(refreshIndex: false).contains(where: { $0.state == .conflicted })) ?? false) ? [.resolve] : [] }
+            if merging {
+                let token = OperationCancellation(); inspectionToken = token
+                let conflicts = (try? await repository.status(refreshIndex: false, cancellation: token).contains(where: { $0.state == .conflicted })) ?? false
+                guard !invalidated else { return }; inspectionToken = nil; postActions = conflicts ? [.resolve] : []
+            }
             else { postActions = [.retry]; if options.allRemotes { postActions.append(.log) } }
         }
+        guard !invalidated else { return }
         busy = false; cancelling = false; onCompleted(); finishCompletion()
     }
     private func streamFetch() async throws -> (String, FetchRebaseResult?) {
@@ -842,7 +886,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         if preferences.bool(forKey: "ConfirmKillProcess") {
             confirmingCancellation = true
             confirmCancellation { [weak self] accepted in
-                guard let self, self.confirmingCancellation, self.cancellation === token else { return }
+                guard let self, !self.invalidated, self.confirmingCancellation, self.cancellation === token else { return }
                 self.confirmingCancellation = false
                 if self.busy && accepted { self.cancelling = true; token.cancel() }
                 self.finishCompletion()
@@ -850,18 +894,20 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         } else { cancelling = true; token.cancel() }
     }
     func perform(_ action: FetchPostAction) {
-        guard !invalidated, !dispatched, !busy, !dispatchingAction, postActions.contains(action) else { return }
+        guard !invalidated, !dispatched, !busy, !confirmingCancellation, !confirmingRebaseDecision, !dispatchingAction, postActions.contains(action) else { return }
         if action == .retry {
             ProgressActionLog.nextAttempt(self); cancellation = OperationCancellation(); busy = true; Task { await execute() }; return }
         guard let onPostAction else { return }
         if action == .reset {
-            dispatchingAction = true
+            dispatchingAction = true; let token = OperationCancellation(); inspectionToken = token
             Task {
+                defer { if inspectionToken === token { inspectionToken = nil } }
                 var revision = ""
                 do {
-                    try validateAccess(); let defaults = try await repository.pullDefaults()
+                    try validateAccess(); let defaults = try await repository.pullDefaults(cancellation: token)
+                    guard !invalidated, inspectionToken === token, !token.isCancelled else { return }
                     if !defaults.trackedRemote.isEmpty && !defaults.trackedBranch.isEmpty { revision = "refs/remotes/" + defaults.trackedRemote + "/" + defaults.trackedBranch }
-                } catch { output += "\n" + error.localizedDescription; dispatchingAction = false; return }
+                } catch { guard !invalidated, inspectionToken === token, !token.isCancelled else { return }; output += "\n" + error.localizedDescription; dispatchingAction = false; return }
                 dispatchingAction = false; guard !invalidated else { return }; dispatched = true
                 close(); onPostAction(action, revision)
             }
@@ -878,7 +924,7 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
         window.contentViewController = NSHostingController(rootView: FetchProgressDialog(model: model))
         super.init(window: window); window.delegate = self
         model.close = { [weak self] in
-            guard let self, !self.model.busy, !self.model.dispatchingAction, !self.model.confirmingRebaseDecision, self.window?.attachedSheet == nil else { return }
+            guard let self, !self.model.busy, !self.model.confirmingCancellation, !self.model.dispatchingAction, !self.model.confirmingRebaseDecision, self.window?.attachedSheet == nil else { return }
             if let window = self.window { window.sheetParent?.endSheet(window); window.close() }
         }
         model.confirmCancellation = { [weak window] choose in
@@ -911,10 +957,10 @@ struct FetchRebaseAnswer { let value: Int; let suppress: Bool }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if model.busy { model.cancel(); return false }
-        guard !model.dispatchingAction, !model.confirmingRebaseDecision, sender.attachedSheet == nil else { return false }
+        guard !model.confirmingCancellation, !model.dispatchingAction, !model.confirmingRebaseDecision, sender.attachedSheet == nil else { return false }
         sender.sheetParent?.endSheet(sender); return true
     }
-    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.saveActionLog(); model.invalidate(); if let window { if let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; window.sheetParent?.endSheet(window) }; onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct FetchProgressDialog: View {

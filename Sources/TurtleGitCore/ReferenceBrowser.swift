@@ -24,6 +24,11 @@ public struct ReferenceBrowserSnapshot: Sendable {
     public let references: [BrowserReference]
     public let currentBranch: GitReferenceName?
     public let headFile: URL
+    public let remotes: [String]
+    public func remote(for reference: GitReferenceName) -> String? {
+        guard let name = GitReferenceName.removingPrefix("refs/remotes/", from: reference.rawValue) else { return nil }
+        return remotes.first { GitReferenceName.equal(name, $0) || GitReferenceName.removingPrefix($0 + "/", from: name) != nil }
+    }
     public var folders: [GitReferenceName] {
         var paths: Set<GitReferenceName> = ["refs"]
         for reference in references {
@@ -144,7 +149,7 @@ extension GitRepository {
         let head = try run(["symbolic-ref", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: cancellation)
         let path = try run(["rev-parse", "--git-path", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
         let headFile = path.hasPrefix("/") ? URL(fileURLWithPath: path) : root.appendingPathComponent(path)
-        return ReferenceBrowserSnapshot(references: references, currentBranch: head.exitCode == 0 ? GitReferenceName(head.text.trimmingCharacters(in: .newlines)) : nil, headFile: headFile)
+        return ReferenceBrowserSnapshot(references: references, currentBranch: head.exitCode == 0 ? GitReferenceName(head.text.trimmingCharacters(in: .newlines)) : nil, headFile: headFile, remotes: try self.remoteNames(cancellation: cancellation))
     }
 }
 

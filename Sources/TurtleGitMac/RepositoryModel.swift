@@ -1383,10 +1383,8 @@ import TurtleGitCore
         if existing == nil || controller.model.finished || upstream != nil || cherryPick != nil { controller.model.load(upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, cherryPick: cherryPick) }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
-    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, followUp: PullFollowUp = PullFollowUp(), remote: String? = nil, allRemotes: Bool? = nil) {
-        let root = repository.root, key = repository.root.path + (isPull ? ":pull:" : ":fetch:") + UUID().uuidString
-        let controller = FetchWindowController(repository: repository, access: access, isPull: isPull)
-        controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
+    private func configureFetchInteractions(_ controller: FetchWindowController, repository: GitRepository, access: RepositoryAccessLease?, followUp: PullFollowUp = PullFollowUp()) {
+        let root = repository.root
         controller.model.onShowStatus = { [weak self] in
             guard let self else { return }
             if self.root == root { self.activate(.status) }
@@ -1434,6 +1432,12 @@ import TurtleGitCore
         controller.model.onRebase = { [weak self] upstream, autoStart, preserveMerges in
             self?.showRebase(repository: repository, access: access, upstream: upstream, autoStart: autoStart, preserveMerges: preserveMerges, afterFetch: true)
         }
+    }
+    private func showFetch(repository: GitRepository, access: RepositoryAccessLease?, isPull: Bool = false, followUp: PullFollowUp = PullFollowUp(), remote: String? = nil, allRemotes: Bool? = nil) {
+        let key = repository.root.path + (isPull ? ":pull:" : ":fetch:") + UUID().uuidString
+        let controller = FetchWindowController(repository: repository, access: access, isPull: isPull)
+        controller.onClosed = { [weak self] in self?.fetchWindows.removeValue(forKey: key) }
+        configureFetchInteractions(controller, repository: repository, access: access, followUp: followUp)
         fetchWindows[key] = controller; controller.model.load(remote: remote, allRemotes: allRemotes)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -1527,6 +1531,7 @@ import TurtleGitCore
         model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
         model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
         model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+        model.configureFetch = { [weak self] controller in self?.configureFetchInteractions(controller, repository: repository, access: access) }
         model.configureBranch = { [weak self] controller in self?.configureReferenceInteractions(controller, repository: repository, access: access) }
         model.configureMerge = { [weak self] controller in self?.configureMergeInteractions(controller, repository: repository, access: access) }
         model.configureSwitch = { [weak self] controller in self?.configureSwitchInteractions(controller, repository: repository, access: access) }

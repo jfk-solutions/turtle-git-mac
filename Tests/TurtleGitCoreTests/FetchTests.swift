@@ -2,6 +2,17 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FetchTests: XCTestCase {
+    func testCancelledDefaultsAndValidationDoNotMutate() async throws {
+        let (root, repo, _) = try await GitPatchTests().fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let token = OperationCancellation(); token.cancel()
+        let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
+        do { _ = try await repo.fetchDefaults(cancellation: token); XCTFail("Cancelled Fetch defaults returned") } catch OperationCancellationFailure.cancelled {}
+        do { _ = try await repo.pullDefaults(cancellation: token); XCTFail("Cancelled Pull defaults returned") } catch OperationCancellationFailure.cancelled {}
+        do { _ = try await repo.registeredSubmoduleParent(cancellation: token); XCTFail("Cancelled parent lookup returned") } catch OperationCancellationFailure.cancelled {}
+        var options = FetchOptions(); options.remote = "origin"
+        do { _ = try await repo.fetch(options, cancellation: token); XCTFail("Cancelled Fetch ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(config, try Data(contentsOf: root.appendingPathComponent(".git/config")))
+    }
     func testPreCancelledFetchPullAndRebaseTransportPreserveRepository() async throws {
         let (root, _, _, consumer, _) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
         let index = try Data(contentsOf: consumer.root.appendingPathComponent(".git/index"))

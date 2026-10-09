@@ -355,3 +355,24 @@ while cancellation confirmation is held. Existing four-Git decision and live
 Fetch/Pull receivers cover the other routes. Physical/nested-modal factory,
 scrolling/theme/focus/default/accessibility, real network and signed acceptance
 remain pending. Older completion-time-output notes are superseded for this phase.
+
+## Owned reference-browser Fetch and lifetime
+
+Remote reference Fetch now uses the native Fetch dialog, with the source's
+configured-remote prefix/order resolver, selected remote preset, owned progress
+acknowledgement and catalog refresh. The standalone interaction factory is shared
+with this route and remote-only tracking pickers. See
+[reference browser parity](REFERENCE-BROWSER-PARITY.md).
+
+Metadata/defaults/settings/branch-browse work shares owned cancellation and closed
+publication fences; branch browsing/settings reads enforce repository scope in
+AppStore builds. Plain Fetch validation threads the transport token. Fetch progress
+invalidates/cancels its process, freezes closed results and owns separate recovery
+and Reset metadata reads. Late Rebase answers cannot persist preferences after
+closure. Standalone Fetch/progress and pending confirmations now block Quit.
+Normal acknowledgement/post-actions and Cancel remain covered by regressions.
+
+This does not establish complete forced Pull ownership cleanup, all Fetch-for-Rebase
+preflight cancellation, physical prompt/sheet restoration, every metadata/error/
+post-action stage or signed sandbox acceptance. Full Fetch/Pull parity remains
+partial.

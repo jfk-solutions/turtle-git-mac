@@ -25,20 +25,23 @@ public enum PullFailure: LocalizedError {
     }
 }
 extension GitRepository {
-    public func pullDefaults() throws -> PullDefaults {
-        let current = try branch()
-        func config(_ key: String) -> String { ((try? run(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
-        let remote = current.isEmpty ? "" : config("branch." + current + ".remote")
-        let merge = current.isEmpty ? "" : config("branch." + current + ".merge")
-        let branchRebase = current.isEmpty ? "" : config("branch." + current + ".rebase")
-        let rebase = current.isEmpty ? "false" : (branchRebase.isEmpty ? config("pull.rebase") : branchRebase).lowercased()
+    public func pullDefaults(cancellation: OperationCancellation? = nil) throws -> PullDefaults {
+        let current = try branch(cancellation: cancellation)
+        func config(_ key: String) throws -> String {
+            do { return try run(["config", "--get", key], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+            catch { try cancellation?.check(); return "" }
+        }
+        let remote = current.isEmpty ? "" : try config("branch." + current + ".remote")
+        let merge = current.isEmpty ? "" : try config("branch." + current + ".merge")
+        let branchRebase = current.isEmpty ? "" : try config("branch." + current + ".rebase")
+        let rebase = current.isEmpty ? "false" : (branchRebase.isEmpty ? try config("pull.rebase") : branchRebase).lowercased()
         return PullDefaults(trackedRemote: remote, trackedBranch: merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : merge,
                             rebase: ["true", "yes", "on", "1", "merges", "interactive", "preserve"].contains(rebase), preserveMerges: ["merges", "preserve"].contains(rebase))
     }
     public func pull(_ options: PullOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         guard !(options.noFastForward && options.fastForwardOnly) else { throw PullFailure.combination }
-        let defaults = try pullDefaults()
+        let defaults = try pullDefaults(cancellation: cancellation)
         // Upstream routes configured rebase through Fetch + its interactive Rebase dialog.
         guard !defaults.rebase || options.fetch.arbitraryURL else { throw PullFailure.rebaseWorkflow }
         let fetch = options.fetch, names = try remoteNames()

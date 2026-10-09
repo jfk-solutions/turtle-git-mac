@@ -85,43 +85,48 @@ extension GitRepository {
         } catch { throw FetchRebaseExecutionFailure(output: output, details: error.localizedDescription, commandFailure: error as? GitFailure) }
     }
 
-    private func fetchConfig(_ key: String) -> String { ((try? run(["config", "--get", key]).text) ?? "").trimmingCharacters(in: .newlines) }
-    public func fetchDefaults(remote selected: String? = nil) throws -> FetchDefaults {
-        let names = try remoteNames(), current = try branch()
-        let tracked = current.isEmpty ? "" : fetchConfig("branch." + current + ".remote")
+    private func fetchConfig(_ key: String, cancellation: OperationCancellation?) throws -> String {
+        do { return try run(["config", "--get", key], cancellation: cancellation).text.trimmingCharacters(in: .newlines) }
+        catch { try cancellation?.check(); return "" }
+    }
+    public func fetchDefaults(remote selected: String? = nil, cancellation: OperationCancellation? = nil) throws -> FetchDefaults {
+        let names = try remoteNames(cancellation: cancellation), current = try branch(cancellation: cancellation)
+        let tracked = current.isEmpty ? "" : try fetchConfig("branch." + current + ".remote", cancellation: cancellation)
         let remote = selected ?? (names.contains(tracked) ? tracked : (names.count == 1 ? names[0] : ""))
-        let merge = current.isEmpty ? "" : fetchConfig("branch." + current + ".merge")
-        let submoduleBranch = merge.isEmpty ? ((try? fetchSubmoduleBranch()) ?? "") : ""
+        let merge = current.isEmpty ? "" : try fetchConfig("branch." + current + ".merge", cancellation: cancellation)
+        let submoduleBranch: String
+        do { submoduleBranch = merge.isEmpty ? try fetchSubmoduleBranch(cancellation: cancellation) : "" }
+        catch { try cancellation?.check(); submoduleBranch = "" }
         let branchName = merge.hasPrefix("refs/heads/") ? String(merge.dropFirst(11)) : (merge.isEmpty ? (submoduleBranch.isEmpty ? current : submoduleBranch) : merge)
-        let tagopt = fetchConfig("remote." + remote + ".tagopt")
-        let remotePrune = fetchConfig("remote." + remote + ".prune")
+        let tagopt = try fetchConfig("remote." + remote + ".tagopt", cancellation: cancellation)
+        let remotePrune = try fetchConfig("remote." + remote + ".prune", cancellation: cancellation)
         return FetchDefaults(remote: remote, branch: branchName, tags: tagopt == "--no-tags" ? "None" : tagopt == "--tags" ? "All" : "Reachable",
-                             prune: remotePrune.isEmpty ? fetchConfig("fetch.prune") : remotePrune,
-                             shallow: try run(["rev-parse", "--is-shallow-repository"]).text.trimmingCharacters(in: .newlines) == "true",
-                             bare: try run(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) == "true")
+                             prune: remotePrune.isEmpty ? try fetchConfig("fetch.prune", cancellation: cancellation) : remotePrune,
+                             shallow: try run(["rev-parse", "--is-shallow-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true",
+                             bare: try run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true")
     }
     /// PullFetchDlg asks libgit2 for the registered parent's .gitmodules branch.
     /// This display default does not use Git's submodule-update config override
     /// or expand the special dot value to the parent's current branch.
-    private func fetchSubmoduleBranch() throws -> String {
-        guard let parent = try registeredSubmoduleParent() else { return "" }
+    private func fetchSubmoduleBranch(cancellation: OperationCancellation?) throws -> String {
+        guard let parent = try registeredSubmoduleParent(cancellation: cancellation) else { return "" }
         let modules = parent.appendingPathComponent(".gitmodules")
         let relative = String(root.path.dropFirst(parent.path.count + 1))
-        let names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1).stdout.split(separator: 0)
+        let names = try run(["config", "--no-includes", "--null", "--file", modules.path, "--name-only", "--get-regexp", "^submodule\\..*\\.path$"], successfulExitCodes: 0...1, cancellation: cancellation).stdout.split(separator: 0)
         for rawName in names {
             let name = String(decoding: rawName, as: UTF8.self)
-            let paths = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", name], successfulExitCodes: 0...1).stdout.split(separator: 0)
+            let paths = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get-all", name], successfulExitCodes: 0...1, cancellation: cancellation).stdout.split(separator: 0)
             guard paths.contains(where: { $0.elementsEqual(relative.utf8) }) else { continue }
             let key = String(name.dropLast(4)) + "branch"
-            var bytes = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get", key], successfulExitCodes: 0...1).stdout
+            var bytes = try run(["config", "--no-includes", "--null", "--file", modules.path, "--get", key], successfulExitCodes: 0...1, cancellation: cancellation).stdout
             if bytes.last == 0 { bytes.removeLast() }
             return String(decoding: bytes, as: UTF8.self)
         }
         return ""
     }
-    public func remoteBranches(remote: String) throws -> [String] {
+    public func remoteBranches(remote: String, cancellation: OperationCancellation? = nil) throws -> [String] {
         guard !remote.isEmpty, !remote.contains("\0") else { throw FetchFailure.remote }
-        return try run(["ls-remote", "--heads", "--", remote]).text.split(separator: "\n").compactMap { line in
+        return try run(["ls-remote", "--heads", "--", remote], cancellation: cancellation).text.split(separator: "\n").compactMap { line in
             let fields = line.split(separator: "\t", maxSplits: 1)
             guard fields.count == 2, fields[1].hasPrefix("refs/heads/") else { return nil }
             return String(fields[1].dropFirst(11))
@@ -129,14 +134,15 @@ extension GitRepository {
     }
     public func fetch(_ options: FetchOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
-        let names = try remoteNames()
+        let names = try remoteNames(cancellation: cancellation)
         guard !(options.allRemotes && options.arbitraryURL), options.allRemotes ? !names.isEmpty : (!options.remote.isEmpty && !options.remote.contains("\0") && (options.arbitraryURL || names.contains(options.remote))) else { throw FetchFailure.remote }
         if let depth = options.depth, depth <= 0 { throw FetchFailure.depth }
         let branch = options.branch.trimmingCharacters(in: .whitespacesAndNewlines)
         let useBranch = !options.allRemotes && (options.arbitraryURL || !options.namedRemoteFetchAll) && !branch.isEmpty
         if useBranch {
             let full = branch.hasPrefix("refs/heads/") ? branch : "refs/heads/" + branch
-            guard (try? run(["check-ref-format", full])) != nil else { throw FetchFailure.branch }
+            do { _ = try run(["check-ref-format", full], cancellation: cancellation) }
+            catch { try cancellation?.check(); throw FetchFailure.branch }
         }
         var args = ["fetch", "--progress", "--verbose"]
         if let depth = options.depth { args.append("--depth=" + String(depth)) }

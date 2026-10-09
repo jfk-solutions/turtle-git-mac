@@ -348,3 +348,15 @@ recorded live process cleanup. Private preferences and fixtures are removed afte
 the receiver. This does not establish physical/signed UI acceptance. Run
 `ReferenceCreationTests`, creation-picker and browser-Merge receiver regressions
 when changing the shared creation factory or context menu.
+
+### Reference browser Fetch
+
+After Debug build, run `python3 scripts/test-reference-fetch.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The receiver uses hidden shipping controllers, private preferences and local
+producer/client repositories. It verifies original menu/icon/order, remote preset,
+real fetch and retained acknowledgement/catalog refresh, ownership/rejection,
+standalone Quit and recorded live metadata/transport cleanup. It checks unchanged
+local HEAD/index/worktree and does not launch the main app or use the network.
+Retain Fetch/Pull streaming, Fetch/Rebase decisions, cancellation and submodule
+defaults as regression gates. Physical/signed acceptance remains separate.
