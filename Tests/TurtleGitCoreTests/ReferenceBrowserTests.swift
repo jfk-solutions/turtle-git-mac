@@ -2,6 +2,38 @@ import XCTest
 @testable import TurtleGitCore
 
 final class ReferenceBrowserTests: XCTestCase {
+    func testCurrentBranchReadsLiveHeadUnbornDetachedBareWorktreeAndCancellation() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        let initial = try await repo.referenceBrowser()
+        _ = try await repo.run(["branch", "late/topic"])
+        _ = try await repo.run(["symbolic-ref", "HEAD", "refs/heads/late/topic"])
+        XCTAssertEqual(initial.currentBranch, "refs/heads/main")
+        let live = try await repo.referenceBrowserCurrentBranch(); XCTAssertEqual(live, "refs/heads/late/topic")
+        _ = try await repo.run(["checkout", "--detach", head])
+        let detached = try await repo.referenceBrowserCurrentBranch(); XCTAssertEqual(detached, head)
+        let bareRoot = root.appendingPathComponent("bare.git"); _ = try await repo.run(["clone", "--bare", root.path, bareRoot.path])
+        let bare = GitRepository(root: bareRoot, executable: repo.executable)
+        _ = try await bare.run(["update-ref", "--no-deref", "HEAD", head])
+        let bareDetached = try await bare.referenceBrowserCurrentBranch(); XCTAssertEqual(bareDetached, head)
+        _ = try await bare.run(["symbolic-ref", "HEAD", "refs/heads/main"])
+        let bareBranch = try await bare.referenceBrowserCurrentBranch(); XCTAssertEqual(bareBranch, "refs/heads/main")
+        let unbornRoot = root.appendingPathComponent("unborn.git"); _ = try await repo.run(["init", "--bare", "-b", "unborn/topic", unbornRoot.path])
+        let unborn = try await GitRepository(root: unbornRoot, executable: repo.executable).referenceBrowserCurrentBranch(); XCTAssertEqual(unborn, "refs/heads/unborn/topic")
+        let worktreeRoot = root.appendingPathComponent("linked"); _ = try await repo.run(["worktree", "add", worktreeRoot.path, "late/topic"])
+        let linked = try await GitRepository(root: worktreeRoot, executable: repo.executable).referenceBrowserCurrentBranch(); XCTAssertEqual(linked, "refs/heads/late/topic")
+        // Preserve the actual symbolic HEAD spelling even with precomposition enabled.
+        _ = try await repo.run(["config", "core.precomposeunicode", "true"])
+        try Data("ref: refs/heads/Cafe\u{301}/unborn\n".utf8).write(to: root.appendingPathComponent(".git/HEAD"))
+        let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config")), headBytes = try Data(contentsOf: root.appendingPathComponent(".git/HEAD"))
+        let unicode = try await repo.referenceBrowserCurrentBranch(); XCTAssertTrue(unicode.utf8.elementsEqual("refs/heads/Cafe\u{301}/unborn".utf8))
+        let cancelled = OperationCancellation(); cancelled.cancel()
+        do { _ = try await repo.referenceBrowserCurrentBranch(cancellation: cancelled); XCTFail("Cancelled current-branch query ran") } catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(config, try Data(contentsOf: root.appendingPathComponent(".git/config")))
+        XCTAssertEqual(headBytes, try Data(contentsOf: root.appendingPathComponent(".git/HEAD")))
+        XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index")))
+        XCTAssertEqual(try Data(contentsOf: root.appendingPathComponent("file")), Data("base\n".utf8))
+    }
     func fixture() async throws -> (URL, GitRepository) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-reference-browser-core-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

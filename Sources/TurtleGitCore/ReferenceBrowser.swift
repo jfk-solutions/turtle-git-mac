@@ -71,6 +71,17 @@ public enum ReferenceBrowserFailure: LocalizedError {
     public var errorDescription: String? { "Git returned an invalid reference-browser record." }
 }
 extension GitRepository {
+    /// BrowseRefsDlg's Current Branch accepts live HEAD, independently of the
+    /// displayed catalog/filter. Keep local names canonical for native typed
+    /// chooser consumers; detached HEAD returns its full object ID.
+    public func referenceBrowserCurrentBranch(cancellation: OperationCancellation? = nil) throws -> String {
+        let head = try run(["symbolic-ref", "--quiet", "HEAD"], successfulExitCodes: 0...1, cancellation: cancellation)
+        if head.exitCode == 0 {
+            let name = head.text.trimmingCharacters(in: .newlines)
+            return GitReferenceName.removingPrefix("refs/heads/", from: name) == nil ? "HEAD" : name
+        }
+        return try run(["rev-parse", "--verify", "HEAD"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
+    }
     public func referenceBrowser(filter: ReferenceBrowserMergeFilter = .all, scope: ReferenceBrowserScope = .all, cancellation: OperationCancellation? = nil) throws -> ReferenceBrowserSnapshot {
         let atoms = ["refname", "objectname", "objecttype", "symref", "upstream", "subject", "authorname", "authoremail", "authordate:unix", "committername", "committeremail", "committerdate:unix", "taggername", "taggeremail", "taggerdate:unix"]
         var arguments = ["for-each-ref", "--sort=refname", "--format=" + atoms.map { "%(" + $0 + ")" }.joined(separator: "%00") + "%00"]

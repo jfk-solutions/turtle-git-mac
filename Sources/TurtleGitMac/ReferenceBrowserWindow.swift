@@ -72,7 +72,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         let child = ReferenceBrowserWindowController(repository: model.repository, access: model.access, initial: "HEAD", preferences: model.preferences, scope: .remotes) { [weak self] upstream in
             guard let self, self.trackingRequest == request, !self.model.closed else { return }
             self.trackingRequest = nil
-            if let upstream { self.model.changeTracking(reference, upstream: GitReferenceName(upstream)) }
+            if let upstream, GitReferenceName.removingPrefix("refs/remotes/", from: upstream) != nil { self.model.changeTracking(reference, upstream: GitReferenceName(upstream)) }
         }
         child.model.onLog = model.onLog; child.model.onBrowse = model.onBrowse; child.model.onCompare = model.onCompare; child.model.configureSwitch = model.configureSwitch
         trackingPicker = child; configureTrackingPicker(child)
@@ -115,6 +115,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private var token: OperationCancellation?
     private var invalidated = false
     private(set) var changingTracking = false
+    private var resolvingCurrentBranch = false
     private(set) var initialFocusPending = true
     var closed: Bool { invalidated }
     @Published private(set) var renameReference: GitReferenceName?
@@ -219,7 +220,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
     }
     func load(preservingError: String? = nil) {
-        guard !invalidated, !hasChild, !changingTracking, renameReference == nil else { return }
+        guard !invalidated, !hasChild, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
         let filter = mergeFilter
@@ -234,11 +235,27 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func invalidate() { invalidated = true; changingTracking = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
+    func invalidate() { invalidated = true; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
     func setFolder(_ folder: GitReferenceName) { guard !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
     func refilter() { if let selected, !rows.contains(where: { $0.reference.name == selected }) { self.selected = nil } }
     func nestedChanged() { preferences.set(nested, forKey: "RefBrowserIncludeNestedRefs"); load() }
-    func currentBranch() { guard !busy, !hasChild, renameReference == nil, let snapshot, let branch = snapshot.currentBranch else { return }; let choice = snapshot.initialSelection(branch.rawValue); folder = choice.folder; selected = choice.reference; refilter() }
+    var canChooseCurrentBranch: Bool { !invalidated && !busy && !hasChild && renameReference == nil }
+    func currentBranch() {
+        guard canChooseCurrentBranch else { return }
+        let request = OperationCancellation(); token = request; resolvingCurrentBranch = true; busy = true; error = nil
+        Task {
+            do {
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+                let revision = try await repository.referenceBrowserCurrentBranch(cancellation: request)
+                guard !invalidated, token === request, !request.isCancelled else { return }
+                token = nil; resolvingCurrentBranch = false; busy = false; finish(revision)
+            } catch {
+                guard !invalidated, token === request else { return }
+                token = nil; resolvingCurrentBranch = false; busy = false
+                if !request.isCancelled { self.error = error.localizedDescription }
+            }
+        }
+    }
     func accept() { guard canAccept, let chosen else { return }; finish(chosen.name.rawValue) }
     func cancel() { finish(nil) }
     func focusIfReady(_ table: NSTableView) {
@@ -265,7 +282,7 @@ struct ReferenceBrowserDialog: View {
                 Toggle("Show nested refs", isOn: $model.nested).onChange(of: model.nested) { _ in model.nestedChanged() }.disabled(model.busy || model.renameReference != nil)
                 Text("Showing \(model.rows.count) ref(s), \(model.chosen == nil ? 0 : 1) ref(s) selected").font(.system(size: 11)).foregroundStyle(.secondary)
                 if model.busy { ProgressView().controlSize(.small) }; Spacer()
-                Button("Current Branch") { model.currentBranch() }.disabled(model.busy || model.renameReference != nil || model.snapshot?.currentBranch == nil)
+                Button("Current Branch") { model.currentBranch() }.disabled(!model.canChooseCurrentBranch)
                 Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canAccept)
                 Button("Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(model.busy || model.renameReference != nil)
                 Button { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-browse-ref.html")!) } label: { CommandLabel(title: "Help", icon: .help) }

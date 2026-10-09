@@ -1,0 +1,60 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "f5795b3",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/TortoiseProc/BrowseRefsDlg.cpp": "735fd67f1fcd366d415fd397344032eb5f297f51"
+  },
+  "scope": "Correct reference-browser Current Branch acceptance; whole port remains incomplete.",
+  "verification": {
+    "source": "OnBnClickedCurrentbranch accepts GetCurrentBranch(true) and closes. Git.cpp reads local branch (including unborn), full detached hash or HEAD fallback. Native internal local names remain canonical for typed chooser classification. Tracking picker owner ignores non-remote results as pinned BrowseRefsDlg does. Git read failures produce visible errors rather than source (no branch) placeholder.",
+    "core": "Nine ReferenceBrowserTests pass with Apple and bundled Git: live HEAD after stale snapshot, detached, unborn, bare, linked worktree, exact NFD symbolic HEAD with precomposition enabled, pre-cancelled request and unchanged read-only HEAD/config/index/file bytes, plus existing browser metadata/rename/tracking regressions.",
+    "native": "Existing full hidden browser/Reset/Reflog receiver expanded and passes both engines. Current Branch accepts filtered-out live branch, detached, unborn and bare HEAD, closes once, blocks duplicate/refresh/accept/cancel/ordinary close and owned child. Immediate forced controller close cancels query and fences late callback. Actual owned remote-only tracking child accepts local Current Branch but parent releases without config mutation/error. Existing native tracking receiver passes both engines including normal remote set/unset and error gates.",
+    "cycles": "Zero AttributeGraph cycle warnings in both final native logs.",
+    "debug": "Unsigned Debug build and standalone bundle audit pass.",
+    "inventory": "Pin checker passes; mappings remain partial.",
+    "site": "Local Pages rebuild passes; no deployment or new captures.",
+    "ci": "Existing workflow command invokes expanded receiver; hosted status unverified.",
+    "store": "Unsigned AppStore build and required standalone bundle audit pass: universal bundled Git 2.55.0, LFS 3.8.0, EditorConfig and IssueRegex runtimes, embedded Finder extension, license notices and all 99 upstream icons. Signed execution/App Store acceptance unverified.",
+    "notice": "Both packaged NOTICE files byte-equal source."
+  },
+  "limitations": [
+    "No physical button, sheet, focus restoration, keyboard/IME, light/dark or accessibility acceptance established by hidden receivers.",
+    "Forced close checked before query execution; forced close during an already running Git query and concurrent external HEAD changes remain unverified.",
+    "Signed App Store execution, Finder activation, full menu/dialog functionality, updated physical screenshots and whole port remain incomplete.",
+    "No main app launches, RepositoryModel constructor or shared Finder preferences, network, push or deployment."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.5550DFE9-2D01-4897-BD70-FAE21D3892CD",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceBrowser.QA.D846C340-C989-4A8F-9182-D8E13CDCE5B4",
+        "defaults_delete_exit": 1,
+        "verified_empty": true,
+        "file_remaining": false
+      }
+    ],
+    "all_handles_terminal": true,
+    "remaining_owned_processes": [],
+    "remaining_current_preference_files": [],
+    "remaining_current_receiver_fixtures": [],
+    "older_worktree_preferences_retained": true
+  },
+  "local_logs": "build/qa/reference-current-branch-2026-10-09",
+  "sha256": {
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "ba41f189d9ad8f198531bb2044f4ba2b240829fb53990b12c937d64524b55980",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "fee8bd852ee047206609c66a9ebd08d1c7be9f1e5a6ae00dbb8501be95183b28",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "49f566bd5621c914e24d1984cd57e6a18d06d793e1473b849a1eeff4a67e7016",
+    "docs/REFERENCE-BROWSER-PARITY.md": "1a21f9ce2f691bbb2f9d6cf397000f9edb267a3b077ae6fd267f3f8098b979c3",
+    "docs/TESTING.md": "055c51d82966224109d47596d3163b5d0a692626111d2a004a49e89fec7d7f6e",
+    "docs/upstream-files.csv": "53bb0b91a8e41ea428bb113b51e5e73ff4fd7418b25a8897482de174a13484a4",
+    "docs/qa/reference-browser-native-2026-10-09.swift": "7baeb2619e9cd04b31c8412e14f55f5879d1eb889661c0bc025b96cd4224aa91"
+  }
+}

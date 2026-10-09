@@ -30,8 +30,14 @@ Filter fields are Refname, Subject, Authors and SHA-1, initially all enabled.
 Refname filtering uses the displayed name relative to the selected directory.
 The source non-regex, case-insensitive token filter is reused, including its
 post-quote prefix behavior. Show nested refs is persisted and reloads the catalog.
-All/Only merged/Only unmerged use HEAD reachability. Current Branch jumps to the
-symbolic HEAD reference. F5 refreshes the catalog. Column clicks change sort and
+All/Only merged/Only unmerged use HEAD reachability. **Current Branch** accepts
+live HEAD and closes the browser, even when the current branch is filtered out
+or absent from the displayed catalog. A local branch is returned canonically
+for the native typed choosers; upstream returns its short name. Detached HEAD
+returns its full object ID, and an unborn local branch is still selectable.
+This follows `OnBnClickedCurrentbranch` and `GetCurrentBranch(true)` rather than
+treating the button as a navigation shortcut. Non-local symbolic HEAD falls
+back to HEAD. Git read failures remain visible errors. F5 refreshes the catalog. Column clicks change sort and
 native indicators; names use macOS logical comparison, dates use numeric epochs,
 and hashes use case-insensitive lexical comparison. Exact Windows sort policies,
 large catalog performance and all metadata/error variants remain pending.
@@ -192,3 +198,21 @@ visual/accessibility/signed behavior or a complete new-route checkout transactio
 Forced close during active checkout/progress and late initial Switch metadata
 publication remain unverified. Merge, Fetch, creation/tree/range/deletion commands
 and the full port remain unfinished.
+
+## Current Branch acceptance correction
+
+The Current Branch read uses a cancellable request and live repository metadata.
+Duplicate acceptance, refresh, ordinary close and other choices are blocked while
+it runs; forced controller cleanup cancels the request and rejects late results.
+The remote-only tracking picker can return a local Current Branch choice, as in
+upstream; its owner ignores that non-remote result without changing configuration.
+
+Core coverage includes live branch changes after a cached snapshot, detached and
+unborn HEAD, bare repositories, linked worktrees, exact Unicode HEAD spelling,
+cancellation and read-only repository bytes. The hidden native receiver also
+covers filtered-out choices, single completion/close, owned-child locks, immediate
+forced close and the owned tracking picker. These checks do not prove physical
+button interaction, sheet focus restoration or concurrent external HEAD writes.
+
+See [Current Branch checkpoint evidence](qa/reference-current-branch-2026-10-09.json)
+for the tested cases and remaining limits.

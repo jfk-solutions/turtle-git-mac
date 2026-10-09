@@ -76,7 +76,9 @@ import TurtleGitCore
         try require(picker.model.snapshot?.references.first?.name == "refs/heads/unmerged", "Unmerged filter differs")
         picker.model.mergeFilter = .merged; picker.model.load(); try await wait([window]) { !picker.model.busy && !(picker.model.snapshot?.references.contains(where: { $0.name == "refs/heads/unmerged" }) ?? true) }
         picker.model.mergeFilter = .all; picker.model.load(); try await wait([window]) { !picker.model.busy && picker.model.snapshot?.references.contains(where: { $0.name == "refs/heads/unmerged" }) == true }
-        picker.model.currentBranch(); try await wait([window]) { table.selectedRow >= 0 && picker.model.selected == "refs/heads/main" }
+        let mainChoice = picker.model.snapshot!.initialSelection("refs/heads/main")
+        picker.model.setFolder(mainChoice.folder); picker.model.selected = mainChoice.reference
+        try await wait([window]) { table.selectedRow >= 0 && picker.model.selected == "refs/heads/main" }
         try require(table.tableColumn(withIdentifier: .init("description"))?.isHidden == false && picker.model.rows.first(where: { $0.name == "main" }).map { picker.model.text($0, column: "description") } == "first second", "Heads metadata differs")
         phase("Icon context callbacks and owned Reflog")
         func menu() throws -> NSMenu { guard let menu = table.menu else { throw Failure(description: "No menu") }; menu.delegate?.menuNeedsUpdate?(menu); return menu }
@@ -139,6 +141,53 @@ import TurtleGitCore
         bareMenu.delegate?.menuNeedsUpdate?(bareMenu); try require(bare.model.bare && bareMenu.indexOfItem(withTitle: "Compare with working tree") == -1, "Bare working-tree command exposed")
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         try require(head == afterHead && config == Data(contentsOf: root.appendingPathComponent(".git/config")) && index == Data(contentsOf: root.appendingPathComponent(".git/index")) && working == Data(contentsOf: root.appendingPathComponent("file")), "Browser mutated HEAD/config/index/working bytes")
+        phase("Current Branch accepts live HEAD, closes once and respects owned picker gates")
+        let currentRoot = root.appendingPathComponent("current-branch-fixture")
+        _ = try await repo.run(["clone", "--no-hardlinks", root.path, currentRoot.path])
+        let currentRepo = GitRepository(root: currentRoot, executable: git)
+        _ = try await currentRepo.run(["config", "core.hooksPath", "/dev/null"])
+        func checkCurrent(_ repository: GitRepository, expected: String, prepare: (() async throws -> Void)? = nil) async throws {
+            var calls = 0, chosen: String?
+            let child = ReferenceBrowserWindowController(repository: repository, access: nil, initial: "HEAD", preferences: prefs) { chosen = $0; calls += 1 }; defer { child.close() }
+            child.model.load(); try await wait([child.window!]) { !child.model.busy && child.model.snapshot != nil }
+            try await prepare?()
+            child.model.query = "no-matching-reference"; child.model.refilter()
+            try require(child.model.chosen == nil && child.model.canChooseCurrentBranch, "Current Branch incorrectly requires a visible row")
+            child.model.hasChild = true; child.model.currentBranch()
+            try require(calls == 0 && !child.model.busy, "Current Branch escaped owned child")
+            child.model.hasChild = false
+            let oldSnapshot = child.model.snapshot
+            child.model.currentBranch(); child.model.currentBranch(); child.model.load(); child.model.accept(); child.model.cancel()
+            try require(child.model.busy && calls == 0 && !child.windowShouldClose(child.window!), "Current Branch query/duplicate/refresh/close gates escaped")
+            try await wait([child.window!]) { child.model.closed }
+            try require(calls == 1 && GitReferenceName.equal(chosen ?? "", expected) && child.model.snapshot?.references.count == oldSnapshot?.references.count && !child.window!.isVisible, "Current Branch result/close differs")
+            child.model.currentBranch(); child.model.accept(); child.model.cancel()
+            try require(calls == 1 && !child.model.busy, "Closed Current Branch completed twice")
+        }
+        try await checkCurrent(currentRepo, expected: "refs/heads/late/topic") {
+            _ = try await currentRepo.run(["branch", "late/topic"])
+            _ = try await currentRepo.run(["symbolic-ref", "HEAD", "refs/heads/late/topic"])
+        }
+        _ = try await currentRepo.run(["checkout", "--detach", head])
+        try await checkCurrent(currentRepo, expected: head)
+        let unbornRoot = root.appendingPathComponent("current-unborn.git")
+        _ = try await repo.run(["init", "--bare", "-b", "unborn/topic", unbornRoot.path])
+        try await checkCurrent(GitRepository(root: unbornRoot, executable: git), expected: "refs/heads/unborn/topic")
+        try await checkCurrent(GitRepository(root: bareRoot, executable: git), expected: "refs/heads/main")
+        var forcedCalls = 0, forcedResult: String?
+        let forced = ReferenceBrowserWindowController(repository: currentRepo, access: nil, initial: "HEAD", preferences: prefs) { value in forcedResult = value; forcedCalls += 1 }; defer { forced.close() }
+        forced.model.load(); try await wait([forced.window!]) { !forced.model.busy && forced.model.snapshot != nil }
+        forced.model.currentBranch(); forced.close()
+        for _ in 0..<30 { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(forced.model.closed && !forced.model.busy && forcedCalls == 1 && forcedResult == nil && forced.model.error == nil, "Closed current-branch query published late")
+        let trackingOwner = ReferenceBrowserWindowController(repository: repo, access: nil, initial: "main", preferences: prefs) { _ in }; defer { trackingOwner.close() }
+        trackingOwner.presentTrackingPicker = { parent, child in parent.makeFirstResponder(nil); return !parent.isVisible && !child.isVisible }
+        trackingOwner.model.load(); try await wait([trackingOwner.window!]) { !trackingOwner.model.busy && trackingOwner.model.chosen != nil }
+        trackingOwner.selectTracking()
+        guard let trackingChild = trackingOwner.trackingPicker else { throw Failure(description: "Tracking picker missing") }
+        try await wait([trackingChild.window!]) { !trackingChild.model.busy && trackingChild.model.snapshot != nil }
+        trackingChild.model.currentBranch(); try await wait([trackingOwner.window!]) { trackingOwner.trackingPicker == nil }
+        try require(!trackingOwner.model.hasChild && !trackingOwner.model.busy && trackingOwner.model.error == nil && config == Data(contentsOf: root.appendingPathComponent(".git/config")), "Tracking picker applied local Current Branch")
         print("PASS: native reference tree and nine-column single-select table, logical sort/filter/nested persistence/merge/current branch/focus, byte-distinct Unicode and annotated-tag/blob/bare menu gates, original context icons/canonical callbacks and owned Reflog; Reset namespace handoff/fresh catalog/input focus/draft/cancel/stale/reject/duplicate/cross-modal/reset/apply/close/Quit/forced-close locks. Unchanged HEAD/config/index/working bytes. Private defaults/fixtures, no ordered windows or actual sheets; physical/signed/full browser parity unverified.")
     }
 }

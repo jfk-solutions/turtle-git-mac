@@ -279,3 +279,10 @@ Cancel/reject/parent/Quit locks and forced nested picker cleanup without ordered
 windows. Keep `test-switch-progress.py` and `test-switch-pickers.py` regressions
 for real checkout/progress and full chooser behavior. No physical/signed acceptance
 or production RepositoryModel construction is claimed by the route receiver.
+
+The reference-browser receiver additionally checks Current Branch acceptance and
+close against live HEAD after loading a stale catalog, filtered-out choices,
+detached/unborn/bare HEAD, duplicate/refresh/close/owned-child gates, forced close
+before query execution and a non-remote Current Branch result from the owned
+tracking picker. Core tests include linked worktrees and exact Unicode HEAD
+spelling. This is hidden controller coverage, not physical button/sheet acceptance.
