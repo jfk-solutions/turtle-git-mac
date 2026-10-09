@@ -1,0 +1,99 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "1c3318c",
+  "scope": "Source Log match ranges, display-column gates and editable FilterMatch foreground; full app port remains incomplete",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/FilterHelper.cpp": "16d8473f1168f61ebd7aff83444bbf8163fc00b8",
+    "src/TortoiseProc/FilterHelper.h": "9e1483e256598565dcdc38052f8c8e2e29248528",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/Colors.cpp": "f83b8e189b041998f4627aa0da31c38f6899394e",
+    "src/TortoiseProc/Settings/SettingsColors2.cpp": "f7e9d4bb7d159d02db11fc7ce180a74576d78c6b"
+  },
+  "sources_manifest_sha256": "f08c7ab63fded2a37d2d340b1dfe048489388b400c06ab3e6287d9c3c6c08e77",
+  "changed_files_sha256": {
+    "NOTICE": "789ebd6afe708445e1761c4ac98fd5fbe44a4dda8162f003fe9ee597c88cfa04",
+    "Sources/TurtleGitCore/CommitHistory.swift": "502b61f14cbbe3c2577f6afc5ed5427f9e58604aa3cc64db383274c318d46cca",
+    "Sources/TurtleGitCore/HistoryHighlights.swift": "800d896a9d476593e50e6bca4352f6bef2db6d83b69ecd90f1b8a42c9b988eb9",
+    "Sources/TurtleGitCore/IssueRegex.swift": "6787818b91f927fa4baaf407fd1bc558d67cff5e6a25f9ade9ca9b0161c6bc41",
+    "Sources/TurtleGitIssueRegex/main.cpp": "ed7dbab5761271be9cb49b72a46fb031e977aabc94b019fcc454bd860db51abc",
+    "Sources/TurtleGitMac/LogAppearance.swift": "3ad5c0b368dfd969a253cb3b10d50c0e687f5dc9b708528b7e0cdab9ff87552f",
+    "Sources/TurtleGitMac/LogSearchHighlights.swift": "5c216a08ffefd8cf605c534100caab3f148680220e35c5b9e30eed73ced0bc0a",
+    "Sources/TurtleGitMac/LogWindow.swift": "a0564ce26b89013bf0b6f225f4fe50cc269009006470e584a36caba0ecc282b0",
+    "Tests/TurtleGitCoreTests/HistoryHighlightTests.swift": "1a8baaa7ee125c362db82d3b1de728551095ba9e99bdd67c58120bcd2d9639e2",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "0d5eea9969257e16165084000bc3a9de52ea1aee005c16a01a023d8046d3d3c8",
+    "docs/APPEARANCE.md": "74cdf39d63ca3bc38db3aa64a19031671a106f24bd8cd0fbd9225fd075f739af",
+    "docs/LOG-PARITY.md": "838684c7478bb5f977eb165df2592c5e4dd20f9f202f8edd22a5fec9bcaaac95",
+    "docs/TESTING.md": "e4ce23f67814c9f2c1a95d9dc0ffcfb4898014b53266cb903dadd92bbb5736fd",
+    "docs/qa/log-message-line-native-2026-10-09.swift": "cd51b2cc7a69303d1eace1d30dba195f5064b930f481699c76979796d39913e7",
+    "docs/upstream-files.csv": "fcfa2b061b510c488fe9cdcbc68c3889ea2bd9c0b563f8928faba8a4ae5c6772",
+    "scripts/build-issue-regex-runtime.py": "34cc2a87b218c27da9a2cac1d0aadf8b9da3a3145936f383c51d8416a8cb3ed7",
+    "scripts/test-log-message-line.py": "063cfb75fda1ef5c7820f8c5dcfd3bed979e742493ef12fc712e2edcc72c5c09",
+    "scripts/validate-issue-regex-runtime.py": "d485d4e2bb979132a26d3452984f2f06ddfa37a48fc3260c21ec138e9885f11e"
+  },
+  "git_engines": {
+    "apple": "git version 2.50.1 (Apple Git-155)",
+    "bundled": "git version 2.55.0"
+  },
+  "verification": {
+    "core": "58 focused tests pass: 48 CommitHistoryTests, 5 IssueRegexTests, 3 LogMessageLineTests, 2 new HistoryHighlightTests. Covers positive/negative/inverted/quoted terms, overlap/adjacency, UTF-16 emoji, ECMAScript whole/zero-length matches, invalid patterns and cancellation; existing real history/read-only checks pass. Attribution-only comments added afterwards; final Debug compiles current Swift source. No full suite claim.",
+    "runtime": "Rebuilt universal macOS 13 matcher passes native, arm64 and x86_64 protocol fixtures, source/binary/provenance/license/linkage audit. Added batched Log ranges protocol; existing issue extraction, styling, code captures and log boolean protocol retained.",
+    "native": "Focused hidden receiver passes Apple and bundled Git. Real Log reloads with literal and regex filters inspect actual message attributes, source reference-label/full-message gates, invalid expression inactivity and unchanged-hash clearing. Actual author/committer name/email/hash cells inspected after revealing default-hidden metadata columns in owned table. Path-only gate has no highlighted display columns. Private FilterMatch settings model Apply/Cancel/Restore verified; default red message foreground resolved under Aqua, badge background and single-line layout retained. Existing private-pasteboard Subjects/Messages and Log/Blame cells still pass. Exact HEAD/index/config/branch/file bytes preserved. Rebase rendered text UNVERIFIED; focused flag does not claim full native acceptance. Final hidden-ref suppression and truly-unlabeled short Messages gate preparation checks also pass after final source change.",
+    "debug": "Final unsigned Debug build and bundle audit pass after active-filter and hidden-reference gates; generated project includes both new files. Current NOTICE matches packaged NOTICE.",
+    "store": "Final unsigned AppStore build and required universal Git/Git LFS bundle audit pass after hidden-reference gate; packaged NOTICE matches current source. All Core/Debug/runtime/native handles terminal before Store builds. No signed execution or App Store acceptance claimed.",
+    "inventory": "Four partial source mappings updated; pinned inventory checker passes.",
+    "site": "Local documentation generator succeeds; no new screenshots or deployment claimed."
+  },
+  "iterations": [
+    "First runtime validator edit was inserted at the signed early-exit print and failed Python indentation; moved fixtures to final protocol loop, rebuild and both-slice checks pass.",
+    "First Debug build failed because the generated project lacked the two new files. Regenerated from project.yml; only their eight file/build/group membership lines changed.",
+    "First native run passed message reload checks then could not create a default-hidden metadata cell. Receiver now reveals only its owned table columns before inspection; final both-engine run passes.",
+    "Added upstream active-filter gate before preparing ranges to skip unfiltered/invalid-filter work; final Debug and native verification include this change.",
+    "Final source review found the existing-refs/all-badges-hidden early return. Added suppression gate and native preparation checks for hidden refs versus truly unlabeled rows; final acceptance is rerun after this source change."
+  ],
+  "limitations": [
+    "No compiled Windows GetMatchRanges oracle or physical rendering comparison claimed. Windows locale casing, Swift lowercase expansion offsets and libc++ versus MSVC ECMAScript behavior require further acceptance. Renderer bounds checks prevent invalid spans.",
+    "Selected-row/dark/contrast physical colors, Retina/ellipsis/accessibility, long-history performance, signed sandbox and other shared-list consumers remain unverified. Existing appearance-transform evidence remains separate.",
+    "Whole dialogs/Finder/distribution/App Store, current screenshots/docs publication and GitHub push/hosted CI remain incomplete."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 5,
+    "removed_domains": [
+      "TurtleGit.MessageLine.Native.QA.9C4C98A3-A8A3-4113-B515-98CE9467C0DE",
+      "TurtleGit.MessageLine.Native.QA.2EE300AB-6F0E-49AD-88B7-286FF24DCF38",
+      "TurtleGit.MessageLine.Native.QA.F6978B4F-99B9-4DA5-B3F8-C4145DE7A7EA",
+      "TurtleGit.MessageLine.Native.QA.31226921-BC3B-49F5-AF0F-CC380E05EAFD",
+      "TurtleGit.MessageLine.Native.QA.3AC3841B-905E-4F93-A033-B25231446CF6"
+    ],
+    "remaining_processes": [],
+    "remaining_fixtures": [],
+    "pasteboard": "Owned named pasteboards released on passing receiver exits; failed receiver process terminated. System clipboard not touched."
+  },
+  "local_log_sha256": {
+    "build/qa/log-match-highlights-2026-10-09/cleanup.json": "06ff88d6c2c5258be5243ecee0e009107d90e705955334a453d0c7218386a467",
+    "build/qa/log-match-highlights-2026-10-09/core.log": "fff6ee8477e0ef71eac61ee8ddd3108ac679d20b96b466f025fa22a5fa8272dc",
+    "build/qa/log-match-highlights-2026-10-09/debug-audit-final.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-match-highlights-2026-10-09/debug-audit-ref-gate.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-match-highlights-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-match-highlights-2026-10-09/debug-final.log": "0a0cec76d6b702c578e5fa54aeb545d14881a8522d3afceb4e50c95f3956b656",
+    "build/qa/log-match-highlights-2026-10-09/debug-gated.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-match-highlights-2026-10-09/debug-ref-gate.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-match-highlights-2026-10-09/debug.log": "f61838aaa522bad2225fc1af2953ede196055e241d5591c6c02fa52279ed0c1e",
+    "build/qa/log-match-highlights-2026-10-09/native-final.log": "b0b3a424cdbc2e376952afd11c25578f07536659e71518c60cf0bf8697604a27",
+    "build/qa/log-match-highlights-2026-10-09/native-ref-gate.log": "b0b3a424cdbc2e376952afd11c25578f07536659e71518c60cf0bf8697604a27",
+    "build/qa/log-match-highlights-2026-10-09/native.log": "6924afef9778f11535615ffa091164dac9f2563361a754de614ee8246a510fd5",
+    "build/qa/log-match-highlights-2026-10-09/pin-final.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-match-highlights-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-match-highlights-2026-10-09/project.log": "747909a44a9dc6f2c4861b91f09bc1d70097cf9053754a85a84fa1f2b7e93566",
+    "build/qa/log-match-highlights-2026-10-09/runtime-attributed.log": "e6fe43915651fab968d7d555409559a532dbbd3d85613a142e69e74d1daa3228",
+    "build/qa/log-match-highlights-2026-10-09/runtime-final.log": "e6fe43915651fab968d7d555409559a532dbbd3d85613a142e69e74d1daa3228",
+    "build/qa/log-match-highlights-2026-10-09/runtime-slices.log": "347f6ff6cbc40fc934dc7804750ae7cc6faa8cb28655222d5bb387466f43e9a9",
+    "build/qa/log-match-highlights-2026-10-09/runtime.log": "06fdb8d16e5988a747a59f235fb5df39d3f0e457ac685fd48904366d47a4c934",
+    "build/qa/log-match-highlights-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-match-highlights-2026-10-09/store-audit-ref-gate.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-match-highlights-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-match-highlights-2026-10-09/store-ref-gate.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/log-match-highlights-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

@@ -78,6 +78,30 @@ public enum IssueRegexRuntime {
               rows.dropFirst().allSatisfy({ $0 == "0" || $0 == "1" }) else { throw HistoryRegexFailure.failed("Invalid log filter output.") }
         return rows.dropFirst().map { ($0 == "1") != inverted }
     }
+    static func logRanges(_ texts: [String], pattern: String, caseSensitive: Bool, executable: URL? = nil, cancellation: OperationCancellation? = nil) throws -> [[NSRange]] {
+        try cancellation?.check()
+        let expression = pattern.hasPrefix("!") ? String(pattern.dropFirst()) : pattern
+        var units: [UInt16] = []
+        for text in texts {
+            try cancellation?.check()
+            let value = Array(text.utf16)
+            guard value.count <= Int(UInt32.max) else { throw HistoryRegexFailure.failed("Log cell is too large.") }
+            units += [UInt16(truncatingIfNeeded: value.count), UInt16(truncatingIfNeeded: value.count >> 16)] + value
+        }
+        let output = try capture(message: "", check: expression, extract: "", executable: executable,
+            mode: [caseSensitive ? "--log-ranges-case" : "--log-ranges-insensitive"], messageUnits: units, cancellation: cancellation)
+        let rows = String(decoding: output, as: UTF8.self).split(separator: "\n")
+        var result = Array(repeating: [NSRange](), count: texts.count)
+        if rows == ["ranges\tinactive"] { return result }
+        guard rows.first == "ranges\tactive" else { throw HistoryRegexFailure.failed("Invalid highlight output.") }
+        for row in rows.dropFirst() {
+            let values = row.split(separator: "\t").compactMap { Int($0) }
+            guard values.count == 3, values[0] >= 0, values[0] < texts.count, values[1] >= 0, values[2] >= 0,
+                  values[1] <= texts[values[0]].utf16.count, values[2] <= texts[values[0]].utf16.count - values[1] else { throw HistoryRegexFailure.failed("Invalid highlight range.") }
+            result[values[0]].append(NSRange(location: values[1], length: values[2]))
+        }
+        return result.map(HistoryHighlighting.merge)
+    }
     static func capture(message: String, check: String, extract: String, executable: URL?, bundle: Bundle = .main, mode: [String] = [], messageUnits: [UInt16]? = nil, cancellation: OperationCancellation? = nil) throws -> Data {
         let parser = try executable ?? Self.executable(bundle: bundle)
         guard FileManager.default.isExecutableFile(atPath: parser.path) else { throw IssueRegexFailure.runtimeMissing }

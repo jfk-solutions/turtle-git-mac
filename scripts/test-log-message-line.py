@@ -29,6 +29,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-message-line-native-') as tem
     executable = directory / 'message-line-native-receiver'
     subprocess.run(['xcrun', 'swiftc', '-parse-as-library', '-swift-version', '5', '-target', platform.machine() + '-apple-macos13.0', '-I', str(products), '-F', str(products), *sources, str(app_copy), str(blame_copy), str(root / 'docs/qa/log-message-line-native-2026-10-09.swift'), '-framework', 'TurtleGitCore', '-o', str(executable)], cwd=root, check=True)
     environment = os.environ.copy(); environment['DYLD_FRAMEWORK_PATH'] = str(products)
+    environment['TURTLEGIT_QA_REGEX'] = str(products / 'TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex')
     for index, git in enumerate(git_paths):
         fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
         print('Checking ' + str(git), flush=True)

@@ -187,3 +187,9 @@ history and Rebase rows. Their shared renderer uses the raw first line for short
 mode and source CR/LF-to-space folding for full mode, preserving original
 reference-label styling and one-line truncation. The setting is captured when
 a window opens. See [message-line parity](LOG-PARITY.md#full-commit-message-on-each-log-line).
+
+Log search matches now use the editable Filter matches foreground role with
+source RGB(200,0,0), keeping badge backgrounds and the single-line message
+layout. The same source HSL appearance transform handles light/dark/contrast
+colors. See [Log highlighting](LOG-PARITY.md#search-match-foregrounds) for column
+gates and acceptance limits; no new physical screenshot is implied.

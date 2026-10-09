@@ -177,3 +177,12 @@ function; production private table code is unchanged. No main app or replay
 operation runs. Owned windows, temporary fixtures and preference domains close
 and remove on successful exit. As with other native receivers, do not edit
 sources or replace linked Debug products during execution.
+
+The focused message-line receiver also exercises real Log reloads and inspects
+actual attributed message cells for literal/ECMAScript match foregrounds,
+reference-label/full-message field gates, invalid regexes and same-identity
+range refresh. Build the updated IssueRegex runtime before Core/Debug checks:
+`python3 scripts/build-issue-regex-runtime.py`. Focused Core coverage is
+`swift test --filter 'HistoryHighlightTests|IssueRegexTests|CommitHistoryTests|LogMessageLineTests'`.
+See [highlight QA](qa/log-match-highlights-2026-10-09.json); these checks do not
+replace the pending physical or signed acceptance gates.

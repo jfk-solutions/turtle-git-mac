@@ -279,6 +279,19 @@ struct HistoryTextQuery {
             add(Array(units[start..<index]), prefix)
         }
     }
+    func matchRanges(in value: String) -> [NSRange] {
+        let text = (caseSensitive ? value : value.lowercased()) as NSString
+        var ranges: [NSRange] = []
+        for condition in conditions where condition.prefix != .andNot {
+            var offset = 0
+            while offset <= text.length {
+                let found = text.range(of: condition.text, options: .literal, range: NSRange(location: offset, length: text.length - offset))
+                guard found.location != NSNotFound else { break }
+                ranges.append(found); offset = found.location + 1
+            }
+        }
+        return HistoryHighlighting.merge(ranges)
+    }
     func matches(_ value: String) -> Bool {
         if !isActive { return !negated }
         let text = caseSensitive ? value : value.lowercased()

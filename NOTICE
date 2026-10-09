@@ -970,3 +970,9 @@ Subjects/Messages clipboard output adapts GitLogListBase::CopySelectionToClipBoa
 and GitRevLoglist::GetSubjectBody(true), with source bullets, CRLF separators
 and trailing-whitespace removal at the pinned revision above. Full messages
 and separate Git summary metadata are retained.
+
+Log search match ranges and foreground painting adapt FilterHelper::GetMatchRanges
+and GitLogListBase's display-column gates/DrawListItemWithMatchesRect, including
+positive-term overlapping/adjacent merging, ECMAScript UTF-16 whole matches and
+CColors::FilterMatch RGB(200,0,0), at the pinned revision above. Native rendering
+uses attributed text and keeps reference labels outside matched spans.

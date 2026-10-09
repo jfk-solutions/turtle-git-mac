@@ -7,14 +7,16 @@ import CoreFoundation
 enum LogColorRole: String, CaseIterable {
     case currentBranch = "CurrentBranch", localBranch = "LocalBranch", remoteBranch = "RemoteBranch", tag = "Tag"
     case stash = "Stash", bisectGood = "BisectGood", bisectBad = "BisectBad", bisectSkip = "BisectSkip"
-    case noteNode = "NoteNode", otherRef = "OtherRef"
+    case noteNode = "NoteNode", otherRef = "OtherRef", filterMatch = "FilterMatch"
     case branchLine1 = "BranchLine1", branchLine2 = "BranchLine2", branchLine3 = "BranchLine3", branchLine4 = "BranchLine4"
     case branchLine5 = "BranchLine5", branchLine6 = "BranchLine6", branchLine7 = "BranchLine7", branchLine8 = "BranchLine8"
     static let references: [Self] = [.currentBranch,.localBranch,.remoteBranch,.tag,.noteNode,.otherRef]
+    static let matches: [Self] = [.filterMatch]
     static let lanes: [Self] = [.branchLine1,.branchLine2,.branchLine3,.branchLine4,.branchLine5,.branchLine6,.branchLine7,.branchLine8]
     var preferenceKey: String { "Colors." + rawValue }
     var title: String {
         switch self {
+        case .filterMatch: return "Filter matches"
         case .currentBranch: return "Current branch"
         case .localBranch: return "Local branches"
         case .remoteBranch: return "Remote branches"
@@ -26,7 +28,7 @@ enum LogColorRole: String, CaseIterable {
     }
     var rgb: [Int] {
         switch self {
-        case .currentBranch: return [200,0,0]
+        case .currentBranch, .filterMatch: return [200,0,0]
         case .localBranch: return [0,195,0]
         case .remoteBranch: return [255,221,170]
         case .tag: return [255,255,0]
@@ -86,7 +88,7 @@ struct LogColorPreferences: Equatable {
     }
     func save(_ preferences: UserDefaults) {
         // Preserve non-editable Stash/Bisect and unrelated status roles.
-        for role in LogColorRole.references + LogColorRole.lanes {
+        for role in LogColorRole.references + LogColorRole.matches + LogColorRole.lanes {
             let rgb = rgb(role); preferences.set(rgb[0] << 16 | rgb[1] << 8 | rgb[2], forKey: role.preferenceKey)
         }
         preferences.set(lineWidth, forKey: Self.lineWidthKey); preferences.set(nodeSize, forKey: Self.nodeSizeKey)
@@ -128,7 +130,7 @@ enum LogPalette {
     func setLineWidth(_ width: Int) { guard (1...10).contains(width) else { return }; draft.lineWidth = width }
     func setNodeSize(_ size: Int) { guard (1...30).contains(size) else { return }; draft.nodeSize = size }
     func automatic(_ role: LogColorRole) { draft.set(role, rgb: role.rgb) }
-    func restoreDefaults() { for role in LogColorRole.references + LogColorRole.lanes { automatic(role) }; draft.lineWidth = 2; draft.nodeSize = 10 }
+    func restoreDefaults() { for role in LogColorRole.references + LogColorRole.matches + LogColorRole.lanes { automatic(role) }; draft.lineWidth = 2; draft.nodeSize = 10 }
     func cancel() { draft = saved }
     func apply() { guard changed else { return }; draft.save(preferences); saved = draft; NotificationCenter.default.post(name: .statusColorsChanged, object: nil) }
 }
@@ -137,6 +139,7 @@ struct LogColorsSettings: View {
     @ObservedObject var model: LogColorSettingsModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            GroupBox("Filter matches") { rows(LogColorRole.matches) }
             GroupBox("Reference labels") { rows(LogColorRole.references) }
             GroupBox("Log graph") {
                 VStack {

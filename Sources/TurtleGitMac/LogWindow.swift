@@ -733,6 +733,7 @@ struct LogCommandRequest: Identifiable {
     }
     @Published var jumpKind = HistoryJumpKind.authorEmail
     @Published var jumping = false
+    @Published var searchHighlights: [String: [String: [NSRange]]] = [:]
     @Published var highlightedRevision: String?
     @Published var scrollRevision: String?
     @Published var scrollRequest = 0
@@ -1129,6 +1130,15 @@ struct LogCommandRequest: Identifiable {
                 let filterActive = try await Task.detached { try HistorySearchActivity.isActive(options.search, regex: options.searchRegex, caseSensitive: options.searchCaseSensitive, executable: options.regexExecutable, cancellation: cancellation) }.value
                 guard request == generation else { return }
                 let projection = CommitGraph.project(result, walk: options.walk, references: referenceVisibility, rollupStates: rollupStates)
+                let highlightEntries = projection.entries
+                let labeledHashes = Set(highlightEntries.filter { !visibleReferences(for: $0).isEmpty }.map(\.hash))
+                let fullMessage = fullCommitMessageOnLogLine
+                let highlights = try await Task.detached {
+                    guard filterActive else { return [String: [String: [NSRange]]]() }
+                    return try LogSearchHighlights.prepare(highlightEntries, query: options.search, regex: options.searchRegex, caseSensitive: options.searchCaseSensitive, fields: options.searchFields, fullMessage: fullMessage, labeled: labeledHashes, executable: options.regexExecutable, cancellation: cancellation)
+                }.value
+                guard request == generation else { return }
+                searchHighlights = highlights
                 historyFilterActive = filterActive; rollupInfo = projection.rollups
                 entries = projection.entries; graph = projection.graph
                 result = projection.entries
@@ -2287,9 +2297,11 @@ struct RevisionTable: NSViewRepresentable {
         let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility
         coordinator.referenceVisibility = model.referenceVisibility
+        let searchHighlightsChanged = coordinator.searchHighlights != model.searchHighlights
+        coordinator.searchHighlights = model.searchHighlights
         let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
         coordinator.highlightedRevision = model.highlightedRevision
-        if signature != coordinator.signature || graphChanged || datesChanged || highlightChanged || labelsChanged || fontChanged || colorsChanged {
+        if signature != coordinator.signature || graphChanged || datesChanged || highlightChanged || searchHighlightsChanged || labelsChanged || fontChanged || colorsChanged {
             coordinator.signature = signature
             table.reloadData()
             if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
@@ -2321,6 +2333,7 @@ struct RevisionTable: NSViewRepresentable {
         var logFont: NSFont?
         var graph: [CommitGraphRow] = []
         var dateSettings = HistoryDateSettings.load()
+        var searchHighlights: [String: [String: [NSRange]]] = [:]
         var highlightedRevision: String?
         var referenceVisibility = HistoryReferenceVisibility.all
         var scrollRequest = 0
@@ -2378,8 +2391,15 @@ struct RevisionTable: NSViewRepresentable {
                     label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color, .foregroundColor: foreground, .font: logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)]))
                     label.append(NSAttributedString(string: " "))
                 }
-                label.append(NSAttributedString(string: entry.logLine(fullMessage: model.fullCommitMessageOnLogLine), attributes: [.font: text.font!]))
+                let message = NSMutableAttributedString(string: entry.logLine(fullMessage: model.fullCommitMessageOnLogLine), attributes: [.font: text.font!])
+                applySearchHighlights(message, hash: entry.hash, column: "message")
+                label.append(message)
                 text.attributedStringValue = label
+            }
+            if let column = column?.identifier.rawValue, column != "message", let ranges = searchHighlights[entry.hash]?[column], !ranges.isEmpty {
+                let value = NSMutableAttributedString(string: text.stringValue, attributes: [.font: text.font!])
+                applySearchHighlights(value, hash: entry.hash, column: column)
+                text.attributedStringValue = value
             }
             if column?.identifier.rawValue == "date" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.date, absolute: true) : nil }
             else if column?.identifier.rawValue == "committerDate" { text.toolTip = dateSettings.relative ? dateSettings.format(entry.committerDate, absolute: true) : nil }
@@ -2393,6 +2413,11 @@ struct RevisionTable: NSViewRepresentable {
             guard !updating, let table else { return }
             let hashes = Set(table.selectedRowIndexes.compactMap { model.entries.indices.contains($0) ? model.entries[$0].hash : nil })
             if hashes != model.selected { model.select(hashes) }
+        }
+        private func applySearchHighlights(_ text: NSMutableAttributedString, hash: String, column: String) {
+            for range in searchHighlights[hash]?[column] ?? [] where range.length > 0 && range.location >= 0 && NSMaxRange(range) <= text.length {
+                text.addAttribute(.foregroundColor, value: LogPalette.native(.filterMatch, preferences: model.colorPreferences), range: range)
+            }
         }
         func menuNeedsUpdate(_ menu: NSMenu) {
             menu.removeAllItems()

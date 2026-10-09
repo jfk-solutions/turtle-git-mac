@@ -124,6 +124,7 @@
 		A99C16FB42C7E89CA9B6AEC3 /* MessageCodeText.swift in Sources */ = {isa = PBXBuildFile; fileRef = C27AB4988402DE898554EF19 /* MessageCodeText.swift */; };
 		A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */; };
 		A9FF0A885E44AF8F4261B5DA /* GitModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */; };
+		AAF6FA2415511B9D5A4357A7 /* LogSearchHighlights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */; };
 		AC1988C449B92C1D5501A8DC /* FinderRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC55CCB5A12A46D5ACE608BA /* FinderRequest.swift */; };
 		AF368FB1112CF5C62DEC55A2 /* RepositoryBrowserDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 377A8410F24CB6A92830EB11 /* RepositoryBrowserDrag.swift */; };
 		AFCF01F6659A02AC371A90B8 /* MergeWhitespace.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7809458AF943456197C0AC7 /* MergeWhitespace.swift */; };
@@ -150,6 +151,7 @@
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
 		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
 		CA6AEC3FE2A7F57C339F0ABE /* LFSLocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */; };
+		CAC5E6527836442CCE843857 /* HistoryHighlights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2371301238EAD65AEE06ACF5 /* HistoryHighlights.swift */; };
 		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
 		CC6D27AC08555115BD75EB87 /* Clean.swift in Sources */ = {isa = PBXBuildFile; fileRef = 340673250460ADE4B0D7C99C /* Clean.swift */; };
 		CE62DD0C90CCBA058B0F7C1C /* GitProgressOutputState.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6D400F85AE92690112D0E35 /* GitProgressOutputState.swift */; };
@@ -281,6 +283,7 @@
 		1AB2F5FDA0673FDECA2C7F25 /* AddFileTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddFileTable.swift; sourceTree = "<group>"; };
 		1BCB9C51D9D69E943E22F2C8 /* TurtleGitCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = TurtleGitCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		22371C45A6813F87FD610EE6 /* MessageCodeSymbols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageCodeSymbols.swift; sourceTree = "<group>"; };
+		2371301238EAD65AEE06ACF5 /* HistoryHighlights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryHighlights.swift; sourceTree = "<group>"; };
 		244AD68D8412684F520E64AC /* ReferenceCreation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceCreation.swift; sourceTree = "<group>"; };
 		26B86A4879EF89058692598F /* ExportWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportWindow.swift; sourceTree = "<group>"; };
 		2876A33D450C599B1B1AED5D /* UnifiedDiffViewerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnifiedDiffViewerSettings.swift; sourceTree = "<group>"; };
@@ -367,6 +370,7 @@
 		8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddProgressWindow.swift; sourceTree = "<group>"; };
 		9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComparisonFileList.swift; sourceTree = "<group>"; };
 		92BCC367833CF7B0CCC10BC6 /* NativeWatermarkTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeWatermarkTable.swift; sourceTree = "<group>"; };
+		92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogSearchHighlights.swift; sourceTree = "<group>"; };
 		94E9E00A7AEA7A5BE84E3097 /* ProgressActionLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressActionLog.swift; sourceTree = "<group>"; };
 		966FBB093AE190ED7ACA4024 /* DeleteConflict.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeleteConflict.swift; sourceTree = "<group>"; };
 		977DAB97DBBB903654C73A78 /* SwitchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwitchWindow.swift; sourceTree = "<group>"; };
@@ -495,6 +499,7 @@
 				392877DE7F6A7F5BB1CC3391 /* LogAppearance.swift */,
 				D653B9C802C1DF2EE95F01A9 /* LogGraphDrawing.swift */,
 				58A976676E04B6BC290F5465 /* LogGravatar.swift */,
+				92C50E53F34624CECCEC69FA /* LogSearchHighlights.swift */,
 				AB86EFEBCB6909C206458540 /* LogWindow.swift */,
 				63BFD8184C87A12A2F48AEA1 /* MergeEditorSettings.swift */,
 				5CE3CE517C60F5192533D85D /* MergeMessageEditor.swift */,
@@ -608,6 +613,7 @@
 				F2E43773297420C7FDAE9748 /* GitRepository.swift */,
 				E6DEDC3481F79B1185AE15B3 /* GitRuntime.swift */,
 				50B9BC6078F637B8F0A3E3E2 /* GitWorktrees.swift */,
+				2371301238EAD65AEE06ACF5 /* HistoryHighlights.swift */,
 				C0C826BF8D2B76F52F29C6CD /* HistoryLanes.swift */,
 				DAA057A2776BAA8F4BE538EE /* Ignore.swift */,
 				9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */,
@@ -911,6 +917,7 @@
 				E92971BFB0588C2287D36944 /* GitRepository.swift in Sources */,
 				BFC8E11BB21B098D019D0FB7 /* GitRuntime.swift in Sources */,
 				135F13D3322EDDAFD3C718DA /* GitWorktrees.swift in Sources */,
+				CAC5E6527836442CCE843857 /* HistoryHighlights.swift in Sources */,
 				C4A8B6E914D346865B81FC58 /* HistoryLanes.swift in Sources */,
 				71A192AE217977ACEEDE0E0E /* Ignore.swift in Sources */,
 				36CE920A634EEDFBC16B0A9D /* IssueMessageStyle.swift in Sources */,
@@ -1016,6 +1023,7 @@
 				79FAF64D9B79A6283E286D5A /* LogAppearance.swift in Sources */,
 				2368F21797097AE66DBADDAE /* LogGraphDrawing.swift in Sources */,
 				331C8EE4AE36F1AFA3067CD6 /* LogGravatar.swift in Sources */,
+				AAF6FA2415511B9D5A4357A7 /* LogSearchHighlights.swift in Sources */,
 				8372E655010246F1E9FDF3CB /* LogWindow.swift in Sources */,
 				78D4BE78EDFB1546367CD8B6 /* MergeEditorSettings.swift in Sources */,
 				FE0A4FBD4DEB65683A8F6586 /* MergeMessageEditor.swift in Sources */,

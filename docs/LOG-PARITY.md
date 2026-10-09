@@ -1813,3 +1813,37 @@ physical context-menu interaction, all other clipboard formats and signed
 sandbox behavior still require comparison. Existing full-message display QA is
 a historical checkpoint; its pending search/copy note is superseded by this
 section, without changing its recorded results.
+
+
+## Search match foregrounds
+
+The native Log prepares match ranges off the UI thread after projecting the
+loaded rows, then paints matching text with `Colors.FilterMatch` (source default
+RGB 200,0,0). The Log color settings expose this editable role with Apply,
+Cancel and defaults; it uses the existing light/dark/contrast color transform.
+Reference badge backgrounds and their contrast foregrounds are retained.
+
+Literal ranges follow FilterHelper's positive terms, including quoted terms,
+OR terms and overlapping occurrences. Negative terms are skipped; leading `!`
+changes filtering, not which positive text can be highlighted. Adjacent and
+overlapping ranges merge. Regex ranges use whole ECMAScript matches in UTF-16
+coordinates through the bundled helper, with invalid/empty patterns producing
+no highlights. Zero-length ranges are represented but paint no characters.
+
+Column gates follow GitLogListBase: revision hashes, author/committer names,
+author/committer emails and bug IDs each require their selected filter field.
+Unlabeled message cells allow Subject or Messages. A message cell with reference
+badges allows Subject in short mode, adding Messages in full-message mode. The
+match offsets are relative to the message text, excluding reference badges.
+When a revision has refs but every badge is hidden, the source skips custom
+message match painting; the native gate follows that early return. Date, action
+and graph columns are not match-painted. Ranges refresh even when
+loaded revision identities stay the same, and generation checks prevent an old
+reload from installing a newer request's colors.
+
+[Highlight QA](qa/log-match-highlights-2026-10-09.json) records the focused checks.
+Windows locale-sensitive casing versus Swift/libc++ Unicode casing, complete
+source regex-library equivalence, selected-row physical contrast, drawing,
+Retina, accessibility and signed sandbox acceptance remain unverified. This
+updates the pending Log match-highlighting notes above; it does not establish
+all consumers of the shared Windows list implementation.

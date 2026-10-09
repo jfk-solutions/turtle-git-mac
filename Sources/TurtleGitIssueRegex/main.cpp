@@ -3,6 +3,8 @@
 // Copyright (C) 2003-2021, 2023-2025 - TortoiseGit
 // SciEdit: Copyright (C) 2009-2026 - TortoiseGit
 // Copyright (C) 2003-2008, 2012-2020, 2025 - TortoiseSVN
+// Log match ranges adapt TortoiseGit FilterHelper.cpp::GetMatchRanges.
+// FilterHelper: Copyright (C) 2018-2023 TortoiseGit; 2010-2017 TortoiseSVN.
 // TurtleGit for Mac adaptations: UTF-16 transport and process protocol.
 // SPDX-License-Identifier: GPL-2.0-or-later
 // See LICENSE and docs/ISSUE-TRACKER-PARITY.md.
@@ -88,27 +90,34 @@ int main(int argc, char** argv) {
     const bool styling = argc == 5 && std::string(argv[4]) == "--styles-utf8";
     const bool code = argc == 5 && std::string(argv[4]) == "--code-captures";
     const bool issueIDs = argc == 5 && std::string(argv[4]) == "--issue-ids";
+    const bool logRanges = argc == 5 && (std::string(argv[4]) == "--log-ranges-case" || std::string(argv[4]) == "--log-ranges-insensitive");
     const bool logFilter = argc == 5 && (std::string(argv[4]) == "--log-case" || std::string(argv[4]) == "--log-insensitive");
-    if (argc != 4 && !styling && !code && !logFilter && !issueIDs) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
+    if (argc != 4 && !styling && !code && !logFilter && !logRanges && !issueIDs) { std::cerr << "Expected check pattern, extraction pattern and message files.\n"; return 2; }
     try {
-        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter);
-        if (logFilter) {
+        const auto check = read_units(argv[1]), extract = read_units(argv[2]), text = read_units(argv[3], !code && !logFilter && !logRanges);
+        if (logFilter || logRanges) {
             // FilterHelper validates one ECMAScript expression; invalid syntax
             // leaves the filter inactive, rather than using substring fallback.
             std::wregex pattern;
-            if (check.empty()) { std::cout << "log\tinactive\n"; return 0; }
+            if (check.empty()) { std::cout << (logRanges ? "ranges\tinactive\n" : "log\tinactive\n"); return 0; }
             try {
                 auto flags = std::regex_constants::ECMAScript;
-                if (std::string(argv[4]) == "--log-insensitive") flags |= std::regex_constants::icase;
+                if ((std::string(argv[4]) == "--log-insensitive" || std::string(argv[4]) == "--log-ranges-insensitive")) flags |= std::regex_constants::icase;
                 pattern.assign(check, flags);
-            } catch (const std::regex_error&) { std::cout << "log\tinactive\n"; return 0; }
-            std::cout << "log\tactive\n";
-            size_t offset = 0;
+            } catch (const std::regex_error&) { std::cout << (logRanges ? "ranges\tinactive\n" : "log\tinactive\n"); return 0; }
+            std::cout << (logRanges ? "ranges\tactive\n" : "log\tactive\n");
+            size_t offset = 0, record = 0;
             while (offset < text.size()) {
                 if (text.size() - offset < 2) throw std::runtime_error("Invalid log record header.");
                 const size_t length = static_cast<size_t>(text[offset]) | (static_cast<size_t>(text[offset + 1]) << 16);
                 offset += 2;
                 if (length > text.size() - offset) throw std::runtime_error("Invalid log record length.");
+                if (logRanges) {
+                    const auto begin = text.cbegin() + offset, end = begin + length;
+                    for (std::wsregex_iterator match(begin, end, pattern), finish; match != finish; ++match)
+                        std::cout << record << '\t' << match->position(0) << '\t' << match->length(0) << '\n';
+                    offset += length; ++record; continue;
+                }
                 bool matched = false;
                 if (length) {
                     try { matched = std::regex_search(text.begin() + offset, text.begin() + offset + length, pattern, std::regex_constants::match_any); }

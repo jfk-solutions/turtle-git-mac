@@ -106,6 +106,78 @@ final class MessageLineOffscreenWindow: NSWindow {
         precondition(message(logWindow).stringValue.hasSuffix(expected) && message(blameWindow).stringValue == expected)
         precondition(entries[0].message == "first line\ncontinued heading\n\nbody 雪\nsecond body line\n" && entries[0].subject == "first line continued heading")
     }
+    @MainActor static func checkHighlights(repo: GitRepository, prefs: UserDefaults) async throws {
+        let regexHelper = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_QA_REGEX"]!)
+        for (full, fields, query, regex, expectedTerm) in [
+            (false, HistorySearchFields([.subject, .referenceNames]), "line +main", false, "line"),
+            (false, HistorySearchFields.messages, "first", false, ""),
+            (true, HistorySearchFields.messages, "body", false, "body"),
+            (true, HistorySearchFields.messages, "body|second", true, "body"),
+            (true, HistorySearchFields.messages, "(?<=body) 雪", true, "")
+        ] {
+            prefs.set(full, forKey: "FullCommitMessageOnLogLine")
+            let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs, historyRegexExecutable: regexHelper)
+            model.search = query; model.searchFields = fields; model.searchRegex = regex; model.searchCaseSensitive = false
+            model.showWorkingTree = false; model.reload()
+            for _ in 0..<1500 { if !model.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            precondition(!model.busy && model.error == nil, "Real history highlight reload must finish")
+            let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+            defer { window.close(); model.invalidate() }
+            try await settle(window.contentView!)
+            let field = message(window), value = field.attributedStringValue
+            let heading = (value.string as NSString).range(of: "first line")
+            precondition(heading.location != NSNotFound)
+            let entry = model.entries[0]
+            let ranges = model.searchHighlights[entry.hash]?["message"] ?? []
+            if expectedTerm.isEmpty { precondition(ranges.isEmpty) }
+            else {
+                let term = (value.string as NSString).range(of: expectedTerm, options: [], range: NSRange(location: heading.location, length: value.length - heading.location))
+                precondition(term.location != NSNotFound)
+                let color = value.attribute(.foregroundColor, at: term.location, effectiveRange: nil) as! NSColor
+                NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance {
+                    let channels = color.usingColorSpace(.sRGB)!
+                    precondition(abs(channels.redComponent - 200.0/255) < 0.001 && channels.greenComponent == 0 && channels.blueComponent == 0)
+                }
+                precondition(value.attribute(.backgroundColor, at: heading.location, effectiveRange: nil) == nil, "Matches use foreground only")
+            }
+            let label = (value.string as NSString).range(of: "main")
+            precondition(label.location != NSNotFound && value.attribute(.backgroundColor, at: label.location, effectiveRange: nil) is NSColor, "Reference badge styling retained")
+            precondition(field.maximumNumberOfLines == 1 && !model.selected.isEmpty)
+            // Update same-identity rows and verify stale colors disappear.
+            model.searchHighlights = [:]; try await settle(window.contentView!)
+            let cleared = message(window).attributedStringValue
+            let oldMatch = expectedTerm.isEmpty ? heading : (value.string as NSString).range(of: expectedTerm, options: [], range: NSRange(location: heading.location, length: value.length - heading.location))
+            precondition(cleared.attribute(.foregroundColor, at: oldMatch.location, effectiveRange: nil) == nil)
+        }
+    }
+    @MainActor static func checkHighlightColumns(repo: GitRepository, prefs: UserDefaults) async throws {
+        let entry = try await repo.history()[0]
+        let ranges = try LogSearchHighlights.prepare([entry], query: "Message +example +" + String(entry.hash.prefix(6)), regex: false, caseSensitive: false, fields: [.authors, .emails, .revisions], fullMessage: false, labeled: [entry.hash], executable: nil)
+        let model = LogWindowModel(repository: repo, access: nil, labelDefaults: prefs)
+        model.busy = true; model.entries = [entry]; model.graph = CommitGraph.layout([entry]); model.searchHighlights = ranges; model.revisionActions[entry.hash] = []
+        let window = host(RevisionTable(model: model, savesColumnLayout: false).defaultAppStorage(prefs), ordered: false)
+        defer { window.close(); model.invalidate() }
+        try await settle(window.contentView!)
+        let table = descendants(window.contentView!).compactMap { $0 as? NSTableView }.first!
+        for column in table.tableColumns { column.isHidden = false }
+        table.reloadData(); try await settle(window.contentView!)
+        for name in ["author", "committer", "email", "committerEmail", "hash"] {
+            let index = table.tableColumns.firstIndex { $0.identifier.rawValue == name }!
+            let text = (table.view(atColumn: index, row: 0, makeIfNecessary: true) as! NSTableCellView).textField!.attributedStringValue
+            for range in ranges[entry.hash]![name]! { precondition(text.attribute(.foregroundColor, at: range.location, effectiveRange: nil) is NSColor) }
+        }
+        let gated = try LogSearchHighlights.prepare([entry], query: "Message", regex: false, caseSensitive: false, fields: .paths, fullMessage: true, labeled: [], executable: nil)
+        precondition(gated.isEmpty)
+        let hiddenRefs = try LogSearchHighlights.prepare([entry], query: "first", regex: false, caseSensitive: false, fields: .subject, fullMessage: true, labeled: [], executable: nil)
+        precondition(hiddenRefs.isEmpty, "Source suppresses custom message painting when all existing refs are hidden")
+        var plain = entry; plain.references = []
+        let plainRanges = try LogSearchHighlights.prepare([plain], query: "first", regex: false, caseSensitive: false, fields: .messages, fullMessage: false, labeled: [], executable: nil)
+        precondition(plainRanges[entry.hash]?["message"] == [NSRange(location: 0, length: 5)])
+        let colors = LogColorSettingsModel(preferences: prefs)
+        colors.set(.filterMatch, rgb: [40,80,120]); colors.cancel(); precondition(colors.draft.rgb(.filterMatch) == [200,0,0])
+        colors.set(.filterMatch, rgb: [40,80,120]); colors.apply(); precondition(LogColorPreferences.load(prefs).rgb(.filterMatch) == [40,80,120])
+        colors.restoreDefaults(); colors.apply(); precondition(LogColorPreferences.load(prefs).rgb(.filterMatch) == [200,0,0])
+    }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let suite = "TurtleGit.MessageLine.Native.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
@@ -120,9 +192,11 @@ final class MessageLineOffscreenWindow: NSWindow {
         let plan = try await repo.rebasePlan(options); precondition(plan.entries.count == 1)
         let paths = [".git/HEAD", ".git/index", ".git/config", ".git/refs/heads/main", "file.txt"], before = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }
         for enabled in [nil, false, true] as [Bool?] { try await check(enabled, repo: repo, entries: entries, plan: plan, prefs: prefs) }
+        try await checkHighlights(repo: repo, prefs: prefs)
+        try await checkHighlightColumns(repo: repo, prefs: prefs)
         let after = try paths.map { try Data(contentsOf: repo.root.appendingPathComponent($0)) }; precondition(before == after)
         if CommandLine.arguments.contains("--log-blame-only") {
-            print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
+            print("PASS (focused): actual hidden Log/Blame message cells, unset/false/true captured preferences, folding/label styling/one-line cells/selection/metadata preserved, actual Subjects/Messages menu actions match source formatting on private pasteboard, real reload literal/regex highlight cells and reference/full-message gates verified; Rebase model preference and read-only plan/selection/action checked, rendered Rebase text UNVERIFIED; unchanged repository bytes, all owned windows closed, no main app or replay operation")
         } else {
             print("PASS: offscreen native Log/Blame/Rebase message text and source captured preferences; unchanged repository bytes, all owned windows closed, no main app or replay operation")
         }

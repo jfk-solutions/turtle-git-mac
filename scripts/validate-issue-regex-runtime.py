@@ -103,4 +103,17 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitIssueRegexAudit-') as folder:
             inputs[2].write_bytes(framed)
             output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + [mode], text=True, timeout=6)
             assert output == expected, (pattern, output, expected)
+        for pattern, mode, texts, expected in [
+            ('foo|bar', '--log-ranges-insensitive', ['FOO bar', 'none'], 'ranges\tactive\n0\t0\t3\n0\t4\t3\n'),
+            (r'\uD83E\uDD8E', '--log-ranges-case', ['雪 🦎'], 'ranges\tactive\n0\t2\t2\n'),
+            ('^|$', '--log-ranges-case', ['a'], 'ranges\tactive\n0\t0\t0\n0\t1\t0\n'),
+            ('(', '--log-ranges-case', ['a'], 'ranges\tinactive\n'),
+        ]:
+            inputs[0].write_bytes(pattern.encode('utf-16-le')); inputs[1].write_bytes(b'')
+            framed = b''
+            for text in texts:
+                value = text.encode('utf-16-le'); framed += (len(value) // 2).to_bytes(4, 'little') + value
+            inputs[2].write_bytes(framed)
+            output = subprocess.check_output(prefix + [str(binary)] + [str(file) for file in inputs] + [mode], text=True, timeout=6)
+            assert output == expected, (pattern, output, expected)
 print('IssueRegex: universal macOS 13 matcher, UTF-16 offsets, extraction, source and system linkage verified.')
