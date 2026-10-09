@@ -134,6 +134,7 @@
 		A38739D4994FF189F311F57A /* CommitSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 515FF59B2CF163D9481D39B5 /* CommitSelection.swift */; };
 		A395BF473AA34B992F2BBAB1 /* Removal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5AD057FE8CA1C91988DA6E /* Removal.swift */; };
 		A6773359488D79CCCCE0C7DE /* SubmoduleDiffWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */; };
+		A6854C3A5C77FF539D8ACF35 /* PatchMailPreparation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A205E7D7DBC9373D1BF58F65 /* PatchMailPreparation.swift */; };
 		A70DDFADDD5CE64F95764E53 /* CleanWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69C742F936FA4A0276A54856 /* CleanWindow.swift */; };
 		A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977DAB97DBBB903654C73A78 /* SwitchWindow.swift */; };
 		A7F9B61AFDD2F69ADE7A35C7 /* AddProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */; };
@@ -170,6 +171,7 @@
 		C74FD1797BC0727D5BBFBFA6 /* BlameSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ABE7B92864A28F4229F6063 /* BlameSettings.swift */; };
 		C7F46AA23DC99E2E4AAFAD5D /* SubmoduleAddWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */; };
 		C8FEE2A6E0B1D5FDE647F228 /* ExportWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B86A4879EF89058692598F /* ExportWindow.swift */; };
+		C90C42AC6C78C7122C11B302 /* SerialPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */; };
 		CA6AEC3FE2A7F57C339F0ABE /* LFSLocks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */; };
 		CAC5E6527836442CCE843857 /* HistoryHighlights.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2371301238EAD65AEE06ACF5 /* HistoryHighlights.swift */; };
 		CC207D06117A1AC9782352E4 /* PatchMenuCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB379792A0E22924F2C467DF /* PatchMenuCommands.swift */; };
@@ -427,6 +429,7 @@
 		9D0FF5AF64F32A5BA89A067E /* IssueMessageStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueMessageStyle.swift; sourceTree = "<group>"; };
 		9FA1B00CA442E623732196B4 /* NativeFixedFontChoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeFixedFontChoice.swift; sourceTree = "<group>"; };
 		A142607F55CD34E13938FD40 /* FileComparisonWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparisonWindow.swift; sourceTree = "<group>"; };
+		A205E7D7DBC9373D1BF58F65 /* PatchMailPreparation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PatchMailPreparation.swift; sourceTree = "<group>"; };
 		A2D91605384F213DBC8C3C9F /* CommitAmend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitAmend.swift; sourceTree = "<group>"; };
 		A35B58726A94B9B4799C06DE /* RemoveWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveWindow.swift; sourceTree = "<group>"; };
 		A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StashRestoreWindow.swift; sourceTree = "<group>"; };
@@ -444,6 +447,7 @@
 		B16F443B326FDAB1414D334B /* Appearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appearance.swift; sourceTree = "<group>"; };
 		B20E461B2D9629D0293A80EB /* WorkingTree.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkingTree.swift; sourceTree = "<group>"; };
 		B42ABD92C8384F1E8D882437 /* IgnoreWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IgnoreWindow.swift; sourceTree = "<group>"; };
+		B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerialPatch.swift; sourceTree = "<group>"; };
 		B733277271B0769B1CB05397 /* GitReferenceName.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitReferenceName.swift; sourceTree = "<group>"; };
 		B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleUpdateWindow.swift; sourceTree = "<group>"; };
 		BA121F2E317F86B146016B4E /* Rename.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Rename.swift; sourceTree = "<group>"; };
@@ -727,6 +731,7 @@
 				81E52787ACF6315F812EA290 /* MessageSnippets.swift */,
 				E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */,
 				3169F8F4F55DC037603B8A0D /* OperationCancellation.swift */,
+				A205E7D7DBC9373D1BF58F65 /* PatchMailPreparation.swift */,
 				2FD299C13A57D2632BB2467B /* Pull.swift */,
 				7A48D22D1E6D22153CBA3744 /* Push.swift */,
 				0A8A21C4E5D4C9A48E0B7FE9 /* Rebase.swift */,
@@ -747,6 +752,7 @@
 				366DB6C65F4EF18125B4B7D2 /* RevisionArchive.swift */,
 				870D95A7EC384863F1C04342 /* RevisionComparison.swift */,
 				814E543BEB0736B84A50B21B /* SavedData.swift */,
+				B448BFA0806C28AEC8AE9126 /* SerialPatch.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
 				FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */,
 				79BBB2F306958D4D34AFF839 /* SSHTransportPreparation.swift */,
@@ -1105,6 +1111,7 @@
 				02B318481C48E5ACC8497EF9 /* MessageSnippets.swift in Sources */,
 				603768B96A855B625D7D5E0C /* MessageURLFinder.swift in Sources */,
 				BD7B4EFF6714DB43BFECDB71 /* OperationCancellation.swift in Sources */,
+				A6854C3A5C77FF539D8ACF35 /* PatchMailPreparation.swift in Sources */,
 				5F4478C2B26B372096688B52 /* Pull.swift in Sources */,
 				D23A00DDC15A9F767BE97B36 /* Push.swift in Sources */,
 				D20BBF1A1F80FC6A11D4DDAB /* Rebase.swift in Sources */,
@@ -1128,6 +1135,7 @@
 				1D5A237BEB1F04360AA51C3B /* SSHIdentityAccess.swift in Sources */,
 				F4564607AA83749B93DC5894 /* SSHTransportPreparation.swift in Sources */,
 				768B7B2B700F618CA924EBDA /* SavedData.swift in Sources */,
+				C90C42AC6C78C7122C11B302 /* SerialPatch.swift in Sources */,
 				B11AF840672A71A01A6F3A42 /* Stash.swift in Sources */,
 				B144262A42A7437C5B7EE78F /* StatusListClipboard.swift in Sources */,
 				92F05B4D5521D2D60D90F9E9 /* StatusListGroups.swift in Sources */,

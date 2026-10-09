@@ -1152,3 +1152,16 @@ SubmoduleAddProgressWindow.swift adapts pinned SubmoduleCommand Add's separate
 ProgressDlg handoff and ProgressDlg cancellation, completion, automatic-close
 and action-log behavior to owned native AppKit/SwiftUI windows. Native additions
 are GPL-2.0-or-later under the source attribution above.
+
+SerialPatch.swift adapts SerialPatch.cpp's mail header, folded subject and body
+boundary parsing under GPL version 2 or later. Copyright (C) 2008-2013,
+2015-2016, 2018-2019, 2023, 2025-2026 TortoiseGit. PatchMailPreparation.swift
+adapts SendMailPatch.cpp's separate/combined and inline/attachment preparation,
+and SendMail.cpp's checked-list ordering, under GPL version 2 or later.
+Copyright (C) 2008-2013, 2015-2016, 2018-2019, 2023, 2025-2026 TortoiseGit;
+Copyright (C) 2011-2013 Sven Strickroth (SendMailPatch.cpp).
+SendMail.cpp Copyright (C) 2008-2016, 2018-2019, 2023, 2025-2026 TortoiseGit.
+Immutable patch-byte
+snapshots and single-line header validation are macOS adaptations. This prepares
+messages only; Send Patch UI, mail-client/SMTP delivery and signed acceptance
+remain unfinished. See docs/SEND-PATCH-PARITY.md.

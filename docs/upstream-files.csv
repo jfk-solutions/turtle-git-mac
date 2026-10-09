@@ -2518,14 +2518,14 @@ src/TortoiseProc/SVNIgnoreTypeDlg.cpp,TortoiseProc,blob,99b4b345f7579d5cff1fd323
 src/TortoiseProc/SVNIgnoreTypeDlg.h,TortoiseProc,blob,08a011f842ebd2983c02aa7b21bce5e3b9352d84,pending-review,,
 src/TortoiseProc/SelectRemoteRefDlg.cpp,TortoiseProc,blob,e246ba064a3c23b74a5b3f15fdd65d60d5045f8b,pending-review,,
 src/TortoiseProc/SelectRemoteRefDlg.h,TortoiseProc,blob,2197fbadcaad7d296df51c4359c1309429bf0521,pending-review,,
-src/TortoiseProc/SendMail.cpp,TortoiseProc,blob,06284ccd95dbac9e40746c4ce27f3aa041dc6081,pending-review,,
-src/TortoiseProc/SendMail.h,TortoiseProc,blob,4a2f4ed355b85a9d59cfcda663dbf8ede31fe7c9,pending-review,,
+src/TortoiseProc/SendMail.cpp,TortoiseProc,blob,06284ccd95dbac9e40746c4ce27f3aa041dc6081,partial,Sources/TurtleGitCore/PatchMailPreparation.swift,"Only CSendMailCombineable separate/combined ordered preparation sequencing reviewed/ported. Git sender identity, MAPI replacement, direct/configured SMTP, retries, credentials and native progress unported. docs/SEND-PATCH-PARITY.md."
+src/TortoiseProc/SendMail.h,TortoiseProc,blob,4a2f4ed355b85a9d59cfcda663dbf8ede31fe7c9,partial,Sources/TurtleGitCore/PatchMailPreparation.swift,Preparation values only. Native transport interface and all delivery modes pending. docs/SEND-PATCH-PARITY.md.
 src/TortoiseProc/SendMailDlg.cpp,TortoiseProc,blob,9d615d50a87e54028de157f5ed542837fe539697,pending-review,,
 src/TortoiseProc/SendMailDlg.h,TortoiseProc,blob,74e5821e637353eb4e031b9c15d8af0587aa894d,pending-review,,
-src/TortoiseProc/SendMailPatch.cpp,TortoiseProc,blob,9e874d6643e0406e8a48d386360e2897d732e057,pending-review,,
-src/TortoiseProc/SendMailPatch.h,TortoiseProc,blob,d1f136e118708b572c7e49e9575a8c52270b213f,pending-review,,
-src/TortoiseProc/SerialPatch.cpp,TortoiseProc,blob,f8fba9eec654c67570f5b6e0b2e15fa6c8f42f34,pending-review,,
-src/TortoiseProc/SerialPatch.h,TortoiseProc,blob,e5403f1c4a86b39d3de86a301594a56243c07aa7,pending-review,,
+src/TortoiseProc/SendMailPatch.cpp,TortoiseProc,blob,9e874d6643e0406e8a48d386360e2897d732e057,partial,Sources/TurtleGitCore/PatchMailPreparation.swift,Four source message modes: separate inline body/attachment and combined whole-original-file inline/subject-summary attachment; checked-list order and separate To/CC captured. Core preparation only; native send/progress/client/SMTP delivery pending. docs/SEND-PATCH-PARITY.md.
+src/TortoiseProc/SendMailPatch.h,TortoiseProc,blob,d1f136e118708b572c7e49e9575a8c52270b213f,partial,Sources/TurtleGitCore/PatchMailPreparation.swift,Swift preparation options/messages/attachment snapshots replace preparation interface; actual delivery still unported. docs/SEND-PATCH-PARITY.md.
+src/TortoiseProc/SerialPatch.cpp,TortoiseProc,blob,f8fba9eec654c67570f5b6e0b2e15fa6c8f42f34,partial,Sources/TurtleGitCore/SerialPatch.swift,"Source headers/folded subject and LF/CRLF body boundary, bounded readable-file loading, exact bytes. Nonempty headerless attachment allowed; inline needs separator. Native dialog/transports and broad encoding acceptance pending. docs/SEND-PATCH-PARITY.md."
+src/TortoiseProc/SerialPatch.h,TortoiseProc,blob,e5403f1c4a86b39d3de86a301594a56243c07aa7,partial,Sources/TurtleGitCore/SerialPatch.swift,Public file/author/date/subject/original and inline-body values; immutable Swift snapshot. Full mail/UI/transport acceptance remains pending. docs/SEND-PATCH-PARITY.md.
 src/TortoiseProc/Settings/GitSettings.h,TortoiseProc,blob,2bb4f18284b0bf9f7ab421cd0631f216a574987a,pending-review,,
 src/TortoiseProc/Settings/SetBugTraq.cpp,TortoiseProc,blob,50d4b91263d9c59341dee81aa9d95fa732ca1bb7,pending-review,,
 src/TortoiseProc/Settings/SetBugTraq.h,TortoiseProc,blob,ec4c0bc6dc38761e8fcdc19201d054f93af16917,pending-review,,

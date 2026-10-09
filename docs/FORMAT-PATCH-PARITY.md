@@ -218,3 +218,7 @@ URLs survive in the captured mail handoff. The existing progress regression also
 passes with both engines, including all modes/policies and actual git am tree
 equality. These are hidden receivers; no mail was sent or composed and no main
 app instance was launched.
+
+[Send Patch preparation](SEND-PATCH-PARITY.md) now provides the source four-mode
+message foundation. The Format Patch composition consumer is not yet routed
+through it; native Send Patch options and delivery remain pending.

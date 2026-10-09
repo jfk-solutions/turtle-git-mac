@@ -1,0 +1,86 @@
+{
+  "checked_at": "2026-10-09T23:57:27.802590+00:00",
+  "parent_commit": "497f92c767d2931deddd87ea06fad6c1079dd0de",
+  "scope": "Source four-mode Send Patch message preparation foundation only",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blob_sha256": {
+    "src/TortoiseProc/SerialPatch.cpp": "309e48c1b4fc6f05823ca86b74b076e4819480f6fce6190b4e2992bfaa41fc2a",
+    "src/TortoiseProc/SerialPatch.h": "216227a58576db9fd4d7e7b88dad4eb60e61ceec0c7bbfa684f957db0134daab",
+    "src/TortoiseProc/SendMailPatch.cpp": "b175443bbb48ffc739b92162bb033e079a43a313e16fccff5887564d95f78072",
+    "src/TortoiseProc/SendMailPatch.h": "ecfa1d4e476597cead672500422f6a1044dc4fa8e61d183062604f80d8055dba",
+    "src/TortoiseProc/SendMail.cpp": "f8ad5b16f910254e7ff8d36eb69b08af0cd65fb22ee316bd17c7119ee07fd717",
+    "src/TortoiseProc/SendMail.h": "1eb880ca659cb38b0016ad0759cd46c3e93551edfd56d38c501bc49f14cb784b",
+    "src/TortoiseProc/SendMailDlg.cpp": "4816fb1432169fb7dbf7b793a274aa02d866756b2dd2af556e6e2d04c52dbcb1",
+    "src/TortoiseProc/SendMailDlg.h": "d5e73c2f925f0abb675bef1043e33abea97d8a26f00c89fb95c13cce606dd1fb",
+    "src/TortoiseProc/AppUtils.cpp": "24ef31bb7de6a43d4b971c48164e63ce70cf5fc336e65ac2910a14a299790c29",
+    "src/Resources/TortoiseProcENG.rc": "619b0334a49f8b6065e04020ebb4c9ab82ed7375ca48a9494f6bb47f69ff5917"
+  },
+  "checks": {
+    "system_git_core_exit": 0,
+    "packaged_git_core_exit": 0,
+    "core_tests_per_engine": 6,
+    "cases": [
+      "Source headers/folded whitespace/opaque encoded subject; LF/CRLF and empty body boundaries",
+      "All four separate/combined inline/attachment modes with exact ordered bytes and subjects",
+      "Separate To/CC with source semicolon splitting/display-name preservation; ignored separate-mode custom subject",
+      "Empty/missing/non-file/directory/body failures; nonempty headerless attachment accepted",
+      "CR/LF/NUL byte-level single-line guards, including Swift CRLF grapheme",
+      "Captured attachment bytes remain after file replacement/deletion; duplicate input ordering",
+      "Readable symlink retains selected path and bytes; dangling symlink fails",
+      "Source INT_MAX sparse file rejected before read; in-place scan of many headerless lines",
+      "Binary/non-UTF-8 bytes retained without reencoding",
+      "Real combined two-binary-patch mailbox applies with git am to identical tree; source HEAD/index unchanged"
+    ],
+    "initial_failures_fixed": [
+      "Character-level header guard missed CRLF; changed to UTF-8 byte validation",
+      "Regular-file resource check rejected readable symlinks; validate resolved target, retain original URL"
+    ],
+    "inventory_pin_exit": 0,
+    "inventory_rows": 3277,
+    "mapped_partial_rows": [
+      "src/TortoiseProc/SendMail.cpp",
+      "src/TortoiseProc/SendMail.h",
+      "src/TortoiseProc/SendMailPatch.cpp",
+      "src/TortoiseProc/SendMailPatch.h",
+      "src/TortoiseProc/SerialPatch.cpp",
+      "src/TortoiseProc/SerialPatch.h"
+    ],
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_unsigned_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "bundled_icons": 100,
+    "preferences": "No test preference suites used; no mail client or main app launched, drafts created, network connections or delivery performed",
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    }
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "7b6d11247de065e7787751b97b7ff326531d98f63787b2d60a3ff0ba4d87da49",
+    "NOTICE": "ca05befc634dd4848805ac14ec0bca3a02b1d6d2f9b5440ba4f9734c5a522168",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "faeff747d9714b1541ee999ad5447458d9c2fb2020973a497acf59d6fd8fcf08",
+    "Sources/TurtleGitCore/SerialPatch.swift": "ab85fb34d5024f47d73909aa924d940df70dc7fa2b289f8574332699012dfe1d",
+    "Sources/TurtleGitCore/PatchMailPreparation.swift": "cf566837c9e2caa3327b8552b12196a3fcacf5702fa1f139f5e26986b6179cb1",
+    "Tests/TurtleGitCoreTests/PatchMailPreparationTests.swift": "1b02a0aea4511c4c4f0e379ae4ddc4b0aa157166eea45d4a9693508d3bbe0327",
+    "docs/SEND-PATCH-PARITY.md": "f55acd7b557a58c0aaacc0f467c316fa3b52641e36f4a180c3a8a25b0e0f3cee",
+    "docs/FORMAT-PATCH-PARITY.md": "c95b6bd4a23f090cca8975535c542fd7191bfb158fa6af573c3c04784ccd1f70",
+    "docs/PORTING.md": "d18c7993120fb97af1aa4f8a7d0a5c8064bbcfdc7b108d8436a0dccebdf4056d",
+    "docs/upstream-files.csv": "003eea2fee7bab83ad9c94f74f724877e96433b0bf7a73db692d117261b4e6b7"
+  },
+  "binary_sha256": {
+    "Debug_app": "ae0fc297ae892ad6d53e5bfb2e3aee3218b8dda08c01e7e3c33faa88de63b8d1",
+    "Debug_core": "681aa29a36d2d171aab2ecd84c1cdc27d10e0866ce91b16b75482115718ce65e",
+    "AppStore_app": "8a520236da8547640ceab88ffafe3fed383fd79701a81d745989b15e98ffe609",
+    "AppStore_core": "c47720bf932e479d8e7e34b5eabcfd102d2b86ccb3262ba9bf43f64fe8cc664c"
+  },
+  "limitations": [
+    "New Core preparation is not yet wired to app consumers; existing composition handoffs remain unchanged",
+    "Native Send Patch dialog/options/list/recipient history, sender identity, MIME/client/SMTP delivery/settings/credentials/retries/progress remain unported",
+    "Broader encodings, large-file stress and native physical UI acceptance pending",
+    "Unsigned AppStore build; actual signed sandbox/file grants/Finder/distribution acceptance pending",
+    "Hosted GitHub CI unverified; packaged-engine test step added locally",
+    "Whole TortoiseGit port remains incomplete"
+  ],
+  "logs": "build/qa/send-patch-preparation-2026-10-10/ (ignored local logs)"
+}
