@@ -101,5 +101,9 @@ reverse the configured built-in/external unified viewer choice.
 
 Right-click a branch or tag folder in Browse References to create a branch or tag
 from HEAD. **Delete all tags** applies to the tag rows currently displayed in that
-folder and filter. Tags outside the displayed list remain intact. Remote folder
-management and remote-tag dialogs are still being ported.
+folder and filter. Tags outside the displayed list remain intact. Remote management settings are still being ported.
+
+Use **Delete remote tags on "remote"…** in a tag folder to open the remote tag list.
+Select tags, click Delete and confirm; Abort is the default. The dialog refreshes
+and stays open after deletion. Local tags remain intact. Remote folders also offer
+Fetch and Delete remote tags for their configured remote.

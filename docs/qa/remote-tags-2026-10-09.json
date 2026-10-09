@@ -1,0 +1,76 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "f53a1cb9afc67d8fc5e6c5c1ee24271353641e8c",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Delete Remote Tag dialog/backend, tag and remote folder routes and folder Fetch preset. Whole browser/application parity remains incomplete.",
+  "verification": {
+    "source": "DeleteRemoteTagDlg/IDD_DELETEREMOTETAG has readonly Remote, headerless multiple selection, tri-state Select/deselect all and Delete/Close. GetRemoteRefs returns shortened tags, skips peeled records and sorts normal/reversed. Delete uses source single/count text and default Abort; Abort keeps selection/catalog, accepted Push refreshes and retains dialog. BrowseRefs remote tag closure does not refresh its catalog.",
+    "core": "22 RemoteTagTests/ReferenceBrowserTests pass both Git engines. Remote annotated/packed byte-distinct Unicode names, URL and configured name catalogs, natural/reversed ordering, batch Push/tag isolation and local metadata preservation, invalid/pre-cancelled requests and rejected Push checked.",
+    "native": "Final hidden shipping menu/controller/list receiver passes both engines. Original Delete artwork and remote/tag folder entries, selectable readonly remote field, native list and tri-state selection, captured ordered names, Abort/Delete/Refresh and progress phases, retained owned child, remote isolation, duplicate/F5/close/Quit and late Yes. Recorded live helper/leader termination in ls-remote, check-ref-format and Push; direct progress-sheet forced close also cancels ownership. Actual folder Fetch opens zeta preset through shipping route/shared configuration and releases with browser Refresh; callback preset additionally checked.",
+    "regressions": "Branch/tag folder and existing browser Fetch receivers pass both engines on final shipping code. Fetch checks real local transport/progress and existing forced metadata/transport cleanup.",
+    "builds": "Unsigned Debug/AppStore builds and both bundle audits pass. Both embedded NOTICE files byte-equal source. Universal Git/LFS, helpers, Finder extension, licenses and 99 original icons audited. XcodeGen adds two shipping Swift files to framework/application targets.",
+    "cycles": "Zero AttributeGraph cycles in final remote-tag/folder/Fetch logs.",
+    "inventory_ci_docs": "Upstream pin check and safe workflow YAML parse/exact new receiver step pass. Four inventory rows updated and remain partial-native. Local site build follows manifest creation; hosted CI unverified.",
+    "corrections": "Initial Core/Debug compilation caught checkbox coordinator isolation; both handles terminal before adding MainActor. Unicode fixture initially collided on normalized loose ref filenames; replaced with packed byte-distinct names after both handles terminal. Added selectable native readonly Remote field and rebuilt final Core/Debug. Initial native run passed; final receiver additionally exercises actual folder Fetch on unchanged shipping code. Prior logs retained."
+  },
+  "limitations": [
+    "Manage Remotes settings/folder entry, complete browser/application functionality/layout, physical sheets/default Abort focus/keyboard/pointer/light-dark/VoiceOver and refreshed screenshots remain pending.",
+    "Foundation natural sorting is not proven equal to Windows logical sorting for all locales/Unicode cases. Every progress presentation rejection, refresh failure, cancellation timing, custom tag-fetch mapping, bare/linked route and ref/config race is not individually exercised.",
+    "Core rejected Push is verified; native failure presentation and all authenticated/network transports are not. No signed App Store/Finder activation or scope/transport acceptance.",
+    "Browser bare metadata read now receives its request token; every forced timing for that read is not independently exercised here.",
+    "No main app launch, shared clipboard/Finder cache writer, external network, push, hosted CI or deployment claimed."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_processes": [],
+    "current_temporary_directories": [],
+    "current_preference_domains": []
+  },
+  "preference_cleanup": {
+    "removed": [
+      {
+        "domain": "TurtleGit.ReferenceFolders.QA.6B18A6B3-3EC9-40DD-8117-37D30F668EE9",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceFetch.QA.2A342B11-E6FA-4BC1-884F-47E9FC58B7E6",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceFetch.QA.36CCEA78-8F07-4FA1-AAB4-225475EAC463",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      },
+      {
+        "domain": "TurtleGit.ReferenceFolders.QA.E55FF22C-FB10-49CB-9655-E9AA25CC9471",
+        "verified_empty": true,
+        "defaults_delete_exit": 1,
+        "remaining": false
+      }
+    ],
+    "preserved": []
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "99433cca72aa8319f83bccea715008b60216f241eee6dff2ec9e50d229d80414",
+    "Sources/TurtleGitCore/RemoteTags.swift": "34a32f56593f5a21c04d93653761b36568a299130cba9bba9f6ea72b9d147e8f",
+    "Sources/TurtleGitMac/RemoteTagWindow.swift": "44e54c36f1503aff8ec572d9f347c41baa998ad2a3fc8d8cffd25cb57f8606c2",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "ac93c3024cc550f645434f2f54bd3206649090813328e887ef5a9e129640725d",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "e0f0f93f226ecbe260f6d5ac2d283f5de8dc5487c4b7df16422ff4470bdfe28e",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "ee2b0a06c9aa1351d9db4d957c7439b07cef90c9c981e41d486ea5047bbaec2f",
+    "Tests/TurtleGitCoreTests/RemoteTagTests.swift": "345e06a4098fcc7c2a627c49d6bac1b42b26516b0f520b436c44af8e5c6994a2",
+    "docs/GETTING-STARTED.md": "c3b6f0b9062c153b9738b5549db7227465879fe2ca8d7c7994202f614fa1eb5b",
+    "docs/REMOTE-TAGS-PARITY.md": "53d71ca6d619d3a48d767cd6a329e7b40dd5ad894eb6fd2a4c3b102097f26eee",
+    "docs/REFERENCE-BROWSER-PARITY.md": "166b861076440b5e6591d75e7f8a4171d81e41fdbdc30889df959057ae6002bd",
+    "docs/TESTING.md": "240c24a88d8493277334cb972f89b81a70290356cdea666a3fea1386ba5773e5",
+    "docs/upstream-files.csv": "68c28f4153bdc0659988b773d23b513112f5d64f142d2fa9b119376e849393c7",
+    "docs/qa/remote-tags-native-2026-10-09.swift": "227803de7620daee5863098f4fb003046d6c1ea2602556c99a9de84e5fabcb87",
+    "scripts/test-remote-tags.py": "a750e4097956fa508751e281e9d6a6f91704110d13b481676246244e69996b9e"
+  },
+  "log_directory": "build/qa/remote-tags-2026-10-09"
+}

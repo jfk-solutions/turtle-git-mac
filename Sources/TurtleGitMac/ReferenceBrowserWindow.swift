@@ -9,6 +9,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
 @MainActor final class ReferenceBrowserWindowController: NSWindowController, NSWindowDelegate {
     let model: ReferenceBrowserWindowModel
     var onClosed: () -> Void = {}
+    private(set) var remoteTagDialog: RemoteTagWindowController?
+    var configureRemoteTags: (RemoteTagWindowController) -> Void = { _ in }
+    var presentRemoteTags: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private(set) var comparisonDialog: RevisionComparisonWindowController?
     var presentComparison: (NSWindow, NSWindow) -> Bool = { owner, child in guard owner.attachedSheet == nil else { return false }; owner.beginSheet(child); return true }
     private var unifiedViewer: PatchWindowController?
@@ -53,6 +56,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         model.onEditDescription = { [weak self] in self?.editDescription() }
         model.onSelectTracking = { [weak self] in self?.selectTracking() }
         model.onFetch = { [weak self] in self?.showFetch() }
+        model.onDeleteRemoteTags = { [weak self] remote in self?.showRemoteTags(remote) }
+        model.onFetchFolder = { [weak self] remote in self?.showFetch(remote: remote) }
         model.onCreateFolder = { [weak self] isTag in self?.showCreateFolder(isTag: isTag) }
         model.onCreateBranch = { [weak self] in self?.showCreateBranch() }
         model.onMerge = { [weak self] in self?.showMerge() }
@@ -147,8 +152,25 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard let window = child.window, presentSwitch(owner, window) else { child.close(); return }
         child.model.load(revision: reference)
     }
+    func showRemoteTags(_ remote: String) {
+        guard let owner = window, owner.attachedSheet == nil, model.canUseFolder, model.snapshot?.remotes.contains(where: { GitReferenceName.equal($0, remote) }) == true else { return }
+        owner.makeFirstResponder(nil); model.hasChild = true
+        let child = RemoteTagWindowController(repository: model.repository, access: model.access, remote: remote, preferences: model.preferences)
+        remoteTagDialog = child; configureRemoteTags(child)
+        child.onClosed = { [weak self, weak child] in
+            guard let self, let child, self.remoteTagDialog === child else { return }
+            if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }
+            self.remoteTagDialog = nil; self.model.hasChild = false
+        }
+        guard let window = child.window, presentRemoteTags(owner, window) else { child.close(); return }
+        child.model.load()
+    }
     func showFetch() {
-        guard let owner = window, owner.attachedSheet == nil, model.canFetch, let remote = model.fetchRemote else { return }
+        guard model.canFetch, let remote = model.fetchRemote else { return }; showFetch(remote: remote)
+    }
+    private func showFetch(remote: String) {
+        guard let owner = window, owner.attachedSheet == nil, !model.busy, !model.hasChild, !model.closed, model.renameReference == nil else { return }
+        owner.makeFirstResponder(nil)
         model.hasChild = true
         let child = FetchWindowController(repository: model.repository, access: model.access, preferences: model.preferences)
         fetchDialog = child; model.configureFetch(child)
@@ -200,7 +222,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         if let window { window.sheetParent?.endSheet(window); window.close() }; completion(reference)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); comparisonDialog?.close(); comparisonDialog = nil; unifiedViewer?.close(); unifiedViewer = nil; if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); remoteTagDialog?.close(); remoteTagDialog = nil; comparisonDialog?.close(); comparisonDialog = nil; unifiedViewer?.close(); unifiedViewer = nil; if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }; fetchDialog?.close(); fetchDialog = nil; branchDialog?.close(); branchDialog = nil; mergeDialog?.close(); mergeDialog = nil; switchDialog?.close(); switchDialog = nil; trackingRequest = nil; trackingPicker?.abandonPresentation(); trackingPicker = nil; descriptionEditor?.close(); descriptionEditor = nil; reflog?.close(); reflog = nil; model.hasChild = false; let completion = completion; self.completion = nil; completion?(nil); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 @MainActor final class ReferenceBrowserWindowModel: ObservableObject {
@@ -267,6 +289,9 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         deleteReferences(selectedRows.map { $0.reference.name })
     }
     var canUseFolder: Bool { !invalidated && !busy && !hasChild && renameReference == nil && folders.contains(folder) }
+    var onDeleteRemoteTags: ((String) -> Void)?
+    var onFetchFolder: ((String) -> Void)?
+    var folderRemote: String? { folder.browserIsFrom("refs/remotes") ? snapshot?.remote(for: folder) : nil }
     var onCreateFolder: ((Bool) -> Void)?
     func canCreateFolder(isTag: Bool) -> Bool { canUseFolder && folder.browserIsFrom(isTag ? "refs/tags" : "refs/heads") }
     var canDeleteAllTags: Bool { canUseFolder && folder.browserIsFrom("refs/tags") && !rows.isEmpty }
@@ -429,7 +454,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let result = try await repository.referenceBrowser(filter: filter, scope: scope, cancellation: request)
-                let bare = try await repository.isBare()
+                let bare = try await repository.isBare(cancellation: request)
                 guard !invalidated, token === request else { return }
                 let choice = result.initialSelection(requested); folders = result.folders; self.bare = bare; snapshot = result; folder = choice.folder; selected = choice.reference; refilter()
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
@@ -644,7 +669,20 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                     item("Create Tag…", #selector(createFolderTag), .tag, model.onCreateFolder != nil)
                     item("Delete all tags", #selector(deleteAllTags), .remove, model.canDeleteAllTags && model.confirmDeletion != nil)
                 }
-                // Remote management/tag dialogs are not yet ported here.
+                if model.folder.browserIsFrom("refs/tags"), let remotes = model.snapshot?.remotes, !remotes.isEmpty {
+                    menu.addItem(.separator())
+                    for remote in remotes {
+                        let entry = NSMenuItem(title: "Delete remote tags on \"" + remote + "\"…", action: #selector(deleteRemoteTags(_:)), keyEquivalent: "")
+                        entry.target = self; entry.image = MenuIcon.remove.contextImage(defaults: model.preferences); entry.isEnabled = model.onDeleteRemoteTags != nil; entry.representedObject = remote; menu.addItem(entry)
+                    }
+                }
+                if let remote = model.folderRemote {
+                    let fetch = NSMenuItem(title: "Fetch from \"" + remote + "\"", action: #selector(fetchFolder(_:)), keyEquivalent: "")
+                    fetch.target = self; fetch.image = MenuIcon.fetch.contextImage(defaults: model.preferences); fetch.representedObject = remote; fetch.isEnabled = model.onFetchFolder != nil; menu.addItem(fetch)
+                    let tags = NSMenuItem(title: "Delete remote tags…", action: #selector(deleteRemoteTags(_:)), keyEquivalent: "")
+                    tags.target = self; tags.image = MenuIcon.remove.contextImage(defaults: model.preferences); tags.representedObject = remote; tags.isEnabled = model.onDeleteRemoteTags != nil; menu.addItem(tags)
+                }
+                // Manage Remotes settings still require their complete native port.
                 if !menu.items.isEmpty { menu.addItem(.separator()) }
                 item("Copy ref names", #selector(copyFolder), .copy, true); return
             }
@@ -680,6 +718,8 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             deletion()
             menu.addItem(.separator()); item("Copy ref names", #selector(copyName), .copy, true)
         }
+        @objc func deleteRemoteTags(_ sender: NSMenuItem) { guard model.canUseFolder, let remote = sender.representedObject as? String else { return }; model.onDeleteRemoteTags?(remote) }
+        @objc func fetchFolder(_ sender: NSMenuItem) { guard model.canUseFolder, let remote = sender.representedObject as? String, model.folderRemote.map({ GitReferenceName.equal($0, remote) }) == true else { return }; model.onFetchFolder?(remote) }
         @objc func createFolderBranch() { if model.canCreateFolder(isTag: false) { model.onCreateFolder?(false) } }
         @objc func createFolderTag() { if model.canCreateFolder(isTag: true) { model.onCreateFolder?(true) } }
         @objc func deleteAllTags() { model.deleteAllTags() }

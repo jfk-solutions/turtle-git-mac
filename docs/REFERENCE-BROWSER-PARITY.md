@@ -552,3 +552,19 @@ Standalone, batch deletion and comparison receivers remain regressions. Final
 results and limits are in `qa/reference-folders-2026-10-09.json`. Physical tree
 right-click/hit-testing/focus/light-dark/VoiceOver, all mutation/creation error
 variants, Unicode whitespace trimming and signed acceptance remain unverified.
+
+
+## Remote tag dialog and folder Fetch
+
+Tag folders now offer **Delete remote tags on "remote"…** for each configured
+remote, with original Delete artwork. Remote folders/descendants offer **Fetch
+from "remote"** and **Delete remote tags…**, resolving configured first-prefix
+names consistently with source `SplitRemoteBranchName`. The owned Delete Remote
+Tag dialog has its source tag list, tri-state selection, Delete/Abort and refresh
+behavior, plus token-owned progress sheets. Its closure releases BrowseRefs without
+refreshing the catalog. Folder Fetch uses the existing owned preset/progress/Refresh
+path. The bare metadata read now also receives the browser's request token.
+
+See [remote tag parity](REMOTE-TAGS-PARITY.md) and
+`qa/remote-tags-2026-10-09.json` for checks and limits. Manage Remotes remains
+unimplemented here. Physical/signed/full browser and application parity is incomplete.

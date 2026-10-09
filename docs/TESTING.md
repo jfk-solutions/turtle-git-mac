@@ -447,3 +447,17 @@ constructs RepositoryModel or uses a shared clipboard. Run ReferenceBrowser,
 ReferenceCreation and RevisionComparison Core tests, plus standalone/batch and
 comparison native regressions. Standalone Copy now expects source-short names.
 Remote folder dialogs and physical/signed/complete creation variants remain pending.
+
+
+### Remote tag dialog
+
+After a Debug build run `python3 scripts/test-remote-tags.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The hidden receiver exercises actual folder menu icons/presets and native tag
+list selection, tri-state state changes, captured names/remote, Abort/Delete/Refresh,
+owned progress, duplicate/F5/close/Quit and late confirmation gates. It records live
+process groups and forces closure during ls-remote, check-ref-format and Push.
+Progress/confirmation presentation is intercepted; no window is ordered. Run
+RemoteTagTests/ReferenceBrowserTests and existing folder/Fetch native regressions.
+Physical confirmation/default focus, all failures/timings, real authentication and
+signed App Store/Finder acceptance remain pending.
