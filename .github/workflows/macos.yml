@@ -60,6 +60,8 @@ jobs:
         run: python3 scripts/test-switch-pickers.py
       - name: Native Branch and Tag creation handoffs
         run: python3 scripts/test-branch-tag-handoff.py
+      - name: Native Branch Tag and Worktree full revision pickers
+        run: python3 scripts/test-creation-pickers.py
       - name: Native Export progress and ZIP cancellation
         run: python3 scripts/test-export-progress.py
       - name: Native Format Patch progress policies and cancellation

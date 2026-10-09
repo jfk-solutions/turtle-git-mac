@@ -95,3 +95,30 @@ interaction, UI warning defaults and Push destination remain physical acceptance
 work. The hidden controller's view is removed before inducing a warning so the
 receiver cannot display an alert; controls are hosted separately without a window.
 No actual network Push occurs. Existing screenshots predate this completion flow.
+
+## Full shared revision pickers
+
+Create Branch and Create Tag now own the native all-reference namespace browser
+and full typed-revision single-selection Log through `VersionPickerCoordinator`.
+The reference tree/list supports local branches, tags, remotes and custom/notes
+namespaces. A fresh return catalog classifies the canonical selection into the
+Branch/Tag/Commit control; Cancel refreshes the original selection. Native revision
+controls receive a once-only focus request, and branch/tag handoffs preserve the
+unused commit draft. Log shows the typed ancestry, graph and details without the
+Working Tree row and returns a full hash.
+
+HEAD, busy, pending-name-conflict and already-created states prevent new picker
+requests. Parent creation, competing requests, close and Quit are gated while a
+picker or return catalog is pending. The shared owner rejects stale replies and
+releases rejected/closed children. Name, description/message, Force and follow-up
+options remain separate from chooser defaults; remote-name suggestions retain
+the existing parent behavior. App factories configure canonical Log/Browse/Compare
+context actions with the retained repository lease.
+
+[Creation picker QA](qa/creation-pickers-2026-10-09.json) records hidden native
+controller checks followed by actual private branch/tag creation at the chosen
+Log revision, plus the existing captured handoff regression. Injected presenters
+release parent focus and never order windows or show real sheets. Physical input,
+sheet restoration, error/close-during-load recovery, visual/theme/accessibility,
+complete browser/Log commands and signed acceptance remain pending. Existing
+screenshots predate these routes.

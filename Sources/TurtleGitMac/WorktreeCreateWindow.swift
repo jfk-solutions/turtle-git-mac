@@ -5,13 +5,22 @@ import TurtleGitCore
 @MainActor final class WorktreeCreateWindowController: NSWindowController, NSWindowDelegate {
     let model: WorktreeCreateWindowModel
     var onClosed: () -> Void = {}
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        model = WorktreeCreateWindowModel(repository: repository, access: access)
+    private var pickers: VersionPickerCoordinator!
+    var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
+    var commitPicker: LogWindowController? { pickers.commitPicker }
+    var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
+    var presentPicker: (NSWindow, NSWindow) -> Bool { get { pickers.presentPicker } set { pickers.presentPicker = newValue } }
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
+
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        model = WorktreeCreateWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 420), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – New Worktree – TurtleGit"
         window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: WorktreeCreateDialog(model: model, chooser: model.chooser))
+        window.contentViewController = NSHostingController(rootView: WorktreeCreateDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
+        pickers = VersionPickerCoordinator(window: window, model: model.chooser, access: access, preferences: preferences, allowed: { [weak model] in model?.canPickBase == true })
+        pickers.onSelection = { [weak model] in if model?.useHead == false { model?.changedBase() } }
         window.setContentSize(NSSize(width: 660, height: 420)); window.contentMinSize = NSSize(width: 640, height: 420)
         window.center()
         model.close = { [weak self] in self?.window?.performClose(nil) }
@@ -20,10 +29,10 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "CreateWorktreeDialog", legacyName: "CreateWorktreeDialog")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && model.chooser.pickerTarget == nil && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); pickers.invalidate(); onClosed() }
     private func chooseDirectory() {
-        guard let window, window.attachedSheet == nil, !model.busy else { return }
+        guard let window, window.attachedSheet == nil, !model.busy, model.chooser.pickerTarget == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
         panel.title = "Worktree Directory"; panel.prompt = "Choose"
         panel.directoryURL = URL(fileURLWithPath: model.directory).deletingLastPathComponent()
@@ -56,6 +65,9 @@ import TurtleGitCore
     @Published var error: String?
     @Published var hasSubmodules = false
     @Published var cancelled = false
+    private var invalidated = false
+    var canPickBase: Bool { !invalidated && !busy && !progress && !useHead }
+    func invalidate() { invalidated = true; chooser.invalidate() }
     private var cancellation: OperationCancellation?
     private var createdPath: URL?
     private var shortHashLength = 7
@@ -64,8 +76,8 @@ import TurtleGitCore
     var onCreated: (String) -> Void = { _ in }
     var onSubmodules: (URL, RepositoryAccessLease?) -> Void = { _, _ in }
     var automaticDetach: Bool { !createBranch && !useHead && (chooser.options.target != .branch || chooser.remote) }
-    init(repository: GitRepository, access: RepositoryAccessLease?) {
-        self.access = access; chooser = SwitchWindowModel(repository: repository, access: access)
+    init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) {
+        self.access = access; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
         let root = repository.root.path
         directory = root.hasSuffix(".git") ? String(root.dropLast(4)) : root + "-worktree"
     }
@@ -73,24 +85,26 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func load() {
+        guard !invalidated, !busy, !progress, chooser.pickerTarget == nil else { return }
         busy = true
         Task {
             defer { busy = false }
             do {
                 try checkAccess()
-                currentBranch = try await chooser.repository.branch()
-                shortHashLength = (try? await chooser.repository.run(["rev-parse", "--short", "HEAD"]).text.trimmingCharacters(in: .newlines).count) ?? 7
+                let branch = try await chooser.repository.branch()
+                let length = (try? await chooser.repository.run(["rev-parse", "--short", "HEAD"]).text.trimmingCharacters(in: .newlines).count) ?? 7
+                guard !invalidated else { return }; currentBranch = branch; shortHashLength = length
                 chooser.load(); changedBase()
-            } catch { self.error = error.localizedDescription }
+            } catch { if !invalidated { self.error = error.localizedDescription } }
         }
     }
     func changedBase() {
         if useHead {
             branchName = URL(fileURLWithPath: directory).lastPathComponent; createBranch = false
-        } else if chooser.options.target == .branch, let reference = chooser.references.first(where: { $0.name == chooser.branchRevision }) {
+        } else if chooser.options.target == .branch, let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) }) {
             branchName = reference.suggestedBranch; createBranch = reference.remote
         } else {
-            let revision = chooser.options.target == .commit ? String(chooser.commitRevision.prefix(shortHashLength)) : chooser.tags.first(where: { $0.name == chooser.tagRevision })?.label ?? chooser.revision
+            let revision = chooser.options.target == .commit ? String(chooser.commitRevision.prefix(shortHashLength)) : chooser.tags.first(where: { GitReferenceName.equal($0.name, chooser.tagRevision) })?.label ?? chooser.revision
             branchName = "Branch_" + revision; createBranch = chooser.options.target != .branch
         }
         changedBranch()
@@ -98,7 +112,7 @@ import TurtleGitCore
     func changedBranch() { detach = automaticDetach }
     func changedDetach() { if detach { createBranch = false } }
     func create() {
-        guard !busy, !chooser.busy else { return }
+        guard !invalidated, !busy, !chooser.busy, !progress, chooser.pickerTarget == nil else { return }
         guard !directory.isEmpty, directory.hasPrefix("/"), !directory.contains("\0") else { error = "Enter an absolute worktree directory."; return }
         let path = URL(fileURLWithPath: directory, isDirectory: true).standardizedFileURL
         do {
@@ -159,15 +173,15 @@ private struct WorktreeCreateDialog: View {
                 GroupBox("Base On") { VStack(spacing: 6) {
                     BaseRadio(title: "HEAD (\(model.currentBranch.isEmpty ? "detached" : model.currentBranch))", selected: model.useHead) { model.useHead = true; model.changedBase() }.frame(height: 22)
                     HStack { radio("Branch", target: .branch)
-                        ReferencePopup(references: chooser.branches, selection: $chooser.branchRevision).disabled(model.useHead || chooser.options.target != .branch)
+                        ReferencePopup(references: chooser.branches, selection: $chooser.branchRevision, accessibilityLabel: "Base branch revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .branch) }).disabled(model.useHead || chooser.options.target != .branch)
                         Button("…") { chooser.browse(.branch) }.accessibilityLabel("Browse references").disabled(model.useHead || chooser.options.target != .branch)
                     }.frame(height: 26)
                     HStack { radio("Tag", target: .tag)
-                        ReferencePopup(references: chooser.tags, selection: $chooser.tagRevision).disabled(model.useHead || chooser.options.target != .tag)
+                        ReferencePopup(references: chooser.tags, selection: $chooser.tagRevision, accessibilityLabel: "Base tag revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .tag) }).disabled(model.useHead || chooser.options.target != .tag)
                         Color.clear.frame(width: 29)
                     }.frame(height: 26)
                     HStack { radio("Commit", target: .commit)
-                        TextField("Commit", text: $chooser.commitRevision).disabled(model.useHead || chooser.options.target != .commit)
+                        VersionRevisionField(text: $chooser.commitRevision, accessibilityLabel: "Base commit revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .commit) }).disabled(model.useHead || chooser.options.target != .commit)
                         Button("…") { chooser.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.useHead || chooser.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8) }
@@ -179,14 +193,14 @@ private struct WorktreeCreateDialog: View {
                         Toggle("Detach", isOn: Binding(get: { model.detach }, set: { model.detach = $0; model.changedDetach() })).disabled(model.automaticDetach); Spacer()
                     }
                 }.padding(8) }
-                HStack { if model.busy || chooser.busy { ProgressView().controlSize(.small) }; Spacer()
+                HStack { if model.busy || chooser.busy || chooser.pickerTarget != nil { ProgressView().controlSize(.small) }; Spacer()
                     Button("OK") { model.create() }.keyboardShortcut(.defaultAction).disabled(model.directory.isEmpty || model.createBranch && model.branchName.isEmpty)
                     Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                     Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-worktrees.html#tgit-dug-worktree-create")!) }
                 }
             }
         }.padding(16)
-        .disabled(!model.progress && (model.busy || chooser.busy))
+        .disabled(!model.progress && (model.busy || chooser.busy || chooser.pickerTarget != nil))
         .onChange(of: chooser.branchRevision) { _ in if !model.useHead && chooser.options.target == .branch { model.changedBase() } }
         .onChange(of: chooser.tagRevision) { _ in if !model.useHead && chooser.options.target == .tag { model.changedBase() } }
         .onChange(of: chooser.commitRevision) { _ in if !model.useHead && chooser.options.target == .commit { model.changedBase() } }

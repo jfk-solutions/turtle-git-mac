@@ -34,8 +34,10 @@ Branch browse now owns the native all-reference namespace browser, including
 tags, remotes, notes/custom refs, metadata columns and filters. Commit browse owns
 the full Log in single-selection mode at the typed revision, with graph/details
 and no Working Tree row. Both follow CChooseVersion and preserve modal ownership.
-The reusable browser and Log themselves remain partial ports; other chooser
-consumers still use the earlier flat chooser.
+The reusable browser and Log themselves remain partial ports. Switch, Branch/Tag
+and New Worktree now share the full picker owner; Reset uses the same full dialogs
+through its dedicated owner. Complete commands, history combos and other consumers
+remain pending.
 
 ## Verification
 

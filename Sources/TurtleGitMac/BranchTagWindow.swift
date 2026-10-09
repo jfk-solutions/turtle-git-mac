@@ -5,21 +5,30 @@ import TurtleGitCore
 @MainActor final class BranchTagWindowController: NSWindowController, NSWindowDelegate {
     let model: BranchTagWindowModel
     var onClosed: () -> Void = {}
+    private var pickers: VersionPickerCoordinator!
+    var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
+    var commitPicker: LogWindowController? { pickers.commitPicker }
+    var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
+    var presentPicker: (NSWindow, NSWindow) -> Bool { get { pickers.presentPicker } set { pickers.presentPicker = newValue } }
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
+
     init(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, preferences: UserDefaults = .standard) {
         model = BranchTagWindowModel(repository: repository, access: access, isTag: isTag, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 660, height: 470),
                               styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "\(repository.root.lastPathComponent) – Create \(isTag ? "Tag" : "Branch") – TurtleGit"
         window.minSize = NSSize(width: 650, height: 480); window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: BranchTagDialog(model: model, chooser: model.chooser))
+        window.contentViewController = NSHostingController(rootView: BranchTagDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
+        pickers = VersionPickerCoordinator(window: window, model: model.chooser, access: access, preferences: preferences, allowed: { [weak model] in model?.canPickBase == true })
+        pickers.onSelection = { [weak model] in if model?.useHead == false { model?.changedBase() } }
         window.setContentSize(NSSize(width: 660, height: 470)); window.center()
-        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.chooser.busy, !self.model.hasPendingNameConflict, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, !self.model.chooser.busy, self.model.chooser.pickerTarget == nil, !self.model.hasPendingNameConflict, self.window?.attachedSheet == nil else { return }; self.window?.close() }
 
         DialogGeometry.attach(window, identifier: "BranchTagWindowController")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && !model.hasPendingNameConflict && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && !model.chooser.busy && model.chooser.pickerTarget == nil && !model.hasPendingNameConflict && sender.attachedSheet == nil }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); pickers.invalidate(); onClosed() }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
 
@@ -34,7 +43,7 @@ import TurtleGitCore
     var hasPendingNameConflict: Bool { nameConflict || conflictSnapshot != nil }
     var retryDescription: Bool { descriptionSnapshot != nil }
     var onSwitch: ((String, @escaping () -> Void) -> Void)?
-    func invalidate() { invalidated = true; conflictSnapshot = nil }
+    func invalidate() { invalidated = true; conflictSnapshot = nil; chooser.invalidate() }
     func abortNameConflict() { nameConflict = false; conflictSnapshot = nil }
     @Published var options = ReferenceCreationOptions()
     @Published var useHead = true
@@ -50,13 +59,14 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onCreated: (String) -> Void = { _ in }
     var onPushTag: (String) -> Void = { _ in }
+    var canPickBase: Bool { !busy && !chooser.busy && !useHead && !hasPendingNameConflict && createdBranch == nil && !invalidated && !finished }
     var remote: Bool { !isTag && !useHead && chooser.remote }
     private var previousSuggestion = ""
     init(repository: GitRepository, access: RepositoryAccessLease?, isTag: Bool, preferences: UserDefaults = .standard) {
-        self.isTag = isTag; self.access = access; self.preferences = preferences; chooser = SwitchWindowModel(repository: repository, access: access)
+        self.isTag = isTag; self.access = access; self.preferences = preferences; chooser = SwitchWindowModel(repository: repository, access: access, preferences: preferences)
     }
     func load(revision: String?) {
-        guard !busy, !chooser.busy, !hasPendingNameConflict, createdBranch == nil, !invalidated, !finished else { return }
+        guard !busy, !chooser.busy, chooser.pickerTarget == nil, !hasPendingNameConflict, createdBranch == nil, !invalidated, !finished else { return }
         chooser.load(revision: revision); options = ReferenceCreationOptions(); options.isTag = isTag
         createdBranch = nil; previousSuggestion = ""
         useHead = revision == nil || revision == "HEAD" || revision?.isEmpty == true
@@ -73,7 +83,7 @@ import TurtleGitCore
         }
     }
     func changedBase() {
-        guard remote, let reference = chooser.references.first(where: { $0.name == chooser.branchRevision }) else { return }
+        guard remote, let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) }) else { return }
         if options.name.isEmpty || options.name == previousSuggestion { options.name = reference.suggestedBranch }
         previousSuggestion = reference.suggestedBranch
     }
@@ -81,7 +91,7 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(chooser.repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     func create(allowNameConflict: Bool = false) {
-        guard !busy, !chooser.busy, !invalidated, !finished else { return }
+        guard !busy, !chooser.busy, chooser.pickerTarget == nil, !invalidated, !finished else { return }
         if let snapshot = descriptionSnapshot { saveDescription(snapshot); return }
         var snapshot = options; snapshot.revision = useHead ? "HEAD" : chooser.revision; snapshot.allowNameConflict = allowNameConflict
         snapshot.name = snapshot.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -157,15 +167,15 @@ struct BranchTagDialog: View {
                 VStack(spacing: 6) {
                     BaseRadio(title: "HEAD (\(model.currentBranch.isEmpty ? "detached" : model.currentBranch))", selected: model.useHead) { model.useHead = true }.frame(height: 22)
                     HStack { radio("Branch", target: .branch).frame(width: 100)
-                        ReferencePopup(references: chooser.branches, selection: $chooser.branchRevision).disabled(model.useHead || chooser.options.target != .branch)
+                        ReferencePopup(references: chooser.branches, selection: $chooser.branchRevision, accessibilityLabel: "Base branch revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .branch) }).disabled(model.useHead || chooser.options.target != .branch)
                         Button("…") { chooser.browse(.branch) }.accessibilityLabel("Browse references").disabled(model.useHead || chooser.options.target != .branch)
                     }.frame(height: 26)
                     HStack { radio("Tag", target: .tag).frame(width: 100)
-                        ReferencePopup(references: chooser.tags, selection: $chooser.tagRevision).disabled(model.useHead || chooser.options.target != .tag)
+                        ReferencePopup(references: chooser.tags, selection: $chooser.tagRevision, accessibilityLabel: "Base tag revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .tag) }).disabled(model.useHead || chooser.options.target != .tag)
                         Color.clear.frame(width: 29)
                     }.frame(height: 26)
                     HStack { radio("Commit", target: .commit).frame(width: 100)
-                        TextField("Commit", text: $chooser.commitRevision).disabled(model.useHead || chooser.options.target != .commit)
+                        VersionRevisionField(text: $chooser.commitRevision, accessibilityLabel: "Base commit revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .commit) }).disabled(model.useHead || chooser.options.target != .commit)
                         Button("…") { chooser.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.useHead || chooser.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
@@ -180,15 +190,15 @@ struct BranchTagDialog: View {
                 Spacer()
             }.padding(8) }.disabled(model.createdBranch != nil)
             GroupBox(model.isTag ? "Message" : "Description") { TextEditor(text: $model.options.message).font(.system(.body, design: .monospaced)).frame(minHeight: 75) }.disabled(model.createdBranch != nil)
-            HStack { if model.busy || chooser.busy { ProgressView().controlSize(.small) }; Spacer()
+            HStack { if model.busy || chooser.busy || chooser.pickerTarget != nil { ProgressView().controlSize(.small) }; Spacer()
                 Button(model.retryDescription ? "Retry description" : model.createdBranch == nil ? "OK" : "Retry checkout") { model.create() }.keyboardShortcut(.defaultAction).disabled(model.options.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
                 Button("Help") { NSWorkspace.shared.open(URL(string: "https://tortoisegit.org/docs/tortoisegit/tgit-dug-branchtag.html")!) }
             }
-        }.padding(16).disabled(model.busy || chooser.busy)
+        }.padding(16).disabled(model.busy || chooser.busy || chooser.pickerTarget != nil)
         .onChange(of: chooser.branchRevision) { _ in model.changedBase() }
         .onChange(of: model.useHead) { _ in model.changedBase() }
-        .onChange(of: model.options.name) { name in if model.remote, let reference = chooser.references.first(where: { $0.name == chooser.branchRevision }), name != reference.suggestedBranch { model.options.tracking = .noTrack } }
+        .onChange(of: model.options.name) { name in if model.remote, let reference = chooser.references.first(where: { GitReferenceName.equal($0.name, chooser.branchRevision) }), name != reference.suggestedBranch { model.options.tracking = .noTrack } }
         .alert("Create reference failed", isPresented: Binding(get: { model.error != nil || chooser.error != nil }, set: { if !$0 { model.error = nil; chooser.error = nil } })) { Button("OK") { model.error = nil; chooser.error = nil } } message: { Text(model.error ?? chooser.error ?? "") }
         .alert("Branch and tag share a name", isPresented: $model.nameConflict) { Button("Continue") { model.create(allowNameConflict: true) }; Button("Abort", role: .cancel) { model.abortNameConflict() } } message: { Text(ReferenceCreationFailure.nameConflict.localizedDescription) }
         .sheet(item: $chooser.browser) { target in SwitchReferenceChooser(model: chooser, target: target) }

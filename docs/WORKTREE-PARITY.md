@@ -65,9 +65,10 @@ remains open.
 `WorktreeCreateWindow.swift` follows `IDD_WORKTREE_CREATE` group and row order:
 Location with Directory/Browse; Base On with HEAD, Branch, Tag and Commit; Options
 with Create New Branch/name followed by Checkout, Force and Detach; OK, Cancel
-and Help. It reuses the native radio, reference popup and searchable reference/
-commit chooser. These shared pickers are partial implementations; full upstream
-reference-browser and Log-picker fidelity is still pending.
+and Help. It now owns the shared native all-reference namespace browser and full
+typed-revision single-selection Log, using native revision controls and canonical
+fresh-catalog handoff. Both underlying browser/Log implementations remain partial;
+complete commands, history combos and physical fidelity are still pending.
 
 Checkbox changes follow the audited source: local branches suggest `Branch_…`,
 remote branches suggest their local name and enable Create New Branch, while
@@ -261,3 +262,25 @@ and zero bounds. All creation, column, management, scope and active cancellation
 checks are retained. These checks do not establish the composed window's
 appearance, row/selection overlap, high-DPI native screenshots, or signed behavior.
 See [watermark verification record](qa/worktree-backdrop-2026-10-05.json).
+
+## New Worktree full revision pickers
+
+`VersionPickerCoordinator` supplies the same full browser/Log routes as Switch
+and Branch/Tag. Native base controls receive selection focus, including custom refs
+classified into the Commit field. The Worktree parent reapplies its own branch
+suggestion/new-branch/detach rules after the handoff, retaining Directory, Checkout
+and Force. HEAD/busy/progress/closed states prevent new picker requests; Create,
+Directory Browse, duplicate/competing requests, close and Quit remain gated while
+a child or return catalog is pending. Closing the parent invalidates the chooser
+and releases its children; initial metadata replies to closed Worktree models are
+ignored. This does not establish cancellation/rollback of a running creation.
+
+[Creation picker QA](qa/creation-pickers-2026-10-09.json) includes hidden native
+Worktree chooser/focus/ownership checks and actual private creation at the commit
+returned by Log with Checkout disabled. The existing Worktree dialog/list/scope/
+cancellation receiver now compiles all shipping Mac sources in the project's
+Swift 5 mode, replacing an incomplete source list that omitted picker dependencies.
+It accepts `--git` so real operations and its delayed helper use the selected Git
+engine consistently. The old short-list compilation failure is retained locally.
+Physical sheets/input/visuals, complete browser/Log commands and signed security
+scopes/Finder acceptance remain pending; scope fixtures simulate policy only.

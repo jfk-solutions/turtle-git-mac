@@ -969,6 +969,11 @@ import TurtleGitCore
         controller.model.onSubmodules = { [weak self] path, lease in
             self?.showSubmoduleUpdate(repository: GitRepository(root: path, executable: repository.executable), access: lease, scope: [])
         }
+        controller.configureReferencePicker = { [weak self] model in
+            model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
+            model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
+            model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+        }
         worktreeCreateWindows[key] = controller
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
@@ -1478,6 +1483,11 @@ import TurtleGitCore
             self.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, completion: done)
         }
         controller.model.onPushTag = { [weak self] source in self?.showPush(repository: repository, access: access, source: source) }
+        controller.configureReferencePicker = { [weak self] model in
+            model.onLog = { [weak self] name in self?.showLog(repository: repository, access: access, paths: [], endRevision: name) }
+            model.onBrowse = { [weak self] name in self?.showRepositoryBrowser(repository: repository, access: access, revision: name) }
+            model.onCompare = { [weak self] name in self?.showRevisionComparison(repository: repository, access: access, from: .revision(name), to: .workingTree) }
+        }
         referenceWindows[key] = controller; controller.model.load(revision: revision)
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }

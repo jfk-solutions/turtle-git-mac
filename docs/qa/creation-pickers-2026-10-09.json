@@ -1,0 +1,180 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "54159f0",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/ChooseVersion.h": "9bc3080bd557ba11f814e6d9221aa322b1414f1c",
+    "src/TortoiseProc/CreateBranchTagDlg.cpp": "023120d49dfb8d93fc308a8da59db12b56eb4f5e",
+    "src/TortoiseProc/CreateBranchTagDlg.h": "624da59a30922c07313cb738a6a78b1f2915ea29",
+    "src/TortoiseProc/CreateWorktreeDlg.cpp": "e15ff43dcc0a6bf4c09429792dd644919dcf0f1a",
+    "src/TortoiseProc/CreateWorktreeDlg.h": "cdc58bd112fec3d4a3f35953202928997235436a"
+  },
+  "scope": "Full shared reference/Log picker routes in Create Branch, Create Tag and New Worktree. Complete app/browser/Log parity remains unfinished.",
+  "verification": {
+    "source": "CChooseVersion supplies all-ref PickRef/fresh catalog/selected combo focus and typed single-selection Log with no Working Tree row. CreateBranchTagDlg OnVersionChanged refreshes branch-specific tracking/name state; CreateWorktreeDlg reapplies suggestions and new-branch/detach defaults.",
+    "shared_owner": "Switch picker ownership extracted to VersionPickerCoordinator and used by Branch/Tag/Worktree controllers. Actual app factories configure canonical Log/Browse/Compare callbacks with retained repository/access; inherited Switch native regression passes both Git engines after extraction.",
+    "native": "Final private hidden creation receiver passes Apple and bundled Git: actual Branch/Tag/Worktree full browser and typed Log controllers; graph/native single selection/typed ancestry/no Working Tree; local/tag/symbolic-remote/notes and packed NFC/NFD canonical handoff, strict popup/nonnil field-editor focus, worktree byte-exact suggestions, retained unused draft and parent options. Native icon-bearing Log/Browse/Compare menu callbacks preserve canonical names. Tests capture callbacks instead of displaying follow-up dialogs.",
+    "ownership": "HEAD base gating, duplicate/cross-target/create/directory/reload/close/Quit gates, cancel/stale/rejected callbacks and closed-parent reopening checked. Forced active Reference/Log child cleanup checked for Branch and Worktree; Tag shares Branch controller and its normal close after actual creation is checked. No physical sheet transfer is established.",
+    "creation": "HEAD/staged tree/config unchanged during picker phase, then actual private branch, tag and no-checkout worktree created at the revision returned by a final full Log selection. Worktree fixture has a tracked file and its absence in new checkout verifies no-checkout behavior. Branch/Tag messages/options remain independent of chooser defaults. No network push or signed tag operation.",
+    "worktree_regression": "Repaired existing Worktree dialog/list receiver passes both Git engines: real worktree creation/local attachment/remote tracking and list/mutation/cancellation, actual table/column/menu/selection/fitting/reset persistence, malformed settings and scope/Prune policy simulation. GitRepository instances and delayed helper consistently use requested Git executable. Real signed security scopes remain unverified.",
+    "handoff_regression": "Existing Branch/Tag captured handoff receiver passes both engines: actual Switch/description acknowledgement, failed-checkout recovery/ref retention, foreign config lock/description-only retry, captured Push/cross-name intent, duplicate/load/invalidation and native close/Quit.",
+    "switch_regression": "Existing Switch full picker receiver passes both engines against shared owner: F5 late-created ref/fresh catalog, namespace defaults, strict focus, full typed Log, context icons and ownership gates. Zero AttributeGraph cycle warnings in all final receiver runs.",
+    "receiver_repair": "Parent-checkpoint worktree short-list script reproduced local compiler failure against current source: missing ReferenceBrowserWindowController, LogWindowController and ReferenceBrowserWindowModel. Updated it to compile all shipping Mac sources with the app @main removed, in project Swift 5 mode; optional --git now supports both engines. Legacy failure log/script retained locally. Hosted failing job cause is not claimed.",
+    "debug": "Unsigned Debug build and bundle audit pass.",
+    "store": "Unsigned AppStore build and required audit pass, including bundled universal Git 2.55.0, embedded Finder extension, all 99 original icons, licenses and runtime checks.",
+    "notice": "Both packaged NOTICE files byte-equal source.",
+    "inventory": "Pinned inventory checker passes; mappings remain partial.",
+    "site": "Local Pages rebuild passes; no new physical captures or deployment.",
+    "ci": "Creation picker receiver added once to macOS workflow; Ruby safe YAML parse and command lookup pass. Hosted execution/status remains unverified."
+  },
+  "limitations": [
+    "Complete browser mutation/range/tree commands, Log command/control/history combo behavior, other picker consumers and the whole port remain unfinished.",
+    "No ordered windows or actual sheets; physical mouse/keyboard/IME/default buttons, sheet focus restoration, error/close-during-load recovery, visual/theme/accessibility and signed security-scope/Finder/App Store acceptance remain unverified.",
+    "Closed Worktree initial metadata publication is guarded, but cancellation/rollback of running creation and all close-during-query states are not established. Scope fixtures simulate grant policy only.",
+    "No refreshed physical screenshots, site deployment, remote push or hosted CI acceptance; no new Core/full-suite claim. Existing worktree column-test domains predating this run were retained."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "removed_private_domains": [
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.EA50891D-E830-445D-8314-1C11D4FC4F6D",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.CreationPickers.QA.47084824-D802-418F-80B3-AF0D5A75473C",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.CreationPickers.QA.14D010F2-A484-4E54-8D65-87673443A369",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.BranchTagHandoff.QA.13CE243C-0480-4CDC-AFF0-C53AD855B503",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.BranchTagHandoff.QA.0920424E-EDC2-4639-AE1D-EEE0C4D6C1E3",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.CreationPickers.QA.DAC58D08-BB80-45BC-A4A6-A051917511E7",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.CreationPickers.QA.3C834768-551E-438A-A9CE-8F50C92A5AC7",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.486DF60E-E98F-4CDE-896F-5A94981B1363",
+        "defaults_delete_exit": 1,
+        "verified_empty": true
+      }
+    ],
+    "preexisting_column_test_domains_retained": [
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.CA064014-EA67-403B-8DC0-93269D33D935",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.EA7DC0C7-E456-4C35-A5E7-D6034689F5DE",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.11F21913-EA08-4D61-A634-3DE5A0A5D4EB",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.CC1993E2-4303-4799-9515-CAD7E89DCB5D",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.A5362016-8CAA-4623-9EF3-15C51059AFEE",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.5792506D-2C26-4CAD-99D4-323AF5F287A6",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.D8001C42-16E0-44BC-91F6-64F4DFC4D153",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.2304C18B-0B1C-4A9B-9B3B-F6001F4171EB",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.60075A1F-7A1F-45F1-B162-1A4425D58824",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.02FAD84B-3AFE-4CBA-909C-B44E4672B91D",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.390951F1-A5F4-43C8-A2B2-470E2DE6983D",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.A6BEE6FD-DA2A-48DE-B4C1-96271695269C",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      },
+      {
+        "domain": "TurtleGit.WorktreeColumns.Test.6A57DABF-9F9E-4605-AE8E-CAD09E07C163",
+        "reason": "Pre-existing column-test domain; outside this run cleanup."
+      }
+    ],
+    "remaining": {
+      "current_run_preferences": [],
+      "fixtures": [],
+      "owned_processes_and_compilers": [],
+      "notice_byte_equal": [
+        "Debug",
+        "AppStore"
+      ]
+    },
+    "windows": "Owned native controllers unordered, activation prohibited; injected presenters release parent focus and show no real sheets. Private preferences and Log column autosave disabled in picker tests; no general pasteboard writes. All build/compiler/receiver/audit handles terminal."
+  },
+  "changed_files_sha256": {
+    ".github/workflows/macos.yml": "5d5d25bb357c73b73492d5263ca44c9c011bcfdcf77b00b20991a4d0a2939cdc",
+    "NOTICE": "a953309325b76ddac15b01839a56383dcd369faf84512e68d29fc0cd03ac724e",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "542e1a356eac04fdb8f29a0c532b57f3865ca4db81b30a2890602e971c5eb377",
+    "Sources/TurtleGitMac/BranchTagWindow.swift": "286999d427f92fdaa16fce0f7aa15e317bbd489083df34965650d0aa397cd683",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "ef94ab3ed2f7c453e8696d8cc40362e39c3b484f97ed7cb27a2b6f2166057e40",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "1a3bf7bd4b910a37780f2702be2adccced313a1983f4ee1ef620195eadf62598",
+    "Sources/TurtleGitMac/WorktreeCreateWindow.swift": "d3e676b29ada761220dbf4a4c1b0821dc44902dd55d8006ef7141a859c0b0dc9",
+    "scripts/test-worktree-dialog.py": "3da8dec965286f5c64a772eb89463209e5dca49f6cbd5aa55f7cb07f60a7fa00",
+    "scripts/test-creation-pickers.py": "f2f7714bb143c6c9126d4e9b936c7dfac523003f29e648a35aa300f3cf060a0a",
+    "docs/qa/creation-pickers-native-2026-10-09.swift": "b4c6c28a2f97f674e67807356737ab6914d30cfcae895634091d30558f461d1b",
+    "docs/BRANCH-TAG-PARITY.md": "478447143e8b3ac0e660cf94c807067027217b7faa733383f47cb08cd427fa6d",
+    "docs/WORKTREE-PARITY.md": "70c9cead1116604d1111e6b83e942fc1686ef9538c253d2fedd5e8dd66b25a4f",
+    "docs/SWITCH-PARITY.md": "55ca4429b07a5972af51df2a0a5a9b7c462fe2d9b9b8c26f4f112415fa67bb5a",
+    "docs/REFERENCE-BROWSER-PARITY.md": "6935daa0307383126db8f2e88ab238a271f04949f4a9472a2369888798803ca0",
+    "docs/TESTING.md": "5c095a22a508523d9410aad1dd11b10b644ac7dfd4850d31bdf60fd109e267d7",
+    "docs/upstream-files.csv": "5b2a41b10576d7f0ef79f6c3c8aa4a97bf6363e1f90a484a0565e39dc27d1c47"
+  },
+  "local_evidence_sha256": {
+    "build/qa/creation-pickers-2026-10-09/cleanup.json": "2a1c76b88114dce9dbade01071764435d1339e8ff90fa9f8612cd19b530a4e33",
+    "build/qa/creation-pickers-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/creation-pickers-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/creation-pickers-2026-10-09/handoff-regression.log": "d176ca9180f02f485f6dfba493c3cae6e4907d4d3465e6cd88b73a49eade3c8a",
+    "build/qa/creation-pickers-2026-10-09/legacy-worktree-receiver.py": "69781fd2dfa1a2fdb70a29f02bb03ac42f0f5ca35e0f5747ff3d758301203a17",
+    "build/qa/creation-pickers-2026-10-09/legacy-worktree.log": "f99931651d989c52d4db646d9af752be420efc24927a0ab0b022aa845fc7ff13",
+    "build/qa/creation-pickers-2026-10-09/native-initial.log": "830a8dd1296b9e2b11772d746be1894b9644066ccf48f60aee22a17cf3e5cd98",
+    "build/qa/creation-pickers-2026-10-09/native.log": "830a8dd1296b9e2b11772d746be1894b9644066ccf48f60aee22a17cf3e5cd98",
+    "build/qa/creation-pickers-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/creation-pickers-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/creation-pickers-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/creation-pickers-2026-10-09/store.log": "9cb624a36a2072b6302defa877265a43f4ee189e19e03dec4c180a27fe990b9d",
+    "build/qa/creation-pickers-2026-10-09/switch-regression.log": "b1898786bde6df8eea40ddb6f4ca7ca51e072b63ceb20003f0a912df42d69314",
+    "build/qa/creation-pickers-2026-10-09/workflow.log": "56bbb2f8045d2e00683348da886afa106b527db8f830bbc9435ead4eed0a1e74",
+    "build/qa/creation-pickers-2026-10-09/worktree-regression.log": "ef93ca3e01a479dfa137f86d4bb04671bc2b2fda6debfd87314d5dde39b28c9f"
+  }
+}

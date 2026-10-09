@@ -2,10 +2,14 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-@MainActor final class SwitchWindowController: NSWindowController, NSWindowDelegate {
-    let model: SwitchWindowModel
-    var onClosed: () -> Void = {}
-    private var progressController: SwitchProgressWindowController?
+@MainActor final class VersionPickerCoordinator {
+    private weak var window: NSWindow?
+    private let model: SwitchWindowModel
+    private let access: RepositoryAccessLease?
+    private let preferences: UserDefaults
+    private let allowed: () -> Bool
+    private var invalidated = false
+    var onSelection: () -> Void = {}
     private(set) var referencePicker: ReferenceBrowserWindowController?
     private(set) var commitPicker: LogWindowController?
     private var pickerRequest: UUID?
@@ -14,6 +18,52 @@ import TurtleGitCore
     var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController = { repository, access, choose, preferences in
         LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences)
     }
+    init(window: NSWindow, model: SwitchWindowModel, access: RepositoryAccessLease?, preferences: UserDefaults, allowed: @escaping () -> Bool = { true }) {
+        self.window = window; self.model = model; self.access = access; self.preferences = preferences; self.allowed = allowed
+        model.onBrowsePicker = { [weak self] target in self?.showPicker(target) }
+    }
+    private func showPicker(_ target: CheckoutTarget) {
+        guard !invalidated, allowed(), let owner = window, owner.attachedSheet == nil, referencePicker == nil, commitPicker == nil, model.beginPicker(target) else { return }
+        let request = UUID(); pickerRequest = request
+        if target == .branch {
+            let child = ReferenceBrowserWindowController(repository: model.repository, access: access, initial: model.revision, preferences: preferences) { [weak self] name in
+                guard let self, self.pickerRequest == request else { return }
+                self.model.acceptReferenceSelection(name) { [weak self] in if let self, self.pickerRequest == request { self.pickerRequest = nil; if self.model.error == nil { self.onSelection() } } }
+            }
+            referencePicker = child; configureReferencePicker(child.model)
+            child.onClosed = { [weak self, weak child] in
+                guard let self, let child, self.referencePicker === child else { return }
+                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.referencePicker = nil
+            }
+            guard let window = child.window, presentPicker(owner, window) else { child.abandonPresentation(); referencePicker = nil; pickerRequest = nil; model.finishPicker(); return }
+            child.model.load()
+        } else {
+            let child = makeCommitPicker(model.repository, access, { [weak self] entry in
+                guard let self, self.pickerRequest == request else { return }; self.pickerRequest = nil; self.model.acceptCommitSelection(entry); if entry != nil { self.onSelection() }
+            }, preferences)
+            commitPicker = child
+            child.onClosed = { [weak self, weak child] in
+                guard let self, let child, self.commitPicker === child else { return }
+                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.commitPicker = nil
+            }
+            child.model.endRevision = model.commitRevision.isEmpty ? nil : model.commitRevision
+            guard let window = child.window, presentPicker(owner, window) else { child.close(); commitPicker = nil; pickerRequest = nil; model.finishPicker(); return }
+            child.model.reload()
+        }
+    }
+    func invalidate() { invalidated = true; pickerRequest = nil; model.invalidate(); referencePicker?.close(); referencePicker = nil; commitPicker?.close(); commitPicker = nil }
+}
+
+@MainActor final class SwitchWindowController: NSWindowController, NSWindowDelegate {
+    let model: SwitchWindowModel
+    var onClosed: () -> Void = {}
+    private var progressController: SwitchProgressWindowController?
+    private var pickers: VersionPickerCoordinator!
+    var referencePicker: ReferenceBrowserWindowController? { pickers.referencePicker }
+    var commitPicker: LogWindowController? { pickers.commitPicker }
+    var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void { get { pickers.configureReferencePicker } set { pickers.configureReferencePicker = newValue } }
+    var presentPicker: (NSWindow, NSWindow) -> Bool { get { pickers.presentPicker } set { pickers.presentPicker = newValue } }
+    var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults) -> LogWindowController { get { pickers.makeCommitPicker } set { pickers.makeCommitPicker = newValue } }
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String? = nil, preferences: UserDefaults = .standard) {
         model = SwitchWindowModel(repository: repository, access: access, revision: revision, preferences: preferences)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 370),
@@ -22,7 +72,7 @@ import TurtleGitCore
         window.minSize = NSSize(width: 600, height: 390); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SwitchDialog(model: model).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
-        model.onBrowsePicker = { [weak self] target in self?.showPicker(target, access: access, preferences: preferences) }
+        pickers = VersionPickerCoordinator(window: window, model: model, access: access, preferences: preferences)
         window.setContentSize(NSSize(width: 620, height: 370)); window.center()
         model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, !self.model.hasPendingTagConflict, self.model.browser == nil, self.model.pickerTarget == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
         model.onProgress = { [weak self] result in
@@ -36,36 +86,7 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "SwitchWindowController")
     }
-    private func showPicker(_ target: CheckoutTarget, access: RepositoryAccessLease?, preferences: UserDefaults) {
-        guard let owner = window, owner.attachedSheet == nil, referencePicker == nil, commitPicker == nil, model.beginPicker(target) else { return }
-        let request = UUID(); pickerRequest = request
-        if target == .branch {
-            let child = ReferenceBrowserWindowController(repository: model.repository, access: access, initial: model.revision, preferences: preferences) { [weak self] name in
-                guard let self, self.pickerRequest == request else { return }
-                self.model.acceptReferenceSelection(name) { [weak self] in if self?.pickerRequest == request { self?.pickerRequest = nil } }
-            }
-            referencePicker = child; configureReferencePicker(child.model)
-            child.onClosed = { [weak self, weak child] in
-                guard let self, let child, self.referencePicker === child else { return }
-                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.referencePicker = nil
-            }
-            guard let window = child.window, presentPicker(owner, window) else { child.abandonPresentation(); referencePicker = nil; pickerRequest = nil; model.finishPicker(); return }
-            child.model.load()
-        } else {
-            let child = makeCommitPicker(model.repository, access, { [weak self] entry in
-                guard let self, self.pickerRequest == request else { return }; self.pickerRequest = nil; self.model.acceptCommitSelection(entry)
-            }, preferences)
-            commitPicker = child
-            child.onClosed = { [weak self, weak child] in
-                guard let self, let child, self.commitPicker === child else { return }
-                if let window = child.window, window.sheetParent === self.window { self.window?.endSheet(window) }; self.commitPicker = nil
-            }
-            child.model.endRevision = model.commitRevision.isEmpty ? nil : model.commitRevision
-            guard let window = child.window, presentPicker(owner, window) else { child.close(); commitPicker = nil; pickerRequest = nil; model.finishPicker(); return }
-            child.model.reload()
-        }
-    }
-    func windowWillClose(_ notification: Notification) { model.invalidate(); pickerRequest = nil; referencePicker?.close(); referencePicker = nil; commitPicker?.close(); commitPicker = nil; onClosed() }
+    func windowWillClose(_ notification: Notification) { model.invalidate(); pickers.invalidate(); onClosed() }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.busy && model.progress == nil && model.browser == nil && model.pickerTarget == nil && !model.hasPendingTagConflict && sender.attachedSheet == nil }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -237,7 +258,7 @@ struct SwitchDialog: View {
                     }.frame(height: 26)
                     HStack {
                         SwitchRadio(title: "Commit", target: .commit, selection: $model.options.target).frame(width: 100)
-                        SwitchRevisionField(text: $model.commitRevision, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.options.target != .commit)
+                        VersionRevisionField(text: $model.commitRevision, focusRequest: model.referenceFocusRequest, onFocus: { model.focusReference($0, target: .commit) }).disabled(model.options.target != .commit)
                         Button("…") { model.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8)
@@ -565,15 +586,16 @@ struct SwitchProgressDialog: View {
     }
 }
 
-private struct SwitchRevisionField: NSViewRepresentable {
+struct VersionRevisionField: NSViewRepresentable {
     @Binding var text: String
+    var accessibilityLabel = "Switch commit revision"
     let focusRequest: Int
     let onFocus: (NSTextField) -> Void
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSTextField {
         let field = NSTextField(); field.isBezeled = true; field.bezelStyle = .squareBezel; field.drawsBackground = true
-        field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel("Switch commit revision")
+        field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel(accessibilityLabel)
         field.delegate = context.coordinator; return field
     }
     func updateNSView(_ field: NSTextField, context: Context) {

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Exercise actual native worktree models; does not prove visual/click acceptance."""
+import argparse
+import os
 import pathlib
 import platform
 import subprocess
@@ -7,8 +9,11 @@ import tempfile
 
 root = pathlib.Path(__file__).resolve().parent.parent
 frameworks = root / 'build/Build/Products/Debug'
-sources = [root / 'Sources/TurtleGitMac' / name for name in (
-    'CommandLabel.swift', 'SwitchWindow.swift', 'BranchTagWindow.swift', 'WorktreeCreateWindow.swift', 'WorktreeListWindow.swift', 'WorktreeListTable.swift')]
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--git', type=pathlib.Path, action='append')
+args = parser.parse_args()
+app = root / 'Sources/TurtleGitMac/TurtleGitMacApp.swift'
+sources = sorted(p for p in (root / 'Sources/TurtleGitMac').glob('*.swift') if p != app)
 driver = r'''
 import Foundation
 import AppKit
@@ -29,7 +34,8 @@ struct TestScopes: RepositoryBookmarkProvider {
         let folder = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
         let root = folder.appendingPathComponent("main")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        let repo = GitRepository(root: root)
+        let git = URL(fileURLWithPath: CommandLine.arguments[2])
+        let repo = GitRepository(root: root, executable: git)
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Dialog QA"])
         _ = try await repo.run(["config", "user.email", "qa@example.invalid"])
@@ -77,7 +83,7 @@ struct TestScopes: RepositoryBookmarkProvider {
         local.chooser.branchRevision = "refs/heads/available"; local.changedBase()
         local.directory = folder.appendingPathComponent("existing-branch").path
         local.create(); try await wait(local); precondition(local.success)
-        let attached = try await GitRepository(root: URL(fileURLWithPath: local.directory)).branch()
+        let attached = try await GitRepository(root: URL(fileURLWithPath: local.directory), executable: git).branch()
         precondition(attached == "available", "An explicit local branch must remain attached")
         let remote = WorktreeCreateWindowModel(repository: repo, access: nil)
         remote.load(); try await wait(remote)
@@ -157,7 +163,7 @@ struct TestScopes: RepositoryBookmarkProvider {
         }
         let barePath = folder.appendingPathComponent("copy.git")
         _ = try await repo.run(["clone", "--bare", "--", root.path, barePath.path])
-        let bareList = WorktreeListWindowModel(repository: GitRepository(root: barePath), access: nil)
+        let bareList = WorktreeListWindowModel(repository: GitRepository(root: barePath, executable: git), access: nil)
         bareList.reload(); try await waitList(bareList)
         precondition(bareList.rows.first?.isBare == true && bareList.branchLabel(bareList.rows.first!) == "main" && !bareList.hashLabel(bareList.rows.first!).isEmpty)
         let unchanged = try await repo.branch(); precondition(unchanged == "main")
@@ -211,7 +217,7 @@ struct TestScopes: RepositoryBookmarkProvider {
             : > "$(/usr/bin/dirname "$0")/started"
             /bin/sleep 30
         fi
-        exec /usr/bin/git "$@"
+        exec "${TURTLEGIT_QA_GIT:?}" "$@"
 
         """.write(to: wrapper, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
@@ -232,7 +238,7 @@ struct TestScopes: RepositoryBookmarkProvider {
         precondition(afterCancel.contains(where: { $0.path.lastPathComponent == "cancel-running-removal" }))
         print("Actual native model cancellation: observed running removal, stopped its owned process group before mutation, preserved checkout and registration.")
         print("Actual native list model: menus, main skip, lock/unlock batches, Continue/Abort, confirmation rejection, dirty failure/Force retry, missing rows, prune and bare HEAD passed.")
-        let bare = WorktreeCreateWindowModel(repository: GitRepository(root: folder.appendingPathComponent("source.git")), access: nil)
+        let bare = WorktreeCreateWindowModel(repository: GitRepository(root: folder.appendingPathComponent("source.git"), executable: git), access: nil)
         precondition(bare.directory == folder.appendingPathComponent("source").path)
         print("Actual native model: defaults, local/remote/tag/commit suggestions, forced detach, mutual exclusion and creation callback passed.")
     }
@@ -372,10 +378,15 @@ struct TestScopes: RepositoryBookmarkProvider {
 with tempfile.TemporaryDirectory(prefix='TurtleGitWorktreeDialogTest-') as directory:
     folder = pathlib.Path(directory)
     main = folder / 'Driver.swift'; main.write_text(driver)
+    copy = folder / app.name
+    copy.write_text(app.read_text().replace('@main struct', 'struct', 1))
     binary = folder / 'verify'
-    subprocess.run(['xcrun', 'swiftc', '-swift-version', '6', '-parse-as-library',
+    subprocess.run(['xcrun', 'swiftc', '-swift-version', '5', '-parse-as-library',
                     '-target', platform.machine() + '-apple-macosx13.0',
                     '-F', str(frameworks), '-framework', 'TurtleGitCore',
                     '-Xlinker', '-rpath', '-Xlinker', str(frameworks),
-                    *map(str, sources), str(main), '-o', str(binary)], check=True)
-    subprocess.run([str(binary), str(folder / 'fixture')], check=True)
+                    *map(str, sources), str(copy), str(main), '-o', str(binary)], check=True)
+    for index, git in enumerate(args.git or [pathlib.Path('/usr/bin/git')]):
+        environment = os.environ.copy(); environment['TURTLEGIT_QA_GIT'] = str(git.resolve())
+        print('Checking ' + str(git), flush=True)
+        subprocess.run([str(binary), str(folder / ('fixture-' + str(index))), str(git.resolve())], env=environment, check=True)
