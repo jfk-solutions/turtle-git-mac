@@ -51,6 +51,8 @@ import AppKit
         if submoduleSyncs.contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         let submoduleAdds = sender.windows.compactMap { $0.delegate as? SubmoduleAddWindowController }
         if submoduleAdds.contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
+        let submoduleAddProgress = sender.windows.compactMap { $0.delegate as? SubmoduleAddProgressWindowController }
+        if submoduleAddProgress.contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         let updateProgress = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateProgressWindowController }
         if updateProgress.contains(where: { $0.model.activeOperation || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         let updates = sender.windows.compactMap { $0.delegate as? SubmoduleUpdateWindowController }
@@ -73,6 +75,7 @@ import AppKit
         for update in updates { update.model.confirmingQuit = true }
         for update in updateProgress { update.model.confirmingQuit = true }
         for add in submoduleAdds { add.model.confirmingQuit = true }
+        for add in submoduleAddProgress { add.model.confirmingQuit = true }
         for sync in submoduleSyncs { sync.model.confirmingQuit = true }
         for add in adds { add.model.confirmingQuit = true }; for add in addProgress { add.model.confirmingQuit = true }
         for revert in reverts { revert.model.confirmingQuit = true }
@@ -133,6 +136,7 @@ import AppKit
             for update in updates { update.model.confirmingQuit = false }
             for update in updateProgress { update.model.confirmingQuit = false }
             for add in submoduleAdds { add.model.confirmingQuit = false }
+            for add in submoduleAddProgress { add.model.confirmingQuit = false }
             for sync in submoduleSyncs { sync.model.confirmingQuit = false }
             for add in adds { add.model.confirmingQuit = false }; for add in addProgress { add.model.confirmingQuit = false }
             for revert in reverts { revert.model.confirmingQuit = false }

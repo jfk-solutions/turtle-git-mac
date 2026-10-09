@@ -13,9 +13,18 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
     struct Failure: Error { let message: String }
     @MainActor static func require(_ value: @autoclosure () throws -> Bool, _ message: String) throws { if try !value() { throw Failure(message: message) } }
     @MainActor static func wait(_ stage: String = "Timed out", _ value: () -> Bool) async throws { for _ in 0..<1000 { if value() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(message: stage) }
+    @MainActor static var ownedAddModels: [SubmoduleAddProgressWindowModel] = []
+    @MainActor static func cleanupAddModels() async throws {
+        for model in ownedAddModels { model.invalidate() }
+        try await wait("Owned Add cleanup") { ownedAddModels.allSatisfy { !$0.busy } }
+        ownedAddModels.removeAll()
+    }
     @MainActor static func main() async {
         NSApplication.shared.setActivationPolicy(.prohibited)
-        do { try await run() } catch { fputs("FAIL \(error)\n", stderr); exit(1) }
+        do { try await run(); try await cleanupAddModels() } catch {
+            let failure = error; do { try await cleanupAddModels() } catch { fputs("CLEANUP FAIL \(error)\n", stderr) }
+            fputs("FAIL \(failure)\n", stderr); exit(1)
+        }
     }
     @MainActor static func run() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), askpass = URL(fileURLWithPath: CommandLine.arguments[3])
@@ -251,58 +260,118 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         try require(add.model.path == "source", "Submodule repository end-edit path derivation")
         add.model.path = "modules/native-child"; add.model.useBranch = true; add.model.branch = "main"
         add.model.useKey = true; add.model.acceptSelection(encrypted, kind: .key)
-        var added = 0; add.model.onAdded = { _ in added += 1 }
+        var added = 0, addOptionsClosed = 0
+        var addProgress: SubmoduleAddProgressWindowController?
+        add.onClosed = { addOptionsClosed += 1 }
+        add.model.onSubmit = { model in
+            ownedAddModels.append(model); let controller = SubmoduleAddProgressWindowController(model: model); addProgress = controller
+            model.onAdded = { _ in added += 1 }; model.start()
+        }
+        defer { addProgress?.close() }
         let appDelegate = TurtleGitApplicationDelegate()
-        add.model.apply(); add.model.apply()
+        add.model.apply(); add.model.source = "wrong snapshot"; add.model.path = "modules/wrong-snapshot"; add.model.apply()
         try require(appDelegate.applicationShouldTerminate(NSApplication.shared) == .terminateCancel, "Quit allowed a running Submodule Add")
-        try await wait("Native Submodule Add") { !add.model.busy }
-        try require(add.model.success && add.model.error == nil && added == 1, "Native Submodule Add failed or adopted twice")
-        try require(add.model.currentWork == "Success" && add.model.percentage == 100 && add.model.completionRange != nil && add.model.output.contains(" ms @ "), "Submodule Add missing default completion/timing")
+        try await wait("Native Submodule Add") { addProgress?.model.busy == false }
+        try require(addProgress!.model.success && addProgress!.model.error == nil && added == 1, "Native Submodule Add failed or adopted twice")
+        try require(addProgress!.model.currentWork == "Success" && addProgress!.model.percentage == 100 && addProgress!.model.completionRange != nil && addProgress!.model.output.contains(" ms @ "), "Submodule Add missing default completion/timing")
+        try require(addOptionsClosed == 1 && !add.model.canApply && addProgress?.window !== add.window, "Add did not close options and transfer to a separate progress window")
         let child = GitRepository(root: root.appendingPathComponent("modules/native-child"), executable: git)
         let childSettings = try await child.remoteSettings(name: "origin")
         let childHead = try await child.run(["rev-parse", "HEAD"]), parentHead = try await repo.run(["rev-parse", "HEAD"])
         try require(childSettings.sshKeyFile == encrypted.path && childSettings.puttyKeyFile.isEmpty && childHead.text == parentHead.text, "Native child key/HEAD mismatch")
         let gitlink = try await repo.run(["ls-files", "--stage", "--", "modules/native-child"])
         try require(gitlink.text.hasPrefix("160000 "), "Submodule Add did not stage gitlink")
-        add.close()
+        addProgress?.close()
         let previousLimit = preferences.object(forKey: "GitOutputLimitinKiB")
         preferences.set(16, forKey: "GitOutputLimitinKiB")
         let failedAdd = SubmoduleAddWindowModel(repository: transportRepo, access: RepositoryAccessLease(url: root), path: "", preferences: preferences)
-        if let previousLimit { preferences.set(previousLimit, forKey: "GitOutputLimitinKiB") } else { preferences.removeObject(forKey: "GitOutputLimitinKiB") }
         failedAdd.identities = identities; failedAdd.makeSSHCoordinator = cloneFactory; failedAdd.useKey = true
         failedAdd.source = "ssh://clone-fixture.invalid/source"; failedAdd.path = "modules/failed-child"; failedAdd.acceptSelection(encrypted, kind: .key)
         let failureFlag = URL(fileURLWithPath: wrapper.path+".large-failure"); try Data().write(to: failureFlag)
-        var failureCallbacks = 0; failedAdd.onAdded = { _ in failureCallbacks += 1 }; failedAdd.apply()
-        try await wait("Submodule Add bounded failure") { !failedAdd.busy }
-        try require(!failedAdd.success && failedAdd.error == "Git command failed (1)." && failedAdd.output.contains("Output truncated") && failedAdd.output.utf8.count < 32768 && failureCallbacks == 0 && !FileManager.default.fileExists(atPath: root.appendingPathComponent("modules/failed-child").path), "Submodule Add failure replaced bounded output or published success")
-        try require(failedAdd.currentWork == "git did not exit cleanly (exit code 1)" && failedAdd.percentage == 100 && failedAdd.completionRange != nil, "Submodule Add missing failed completion")
+        var failureCallbacks = 0, failedProgress: SubmoduleAddProgressWindowModel?
+        failedAdd.onSubmit = { model in ownedAddModels.append(model); failedProgress = model; model.onAdded = { _ in failureCallbacks += 1 }; model.start() }
+        failedAdd.apply()
+        if let previousLimit { preferences.set(previousLimit, forKey: "GitOutputLimitinKiB") } else { preferences.removeObject(forKey: "GitOutputLimitinKiB") }
+        guard let failedProgress else { throw Failure(message: "Failed Add did not submit progress") }
+        defer { failedProgress.invalidate() }
+        try await wait("Submodule Add bounded failure") { !failedProgress.busy }
+        try require(!failedProgress.success && failedProgress.error == "Git command failed (1)." && failedProgress.output.contains("Output truncated") && failedProgress.output.utf8.count < 32768 && failureCallbacks == 0 && !FileManager.default.fileExists(atPath: root.appendingPathComponent("modules/failed-child").path), "Submodule Add failure replaced bounded output or published success")
+        try require(failedProgress.currentWork == "git did not exit cleanly (exit code 1)" && failedProgress.percentage == 100 && failedProgress.completionRange != nil, "Submodule Add missing failed completion")
         try FileManager.default.removeItem(at: failureFlag)
         preferences.set(false, forKey: "ShowGitexeTimings")
-        failedAdd.retry()
-        try require(failedAdd.completionRange == nil && failedAdd.percentage == nil && failedAdd.currentWork.isEmpty, "Retry retained terminal presentation")
-        try await wait("Submodule Add retry") { !failedAdd.busy }
-        try require(failedAdd.success && failedAdd.error == nil && failureCallbacks == 1 && failedAdd.output.hasSuffix("\nSuccess\n") && !failedAdd.output.contains(" ms @ "), "Submodule Add retry or disabled timing failed")
-        preferences.removeObject(forKey: "ShowGitexeTimings"); failedAdd.invalidate()
+        failedProgress.retry()
+        try require(failedProgress.completionRange == nil && failedProgress.percentage == nil && failedProgress.currentWork.isEmpty, "Retry retained terminal presentation")
+        try await wait("Submodule Add retry") { !failedProgress.busy }
+        try require(failedProgress.success && failedProgress.error == nil && failureCallbacks == 1 && failedProgress.output.hasSuffix("\nSuccess\n") && !failedProgress.output.contains(" ms @ "), "Submodule Add retry or disabled timing failed")
+        preferences.removeObject(forKey: "ShowGitexeTimings"); failedProgress.invalidate()
         let pendingAdd = SubmoduleAddWindowController(repository: transportRepo, access: RepositoryAccessLease(url: root), preferences: preferences)
         defer { pendingAdd.close() }
         var addPrompt: SSHKeyPassphraseWindowController?, addCoordinator: SSHTransportCoordinator?, addedAfterClose = 0
+        var pendingAddProgress: SubmoduleAddProgressWindowController?
+        pendingAdd.model.onSubmit = { model in
+            ownedAddModels.append(model); let controller = SubmoduleAddProgressWindowController(model: model); pendingAddProgress = controller
+            model.onAdded = { _ in addedAfterClose += 1 }; model.start()
+        }
+        defer { pendingAddProgress?.close() }
         pendingAdd.model.identities = identities; pendingAdd.model.makeSSHCoordinator = { runner in
             let value = SSHTransportCoordinator(repository: runner, identities: identities, temporaryRoot: root, runtime: { tools })
             value.present = { addPrompt = $0; return true }; addCoordinator = value; coordinators.append(value); return value
         }
         pendingAdd.model.source = "ssh://clone-fixture.invalid/source"; pendingAdd.model.path = "modules/cancelled-child"
         pendingAdd.model.useKey = true; pendingAdd.model.acceptSelection(encrypted, kind: .key)
-        pendingAdd.model.onAdded = { _ in addedAfterClose += 1 }; pendingAdd.model.apply()
+        pendingAdd.model.apply()
         try await wait("Submodule Add pending key") { addPrompt != nil }
-        pendingAdd.model.cancelOperation()
-        try await wait("Submodule Add cancelled completion") { !pendingAdd.model.busy }
-        try require(pendingAdd.model.currentWork == "User cancelled" && pendingAdd.model.percentage == 100 && pendingAdd.model.completionRange != nil && pendingAdd.model.error == nil && addedAfterClose == 0 && addPrompt?.finished == true, "Submodule Add cancellation missing terminal state")
-        addPrompt = nil; pendingAdd.model.retry()
+        preferences.set(true, forKey: "ConfirmKillProcess")
+        var addAnswer: ((Bool) -> Void)?, addQuestions = 0
+        pendingAddProgress!.model.confirmCancellation = { addQuestions += 1; addAnswer = $0 }
+        try require(!pendingAddProgress!.windowShouldClose(pendingAddProgress!.window!), "Running Add window closed before question")
+        pendingAddProgress!.model.cancel()
+        try require(addQuestions == 1 && pendingAddProgress!.model.confirmingCancellation && !pendingAddProgress!.model.cancelling, "Add duplicate cancellation question")
+        addAnswer?(false)
+        try require(pendingAddProgress!.model.busy && !pendingAddProgress!.model.confirmingCancellation && !pendingAddProgress!.model.cancelling, "No cancelled Add")
+        pendingAddProgress!.model.cancel(); addAnswer?(true); addAnswer?(true)
+        try await wait("Submodule Add cancelled completion") { !pendingAddProgress!.model.busy }
+        try require(pendingAddProgress!.model.currentWork == "User cancelled" && pendingAddProgress!.model.percentage == 100 && pendingAddProgress!.model.completionRange != nil && pendingAddProgress!.model.error == nil && addedAfterClose == 0 && addPrompt?.finished == true, "Submodule Add cancellation missing terminal state")
+        preferences.removeObject(forKey: "ConfirmKillProcess")
+        addPrompt = nil; pendingAddProgress!.model.retry()
         try await wait("Submodule Add retry pending key") { addPrompt != nil }
-        pendingAdd.close(); try await wait("Submodule Add closed cleanup") { addCoordinator?.closed == true && !pendingAdd.model.busy }; addPrompt?.submit()
+        pendingAddProgress!.close(); try await wait("Submodule Add closed cleanup") { addCoordinator?.closed == true && !pendingAddProgress!.model.busy }; addPrompt?.submit()
         let beforeLateSelection = try Data(contentsOf: identities.storageURL); pendingAdd.model.acceptSelection(crlfKey, kind: .key)
-        try require(try Data(contentsOf: identities.storageURL) == beforeLateSelection && addedAfterClose == 0 && pendingAdd.model.error == nil && !FileManager.default.fileExists(atPath: root.appendingPathComponent("modules/cancelled-child").path), "Closed Submodule Add allowed a late selection/operation/result")
+        try require(try Data(contentsOf: identities.storageURL) == beforeLateSelection && addedAfterClose == 0 && pendingAddProgress!.model.error == nil && !FileManager.default.fileExists(atPath: root.appendingPathComponent("modules/cancelled-child").path), "Closed Submodule Add allowed a late selection/operation/result")
         try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls + "clone\nclone\nsubmodule\nsubmodule\nsubmodule\n", "Submodule Add cancellation launched transport")
+        // Private local repositories exercise captured automatic-close policy without SSH.
+        let localWrapper = root.appendingPathComponent("local-add-git")
+        try Data("#!/bin/sh\nexec \(quote(git.path)) -c protocol.file.allow=always \"$@\"\n".utf8).write(to: localWrapper)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: localWrapper.path)
+        let localAddRepo = GitRepository(root: root, executable: localWrapper)
+        let privateActionLog = ActionLogStore(storageURL: root.appendingPathComponent("action-log/logfile.txt"))
+        ProgressActionLog.install(store: privateActionLog, preferences: preferences)
+        for policy in [1, 2] {
+            preferences.set(policy, forKey: "AutoCloseGitProgress")
+            var options = SubmoduleAddOptions(); options.source = root.path; options.path = "modules/automatic-\(policy)"
+            let automatic = SubmoduleAddProgressWindowModel(repository: localAddRepo, access: RepositoryAccessLease(url: root), sourceAccess: nil, keyAccess: nil, options: options, preferences: preferences)
+            ownedAddModels.append(automatic); var closes = 0
+            automatic.close = { closes += 1 }
+            preferences.set(0, forKey: "AutoCloseGitProgress"); automatic.start(); automatic.start()
+            try await wait("Automatic Add completion") { !automatic.busy }
+            try require(automatic.success && closes == 1, "Add ignored captured no-options/no-errors auto-close or repeated start")
+            let once = try privateActionLog.read(); automatic.saveActionLog(); automatic.saveActionLog()
+            try require(try privateActionLog.read() == once, "Add completion/close recorded the attempt repeatedly")
+            automatic.invalidate()
+        }
+        preferences.set(2, forKey: "AutoCloseGitProgress"); preferences.set(true, forKey: "ConfirmKillProcess")
+        var deferredOptions = SubmoduleAddOptions(); deferredOptions.source = root.path; deferredOptions.path = "modules/deferred-add"
+        let deferredAdd = SubmoduleAddProgressWindowModel(repository: localAddRepo, access: RepositoryAccessLease(url: root), sourceAccess: nil, keyAccess: nil, options: deferredOptions, preferences: preferences)
+        ownedAddModels.append(deferredAdd); var deferredAddAnswer: ((Bool) -> Void)?, deferredAddCloses = 0
+        deferredAdd.confirmCancellation = { deferredAddAnswer = $0 }; deferredAdd.close = { deferredAddCloses += 1 }
+        deferredAdd.start(); deferredAdd.cancel()
+        try await wait("Add completion behind question") { !deferredAdd.busy }
+        try require(deferredAdd.success && deferredAdd.confirmingCancellation && deferredAddCloses == 0, "Add closed behind pending cancellation question")
+        deferredAddAnswer?(true); deferredAddAnswer?(true)
+        try require(deferredAddCloses == 1 && !deferredAdd.cancelled && !deferredAdd.confirmingCancellation, "Late/duplicate Add answer canceled success or repeated close")
+        deferredAdd.invalidate()
+        try require(try privateActionLog.read().components(separatedBy: "\nSuccess (").count == 4, "Add action log missed completed attempts or duplicated records")
+        preferences.removeObject(forKey: "ConfirmKillProcess"); preferences.removeObject(forKey: "AutoCloseGitProgress")
         try require(coordinators.allSatisfy { $0.closed } && provider.starts == provider.stops,"Finished transport coordinator or file lease remains")
         try require(!NSApplication.shared.windows.contains { $0.isVisible },"Receiver displayed UI")
         print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Log remote deletion and Push/tag/Log/Clone controller close fences; direct and streamed native SSH Clone with remote-key config; Submodule Add captured branch/gitlink/child-key, bounded failure, Quit and forced-close fences")

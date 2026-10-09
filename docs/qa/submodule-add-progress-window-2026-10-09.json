@@ -1,0 +1,49 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "a2d9231a023313374abc545b57dee241e3d72f0c",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Replace embedded Submodule Add operation with captured options-to-separate-progress handoff, owned SSH presenter, cancellation confirmation, automatic close, action log and released draft grants.",
+  "verification": {
+    "source": "Reviewed pinned SubmoduleCommand Add acceptance and separate ProgressDlg launch, ProgressDlg completion/cancellation/automatic-close and action-log behavior. New native progress uses shared Close/Abort/Escape, output and completion helpers. Native Retry is retained as an adaptation. All source mappings remain partial.",
+    "native": "Final expanded hidden SSH coordinator receiver passes with system and bundled Git. Actual options controller closes once and submits a distinct progress controller; post-submit source/path mutation and duplicate OK do not change the captured Add. Real encrypted private-fixture key loading, child HEAD/key config/staged gitlink, default and disabled timing, 3000-line bounded failure and fresh retry remain passing. Progress Quit refusal, running-window close rejection, No continuation, Yes cancellation and duplicate-answer fencing pass. Captured no-options/no-errors auto-close and successful completion behind a pending question pass with real local Add effects. Three completed attempts recorded once in a private action log; repeated save does not duplicate. Forced-close/result/selection fences and final private-agent/bookmark lease balance pass. Existing Push/Fetch/Pull/browse/ref deletion/Log/Clone coordinator checks remain passing.",
+    "ownership": "Options release draft source/key grants immediately after captured progress construction; progress releases its retained grants on invalidate/close, while the current task retains captured grants through cleanup. Owned native models are canceled and awaited on both success and receiver error.",
+    "appstore_scope": "Progress rechecks captured repository/local-source grants before execution in AppStore builds; local source normalization matches Core argument trimming. This is compiled code evidence, not signed sandbox acceptance.",
+    "root": "Root owns UUID progress controllers, routes Add completion to existing repository/status/commit refresh and removes closed controllers. ApplicationDelegate guards progress operations/questions/sheets and freezes idle progress during a dirty-document Quit question. Inspected and compiled; Root is not instantiated in the isolated receiver.",
+    "builds": "Final unsigned Debug and AppStore builds pass. New progress source registered by XcodeGen.",
+    "bundles": "Both package audits pass including Finder/licenses/all 100 original icons; AppStore universal Git/LFS, EditorConfig, IssueRegex and private one-use askpass checks pass. Both packaged NOTICE files byte-match root.",
+    "inventory_site": "Pinned inventory regression and local documentation-site build pass; no hosted CI/deployment verification.",
+    "core": "No Core implementation changed; no new Core/full-suite run claimed.",
+    "corrections": "Initial build caught combined Published declarations and later use of internal cancellation check; declarations split and public isCancelled used. Initial automatic-close fixture failed because parent local protocol.file.allow does not reach submodule clone; independently reproduced and corrected with invocation-only test wrapper grant, without changing shipping Git policy. Next native run reached final lease audit and exposed retained draft key grant in a headless options model; immediate handoff release fixed it. Final native run passes both engines."
+  },
+  "limitations": [
+    "Entire app/dialog/menu/helper/documentation port remains incomplete; all mapped source rows stay partial.",
+    "Physical layout, default-button/Escape/sheets/menu/colors/links/VoiceOver and current screenshots remain unverified; hidden models/controllers and shared-component evidence do not prove displayed parity. Progress animation/Dock/sounds/full command splitting and filesystem/config races remain partial.",
+    "Source key configuration occurs after Windows progress, while native Core completes child-key saving before overall success. Retry and operation-owned OpenSSH preparation are native adaptations. Real SSH/reuse/ignored-path and credential/network behavior need broader acceptance.",
+    "Signed Finder/App Group/security-scope/helper inheritance, App Store OpenSSH authentication/packaging/runtime/distribution/submission and legal clearance remain unfinished. Strict Rebase rendered-text gate remains UNVERIFIED.",
+    "Completed action logging is verified locally; forced-close/late logging and all consumer/race cases remain partial. Cancellation retains already completed Git effects.",
+    "No main app launch, general clipboard write, actual URL open, user-key/login-agent query, push, hosted CI/deployment or submission."
+  ],
+  "sha256": {
+    "NOTICE": "d548f98b2eeb56b1d41032990201f6ded2d160fd473c2a48b39200332362a188",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "99ec8fc3b4810230ee6c49e7f5a355e2db281c3014c2a8346bbd797c941514bb",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "464ddc060c828a7bd509f433ea8cf10b35420543448dc67718f723705ec69444",
+    "Sources/TurtleGitMac/SubmoduleAddWindow.swift": "144815a3d4d5700e7adf3414e58a1938e18440cd42581fd187dd72443bec95f5",
+    "Sources/TurtleGitMac/SubmoduleAddProgressWindow.swift": "35b1ec07d7687536f0fb7ed121023d526e9c92eabd87809b252f5ec4f3d73d3f",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "9b1861a0388a485c47907adbe2b7df926fc8b89a05247de1be4bedf24e61c2b1",
+    "docs/SUBMODULE-ADD-PARITY.md": "9d5d96f57e86e0ff6d3b5656fc3eb9d34355fcb8e053046fc55b7a7ccd3f933f",
+    "docs/qa/ssh-coordinator-native-2026-10-09.swift": "3e13fe0188e106ce95510255029c4a9410f17f2e3752dcba1b94fe9a172514ae",
+    "docs/upstream-files.csv": "84dc95f59e5f5d889d7a21b4e50a56f2422ab59f1aedb27573e2bfe0493698d1",
+    "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "c4f8cb4bef6bd74dcefb3edda94e2fdaea8464bea9ec73bef50b0ac1c193df12",
+    "Sources/TurtleGitMac/SubmoduleProgressCompletion.swift": "ca482ff6aa93ea3383fc75c29f70ea10af527ddf2a8e901aa2daba7b371f5a95",
+    "Sources/TurtleGitMac/GitProgressOutputState.swift": "2f48aa6d612aba5381d9bd6eac6eb4febf9c7867c638667eef1a1f4ff9312cff",
+    "scripts/test-ssh-coordinator.py": "5884a6c973eb028bcc1e5ffbfbbf6a26bcb14c4085575ec263232c76a623e0e6"
+  },
+  "logs": "build/qa/submodule-add-progress-window-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "matching_processes": [],
+    "current_fixtures": [],
+    "main_app_launches": 0,
+    "removed_current_verified_empty_preference_domains": 4
+  }
+}

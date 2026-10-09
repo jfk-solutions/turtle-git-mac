@@ -1138,3 +1138,8 @@ The native replacement is licensed under GPL-2.0-or-later.
 Submodule progress completion styling adapts ProgressDlg.cpp completion/timing,
 AppUtils.cpp FindWarningsErrors/StyleWarningsErrors and existing URLFinder port.
 Native Swift/AppKit replacements are licensed under GPL-2.0-or-later.
+
+SubmoduleAddProgressWindow.swift adapts pinned SubmoduleCommand Add's separate
+ProgressDlg handoff and ProgressDlg cancellation, completion, automatic-close
+and action-log behavior to owned native AppKit/SwiftUI windows. Native additions
+are GPL-2.0-or-later under the source attribution above.

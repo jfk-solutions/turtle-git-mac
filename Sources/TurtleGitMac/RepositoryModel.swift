@@ -70,6 +70,7 @@ import TurtleGitCore
     private var fileComparisonWindows: [String: FileComparisonWindowController] = [:]
     private var submoduleSyncWindows: [UUID: SubmoduleSyncWindowController] = [:]
     private var submoduleAddWindows: [String: SubmoduleAddWindowController] = [:]
+    private var submoduleAddProgressWindows: [UUID: SubmoduleAddProgressWindowController] = [:]
     private var submoduleUpdateProgressWindows: [UUID: SubmoduleUpdateProgressWindowController] = [:]
     private var submoduleUpdateWindows: [String: SubmoduleUpdateWindowController] = [:]
     private var submoduleConflictWindows: [String: SubmoduleConflictWindowController] = [:]
@@ -884,12 +885,19 @@ import TurtleGitCore
         let key = repository.root.path
         let controller = submoduleAddWindows[key] ?? SubmoduleAddWindowController(repository: repository, access: access, path: path)
         controller.onClosed = { [weak self] in self?.submoduleAddWindows.removeValue(forKey: key) }
-        controller.model.onAdded = { [weak self] output in
-            self?.refreshRepositoryLogs(repository.root)
-            self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
-            if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
-        }
+        controller.model.onSubmit = { [weak self] progress in self?.showSubmoduleAddProgress(model: progress) }
         submoduleAddWindows[key] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
+    }
+    private func showSubmoduleAddProgress(model: SubmoduleAddProgressWindowModel) {
+        let root = model.repository.root, key = root.path, id = UUID()
+        let controller = SubmoduleAddProgressWindowController(model: model)
+        controller.onClosed = { [weak self] in self?.submoduleAddProgressWindows.removeValue(forKey: id) }
+        model.onAdded = { [weak self] output in
+            self?.refreshRepositoryLogs(root)
+            self?.statusWindows[key]?.model.reload(); self?.commitWindows[key]?.model.reload()
+            if let self, self.root == root { self.output = output; Task { await self.refresh() } }
+        }
+        submoduleAddProgressWindows[id] = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); model.start()
     }
     private func showSubmoduleUpdate(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], completion: (() -> Void)? = nil) {
         let root = repository.root, key = root.path + "\0" + scope.joined(separator: "\0") + "\0" + selected.joined(separator: "\0")
