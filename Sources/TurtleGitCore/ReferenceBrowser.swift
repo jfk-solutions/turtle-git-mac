@@ -205,7 +205,7 @@ public enum ReferenceBrowserTrackingFailure: LocalizedError {
     }
 }
 
-/// Single-reference BrowseRefsDlg deletion; remote branches are deleted by Push.
+/// BrowseRefsDlg deletion; remote branches are grouped into one Push per remote.
 public enum ReferenceBrowserDeletionKind: Sendable {
     case branch, remoteBranch, tag
     public init?(reference: GitReferenceName) {
@@ -214,57 +214,82 @@ public enum ReferenceBrowserDeletionKind: Sendable {
         else if GitReferenceName.removingPrefix("refs/tags/", from: reference.rawValue)?.isEmpty == false { self = .tag }
         else { return nil }
     }
-    public var title: String {
-        switch self { case .branch: return "Delete branch"; case .remoteBranch: return "Delete remote branch"; case .tag: return "Delete tag" }
+    public var title: String { title(count: 1) }
+    public func title(count: Int) -> String {
+        if count == 1 { switch self { case .branch: return "Delete branch"; case .remoteBranch: return "Delete remote branch"; case .tag: return "Delete tag" } }
+        switch self { case .branch: return "Delete \(count) branches"; case .remoteBranch: return "Delete \(count) remote branches"; case .tag: return "Delete \(count) tags" }
     }
     fileprivate var prefix: String {
         switch self { case .branch: return "refs/heads/"; case .remoteBranch: return "refs/remotes/"; case .tag: return "refs/tags/" }
     }
 }
 public struct ReferenceBrowserDeletionConfirmation: Sendable {
-    public let reference: GitReferenceName
+    public let references: [GitReferenceName]
+    public var reference: GitReferenceName { references[0] }
     public let kind: ReferenceBrowserDeletionKind
     public let name: String
     public let unmerged: Bool
-    public var warning: Bool { unmerged || kind == .remoteBranch }
+    public var uncheckedMerge: Bool { references.count > 1 && kind != .tag }
+    public var warning: Bool { unmerged || uncheckedMerge || kind == .remoteBranch }
     public var message: String {
-        var text = "Do you really want to delete \"" + name + "\"?"
+        var text = references.count == 1 ? "Do you really want to delete \"" + name + "\"?" : "Do you really want to permanently delete the \(references.count) selected refs? It can NOT be recovered!"
         if unmerged { text += "\n\nThis branch is not fully merged into HEAD." }
+        if uncheckedMerge { text += "\n\nIt has not been checked if these branches have been fully merged into HEAD." }
         if kind == .remoteBranch { text += "\n\nThis action will remove the branches on the remote." }
         return text
     }
 }
 public enum ReferenceBrowserDeletionFailure: LocalizedError {
     case namespace
-    public var errorDescription: String? { "Only local branches, remote branches and tags can be deleted here." }
+    public var errorDescription: String? { "Select local branches, remote branches or tags from one namespace." }
 }
 extension GitRepository {
+    private func validateBrowserDeletion(_ references: [GitReferenceName], cancellation: OperationCancellation) throws -> ReferenceBrowserDeletionKind {
+        try cancellation.check()
+        guard let first = references.first, let kind = ReferenceBrowserDeletionKind(reference: first), Set(references).count == references.count,
+              references.allSatisfy({ ReferenceBrowserDeletionKind(reference: $0) == kind && !$0.rawValue.contains("\0") }) else { throw ReferenceBrowserDeletionFailure.namespace }
+        for reference in references { _ = try run(["check-ref-format", reference.rawValue], cancellation: cancellation) }
+        return kind
+    }
     public func browserDeletionConfirmation(_ reference: GitReferenceName, cancellation: OperationCancellation? = nil) throws -> ReferenceBrowserDeletionConfirmation {
+        try browserDeletionConfirmation([reference], cancellation: cancellation)
+    }
+    public func browserDeletionConfirmation(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil) throws -> ReferenceBrowserDeletionConfirmation {
         let token = cancellation ?? OperationCancellation()
-        guard let kind = ReferenceBrowserDeletionKind(reference: reference), !reference.rawValue.contains("\0") else { throw ReferenceBrowserDeletionFailure.namespace }
-        _ = try run(["check-ref-format", reference.rawValue], cancellation: token)
+        let kind = try validateBrowserDeletion(references, cancellation: token)
         var unmerged = false
-        if kind != .tag {
-            do { unmerged = try run(["-c", "core.precomposeunicode=false", "merge-base", "--is-ancestor", reference.rawValue, "HEAD"], successfulExitCodes: 0...1, cancellation: token).exitCode != 0 }
+        if references.count == 1 && kind != .tag {
+            do { unmerged = try run(["-c", "core.precomposeunicode=false", "merge-base", "--is-ancestor", references[0].rawValue, "HEAD"], successfulExitCodes: 0...1, cancellation: token).exitCode != 0 }
             catch { try token.check(); unmerged = true }
         }
-        return ReferenceBrowserDeletionConfirmation(reference: reference, kind: kind, name: GitReferenceName.removingPrefix(kind.prefix, from: reference.rawValue)!, unmerged: unmerged)
+        return ReferenceBrowserDeletionConfirmation(references: references, kind: kind, name: GitReferenceName.removingPrefix(kind.prefix, from: references[0].rawValue)!, unmerged: unmerged)
     }
     public func deleteBrowserReference(_ reference: GitReferenceName, cancellation: OperationCancellation? = nil) throws {
-        // The POSIX argv path retains canonical UTF-8 even without caller cancellation.
+        try deleteBrowserReferences([reference], cancellation: cancellation)
+    }
+    public func deleteBrowserReferences(_ references: [GitReferenceName], cancellation: OperationCancellation? = nil) throws {
+        // POSIX argv retains canonical UTF-8 even without caller cancellation.
         let token = cancellation ?? OperationCancellation()
-        guard let kind = ReferenceBrowserDeletionKind(reference: reference), !reference.rawValue.contains("\0") else { throw ReferenceBrowserDeletionFailure.namespace }
-        _ = try run(["check-ref-format", reference.rawValue], cancellation: token)
-        let name = GitReferenceName.removingPrefix(kind.prefix, from: reference.rawValue)!
-        switch kind {
-        case .branch: _ = try run(["-c", "core.precomposeunicode=false", "branch", "-D", "--", name], cancellation: token)
-        case .tag: _ = try run(["-c", "core.precomposeunicode=false", "tag", "-d", "--", name], cancellation: token)
-        case .remoteBranch:
-            // Source scans configured names in order; unknown remote refs do no work.
+        let kind = try validateBrowserDeletion(references, cancellation: token)
+        if kind == .remoteBranch {
             let remotes = try remoteNames(cancellation: token)
-            guard let remote = remotes.first(where: { GitReferenceName.equal(name, $0) || GitReferenceName.removingPrefix($0 + "/", from: name) != nil }) else { return }
-            let branch = GitReferenceName.removingPrefix(remote + "/", from: name) ?? ""
-            _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote, ":refs/heads/" + branch], cancellation: token)
+            var grouped: [GitReferenceName: [String]] = [:]
+            for reference in references {
+                let name = GitReferenceName.removingPrefix(kind.prefix, from: reference.rawValue)!
+                // Source resolves the first configured prefix; unknown refs do no work.
+                guard let remote = remotes.first(where: { GitReferenceName.equal(name, $0) || GitReferenceName.removingPrefix($0 + "/", from: name) != nil }) else { continue }
+                grouped[GitReferenceName(remote), default: []].append(":refs/heads/" + (GitReferenceName.removingPrefix(remote + "/", from: name) ?? ""))
+            }
+            // CString map order uses UTF-16 units; keep byte-exact remote identity.
+            for remote in grouped.keys.sorted(by: { $0.rawValue.utf16.lexicographicallyPrecedes($1.rawValue.utf16) }) {
+                _ = try run(["-c", "core.precomposeunicode=false", "push", "--", remote.rawValue] + grouped[remote]!, cancellation: token)
+            }
+        } else {
+            // Source stops at the first failure; earlier deletions remain completed.
+            for reference in references {
+                let name = GitReferenceName.removingPrefix(kind.prefix, from: reference.rawValue)!
+                _ = try run(["-c", "core.precomposeunicode=false"] + (kind == .branch ? ["branch", "-D", "--", name] : ["tag", "-d", "--", name]), cancellation: token)
+            }
         }
     }
 }

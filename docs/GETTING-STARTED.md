@@ -86,3 +86,9 @@ names in displayed order. Revision pickers in other dialogs remain single-select
 Single-reference menus include Fetch, Merge, Switch, creation, rename, tracking and
 deletion where applicable. Some standalone and batch menus remain unfinished; see
 [reference-browser parity](REFERENCE-BROWSER-PARITY.md) for the current limits.
+
+
+To delete several references, select branches, tags or remote branches from one
+namespace and choose **Delete N…** in the context menu. Review the confirmation:
+remote branches are removed on the remote, and branch batches do not check whether
+every branch is merged. A failed batch can leave earlier deletions completed.

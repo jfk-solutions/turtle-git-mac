@@ -339,3 +339,49 @@ extension ReferenceBrowserTests {
         options.revisionRange = reverse.history(); let reversed = try await repo.history(options: options); XCTAssertTrue(reversed.isEmpty)
     }
 }
+
+extension ReferenceBrowserTests {
+    func testBatchDeletionWarningsNamespacesAndStopOnFailure() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["first", "later"] { _ = try await repo.run(["branch", name]) }
+        _ = try await repo.run(["tag", "one"]); _ = try await repo.run(["tag", "two"])
+        let branches: [GitReferenceName] = ["refs/heads/first", "refs/heads/main", "refs/heads/later"]
+        let confirmation = try await repo.browserDeletionConfirmation(branches)
+        XCTAssertTrue(confirmation.uncheckedMerge); XCTAssertFalse(confirmation.unmerged); XCTAssertTrue(confirmation.warning)
+        XCTAssertEqual(confirmation.message, "Do you really want to permanently delete the 3 selected refs? It can NOT be recovered!\n\nIt has not been checked if these branches have been fully merged into HEAD.")
+        let tags: [GitReferenceName] = ["refs/tags/one", "refs/tags/two"]
+        let tagConfirmation = try await repo.browserDeletionConfirmation(tags); XCTAssertFalse(tagConfirmation.warning)
+        let invalidBatches: [[GitReferenceName]] = [[], ["refs/heads/first", "refs/tags/one"], ["refs/tags/one", "refs/tags/one"]]
+        for invalid in invalidBatches {
+            do { try await repo.deleteBrowserReferences(invalid); XCTFail("Invalid batch accepted") } catch ReferenceBrowserDeletionFailure.namespace {}
+        }
+        do { try await repo.deleteBrowserReferences(branches); XCTFail("Checked out deletion must fail") } catch is GitFailure {}
+        let refs = try await repo.referenceBrowser(); XCTAssertFalse(refs.references.contains { $0.name == branches[0] }); XCTAssertTrue(refs.references.contains { $0.name == branches[1] }); XCTAssertTrue(refs.references.contains { $0.name == branches[2] })
+        try await repo.deleteBrowserReferences(tags)
+        let after = try await repo.referenceBrowser(); XCTAssertFalse(after.references.contains { tags.contains($0.name) })
+        let token = OperationCancellation(); token.cancel()
+        do { try await repo.deleteBrowserReferences(["refs/heads/later"], cancellation: token); XCTFail("Cancelled batch ran") } catch OperationCancellationFailure.cancelled {}
+    }
+    func testBatchRemoteDeletionGroupsOnePushPerConfiguredRemote() async throws {
+        let (root, repo) = try await fixture(); defer { try? FileManager.default.removeItem(at: root) }
+        for name in ["one", "two"] { _ = try await repo.run(["branch", name]) }
+        for name in ["alpha", "zeta"] {
+            let bare = root.appendingPathComponent(name + ".git")
+            _ = try await repo.run(["clone", "--bare", root.path, bare.path]); _ = try await repo.run(["remote", "add", name, bare.path]); _ = try await repo.run(["fetch", name])
+        }
+        let selected: [GitReferenceName] = ["refs/remotes/zeta/one", "refs/remotes/alpha/one", "refs/remotes/alpha/two"]
+        let confirmation = try await repo.browserDeletionConfirmation(selected); XCTAssertTrue(confirmation.uncheckedMerge); XCTAssertTrue(confirmation.message.hasSuffix("This action will remove the branches on the remote."))
+        let helper = root.appendingPathComponent("record-git")
+        let quoted = "'" + repo.executable.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        let script = "#!/bin/sh\nif [ \"${6-}\" = push ]; then printf '%s\\n' \"$*\" >> \"$0.pushes\"; fi\nexec " + quoted + " \"$@\"\n"
+        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        let wrapped = GitRepository(root: root, executable: helper)
+        try await wrapped.deleteBrowserReferences(selected)
+        let commands = try String(contentsOf: URL(fileURLWithPath: helper.path + ".pushes")).split(separator: "\n")
+        XCTAssertEqual(commands.count, 2); XCTAssertTrue(commands[0].contains("push -- alpha :refs/heads/one :refs/heads/two")); XCTAssertTrue(commands[1].contains("push -- zeta :refs/heads/one"))
+        let alpha = try await GitRepository(root: root.appendingPathComponent("alpha.git"), executable: repo.executable).referenceBrowser()
+        let zeta = try await GitRepository(root: root.appendingPathComponent("zeta.git"), executable: repo.executable).referenceBrowser()
+        XCTAssertFalse(alpha.references.contains { [GitReferenceName("refs/heads/one"), "refs/heads/two"].contains($0.name) }); XCTAssertFalse(zeta.references.contains { $0.name == "refs/heads/one" }); XCTAssertTrue(zeta.references.contains { $0.name == "refs/heads/two" })
+        let local = try await repo.referenceBrowser(); XCTAssertTrue(local.references.contains { $0.name == "refs/heads/one" }); XCTAssertTrue(local.references.contains { $0.name == "refs/heads/two" })
+    }
+}

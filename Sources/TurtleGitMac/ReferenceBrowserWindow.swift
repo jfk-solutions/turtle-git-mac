@@ -217,20 +217,24 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     @Published var descending = false
     var finish: (String?) -> Void = { _ in }
     var confirmDeletion: ((ReferenceBrowserDeletionConfirmation) async -> Bool)?
-    var deletionKind: ReferenceBrowserDeletionKind? { chosen.flatMap { ReferenceBrowserDeletionKind(reference: $0.name) } }
-    var canDelete: Bool { canAccept && deletionKind != nil }
+    var deletionKind: ReferenceBrowserDeletionKind? {
+        guard let first = selectedRows.first, let kind = ReferenceBrowserDeletionKind(reference: first.reference.name), selectedRows.allSatisfy({ ReferenceBrowserDeletionKind(reference: $0.reference.name) == kind }) else { return nil }
+        return kind
+    }
+    var canDelete: Bool { !invalidated && !busy && !hasChild && renameReference == nil && deletionKind != nil }
     func deleteChosen() {
-        guard canDelete, let reference = chosen?.name, let confirmDeletion else { return }
+        guard canDelete, let confirmDeletion else { return }
+        let references = selectedRows.map { $0.reference.name }
         let request = OperationCancellation(); token = request; deletingReference = true; busy = true; error = nil
         Task {
             var failure: String?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let confirmation = try await repository.browserDeletionConfirmation(reference, cancellation: request)
+                let confirmation = try await repository.browserDeletionConfirmation(references, cancellation: request)
                 guard !invalidated, token === request, !request.isCancelled else { return }
                 let accepted = await confirmDeletion(confirmation)
                 guard !invalidated, token === request, !request.isCancelled else { return }
-                if accepted { try await repository.deleteBrowserReference(reference, cancellation: request) }
+                if accepted { try await repository.deleteBrowserReferences(references, cancellation: request) }
             } catch { guard !invalidated, token === request, !request.isCancelled else { return }; failure = error.localizedDescription }
             guard !invalidated, token === request, !request.isCancelled else { return }
             token = nil; deletingReference = false; busy = false; load(preservingError: failure)
@@ -553,12 +557,15 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if visible.indices.contains(table.clickedRow), !table.selectedRowIndexes.contains(table.clickedRow) { table.selectRowIndexes(IndexSet(integer: table.clickedRow), byExtendingSelection: false) }
             guard !model.selectedRows.isEmpty else { return }; menu.autoenablesItems = false
             func item(_ title: String, _ action: Selector, _ icon: MenuIcon, _ enabled: Bool) { let entry = NSMenuItem(title: title, action: action, keyEquivalent: ""); entry.target = self; entry.image = icon.contextImage(defaults: model.preferences); entry.isEnabled = enabled; menu.addItem(entry) }
+            func deletion() {
+                if model.canDelete, let kind = model.deletionKind { if !menu.items.isEmpty { menu.addItem(.separator()) }; item(kind.title(count: model.selectedRows.count), #selector(deleteReference), .remove, model.confirmDeletion != nil) }
+            }
             if let range = model.range {
                 item("Show log of " + range.label(), #selector(logRange), .log, model.onLogRange != nil)
                 item("Show log of " + range.label(symmetric: true), #selector(logSymmetricRange), .log, model.onLogRange != nil)
-                menu.addItem(.separator()); item("Copy reference names", #selector(copyName), .copy, true); return
+                deletion(); menu.addItem(.separator()); item("Copy reference names", #selector(copyName), .copy, true); return
             }
-            guard let chosen = model.chosen else { item("Copy reference names", #selector(copyName), .copy, true); return }
+            guard let chosen = model.chosen else { deletion(); if !menu.items.isEmpty { menu.addItem(.separator()) }; item("Copy reference names", #selector(copyName), .copy, true); return }
             if model.picking { item("Select", #selector(accept), .checkout, model.canAccept); menu.addItem(.separator()) }
             if chosen.objectType == "commit" { item("Show log", #selector(log), .log, model.onLog != nil) }
             item("Browse repository", #selector(browse), .repositoryBrowser, model.onBrowse != nil)
@@ -577,7 +584,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 if !chosen.upstream.isEmpty { item("Unset tracked branch", #selector(unsetTracking), .remove, true) }
                 item("Select tracked branch", #selector(selectTracking), .branch, model.onSelectTracking != nil)
             }
-            if model.canDelete, let kind = model.deletionKind { menu.addItem(.separator()); item(kind.title, #selector(deleteReference), .remove, model.confirmDeletion != nil) }
+            deletion()
             menu.addItem(.separator()); item("Copy reference name", #selector(copyName), .copy, true)
         }
         @objc func deleteReference() { model.deleteChosen() }

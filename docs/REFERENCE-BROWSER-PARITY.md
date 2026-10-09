@@ -408,7 +408,7 @@ cover checked-out failure, bare repositories, packed canonical-equivalent names,
 remote namespace effects and cancellation. See `qa/reference-delete-2026-10-09.json`
 for results and limits.
 
-Multi-selection/batch deletion, physical Yes/No/default/Escape/error sheets, every
+Physical Yes/No/default/Escape/error sheets, every
 validation timing, real remote authentication/progress, linked-worktree deletion
 failures and signed sandbox/Finder acceptance still need work. Full browser and
 application parity remain incomplete.
@@ -444,7 +444,38 @@ double-click and close, owned-child gates and unchanged chooser selection policy
 The existing browser, deletion and actual Finder menu receivers are regressions.
 See `qa/reference-standalone-2026-10-09.json` for results and remaining limits.
 
-Two-reference Compare/Unified Diff, multi-selection/batch deletion and folder
-context menus remain pending. This checkpoint does not establish complete
+Two-reference Compare/Unified Diff and folder context menus remain pending.
+Batch deletion is recorded below. This checkpoint does not establish complete
 standalone menus, physical app/Finder activation, range Log window rendering,
 screenshots, signed sandbox or full application parity.
+
+
+## Batch branch, tag and remote deletion
+
+Multiple references from one supported namespace now receive source **Delete N
+branches**, **Delete N tags** or **Delete N remote branches** with original Delete
+artwork. Mixed namespaces and custom refs do not receive deletion. The batch
+confirmation names the selected count; branch batches explicitly warn that merge
+status has not been checked, and remote batches also warn about removing branches
+on the remote. Tags omit both branch warnings. Single-ref confirmation retains its
+existing HEAD reachability check.
+
+Local branches/tags are deleted in displayed order and stop at the first failure;
+earlier successful deletions remain completed. Remote references resolve configured
+names with source first-prefix semantics and are grouped into one deletion Push
+per remote. Groups follow source CString map order using UTF-16 units while names
+retain byte-exact identity. Unconfigured remote refs do no work. Selection is
+captured before preflight and confirmation; changing sort/filter cannot retarget
+an active batch. Existing busy/close/Quit and forced-process/late-answer fences
+apply to the whole request. No, Yes and failures refresh the browser.
+
+`test-reference-batch-delete.py` uses hidden shipping menus/controllers and private
+Git repositories. It checks batch titles/icons/warnings, No/Yes/Refresh, real local
+and local-remote effects, mixed namespaces, held late Yes, close/Quit gates and
+recorded preflight/local/Push leader-helper termination. Core tests check grouped
+Push command counts/order and stopping after a checked-out branch failure. See
+`qa/reference-batch-delete-2026-10-09.json` for final evidence and limits.
+
+Physical confirmations/errors/progress, failure or cancellation after each remote
+group, all Unicode/config/transport races, linked-worktree variants and signed
+acceptance remain pending. Complete browser/whole-app parity remains incomplete.

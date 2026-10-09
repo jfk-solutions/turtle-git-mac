@@ -405,3 +405,16 @@ owned-child gates. Existing picker mode stays single-selection. Keep
 `test-finder-menu.py` as regressions. Finder requests and all 42 implemented source
 command rules are covered by Core tests. No installed main app/Finder or
 physical input is activated; complete standalone/batch menus remain pending.
+
+
+### Batch reference deletion
+
+After a Debug build, run `python3 scripts/test-reference-batch-delete.py --git /usr/bin/git
+--git build/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git`.
+The private hidden receiver checks actual batch menus/icons, count and merge/remote
+warnings, No/Yes/Refresh, branch/tag/local-remote effects, mixed namespaces, pending
+confirmation/close/Quit and late answers. Paused validation/local/Push leader-helper
+processes must exit on forced owner closure. HEAD/index/worktree stay unchanged.
+`ReferenceBrowserTests` covers one Push per configured remote and stop-on-first
+local failure with earlier deletion retained. Keep single deletion and standalone
+range receivers as regressions; physical/signed/full menus remain unverified.

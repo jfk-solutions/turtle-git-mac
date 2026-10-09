@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "9c030bf524eee3e4d043c88b0f794ba4f0e697a0",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Same-namespace batch branch, tag and remote deletion in standalone Browse References. Whole-app parity remains incomplete.",
+  "verification": {
+    "core": "17 ReferenceBrowserTests pass with Apple and bundled Git. Exact warnings, invalid namespace/duplicate/empty rejection, cancellation, stop-on-first-failure partial deletion and one push per configured remote verified. Alpha sorts before zeta; two refspecs for alpha, one for zeta.",
+    "native": "Hidden shipping-controller receiver passes both engines: original icons and menus, captured selections, No/Yes/Refresh, mixed namespace suppression, close/Quit gates, late confirmation ignored, forced cleanup during check-ref-format, branch and push. Existing single deletion and standalone/range receivers also pass both engines.",
+    "builds": "Unsigned Debug/AppStore builds and both bundle audits pass. Both embedded NOTICE files byte-equal source.",
+    "cycles": "Zero AttributeGraph cycles in all three native receiver logs.",
+    "inventory_ci_docs": "Upstream pin, safe workflow YAML parse with exactly one new step and local documentation site build pass. Hosted CI unverified."
+  },
+  "limitations": [
+    "Two-reference Compare/Unified Diff and namespace folder menus remain incomplete. Complete dialog/menu/application parity is not established.",
+    "No main app launch, physical confirmation/focus/light-dark/VoiceOver inspection, signed Finder activation, App Store acceptance or refreshed screenshots.",
+    "Every remote-group failure/cancellation timing, Unicode/config race, transport and linked-worktree route is not individually verified.",
+    "No push, hosted CI or deployment claimed."
+  ],
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "remaining_processes": [],
+    "current_temporary_directories": [],
+    "current_preference_domains": []
+  },
+  "preference_cleanup": {
+    "removed": [],
+    "preserved": []
+  },
+  "sha256": {
+    ".github/workflows/macos.yml": "9f0bceea9a31e02a1b343aed491e5e94fdb9f0fba052ab30f563ca9155bc40c3",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "478a53e40d82e0e4e260b8660c70fe44988d8fcd35fe5d077f7c729217de0dcc",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "920ce867854c7fa035533464886024f4b4c92c5801f7b9ed85800e15e00149bf",
+    "Tests/TurtleGitCoreTests/ReferenceBrowserTests.swift": "725ee381ea969786f25be089fd5f595ea126b1e299b51c597d62122a38c493ba",
+    "docs/GETTING-STARTED.md": "79d0c3dc1ab9e1e95808fe5dfca9f956d248f5cb3dbc3546b30bd02379f59a12",
+    "docs/REFERENCE-BROWSER-PARITY.md": "eb68eb1362adfc49bdf5f27f1798502ef38c4eb24036fcc755630aa5da5d864f",
+    "docs/TESTING.md": "ae19fc7ab7029fa22b45e4155926d3affaa38a96899841f18c81f4f486dc1c4c",
+    "docs/upstream-files.csv": "a8781d42b3e48b3b74c530f4edf709e45b5c6376e6b59bdb7d56ac818de11977",
+    "docs/qa/reference-batch-delete-native-2026-10-09.swift": "7815b74503ab60a3746b8df3d98d6ea115d50e53786acf7c042c7458a99c5c5c",
+    "scripts/test-reference-batch-delete.py": "1bcdf65bb0544c1653e5d169c240a305f7b22f696ac3e48d6cc8537dca3b60f0"
+  },
+  "log_directory": "build/qa/reference-batch-delete-2026-10-09"
+}
