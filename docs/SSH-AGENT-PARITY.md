@@ -41,8 +41,8 @@ signed sandbox acceptance.
 
 ## Remaining end-to-end work
 
-- Verify signed parent invocation of the embedded OpenSSH helpers and select
-  the bundled client for packaged Git; static signing checks are not execution acceptance.
+- Verify signed parent invocation of embedded OpenSSH helpers and transports.
+  Packaged Git now prefers the bundled client; static signing checks are not execution acceptance.
 - Verify signed identity selection, renewal and loading; add permission management. Native mock-scope loading exists and Windows PuTTY configuration is preserved. Conversion or native PPK support remains pending.
 - Verify physical encrypted-key response sheets and add Keychain decisions with owned
   cancellation. Keep private bytes out of command output, Finder and docs.

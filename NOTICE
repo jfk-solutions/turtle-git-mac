@@ -1102,7 +1102,7 @@ SSHTransportCoordinator.swift implements original native key-grant, private-agen
 and secure response orchestration under GPL version 2 or later. Fetch/Pull/Push
 auto-load controls adapt the pinned PullFetchDlg and PushDlg preferences and
 loading points; Windows PuTTY configuration remains separate. Signed access,
-Bundled SSH client selection and complete network authentication remain release gates.
+Signed bundled SSH client invocation and complete network authentication remain release gates.
 
 RemoteTags.swift, ReferenceBrowser.swift and native RemoteTag/ReferenceBrowser
 SSH orchestration adapt the pinned BrowseRefsDlg remote-group loading behavior

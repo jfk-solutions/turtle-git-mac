@@ -237,6 +237,8 @@ jobs:
           -derivedDataPath build-store CODE_SIGNING_ALLOWED=NO build
       - name: Verify sandboxed app resources
         run: python3 scripts/validate-app-bundle.py build-store/Build/Products/AppStore/TurtleGitMac.app --require-git
+      - name: Native packaged Git SSH client lookup without network
+        run: python3 scripts/test-git-ssh-runtime.py
       - name: Build isolated older Git runtimes for replay tests
         run: |
           python3 scripts/build-replay-test-git.py --version 2.37.1

@@ -2,8 +2,8 @@
 
 The full port needs an app-owned SSH client and private-agent tools for sandboxed
 Git transports. All Xcode configurations now embed these tools. The existing
-agent resolver selects bundled agent/add tools, but packaged Git client selection
-is still pending. App Store SSH acceptance remains incomplete.
+agent resolver selects bundled agent/add tools. Packaged Git places the bundled
+SSH directory before its Git/system directories for ordinary SSH lookup. App Store SSH acceptance remains incomplete.
 
 `Configuration/OpenSSHRuntime.json` pins OpenSSH 10.6p1 and OpenSSL 3.5.9,
 publisher archive checksums, arm64/x86_64 slices and a macOS 13 deployment target.
@@ -50,8 +50,8 @@ from the retained reconstruction package has not yet been exercised.
 
 - Verify signed app invocation and security-scope inheritance; embedded helpers
   now receive configured signing and static entitlement checks.
-- Select the bundled SSH client for packaged Git without replacing explicit user
-  SSH commands; retain operation-owned agent and identity security scopes.
+- Verify signed transports retain the selected client, operation-owned agent and
+  identity security scopes. Explicit SSH commands retain Git precedence.
 - Exercise encrypted-key loading through the existing one-use askpass channel.
 - Test actual authentication, host-key decisions, passwords, Keychain, connection
   failures, cancellation, both CPU architectures and signed app/Finder routes.
@@ -76,3 +76,24 @@ behavior. Failed preparation preserves the previous helper directory.
 The [embedding audit record](qa/openssh-embedding-2026-10-10.json) records both
 unsigned app builds, their bundle checks and private fixture signing/failure
 tests. Failed inputs and signing preserve every previous package file hash.
+
+## Git client selection
+
+`GitRuntime.environment` prepends a present executable OpenSSH/bin/ssh directory
+to packaged Git's PATH. It does not write GIT_SSH_COMMAND, GIT_SSH or Git config,
+so explicit environment commands and core.sshCommand retain Git precedence.
+External development Git keeps its existing environment. AppStore executable
+resolution requires an executable packaged SSH client alongside Git.
+
+Private real-Git fixtures record default and explicitly selected mock clients,
+including path spaces and private socket forwarding. They stop before any
+network operation. Signed transports and real authentication remain unverified.
+
+The [client-selection audit](qa/git-ssh-runtime-2026-10-10.json) records real-Git
+precedence fixtures and a native receiver loading the AppStore bundle's Core.
+That receiver resolves packaged Git and agent tools, runs Git with a generic
+`ssh -V` version-only command, and verifies the bundled OpenSSH/OpenSSL versions.
+The Git operation ends with the expected failed remote exchange after SSH exits
+without connecting. This verifies lookup through the built Core; it does not
+verify authentication. The receiver compiles against matching build-product
+module metadata because Xcode strips modules from embedded frameworks.

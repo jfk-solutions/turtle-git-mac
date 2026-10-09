@@ -238,5 +238,7 @@ unsigned binary hashes and records post-sign binary/file hashes. Unsigned builds
 exercise fixture keys; inherited signed copies receive static signature and
 entitlement checks, not execution from an unsandboxed Python parent.
 
-Selecting the bundled client for packaged Git, signed parent invocation, real
-authentication and complete SSH behavior remain release gates.
+Packaged Git now prefers bundled OpenSSH for ordinary SSH lookup; explicit
+SSH commands retain precedence. AppStore runtime resolution requires the
+executable client. Signed parent invocation, real authentication and complete
+SSH behavior remain release gates.

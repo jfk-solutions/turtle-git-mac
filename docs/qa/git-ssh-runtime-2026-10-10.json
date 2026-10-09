@@ -1,0 +1,64 @@
+{
+  "checked_at": "2026-10-09T22:31:30.016580+00:00",
+  "parent_commit": "a894cf96ea7a124c02022e212dcebbf57ba9f96b",
+  "scope": "Packaged Git SSH lookup, explicit command precedence and fail-closed AppStore client resolution",
+  "checks": {
+    "final_default_runtime_tests": {
+      "cases": 4,
+      "failures": 0
+    },
+    "packaged_engine_focused_tests": {
+      "cases": 25,
+      "failures": 0,
+      "suites": [
+        "GitRuntimeSSHTests",
+        "RepositoryAccessTests",
+        "SSHTransportPreparationTests"
+      ]
+    },
+    "precedence": "Real Git with private executable mock clients verifies ordinary bundled lookup, core.sshCommand, GIT_SSH_COMMAND precedence and GIT_SSH selection; literal path spaces and private socket value retained",
+    "missing_client": "AppStore rejects absent/non-executable SSH; development/external Git compatibility retained",
+    "debug_build_exit": 0,
+    "debug_bundle_audit_exit": 0,
+    "appstore_build_exit": 0,
+    "appstore_bundle_audit_exit": 0,
+    "bundled_icons": 100,
+    "native_receiver_exit": 0,
+    "native_receiver": "Loads the AppStore embedded Core using build-product module metadata; resolves bundled Git and agent/add; real packaged Git invokes generic ssh -V and emits pinned SSH/OpenSSL versions; expected Git exit 128, no connection",
+    "python_compile_exit": 0,
+    "final_audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "native_loaded_image": "dyld image inventory matches the app embedded Core binary after symlink resolution"
+  },
+  "versions": {
+    "openssh": "10.6p1",
+    "openssl": "3.5.9"
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "5a58fe75a82e0ae8b0427c46568a80c83582681592661125f6cd6a4e6fbe80d0",
+    "NOTICE": "faa8461223c5e4e5947a0b3dbfcc0b68386f29d484d62f05338505aeeafa7019",
+    "Sources/TurtleGitCore/GitRuntime.swift": "bc42e9f981a342edb3270ada02755ac75589493be536f1cbd079c70582795b22",
+    "Tests/TurtleGitCoreTests/GitRuntimeSSHTests.swift": "d355beee0a5c4bde9c6a6ca261d0cfb3dfc0fef0eb4eb3dd7cb8803f3bba552d",
+    "scripts/test-git-ssh-runtime.py": "726177f0ba0531003a76c47d5bd127dab6583cf040656a1dac98e8001c2f3070",
+    "docs/qa/git-ssh-runtime-2026-10-10.swift": "6e48e558f0c3c343e96e086c35f0d4ac957e12aa6bc421bef2c30310c4518d28",
+    "docs/DISTRIBUTION.md": "1c968e92a008fe0e7d93ef18413a9f8952df71192de5515fac05aaa1049f3742",
+    "docs/OPENSSH-RUNTIME.md": "9f5dbc1fe6bf2830aef6afc0076f2adcdda0e88e2a9ef9f5a7978828a6ce12db",
+    "docs/SSH-AGENT-PARITY.md": "635dd65b2ab135afa10f63744cdfb09cf81e1453d8ed5568ef9cd865bff118c8",
+    "docs/PORTING.md": "230f229f886fc38729c8c4fcb402c6468ef7d4b4f22223119a159575e4a6baee",
+    "Configuration/OpenSSHRuntime.json": "21230f2c7a554fa5c2dc755cdef91c52bdf6bca205649ffb6f7b62abff0f8a7c"
+  },
+  "core_binary_sha256": {
+    "Debug": "6628e4177879104a3e53e829343eb5ecebe1164416ba91b5ffdf25ed735dc252",
+    "AppStore": "038683bc15f382bb1ef3f39af5cb6367efa73e32e783e1ca960d1f697ace9d82"
+  },
+  "limitations": [
+    "No authentication, host-key/password/Keychain, hardware-key or PuTTY-key conversion acceptance",
+    "Unsigned app builds and native receiver; no signed sandbox, Intel runtime or macOS 13 runtime acceptance",
+    "Version-only native Git call intentionally uses generic GIT_SSH_COMMAND=ssh -V; actual default transport selection is covered by mocked real-Git fixtures",
+    "No main app launched; no hosted GitHub CI verification",
+    "Full TortoiseGit parity remains incomplete"
+  ],
+  "logs": "build/qa/git-ssh-runtime-2026-10-10/ (ignored local logs)"
+}
