@@ -1130,3 +1130,7 @@ Submodule Update progress adapts the SubmoduleCommand.cpp Update branch and
 ProgressDlg controls at the pinned TortoiseGit baseline into native Swift/AppKit.
 The original source attribution and GPL-2.0-or-later terms above apply; native
 progress, owned cancellation and scoped handoff code are GPL-2.0-or-later.
+
+Submodule progress output adapts ProgressDlg RichEdit copy commands, original
+copy artwork, current-work/percentage fields and Close/Abort controls to AppKit.
+The native replacement is licensed under GPL-2.0-or-later.

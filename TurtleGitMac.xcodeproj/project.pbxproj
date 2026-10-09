@@ -84,6 +84,7 @@
 		60CE6B733E50271F6725716B /* AddWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BB0FD3A5C49E748AA9A42AC /* AddWindow.swift */; };
 		61C0650766BA9D30246B2FB6 /* SubmoduleUpdate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68CE7BDF48C40B9042C9E95 /* SubmoduleUpdate.swift */; };
 		62913FA0A0A8052D1CF513A4 /* SelectionAllCheckbox.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAD242D45D90F689D7AA5D91 /* SelectionAllCheckbox.swift */; };
+		63D02F46529D370BDE7F4F66 /* SubmoduleProgressOutputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74246B3AB7101AD7A469BA2E /* SubmoduleProgressOutputView.swift */; };
 		68355E42E5C9D1D014516AF4 /* ComparisonFileList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9239515FD50D7B6B92A181A5 /* ComparisonFileList.swift */; };
 		685C871A83BE7D21AD6E50B0 /* LogStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */; };
 		697C21F466069759F260EF25 /* WorkingFileDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E301A686F051DF474EF1D7D /* WorkingFileDelete.swift */; };
@@ -385,6 +386,7 @@
 		6F95A32F6B4ECD8AA7745857 /* ReferenceBrowserWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferenceBrowserWindow.swift; sourceTree = "<group>"; };
 		70C7ACC80D04EACA76A42FF8 /* StatusWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusWindow.swift; sourceTree = "<group>"; };
 		72211FE8450E694C1BC89AB3 /* FormatPatchWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatPatchWindow.swift; sourceTree = "<group>"; };
+		74246B3AB7101AD7A469BA2E /* SubmoduleProgressOutputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubmoduleProgressOutputView.swift; sourceTree = "<group>"; };
 		7428B46131B5378475891E94 /* FileComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileComparison.swift; sourceTree = "<group>"; };
 		798E539A3A1B52BFC50781D5 /* DocumentationCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentationCapture.swift; sourceTree = "<group>"; };
 		79BBB2F306958D4D34AFF839 /* SSHTransportPreparation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHTransportPreparation.swift; sourceTree = "<group>"; };
@@ -596,6 +598,7 @@
 				C8547B7FA28A893C7D185689 /* SubmoduleAddWindow.swift */,
 				0251BCE766102EE9581146AB /* SubmoduleConflictWindow.swift */,
 				85E2B314A76BA35F97ECD2C7 /* SubmoduleDiffWindow.swift */,
+				74246B3AB7101AD7A469BA2E /* SubmoduleProgressOutputView.swift */,
 				0939C1284CC5B9339D0C0356 /* SubmoduleSyncWindow.swift */,
 				A739DFEF6C8F204FD7139944 /* SubmoduleUpdateProgressWindow.swift */,
 				B975BF437A681B29D6A21240 /* SubmoduleUpdateWindow.swift */,
@@ -1214,6 +1217,7 @@
 				C7F46AA23DC99E2E4AAFAD5D /* SubmoduleAddWindow.swift in Sources */,
 				E3EE5EB389BF0E9FD8DDD26A /* SubmoduleConflictWindow.swift in Sources */,
 				A6773359488D79CCCCE0C7DE /* SubmoduleDiffWindow.swift in Sources */,
+				63D02F46529D370BDE7F4F66 /* SubmoduleProgressOutputView.swift in Sources */,
 				1C3518D6A25C8AF5ED0B0B29 /* SubmoduleSyncWindow.swift in Sources */,
 				7164C7C2217E6ABE41A1A1F5 /* SubmoduleUpdateProgressWindow.swift in Sources */,
 				6B9238091F271707632595BC /* SubmoduleUpdateWindow.swift in Sources */,

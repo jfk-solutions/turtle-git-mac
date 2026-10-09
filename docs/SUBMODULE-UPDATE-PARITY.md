@@ -63,16 +63,26 @@ repository access lease remains alive until execution ends.
 
 Successful Update checks the current worktree's administrative directory for
 `BISECT_START` and offers source-order Good, Bad, Skip and Reset with original
-icons. The first action is the default button with a dropdown for all four;
+icons. The first action has a button with a dropdown for all four; Close remains the default;
 selection dispatches the existing native Bisect route once. No-options auto-close
 keeps a successful result with post-actions open; no-errors follows the shared
 source policy. Action-log writes use the existing application-installed store.
 Private preference injection and cancellation fence options discovery on close.
 
-Complete upstream progress geometry/elapsed-time/scrolling/taskbar/Save/context
-menus, large command-list splitting, real transfer/authentication, displayed and
+Complete upstream progress geometry/elapsed-time/taskbar and broader controls, large command-list splitting, real transfer/authentication, displayed and
 signed acceptance remain partial. Cancellation retains earlier checkout/config
 effects; it does not promise rollback.
+
+The submodule progress log now has the source Copy / separator / Copy all
+information to clipboard menu with original copy icons, respecting application
+menu-icon preferences. Copy All preserves selection and viewport without a
+temporary select-all. Live output follows the tail and retains a valid selection;
+shortened/truncated text clamps ranges. The pane uses native dynamic text/background
+colors and the configured log font. Both progress windows expose parsed percentage
+and current work, a progress bar, separate Close/Abort and a native Escape route;
+Close remains the Return default, including when Update offers bisect actions.
+[Progress control verification](qa/submodule-progress-controls-2026-10-09.json)
+records hidden native evidence; physical display/keyboard acceptance remains pending.
 
 ## Verification
 

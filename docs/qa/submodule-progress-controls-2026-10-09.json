@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "8411f1dd2a88b28bd7c70b148a98bff5d450a9d6",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Native Sync/Update current-work and percentage/bar presentation, source separate Close/Abort with default Close/Escape routing, and shared read-only progress log with original icon Copy/Copy All commands, selection preservation, tail scrolling and configurable icons/font/native colors.",
+  "verification": {
+    "source": "Reviewed pinned IDD_GITPROGRESS, ProgressDlg OnProgressUpdateUI, SetupLogMessageViewControl and PreTranslateMessage copy menu/Escape paths. Resource default button is Close even when a post-action exists; prior native Update assigned Return to first bisect action and is corrected. Copy All title comes from IDS_STATUSLIST_CONTEXT_COPYEXT. ProgressDlg has no Save command in this resource/menu; broader source controls remain partial.",
+    "native_output": "Final standalone prohibited-policy receiver passes after final script cleanup. Actual AppKit scroll/text views, three-entry Copy/separator/Copy All menu, explicit action targets/selectors, original non-template icons and on/off/re-enable preference, Unicode selected/all text through a private pasteboard, selection/viewport preservation, live tail bottom, clamped truncated range, configured 13-point log font, native dynamic text/background color configuration and synthetic NSWindow Escape dispatch verified. No visible window, real mouse/keyboard event or rendered light/dark screenshot acceptance.",
+    "native_git": "Expanded actual Sync and Update receivers each pass with system and bundled Git. Live paused wrapper emits Receiving objects: 42% and native models publish percentage 42/current work Receiving objects while owned real-Git fixture execution remains active. Existing local-effects, bounded failures, auto-close, cancellation, Quit, forced-close/PID cleanup and Update bisect-reset cases also pass. Final copy-selector adjustment affects only context-menu dispatch; it is covered by the final output receiver, not a repeated Git transport run.",
+    "corrections": "Initial output run passed scrolling/copy checks but failed icon-off gate. Diagnostics showed false settings with a remaining standard Copy image. Explicit nil assignment alone did not clear it. A dedicated context-menu Copy selector forwarding to the existing private-board copy implementation passed icon-off/re-enable checks; ordinary Command-C still uses overridden NSTextView copy. Final verification reran the cleaned one-run output script.",
+    "core_scope": "No Core source changed. No new Core suite run is claimed; parent 8411f1d records nine Update/system and three bundled cases, and 80bf71b records the prior full 836-case suite.",
+    "builds": "Final unsigned Debug and AppStore builds pass; XcodeGen registers the shared native output/window source.",
+    "bundles": "Both app audits pass, including Finder/helpers/licenses/all 100 original icons. AppStore universal Git/LFS, EditorConfig, IssueRegex and private one-use askpass checks pass. Both embedded NOTICE files equal root.",
+    "inventory_site_workflow": "Pinned inventory regression, local site build and safe workflow YAML parse pass. New native output CI step occurs once. Hosted CI/deployment unverified."
+  },
+  "limitations": [
+    "Entire application/dialog/source/menu parity remains incomplete; source inventory stays partial.",
+    "Physical progress layout, actual Return/Escape/mouse/scroll gestures, keyboard accessibility, VoiceOver and rendered light/dark acceptance remain pending.",
+    "Native color assertions check configuration, not rendered pixels. Full source warning/error/URL styling, elapsed time/timestamps, animation/Dock integration, completion current-work text and all progress controls remain partial.",
+    "No Save button exists in the reviewed CMD progress resource/menu; other progress-dialog commands retain their own backlog.",
+    "Signed Finder/App Group/security-scope/helper inheritance, App Store runtime/distribution/submission and clearance remain unverified.",
+    "Fixtures stream synthetic percent lines and use local Git effects; no actual network transfer/authentication, OpenSSH packaging/Keychain/host-key/password acceptance established.",
+    "Whole source command splitting, long-output/layout performance and all race/failure variants need broader acceptance. Strict Rebase rendered-text gate remains UNVERIFIED.",
+    "No main-app launch, general clipboard write, user-key/login-agent query, push, hosted CI/deployment, new screenshot or submission."
+  ],
+  "sha256": {
+    ".github/workflows/macos.yml": "2cfe2fab9956b7c96a977f629ce272bf7dd0f1c7f449417aa585265f46ba21e2",
+    "NOTICE": "879429faa77ce5472bd27a90bda75c6c06cdcfb25a3b658ccc9401fa7cba13fd",
+    "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "b2935cefbf328b994142fdf12cc82a952485fdaba6bc407da5958dbf02410378",
+    "Sources/TurtleGitMac/SubmoduleSyncWindow.swift": "bc33332df6eba9f36fc95211d58839e8c854fc60f27d9274b594b79139f97e49",
+    "Sources/TurtleGitMac/SubmoduleUpdateProgressWindow.swift": "f2f17ff0c935e3336275aff2a417876738fe100437ddffa164a2023b2b44d9ae",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "dfc174ca23ebf0f5ed4fc31d2e16836261467de0d82f2bd8d09d76ba6861ab71",
+    "docs/SUBMODULE-SYNC-PARITY.md": "d7221248a722d96ada1c84ce20c719c275f49f3bd515f825a8fde75bfca4f17f",
+    "docs/SUBMODULE-UPDATE-PARITY.md": "c15f1f911aaf0b7ac990cb71a717177f5f2dfe3c5cb7693bb564e516e335af59",
+    "docs/qa/submodule-progress-output-native-2026-10-09.swift": "b29d28ac7741721f9a53c9e7e09ed3d36502ea08ee18279843e2ba6c6f58f3cb",
+    "docs/qa/submodule-sync-native-2026-10-09.swift": "b52fd2b20068cfbecf9c1ef2868761bf28e40a9c1857a9537b1e0557225d7866",
+    "docs/qa/submodule-update-progress-native-2026-10-09.swift": "33bfc2da75034d76484a8c6fabaf9c55f5f48bbfa9dda677d04f543501972ffa",
+    "docs/upstream-files.csv": "14a4205ffd22599d7ecd42914c8ecb21f4b5a09799c4b729f99e8aae195facc9",
+    "scripts/test-submodule-progress-output.py": "e0097d304f831d2ccc2b4f4cef9294f657bf3288a7720cb14d8f9f04ff1e07f1"
+  },
+  "logs": "build/qa/submodule-progress-controls-2026-10-09",
+  "cleanup": {
+    "all_handles_terminal": true,
+    "main_app_launches": 0,
+    "audit": {
+      "matching_processes": [],
+      "current_fixtures": []
+    },
+    "empty_preferences_removed": [
+      {
+        "domain": "TurtleGit.SubmoduleProgressOutput.QA.64C467D1-1638-4A7C-8776-61994436F4B7",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleProgressOutput.QA.135CB38F-E513-4F4D-B5E6-6157C3E81C5C",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleProgressOutput.QA.40A26EB3-CCC4-4209-A543-4A5CF0EF7CEB",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleProgressOutput.QA.A7840399-99A3-4704-BA31-DDD877D36DAA",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleProgressOutput.QA.A0A727E2-8936-4A70-95B9-5BF2A1FA74F5",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.0F9007D0-F194-44FF-871C-97BF9722D68C",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleSync.QA.431AAC12-2DEE-42CD-B4AB-AEC8350A843C",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.BC646D26-E6AB-4E7B-91D5-5F67F1A56C66",
+        "defaults_delete_exit": 1,
+        "removed": true
+      },
+      {
+        "domain": "TurtleGit.SubmoduleUpdateProgress.QA.529D7904-8C3C-4469-9D07-0592C48E2C0E",
+        "defaults_delete_exit": 1,
+        "removed": true
+      }
+    ]
+  }
+}

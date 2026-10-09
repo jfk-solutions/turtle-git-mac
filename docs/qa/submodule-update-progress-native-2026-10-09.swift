@@ -46,6 +46,7 @@ import Darwin
         for argument in "$@"; do [ "$argument" = update ] && updating=yes; done
         if [ "$updating" = yes ]; then
           printf '%s\\n' called >> "$0.calls"
+          printf '%s\\n' 'Receiving objects: 42% (42/100)'
           printf '%s\\n' 'live update fixture 雪'
           if [ -f "$0.pause" ]; then
             /bin/sleep 30 &
@@ -102,6 +103,7 @@ import Darwin
         let cancelled = SubmoduleUpdateProgressWindowController(repository:repo,access:access,paths:[first,second],options:noFetch,preferences:prefs); defer { cancelled.close() }
         var answer: ((Bool)->Void)?, cancelledResults = 0; cancelled.model.confirmCancellation = { answer = $0 }; cancelled.model.onUpdated = { _ in cancelledResults += 1 }
         ownedModels.append(cancelled.model); cancelled.model.start(); try await wait("Live Update") { FileManager.default.fileExists(atPath:marker.path) && cancelled.model.output.contains("live update fixture 雪") }
+        try require(cancelled.model.percentage == 42 && cancelled.model.currentWork == "Receiving objects", "Live percentage/current work not published")
         let pids = try String(contentsOf:marker).split(whereSeparator:\.isWhitespace).compactMap { Int32($0) }
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Quit allowed active Update")
         cancelled.model.cancel(); let firstAnswer = answer; firstAnswer?(false); firstAnswer?(true)

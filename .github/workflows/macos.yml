@@ -70,6 +70,8 @@ jobs:
         run: python3 scripts/test-submodule-sync.py
       - name: Native Submodule Update progress
         run: python3 scripts/test-submodule-update-progress.py
+      - name: Native submodule progress output controls
+        run: python3 scripts/test-submodule-progress-output.py
       - name: Native reference-browser folders
         run: python3 scripts/test-reference-folders.py
       - name: Native reference-browser comparisons

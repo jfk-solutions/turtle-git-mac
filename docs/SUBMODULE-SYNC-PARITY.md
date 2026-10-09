@@ -40,6 +40,17 @@ cancels and fences late output/results. Quit is blocked during operation/questio
 idle progress freezes during another document's Quit question. Action-log writes
 use the existing app-installed store; headless receivers use no standard store.
 
+The submodule progress log now has the source Copy / separator / Copy all
+information to clipboard menu with original copy icons, respecting application
+menu-icon preferences. Copy All preserves selection and viewport without a
+temporary select-all. Live output follows the tail and retains a valid selection;
+shortened/truncated text clamps ranges. The pane uses native dynamic text/background
+colors and the configured log font. Both progress windows expose parsed percentage
+and current work, a progress bar, separate Close/Abort and a native Escape route;
+Close remains the Return default, including when Update offers bisect actions.
+[Progress control verification](qa/submodule-progress-controls-2026-10-09.json)
+records hidden native evidence; physical display/keyboard acceptance remains pending.
+
 ## Verification and remaining work
 
 [Verification record](qa/submodule-sync-2026-10-09.json) separates real-Git Core
@@ -50,8 +61,7 @@ icon's blob/SHA-256 and AppKit decode are checked, and Submodule Add's shared Ad
 artwork is explicitly allowed by the icon regression test.
 
 Still partial: displayed progress/window/sheet/keyboard/VoiceOver/light-dark
-acceptance, complete source progress geometry/elapsed-time/scrolling/taskbar/Save
-and context menus, action-log physical acceptance, signed parent/child Git-dir
+acceptance, complete source progress geometry/elapsed-time/taskbar and broader controls, action-log physical acceptance, signed parent/child Git-dir
 scope inheritance and Finder activation/dispatch, all path/config/race variants,
 and broader SyncDlg. No new screenshot or App Store readiness is claimed. Other
 submodule workflows retain their own partial mappings.

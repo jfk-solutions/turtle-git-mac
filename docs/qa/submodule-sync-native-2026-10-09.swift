@@ -30,6 +30,7 @@ import Darwin
         for argument in "$@"; do [ "$argument" = sync ] && sync=yes; done
         if [ "$sync" = yes ]; then
           printf '%s\\n' called >> "$0.calls"
+          printf '%s\\n' 'Receiving objects: 42% (42/100)'
           printf '%s\\n' 'live fixture output 雪'
           if [ -f "$0.pause" ]; then
             /bin/sleep 30 &
@@ -71,6 +72,7 @@ import Darwin
         let cancelled = SubmoduleSyncWindowController(repository:repo,access:access,scope:["modules/one","modules/two"],preferences:prefs); defer { cancelled.close() }
         var answer: ((Bool)->Void)?, cancelledResults = 0; cancelled.model.confirmCancellation = { answer = $0 }; cancelled.model.onSynced = { _ in cancelledResults += 1 }
         cancelled.model.start(); try await wait("Live Sync process") { FileManager.default.fileExists(atPath:marker.path) && cancelled.model.output.contains("live fixture output 雪") }
+        try require(cancelled.model.percentage == 42 && cancelled.model.currentWork == "Receiving objects", "Live percentage/current work not published")
         let pids = try String(contentsOf:marker).split(whereSeparator:\.isWhitespace).compactMap { Int32($0) }
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Quit allowed active Sync")
         cancelled.model.cancel(); let firstAnswer = answer; firstAnswer?(false); firstAnswer?(true)

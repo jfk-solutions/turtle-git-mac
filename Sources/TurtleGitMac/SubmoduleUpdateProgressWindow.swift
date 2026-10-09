@@ -8,11 +8,12 @@ import TurtleGitCore
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, preferences: UserDefaults = .standard) {
         model = SubmoduleUpdateProgressWindowModel(repository: repository, access: access, paths: paths, options: options, preferences: preferences)
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
+        let window = SubmoduleProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 430), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Submodule Update – TurtleGit"; window.contentMinSize = NSSize(width: 600, height: 320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: SubmoduleUpdateProgressDialog(model: model))
         super.init(window: window); window.delegate = self; window.center()
         model.close = { [weak self] in guard let self, !self.model.activeOperation, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        window.escapeAction = { [weak model] in guard let model else { return }; if model.busy { model.cancel() } else { model.close() } }
         model.confirmCancellation = { [weak window] choose in
             guard let window, window.attachedSheet == nil else { choose(false); return }
             window.makeFirstResponder(nil)
@@ -43,6 +44,8 @@ import TurtleGitCore
     @Published var cancelling = false
     @Published var cancelled = false
     @Published var success = false
+    @Published var currentWork = ""
+    @Published var percentage: Int?
     @Published var output = ""
     @Published var exitCode: Int32?
     var close: () -> Void = {}
@@ -72,8 +75,8 @@ import TurtleGitCore
                     defer { continuation.finish() }
                     return try await repository.updateSubmodules(paths: paths, options: options, cancellation: token, onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) })
                 }
-                for await _ in updates { if !invalidated { outputState.consume(parser.processPending(), parser: parser); output = outputState.output } }
-                if !invalidated { outputState.consume(parser.processPending(), parser: parser); outputState.consume(parser.finish(), parser: parser); output = outputState.output }
+                for await _ in updates { if !invalidated { consume(parser.processPending(), parser: parser) } }
+                if !invalidated { consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser) }
                 let result = try await operation.value
                 guard !invalidated else { busy = false; return }
                 // Use this worktree's administrative directory, not the common Git directory.
@@ -97,6 +100,10 @@ import TurtleGitCore
             }
             cancelled = token.isCancelled; busy = false; saveActionLog(); finishAutomaticClose()
         }
+    }
+    private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
+        outputState.consume(emission, parser: parser); output = outputState.output
+        currentWork = outputState.currentWork; percentage = outputState.percentage
     }
     func cancel() {
         guard busy, !invalidated, !confirmingCancellation, !confirmingQuit, !cancelling else { return }
@@ -125,13 +132,17 @@ private struct SubmoduleUpdateProgressDialog: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Updating submodules").font(.headline)
             Text(model.repository.root.path).font(.caption).textSelection(.enabled)
-            OutputView(text: model.output).frame(maxWidth: .infinity, maxHeight: .infinity)
+            Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
+            ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100)
+                .tint(model.busy ? .accentColor : model.success ? .blue : .red)
+                .accessibilityLabel("Git command progress")
+            SubmoduleProgressOutputView(text: model.output).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
                 if model.busy { ProgressView().controlSize(.small) }
                 Text(model.busy ? model.cancelling ? "Cancelling…" : "Updating…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Update failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red)
                 Spacer()
                 if let first = model.postActions.first {
-                    Button { model.perform(first) } label: { CommandLabel(title: model.action(for: first).title, icon: model.action(for: first).icon) }.keyboardShortcut(.defaultAction).disabled(model.activeOperation)
+                    Button { model.perform(first) } label: { CommandLabel(title: model.action(for: first).title, icon: model.action(for: first).icon) }.disabled(model.activeOperation)
                     Menu {
                         ForEach(model.postActions, id: \.self) { operation in
                             Button { model.perform(operation) } label: { CommandLabel(title: model.action(for: operation).title, icon: model.action(for: operation).icon) }
@@ -139,7 +150,8 @@ private struct SubmoduleUpdateProgressDialog: View {
                     } label: { Image(systemName: "chevron.down").accessibilityLabel("Submodule update post-actions") }
                     .menuStyle(.borderlessButton).fixedSize().disabled(model.activeOperation)
                 }
-                Button(model.busy ? "Cancel" : "Close") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.confirmingCancellation || model.confirmingQuit)
+                Button("Close") { model.close() }.keyboardShortcut(.defaultAction).disabled(model.activeOperation)
+                Button("Abort") { if model.busy { model.cancel() } else { model.close() } }.keyboardShortcut(.cancelAction).disabled(model.success || model.confirmingCancellation || model.confirmingQuit || model.busy && model.cancelling)
             }
         }.padding(12)
     }
