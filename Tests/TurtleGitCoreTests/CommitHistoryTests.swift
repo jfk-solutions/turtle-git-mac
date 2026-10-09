@@ -525,8 +525,24 @@ final class CommitHistoryTests: XCTestCase {
         let rows = CommitGraph.layout([entry("M", ["A", "B", "C"]), entry("A", []), entry("B", []), entry("C", []), entry("unrelated", [])])
         XCTAssertEqual(rows[0].width, 3)
         XCTAssertEqual(rows[0].edges.filter(\.startsAtNode).count, 3)
-        XCTAssertEqual(rows[4].column, 0)
+        XCTAssertEqual(rows[4].column, 2, "Source reuses the current empty slot rather than compacting disconnected tips to lane zero")
         XCTAssertTrue(rows[4].edges.isEmpty)
+    }
+    func testSourceLaneSnapshotsReachGraphProjectionAndFirstParentMerges() {
+        let entries = [entry("M", ["A", "B"]),entry("A", ["R"]),entry("B", ["R"]),entry("R", [])]
+        let rows = CommitGraph.layout(entries)
+        // Independent pinned C++ oracle's diamond snapshots.
+        XCTAssertEqual(rows.map { $0.lanes.map(\.rawValue) }, [[5,11],[1,2],[2,1],[6,14]])
+        XCTAssertEqual(rows.map(\.column), [0,0,1,0])
+        XCTAssertEqual(rows.map(\.color), [0,0,1,0])
+        XCTAssertEqual(rows.map(\.width), [2,2,2,2])
+        var walk = HistoryWalkOptions(); walk.firstParent = true
+        let first = CommitGraph.project(entries,walk:walk)
+        XCTAssertEqual(first.graph[0].lanes, [.mergeForkLeft], "Source retains merge identity in first-parent rendering")
+        XCTAssertEqual(first.entries[0].parents, ["A","B"], "Graph adaptation must preserve actual detail parents")
+        let synthetic = CommitGraph.layout([entry("", ["M"])] + entries)
+        XCTAssertTrue(synthetic[0].lanes.isEmpty, "Source omits graph painting for the synthetic working-tree hash")
+        XCTAssertEqual(synthetic[1].lanes, rows[0].lanes)
     }
     func testChangedPathParsingWithBinaryRenameTabsAndNewlines() {
         let files = CommitFile.parse(names: Data("R100\0old\nname\0new\tname\0M\0binary\0A\0雪\0".utf8),

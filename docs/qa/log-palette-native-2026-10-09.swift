@@ -18,6 +18,24 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited); NSApp.appearance = NSAppearance(named: .aqua)
+        var paints = 0
+        for height in [24,25] {
+            for size in [1,10,30] {
+                for width in [1,2,10] {
+                    var settings = LogColorPreferences(); settings.nodeSize = size; settings.lineWidth = width
+                    let bitmap = NSBitmapImageRep(bitmapDataPlanes:nil,pixelsWide:80,pixelsHigh:height,bitsPerSample:8,samplesPerPixel:4,hasAlpha:true,isPlanar:false,colorSpaceName:.deviceRGB,bytesPerRow:0,bitsPerPixel:0)!
+                    NSGraphicsContext.saveGraphicsState(); NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep:bitmap)
+                    for lane in HistoryLane.allCases {
+                        for rolled in [false,true] {
+                            LogGraphDrawing.paint(NSGraphicsContext.current!.cgContext,lane:lane,rolled:rolled,x:20,width:CGFloat(3*height/4),height:CGFloat(height),settings:settings,color:.red,activeColor:.blue)
+                            paints += 1
+                        }
+                    }
+                    NSGraphicsContext.restoreGraphicsState()
+                }
+            }
+        }
+        precondition(paints == 936)
         let suite = "TurtleGit.LogPalette.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize() }
         let repo = GitRepository(root: URL(fileURLWithPath: CommandLine.arguments[1]), executable: URL(fileURLWithPath: CommandLine.arguments[2]))
@@ -55,8 +73,9 @@ import TurtleGitCore
         let graph = table.view(atColumn: graphIndex,row: 0,makeIfNecessary: true) as! GraphCell
         precondition(graph.preferences === prefs && graph.graph != nil)
         let settings = LogColorSettingsModel(preferences: prefs), updates = StatusColorUpdates.shared, oldRevision = updates.revision
+        graph.needsDisplay = false
         settings.set(.tag,rgb: [3,127,249]); settings.set(.branchLine7,rgb: [10,20,30]); settings.setLineWidth(5); settings.setNodeSize(20); settings.apply()
-        precondition(updates.revision == oldRevision + 1)
+        precondition(updates.revision == oldRevision + 1 && graph.needsDisplay, "Existing shared Log/Blame graph cell must invalidate after Apply")
         try await settle(host) { channels(labelColor("v1")) == [3,127,249] }
         precondition(channels(labelColor("v1",foreground: true)) == [255,255,255] && table.selectedRowIndexes == IndexSet(integer: 0) && model.selected == [entries[0].hash])
         let freshGraph = table.view(atColumn: graphIndex,row: 0,makeIfNecessary: true) as! GraphCell
@@ -104,6 +123,6 @@ import TurtleGitCore
         precondition(afterLogHead == bisectHead)
         _ = try await repo.run(["bisect","reset"])
         precondition(!window.isVisible && !settingsWindow.isVisible)
-        print("PASS: real Git reference roles, opaque native attributed backgrounds and contrast text; existing hidden RevisionTable reloads after Apply/default restore; private graph preferences reach real GraphCell and offscreen drawing executes; real active custom old/new bisect metadata and role routing without Log changing HEAD; fourteen native color wells/default buttons, actual Cancel/Apply/Restore actions, draft-only restore and private preferences/window cleanup. No displayed pixels, physical gestures, exact graph topology or signed acceptance claimed.")
+        print("PASS: real Git reference roles, opaque native attributed backgrounds and contrast text; existing hidden RevisionTable reloads after Apply/default restore; private graph preferences reach real GraphCell and offscreen drawing executes; 936 actual offscreen lane/rollup/odd-even height/geometry-extreme paints complete; real active custom old/new bisect metadata and role routing without Log changing HEAD; fourteen native color wells/default buttons, actual Cancel/Apply/Restore actions, draft-only restore and private preferences/window cleanup. No displayed pixels, physical gestures, exact graph topology or signed acceptance claimed.")
     }
 }

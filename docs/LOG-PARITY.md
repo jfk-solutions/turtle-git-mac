@@ -1551,7 +1551,32 @@ source geometry ranges/defaults. The existing native revision table subscribes
 to Apply and accessibility display option changes and reloads its cells, with
 private defaults shared by labels and graph cells. See
 [appearance details](APPEARANCE.md) and [palette QA](qa/log-palette-2026-10-09.json).
-Graph lane-index/merge color, gradients/topology and label borders/tracking
-shapes/symbolization still need source parity; physical contrast and signed
+The source lane state machine, lane-index/active-merge colors and native
+gradient/shape painting are now adapted as described below. Complete filtered
+topology and label borders/tracking shapes/symbolization still need source parity; physical contrast and signed
 acceptance remain pending. Named accessibility appearances alone do not enable
 system Increase Contrast on this host; native providers use the actual flag.
+
+## Lane state and native graph painting
+
+Normal graph rows now carry the pinned Lanes states rather than drawing the
+previous compacted parent curves. Native Log/Blame painting uses empty-slot
+reuse, joins, tails, crosses, merge/initial nodes, source lane-index colors,
+active merge gradients and source line/node dimensions. Rolled nodes have
+source one-point outlines and leave gaps in crossing lines. Synthetic
+working-tree rows have no painted graph, matching the source empty-hash gate.
+
+The independent [lane oracle](qa/history-lanes-2026-10-09.json) verifies exact
+state snapshots and active columns, including first-parent merges, boundaries,
+octopus/disconnected/criss-cross histories and deterministic random DAGs.
+Graph projection keeps actual commit parents separate from display parents.
+Existing abstract edges remain a compatibility connectivity representation;
+they are no longer used for native painting. Shared GraphCell reacts to Apply
+and accessibility display revisions for Log and Blame.
+
+Compressed/labeled/path-simplified history still uses the native projection;
+full comparison with upstream's hidden-row lane walk/rollup is pending.
+Boundary state painting is supported but actual boundary metadata loading is
+not established. Source drawing coordinates/gradients are adapted to Core
+Graphics; physical raster, selected-row contrast, Retina, scroll/clipping and
+signed acceptance still need review. No new screenshot is supplied here.

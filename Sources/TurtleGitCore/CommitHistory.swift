@@ -470,6 +470,9 @@ public struct CommitGraphRow: Sendable {
     }
     public let column: Int
     public let color: Int
+    /// Authoritative source lane states for native drawing. Edges remain the
+    /// existing abstract parent-connectivity API, not the rendered geometry.
+    public let lanes: [HistoryLane]
     public let junction: Bool
     public let collapsed: Bool
     public let edges: [Edge]
@@ -526,20 +529,26 @@ public enum CommitGraph {
             copy.graphParents = nil
             return copy
         }
-        let graph = zip(visible, layout(graphEntries)).map { entry, row in
-            CommitGraphRow(column: row.column, color: row.color,
+        let graph = zip(visible, layout(graphEntries, mergeCommits: visible.map { $0.parents.count > 1 }, firstParent: walk.firstParent)).map { entry, row in
+            CommitGraphRow(column: row.column, color: row.color, lanes: row.lanes,
                 junction: entry.parents.count > 1 || children[entry.hash, default: []].count > 1,
                 collapsed: rollups[entry.hash]?.collapsed ?? false, edges: row.edges, width: row.width)
         }
         return (visible, graph, rollups)
     }
-    public static func layout(_ entries: [LogEntry]) -> [CommitGraphRow] {
+    public static func layout(_ entries: [LogEntry]) -> [CommitGraphRow] { layout(entries, mergeCommits: entries.map { $0.parents.count > 1 }, firstParent: false) }
+    private static func layout(_ entries: [LogEntry], mergeCommits: [Bool], firstParent: Bool) -> [CommitGraphRow] {
+        var source = HistoryLanes()
+        var rowIndex = 0
         var lanes: [Lane] = []
         var nextColor = 0
         var childCounts: [String: Int] = [:]
         for entry in entries { for parent in entry.graphParents ?? entry.parents { childCounts[parent, default: 0] += 1 } }
         return entries.map { entry in
             let parents = entry.graphParents ?? entry.parents
+            let sourceLanes = source.consume(hash: entry.hash, parents: parents, mergeCommit: mergeCommits[rowIndex], firstParent: firstParent)
+            let sourceColumn = source.activeLane
+            rowIndex += 1
             let hasIncoming = lanes.contains(where: { $0.hash == entry.hash })
             if !hasIncoming {
                 lanes.append(Lane(hash: entry.hash, color: nextColor)); nextColor += 1
@@ -566,9 +575,9 @@ public enum CommitGraph {
                     edges.append(.init(from: column, to: destination, color: lanes[destination].color, startsAtNode: true, endsAtNode: false))
                 }
             }
-            return CommitGraphRow(column: column, color: color,
+            return CommitGraphRow(column: sourceColumn, color: sourceColumn, lanes: sourceLanes,
                 junction: entry.parents.count > 1 || childCounts[entry.hash, default: 0] > 1,
-                collapsed: false, edges: edges, width: max(before.count, lanes.count))
+                collapsed: false, edges: edges, width: sourceLanes.count)
         }
     }
 }

@@ -1,0 +1,65 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "a291c01",
+  "scope": "Native source history lane machine and Log/Blame graph painting; full port goal remains active",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/lanes.h": "c05d1050064ef3d541b7fc814fb94dc1ed70c8bd",
+    "src/TortoiseProc/lanes.cpp": "1c17035bf30db9ae2d294127457bd3881f0d5a01",
+    "src/TortoiseProc/LogDataVector.cpp": "0859b5b1fae54d5632f9482f5460d3d80cd4f1d2",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187"
+  },
+  "sources_manifest_sha256": "12ba5070952fd73bc4e41e9009475a8b8bb85ca036fae0d4bb943d82b5c43b3c",
+  "changed_files_sha256": {
+    "NOTICE": "2f5127bde13c8969e50920bb17cb0359c7956dfa5326724de9b5e8a71d089974",
+    "Sources/TurtleGitCore/CommitHistory.swift": "ff87ebf427e4fd9a4cf670804a93cd7cec4901150a40fb6bde5d80d624ffd8f4",
+    "Sources/TurtleGitCore/HistoryLanes.swift": "7a22efb01d785be29124a2375759791c7de81a7fa4f7363007bda831804db448",
+    "Sources/TurtleGitMac/LogGraphDrawing.swift": "e1922880abfafe4a2f348edda98818e2a0efd18dcc016f69009ac4e34678a34a",
+    "Sources/TurtleGitMac/LogWindow.swift": "cc92e94ec579e5b308426ada9a644baa3e6fa170c34fbbc9ce0bb84861baf69f",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "00c45ab0a6599d3a21569265c6f1f1a1dd140eeb6f11dea06ff181a24afdd13f",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "32d18daac75b903f91591a94af3c7bb26cd5b5e8cc6ef22fff1decc85ccf5c34",
+    "docs/APPEARANCE.md": "728397aa5190b6d8e010e05e6a267d2b8649674b8a1c2b721afabaecb552ec44",
+    "docs/LOG-PARITY.md": "cb165350e1020010ebef8f18ad5552f279784679a8ffd101bad85484a18bad58",
+    "docs/qa/history-lanes-native-2026-10-09.swift": "86f4f9762e89baa581743e5cf764a0df4d4a1c1d2b100f8a405abc6aa2cf9a9f",
+    "docs/qa/log-palette-native-2026-10-09.swift": "6701ecd734bf19e28fa4b75d34f9900b7a82fe6647fe42a1ce228b05b2e1cf94",
+    "docs/upstream-files.csv": "f6aa8567f865e2a73c07646eeb6c9c709d105824d5b336cce9bc5dcdea51dc0d",
+    "scripts/test-history-lanes.py": "aa67f39d21f268af1690be590ecaf10a272e0236502d394b06b86ff7a8ec1671"
+  },
+  "verification": {
+    "state_oracle": "Pinned C++ lanes.h/lanes.cpp and LogDataVector::updateLanes bodies compiled verbatim with portable string-hash/record adapters and private visibility for active-column inspection. Swift exact lane-type and active-column snapshots match on 86 deterministic DAGs, 1623 rows: linear, diamond, octopus/disconnected, criss-cross, first-parent, boundaries and seeded random DAGs. Fixture SHA e87067bb4d3841ba7662a28e19228e3992d5ad02489174169d50f4d57f0716c3.",
+    "core": "All 45 CommitHistoryTests pass, including independent diamond snapshots [5,11]/[1,2]/[2,1]/[6,14], source columns/width/index colors, first-parent merge identity, original parent retention and synthetic row blank graph gate. Existing rewritten graph, compressed/labeled/rollup/file detail and real Git preservation regressions retained. All 5 WorkingTreeHistoryTests also pass on final Core sources.",
+    "native": "Expanded existing native Log palette receiver passes Apple and bundled Git. All 936 direct offscreen paints cover 26 lane types, rolled/unrolled, odd/even heights, node size 1/10/30 and width 1/2/10; real GraphCell cacheDisplay executes; existing shared graph cell invalidates after Apply. Existing attributed label background/contrast, selection, native settings action targets and real custom old/new bisect metadata/unchanged HEAD checks retained. Actual all-state pixel coordinates/gradients are not compared with a Windows renderer.",
+    "drawing": "Source review adapts join/head/tail elliptic arcs with active-to-lane gradients; source vertical/horizontal/rolled gaps, circle/square/initial/boundary/plus/minus symbols, smoothing selection, integer node radius/center, odd-height bottom and half-lane offsets. Graph paint uses lane-index role and first isMerge lane active color; source helper exclusion of MERGE_FORK_L_INITIAL retained.",
+    "debug": "Final unsigned Debug build/bundle audit pass with new Core/UI source entries. SwiftPM compile and targeted tests pass.",
+    "store": "Final unsigned AppStore build and required Git/Git LFS bundle audit pass. Current NOTICE verified in both packages. Store build starts after all Core/native handles terminal, without shared-product concurrency.",
+    "inventory": "Four partial mappings extended/reviewed, including lanes.cpp/.h moved from pending review; pin and diff checks pass.",
+    "site": "Local generator passes; no new screenshots or deployment claim."
+  },
+  "compatibility": "Abstract parent edges remain the existing connectivity API and retain prior continuity tests; native paint uses authoritative source lane states. Source empty slots change disconnected root column from compacted 0 to source 2; test updated against oracle. Actual action/detail parents remain unchanged while graph copies are projected.",
+  "limitations": [
+    "Compressed/labeled/path-simplified native projection still rewrites visible edges; full upstream hidden-row lane/rollup walk parity remains pending.",
+    "Boundary machine/paint supported but actual boundary metadata loading not established. Applied/unapplied renderer branches execute offscreen; those state transitions are not wired to application patch workflows.",
+    "Physical Windows/macOS raster/gradient/Retina, clipping/scroll/selection contrast and actual Blame window acceptance remain unverified. Shared graph class is used by Blame through source inspection; callback/native painter is checked with Log receiver.",
+    "Signed sandbox/distribution/license clearance and App Store acceptance unproven. No main app or physical UI launched, no new screenshots. GitHub push/CI unavailable."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 2,
+    "preference_cleanup_sha256": "a5cf3d55d9a302ca34f6e24e7a84d3e4294ce725a1d306adfcf91ad9fc62263e",
+    "windows": "Native receivers close owned hidden windows; standalone oracle displays no app/window.",
+    "process_audit": "No owned receiver/main application processes, private fixture directories or private LogPalette preference files remain."
+  },
+  "local_log_sha256": {
+    "build/qa/history-lanes-2026-10-09/core.log": "378ef4c0202fdc906385805b5ec1b8dfbe3bd3e379e098708fbecc4aef23340a",
+    "build/qa/history-lanes-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/history-lanes-2026-10-09/debug-final.log": "bab06d4792dcb19eb65d32250e1d06cec0b41350fbfb4af302c4f6be136bb540",
+    "build/qa/history-lanes-2026-10-09/debug.log": "22a0ebb858f8825f29fcccabe88c88a6c9f832c0f2e0c79aed0630f6c5d4c6ed",
+    "build/qa/history-lanes-2026-10-09/native.log": "6e067e4cdf878c19d82ea30326c7a5ec7470c06a06c33f805c485dcbdcd0c2bd",
+    "build/qa/history-lanes-2026-10-09/oracle.log": "e9cbef12ff2ba2d75a3fcc7533d58633f0f47c1352b0947c2e3b851980838e24",
+    "build/qa/history-lanes-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/history-lanes-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/history-lanes-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/history-lanes-2026-10-09/store.log": "e9c2704267ac784a13abb2091e203620571858f855b0148f129908a3e1a57eb0",
+    "build/qa/history-lanes-2026-10-09/working-core.log": "0ba3b64c00bda99ac332e352da297849f9d3a8d210ac0ce7c44b6601221cf3cf"
+  }
+}

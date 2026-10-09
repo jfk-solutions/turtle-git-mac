@@ -88,7 +88,7 @@ historical and working-tree path/filter fixtures with Apple and bundled Git,
 saved custom Modified/Renamed colors, gray/selection precedence and unchanged
 HEAD/index/file bytes. The dedicated palette receiver checks action mapping
 including T/K and scored R/C records. These checks do not prove displayed
-Log repaint, physical selection contrast or visual parity; exact graph topology/gradients and reference-label shape/tracking remain separate pending work.
+Log repaint, physical selection contrast or visual parity; filtered/compressed graph topology, physical raster/gradient parity and reference-label shape/tracking remain separate pending work.
 
 ## Log labels and graph
 
@@ -113,9 +113,11 @@ the exact source page grouping still needs review.
 
 The graph cycles through the eight source BranchLine colors. Its lane width is
 three quarters of row height and node radius is the integer lane width times
-node size divided by 30. Line width uses the saved setting. Existing graph
-projection uses stable branch color IDs; upstream's lane-index assignment,
-active merge color, gradients, lane shapes and complete topology parity remain
+node size divided by 30. Line width uses the saved setting. Native graph drawing now uses the source lane state machine, retains empty
+slots, colors by lane index and routes join/tail arc gradients from the active
+merge lane. Source horizontal/vertical line and circle/square/rolled/boundary
+shapes are adapted to Core Graphics. Complete filtered/compressed topology,
+physical raster/Retina/gradient parity and boundary metadata loading remain
 pending. The revision table reloads existing cells after Apply while retaining
 selection and scroll state through the existing update logic.
 
@@ -131,3 +133,17 @@ do not establish system-enabled high-contrast behavior.
 [Log palette QA](qa/log-palette-2026-10-09.json) records oracle comparisons,
 private preferences and hidden native settings/revision-table acceptance.
 No new screenshot or physical/signed acceptance is implied.
+
+[History lane QA](qa/history-lanes-2026-10-09.json) compares 1,623 exact Swift
+lane-type and active-column snapshots across 86 deterministic DAGs with the
+compiled pinned C++ `Lanes` and `CLogDataVector::updateLanes`. The test compiles
+those state/update bodies verbatim with portable hash/record adapters. Core
+projection checks retain actual action parents, merge identity in first-parent
+mode, and blank synthetic working-tree graph rows. Empty slots remain between
+disconnected histories, as upstream does. Existing abstract edge data is kept
+as a parent-connectivity API; native drawing uses the new lane-state data.
+
+Shared GraphCell also invalidates on saved color/accessibility revisions, so
+existing Log and Blame cells can repaint without replacing the cell. Hidden
+native drawing acceptance and its limits are recorded in the QA file. No
+current screenshot or physical visual parity is implied.

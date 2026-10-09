@@ -917,3 +917,12 @@ apply to these adaptations. Native preferences preserve separate BisectSkip /
 BisectBad keys rather than copying the upstream duplicate registry key. Graph
 projection/lane assignment/gradients and reference label tracking shapes remain
 partial; this mapping does not establish complete graph parity.
+
+Native history lane states adapt TortoiseProc/lanes.cpp / lanes.h and
+LogDataVector.cpp::updateLanes, with Core Graphics painting adapted from
+GitLogListBase.cpp::paintGraphLane. Original lanes authors: Marco Costalba
+(C) 2005-2007; TortoiseGit (C) 2008-2015-2017, 2022 (implementation) and
+(C) 2008-2013, 2017, 2021, 2023 (header), under the upstream GPL version 2 or later.
+Empty-slot reuse, join/tail/cross states and lane-index colors now replace the
+previous compacted stable-branch-color rendering. Compressed/path-filtered
+projection and physical raster/gradient/Retina parity still require acceptance.

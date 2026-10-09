@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 import TurtleGitCore
 import UniformTypeIdentifiers
 
@@ -2480,31 +2481,22 @@ final class HistoryTableView: NSTableView {
 }
 
 final class GraphCell: NSView {
+    private var colorUpdates: AnyCancellable?
+    override init(frame frameRect: NSRect) { super.init(frame: frameRect); observeColors() }
+    required init?(coder: NSCoder) { super.init(coder: coder); observeColors() }
+    private func observeColors() { colorUpdates = StatusColorUpdates.shared.$revision.sink { [weak self] _ in self?.needsDisplay = true } }
     var graph: CommitGraphRow? { didSet { needsDisplay = true } }
     var preferences: UserDefaults = .standard { didSet { needsDisplay = true } }
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
-        guard let graph else { return }
+        guard let graph, let context = NSGraphicsContext.current?.cgContext else { return }
         let settings = LogColorPreferences.load(preferences)
-        let laneWidth = floor(bounds.height * 3 / 4)
-        let radius = floor(laneWidth * CGFloat(settings.nodeSize) / 30)
-        func point(_ column: Int, _ y: CGFloat) -> NSPoint { NSPoint(x: laneWidth / 2 + CGFloat(column) * laneWidth, y: y) }
-        let mid = bounds.height / 2
-        for edge in graph.edges {
-            let path = NSBezierPath(); path.lineWidth = CGFloat(settings.lineWidth)
-            let start = point(edge.from, edge.startsAtNode ? mid + (graph.collapsed ? radius : 0) : 0)
-            let end = point(edge.to, edge.endsAtNode ? mid - (graph.collapsed ? radius : 0) : bounds.height)
-            path.move(to: start)
-            if edge.from == edge.to { path.line(to: end) }
-            else { path.curve(to: end, controlPoint1: NSPoint(x: start.x, y: (start.y + end.y) / 2), controlPoint2: NSPoint(x: end.x, y: (start.y + end.y) / 2)) }
-            LogPalette.lane(edge.color, preferences: preferences).setStroke(); path.stroke()
+        let width = floor(bounds.height * 3 / 4)
+        let mergeLane = graph.lanes.firstIndex(where: \.isMerge) ?? 0
+        let activeColor = LogPalette.lane(mergeLane, preferences: preferences)
+        for (index,lane) in graph.lanes.enumerated() where lane != .empty {
+            LogGraphDrawing.paint(context, lane: lane, rolled: graph.collapsed, x: CGFloat(index)*width, width: width, height: bounds.height, settings: settings, color: LogPalette.lane(index, preferences: preferences), activeColor: activeColor)
         }
-        let position = point(graph.column, mid)
-        let rect = NSRect(x: position.x - radius, y: position.y - radius, width: radius * 2, height: radius * 2)
-        LogPalette.lane(graph.color, preferences: preferences).setFill()
-        let node = graph.junction ? NSBezierPath(rect: rect) : NSBezierPath(ovalIn: rect)
-        if graph.collapsed { LogPalette.lane(graph.color, preferences: preferences).setStroke(); node.lineWidth = CGFloat(settings.lineWidth); node.stroke() }
-        else { node.fill() }
     }
 }
 
