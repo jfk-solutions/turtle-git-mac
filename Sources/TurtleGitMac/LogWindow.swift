@@ -570,6 +570,7 @@ struct LogCommandRequest: Identifiable {
         else { gravatar.clear() }
     }
 
+    private let includeBoundaryCommits: Bool
     private let labelDefaults: UserDefaults
     private var labelDefaultsKey: String { "LogDialog.ReferenceVisibility." + repository.root.standardizedFileURL.path }
     func visibleReferences(for entry: LogEntry) -> [RevisionReference] { entry.references.filter { referenceVisibility.shows($0) } }
@@ -932,6 +933,7 @@ struct LogCommandRequest: Identifiable {
             (revision.parents.isEmpty ? "" : "Parents: \(revision.parents.joined(separator: " "))\n") + "\n" + revision.message + (revision.notes.isEmpty ? "" : "\n----\nNotes:\n" + revision.notes) + (revision.tagInfo.isEmpty ? "" : "\n----\nTag Info:\n" + HistoryDateSettings.load().tagInfo(revision.tagInfo))
     }
     init(repository: GitRepository, access: RepositoryAccessLease?, selecting: Bool = false, selectingMultiple: Bool = false, labelDefaults: UserDefaults = .standard, gravatar: LogGravatar? = nil, historyRegexExecutable: URL? = nil) {
+        self.includeBoundaryCommits = labelDefaults.bool(forKey: "LogIncludeBoundaryCommits")
         self.historyRegexExecutable = historyRegexExecutable
         self.showBranchRevisionNumber = labelDefaults.bool(forKey: "ShowBranchRevisionNumber")
         self.gravatar = gravatar ?? LogGravatar(defaults: labelDefaults)
@@ -1049,6 +1051,7 @@ struct LogCommandRequest: Identifiable {
         generation += 1; let request = generation
         var options = HistoryOptions(); options.endRevision = endRevision; options.revisionRange = revisionRange; options.allBranches = allBranches; options.search = search; options.searchFields = searchFields; options.searchCaseSensitive = searchCaseSensitive; options.searchRegex = searchRegex; options.limit = limit
         options.walk = historyWalk; options.regexExecutable = historyRegexExecutable
+        options.includeBoundaryCommits = includeBoundaryCommits
         let referenceVisibility = referenceVisibility, rollupStates = rollupStates
         let scope = historyPaths
         if !showWholeProject { options.paths = historyPaths }

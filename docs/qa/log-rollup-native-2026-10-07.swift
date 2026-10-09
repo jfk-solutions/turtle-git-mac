@@ -78,7 +78,23 @@ import TurtleGitCore
         precondition(model.canToggleRollup, "Invalid regex did not retain source inactive-filter behavior")
         model.busy = true; precondition(!model.canToggleRollup); model.toggleRollup(); model.busy = false
         model.invalidate(); precondition(!model.canToggleRollup)
+        // The upstream Advanced preference is captured when a Log is opened.
+        defaults.set(true, forKey: "LogIncludeBoundaryCommits")
+        let boundaries = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults, historyRegexExecutable: helper)
+        defer { boundaries.invalidate() }
+        boundaries.showWorkingTree = false; boundaries.search = ""; boundaries.searchRegex = false
+        boundaries.revisionRange = HistoryRevisionRange(from: hashes[3], to: hashes[5])
+        boundaries.reload(); try await wait(boundaries)
+        precondition(boundaries.entries.map(\.hash) == [hashes[5],hashes[4],hashes[3]])
+        precondition(boundaries.entries.map(\.isBoundary) == [false,false,true])
+        precondition(boundaries.entries.last?.parents == [hashes[2]] && boundaries.graph.last!.lanes.contains { $0.isBoundary })
+        defaults.set(false, forKey: "LogIncludeBoundaryCommits")
+        let ordinary = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults, historyRegexExecutable: helper)
+        defer { ordinary.invalidate() }
+        ordinary.showWorkingTree = false; ordinary.search = ""; ordinary.searchRegex = false
+        ordinary.revisionRange = boundaries.revisionRange; ordinary.reload(); try await wait(ordinary)
+        precondition(ordinary.entries.map(\.hash) == [hashes[5],hashes[4]] && !ordinary.entries.contains { $0.isBoundary })
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
-        print("Native rollup: actual full-view Collapse/Expand and forced label-mask reload, plus compressed Expand/Collapse menu routing, linear label boundaries, mid-segment forced collapse, hollow state, parent preservation, multiple/busy/closed/search guards and invalid regex passed; repository unchanged")
+        print("Native boundary setting and graph metadata, rollup: actual full-view Collapse/Expand and forced label-mask reload, plus compressed Expand/Collapse menu routing, linear label boundaries, mid-segment forced collapse, hollow state, parent preservation, multiple/busy/closed/search guards and invalid regex passed; repository unchanged")
     }
 }

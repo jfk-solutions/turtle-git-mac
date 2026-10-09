@@ -30,7 +30,7 @@ record='''
 using CString=std::string;
 struct CStringUtils{static bool StartsWith(const CString& s,const wchar_t* p){std::wstring wide(p);std::string prefix(wide.begin(),wide.end());return s.rfind(prefix,0)==0;}};
 using MAP_HASH_NAME=std::unordered_map<CGitHash,std::vector<CString>>;
-struct GitRevLoglist{CGitHash m_CommitHash;CGitHashList m_ParentHash;std::vector<Lanes::LaneType>m_Lanes;bool m_RolledUp=false,m_RolledUpIsForced=false;size_t ParentsCount()const{return m_ParentHash.size();}int IsBoundary()const{return 0;}};
+struct GitRevLoglist{CGitHash m_CommitHash;CGitHashList m_ParentHash;std::vector<Lanes::LaneType>m_Lanes;bool boundary=false,m_RolledUp=false,m_RolledUpIsForced=false;size_t ParentsCount()const{return m_ParentHash.size();}int IsBoundary()const{return boundary;}};
 '''
 controller='''
 class CGitLogListBase{public:
@@ -54,7 +54,7 @@ main='''
 int main(){CGitLogListBase c;int first;std::string head,overrides;c.m_HeadHash=CGitHash("0");std::cin>>c.m_ShowFilter>>c.m_ShowRefMask>>first>>head>>overrides;c.m_HeadHash=CGitHash(head);std::string line;std::getline(std::cin,line);std::unordered_map<CGitHash,CGitLogListBase::RollUpState>forced;
  if(overrides!="-"){std::istringstream s(overrides);std::string item;while(std::getline(s,item,',')){auto p=item.find(':');forced[CGitHash(item.substr(0,p))]=item.substr(p+1)=="C"?CGitLogListBase::RollUpState::Collapse:CGitLogListBase::RollUpState::Expand;}}
  std::vector<GitRevLoglist>rows;MAP_HASH_NAME refs;
- while(std::getline(std::cin,line)){std::istringstream s(line);std::string hash,parents,names;s>>hash>>parents>>names;GitRevLoglist r;r.m_CommitHash=CGitHash(hash);if(parents!="-"){std::istringstream p(parents);std::string h;while(std::getline(p,h,','))r.m_ParentHash.emplace_back(h);}if(names!="-"){std::istringstream p(names);std::string h;while(std::getline(p,h,','))refs[r.m_CommitHash].push_back(h);}rows.push_back(r);}c.walk(rows,refs,forced,first);
+ while(std::getline(std::cin,line)){std::istringstream s(line);std::string hash,parents,names;int boundary;s>>hash>>parents>>names>>boundary;GitRevLoglist r;r.boundary=boundary;r.m_CommitHash=CGitHash(hash);if(parents!="-"){std::istringstream p(parents);std::string h;while(std::getline(p,h,','))r.m_ParentHash.emplace_back(h);}if(names!="-"){std::istringstream p(names);std::string h;while(std::getline(p,h,','))refs[r.m_CommitHash].push_back(h);}rows.push_back(r);}c.walk(rows,refs,forced,first);
 }
 '''
 rng=random.Random(7338078);fixtures=[]
@@ -70,7 +70,7 @@ for shapeIndex,parents in enumerate(shapes):
  for mode,flags in [('all',7),('compressed',3),('labeled',1)]:
   for mask in [63,5,0]:
    for overrides in [{},{'0':'collapse'},{'0':'expand','1':'collapse'}]:
-    fixtures.append({'name':str(shapeIndex)+'-'+mode+'-'+str(mask)+'-'+str(len(overrides)),'mode':mode,'mask':mask,'firstParent':shapeIndex%3==0,'overrides':overrides,'rows':[{'hash':str(i),'parents':list(map(str,p)),'refs':refs[i],'head':i==0} for i,p in enumerate(parents)],'flags':flags})
+    fixtures.append({'name':str(shapeIndex)+'-'+mode+'-'+str(mask)+'-'+str(len(overrides)),'mode':mode,'mask':mask,'firstParent':shapeIndex%3==0,'overrides':overrides,'rows':[{'hash':str(i),'parents':list(map(str,p)),'refs':refs[i],'head':i==0,'boundary':shapeIndex%2==1 and i>=len(parents)-2} for i,p in enumerate(parents)],'flags':flags})
 with tempfile.TemporaryDirectory(prefix='turtlegit-history-projection-') as temporary:
  directory=Path(temporary)
  (directory/'lanes.h').write_text(adapter+'\n#define private public\n'+header+'\n#undef private\n')
@@ -80,7 +80,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-history-projection-') as temp
  for f in fixtures:
   overrides=','.join(h+(':'+('C' if v=='collapse' else 'E')) for h,v in f['overrides'].items()) or '-'
   payload=str(f['flags'])+' '+str(f['mask'])+' '+str(int(f['firstParent']))+' 0 '+overrides+'\n'
-  payload+=''.join(r['hash']+' '+(','.join(r['parents']) or '-')+' '+(','.join(r['refs']) or '-')+'\n' for r in f['rows'])
+  payload+=''.join(r['hash']+' '+(','.join(r['parents']) or '-')+' '+(','.join(r['refs']) or '-')+' '+str(int(r['boundary']))+'\n' for r in f['rows'])
   lines=subprocess.check_output([str(oracle)],input=payload,text=True).splitlines()
   f['expected']=[{'visible':line.split(';')[0].split(',')[0]=='1','collapsed':line.split(';')[0].split(',')[1]=='1','forced':line.split(';')[0].split(',')[2]=='1','lanes':list(map(int,line.split(';')[1].strip(',').split(','))),'column':int(line.split(';')[2])} for line in lines]
  snapshot=directory/'fixtures.json';snapshot.write_text(json.dumps(fixtures))

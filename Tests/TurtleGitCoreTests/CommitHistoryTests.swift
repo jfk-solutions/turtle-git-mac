@@ -2,6 +2,57 @@ import XCTest
 @testable import TurtleGitCore
 
 final class CommitHistoryTests: XCTestCase {
+    func testHistoryBoundarySettingLoadsRangeEndpointsWithoutChangingActionParents() async throws {
+        let (root, fixtureRepo, path) = try await GitPatchTests().fixture()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = GitRepository(root: root, executable: ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"].map { URL(fileURLWithPath: $0) } ?? fixtureRepo.executable)
+        let base = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["branch", "boundary-side"])
+        var hashes: [String] = []
+        for number in 1...2 {
+            try Data("boundary main \(number)\n".utf8).write(to: root.appendingPathComponent(path))
+            try await repo.stage([path]); _ = try await repo.commit(message: "boundary main \(number)")
+            hashes.append(try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines))
+        }
+        _ = try await repo.run(["switch", "boundary-side"])
+        try Data("boundary side\n".utf8).write(to: root.appendingPathComponent("side"))
+        try await repo.stage(["side"]); _ = try await repo.commit(message: "boundary side")
+        let side = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
+        _ = try await repo.run(["switch", "main"])
+        let tracked = [".git/HEAD", ".git/index", ".git/config", path]
+        let before = try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }
+        var options = HistoryOptions(); options.revisionRange = HistoryRevisionRange(from: hashes[0], to: hashes[1])
+        let ordinary = try await repo.history(options: options)
+        XCTAssertEqual(ordinary.map(\.hash), [hashes[1]]); XCTAssertFalse(ordinary.contains { $0.isBoundary })
+        options.includeBoundaryCommits = true
+        let range = try await repo.history(options: options)
+        XCTAssertEqual(range.map(\.hash), [hashes[1], hashes[0]])
+        XCTAssertEqual(range.map(\.isBoundary), [false, true])
+        XCTAssertEqual(range.last?.parents, [base], "Boundary detail actions must retain the excluded endpoint's real parent")
+        XCTAssertEqual(range.last?.graphParents, [base])
+        XCTAssertTrue(CommitGraph.layout(range).last!.lanes.contains { $0.isBoundary })
+        XCTAssertTrue(CommitGraph.project(range, walk: options.walk).graph.last!.lanes.contains { $0.isBoundary })
+        let files = try await repo.files(in: range.last!)
+        XCTAssertEqual(files.map(\.path), [path])
+        options.revisionRange = HistoryRevisionRange(from: hashes[1], to: side, kind: .symmetricDifference)
+        for fullHistory in [false, true] {
+            options.walk.fullHistory = fullHistory
+            let symmetric = try await repo.history(options: options)
+            XCTAssertEqual(Set(symmetric.map(\.hash)), Set(hashes + [side, base]))
+            XCTAssertEqual(symmetric.filter { $0.isBoundary }.map(\.hash), [base])
+            XCTAssertEqual(symmetric.first { $0.hash == hashes[0] }?.parents, [base])
+            XCTAssertEqual(symmetric.first { $0.hash == hashes[1] }?.parents, [hashes[0]])
+            XCTAssertEqual(symmetric.first { $0.hash == side }?.parents, [base])
+            XCTAssertTrue(CommitGraph.project(symmetric, walk: options.walk).graph.last!.lanes.contains { $0.isBoundary })
+        }
+        options.includeBoundaryCommits = false
+        let excluded = try await repo.history(options: options)
+        XCTAssertFalse(excluded.contains { $0.hash == base || $0.isBoundary })
+        options.revisionRange = nil; options.includeBoundaryCommits = true
+        let complete = try await repo.history(options: options)
+        XCTAssertEqual(complete.map(\.hash), [hashes[1], hashes[0], base]); XCTAssertFalse(complete.contains { $0.isBoundary })
+        let after = try tracked.map { try Data(contentsOf: root.appendingPathComponent($0)) }; XCTAssertEqual(before, after)
+    }
     func testHistoryWalkFirstParentNoMergesAndFullHistoryPreserveRepository() async throws {
         let (root, baseRepo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }

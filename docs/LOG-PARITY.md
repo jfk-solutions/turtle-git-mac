@@ -1578,8 +1578,8 @@ Compressed/labeled visibility now preserves full-walk lane snapshots,
 including hidden records, and its forced-rollup logic is compared with the
 pinned source filter block. Git search/path-simplified walk metadata remains
 a separate parity task.
-Boundary state painting is supported but actual boundary metadata loading is
-not established. Source drawing coordinates/gradients are adapted to Core
+Boundary metadata loading now follows the source advanced setting and minus
+mark; see the boundary history section below. Source drawing coordinates/gradients are adapted to Core
 Graphics; physical raster, selected-row contrast, Retina, scroll/clipping and
 signed acceptance still need review. No new screenshot is supplied here.
 
@@ -1600,3 +1600,30 @@ states exist, even in complete view. Source checks and hidden native menu/Git
 acceptance are recorded in [projection QA](qa/history-projection-2026-10-09.json).
 Physical graph/scroll/selection contrast and complete search/path walker
 metadata equivalence remain unverified.
+
+
+## Boundary history endpoints
+
+The existing Advanced setting `LogIncludeBoundaryCommits` now takes effect when
+opening a Log, matching the upstream constructor's default false and saved
+registry value. The native Log captures its UserDefaults value at construction.
+Enabling it adds both `--left-right` and `--boundary`, as `CGit::GetLogCmd` does
+for LOG_INFO_BOUNDARY. Git's `%m` field travels separately from the full commit
+hash; only its minus mark sets `LogEntry.isBoundary`, matching
+`GitRevLoglist::IsBoundary`. Left/right marks are ordinary commits.
+
+Both direct layout and compressed/labeled projection pass that boundary flag
+to the source lane state machine. The excluded endpoint keeps its actual
+parents, full message and file-detail eligibility; a boundary symbol does not
+replace commit identity or action parents. Disabled and ordinary complete walks
+retain their previous scope. The Advanced choice is read when opening a new Log,
+rather than adding a different checkbox to the source Walk Behavior menu.
+
+Real difference and symmetric-difference fixtures check excluded endpoints,
+full-history and ordinary parent metadata, real file details and unchanged
+HEAD/index/config/working files. The compiled pinned C++ projection oracle now
+includes boundary rows alongside normal, compressed, labeled, forced-rollup,
+reference-mask and first-parent combinations. Native model checks use private
+preferences on both Git engines. See [boundary QA](qa/history-boundaries-2026-10-09.json).
+Physical boundary raster/Retina/selection, search/path combinations and signed
+sandbox acceptance remain pending; this does not establish full Log parity.

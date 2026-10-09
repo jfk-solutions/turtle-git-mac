@@ -118,8 +118,9 @@ slots, colors by lane index and routes join/tail arc gradients from the active
 merge lane. Source horizontal/vertical line and circle/square/rolled/boundary
 shapes are adapted to Core Graphics. Compressed/labeled visibility now preserves each raw row's lane snapshot,
 advancing through hidden commits as upstream append does. Physical
-raster/Retina/gradient parity, Git search/path metadata equivalence and boundary
-metadata loading remain pending. The revision table reloads existing cells after Apply while retaining
+raster/Retina/gradient parity and Git search/path metadata equivalence remain
+pending. LogIncludeBoundaryCommits now loads excluded endpoints and carries
+their minus marks into the source boundary lane states. The revision table reloads existing cells after Apply while retaining
 selection and scroll state through the existing update logic.
 
 AppKit on this host resolves named accessibility appearances to ordinary

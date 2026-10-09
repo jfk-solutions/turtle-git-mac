@@ -88,3 +88,10 @@ blank lines while retaining source per-line trailing-space/CR trimming. See
 [message formatting](COMMIT-PARITY.md#commit-message-file-formatting-and-comment-stripping)
 and [QA record](qa/commit-message-file-2026-10-07.json). Other consumers and full
 settings acceptance remain incomplete.
+
+LogIncludeBoundaryCommits is now consumed when opening a Log. Its source
+default false and saved boolean enable Git left-right/boundary output, preserve
+full commit hashes and parents, and carry the minus mark into boundary lane
+states. The Advanced tooltip now identifies it as effective. Real difference/
+symmetric/full-history reads and native private-preference checks are recorded
+in [boundary history QA](qa/history-boundaries-2026-10-09.json).

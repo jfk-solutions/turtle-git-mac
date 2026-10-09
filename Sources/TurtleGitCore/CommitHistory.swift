@@ -345,6 +345,7 @@ public struct HistoryRevisionRange: Equatable, Sendable {
 public struct HistoryOptions: Sendable {
     public var walk = HistoryWalkOptions()
     public var allBranches = false
+    public var includeBoundaryCommits = false
     public var endRevision: String?
     public var revisionRange: HistoryRevisionRange?
     public var limit = 200
@@ -535,7 +536,7 @@ public enum CommitGraph {
         var machine = HistoryLanes()
         var sourceRows: [String: (lanes: [HistoryLane], column: Int)] = [:]
         for entry in entries {
-            let lanes = machine.consume(hash: entry.hash, parents: entry.graphParents ?? entry.parents, mergeCommit: entry.parents.count > 1, firstParent: walk.firstParent)
+            let lanes = machine.consume(hash: entry.hash, parents: entry.graphParents ?? entry.parents, mergeCommit: entry.parents.count > 1, boundary: entry.isBoundary, firstParent: walk.firstParent)
             sourceRows[entry.hash] = (lanes,machine.activeLane)
         }
         let graph = zip(visible, layout(graphEntries, mergeCommits: visible.map { $0.parents.count > 1 }, firstParent: walk.firstParent)).map { entry, row in
@@ -556,7 +557,7 @@ public enum CommitGraph {
         for entry in entries { for parent in entry.graphParents ?? entry.parents { childCounts[parent, default: 0] += 1 } }
         return entries.map { entry in
             let parents = entry.graphParents ?? entry.parents
-            let sourceLanes = source.consume(hash: entry.hash, parents: parents, mergeCommit: mergeCommits[rowIndex], firstParent: firstParent)
+            let sourceLanes = source.consume(hash: entry.hash, parents: parents, mergeCommit: mergeCommits[rowIndex], boundary: entry.isBoundary, firstParent: firstParent)
             let sourceColumn = source.activeLane
             rowIndex += 1
             let hasIncoming = lanes.contains(where: { $0.hash == entry.hash })
@@ -768,9 +769,10 @@ extension GitRepository {
         let query = HistoryTextQuery(options.search, caseSensitive: options.searchCaseSensitive)
         // Git fixed-string grep is equivalent only for one positive message term.
         let filterInMemory = filtering && (options.searchRegex || options.searchFields != .messages || query.simpleLiteral == nil)
-        var args = ["log", "--encoding=UTF-8", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00"]
+        var args = ["log", "--encoding=UTF-8", "--topo-order", "--no-notes", "--format=%H%x00%P%x00%an%x00%ae%x00%aI%x00%s%x00%B%x00%cn%x00%ce%x00%cI%x00%m%x00"]
         // Match GetLogCmd: parent rewriting for normal walks, raw full history.
         let rewritesParents = !options.walk.fullHistory
+        if options.includeBoundaryCommits { args += ["--left-right", "--boundary"] }
         if rewritesParents { args.append("--parents") }
         if options.walk.firstParent { args.append("--first-parent") }
         if options.walk.noMerges { args.append("--no-merges") }
@@ -854,7 +856,7 @@ extension GitRepository {
         let fieldsInHistory = String(decoding: try historyRun(args).stdout, as: UTF8.self).components(separatedBy: "\0")
         var actualParents: [String: [String]] = [:]
         if rewritesParents {
-            let hashes = stride(from: 0, to: max(0, fieldsInHistory.count - 9), by: 10).map {
+            let hashes = stride(from: 0, to: max(0, fieldsInHistory.count - 10), by: 11).map {
                 fieldsInHistory[$0].trimmingCharacters(in: .whitespacesAndNewlines)
             }.filter { !$0.isEmpty }
             guard hashes.allSatisfy({ ($0.count == 40 || $0.count == 64) && $0.allSatisfy { $0.isASCII && $0.isHexDigit } }) else { throw RevisionComparisonFailure.range }
@@ -874,10 +876,10 @@ extension GitRepository {
         var entries: [LogEntry] = []
         var regexTexts: [String] = []
         var record = 0
-        while record + 9 < fieldsInHistory.count {
+        while record + 10 < fieldsInHistory.count {
             try cancellation?.check()
-            let fields = Array(fieldsInHistory[record..<(record + 10)])
-            record += 10
+            let fields = Array(fieldsInHistory[record..<(record + 11)])
+            record += 11
             let hash = fields[0].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !hash.isEmpty else { continue }
             let walkedParents = fields[1].split(separator: " ").map(String.init)
@@ -907,6 +909,7 @@ extension GitRepository {
             var entry = LogEntry(hash: hash, author: fields[2], date: fields[4], subject: fields[5],
                 parents: parents, email: fields[3], message: fields[6],
                 committer: fields[7], committerEmail: fields[8], committerDate: fields[9])
+            entry.isBoundary = options.includeBoundaryCommits && fields[10] == "-"
             if rewritesParents { entry.graphParents = walkedParents }
             entry.issueIDs = try issueIDs(hash, message: fields[6])
             entry.notes = try notes(hash); entry.tagInfo = try tagInfo(hash); entries.append(entry)

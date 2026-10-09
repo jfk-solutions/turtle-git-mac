@@ -89,6 +89,8 @@ public struct LogEntry: Identifiable, Sendable {
     public var issueIDs: String = ""
     public var references: [RevisionReference] = []
     public var isHead = false
+    /// Excluded range endpoint emitted by Git --boundary (the source minus mark).
+    public var isBoundary = false
     public init(hash: String, author: String, date: String, subject: String, parents: [String] = [], email: String = "", message: String = "", committer: String = "", committerEmail: String = "", committerDate: String = "") {
         self.hash = hash; self.author = author; self.date = date; self.subject = subject
         self.parents = parents; self.email = email; self.message = message

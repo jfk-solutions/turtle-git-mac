@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "4622df4",
+  "scope": "LogIncludeBoundaryCommits advanced consumer, real history mark loading and source boundary lanes; full port goal remains active",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803",
+    "src/Git/GitRevLoglist.h": "e9d652c2ab1abd86e61bd452e9488b633163bc6c",
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/LogDataVector.cpp": "0859b5b1fae54d5632f9482f5460d3d80cd4f1d2",
+    "src/TortoiseProc/Settings/SettingsAdvanced.cpp": "1b222ebf9053e0e902f79413899dc92d35071464"
+  },
+  "sources_manifest_sha256": "8503be4408f2914295d062952363c9606126f40225dfefd685db40d4bbf0bab6",
+  "changed_files_sha256": {
+    "NOTICE": "1efdf925bfe607b00173e90dba4042ca3db39a35b2f9ae973cd25945be4605a6",
+    "Sources/TurtleGitCore/CommitHistory.swift": "e0fc2e8d052a4c59fe7f85c2c822771ae1dd832b2646974551d1bc88eea0cde4",
+    "Sources/TurtleGitCore/GitModels.swift": "41b4b99aec951bcea618a5332024115d464f86bacd97bd441e29addf2498927b",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "fc6458e41de1c6fe176935ba49e95eecd868db8c11798d388e4546f6bbe422b7",
+    "Sources/TurtleGitMac/LogWindow.swift": "245bd892f1295fc70532864ba8c111381cfa4fda91f6b7a8b6a27ef93e22867e",
+    "Tests/TurtleGitCoreTests/CommitHistoryTests.swift": "db865668c0bb0d658918cbf5b3872d702c1b4f05918b7f6be7b031d8eb6eb94d",
+    "docs/ADVANCED-SETTINGS-PARITY.md": "b6ca2a0f00e5835f421893defe3434a69d872527a68f6f408160987e0b011831",
+    "docs/APPEARANCE.md": "b1fe5b9ee40e6c476e5e39b804a4d311aaa62b88cd453b2de3bf609ceaf9b048",
+    "docs/LOG-PARITY.md": "9467fd7304106a83173acf725c41ef2a596a0b347fb57985aa66939794973e65",
+    "docs/qa/history-projection-native-2026-10-09.swift": "74c498056f113c0de2c4c22b4c53c6015585164b0b1678a8b7db6b93da454f2e",
+    "docs/qa/log-rollup-native-2026-10-07.swift": "9b2d925a4a50ce38c94049c9dec44674163aaff59b060c818f41ce8fe4149e57",
+    "docs/upstream-files.csv": "946e3ea048c0b4bc00cbceba6e9dbf11642fe8b4a45eac86c935ebbe4bb6d626",
+    "scripts/test-history-projection.py": "efd7e268586127defdd32fff7b02a3e7b3c2aac0f5324acab04aab4e7aa1225e"
+  },
+  "verification": {
+    "source": "Source constructor reads LogIncludeBoundaryCommits false; BeginFetchLog adds LOG_INFO_BOUNDARY; GetLogCmd adds left-right and boundary; IsBoundary compares minus mark. Native construction captures private/default UserDefaults value, full commit hash and separate %m retain identities, both layout and projection carry boundary to lanes.",
+    "core": "All 47 CommitHistoryTests pass; real difference/symmetric/full-history/complete walks, actual endpoint parents and historical file details, unchanged HEAD/index/config/working file bytes. Boundary test additionally passes bundled Git; all 5 WorkingTreeHistoryTests pass.",
+    "projection_oracle": "648 projections, 10233 visibility/rollup/forced snapshots and visible full-walk lane states match compiled pinned source C++ including boundary rows. Fixture SHA a927067bdc5ce317dd10e39f11daa23b20269dfd83c9e0275f5f0162ca488498.",
+    "native": "Full existing rollup receiver passes Apple and bundled Git. Added enabled/disabled constructor preference range checks, exact visible identities/marks/real parents and boundary graph state. The original hosted owned hidden window/menu checks and repository preservation remain passing. Boundary models themselves are not physically displayed.",
+    "debug": "Final unsigned Debug build and configured bundle audit pass. Debug uses system Git and does not bundle Store Git runtime.",
+    "store": "Final unsigned AppStore build and required universal Git/Git LFS bundle audit pass; current NOTICE matches both Debug and Store packages. Store started after Core/native/oracle handles completed. Signed sandbox/distribution/App Store acceptance remains unverified.",
+    "inventory": "Pinned inventory and diff checks pass; four partial source mappings updated.",
+    "site": "Local documentation site generator passes; no fresh screenshot or deployment claim."
+  },
+  "iterations": [
+    "Initial Advanced tooltip edit also matched a dictionary subscript; compiler rejected it. Restored the exact Finder-only subscript, retaining only the intended tooltip addition; final Debug build passes.",
+    "Debug audit first incorrectly required the AppStore Git runtime; failed on absent runtime manifest as expected for this configuration. Configured Debug audit passes; Store runtime audit remains required.",
+    "Private preference domains were already removed by receiver defer; defaults delete reported absent domain. Inspected empty plist payloads and removed only exact private empty test files."
+  ],
+  "limitations": [
+    "Search/path/limit combinations and full source Git walker equivalence remain incomplete.",
+    "Physical Windows/macOS boundary raster/gradients/Retina/selected-row and signed sandbox acceptance unverified.",
+    "Full dialogs/menus/Finder/application parity, signed distribution, App Store acceptance and completed documentation/screenshots remain incomplete. GitHub push and CI unavailable."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preferences_removed": 2,
+    "preference_cleanup_sha256": "67b67d46f4bf59b672cba3a6e9a47473f01a9bc6ff93acfccb02f3888aa0b580",
+    "windows": "Receiver closes its owned hidden Log window; oracle opens no UI.",
+    "process_audit": "No owned native receiver/main app processes, private preference files or private fixture directories remain."
+  },
+  "local_log_sha256": {
+    "build/qa/history-boundaries-2026-10-09/core-bundled.log": "585e6c70cab4a36cbbdf40102209796747e8983362dcc10ce3704f8c0e0956bf",
+    "build/qa/history-boundaries-2026-10-09/core.log": "f8e7ab890f70cc7b86c056cb3b5cb898e58ec5124a21be537ae9e25a1318d189",
+    "build/qa/history-boundaries-2026-10-09/debug-audit-configured.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/history-boundaries-2026-10-09/debug-audit.log": "dc9f892db17affd2f53ad739d08fe2770ef19caaceb9266a4ab9c9aefefb5916",
+    "build/qa/history-boundaries-2026-10-09/debug-corrected.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/history-boundaries-2026-10-09/debug-final.log": "bf94ca750f8a011805b751810afb019c8f756647e9aa5310bf26cda160f77042",
+    "build/qa/history-boundaries-2026-10-09/debug.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/history-boundaries-2026-10-09/native.log": "7b860d9f802be5bdbb1e6d61f363fda43e5ad5552cad82700b88a85f8099afe7",
+    "build/qa/history-boundaries-2026-10-09/oracle.log": "b8c2a536c26abf38ff7dc91213a27a812fd1637e36b67714b0eb0b055152edf0",
+    "build/qa/history-boundaries-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/history-boundaries-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/history-boundaries-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/history-boundaries-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca",
+    "build/qa/history-boundaries-2026-10-09/working-core.log": "a85a25d646e7a7dd433e73dc6a7f7f45d40580ac901de426e14541dafa77ede1"
+  }
+}

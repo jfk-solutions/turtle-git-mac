@@ -1,7 +1,7 @@
 import Foundation
 @testable import TurtleGitCore
 struct ProjectionFixture: Decodable {
-    struct Row: Decodable { let hash: String; let parents: [String]; let refs: [String]; let head: Bool }
+    struct Row: Decodable { let hash: String; let parents: [String]; let refs: [String]; let head: Bool; let boundary: Bool }
     struct Expected: Decodable { let visible: Bool; let collapsed: Bool; let forced: Bool; let lanes: [Int]; let column: Int }
     let name: String; let mode: String; let mask: Int; let firstParent: Bool; let overrides: [String:String]; let rows: [Row]; let expected: [Expected]
 }
@@ -12,7 +12,7 @@ struct ProjectionFixture: Decodable {
         for fixture in fixtures {
             let entries=fixture.rows.map { row -> LogEntry in
                 var e=LogEntry(hash:row.hash,author:"",date:"",subject:row.hash,parents:row.parents)
-                e.isHead=row.head;e.references=row.refs.map { RevisionReference(name:$0) };return e
+                e.isHead=row.head;e.isBoundary=row.boundary;e.references=row.refs.map { RevisionReference(name:$0) };return e
             }
             var options=HistoryWalkOptions();options.graphMode=fixture.mode == "all" ? .all : fixture.mode == "compressed" ? .compressed : .labeled;options.firstParent=fixture.firstParent
             let overrides=fixture.overrides.mapValues { $0 == "collapse" ? HistoryRollupChoice.collapse : .expand }
@@ -30,6 +30,6 @@ struct ProjectionFixture: Decodable {
                 snapshots += 1
             }
         }
-        print("PASS: \(fixtures.count) complete/ compressed/labeled/label-mask/forced/first-parent projections; \(snapshots) visibility/rollup/forced snapshots and visible full-walk lane states match compiled pinned C++ filter/rollup/Lanes/updateLanes bodies; actual parents unchanged")
+        print("PASS: \(fixtures.count) complete/ compressed/labeled/label-mask/forced/first-parent/boundary projections; \(snapshots) visibility/rollup/forced snapshots and visible full-walk lane states match compiled pinned C++ filter/rollup/Lanes/updateLanes bodies; actual parents unchanged")
     }
 }
