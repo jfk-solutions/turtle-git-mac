@@ -15,8 +15,8 @@ pin = '7338078f8ddd924b8cddee35f512f2286072136d'
 assert subprocess.check_output(['git', '-C', str(upstream), 'rev-parse', 'HEAD'], text=True).strip() == pin
 theme = (upstream / 'src/Utils/Theme.cpp').read_text(encoding='utf-8-sig')
 colors = (upstream / 'src/TortoiseProc/Colors.cpp').read_text(encoding='utf-8-sig')
-roles = ['Conflict', 'Modified', 'Merged', 'Deleted', 'Added', 'Renamed']
-values = {role.lower(): [int(c.strip()) for c in re.search(r'\{ ' + role + r',.*?RGB\(([^)]+)\)', colors).group(1).split(',')] for role in roles}
+roles = ['Conflict', 'Modified', 'Merged', 'Deleted', 'Added', 'Renamed','CurrentBranch','LocalBranch','RemoteBranch','Tag','Stash','BisectGood','BisectBad','BisectSkip','NoteNode','OtherRef', *['BranchLine'+str(i) for i in range(1,9)]]
+values = {role.lower(): [int(c.strip(),0) for c in re.search(r'\{ ' + role + r',.*?RGB\(([^)]+)\)', colors).group(1).split(',')] for role in roles}
 values.update({"black":[0,0,0],"white":[255,255,255],"custom":[3,127,249],"bright":[250,240,230]})
 functions = theme[theme.index('void CTheme::RGBtoHSL('):theme.index('std::optional<LRESULT> CTheme::HandleMenuBar')].replace('CTheme::', '')
 header = '#include <algorithm>\n#include <iostream>\n#include <cstdint>\nusing COLORREF=uint32_t; using BYTE=uint8_t;\n#define RGB(r,g,b) (uint32_t(r)|(uint32_t(g)<<8)|(uint32_t(b)<<16))\n#define GetRValue(c) ((c)&255)\n#define GetGValue(c) (((c)>>8)&255)\n#define GetBValue(c) (((c)>>16)&255)\n'
@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-status-colors-native-') as te
     snapshot = directory / 'expected.json'; snapshot.write_text(json.dumps(expected))
     products = root / 'build/Build/Products/Debug'
     receiver = directory / 'status-colors-native-receiver'
-    subprocess.run(['xcrun','swiftc','-parse-as-library','-swift-version','5','-target',platform.machine()+'-apple-macos13.0','-I',str(products),'-F',str(products),str(root/'Sources/TurtleGitMac/Appearance.swift'),str(root/'docs/qa/status-colors-native-2026-10-09.swift'),'-framework','TurtleGitCore','-o',str(receiver)],check=True)
+    subprocess.run(['xcrun','swiftc','-parse-as-library','-swift-version','5','-target',platform.machine()+'-apple-macos13.0','-I',str(products),'-F',str(products),str(root/'Sources/TurtleGitMac/Appearance.swift'),str(root/'Sources/TurtleGitMac/LogAppearance.swift'),str(root/'docs/qa/status-colors-native-2026-10-09.swift'),'-framework','TurtleGitCore','-o',str(receiver)],check=True)
     environment=os.environ.copy(); environment['DYLD_FRAMEWORK_PATH']=str(products)
     subprocess.run([str(receiver),str(snapshot)],env=environment,check=True)
     print('Pinned oracle inputs:', {p:hashlib.sha256((upstream/p).read_bytes()).hexdigest() for p in ['src/Utils/Theme.cpp','src/TortoiseProc/Colors.cpp']})

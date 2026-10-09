@@ -1,6 +1,6 @@
 import AppKit
 import SwiftUI
-import TurtleGitCore
+@testable import TurtleGitCore
 
 @main struct StatusColorsVerification {
     @MainActor static func main() async throws {
@@ -19,10 +19,67 @@ import TurtleGitCore
                 NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
                     let color = dynamic.usingColorSpace(.sRGB)!
                     let channels = [color.redComponent,color.greenComponent,color.blueComponent].map { Int(($0 * 255).rounded()) }
-                    precondition(channels == expected, "AppKit dynamic color mismatch: \(role) \(mode) \(channels) vs \(expected)")
+                    let nativeExpected = reference[role.rawValue]![mode == "dark" || mode == "highContrastDark" ? (NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? "highContrastDark" : "dark") : "light"]!
+                    precondition(channels == nativeExpected, "AppKit dynamic color mismatch: \(role) \(mode) \(channels) vs \(expected)")
                 }
             }
         }
+        for role in LogColorRole.allCases {
+            for (mode,_) in appearances {
+                precondition(StatusTextPalette.transform(role.rgb, dark: mode == "dark" || mode == "highContrastDark", highContrast: mode == "highContrastDark") == reference[role.rawValue.lowercased()]![mode == "highContrastLight" ? "light" : mode]!)
+            }
+            let dynamic = LogPalette.native(role, preferences: preferences)
+            for (mode,name) in appearances {
+                let expected = reference[role.rawValue.lowercased()]![mode == "dark" || mode == "highContrastDark" ? (NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? "highContrastDark" : "dark") : "light"]!
+                NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
+                    let value = dynamic.usingColorSpace(.sRGB)!
+                    let rgb = [value.redComponent,value.greenComponent,value.blueComponent].map { Int(($0 * 255).rounded()) }
+                    precondition(rgb == expected, "Log role RGB \(role) \(mode): \(rgb) expected \(expected)")
+                    let text = LogPalette.foreground(background: value)
+                    precondition(text == (rgb[0]*30 + rgb[1]*59 + rgb[2]*11 <= 12800 ? NSColor.white : NSColor.black))
+                }
+            }
+        }
+        for (name,role) in [("refs/heads/main",LogColorRole.localBranch),("refs/remotes/origin/main",.remoteBranch),("refs/tags/v1",.tag),("refs/stash",.stash),("refs/bisect/good-abc",.bisectGood),("refs/bisect/skip-abc",.bisectSkip),("refs/bisect/bad",.bisectBad),("refs/bisect/goodness",.otherRef),("refs/notes/commits",.noteNode),("refs/custom/value",.otherRef)] {
+            precondition(LogColorRole.reference(RevisionReference(name: name)) == role)
+        }
+        var current = RevisionReference(name: "refs/heads/main"); current.isCurrent = true
+        precondition(LogColorRole.reference(current) == .currentBranch)
+        precondition(LogColorRole.reference(RevisionReference(name: "refs/bisect/old-abc"), goodTerm: "old", badTerm: "new") == .bisectGood)
+        precondition(LogColorRole.reference(RevisionReference(name: "refs/bisect/new"), goodTerm: "old", badTerm: "new") == .bisectBad)
+        precondition(LogColorRole.reference(RevisionReference(name: "refs/bisect/newer"), goodTerm: "old", badTerm: "new") == .otherRef)
+        for index in 0..<24 {
+            NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance {
+                let value = LogPalette.lane(index, preferences: preferences).usingColorSpace(.sRGB)!
+                precondition([value.redComponent,value.greenComponent,value.blueComponent].map { Int(($0 * 255).rounded()) } == LogColorRole.lanes[index % 8].rgb)
+            }
+        }
+        preferences.set(0x010203, forKey: "Colors.Stash")
+        preferences.set(0x040506, forKey: "Colors.Modified")
+        let logSettings = LogColorSettingsModel(preferences: preferences)
+        precondition(!logSettings.changed && logSettings.draft.lineWidth == 2 && logSettings.draft.nodeSize == 10)
+        logSettings.set(.tag, rgb: [3,127,249]); logSettings.setLineWidth(5); logSettings.setNodeSize(20)
+        precondition(logSettings.changed && preferences.object(forKey: "Colors.Tag") == nil)
+        logSettings.cancel(); precondition(!logSettings.changed && logSettings.draft.rgb(.tag) == LogColorRole.tag.rgb)
+        logSettings.set(.tag, rgb: [3,127,249]); logSettings.setLineWidth(5); logSettings.setNodeSize(20); logSettings.apply()
+        precondition(preferences.integer(forKey: "Colors.Tag") == 0x037ff9 && preferences.integer(forKey: LogColorPreferences.lineWidthKey) == 5 && preferences.integer(forKey: LogColorPreferences.nodeSizeKey) == 20)
+        let loaded = LogColorSettingsModel(preferences: preferences)
+        precondition(loaded.draft.rgb(.tag) == [3,127,249] && loaded.draft.lineWidth == 5 && loaded.draft.nodeSize == 20)
+        loaded.restoreDefaults(); precondition(loaded.changed && preferences.integer(forKey: "Colors.Tag") == 0x037ff9)
+        loaded.cancel(); precondition(!loaded.changed && loaded.draft.nodeSize == 20)
+        loaded.restoreDefaults(); loaded.apply()
+        precondition(preferences.integer(forKey: "Colors.Stash") == 0x010203 && preferences.integer(forKey: "Colors.Modified") == 0x040506)
+        preferences.removeObject(forKey: "Colors.Modified")
+        for invalid: Any in [true,-1,0x1000000,1.5,"123"] {
+            preferences.set(invalid, forKey: "Colors.Tag")
+            precondition(LogColorPreferences.load(preferences).rgb(.tag) == LogColorRole.tag.rgb)
+        }
+        preferences.removeObject(forKey: "Colors.Tag")
+        for invalid: Any in [true,0,31,1.5,"2"] {
+            preferences.set(invalid, forKey: LogColorPreferences.nodeSizeKey)
+            precondition(LogColorPreferences.load(preferences).nodeSize == 10)
+        }
+        preferences.removeObject(forKey: LogColorPreferences.nodeSizeKey)
         let cases: [(String,StatusTextRole?)] = [("UU",.conflict),("AU",.conflict),("DD",.conflict),("AA",.conflict),(" M",.modified),("T ",.modified),("AM",.modified),("RM",.modified),("DM",.modified),("A ",.added),("C ",.added),("AD",.added),("D ",.deleted),("RD",.deleted),("R ",.renamed),("??",nil),("!!",nil),("  ",nil)]
         for (status,expected) in cases {
             let renamed = status.contains("R") || status.contains("C")
@@ -61,6 +118,9 @@ import TurtleGitCore
         preferences.set("dark", forKey: "appearance")
         let model = StatusColorSettingsModel(preferences: preferences)
         let updates = StatusColorUpdates.shared
+        let accessibilityRevision = updates.revision
+        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil)
+        precondition(updates.revision == accessibilityRevision + 1)
         let revision = updates.revision
         precondition(!model.changed && preferences.object(forKey: "Colors.Modified") == nil)
         model.set(.modified, rgb: [3,127,249])
@@ -77,7 +137,7 @@ import TurtleGitCore
         for (mode,name) in appearances {
             NSAppearance(named: name)!.performAsCurrentDrawingAppearance {
                 let c = custom.usingColorSpace(.sRGB)!
-                precondition([c.redComponent,c.greenComponent,c.blueComponent].map { Int(($0 * 255).rounded()) } == reference["custom"]![mode == "highContrastLight" ? "light" : mode]!)
+                precondition([c.redComponent,c.greenComponent,c.blueComponent].map { Int(($0 * 255).rounded()) } == reference["custom"]![mode == "dark" || mode == "highContrastDark" ? (NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? "highContrastDark" : "dark") : "light"]!)
             }
         }
         reopened.restoreDefaults(); precondition(reopened.changed && preferences.integer(forKey: "Colors.Modified") == 0x037ff9)
@@ -144,6 +204,6 @@ import TurtleGitCore
         precondition(reopened.draft.rgb(.added) == StatusTextRole.added.rgb && StatusColorPreferences.load(preferences).rgb(.added) == [3,127,249])
         window.close()
         precondition(Set(StatusTextRole.allCases.map { StatusTextPalette.rgb($0, dark: false).description }).count == 6)
-        print("PASS: six pinned default RGB roles and native dynamic Aqua/Dark Aqua/high-contrast light+dark resolutions match independently compiled upstream C++ functions; mixed index/worktree priority, conflict precedence, rename/copy distinctions, neutral normal/unversioned/ignored roles and semantic selected text, neutral LFS success and Conflict LFS error verified. Custom RGB/black/white/clamp reference checks, private preference Apply/Cancel/default/reopening/validation/alias/notification, preserved unrelated preferences and native settings action targets pass. No shared color-panel or pixel/physical visual acceptance claimed.")
+        print("PASS: six status and eighteen Log roles match independently compiled upstream C++ light/dark/high-contrast numeric functions; native dynamic Aqua/Dark and named accessibility appearances follow the actual system Increase Contrast flag; mixed index/worktree priority, conflict precedence, rename/copy distinctions, neutral normal/unversioned/ignored roles and semantic selected text, neutral LFS success and Conflict LFS error verified. Custom RGB/black/white/clamp reference checks, private preference Apply/Cancel/default/reopening/validation/alias/notification, preserved unrelated preferences and native settings action targets pass. Log draft/Apply/Cancel/Restore/preserved noneditable preferences, eight-color cycling and custom/default bisect term boundaries pass. Injected accessibility notification invalidates the observer; actual system setting toggle, shared color-panel and pixel/physical visual acceptance not claimed.")
     }
 }

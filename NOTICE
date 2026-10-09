@@ -906,3 +906,14 @@ behavior and Colors.cpp persisted status roles. Native packed RGB preferences
 use 0xRRGGBB; Apply mirrors Modified to PropertyChanged and updates open list
 owners. Note/OtherRef and graph settings remain outside this partial panel.
 Original TortoiseGit/TortoiseSVN copyright and GPL-2.0-or-later apply.
+
+Log reference backgrounds/weighted contrast, eight BranchLine colors and graph
+line width/node size settings adapt GitLogListBase.cpp and SettingsColors2.cpp /
+SettingsColors3.cpp at the pinned revision, with Colors.cpp and Theme.cpp.
+SettingsColors2 copyright (C) 2009, 2011, 2013, 2018 TortoiseGit and (C) 2003-2008
+TortoiseSVN; SettingsColors3 copyright (C) 2009, 2011, 2013, 2016, 2019 TortoiseGit
+and (C) 2003-2008 TortoiseSVN. Existing upstream GPL version 2 or later terms
+apply to these adaptations. Native preferences preserve separate BisectSkip /
+BisectBad keys rather than copying the upstream duplicate registry key. Graph
+projection/lane assignment/gradients and reference label tracking shapes remain
+partial; this mapping does not establish complete graph parity.

@@ -14,7 +14,7 @@ The file-status defaults now use the pinned CColors RGB values: modified
 (0,50,160), added/copy (100,0,100), deleted (100,0,0), conflict (255,0,0),
 renamed (0,0,255) and merged (0,100,0). Native dynamic colors follow the source
 HSL lightness inversion for dark appearance, including its 5–90 lightness clamp;
-high-contrast dark uses the source's unclamped inversion. Neutral normal,
+high-contrast dark uses the source's unclamped inversion when macOS Increase Contrast is enabled. Neutral normal,
 unversioned and ignored records use native label text. The source's explicit
 GRAY action is a separate Log-filter condition and is not inferred from ignored
 working files. Merged is retained as a palette role; porcelain working statuses
@@ -32,7 +32,7 @@ The Log view subscribes to Apply notifications. Other FileState
 consumers share the exact default roles, but their complete action/selection
 behavior still needs individual source review. Graph lanes and branch/tag labels
 use multiple colors; the patch view distinguishes additions, removals and hunks.
-Remote-specific roles and the remaining CColors settings (Note/OtherRef, graph and other consumers) remain pending.
+Log reference roles and graph colors are described below. Other CColors consumers and the filter-match setting remain pending.
 
 [Status color QA](qa/status-colors-2026-10-09.json) compares numeric RGB values
 and Aqua/Dark Aqua/high-contrast dark AppKit resolutions against independently
@@ -80,13 +80,54 @@ binding, AppKit action targets, private preference round trips, draft/Cancel/
 Default/Restore semantics, validation, alias and notification assertions.
 Live recoloring across every already-open application window, shared color-panel
 interaction, current pixels/contrast and signed deployment remain unverified.
-Note/OtherRef controls, graph settings and full upstream Colors page parity are
-still pending.
+Note/OtherRef controls and Log graph settings are now provided by the Log tab
+below. Full upstream Colors page parity and remaining consumers are still pending.
 
 [Log status-color QA](qa/log-status-colors-2026-10-09.json) checks the real
 historical and working-tree path/filter fixtures with Apple and bundled Git,
 saved custom Modified/Renamed colors, gray/selection precedence and unchanged
 HEAD/index/file bytes. The dedicated palette receiver checks action mapping
 including T/K and scored R/C records. These checks do not prove displayed
-Log repaint, physical selection contrast or visual parity; graph and label
-colors remain separate pending work.
+Log repaint, physical selection contrast or visual parity; exact graph topology/gradients and reference-label shape/tracking remain separate pending work.
+
+## Log labels and graph
+
+The Log now uses the pinned colors for CurrentBranch, LocalBranch, RemoteBranch,
+Tag, Stash, BisectGood/Bad/Skip, NoteNode and OtherRef. Reference labels have
+opaque backgrounds, with white or black text selected by the source's weighted
+RGB threshold. Colors adapt through the same dark conversion as file statuses.
+The former generic translucent red/yellow/orange/green labels are removed.
+Bisect term boundaries and custom good/bad terms are read from an active session.
+Native `Colors.BisectSkip` is distinct from `Colors.BisectBad`; upstream's
+BisectSkip registry entry accidentally repeats the Bad key. Windows registry
+preferences are not imported.
+
+Settings' Log tab provides six reference color wells and eight branch-line
+color wells, per-color Default, draft Cancel/Apply, Restore Defaults, line widths
+1–10 (default 2) and node sizes 1–30 (default 10). Stash/Bisect custom values and
+unrelated status preferences are preserved. Restore resets this tab's editable
+colors and geometry, matching the source defaults. FilterMatch and revision-graph
+"use local color for current branch" are not exposed until their consumers are
+ported. Native reference/graph settings combine the relevant source pages;
+the exact source page grouping still needs review.
+
+The graph cycles through the eight source BranchLine colors. Its lane width is
+three quarters of row height and node radius is the integer lane width times
+node size divided by 30. Line width uses the saved setting. Existing graph
+projection uses stable branch color IDs; upstream's lane-index assignment,
+active merge color, gradients, lane shapes and complete topology parity remain
+pending. The revision table reloads existing cells after Apply while retaining
+selection and scroll state through the existing update logic.
+
+AppKit on this host resolves named accessibility appearances to ordinary
+Aqua/Dark Aqua when system Increase Contrast is off. `bestMatch` therefore cannot
+by itself prove high-contrast color resolution. Color providers now read the
+actual macOS Increase Contrast flag, and consumers observe accessibility display
+option changes. The independent C++ oracle verifies unclamped numeric conversion;
+physical acceptance with the system flag toggled remains pending. Earlier QA
+records mentioning named high-contrast native appearances are historical and
+do not establish system-enabled high-contrast behavior.
+
+[Log palette QA](qa/log-palette-2026-10-09.json) records oracle comparisons,
+private preferences and hidden native settings/revision-table acceptance.
+No new screenshot or physical/signed acceptance is implied.

@@ -1541,3 +1541,17 @@ Column autosave is disabled only in the isolated fixture. See
 [revision-table font QA](qa/log-table-font-2026-10-08.json). Physical Advanced
 editing, selection/scroll/column-layout preservation, visible graph composition,
 light/dark appearance and all shared GitLogListBase consumers remain unverified.
+
+## Reference and graph color follow-up
+
+The Log now uses saved pinned CColors reference roles with opaque backgrounds
+and source weighted contrast text, plus eight BranchLine colors and saved line
+width/node size. Native Settings adds a Log tab with reference/graph wells and
+source geometry ranges/defaults. The existing native revision table subscribes
+to Apply and accessibility display option changes and reloads its cells, with
+private defaults shared by labels and graph cells. See
+[appearance details](APPEARANCE.md) and [palette QA](qa/log-palette-2026-10-09.json).
+Graph lane-index/merge color, gradients/topology and label borders/tracking
+shapes/symbolization still need source parity; physical contrast and signed
+acceptance remain pending. Named accessibility appearances alone do not enable
+system Increase Contrast on this host; native providers use the actual flag.

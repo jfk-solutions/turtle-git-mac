@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-09",
+  "parent_checkpoint": "1962822",
+  "scope": "Log reference/graph colors and native settings; whole application port remains active",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_blobs": {
+    "src/TortoiseProc/GitLogListBase.cpp": "19518f37689e19b7e913c9ff8cc9d65ec223c187",
+    "src/TortoiseProc/Colors.cpp": "f83b8e189b041998f4627aa0da31c38f6899394e",
+    "src/Utils/Theme.cpp": "619a0b07219aa0fadefba8692cb35ebda3fd03c3",
+    "src/TortoiseProc/Settings/SettingsColors.cpp": "cc8a00046fa3fbf39f5ec465de68f75f23ed5995",
+    "src/TortoiseProc/Settings/SettingsColors2.cpp": "f7e9d4bb7d159d02db11fc7ce180a74576d78c6b",
+    "src/TortoiseProc/Settings/SettingsColors3.cpp": "36f21b532c07cca7c39d7de7c43857a85e285fac",
+    "src/Git/Git.cpp": "43dee91dbf94e46564b4cc1a139717fcbd8f6803"
+  },
+  "sources_manifest_sha256": "6bbeb688fb61bd6b4750d322c94cce394fcf3d8b2995d377be0a05dada68ebd9",
+  "changed_files_sha256": {
+    "NOTICE": "1c0d462f36e757191591bfec3357643690706e0f7ec36cff7e452454eab003b1",
+    "Sources/TurtleGitMac/Appearance.swift": "c47e6982098ca5bbda4ad9241cb792847f3cb06ac488a2e93b8e87877d3cf76a",
+    "Sources/TurtleGitMac/LogAppearance.swift": "c26bba20341e26e152901144bd3beb59b677203576d2d41a004be26273a6ba71",
+    "Sources/TurtleGitMac/LogWindow.swift": "dd6d6c8c15f674526d901c76c8eb97c0bbdadb99add80c44c8816e14f1b83e11",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "45a6c3bfdd17d659ca831cd8d98e559544eecfcf8c2212f59c3c87007fd1f15d",
+    "docs/APPEARANCE.md": "07bb1fc0cc768fdae10825aef240f67389efe980d8f0c5b662389214c963e21c",
+    "docs/LOG-PARITY.md": "f25c68055e1313aeacb4ac0ef8364bcbbce08bc0995c440609149f0edf2f2ec1",
+    "docs/qa/log-palette-native-2026-10-09.swift": "af522941de04e9535221154395db958753307d68f5384b0530c1a4d5d3d45ba4",
+    "docs/qa/status-colors-native-2026-10-09.swift": "762ba3b657375702d3772a2b3e028dd52810dbdecf4a433be61474b8b3615754",
+    "docs/upstream-files.csv": "dcafb7fbe11131159faeeaf1a745813cc5c3b2a7bdf1e6e87251fc3ba9776394",
+    "scripts/test-log-palette.py": "f57a90e1f67761a82fd13d9ebb93748617b611e01dcfe1529b5e70654e4ed993",
+    "scripts/test-status-colors.py": "2dbc6f038a754e629bcccc1b499487e8b7b8b14144026454f948ace8bd2d3f1f"
+  },
+  "verification": {
+    "palette": "Final independent pinned C++ RGB/HSL oracle checks six status plus eighteen Log defaults in light/dark/high-contrast numeric modes. Native dynamic resolution checks Aqua/Dark and named accessibility appearances using actual system Increase Contrast flag; eight-color cycling, source contrast threshold, default/custom bisect term boundaries.",
+    "preferences": "Private Log draft/Cancel/Apply/reopen/Restore, saved tag/geometry, valid ranges and malformed values; preserved non-editable Stash and unrelated Modified. Source duplicate BisectSkip registry key deliberately represented as separate native key, no registry import. Existing status preferences/alias/native control regression retained. Injected NSWorkspace accessibility display-options notification increments revision; no real system flag change claimed.",
+    "native": "Final receiver passes Apple /usr/bin/git and prepared bundled Git. Real current/local/remote/tag/stash/bisect/note/other references produce correct opaque attributed backgrounds and contrast text in actual hidden RevisionTable. Apply and Restore update existing table; selected row/model selection retained. GraphCell receives private width/node/color preferences and actual offscreen cacheDisplay drawing executes (no pixel geometry parity assertion). Fourteen native color wells/default controls and public target/actions, actual Cancel/Apply/Restore, draft-only reset, hidden owned windows; real active old/new bisect metadata and All Branches endpoint routing with unchanged Log HEAD.",
+    "debug": "Final unsigned Debug package build/audit pass, with new source/project entries.",
+    "store": "Unsigned AppStore build and required Git/Git LFS bundle audit pass. Current NOTICE verified in both products. Build runs after all native receivers terminal; no shared-products concurrency.",
+    "inventory": "Ten partial source mappings extended/reviewed; pinned inventory and diff checks pass.",
+    "site": "Local site generation passes. No screenshots refreshed or deployment claim."
+  },
+  "iterations": [
+    "First two expanded palette runs found black BranchLine1 resolving named accessibility appearance through normal dark clamp [229,229,229] instead of nominal high-contrast [255,255,255]. Standalone public AppKit diagnostic shows named accessibility bestMatch/provider fallback to Dark/Aqua with system Increase Contrast off. Production now reads actual NSWorkspace flag, observes its display-options notification, and tests separate numeric source mode from runtime flag. Earlier QA claims about named high-contrast appearances are qualified in appearance guide.",
+    "First native receiver passes both engines. Extended real custom-term session initially failed an endpoint-count assertion because default HEAD ancestry excludes newer bad endpoint after bisect checkout. Fixture corrected to All Branches; complete final receiver passes both engines without weakening endpoint/term assertions."
+  ],
+  "limitations": [
+    "Exact upstream lane-index assignment, active merge color, gradients/lane shapes and topology parity remain pending; current projection uses stable branch color IDs.",
+    "Reference tracking borders/shapes/symbolization, FilterMatch consumer/setting, revision-graph local-current color option, other CColors consumers and exact settings page grouping remain pending.",
+    "No physical pixels/contrast/keyboard/gestures, actual system Increase Contrast toggle, signed sandbox or distribution/license clearance; old screenshots not refreshed.",
+    "Unsigned AppStore build cannot establish App Store acceptance. GitHub push/CI status unavailable; new native receiver not added to existing CI pipeline this turn."
+  ],
+  "cleanup": {
+    "main_app_launches": 0,
+    "private_preference_files_removed": 7,
+    "preference_cleanup_sha256": "60666035a9ccd1ba3f0acd5b311830eee275b73bf21512095bfec6954bf72398",
+    "windows": "Successful receivers close owned hidden windows; failed assertion receiver terminates and OS closes windows. Standalone appearance diagnostic displays no window.",
+    "process_audit": "No owned receiver/main app processes, private fixture directories or private LogPalette/StatusColors preference plists remain. Exact temporary appearance diagnostic source removed."
+  },
+  "local_log_sha256": {
+    "build/qa/log-palette-2026-10-09/appearance-diagnostic.log": "54716a1cb675e3773d25850beeb60b1c7e8c8bfd45f7f9aca3934d9628dea831",
+    "build/qa/log-palette-2026-10-09/colors-diagnostic.log": "ed1620caff1529af231b1afd47afc80b38d92c54b3e21ba83e7175800a4b2503",
+    "build/qa/log-palette-2026-10-09/colors-final.log": "298fddfb1e2cec7661284eafbb0e26dec84378d0838e15d4b43b4b7271cbc0de",
+    "build/qa/log-palette-2026-10-09/colors-package-final.log": "3ca742e5b103007e68a34574f46cb1adb3191da32ec4ad3d02dceb8d2757667d",
+    "build/qa/log-palette-2026-10-09/colors.log": "d364aa0fd10aeab33323764f0a83ae51621677c1cf46a9beb8bd8e0f8771ab69",
+    "build/qa/log-palette-2026-10-09/debug-audit.log": "17ec5e9f083580e9b615f3187f0e74345b98ebbe8ad51a2e5ac6614522cb3c6c",
+    "build/qa/log-palette-2026-10-09/debug-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-palette-2026-10-09/debug-package-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
+    "build/qa/log-palette-2026-10-09/debug.log": "9273b00a35fec45e56e00c5aeaa2bd70c4bd9d0954803e575d5044d686203caf",
+    "build/qa/log-palette-2026-10-09/native-bisect-final.log": "436fb3356189609aef8b9ec6a413ad426071929fe2b0d0ded9ffcdf7d896e6dc",
+    "build/qa/log-palette-2026-10-09/native-final.log": "195d739992f103bd80ab6f4f0c89356c49c1d26db318e13b7162d353610dbb62",
+    "build/qa/log-palette-2026-10-09/native.log": "af4ab5ac408506198967b86882ed3d7a119487119128bce8764140fc3b26f3ff",
+    "build/qa/log-palette-2026-10-09/pin.log": "1f2863299a2589832909bde9a976c0bb71dfde543c0b19064b946a7407c0f23d",
+    "build/qa/log-palette-2026-10-09/site.log": "a22804294d18e8bfe31bf0f48dc11312e74bf924516b69390b88c31d74702a7f",
+    "build/qa/log-palette-2026-10-09/store-audit.log": "a6c20d1dbe2214a83681e5dc43e64c84257a0562802a390118002c58ee29de71",
+    "build/qa/log-palette-2026-10-09/store.log": "d49d66019cee8126be6a5d267f93075d9024710ce2e657c64ad0306ed17c60ca"
+  }
+}

@@ -29,6 +29,7 @@ enum AppearanceChoice: String, CaseIterable, Identifiable {
 struct AppearanceSettings: View {
     @ObservedObject var appearance: AppAppearance
     @StateObject private var colors = StatusColorSettingsModel()
+    @StateObject private var logColors = LogColorSettingsModel()
     var body: some View {
         Form {
             Picker("Appearance", selection: $appearance.choice) {
@@ -36,7 +37,10 @@ struct AppearanceSettings: View {
             }.pickerStyle(.radioGroup)
             Text("Status colors, graph lanes and original command icons retain their colors in both appearances.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-            StatusColorsSettings(model: colors)
+            TabView {
+                StatusColorsSettings(model: colors).tabItem { Text("Status") }
+                ScrollView { LogColorsSettings(model: logColors).padding(8) }.tabItem { Text("Log") }
+            }.frame(height: 490)
         }.padding(20).frame(width: 590)
     }
 }
@@ -98,12 +102,18 @@ enum StatusTextPalette {
         }
         return [channel(h + 0.33333), channel(h), channel(h - 0.33333)]
     }
+    static func appearanceTraits(_ appearance: NSAppearance) -> (dark: Bool, highContrast: Bool) {
+        let dark = appearance.bestMatch(from: [.darkAqua,.aqua]) == .darkAqua
+        // AppKit resolves named accessibility appearances to Aqua/Dark Aqua
+        // when system Increase Contrast is off. Read the actual accessibility
+        // setting; bestMatch alone cannot distinguish the high-contrast mode.
+        return (dark, NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast)
+    }
     static func native(_ role: StatusTextRole, preferences: UserDefaults = .standard) -> NSColor {
         let base = StatusColorPreferences.load(preferences).rgb(role)
         return NSColor(name: nil) { appearance in
-            let match = appearance.bestMatch(from: [.accessibilityHighContrastDarkAqua,.accessibilityHighContrastAqua,.darkAqua,.aqua])
-            let dark = match == .darkAqua || match == .accessibilityHighContrastDarkAqua
-            let channels = transform(base, dark: dark, highContrast: match == .accessibilityHighContrastDarkAqua)
+            let mode = appearanceTraits(appearance)
+            let channels = transform(base, dark: mode.dark, highContrast: mode.highContrast)
             return NSColor(srgbRed: CGFloat(channels[0]) / 255, green: CGFloat(channels[1]) / 255, blue: CGFloat(channels[2]) / 255, alpha: 1)
         }
     }
@@ -207,12 +217,17 @@ final class StatusColorUpdates: ObservableObject {
     static let shared = StatusColorUpdates()
     @Published private(set) var revision = 0
     private var observer: NSObjectProtocol?
+    private var accessibilityObserver: NSObjectProtocol?
     private init() {
         observer = NotificationCenter.default.addObserver(forName: .statusColorsChanged, object: nil, queue: .main) { [weak self] _ in
             self?.revision += 1
         }
+        accessibilityObserver = NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in self?.revision += 1 }
     }
-    deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
+    deinit {
+        if let observer { NotificationCenter.default.removeObserver(observer) }
+        if let accessibilityObserver { NSWorkspace.shared.notificationCenter.removeObserver(accessibilityObserver) }
+    }
 }
 
 @MainActor final class StatusColorSettingsModel: ObservableObject {
@@ -267,7 +282,7 @@ struct StatusColorsSettings: View {
     }
 }
 
-@MainActor private struct StatusColorButton: NSViewRepresentable {
+@MainActor struct StatusColorButton: NSViewRepresentable {
     let title: String
     let action: () -> Void
     @Environment(\.isEnabled) private var enabled

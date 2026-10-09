@@ -412,6 +412,8 @@ struct LogCommandRequest: Identifiable {
     @Published var mergeActive = false
     @Published var conflictRebase = false
     @Published var bisectActive = false
+    @Published private(set) var bisectGoodTerm = "good"
+    @Published private(set) var bisectBadTerm = "bad"
     @Published var hasStash = false
     @Published var hasSubmodules = false
     var onWorkingCommand: ((RepositoryAction) -> Void)?
@@ -608,6 +610,7 @@ struct LogCommandRequest: Identifiable {
         showUnversionedFiles.toggle(); labelDefaults.set(showUnversionedFiles, forKey: "AddBeforeCommit"); updateWorkingFiles()
         selectedFiles.formIntersection(Set(visibleFiles.map(\.id)))
     }
+    var colorPreferences: UserDefaults { labelDefaults }
     func fileForeground(_ file: CommitFile, selected: Bool) -> Color {
         file.statusTextColor(selected: selected, gray: grayFile(file), preferences: labelDefaults)
     }
@@ -1055,6 +1058,7 @@ struct LogCommandRequest: Identifiable {
                 let bare = try await repository.run(["rev-parse", "--is-bare-repository"], cancellation: cancellation).text.trimmingCharacters(in: .newlines) == "true"
                 let mergeActive = try await repository.logMergeActive(cancellation: cancellation)
                 let metadata = try await repository.finderMetadata(), bisectActive = metadata.bisectActive
+                let bisect = bisectActive ? try await repository.bisectState() : nil
                 let conflictRebase: Bool
                 if bare { conflictRebase = false } else { conflictRebase = try await repository.conflictIsRebase() }
                 let currentBranch = try await repository.branch()
@@ -1068,7 +1072,7 @@ struct LogCommandRequest: Identifiable {
                 let submodules = working == nil ? Set<String>() : try await repository.submodulePaths()
                 if let working { result.insert(working.entry, at: 0) }
                 guard request == generation else { return }
-                self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.currentBranch = currentBranch; self.issueProperties = issueProperties
+                self.bare = bare; self.mergeActive = mergeActive; self.bisectActive = bisectActive; self.bisectGoodTerm = bisect?.goodTerm ?? "good"; self.bisectBadTerm = bisect?.badTerm ?? "bad"; self.currentBranch = currentBranch; self.issueProperties = issueProperties
                 self.conflictRebase = conflictRebase
                 hasStash = metadata.hasStash; hasSubmodules = metadata.hasSubmoduleConfig
                 canFollowRenames = followAllowed
@@ -2133,6 +2137,7 @@ private enum LogRevisionColumns {
 }
 
 struct RevisionTable: NSViewRepresentable {
+    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: LogWindowModel
     var savesColumnLayout = true
     @AppStorage("LogFontForLogCtrl") private var useLogFont = false
@@ -2173,21 +2178,23 @@ struct RevisionTable: NSViewRepresentable {
         guard let table = coordinator.table else { return }
         coordinator.updating = true
         let dateSettings = HistoryDateSettings(shortDate: shortDate, relative: relativeTimes, useSystemLocale: useSystemLocale)
+        let colorsChanged = coordinator.colorRevision != statusColorUpdates.revision
+        coordinator.colorRevision = statusColorUpdates.revision
         let datesChanged = coordinator.dateSettings != dateSettings; coordinator.dateSettings = dateSettings
         let font = useLogFont ? MessageEditorFont.resolve(name: fontName, size: fontSize) : nil
         let fontChanged = coordinator.logFont != font; coordinator.logFont = font
         table.rowHeight = font.map { max(24, ceil($0.ascender - $0.descender + $0.leading) + 4) } ?? 24
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs")
-        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
+        let signature = model.entries.map { $0.hash + $0.references.map(\.name).joined() + String($0.isHead) + model.bisectGoodTerm + model.bisectBadTerm + $0.issueIDs + String(model.revisionActions[$0.hash]?.rawValue ?? -1) + String(model.actionFailures.contains($0.hash)) + String(model.rollupInfo[$0.hash]?.collapsed ?? false) }
         let labelsChanged = coordinator.referenceVisibility != model.referenceVisibility
         coordinator.referenceVisibility = model.referenceVisibility
         let highlightChanged = coordinator.highlightedRevision != model.highlightedRevision
         coordinator.highlightedRevision = model.highlightedRevision
-        if signature != coordinator.signature || datesChanged || highlightChanged || labelsChanged || fontChanged {
+        if signature != coordinator.signature || datesChanged || highlightChanged || labelsChanged || fontChanged || colorsChanged {
             coordinator.signature = signature
             table.reloadData()
             if let column = table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph")) {
-                column.width = max(column.width, CGFloat(max(65, min(240, (model.graph.map(\.width).max() ?? 1) * 14 + 24))))
+                column.width = max(column.width, CGFloat(max(65, min(240, Int(CGFloat(model.graph.map(\.width).max() ?? 1) * floor(table.rowHeight * 3 / 4)) + 24))))
             }
         }
         let indices = IndexSet(model.entries.enumerated().compactMap { model.selected.contains($0.element.hash) ? $0.offset : nil })
@@ -2217,12 +2224,13 @@ struct RevisionTable: NSViewRepresentable {
         var highlightedRevision: String?
         var referenceVisibility = HistoryReferenceVisibility.all
         var scrollRequest = 0
+        var colorRevision = -1
         init(model: LogWindowModel) { self.model = model }
         func numberOfRows(in tableView: NSTableView) -> Int { model.entries.count }
         func tableView(_ tableView: NSTableView, viewFor column: NSTableColumn?, row: Int) -> NSView? {
             let entry = model.entries[row]
             if column?.identifier.rawValue == "graph" {
-                let view = GraphCell(); view.graph = model.graph[row]; view.setAccessibilityLabel("\(entry.parents.count) parents, graph lane \(model.graph[row].column + 1)")
+                let view = GraphCell(); view.graph = model.graph[row]; view.preferences = model.colorPreferences; view.setAccessibilityLabel("\(entry.parents.count) parents, graph lane \(model.graph[row].column + 1)")
                 return view
             }
             if column?.identifier.rawValue == "actions" {
@@ -2265,8 +2273,9 @@ struct RevisionTable: NSViewRepresentable {
             default:
                 let label = NSMutableAttributedString()
                 for reference in model.visibleReferences(for: entry) {
-                    let color: NSColor = reference.isCurrent ? .systemRed : reference.name.hasPrefix("refs/tags/") ? .systemYellow : reference.name.hasPrefix("refs/remotes/") ? .systemOrange : .systemGreen
-                    label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color.withAlphaComponent(0.3), .font: logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)]))
+                    let color = LogPalette.native(LogColorRole.reference(reference, goodTerm: model.bisectGoodTerm, badTerm: model.bisectBadTerm), preferences: model.colorPreferences)
+                    let foreground = NSColor(name: nil) { _ in LogPalette.foreground(background: color) }
+                    label.append(NSAttributedString(string: " \(reference.label) ", attributes: [.backgroundColor: color, .foregroundColor: foreground, .font: logFont ?? NSFont.systemFont(ofSize: 11, weight: .medium)]))
                     label.append(NSAttributedString(string: " "))
                 }
                 label.append(NSAttributedString(string: entry.subject, attributes: [.font: text.font!]))
@@ -2472,26 +2481,29 @@ final class HistoryTableView: NSTableView {
 
 final class GraphCell: NSView {
     var graph: CommitGraphRow? { didSet { needsDisplay = true } }
+    var preferences: UserDefaults = .standard { didSet { needsDisplay = true } }
     override var isFlipped: Bool { true }
     override func draw(_ dirtyRect: NSRect) {
         guard let graph else { return }
-        let colors: [NSColor] = [.systemBlue, .systemRed, .systemGreen, .systemOrange, .systemPurple, .systemTeal]
-        func point(_ column: Int, _ y: CGFloat) -> NSPoint { NSPoint(x: 12 + CGFloat(column) * 14, y: y) }
+        let settings = LogColorPreferences.load(preferences)
+        let laneWidth = floor(bounds.height * 3 / 4)
+        let radius = floor(laneWidth * CGFloat(settings.nodeSize) / 30)
+        func point(_ column: Int, _ y: CGFloat) -> NSPoint { NSPoint(x: laneWidth / 2 + CGFloat(column) * laneWidth, y: y) }
         let mid = bounds.height / 2
         for edge in graph.edges {
-            let path = NSBezierPath(); path.lineWidth = 1.5
-            let start = point(edge.from, edge.startsAtNode ? mid + (graph.collapsed ? 3.5 : 0) : 0)
-            let end = point(edge.to, edge.endsAtNode ? mid - (graph.collapsed ? 3.5 : 0) : bounds.height)
+            let path = NSBezierPath(); path.lineWidth = CGFloat(settings.lineWidth)
+            let start = point(edge.from, edge.startsAtNode ? mid + (graph.collapsed ? radius : 0) : 0)
+            let end = point(edge.to, edge.endsAtNode ? mid - (graph.collapsed ? radius : 0) : bounds.height)
             path.move(to: start)
             if edge.from == edge.to { path.line(to: end) }
             else { path.curve(to: end, controlPoint1: NSPoint(x: start.x, y: (start.y + end.y) / 2), controlPoint2: NSPoint(x: end.x, y: (start.y + end.y) / 2)) }
-            colors[edge.color % colors.count].setStroke(); path.stroke()
+            LogPalette.lane(edge.color, preferences: preferences).setStroke(); path.stroke()
         }
         let position = point(graph.column, mid)
-        let rect = NSRect(x: position.x - 3.5, y: position.y - 3.5, width: 7, height: 7)
-        colors[graph.color % colors.count].setFill()
+        let rect = NSRect(x: position.x - radius, y: position.y - radius, width: radius * 2, height: radius * 2)
+        LogPalette.lane(graph.color, preferences: preferences).setFill()
         let node = graph.junction ? NSBezierPath(rect: rect) : NSBezierPath(ovalIn: rect)
-        if graph.collapsed { colors[graph.color % colors.count].setStroke(); node.lineWidth = 1; node.stroke() }
+        if graph.collapsed { LogPalette.lane(graph.color, preferences: preferences).setStroke(); node.lineWidth = CGFloat(settings.lineWidth); node.stroke() }
         else { node.fill() }
     }
 }
